@@ -143,7 +143,7 @@ pub fn create_cota_de_malla() -> Equipment {
 
 pub fn create_armadura_de_cuir() -> Equipment {
     Equipment::new("Armadura de cuir", EquipmentSlot::Torso)
-        .with_defense_flat(2)
+        .with_defense_flat(1)
         .with_speed(-1)
 }
 
@@ -569,7 +569,7 @@ pub fn create_fighter(name: &str) -> Character {
                 turns: 2,
             }),
     ];
-    let mut character = Character::new(name, 3, 3, 0, 2, 2, cards, "Fighter");
+    let mut character = Character::new(name, 3, 2, 0, 2, 2, cards, "Fighter");
     character.equip(create_armadura_de_cuir());
     character.equip(create_bracals_de_cuir());
     character
@@ -630,8 +630,9 @@ pub fn create_rogue(name: &str) -> Character {
             .with_magic_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1),
     ];
-    let mut character = Character::new(name, 3, 2, 1, 1, 4, cards, "Rogue");
+    let mut character = Character::new(name, 3, 2, 2, 1, 4, cards, "Rogue");
     character.equip(create_armadura_de_cuir());
+    character.equip(create_bracals_de_cuir());
     character
 }
 
@@ -663,7 +664,7 @@ pub fn create_goblin_shaman(name: &str) -> Character {
             .with_speed_mod(0),
         Card::new("Possessió demoníaca", CardType::Focus)
             .with_speed_mod(-4)
-            .with_effect(SpecialEffect::MagicBoost(5)),
+            .with_effect(SpecialEffect::MagicBoost(4)),
         Card::new("Set de sang", CardType::Focus)
             .with_speed_mod(-3)
             .with_effect(SpecialEffect::BloodThirst),
@@ -2212,7 +2213,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
                 turns: 2,
             }),
     ];
-    Character::new(name, 3, 3, 0, 2, 2, cards, "Fighter")
+    Character::new(name, 3, 2, 0, 2, 2, cards, "Fighter")
 }
 
 pub fn create_wizard_naked(name: &str) -> Character {
@@ -2297,7 +2298,7 @@ pub fn create_goblin_shaman_naked(name: &str) -> Character {
             .with_speed_mod(0),
         Card::new("Possessió demoníaca", CardType::Focus)
             .with_speed_mod(-4)
-            .with_effect(SpecialEffect::MagicBoost(5)),
+            .with_effect(SpecialEffect::MagicBoost(4)),
         Card::new("Set de sang", CardType::Focus)
             .with_speed_mod(-3)
             .with_effect(SpecialEffect::BloodThirst),
