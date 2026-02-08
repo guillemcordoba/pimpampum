@@ -624,8 +624,11 @@ pub fn create_rogue(name: &str) -> Character {
             .with_speed_mod(3)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
         Card::new("Enverinar arma", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(2)
             .with_effect(SpecialEffect::PoisonWeapon),
+        Card::new("Foc alquímic", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(2, 6, 0))
+            .with_speed_mod(1),
     ];
     let mut character = Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue");
     character.equip(create_armadura_de_cuir());
@@ -2225,8 +2228,11 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_speed_mod(3)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
         Card::new("Enverinar arma", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(2)
             .with_effect(SpecialEffect::PoisonWeapon),
+        Card::new("Foc alquímic", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(2, 6, 0))
+            .with_speed_mod(1),
     ];
     Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue")
 }

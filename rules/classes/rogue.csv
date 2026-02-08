@@ -8,4 +8,5 @@ Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Ballesta,Atac físic,1d6,,,3,
 ,Dagues,Atac físic,1d4,,,3,Pot atacar a dos enemics alhora.
 ,El·lusió,Focus,,,,3,Esquiva tots els atacs que se't farien aquest torn. Velocitat +3 al següent torn.
-,Enverinar arma,Focus,,,,0,"Tria un aliat. Durant la resta del combat, els seus atacs físics causen una ferida addicional."
+,Enverinar arma,Focus,,,,2,"Tria un aliat. Durant la resta del combat, els seus atacs físics causen una ferida addicional."
+,Foc alquímic,Atac màgic,,2d6,,1,
