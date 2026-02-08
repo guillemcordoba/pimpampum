@@ -627,7 +627,7 @@ pub fn create_rogue(name: &str) -> Character {
             .with_speed_mod(2)
             .with_effect(SpecialEffect::PoisonWeapon),
         Card::new("Foc alquímic", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(2, 6, 0))
+            .with_magic_attack(DiceRoll::new(1, 10, 0))
             .with_speed_mod(1),
     ];
     let mut character = Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue");
@@ -2231,7 +2231,7 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_speed_mod(2)
             .with_effect(SpecialEffect::PoisonWeapon),
         Card::new("Foc alquímic", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(2, 6, 0))
+            .with_magic_attack(DiceRoll::new(1, 10, 0))
             .with_speed_mod(1),
     ];
     Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue")
