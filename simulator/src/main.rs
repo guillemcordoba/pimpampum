@@ -202,9 +202,9 @@ pub enum SpecialEffect {
     EnemySpeedDebuff(i32),             // Raig de gel: -2 speed next turn
     EnemyStrengthDebuff(i32),          // -X strength next turn
     EmbestidaEffect,                   // Embestida: target -2 speed, self -3 speed next turn
-    BlindingSmoke,                     // Fum cegador: enemies -3 speed, allies +2
-    DodgeWithSpeedBoost,               // El·lusió: +2 speed next turn
-    CoordinatedAmbush,                 // Emboscada: allies +1d6 vs target
+    BlindingSmoke,                     // Fum cegador: enemies -4 speed, allies +2
+    DodgeWithSpeedBoost,               // El·lusió: +3 speed next turn
+    CoordinatedAmbush,                 // Emboscada: allies +1d8 vs target
     Sacrifice,                         // Sacrifici: redirect attacks
     Vengeance,                         // Venjança: counter-attack
     EnchantWeapon,                     // Encantar arma: +1d6 to attacks
@@ -212,6 +212,7 @@ pub enum SpecialEffect {
     AbsorbPain,                        // Absorvir dolor: +1 defense if absorbs
     MultiTarget(u8),                   // Dagues/Pluja de flames: hit multiple targets
     DefendMultiple(u8),                // Pantalla protectora: defend 3 allies
+    PoisonWeapon,                      // Enverinar arma: ally physical attacks deal extra wound
 }
 
 /// A card that can be played during combat
@@ -353,6 +354,7 @@ pub struct Character {
     pub played_card_idx: Option<usize>,
     pub wounded_this_combat: bool,
     pub has_absorb_pain: bool,
+    pub has_poison_weapon: bool,
 }
 
 impl Character {
@@ -387,6 +389,7 @@ impl Character {
             played_card_idx: None,
             wounded_this_combat: false,
             has_absorb_pain: false,
+            has_poison_weapon: false,
         }
     }
 
@@ -506,6 +509,7 @@ impl Character {
         self.played_card_idx = None;
         self.wounded_this_combat = false;
         self.has_absorb_pain = false;
+        self.has_poison_weapon = false;
     }
 
     pub fn reset_for_new_round(&mut self) -> bool {
@@ -604,7 +608,7 @@ pub fn create_rogue(name: &str) -> Character {
             .with_speed_mod(4)
             .with_effect(SpecialEffect::CoordinatedAmbush),
         Card::new("Fum cegador", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::BlindingSmoke),
         Card::new("Braçals de cuir", CardType::Defense)
             .with_defense(DiceRoll::new(1, 4, 0))
@@ -614,13 +618,19 @@ pub fn create_rogue(name: &str) -> Character {
             .with_speed_mod(3),
         Card::new("Dagues", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
-            .with_speed_mod(1)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("El·lusió", CardType::Focus)
-            .with_speed_mod(2)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
+        Card::new("Enverinar arma", CardType::Focus)
+            .with_speed_mod(2)
+            .with_effect(SpecialEffect::PoisonWeapon),
+        Card::new("Foc alquímic", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(1, 6, 0))
+            .with_speed_mod(1),
     ];
-    let mut character = Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue");
+    let mut character = Character::new(name, 3, 2, 2, 1, 4, cards, "Rogue");
     character.equip(create_armadura_de_cuir());
     character
 }
@@ -879,6 +889,7 @@ impl CombatEngine {
             } else if card.card_type.is_focus() {
                 match &card.effect {
                     SpecialEffect::StrengthBoost(_) | SpecialEffect::MagicBoost(_) => weight += 8.0,
+                    SpecialEffect::PoisonWeapon => weight += 10.0,
                     SpecialEffect::DodgeWithSpeedBoost => {
                         if character.current_wounds >= character.max_wounds - 1 {
                             weight += 15.0;
@@ -1112,8 +1123,8 @@ impl CombatEngine {
 
         if total_attack > total_defense {
             // Attack succeeds - but who takes the wound?
-            // If there was a defender, the DEFENDER takes the wound, not the target
-            if let Some((def_team, def_idx, def_name)) = defender_info {
+            // Track wound recipient for poison weapon check
+            let (wound_team, wound_idx, wound_name) = if let Some((def_team, def_idx, def_name)) = defender_info {
                 // Defender takes the wound
                 self.check_focus_interruption(def_team, def_idx);
 
@@ -1136,6 +1147,7 @@ impl CombatEngine {
                         println!("  ★ {} is defeated!", def_name);
                     }
                 }
+                (def_team, def_idx, def_name)
             } else {
                 // No defender - target takes the wound as normal
                 self.check_focus_interruption(target_team, target_idx);
@@ -1160,7 +1172,37 @@ impl CombatEngine {
                         println!("  ★ {} is defeated!", target_name);
                     }
                 }
+                (target_team, target_idx, target_name)
+            };
+
+            // Poison weapon: physical attacks cause an additional wound
+            if card.card_type.is_physical() {
+                let has_poison = {
+                    let attacker = if attacker_team == 1 { &self.team1[attacker_idx] } else { &self.team2[attacker_idx] };
+                    attacker.has_poison_weapon
+                };
+                if has_poison {
+                    let (died, wounds, max_wounds) = {
+                        let recipient = if wound_team == 1 { &mut self.team1[wound_idx] } else { &mut self.team2[wound_idx] };
+                        if recipient.is_alive() {
+                            let died = recipient.take_wound();
+                            (Some(died), recipient.current_wounds, recipient.max_wounds)
+                        } else {
+                            (None, 0, 0)
+                        }
+                    };
+                    if let Some(died) = died {
+                        self.log(&format!(
+                            "  → Poison deals extra wound to {}! ({}/{})",
+                            wound_name, wounds, max_wounds
+                        ));
+                        if died {
+                            self.log(&format!("  ★ {} is defeated by poison!", wound_name));
+                        }
+                    }
+                }
             }
+
             true
         } else {
             self.log("  → MISS! Attack blocked.");
@@ -1622,7 +1664,7 @@ impl CombatEngine {
                     };
                     for idx in enemies {
                         enemy_team[idx].modifiers.push(
-                            CombatModifier::new("speed", -3, ModifierDuration::ThisTurn)
+                            CombatModifier::new("speed", -4, ModifierDuration::ThisTurn)
                                 .with_source(&card.name),
                         );
                     }
@@ -1639,7 +1681,7 @@ impl CombatEngine {
                                 .with_source(&card.name),
                         );
                     }
-                    self.log("  → Enemies get -3 speed, allies get +2 speed!");
+                    self.log("  → Enemies get -4 speed, allies get +2 speed!");
                 }
 
                 SpecialEffect::DodgeWithSpeedBoost => {
@@ -1650,11 +1692,11 @@ impl CombatEngine {
                     };
                     character.dodging = true;
                     character.modifiers.push(
-                        CombatModifier::new("speed", 2, ModifierDuration::NextTurn)
+                        CombatModifier::new("speed", 3, ModifierDuration::NextTurn)
                             .with_source(&card.name),
                     );
                     self.log(&format!(
-                        "  → {} will dodge all attacks this turn, +2 speed next turn!",
+                        "  → {} will dodge all attacks this turn, +3 speed next turn!",
                         char_name
                     ));
                 }
@@ -1679,13 +1721,13 @@ impl CombatEngine {
                         for idx in allies {
                             ally_team[idx].modifiers.push(
                                 CombatModifier::new("attack_bonus", 0, ModifierDuration::ThisTurn)
-                                    .with_dice(DiceRoll::new(1, 6, 0))
+                                    .with_dice(DiceRoll::new(1, 8, 0))
                                     .with_source(&card.name)
                                     .with_condition(&format!("attacking_{}", target_name)),
                             );
                         }
                         self.log(&format!(
-                            "  → Allies get +1d6 when attacking {}!",
+                            "  → Allies get +1d8 when attacking {}!",
                             target_name
                         ));
                     }
@@ -1749,6 +1791,29 @@ impl CombatEngine {
                     );
                     self.log(&format!(
                         "  → {}'s attacks now deal +1d6 damage!",
+                        target_name
+                    ));
+                }
+
+                SpecialEffect::PoisonWeapon => {
+                    let allies = self.get_living_allies(char_team, Some(char_idx));
+                    let ally_team = if char_team == 1 {
+                        &mut self.team1
+                    } else {
+                        &mut self.team2
+                    };
+
+                    // Target the ally with the highest strength (physical attacker)
+                    let target_idx = allies
+                        .iter()
+                        .max_by_key(|&&i| ally_team[i].strength)
+                        .copied()
+                        .unwrap_or(char_idx);
+
+                    let target_name = ally_team[target_idx].name.clone();
+                    ally_team[target_idx].has_poison_weapon = true;
+                    self.log(&format!(
+                        "  → {}'s physical attacks now deal an extra wound!",
                         target_name
                     ));
                 }
@@ -2147,7 +2212,7 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_speed_mod(4)
             .with_effect(SpecialEffect::CoordinatedAmbush),
         Card::new("Fum cegador", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::BlindingSmoke),
         Card::new("Braçals de cuir", CardType::Defense)
             .with_defense(DiceRoll::new(1, 4, 0))
@@ -2157,13 +2222,19 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_speed_mod(3),
         Card::new("Dagues", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
-            .with_speed_mod(1)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("El·lusió", CardType::Focus)
-            .with_speed_mod(2)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
+        Card::new("Enverinar arma", CardType::Focus)
+            .with_speed_mod(2)
+            .with_effect(SpecialEffect::PoisonWeapon),
+        Card::new("Foc alquímic", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(1, 6, 0))
+            .with_speed_mod(1),
     ];
-    Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue")
+    Character::new(name, 3, 2, 2, 1, 4, cards, "Rogue")
 }
 
 pub fn create_goblin_naked(name: &str) -> Character {

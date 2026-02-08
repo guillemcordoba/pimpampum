@@ -86,17 +86,29 @@ Dice notation in CSVs: `1d8`, `1d6`, `2d4`, `1d4-1`, etc.
 
 ### Equipment
 
-Passive items that modify stats permanently during combat. Slot-based system (Tors/Torso, Braços/Arms, Cap/Head, Cames/Legs, Mà principal/MainHand, Mà secundària/OffHand). Only one item per slot. Cannot be changed mid-combat.
+Passive items that modify stats permanently during combat. Slot-based system (Tors/Torso, Braços/Arms, Cap/Head, Cames/Legs, Mà principal/MainHand, Mà secundària/OffHand). Only one item per slot. Cannot be changed mid-combat. Any class can equip any item.
 
 ### Characters
 
-| Character | F | M | D | V | MF | Equipment | Cards |
-|-----------|---|---|---|---|----|-----------|-------|
-| Guerrer | 3 | 0 | 2 | 2 | 3 | Armadura de cuir, Braçals de cuir | 6 cards |
-| Murri | 2 | 0 | 1 | 4 | 3 | Armadura de cuir | 6 cards |
-| Mag | 0 | 5 | 1 | 2 | 3 | Braçals de cuir | 6 cards |
-| Goblin | 2 | 0 | 1 | 3 | 3 | Braçals de cuir | 4 cards |
-| Goblin Shaman | 1 | 4 | 0 | 2 | 3 | None | 5 cards |
+| Character | F | M | D | V | MF | Cards |
+|-----------|---|---|---|---|----|-------|
+| Guerrer | 3 | 0 | 2 | 2 | 3 | 6 cards |
+| Murri | 2 | 2 | 1 | 4 | 3 | 8 cards |
+| Mag | 0 | 5 | 1 | 2 | 3 | 6 cards |
+| Goblin | 2 | 0 | 1 | 3 | 3 | 4 cards |
+| Goblin Shaman | 1 | 4 | 0 | 2 | 3 | 5 cards |
+
+### Simulator Default Equipment
+
+The simulator assigns default equipment for balance testing. These are not class restrictions:
+
+| Character | Default Equipment |
+|-----------|-------------------|
+| Guerrer | Armadura de cuir, Braçals de cuir |
+| Murri | Armadura de cuir |
+| Mag | Braçals de cuir |
+| Goblin | Braçals de cuir |
+| Goblin Shaman | None |
 
 ### Equipment Items
 
