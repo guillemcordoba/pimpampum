@@ -604,7 +604,7 @@ pub fn create_rogue(name: &str) -> Character {
             .with_speed_mod(4)
             .with_effect(SpecialEffect::CoordinatedAmbush),
         Card::new("Fum cegador", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::BlindingSmoke),
         Card::new("Braçals de cuir", CardType::Defense)
             .with_defense(DiceRoll::new(1, 4, 0))
@@ -613,14 +613,14 @@ pub fn create_rogue(name: &str) -> Character {
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(3),
         Card::new("Dagues", CardType::PhysicalAttack)
-            .with_physical_attack(DiceRoll::new(1, 4, 0))
+            .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("El·lusió", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
     ];
-    let mut character = Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue");
+    let mut character = Character::new(name, 3, 3, 0, 1, 4, cards, "Rogue");
     character.equip(create_armadura_de_cuir());
     character
 }
@@ -2147,7 +2147,7 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_speed_mod(4)
             .with_effect(SpecialEffect::CoordinatedAmbush),
         Card::new("Fum cegador", CardType::Focus)
-            .with_speed_mod(0)
+            .with_speed_mod(3)
             .with_effect(SpecialEffect::BlindingSmoke),
         Card::new("Braçals de cuir", CardType::Defense)
             .with_defense(DiceRoll::new(1, 4, 0))
@@ -2156,14 +2156,14 @@ pub fn create_rogue_naked(name: &str) -> Character {
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(3),
         Card::new("Dagues", CardType::PhysicalAttack)
-            .with_physical_attack(DiceRoll::new(1, 4, 0))
+            .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("El·lusió", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DodgeWithSpeedBoost),
     ];
-    Character::new(name, 3, 2, 0, 1, 4, cards, "Rogue")
+    Character::new(name, 3, 3, 0, 1, 4, cards, "Rogue")
 }
 
 pub fn create_goblin_naked(name: &str) -> Character {
