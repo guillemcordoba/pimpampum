@@ -43,6 +43,12 @@ The following files are the authoritative source material for the game:
 
 The simulator (`simulator/src/main.rs`) should always be adapted to match the source material, not the other way around. When there are discrepancies, the source material is correct.
 
+## Design Intentions
+
+**Read `intentions.md` for the design intentions of the combat system.**
+
+**IMPORTANT: When simulation results conflict with these intentions, immediately flag the discrepancy and propose fixes.**
+
 ### CSV Format
 
 Class/enemy CSV files have two sections:

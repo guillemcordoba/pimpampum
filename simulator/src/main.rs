@@ -630,7 +630,7 @@ pub fn create_rogue(name: &str) -> Character {
             .with_magic_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1),
     ];
-    let mut character = Character::new(name, 3, 2, 2, 1, 4, cards, "Rogue");
+    let mut character = Character::new(name, 3, 2, 1, 1, 4, cards, "Rogue");
     character.equip(create_armadura_de_cuir());
     character
 }
@@ -668,7 +668,7 @@ pub fn create_goblin_shaman(name: &str) -> Character {
             .with_speed_mod(-3)
             .with_effect(SpecialEffect::BloodThirst),
         Card::new("Pluja de flames", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_magic_attack(DiceRoll::new(1, 4, -2))
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::MultiTarget(3)),
         Card::new("Absorvir dolor", CardType::Defense)
@@ -694,6 +694,8 @@ pub struct CardStats {
 pub struct CombatStats {
     pub card_stats: HashMap<String, CardStats>,
     pub card_type_stats: HashMap<String, CardStats>,
+    pub class_wins: HashMap<String, u32>,
+    pub class_games: HashMap<String, u32>,
 }
 
 impl CombatStats {
@@ -712,6 +714,14 @@ impl CombatStats {
         self.card_type_stats.entry(card_type.to_string()).or_default().interrupted += 1;
     }
 
+    pub fn record_class_game(&mut self, class: &str) {
+        *self.class_games.entry(class.to_string()).or_insert(0) += 1;
+    }
+
+    pub fn record_class_win(&mut self, class: &str) {
+        *self.class_wins.entry(class.to_string()).or_insert(0) += 1;
+    }
+
     pub fn merge(&mut self, other: &CombatStats) {
         for (name, stats) in &other.card_stats {
             let entry = self.card_stats.entry(name.clone()).or_default();
@@ -724,6 +734,12 @@ impl CombatStats {
             entry.plays += stats.plays;
             entry.plays_by_winner += stats.plays_by_winner;
             entry.interrupted += stats.interrupted;
+        }
+        for (class, wins) in &other.class_wins {
+            *self.class_wins.entry(class.clone()).or_insert(0) += wins;
+        }
+        for (class, games) in &other.class_games {
+            *self.class_games.entry(class.clone()).or_insert(0) += games;
         }
     }
 }
@@ -2130,11 +2146,29 @@ where
             .map(|(j, creator)| creator(&format!("T2_{}_{}", j, i)))
             .collect();
 
+        // Track class participation
+        let team1_classes: Vec<String> = team1.iter().map(|c| c.character_class.clone()).collect();
+        let team2_classes: Vec<String> = team2.iter().map(|c| c.character_class.clone()).collect();
+
         let mut engine = CombatEngine::new(team1, team2, verbose);
         let winner = engine.run_combat();
 
         results.total_rounds += engine.round_number;
         results.stats.merge(&engine.stats);
+
+        // Record class games and wins
+        for class in &team1_classes {
+            results.stats.record_class_game(class);
+            if winner == 1 {
+                results.stats.record_class_win(class);
+            }
+        }
+        for class in &team2_classes {
+            results.stats.record_class_game(class);
+            if winner == 2 {
+                results.stats.record_class_win(class);
+            }
+        }
 
         match winner {
             1 => results.team1_wins += 1,
@@ -2268,7 +2302,7 @@ pub fn create_goblin_shaman_naked(name: &str) -> Character {
             .with_speed_mod(-3)
             .with_effect(SpecialEffect::BloodThirst),
         Card::new("Pluja de flames", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_magic_attack(DiceRoll::new(1, 4, -2))
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::MultiTarget(3)),
         Card::new("Absorvir dolor", CardType::Defense)
@@ -2279,83 +2313,165 @@ pub fn create_goblin_shaman_naked(name: &str) -> Character {
     Character::new(name, 3, 1, 4, 0, 2, cards, "GoblinShaman")
 }
 
-fn run_class_analysis(with_equipment: bool) {
-    let label = if with_equipment { "WITH EQUIPMENT" } else { "WITHOUT EQUIPMENT" };
-    println!("{}", "=".repeat(60));
-    println!("TEAM POWER ANALYSIS - {}", label);
-    println!("{}", "=".repeat(60));
+// =============================================================================
+// BATTLE CONFIGURATION TYPES
+// =============================================================================
 
-    // Build 2v2 team compositions
-    let team_comps: Vec<(&str, Vec<fn(&str) -> Character>)> = if with_equipment {
-        vec![
-            ("Fighter+Wizard", vec![create_fighter, create_wizard]),
-            ("Fighter+Rogue", vec![create_fighter, create_rogue]),
-            ("Wizard+Rogue", vec![create_wizard, create_rogue]),
-            ("Goblin+Shaman", vec![create_goblin, create_goblin_shaman]),
-            ("2x Goblin", vec![create_goblin, create_goblin]),
-        ]
-    } else {
-        vec![
-            ("Fighter+Wizard", vec![create_fighter_naked, create_wizard_naked]),
-            ("Fighter+Rogue", vec![create_fighter_naked, create_rogue_naked]),
-            ("Wizard+Rogue", vec![create_wizard_naked, create_rogue_naked]),
-            ("Goblin+Shaman", vec![create_goblin_naked, create_goblin_shaman_naked]),
-            ("2x Goblin", vec![create_goblin_naked, create_goblin_naked]),
-        ]
-    };
+type CharacterCreator = fn(&str) -> Character;
 
-    println!("\n2v2 Win Rates (row vs column):\n");
+fn get_all_creators() -> Vec<(&'static str, CharacterCreator)> {
+    vec![
+        ("Fighter", create_fighter as CharacterCreator),
+        ("Wizard", create_wizard as CharacterCreator),
+        ("Rogue", create_rogue as CharacterCreator),
+        ("Goblin", create_goblin as CharacterCreator),
+        ("GoblinShaman", create_goblin_shaman as CharacterCreator),
+    ]
+}
 
-    // Header
-    print!("{:15}", "");
-    for (name, _) in &team_comps {
-        print!("{:>15}", name);
+fn generate_team_compositions(team_size: usize) -> Vec<(String, Vec<CharacterCreator>)> {
+    let creators = get_all_creators();
+    let mut compositions = Vec::new();
+
+    match team_size {
+        1 => {
+            for (name, creator) in &creators {
+                compositions.push((name.to_string(), vec![*creator]));
+            }
+        }
+        2 => {
+            for i in 0..creators.len() {
+                for j in i..creators.len() {
+                    let name = if i == j {
+                        format!("2x {}", creators[i].0)
+                    } else {
+                        format!("{}+{}", creators[i].0, creators[j].0)
+                    };
+                    compositions.push((name, vec![creators[i].1, creators[j].1]));
+                }
+            }
+        }
+        3 => {
+            for i in 0..creators.len() {
+                for j in i..creators.len() {
+                    for k in j..creators.len() {
+                        let name = if i == j && j == k {
+                            format!("3x {}", creators[i].0)
+                        } else if i == j {
+                            format!("2x {}+{}", creators[i].0, creators[k].0)
+                        } else if j == k {
+                            format!("{}+2x {}", creators[i].0, creators[j].0)
+                        } else {
+                            format!("{}+{}+{}", creators[i].0, creators[j].0, creators[k].0)
+                        };
+                        compositions.push((name, vec![creators[i].1, creators[j].1, creators[k].1]));
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    compositions
+}
+
+fn run_battle_analysis(
+    team1_size: usize,
+    team2_size: usize,
+    num_simulations: u32,
+) -> CombatStats {
+    let label = format!("{}v{}", team1_size, team2_size);
+    println!("\n{}", "=".repeat(70));
+    println!("{} BATTLE ANALYSIS ({} simulations per matchup)", label, num_simulations);
+    println!("{}", "=".repeat(70));
+
+    let team1_comps = generate_team_compositions(team1_size);
+    let team2_comps = generate_team_compositions(team2_size);
+
+    let mut all_stats = CombatStats::default();
+    let mut team_wins: HashMap<String, u32> = HashMap::new();
+    let mut team_games: HashMap<String, u32> = HashMap::new();
+
+    // Print header for win rate matrix
+    let col_width = 12;
+    print!("\n{:20}", "");
+    for (name, _) in &team2_comps {
+        let short_name: String = name.chars().take(col_width - 1).collect();
+        print!("{:>width$}", short_name, width = col_width);
     }
     println!();
-    println!("{}", "-".repeat(90));
+    println!("{}", "-".repeat(20 + team2_comps.len() * col_width));
 
-    let mut total_wins: HashMap<&str, u32> = HashMap::new();
-    let mut total_games: HashMap<&str, u32> = HashMap::new();
+    for (name1, creators1) in &team1_comps {
+        let short_name1: String = name1.chars().take(19).collect();
+        print!("{:20}", short_name1);
 
-    for (name1, creators1) in &team_comps {
-        print!("{:15}", name1);
-        for (name2, creators2) in &team_comps {
-            if name1 == name2 {
-                print!("{:>15}", "-");
-                continue;
-            }
+        for (name2, creators2) in &team2_comps {
+            let results = run_simulation(creators1, creators2, num_simulations, false);
+            all_stats.merge(&results.stats);
 
-            let results = run_simulation(creators1, creators2, 500, false);
             let win_rate = results.team1_win_rate();
-            print!("{:>14.1}%", win_rate);
+            print!("{:>width$.1}%", win_rate, width = col_width - 1);
 
-            *total_wins.entry(name1).or_insert(0) += results.team1_wins;
-            *total_games.entry(name1).or_insert(0) += 500;
-            *total_wins.entry(name2).or_insert(0) += results.team2_wins;
-            *total_games.entry(name2).or_insert(0) += 500;
+            *team_wins.entry(name1.clone()).or_insert(0) += results.team1_wins;
+            *team_games.entry(name1.clone()).or_insert(0) += num_simulations;
+            *team_wins.entry(name2.clone()).or_insert(0) += results.team2_wins;
+            *team_games.entry(name2.clone()).or_insert(0) += num_simulations;
         }
         println!();
     }
 
-    println!("\n{}", "=".repeat(60));
-    println!("OVERALL TEAM POWER RANKING - {}", label);
-    println!("{}", "=".repeat(60));
+    // Team power ranking
+    println!("\n{} Team Power Ranking:", label);
+    println!("{}", "-".repeat(50));
 
-    let mut rankings: Vec<(&str, f32)> = team_comps
+    let mut rankings: Vec<(String, f32)> = team1_comps
         .iter()
-        .map(|(name, _)| {
-            let wins = *total_wins.get(name).unwrap_or(&0) as f32;
-            let games = *total_games.get(name).unwrap_or(&1) as f32;
-            (*name, wins / games * 100.0)
+        .chain(team2_comps.iter())
+        .map(|(name, _)| name.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .map(|name| {
+            let wins = *team_wins.get(&name).unwrap_or(&0) as f32;
+            let games = *team_games.get(&name).unwrap_or(&1) as f32;
+            (name, wins / games * 100.0)
         })
         .collect();
 
     rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    for (i, (name, win_rate)) in rankings.iter().enumerate() {
-        let bar_len = (win_rate / 2.0) as usize;
+    for (i, (name, win_rate)) in rankings.iter().take(10).enumerate() {
+        let bar_len = (win_rate / 2.5) as usize;
         let bar: String = "█".repeat(bar_len);
-        println!("{}. {:15} {:5.1}% {}", i + 1, name, win_rate, bar);
+        println!("{:2}. {:25} {:5.1}% {}", i + 1, name, win_rate, bar);
+    }
+
+    all_stats
+}
+
+fn print_class_stats(stats: &CombatStats) {
+    println!("\n{}", "=".repeat(60));
+    println!("CLASS WIN RATES");
+    println!("{}", "=".repeat(60));
+    println!("{:20} {:>10} {:>10} {:>12}", "Class", "Games", "Wins", "Win Rate");
+    println!("{}", "-".repeat(60));
+
+    let mut class_stats: Vec<_> = stats.class_games.iter().collect();
+    class_stats.sort_by(|a, b| {
+        let rate_a = *stats.class_wins.get(a.0).unwrap_or(&0) as f32 / *a.1 as f32;
+        let rate_b = *stats.class_wins.get(b.0).unwrap_or(&0) as f32 / *b.1 as f32;
+        rate_b.partial_cmp(&rate_a).unwrap()
+    });
+
+    for (class, games) in &class_stats {
+        let wins = *stats.class_wins.get(*class).unwrap_or(&0);
+        let win_rate = wins as f32 / **games as f32 * 100.0;
+        let bar_len = (win_rate / 2.5) as usize;
+        let bar: String = "█".repeat(bar_len);
+        println!(
+            "{:20} {:>10} {:>10} {:>11.1}% {}",
+            class, games, wins, win_rate, bar
+        );
     }
 }
 
@@ -2367,7 +2483,11 @@ fn print_card_stats(stats: &CombatStats) {
     println!("{}", "-".repeat(60));
 
     let mut type_stats: Vec<_> = stats.card_type_stats.iter().collect();
-    type_stats.sort_by(|a, b| b.1.plays.cmp(&a.1.plays));
+    type_stats.sort_by(|a, b| {
+        let corr_a = a.1.plays_by_winner as f32 / a.1.plays.max(1) as f32;
+        let corr_b = b.1.plays_by_winner as f32 / b.1.plays.max(1) as f32;
+        corr_b.partial_cmp(&corr_a).unwrap()
+    });
 
     for (card_type, card_stats) in &type_stats {
         let win_correlation = if card_stats.plays > 0 {
@@ -2387,13 +2507,17 @@ fn print_card_stats(stats: &CombatStats) {
     }
 
     println!("\n{}", "=".repeat(80));
-    println!("INDIVIDUAL CARD EFFECTIVENESS");
+    println!("INDIVIDUAL CARD EFFECTIVENESS (sorted by win correlation)");
     println!("{}", "=".repeat(80));
     println!("{:25} {:>8} {:>10} {:>12} {:>10}", "Card", "Plays", "By Winner", "Win Corr.", "Interrupt%");
     println!("{}", "-".repeat(80));
 
     let mut card_stats_vec: Vec<_> = stats.card_stats.iter().collect();
-    card_stats_vec.sort_by(|a, b| b.1.plays.cmp(&a.1.plays));
+    card_stats_vec.sort_by(|a, b| {
+        let corr_a = a.1.plays_by_winner as f32 / a.1.plays.max(1) as f32;
+        let corr_b = b.1.plays_by_winner as f32 / b.1.plays.max(1) as f32;
+        corr_b.partial_cmp(&corr_a).unwrap()
+    });
 
     for (card_name, card_stats) in &card_stats_vec {
         let win_correlation = if card_stats.plays > 0 {
@@ -2413,47 +2537,82 @@ fn print_card_stats(stats: &CombatStats) {
     }
 }
 
-fn run_card_analysis() {
-    println!("\n{}", "=".repeat(60));
-    println!("CARD USAGE ANALYSIS - 2v2 BATTLES (5000 battles)");
-    println!("{}", "=".repeat(60));
+fn print_summary(stats: &CombatStats) {
+    println!("\n{}", "=".repeat(70));
+    println!("OVERALL SUMMARY");
+    println!("{}", "=".repeat(70));
 
-    // Run 2v2 battles to see team coordination
-    let team_comps: Vec<(fn(&str) -> Character, fn(&str) -> Character)> = vec![
-        (create_fighter, create_wizard),
-        (create_fighter, create_rogue),
-        (create_wizard, create_rogue),
-        (create_goblin, create_goblin_shaman),
-    ];
+    // Best class
+    if !stats.class_games.is_empty() {
+        let best_class = stats.class_games.iter()
+            .map(|(class, games)| {
+                let wins = *stats.class_wins.get(class).unwrap_or(&0);
+                let rate = wins as f32 / *games as f32 * 100.0;
+                (class.clone(), rate, wins, *games)
+            })
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .unwrap();
+        println!("\nBEST CLASS: {} ({:.1}% win rate, {} wins / {} games)",
+            best_class.0, best_class.1, best_class.2, best_class.3);
+    }
 
-    let mut total_stats = CombatStats::default();
+    // Best card type
+    if !stats.card_type_stats.is_empty() {
+        let best_type = stats.card_type_stats.iter()
+            .filter(|(_, s)| s.plays > 100)  // Minimum plays threshold
+            .map(|(name, s)| {
+                let corr = s.plays_by_winner as f32 / s.plays as f32 * 100.0;
+                (name.clone(), corr, s.plays)
+            })
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-    // Run team vs team matchups
-    for (creator1a, creator1b) in &team_comps {
-        for (creator2a, creator2b) in &team_comps {
-            let results = run_simulation(
-                &[*creator1a, *creator1b],
-                &[*creator2a, *creator2b],
-                300,
-                false
-            );
-            total_stats.merge(&results.stats);
+        if let Some(best) = best_type {
+            println!("BEST CARD TYPE: {} ({:.1}% win correlation, {} plays)",
+                best.0, best.1, best.2);
         }
     }
 
-    print_card_stats(&total_stats);
+    // Best individual card
+    if !stats.card_stats.is_empty() {
+        let best_card = stats.card_stats.iter()
+            .filter(|(_, s)| s.plays > 50)  // Minimum plays threshold
+            .map(|(name, s)| {
+                let corr = s.plays_by_winner as f32 / s.plays as f32 * 100.0;
+                (name.clone(), corr, s.plays)
+            })
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        if let Some(best) = best_card {
+            println!("BEST CARD: {} ({:.1}% win correlation, {} plays)",
+                best.0, best.1, best.2);
+        }
+    }
 }
 
 fn main() {
-    println!("{}", "=".repeat(60));
+    println!("{}", "=".repeat(70));
     println!("PIM PAM PUM COMBAT SIMULATION ENGINE");
-    println!("{}", "=".repeat(60));
+    println!("Multi-Configuration Battle Analysis");
+    println!("{}", "=".repeat(70));
 
-    // Run card analysis first
-    run_card_analysis();
+    let mut all_stats = CombatStats::default();
 
-    println!("\n");
+    // Define battle configurations: (team1_size, team2_size, simulations_per_matchup)
+    let configs = [
+        (1, 1, 200),   // 1v1
+        (2, 1, 200),   // 2v1 (asymmetric)
+        (2, 2, 200),   // 2v2
+        (3, 2, 150),   // 3v2 (asymmetric)
+        (3, 3, 100),   // 3v3
+    ];
 
-    // Run class analysis with equipment only (for brevity)
-    run_class_analysis(true);
+    for (team1_size, team2_size, sims) in configs {
+        let stats = run_battle_analysis(team1_size, team2_size, sims);
+        all_stats.merge(&stats);
+    }
+
+    // Print aggregate statistics
+    print_class_stats(&all_stats);
+    print_card_stats(&all_stats);
+    print_summary(&all_stats);
 }
