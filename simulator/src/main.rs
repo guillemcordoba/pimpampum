@@ -529,7 +529,12 @@ impl Character {
     pub fn advance_turn_modifiers(&mut self) {
         self.modifiers.retain_mut(|m| match m.duration {
             ModifierDuration::ThisTurn => false,
-            ModifierDuration::NextTurn => false,
+            ModifierDuration::NextTurn => {
+                // NextTurn modifiers survive to the next round as ThisTurn,
+                // then get removed at the end of that round
+                m.duration = ModifierDuration::ThisTurn;
+                true
+            }
             ModifierDuration::ThisAndNextTurn => {
                 m.duration = ModifierDuration::NextTurn;
                 true
@@ -546,7 +551,7 @@ impl Character {
 pub fn create_fighter(name: &str) -> Character {
     let cards = vec![
         Card::new("Espasa llarga", CardType::PhysicalAttack)
-            .with_physical_attack(DiceRoll::new(1, 8, 0))
+            .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(-2)
             .with_effect(SpecialEffect::Stun),
         Card::new("Sacrifici", CardType::Defense)
@@ -554,7 +559,7 @@ pub fn create_fighter(name: &str) -> Character {
             .with_effect(SpecialEffect::Sacrifice),
         Card::new("Ràbia traumada", CardType::Focus)
             .with_speed_mod(-3)
-            .with_effect(SpecialEffect::StrengthBoost(4)),
+            .with_effect(SpecialEffect::StrengthBoost(3)),
         Card::new("Embestida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(2)
@@ -562,7 +567,7 @@ pub fn create_fighter(name: &str) -> Character {
         Card::new("Crit de guerra", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
-            .with_effect(SpecialEffect::AllyStrengthThisTurn(2)),
+            .with_effect(SpecialEffect::AllyStrengthThisTurn(1)),
         Card::new("Formació defensiva", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DefenseBoostDuration {
@@ -1071,8 +1076,8 @@ impl CombatEngine {
                     }
                     SpecialEffect::TeamSpeedDefenseBoost => weight += 7.0,
                     SpecialEffect::IceTrap => weight += 6.0,
-                    SpecialEffect::BlindingSmoke => weight += 6.0,
-                    SpecialEffect::CoordinatedAmbush => weight += 5.0,
+                    SpecialEffect::BlindingSmoke => weight += 10.0,
+                    SpecialEffect::CoordinatedAmbush => weight += 12.0,
                     SpecialEffect::Vengeance => weight += 4.0,
                     SpecialEffect::BloodThirst => {
                         let enemy_team = if character.team == 1 {
@@ -1853,7 +1858,7 @@ impl CombatEngine {
                     };
                     for idx in enemies {
                         enemy_team[idx].modifiers.push(
-                            CombatModifier::new("speed", -4, ModifierDuration::ThisTurn)
+                            CombatModifier::new("speed", -4, ModifierDuration::NextTurn)
                                 .with_source(&card.name),
                         );
                     }
@@ -1866,11 +1871,11 @@ impl CombatEngine {
                     };
                     for idx in allies {
                         ally_team[idx].modifiers.push(
-                            CombatModifier::new("speed", 2, ModifierDuration::ThisTurn)
+                            CombatModifier::new("speed", 2, ModifierDuration::NextTurn)
                                 .with_source(&card.name),
                         );
                     }
-                    self.log("  → Enemies get -4 speed, allies get +2 speed!");
+                    self.log("  → Enemies get -4 speed, allies get +2 speed next turn!");
                 }
 
                 SpecialEffect::DodgeWithSpeedBoost => {
@@ -2123,8 +2128,8 @@ impl CombatEngine {
                     continue;
                 }
 
-                // 80% chance to commit to the combo
-                if rng.gen::<f32>() < 0.8 {
+                // 95% chance to commit to the combo
+                if rng.gen::<f32>() < 0.95 {
                     self.team1[pa].played_card_idx = Some(ca);
                     actions.push((1, pa, ca));
                     logs.push(format!("{} selects: {} (combo!)", self.team1[pa].name, self.team1[pa].cards[ca].name));
@@ -2159,7 +2164,7 @@ impl CombatEngine {
                     continue;
                 }
 
-                if rng.gen::<f32>() < 0.8 {
+                if rng.gen::<f32>() < 0.95 {
                     self.team2[pa].played_card_idx = Some(ca);
                     actions.push((2, pa, ca));
                     logs.push(format!("{} selects: {} (combo!)", self.team2[pa].name, self.team2[pa].cards[ca].name));
@@ -2459,7 +2464,7 @@ where
 pub fn create_fighter_naked(name: &str) -> Character {
     let cards = vec![
         Card::new("Espasa llarga", CardType::PhysicalAttack)
-            .with_physical_attack(DiceRoll::new(1, 8, 0))
+            .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(-2)
             .with_effect(SpecialEffect::Stun),
         Card::new("Sacrifici", CardType::Defense)
@@ -2467,7 +2472,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
             .with_effect(SpecialEffect::Sacrifice),
         Card::new("Ràbia traumada", CardType::Focus)
             .with_speed_mod(-3)
-            .with_effect(SpecialEffect::StrengthBoost(4)),
+            .with_effect(SpecialEffect::StrengthBoost(3)),
         Card::new("Embestida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(2)
@@ -2475,7 +2480,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
         Card::new("Crit de guerra", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
-            .with_effect(SpecialEffect::AllyStrengthThisTurn(2)),
+            .with_effect(SpecialEffect::AllyStrengthThisTurn(1)),
         Card::new("Formació defensiva", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DefenseBoostDuration {
