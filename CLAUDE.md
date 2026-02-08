@@ -1,15 +1,73 @@
 # Pim Pam Pum
 
+A 2v2 tabletop RPG combat card game with a Rust combat simulator. All game content is in **Catalan**.
+
+## Project Structure
+
+```
+pimpampum/
+├── rules/                    # Authoritative source material
+│   ├── rules.md              # Game rules and mechanics
+│   ├── classes/              # Character class definitions
+│   │   ├── fighter.csv       # Guerrer (F=3, M=0, D=2, V=2, MF=3)
+│   │   ├── rogue.csv         # Murri (F=2, M=0, D=1, V=4, MF=3)
+│   │   └── wizard.csv        # Mag (F=0, M=5, D=1, V=2, MF=3)
+│   ├── enemies/              # Enemy definitions
+│   │   ├── goblin.csv        # Goblin (F=2, M=0, D=1, V=3, MF=3)
+│   │   └── goblin-shaman.csv # Goblin Shaman (F=1, M=4, D=0, V=2, MF=3)
+│   └── objectes.csv          # Equipment definitions
+├── simulator/                # Rust combat simulator
+│   ├── Cargo.toml            # Rust crate (edition 2021)
+│   └── src/main.rs           # Single-file simulator (~2400 lines)
+├── cards/                    # Card rendering
+│   ├── card-template.html    # HTML/CSS template for cards
+│   └── cards.html            # Rendered card output
+├── icons/                    # SVG icons from game-icons.net (CC BY 3.0)
+├── flake.nix                 # Nix development environment
+└── CLAUDE.md
+```
+
 ## Source Material
 
-The following files are the authoritative source material for the game:
+The files under `rules/` are the authoritative source material for the game. The simulator (`simulator/src/main.rs`) should always be adapted to match the source material, not the other way around. When there are discrepancies, the source material is correct.
 
-- **rules.md** - The game rules and mechanics
-- **classes/*.csv** - Character class definitions (fighter.csv, rogue.csv, wizard.csv)
-- **enemies/*.csv** - Enemy definitions (goblin.csv, goblin-shaman.csv)
-- **objectes.csv** - Item definitions
+## Naming: Catalan ↔ English
 
-The simulator (src/main.rs) should always be adapted to match the source material, not the other way around. When there are discrepancies, the source material is correct.
+| Catalan (game) | English (code) | CSS class |
+|----------------|----------------|-----------|
+| Guerrer        | Fighter        | `guerrer` |
+| Murri          | Rogue          | `murri`   |
+| Mag            | Wizard         | `mag`     |
+| Objecte        | Equipment/Item | `objecte` |
+
+Stats: Força (F), Màgia (M), Defensa (D), Velocitat (V), Màximes Ferides (MF)
+
+## Simulator
+
+### Build & Run
+
+```bash
+cd simulator && cargo run --release
+```
+
+Output includes: card usage analysis (5000 battles), card type/individual effectiveness, and team power rankings with/without equipment.
+
+### Architecture (simulator/src/main.rs)
+
+Key types:
+- **DiceRoll** — Dice notation (e.g. 1d8, 2d6, 1d4-1)
+- **Equipment** — Passive gear with stat modifiers and slot system
+- **Card** — Playable action (attack/defense/focus with SpecialEffect enum)
+- **Character** — Stats + equipment + combat state + modifier tracking
+- **CombatEngine** — Turn-based 2v2 combat loop (max 20 rounds)
+- **CombatStats/CardStats** — Per-card play counts, winner correlation, interrupt rates
+- **SimulationResults** — Win rates, draw rates, avg rounds
+
+Key factory functions: `create_fighter()`, `create_wizard()`, `create_rogue()`, `create_goblin()`, `create_goblin_shaman()` (and `_naked` variants without equipment).
+
+Analysis functions: `run_class_analysis(with_equipment)` (5 team compositions, 500 sims each), `run_card_analysis()` (diverse matchups, 300 sims each).
+
+Card types: PhysicalAttack, MagicAttack, Defense, Focus. Special effects include Stun, SkipNextTurns, StrengthBoost, SpeedReduction, Dodge, Vengeance, Sacrifice, and more.
 
 ## Card Design
 
