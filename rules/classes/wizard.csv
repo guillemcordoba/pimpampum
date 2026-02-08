@@ -5,6 +5,6 @@ Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Pantalla protectora,Defensa,,,1d6,-1,Defensa a 3 jugadors que triïs.
 ,Bola de foc,Atac màgic,,1d6,,1,
 ,Raig de gel,Atac màgic,,1d4,,1,El jugador atacat té -2 de velocitat el següent torn.
-,Metamorfosi,Focus,,,,-2,Intercanvia una característica amb la mateixa característica del jugador objectiu durant tot el combat.
-,Encantar arma,Focus,,,,2,El jugador objectiu suma 1d6 als seus atacs
+,Trampa de gel,Focus,,,,1,Tots els enemics reben velocitat -4 el següent torn.
+,Cadena de llamps,Atac màgic,,1d4-1,,0,Afecta a 2 enemics que triïs.
 ,Camp de distorsió,Focus,,,,-1,Tots els jugadors aliats reben velocitat +2 i defensa +1 per la resta del combat

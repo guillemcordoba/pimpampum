@@ -202,6 +202,7 @@ pub enum SpecialEffect {
     EnemySpeedDebuff(i32),             // Raig de gel: -2 speed next turn
     EnemyStrengthDebuff(i32),          // -X strength next turn
     EmbestidaEffect,                   // Embestida: target -2 speed, self -3 speed next turn
+    IceTrap,                           // Trampa de gel: enemies -4 speed next turn
     BlindingSmoke,                     // Fum cegador: enemies -4 speed, allies +2
     DodgeWithSpeedBoost,               // El·lusió: +3 speed next turn
     CoordinatedAmbush,                 // Emboscada: allies +1d8 vs target
@@ -588,11 +589,13 @@ pub fn create_wizard(name: &str) -> Character {
             .with_magic_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
             .with_effect(SpecialEffect::EnemySpeedDebuff(2)),
-        Card::new("Metamorfosi", CardType::Focus)
-            .with_speed_mod(-2),
-        Card::new("Encantar arma", CardType::Focus)
-            .with_speed_mod(2)
-            .with_effect(SpecialEffect::EnchantWeapon),
+        Card::new("Trampa de gel", CardType::Focus)
+            .with_speed_mod(1)
+            .with_effect(SpecialEffect::IceTrap),
+        Card::new("Cadena de llamps", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_speed_mod(0)
+            .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("Camp de distorsió", CardType::Focus)
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::TeamSpeedDefenseBoost),
@@ -666,10 +669,10 @@ pub fn create_goblin_shaman(name: &str) -> Character {
             .with_speed_mod(-4)
             .with_effect(SpecialEffect::MagicBoost(4)),
         Card::new("Set de sang", CardType::Focus)
-            .with_speed_mod(-3)
+            .with_speed_mod(-4)
             .with_effect(SpecialEffect::BloodThirst),
         Card::new("Pluja de flames", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -2))
+            .with_magic_attack(DiceRoll::new(1, 4, -3))
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::MultiTarget(3)),
         Card::new("Absorvir dolor", CardType::Defense)
@@ -915,6 +918,7 @@ impl CombatEngine {
                         }
                     }
                     SpecialEffect::TeamSpeedDefenseBoost => weight += 7.0,
+                    SpecialEffect::IceTrap => weight += 6.0,
                     SpecialEffect::BlindingSmoke => weight += 6.0,
                     SpecialEffect::CoordinatedAmbush => weight += 5.0,
                     SpecialEffect::Vengeance => weight += 4.0,
@@ -1672,6 +1676,22 @@ impl CombatEngine {
                     );
                 }
 
+                SpecialEffect::IceTrap => {
+                    let enemies = self.get_living_enemies(char_team);
+                    let enemy_team = if char_team == 1 {
+                        &mut self.team2
+                    } else {
+                        &mut self.team1
+                    };
+                    for idx in enemies {
+                        enemy_team[idx].modifiers.push(
+                            CombatModifier::new("speed", -4, ModifierDuration::NextTurn)
+                                .with_source(&card.name),
+                        );
+                    }
+                    self.log("  → Enemies get -4 speed next turn!");
+                }
+
                 SpecialEffect::BlindingSmoke => {
                     let enemies = self.get_living_enemies(char_team);
                     let enemy_team = if char_team == 1 {
@@ -2229,11 +2249,13 @@ pub fn create_wizard_naked(name: &str) -> Character {
             .with_magic_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
             .with_effect(SpecialEffect::EnemySpeedDebuff(2)),
-        Card::new("Metamorfosi", CardType::Focus)
-            .with_speed_mod(-2),
-        Card::new("Encantar arma", CardType::Focus)
-            .with_speed_mod(2)
-            .with_effect(SpecialEffect::EnchantWeapon),
+        Card::new("Trampa de gel", CardType::Focus)
+            .with_speed_mod(1)
+            .with_effect(SpecialEffect::IceTrap),
+        Card::new("Cadena de llamps", CardType::MagicAttack)
+            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_speed_mod(0)
+            .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("Camp de distorsió", CardType::Focus)
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::TeamSpeedDefenseBoost),
@@ -2300,10 +2322,10 @@ pub fn create_goblin_shaman_naked(name: &str) -> Character {
             .with_speed_mod(-4)
             .with_effect(SpecialEffect::MagicBoost(4)),
         Card::new("Set de sang", CardType::Focus)
-            .with_speed_mod(-3)
+            .with_speed_mod(-4)
             .with_effect(SpecialEffect::BloodThirst),
         Card::new("Pluja de flames", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -2))
+            .with_magic_attack(DiceRoll::new(1, 4, -3))
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::MultiTarget(3)),
         Card::new("Absorvir dolor", CardType::Defense)
