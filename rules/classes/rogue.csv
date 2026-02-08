@@ -1,5 +1,5 @@
 Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
-3,2,0,1,4,10,,
+3,2,2,1,4,10,,
 ,,,,,,,
 Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Emboscada coordinada,Focus,,,,4,Tria un enemic. Els aliats que l'ataquin reben +1d8 a la seva tirada.
@@ -9,4 +9,4 @@ Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Dagues,Atac físic,1d4,,,3,Pot atacar a dos enemics alhora.
 ,El·lusió,Focus,,,,3,Esquiva tots els atacs que se't farien aquest torn. Velocitat +3 al següent torn.
 ,Enverinar arma,Focus,,,,2,"Tria un aliat. Durant la resta del combat, els seus atacs físics causen una ferida addicional."
-,Foc alquímic,Atac màgic,,1d10,,1,
+,Foc alquímic,Atac màgic,,1d6,,1,

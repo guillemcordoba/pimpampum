@@ -93,7 +93,7 @@ Passive items that modify stats permanently during combat. Slot-based system (To
 | Character | F | M | D | V | MF | Cards |
 |-----------|---|---|---|---|----|-------|
 | Guerrer | 3 | 0 | 2 | 2 | 3 | 6 cards |
-| Murri | 2 | 0 | 1 | 4 | 3 | 8 cards |
+| Murri | 2 | 2 | 1 | 4 | 3 | 8 cards |
 | Mag | 0 | 5 | 1 | 2 | 3 | 6 cards |
 | Goblin | 2 | 0 | 1 | 3 | 3 | 4 cards |
 | Goblin Shaman | 1 | 4 | 0 | 2 | 3 | 5 cards |
