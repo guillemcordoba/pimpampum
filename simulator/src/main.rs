@@ -749,6 +749,20 @@ impl CombatStats {
 }
 
 // =============================================================================
+// COMBO PLANNING
+// =============================================================================
+
+/// A planned combo: player A plays card X, player B plays card Y
+#[derive(Debug, Clone)]
+pub struct PlannedCombo {
+    pub player_a_idx: usize,      // index in team vec
+    pub card_a_idx: usize,        // card index for player A
+    pub player_b_idx: usize,      // index in team vec
+    pub card_b_idx: usize,        // card index for player B
+    pub priority: i32,            // higher = better combo
+}
+
+// =============================================================================
 // COMBAT ENGINE
 // =============================================================================
 
@@ -764,6 +778,10 @@ pub struct CombatEngine {
     pub sacrifice_targets: HashMap<String, String>,
     pub coordinated_ambush_target: Option<String>,
     pub wounded_this_round: HashSet<String>,
+
+    // Combo planning
+    pub team1_combo_plan: Vec<PlannedCombo>,
+    pub team2_combo_plan: Vec<PlannedCombo>,
 
     // Statistics tracking
     pub stats: CombatStats,
@@ -783,6 +801,8 @@ impl CombatEngine {
             sacrifice_targets: HashMap::new(),
             coordinated_ambush_target: None,
             wounded_this_round: HashSet::new(),
+            team1_combo_plan: Vec::new(),
+            team2_combo_plan: Vec::new(),
             stats: CombatStats::default(),
             team1_cards_played: Vec::new(),
             team2_cards_played: Vec::new(),
@@ -834,6 +854,138 @@ impl CombatEngine {
             .filter(|(i, c)| c.is_alive() && exclude_idx != Some(*i))
             .map(|(i, _)| i)
             .collect()
+    }
+
+    /// Check if card_b is a good combo partner when card_a has a given effect.
+    /// Returns a priority score (higher = better), or 0 if no combo.
+    fn combo_score(card_a: &Card, card_b: &Card) -> i32 {
+        match &card_a.effect {
+            // Emboscada: ally gets +1d8 on attack → pair with any attack
+            SpecialEffect::CoordinatedAmbush => {
+                if card_b.card_type.is_attack() {
+                    return 10;
+                }
+            }
+            // Crit de guerra: allies +2 strength this turn → pair with any physical attack
+            SpecialEffect::AllyStrengthThisTurn(_) => {
+                if card_b.card_type.is_physical() {
+                    return 9;
+                }
+            }
+            // Enverinar arma: ally physical attacks deal extra wound → pair with physical attack
+            SpecialEffect::PoisonWeapon => {
+                if card_b.card_type.is_physical() {
+                    return 9;
+                }
+            }
+            // Sacrifici: redirect attacks to self → protect ally playing slow focus
+            SpecialEffect::Sacrifice => {
+                if card_b.card_type.is_focus() && card_b.speed_mod <= 0 {
+                    return 8;
+                }
+            }
+            // Fum cegador: enemies -4 speed → protect slow focus
+            SpecialEffect::BlindingSmoke => {
+                if card_b.card_type.is_focus() && card_b.speed_mod <= 0 {
+                    return 7;
+                }
+            }
+            // Trampa de gel: enemies -4 speed next turn → setup for attacks
+            SpecialEffect::IceTrap => {
+                if card_b.card_type.is_attack() {
+                    return 6;
+                }
+            }
+            // Formació defensiva: defense boost → protect slow focus
+            SpecialEffect::DefenseBoostDuration { .. } => {
+                if card_b.card_type.is_focus() && card_b.speed_mod <= 0 {
+                    return 6;
+                }
+            }
+            _ => {}
+        }
+        0
+    }
+
+    /// Plan combos for a team before combat starts.
+    /// Scans all card pairs across two teammates for synergistic combinations.
+    fn plan_combos(team: &[Character]) -> Vec<PlannedCombo> {
+        let living: Vec<usize> = team.iter().enumerate()
+            .filter(|(_, c)| c.is_alive())
+            .map(|(i, _)| i)
+            .collect();
+
+        if living.len() < 2 {
+            return Vec::new();
+        }
+
+        let a = living[0];
+        let b = living[1];
+
+        // Collect all possible combos (checking both directions: A supports B, B supports A)
+        let mut candidates: Vec<PlannedCombo> = Vec::new();
+
+        for (ca_idx, card_a) in team[a].cards.iter().enumerate() {
+            for (cb_idx, card_b) in team[b].cards.iter().enumerate() {
+                // A's card supports B's card
+                let score_ab = Self::combo_score(card_a, card_b);
+                if score_ab > 0 {
+                    candidates.push(PlannedCombo {
+                        player_a_idx: a,
+                        card_a_idx: ca_idx,
+                        player_b_idx: b,
+                        card_b_idx: cb_idx,
+                        priority: score_ab,
+                    });
+                }
+                // B's card supports A's card
+                let score_ba = Self::combo_score(card_b, card_a);
+                if score_ba > 0 {
+                    candidates.push(PlannedCombo {
+                        player_a_idx: b,
+                        card_a_idx: cb_idx,
+                        player_b_idx: a,
+                        card_b_idx: ca_idx,
+                        priority: score_ba,
+                    });
+                }
+            }
+        }
+
+        // Sort by priority (highest first)
+        candidates.sort_by(|x, y| y.priority.cmp(&x.priority));
+
+        // Greedily select non-overlapping combos (each card used at most once)
+        let mut used_a: HashSet<usize> = HashSet::new(); // card indices used by player a
+        let mut used_b: HashSet<usize> = HashSet::new(); // card indices used by player b
+        let mut selected: Vec<PlannedCombo> = Vec::new();
+
+        for combo in candidates {
+            // Track which card indices are used per player
+            let (a_player, a_card, b_player, b_card) = (
+                combo.player_a_idx, combo.card_a_idx,
+                combo.player_b_idx, combo.card_b_idx,
+            );
+
+            // Check if either card is already used
+            let a_key = (a_player, a_card);
+            let b_key = (b_player, b_card);
+
+            let a_already_used = if a_player == living[0] { used_a.contains(&a_card) } else { used_b.contains(&a_card) };
+            let b_already_used = if b_player == living[0] { used_a.contains(&b_card) } else { used_b.contains(&b_card) };
+
+            if a_already_used || b_already_used {
+                continue;
+            }
+
+            // Mark cards as used
+            if a_key.0 == living[0] { used_a.insert(a_key.1); } else { used_b.insert(a_key.1); }
+            if b_key.0 == living[0] { used_a.insert(b_key.1); } else { used_b.insert(b_key.1); }
+
+            selected.push(combo);
+        }
+
+        selected
     }
 
     fn select_card_ai(&self, character: &Character) -> usize {
@@ -1929,13 +2081,104 @@ impl CombatEngine {
         let mut actions: Vec<(u8, usize, usize)> = Vec::new();
         let mut logs: Vec<String> = Vec::new();
 
-        // Team 1 card selection
+        // Track which characters have been assigned a card by combo planning
+        let mut team1_assigned: HashSet<usize> = HashSet::new();
+        let mut team2_assigned: HashSet<usize> = HashSet::new();
+
+        // Reset rounds for all living characters first (to handle skip_turns)
+        let mut team1_skipping: HashSet<usize> = HashSet::new();
+        let mut team2_skipping: HashSet<usize> = HashSet::new();
         for idx in 0..self.team1.len() {
-            if !self.team1[idx].is_alive() {
-                continue;
-            }
+            if !self.team1[idx].is_alive() { continue; }
             if self.team1[idx].reset_for_new_round() {
                 logs.push(format!("{} skips this turn!", self.team1[idx].name));
+                team1_skipping.insert(idx);
+            }
+        }
+        for idx in 0..self.team2.len() {
+            if !self.team2[idx].is_alive() { continue; }
+            if self.team2[idx].reset_for_new_round() {
+                logs.push(format!("{} skips this turn!", self.team2[idx].name));
+                team2_skipping.insert(idx);
+            }
+        }
+
+        // Team 1 combo check
+        if !self.team1_combo_plan.is_empty() {
+            let mut rng = rand::thread_rng();
+            // Try combos from the front of the queue
+            while !self.team1_combo_plan.is_empty() {
+                let combo = &self.team1_combo_plan[0];
+                let pa = combo.player_a_idx;
+                let pb = combo.player_b_idx;
+                let ca = combo.card_a_idx;
+                let cb = combo.card_b_idx;
+
+                // Both players must be alive and not skipping
+                let a_available = self.team1.get(pa).map_or(false, |c| c.is_alive()) && !team1_skipping.contains(&pa);
+                let b_available = self.team1.get(pb).map_or(false, |c| c.is_alive()) && !team1_skipping.contains(&pb);
+
+                if !a_available || !b_available {
+                    self.team1_combo_plan.remove(0);
+                    continue;
+                }
+
+                // 80% chance to commit to the combo
+                if rng.gen::<f32>() < 0.8 {
+                    self.team1[pa].played_card_idx = Some(ca);
+                    actions.push((1, pa, ca));
+                    logs.push(format!("{} selects: {} (combo!)", self.team1[pa].name, self.team1[pa].cards[ca].name));
+                    team1_assigned.insert(pa);
+
+                    self.team1[pb].played_card_idx = Some(cb);
+                    actions.push((1, pb, cb));
+                    logs.push(format!("{} selects: {} (combo!)", self.team1[pb].name, self.team1[pb].cards[cb].name));
+                    team1_assigned.insert(pb);
+                }
+
+                self.team1_combo_plan.remove(0);
+                break;
+            }
+        }
+
+        // Team 2 combo check
+        if !self.team2_combo_plan.is_empty() {
+            let mut rng = rand::thread_rng();
+            while !self.team2_combo_plan.is_empty() {
+                let combo = &self.team2_combo_plan[0];
+                let pa = combo.player_a_idx;
+                let pb = combo.player_b_idx;
+                let ca = combo.card_a_idx;
+                let cb = combo.card_b_idx;
+
+                let a_available = self.team2.get(pa).map_or(false, |c| c.is_alive()) && !team2_skipping.contains(&pa);
+                let b_available = self.team2.get(pb).map_or(false, |c| c.is_alive()) && !team2_skipping.contains(&pb);
+
+                if !a_available || !b_available {
+                    self.team2_combo_plan.remove(0);
+                    continue;
+                }
+
+                if rng.gen::<f32>() < 0.8 {
+                    self.team2[pa].played_card_idx = Some(ca);
+                    actions.push((2, pa, ca));
+                    logs.push(format!("{} selects: {} (combo!)", self.team2[pa].name, self.team2[pa].cards[ca].name));
+                    team2_assigned.insert(pa);
+
+                    self.team2[pb].played_card_idx = Some(cb);
+                    actions.push((2, pb, cb));
+                    logs.push(format!("{} selects: {} (combo!)", self.team2[pb].name, self.team2[pb].cards[cb].name));
+                    team2_assigned.insert(pb);
+                }
+
+                self.team2_combo_plan.remove(0);
+                break;
+            }
+        }
+
+        // Team 1 individual card selection (for non-combo characters)
+        for idx in 0..self.team1.len() {
+            if !self.team1[idx].is_alive() || team1_skipping.contains(&idx) || team1_assigned.contains(&idx) {
                 continue;
             }
             let card_idx = self.select_card_ai(&self.team1[idx]);
@@ -1944,13 +2187,9 @@ impl CombatEngine {
             logs.push(format!("{} selects: {}", self.team1[idx].name, self.team1[idx].cards[card_idx].name));
         }
 
-        // Team 2 card selection
+        // Team 2 individual card selection (for non-combo characters)
         for idx in 0..self.team2.len() {
-            if !self.team2[idx].is_alive() {
-                continue;
-            }
-            if self.team2[idx].reset_for_new_round() {
-                logs.push(format!("{} skips this turn!", self.team2[idx].name));
+            if !self.team2[idx].is_alive() || team2_skipping.contains(&idx) || team2_assigned.contains(&idx) {
                 continue;
             }
             let card_idx = self.select_card_ai(&self.team2[idx]);
@@ -2050,6 +2289,17 @@ impl CombatEngine {
                 "  {} ({}) - MF:{} F:{} M:{} D:{} V:{}",
                 c.name, c.character_class, c.max_wounds, c.strength, c.magic, c.defense, c.speed
             ));
+        }
+
+        // Pre-combat combo planning
+        self.team1_combo_plan = Self::plan_combos(&self.team1);
+        self.team2_combo_plan = Self::plan_combos(&self.team2);
+
+        if !self.team1_combo_plan.is_empty() {
+            self.log(&format!("\nTeam 1 planned {} combos", self.team1_combo_plan.len()));
+        }
+        if !self.team2_combo_plan.is_empty() {
+            self.log(&format!("Team 2 planned {} combos", self.team2_combo_plan.len()));
         }
 
         while self.round_number < self.max_rounds {
