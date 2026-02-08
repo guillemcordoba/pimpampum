@@ -1,0 +1,10 @@
+Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
+3,3,0,2,2,10,,
+,,,,,,,
+Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
+,Espasa llarga,Atac físic,1d8,,,-2,Aturdeix: anul·la els atacs que el jugador atacat anés a fer aquest combat.
+,Sacrifici,Defensa,,,,4,Tria un jugador. Rep tots els atacs que li farien aquest torn.
+,Ràbia traumada,Focus,,,,-3,Força +4 per la resta del combat
+,Embestida,Atac físic,1d6,,,2,El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.
+,Crit de guerra,Atac físic,1d4,,,1,Tots els aliats reben força +2 aquest torn.
+,Formació defensiva,Focus,,,,2,Tu i un aliat +1d4 defensa aquest torn i el següent

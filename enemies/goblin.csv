@@ -1,0 +1,8 @@
+Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
+3,2,0,1,3,9,,
+,,,,,,,
+Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
+,Fúria enfollida,Atac físic,2d6,,,5,No jugues cap carta el següent torn
+,Maça de punxes,Atac físic,1d6,,,1,
+,Escut de fusta,Defensa,,,1d6,2,
+,Venjança,Focus,,,,1,Tria un jugador. Els jugadors que l'ataquin durant aquest combat reben un atac físic F + 1d8.

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pim Pam Pum - Card Template</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Uncial+Antiqua&family=MedievalSharp&family=Cinzel+Decorative:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Card dimensions - standard playing card size */
+      --card-width: 63mm;
+      --card-height: 88mm;
+      --card-radius: 2mm;
+
+      /* Colors */
+      --parchment: #e8dcc4;
+      --parchment-dark: #c4b59a;
+      --border-color: #5c4a32;
+      --text-dark: #2a2218;
+
+      /* Class border colors */
+      --class-guerrer: #8b2c2c;
+      --class-murri: #2c5a3f;
+      --class-mag: #3d2c6b;
+      --class-objecte: #5c4a32;
+
+      /* Card type header colors */
+      --type-atac-fisic: #a63d2f;
+      --type-atac-magic: #6b3fa0;
+      --type-defensa: #2f6a8a;
+      --type-focus: #8a7a2f;
+    }
+
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background: #2a2a2a;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+    }
+
+    /* ==========================================
+       CARD BASE STRUCTURE
+       ========================================== */
+    .card {
+      width: var(--card-width);
+      height: var(--card-height);
+      border-radius: var(--card-radius);
+      position: relative;
+      overflow: hidden;
+      page-break-inside: avoid;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      background: var(--parchment);
+      border: 4px solid var(--border-color);
+    }
+
+    /* ==========================================
+       CLASS COLORS - Border and inner frame
+       ========================================== */
+    .card.guerrer { border-color: var(--class-guerrer); }
+    .card.guerrer .card-frame { border-color: var(--class-guerrer); }
+    .card.murri { border-color: var(--class-murri); }
+    .card.murri .card-frame { border-color: var(--class-murri); }
+    .card.mag { border-color: var(--class-mag); }
+    .card.mag .card-frame { border-color: var(--class-mag); }
+    .card.objecte { border-color: var(--class-objecte); }
+    .card.objecte .card-frame { border-color: var(--class-objecte); }
+
+    /* ==========================================
+       CARD TYPE COLORS - Header banner
+       ========================================== */
+    .card.atac-fisic .card-header {
+      background: var(--type-atac-fisic);
+      margin: -2.5mm -2.5mm 0 -2.5mm;
+      padding: 2.5mm 3mm 1.5mm;
+      border-radius: 0;
+    }
+    .card.atac-fisic .card-name,
+    .card.atac-fisic .card-subtitle { color: #f0e6d6; }
+    .card.atac-fisic .card-subtitle { color: rgba(240,230,214,0.8); }
+
+    .card.atac-magic .card-header {
+      background: var(--type-atac-magic);
+      margin: -2.5mm -2.5mm 0 -2.5mm;
+      padding: 2.5mm 3mm 1.5mm;
+      border-radius: 0;
+    }
+    .card.atac-magic .card-name,
+    .card.atac-magic .card-subtitle { color: #f0e6d6; }
+    .card.atac-magic .card-subtitle { color: rgba(240,230,214,0.8); }
+
+    .card.defensa .card-header {
+      background: var(--type-defensa);
+      margin: -2.5mm -2.5mm 0 -2.5mm;
+      padding: 2.5mm 3mm 1.5mm;
+      border-radius: 0;
+    }
+    .card.defensa .card-name,
+    .card.defensa .card-subtitle { color: #f0e6d6; }
+    .card.defensa .card-subtitle { color: rgba(240,230,214,0.8); }
+
+    .card.focus .card-header {
+      background: var(--type-focus);
+      margin: -2.5mm -2.5mm 0 -2.5mm;
+      padding: 2.5mm 3mm 1.5mm;
+      border-radius: 0;
+    }
+    .card.focus .card-name,
+    .card.focus .card-subtitle { color: #f0e6d6; }
+    .card.focus .card-subtitle { color: rgba(240,230,214,0.8); }
+
+    /* Parchment texture overlay */
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"),
+        linear-gradient(135deg, rgba(92,74,50,0.2) 0%, transparent 40%),
+        linear-gradient(225deg, rgba(92,74,50,0.15) 0%, transparent 40%),
+        linear-gradient(315deg, rgba(92,74,50,0.1) 0%, transparent 40%),
+        linear-gradient(45deg, rgba(92,74,50,0.12) 0%, transparent 40%),
+        radial-gradient(ellipse at 20% 80%, rgba(139,90,43,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139,90,43,0.1) 0%, transparent 40%),
+        radial-gradient(ellipse at 60% 60%, rgba(160,120,60,0.08) 0%, transparent 60%);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.15 0.4' numOctaves='2' seed='5'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23fiber)'/%3E%3C/svg%3E");
+      opacity: 0.04;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      padding: 2.5mm;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Decorative inner frame */
+    .card-frame {
+      position: absolute;
+      inset: 3mm;
+      border: 3px solid var(--border-color);
+      border-radius: 1mm;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    /* ==========================================
+       1. CARD HEADER (fixed height: 12mm)
+       ========================================== */
+    .card-header {
+      text-align: center;
+      padding: 2mm 3mm 1mm;
+      position: relative;
+      z-index: 1;
+      height: 12mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .card-name {
+      font-family: 'Cinzel Decorative', 'Uncial Antiqua', serif;
+      font-size: 11pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      line-height: 1.1;
+      text-shadow: 0.5px 0.5px 0 rgba(255,255,255,0.3);
+    }
+
+    .card-name.small {
+      font-size: 9pt;
+    }
+
+    /* ==========================================
+       2. SUBTITLE (italic, type | class)
+       ========================================== */
+    .card-subtitle {
+      font-family: 'MedievalSharp', 'Crimson Text', serif;
+      font-size: 8pt;
+      color: #4a3f2f;
+      margin-top: 0.5mm;
+      font-style: italic;
+      letter-spacing: 0.5px;
+    }
+
+    /* ==========================================
+       3. ARTWORK (game-icons.net illustration)
+       ========================================== */
+    .card-art {
+      flex: 1;
+      margin: 1.5mm 3mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.02), rgba(0,0,0,0.08));
+      border-radius: 1mm;
+      min-height: 28mm;
+    }
+
+    .card-art img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      opacity: 0.85;
+    }
+
+    /* ==========================================
+       4. EFFECT BOX (only if ability has effect)
+       ========================================== */
+    .card-effect {
+      font-family: 'MedievalSharp', 'Crimson Text', serif;
+      font-size: 8pt;
+      color: var(--text-dark);
+      text-align: center;
+      line-height: 1.3;
+      padding: 2mm 2.5mm;
+      margin: 0 3mm 1.5mm;
+      background: rgba(255,255,255,0.4);
+      border: 1px solid rgba(92,74,50,0.3);
+      border-radius: 1mm;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-effect em {
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    /* ==========================================
+       5. STAT MODIFIERS (bottom right, icons only)
+       ========================================== */
+    .card-stats {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 2.5mm;
+      padding: 1mm 3mm 2mm;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 0.5mm;
+    }
+
+    .stat-icon {
+      width: 4.5mm;
+      height: 4.5mm;
+      opacity: 0.85;
+    }
+
+    .stat-icon img {
+      width: 100%;
+      height: 100%;
+      filter: brightness(0) saturate(100%);
+    }
+
+    .stat-value {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================
+       CARD TEMPLATE EXAMPLE
+
+       Classes to add to .card element:
+       - Class: guerrer, murri, mag, objecte (sets border color)
+       - Type: atac-fisic, atac-magic, defensa, focus (sets header color)
+
+       Example: <div class="card mag atac-magic">
+       ========================================== -->
+
+  <div class="card mag atac-magic">
+    <div class="card-frame"></div>
+    <div class="card-inner">
+
+      <!-- 1. NAME & 2. SUBTITLE -->
+      <div class="card-header">
+        <div class="card-name">Bola de foc</div>
+        <div class="card-subtitle">Atac màgic | Mag</div>
+      </div>
+
+      <!-- 3. ARTWORK -->
+      <div class="card-art">
+        <img src="icons/000000/transparent/1x1/lorc/fireball.svg" alt="Bola de foc">
+      </div>
+
+      <!-- 4. EFFECT BOX (remove this entire div if no effect) -->
+      <!-- No effect for this card -->
+
+      <!-- 5. STAT MODIFIERS (only show non-zero stats) -->
+      <div class="card-stats">
+        <!-- Màgia (M) - crystal-wand -->
+        <div class="stat">
+          <span class="stat-icon"><img src="icons/000000/transparent/1x1/lorc/crystal-wand.svg" alt="M"></span>
+          <span class="stat-value">1d6</span>
+        </div>
+
+        <!-- Velocitat (V) - running-ninja -->
+        <div class="stat">
+          <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+          <span class="stat-value">0</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==========================================
+       USAGE NOTES:
+
+       1. Add TWO classes to .card element:
+          - Class (border color): guerrer, murri, mag, objecte
+          - Type (header color): atac-fisic, atac-magic, defensa, focus
+
+       2. Change .card-name content (keep uppercase)
+
+       3. Change .card-subtitle to match type:
+          - Abilities: "Atac físic | Guerrer", "Atac màgic | Mag", "Defensa | Murri", "Focus | Guerrer"
+          - Items: "Objecte | Tors", "Objecte | Braços", "Objecte | Mans"
+
+       4. Replace artwork img src with appropriate icon from icons/ folder
+
+       5. If no effect: remove the entire .card-effect div
+
+       6. In .card-stats: only include stats that are not 0 or "-"
+          - Use crossed-swords for Força (F)
+          - Use crystal-wand for Màgia (M)
+          - Use round-shield for Defensa (D)
+          - Use running-ninja for Velocitat (V)
+
+       ICON PATHS (local):
+       - icons/000000/transparent/1x1/lorc/[icon-name].svg
+       - icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg
+       - icons/000000/transparent/1x1/willdabeast/round-shield.svg
+       - icons/000000/transparent/1x1/carl-olsen/crossbow.svg
+       ========================================== -->
+
+</body>
+</html>
