@@ -31,11 +31,11 @@ Hi ha cartes d'atac físiques i màgiques. Quan es resol una carta d'acció d'at
 
 ## Cartes de defensa
 
-Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. El proper atac que rebi el jugador defensat aquest torn, utilitza la defensa total del jugador defensant (defensa base + modificadors d'objectes + modificador de la carta de defensa) en lloc de la seva pròpia defensa. Si múltiples jugadors defensen al mateix jugador, cada carta de defensa protegeix contra un únic atac (no s'acumulen). Si l'atac supera la defensa, és el jugador defensant qui rep la ferida, no el jugador defensat.
+Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. El proper atac que rebi l'aliat triat durant aquest torn el rebràs tu. Si múltiples jugadors defensen al mateix jugador, cada carta de defensa protegeix contra un únic atac (no s'acumulen).
 
 
 Fora de combat, els jugadors es poden canviar les cartes que porten actives. Es poden intercanviar els objectes entre ells, i canviar les habilitats actives per habilitats que ja havien après anteriorment. Els jugadors no es poden canviar habilitats entre ells.
 
 ## Cartes de focus
 
-Són cartes amb efectes especials. La carta de focus no es resol si, abans que es resolgui, el jugador rep una ferida o rep un atac sense tenir cap carta de defensa jugada sobre seu.
+Són cartes amb efectes especials. La carta de focus no es resol si, abans que es resolgui, el jugador rep un atac durant aquest torn.

@@ -205,7 +205,7 @@ pub enum SpecialEffect {
     IceTrap,                           // Trampa de gel: enemies -4 speed next turn
     BlindingSmoke,                     // Fum cegador: enemies -4 speed, allies +2
     DodgeWithSpeedBoost,               // El·lusió: +3 speed next turn
-    CoordinatedAmbush,                 // Emboscada: allies +1d8 vs target
+    CoordinatedAmbush,                 // Emboscada: allies +1d6+2 vs target
     Sacrifice,                         // Sacrifici: redirect attacks
     Vengeance,                         // Venjança: counter-attack
     EnchantWeapon,                     // Encantar arma: +1d6 to attacks
@@ -559,7 +559,7 @@ pub fn create_fighter(name: &str) -> Character {
             .with_effect(SpecialEffect::Sacrifice),
         Card::new("Ràbia traumada", CardType::Focus)
             .with_speed_mod(-3)
-            .with_effect(SpecialEffect::StrengthBoost(3)),
+            .with_effect(SpecialEffect::StrengthBoost(4)),
         Card::new("Embestida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(2)
@@ -567,7 +567,7 @@ pub fn create_fighter(name: &str) -> Character {
         Card::new("Crit de guerra", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
-            .with_effect(SpecialEffect::AllyStrengthThisTurn(1)),
+            .with_effect(SpecialEffect::AllyStrengthThisTurn(2)),
         Card::new("Formació defensiva", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DefenseBoostDuration {
@@ -575,7 +575,7 @@ pub fn create_fighter(name: &str) -> Character {
                 turns: 2,
             }),
     ];
-    let mut character = Character::new(name, 3, 2, 0, 2, 2, cards, "Fighter");
+    let mut character = Character::new(name, 3, 1, 0, 2, 2, cards, "Fighter");
     character.equip(create_armadura_de_cuir());
     character.equip(create_bracals_de_cuir());
     character
@@ -598,14 +598,14 @@ pub fn create_wizard(name: &str) -> Character {
             .with_speed_mod(1)
             .with_effect(SpecialEffect::IceTrap),
         Card::new("Cadena de llamps", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_magic_attack(DiceRoll::new(1, 6, -3))
             .with_speed_mod(0)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("Camp de distorsió", CardType::Focus)
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::TeamSpeedDefenseBoost),
     ];
-    let mut character = Character::new(name, 3, 0, 5, 1, 2, cards, "Wizard");  // Buffed: D 0 → 1
+    let mut character = Character::new(name, 3, 0, 5, 0, 2, cards, "Wizard");
     character.equip(create_bracals_de_cuir());
     character
 }
@@ -649,7 +649,7 @@ pub fn create_goblin(name: &str) -> Character {
         Card::new("Fúria enfollida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(2, 6, 0))
             .with_speed_mod(5)
-            .with_effect(SpecialEffect::SkipNextTurns(2)),
+            .with_effect(SpecialEffect::SkipNextTurns(1)),
         Card::new("Maça de punxes", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1),
@@ -1384,10 +1384,12 @@ impl CombatEngine {
             true
         } else {
             self.log("  → MISS! Attack blocked.");
-            // Check if target has no defense card protection - if so, interrupt focus
-            // (defender_info being Some means defense was used, so no interruption)
-            if defender_info.is_none() {
-                // Attacked without defense card protection - interrupt focus
+            // Focus is interrupted when receiving an attack (regardless of hit/miss)
+            if let Some((def_team, def_idx, _)) = &defender_info {
+                // Defender received the attack - interrupt their focus
+                self.check_focus_interruption(*def_team, *def_idx);
+            } else {
+                // No defender - target received the attack
                 self.check_focus_interruption(target_team, target_idx);
             }
             // Check for absorb pain on the defender if there was one
@@ -1861,6 +1863,10 @@ impl CombatEngine {
                             CombatModifier::new("speed", -4, ModifierDuration::NextTurn)
                                 .with_source(&card.name),
                         );
+                        enemy_team[idx].modifiers.push(
+                            CombatModifier::new("defense", -2, ModifierDuration::NextTurn)
+                                .with_source(&card.name),
+                        );
                     }
 
                     let allies = self.get_living_allies(char_team, None);
@@ -1875,7 +1881,7 @@ impl CombatEngine {
                                 .with_source(&card.name),
                         );
                     }
-                    self.log("  → Enemies get -4 speed, allies get +2 speed next turn!");
+                    self.log("  → Enemies get -4 speed and -2 defense, allies get +2 speed next turn!");
                 }
 
                 SpecialEffect::DodgeWithSpeedBoost => {
@@ -1915,13 +1921,13 @@ impl CombatEngine {
                         for idx in allies {
                             ally_team[idx].modifiers.push(
                                 CombatModifier::new("attack_bonus", 0, ModifierDuration::ThisTurn)
-                                    .with_dice(DiceRoll::new(1, 8, 0))
+                                    .with_dice(DiceRoll::new(1, 6, 2))
                                     .with_source(&card.name)
                                     .with_condition(&format!("attacking_{}", target_name)),
                             );
                         }
                         self.log(&format!(
-                            "  → Allies get +1d8 when attacking {}!",
+                            "  → Allies get +1d6+2 when attacking {}!",
                             target_name
                         ));
                     }
@@ -2472,7 +2478,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
             .with_effect(SpecialEffect::Sacrifice),
         Card::new("Ràbia traumada", CardType::Focus)
             .with_speed_mod(-3)
-            .with_effect(SpecialEffect::StrengthBoost(3)),
+            .with_effect(SpecialEffect::StrengthBoost(4)),
         Card::new("Embestida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(2)
@@ -2480,7 +2486,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
         Card::new("Crit de guerra", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 4, 0))
             .with_speed_mod(1)
-            .with_effect(SpecialEffect::AllyStrengthThisTurn(1)),
+            .with_effect(SpecialEffect::AllyStrengthThisTurn(2)),
         Card::new("Formació defensiva", CardType::Focus)
             .with_speed_mod(2)
             .with_effect(SpecialEffect::DefenseBoostDuration {
@@ -2488,7 +2494,7 @@ pub fn create_fighter_naked(name: &str) -> Character {
                 turns: 2,
             }),
     ];
-    Character::new(name, 3, 2, 0, 2, 2, cards, "Fighter")
+    Character::new(name, 3, 1, 0, 2, 2, cards, "Fighter")
 }
 
 pub fn create_wizard_naked(name: &str) -> Character {
@@ -2508,14 +2514,14 @@ pub fn create_wizard_naked(name: &str) -> Character {
             .with_speed_mod(1)
             .with_effect(SpecialEffect::IceTrap),
         Card::new("Cadena de llamps", CardType::MagicAttack)
-            .with_magic_attack(DiceRoll::new(1, 4, -1))
+            .with_magic_attack(DiceRoll::new(1, 6, -3))
             .with_speed_mod(0)
             .with_effect(SpecialEffect::MultiTarget(2)),
         Card::new("Camp de distorsió", CardType::Focus)
             .with_speed_mod(-1)
             .with_effect(SpecialEffect::TeamSpeedDefenseBoost),
     ];
-    Character::new(name, 3, 0, 5, 1, 2, cards, "Wizard")
+    Character::new(name, 3, 0, 5, 0, 2, cards, "Wizard")
 }
 
 pub fn create_rogue_naked(name: &str) -> Character {
@@ -2554,7 +2560,7 @@ pub fn create_goblin_naked(name: &str) -> Character {
         Card::new("Fúria enfollida", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(2, 6, 0))
             .with_speed_mod(5)
-            .with_effect(SpecialEffect::SkipNextTurns(2)),
+            .with_effect(SpecialEffect::SkipNextTurns(1)),
         Card::new("Maça de punxes", CardType::PhysicalAttack)
             .with_physical_attack(DiceRoll::new(1, 6, 0))
             .with_speed_mod(1),
