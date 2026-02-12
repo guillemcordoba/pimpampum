@@ -1,2 +1,5 @@
 /target
 simulator/target/
+node_modules/
+packages/engine/dist/
+packages/web/dist/

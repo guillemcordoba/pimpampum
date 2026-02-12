@@ -15,6 +15,8 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.csv-tui
+            pkgs.nodejs_22
+            pkgs.pnpm
           ];
         };
       }

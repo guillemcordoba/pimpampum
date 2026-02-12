@@ -29,6 +29,7 @@
       --class-objecte: #5c4a32;
       --class-goblin: #4a5c2c;
       --class-goblin-shaman: #5c2c4a;
+      --class-barbar: #8b5a2c;
 
       /* Card type border colors */
       --type-atac-fisic: #a63d2f;
@@ -103,6 +104,8 @@
     .card.goblin .card-frame { border-color: var(--class-goblin); }
     .card.goblin-shaman { border-color: var(--class-goblin-shaman); }
     .card.goblin-shaman .card-frame { border-color: var(--class-goblin-shaman); }
+    .card.barbar { border-color: var(--class-barbar); }
+    .card.barbar .card-frame { border-color: var(--class-barbar); }
 
     /* Card type colors - strong colored banner at top */
     .card.atac-fisic .card-header {
@@ -180,6 +183,7 @@
       display: flex;
       flex-direction: column;
       position: relative;
+      z-index: 1;
     }
 
     .card-frame {
@@ -986,6 +990,165 @@
   </div>
 
   <!-- ==========================================
+       BÀRBAR (Barbarian) CARDS
+       ========================================== -->
+  <h2 class="section-title no-print">Cartes de Bàrbar</h2>
+  <div class="card-grid">
+
+    <!-- Ràbia -->
+    <div class="card barbar focus">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name">Ràbia</div>
+          <div class="card-subtitle">Focus | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/wolf-howl.svg" alt="Ràbia">
+        </div>
+        <div class="card-effect">
+          <img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" class="rules-icon" alt="F"><em>+2</em> i <img src="icons/000000/transparent/1x1/willdabeast/round-shield.svg" class="rules-icon" alt="D"><em>+2</em> per la resta del combat.
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">-3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Destral de guerra -->
+    <div class="card barbar atac-fisic">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name small">Destral de guerra</div>
+          <div class="card-subtitle">Atac físic | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/battle-axe.svg" alt="Destral">
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F"></span>
+            <span class="stat-value">1d8</span>
+          </div>
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">-1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Atac temerari -->
+    <div class="card barbar atac-fisic">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name">Atac temerari</div>
+          <div class="card-subtitle">Atac físic | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/deadly-strike.svg" alt="Atac temerari">
+        </div>
+        <div class="card-effect">
+          Tu tens <img src="icons/000000/transparent/1x1/willdabeast/round-shield.svg" class="rules-icon" alt="D"><em>-2</em> aquest torn i el següent.
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F"></span>
+            <span class="stat-value">1d6</span>
+          </div>
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">+2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Escomesa salvatge -->
+    <div class="card barbar atac-fisic">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name small">Escomesa salvatge</div>
+          <div class="card-subtitle">Atac físic | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/crossed-slashes.svg" alt="Escomesa">
+        </div>
+        <div class="card-effect">
+          Pot atacar a <em>dos enemics</em> alhora.
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F"></span>
+            <span class="stat-value">1d4</span>
+          </div>
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">+1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resistir -->
+    <div class="card barbar defensa">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name">Resistir</div>
+          <div class="card-subtitle">Defensa | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/muscle-up.svg" alt="Resistir">
+        </div>
+        <div class="card-effect">
+          Si absorveix un atac, <img src="icons/000000/transparent/1x1/willdabeast/round-shield.svg" class="rules-icon" alt="D"><em>+1</em> per la resta del combat.
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/willdabeast/round-shield.svg" alt="D"></span>
+            <span class="stat-value">1d6</span>
+          </div>
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rugit intimidant -->
+    <div class="card barbar focus">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name small">Rugit intimidant</div>
+          <div class="card-subtitle">Focus | Bàrbar</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/lorc/shouting.svg" alt="Rugit">
+        </div>
+        <div class="card-effect">
+          Tots els enemics reben <img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" class="rules-icon" alt="F"><em>-2</em> i <img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" class="rules-icon" alt="V"><em>-2</em> el següent torn.
+        </div>
+        <div class="card-stats">
+          <div class="stat">
+            <span class="stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="stat-value">+1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==========================================
        OBJECTES (Items) CARDS
        ========================================== -->
   <h2 class="section-title no-print">Objectes</h2>
@@ -1508,6 +1671,42 @@
             <span class="character-stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
             <span class="character-stat-name">Velocitat</span>
             <span class="character-stat-value">2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bàrbar -->
+    <div class="card barbar character">
+      <div class="card-frame"></div>
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-name">Bàrbar</div>
+          <div class="card-subtitle">Personatge</div>
+        </div>
+        <div class="card-art">
+          <img src="icons/000000/transparent/1x1/delapouite/barbarian.svg" alt="Bàrbar">
+        </div>
+        <div class="character-stats">
+          <div class="character-stat">
+            <span class="character-stat-icon"><img src="icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F"></span>
+            <span class="character-stat-name">Força</span>
+            <span class="character-stat-value">3</span>
+          </div>
+          <div class="character-stat">
+            <span class="character-stat-icon"><img src="icons/000000/transparent/1x1/lorc/crystal-wand.svg" alt="M"></span>
+            <span class="character-stat-name">Màgia</span>
+            <span class="character-stat-value">0</span>
+          </div>
+          <div class="character-stat">
+            <span class="character-stat-icon"><img src="icons/000000/transparent/1x1/willdabeast/round-shield.svg" alt="D"></span>
+            <span class="character-stat-name">Defensa</span>
+            <span class="character-stat-value">0</span>
+          </div>
+          <div class="character-stat">
+            <span class="character-stat-icon"><img src="icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V"></span>
+            <span class="character-stat-name">Velocitat</span>
+            <span class="character-stat-value">3</span>
           </div>
         </div>
       </div>

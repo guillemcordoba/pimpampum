@@ -12,3 +12,4 @@ Pimpampum has these intentions as a combat system:
 - Fighters are good defensive classes, capable of protecting others, but slow and without being able to hit with that much damage.
 - Rogue are quick and utility based classes, specializing in combos.
 - Wizards hit hard with their magic attacks, but are weak.
+- Barbarians are aggressive berserkers who need team protection to set up, then dominate with raw physical power.

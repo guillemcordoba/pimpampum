@@ -1,0 +1,77 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { Card, CardType, isPhysical, CARD_ICONS } from '@pimpampum/engine';
+
+const props = defineProps<{
+  card: Card;
+  classCss: string;
+  selected?: boolean;
+  disabled?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'select'): void;
+}>();
+
+const headerClass = computed(() => {
+  switch (props.card.cardType) {
+    case CardType.PhysicalAttack:
+    case CardType.PhysicalDefense:
+      return 'atac-fisic';
+    case CardType.MagicAttack:
+      return 'atac-magic';
+    case CardType.Defense:
+      return 'defensa';
+    case CardType.Focus:
+      return 'focus';
+  }
+});
+
+const iconPath = computed(() => {
+  return '/' + (CARD_ICONS[props.card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg');
+});
+
+const stats = computed(() => {
+  const result: { icon: string; value: string }[] = [];
+  if (props.card.physicalAttack) {
+    result.push({ icon: '/icons/000000/transparent/1x1/lorc/crossed-swords.svg', value: props.card.physicalAttack.toString() });
+  }
+  if (props.card.magicAttack) {
+    result.push({ icon: '/icons/000000/transparent/1x1/lorc/crystal-wand.svg', value: props.card.magicAttack.toString() });
+  }
+  if (props.card.defense) {
+    result.push({ icon: '/icons/000000/transparent/1x1/willdabeast/round-shield.svg', value: props.card.defense.toString() });
+  }
+  if (props.card.speedMod !== 0) {
+    const sign = props.card.speedMod > 0 ? '+' : '';
+    result.push({ icon: '/icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg', value: `${sign}${props.card.speedMod}` });
+  }
+  return result;
+});
+</script>
+
+<template>
+  <div
+    class="mini-card"
+    :class="[classCss, { selected, disabled }]"
+    @click="!disabled && emit('select')"
+  >
+    <div class="mini-card-header" :class="headerClass">
+      {{ card.name }}
+    </div>
+    <div class="mini-card-art">
+      <img :src="iconPath" :alt="card.name">
+    </div>
+    <div class="mini-card-bottom">
+      <div v-if="card.description" class="mini-card-effect">
+        {{ card.description }}
+      </div>
+      <div class="mini-card-stats">
+        <span v-for="(s, i) in stats" :key="i" style="display: flex; align-items: center; gap: 1px;">
+          <img :src="s.icon" :alt="s.value">
+          {{ s.value }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>

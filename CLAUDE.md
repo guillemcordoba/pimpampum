@@ -1,29 +1,69 @@
 # Pim Pam Pum
 
-Pim Pam Pum is a tabletop RPG combat system (written in Catalan). The project contains three main components: game rules/data as the authoritative source, a Rust combat simulator for balance testing, and HTML card generation for print-ready physical cards.
+Pim Pam Pum is a tabletop RPG combat system (written in Catalan). The project contains four main components: game rules/data as the authoritative source, a TypeScript game engine library, a CLI combat simulator for balance testing, a Vue 3 web app for browser-based play, and HTML card generation for print-ready physical cards.
 
 ## Project Structure
 
 ```
 pimpampum/
 ├── CLAUDE.md                      # This file - project instructions
-├── flake.nix                      # Nix dev environment (provides csv-tui)
+├── package.json                   # Root pnpm workspace config
+├── pnpm-workspace.yaml            # Workspace: packages/*
+├── pnpm-lock.yaml                 # pnpm lock file
+├── tsconfig.base.json             # Shared TypeScript config (ES2022, strict)
+├── flake.nix                      # Nix dev environment (csv-tui, nodejs_22, pnpm)
 ├── flake.lock                     # Nix lock file (nixpkgs-unstable)
-├── .gitignore                     # Ignores /target and simulator/target/
+├── .gitignore                     # Ignores node_modules/, dist/, /target
 ├── rules/
 │   ├── rules.md                   # Game rules and combat mechanics (Catalan)
 │   ├── classes/
 │   │   ├── fighter.csv            # Guerrer class definition
 │   │   ├── rogue.csv              # Murri class definition
-│   │   └── wizard.csv             # Mag class definition
+│   │   ├── wizard.csv             # Mag class definition
+│   │   └── barbarian.csv          # Bàrbar class definition
 │   ├── enemies/
 │   │   ├── goblin.csv             # Goblin enemy definition
 │   │   └── goblin-shaman.csv      # Goblin Shaman enemy definition
 │   └── objectes.csv               # Equipment/item definitions
-├── simulator/
-│   ├── Cargo.toml                 # Rust package (edition 2021, depends on rand 0.8)
-│   └── src/
-│       └── main.rs                # Combat simulation engine (~2400 lines)
+├── packages/
+│   ├── engine/                    # @pimpampum/engine - Core game logic library
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── index.ts           # Public API exports
+│   │       ├── dice.ts            # DiceRoll class (parse, roll, average)
+│   │       ├── equipment.ts       # Equipment system with slots + templates
+│   │       ├── modifier.ts        # CombatModifier with durations
+│   │       ├── card.ts            # Card, CardType, SpecialEffect types
+│   │       ├── character.ts       # Character class + factory functions (~520 lines)
+│   │       ├── combat.ts          # CombatEngine - core combat loop (~1150 lines)
+│   │       └── ai.ts             # AI card selection + combo planning
+│   ├── simulator/                 # @pimpampum/simulator - CLI balance testing
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       └── main.ts            # Batch simulation runner (~360 lines)
+│   └── web/                       # @pimpampum/web - Vue 3 browser game
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── vite.config.ts
+│       ├── index.html
+│       └── src/
+│           ├── main.ts            # Vue app entry point
+│           ├── App.vue            # Root component
+│           ├── assets/
+│           │   └── style.css      # Global styles (~780 lines)
+│           ├── composables/
+│           │   └── useGame.ts     # Game state management (~350 lines)
+│           └── components/
+│               ├── SetupScreen.vue
+│               ├── CombatScreen.vue
+│               ├── VictoryScreen.vue
+│               ├── CharacterPortrait.vue
+│               ├── CardHand.vue
+│               ├── MiniCard.vue
+│               ├── CombatLog.vue
+│               └── TargetSelector.vue
 ├── cards/
 │   ├── card-template.html         # Single card template with full CSS documentation
 │   └── cards.html                 # Complete card collection for printing
@@ -37,11 +77,11 @@ pimpampum/
 The following files are the authoritative source material for the game:
 
 - **rules/rules.md** - The game rules and mechanics
-- **rules/classes/*.csv** - Character class definitions (fighter.csv, rogue.csv, wizard.csv)
+- **rules/classes/*.csv** - Character class definitions (fighter.csv, rogue.csv, wizard.csv, barbarian.csv)
 - **rules/enemies/*.csv** - Enemy definitions (goblin.csv, goblin-shaman.csv)
 - **rules/objectes.csv** - Item definitions
 
-The simulator (`simulator/src/main.rs`) should always be adapted to match the source material, not the other way around. When there are discrepancies, the source material is correct.
+The engine and simulator (`packages/engine/`, `packages/simulator/`) should always be adapted to match the source material, not the other way around. When there are discrepancies, the source material is correct.
 
 ## Design Intentions
 
@@ -101,18 +141,20 @@ Passive items that modify stats permanently during combat. Slot-based system (To
 | Guerrer | 2 | 0 | 2 | 2 | 3 | 6 cards |
 | Murri | 2 | 2 | 1 | 4 | 3 | 8 cards |
 | Mag | 0 | 5 | 1 | 2 | 3 | 6 cards |
+| Bàrbar | 3 | 0 | 0 | 3 | 3 | 6 cards |
 | Goblin | 2 | 0 | 1 | 3 | 3 | 4 cards |
 | Goblin Shaman | 1 | 4 | 0 | 2 | 3 | 5 cards |
 
-### Simulator Default Equipment
+### Default Equipment
 
-The simulator assigns default equipment for balance testing. These are not class restrictions:
+The simulator and web app assign default equipment. These are not class restrictions — any class can equip any item. In the web app, players can change equipment on the setup screen before starting combat.
 
 | Character | Default Equipment |
 |-----------|-------------------|
 | Guerrer | Armadura de cuir, Braçals de cuir |
 | Murri | Armadura de cuir, Braçals de cuir |
 | Mag | Braçals de cuir |
+| Bàrbar | Braçals de cuir |
 | Goblin | Braçals de cuir |
 | Goblin Shaman | None |
 
@@ -125,29 +167,46 @@ The simulator assigns default equipment for balance testing. These are not class
 | Armadura de cuir | Tors | +1 | -1 |
 | Braçals de cuir | Braços | +1 | 0 |
 
-## Simulator (Rust)
+## TypeScript Monorepo
+
+The project uses a **pnpm workspace** monorepo with three packages that share a common TypeScript base config.
 
 ### Building and Running
 
 ```bash
-cd simulator && cargo run        # Run simulation
-cd simulator && cargo build      # Build only
+pnpm install                     # Install all dependencies
+pnpm build                       # Build all packages (engine first, then others)
+pnpm simulate                    # Run CLI simulator (pnpm --filter simulator start)
+pnpm dev                         # Start web dev server (pnpm --filter web dev)
 ```
+
+### Package Dependencies
+
+```
+@pimpampum/engine (pure TS, 0 runtime deps)
+  ↑                    ↑
+  |                    |
+@pimpampum/simulator  @pimpampum/web
+  (tsx)                (vue 3, vite)
+```
+
+## Engine (`packages/engine/`)
+
+The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runtime dependencies. Builds to `dist/` via `tsc`.
 
 ### Architecture
 
-The simulator is a single-file Rust application (`simulator/src/main.rs`) with these main components:
-
-1. **DiceRoll** - Dice notation representation (e.g., 1d6, 2d4-1) with `roll()` and `average()` methods
-2. **Equipment** - Passive stat modifiers with slot system and builder pattern (`with_defense_flat()`, `with_defense_dice()`, `with_speed()`)
-3. **Card / CardType / SpecialEffect** - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` enum has 20+ variants (Stun, SkipNextTurns, StrengthBoost, MagicBoost, MultiTarget, Sacrifice, Vengeance, etc.)
-4. **CombatModifier / ModifierDuration** - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `RestOfCombat`
-5. **Character** - Character state including base stats, equipment, cards, and combat state (wounds, modifiers, stun, dodge, focus interruption, etc.). Uses `equip()` to add equipment
-6. **Character Factory** - Creator functions: `create_fighter()`, `create_wizard()`, `create_rogue()`, `create_goblin()`, `create_goblin_shaman()`, plus `_naked` variants without equipment for comparison analysis
-7. **CombatStats / CardStats** - Statistics tracking: play counts, plays by winning team, interruption rates
-8. **CombatEngine** - The core combat loop: AI card selection with weighted preferences, speed-based resolution order, attack/defense resolution with defense card interception, special effect handling, focus interruption mechanics, vengeance counter-attacks, sacrifice redirects
-9. **SimulationResults / run_simulation()** - Batch runner for thousands of simulations with aggregate statistics
-10. **main()** - Runs two analyses: card effectiveness analysis (5000 battles across matchups) and team power matrix (all 2v2 compositions, 500 battles each)
+1. **DiceRoll** (`dice.ts`) - Dice notation parsing and rolling (e.g., "1d6", "2d4-1") with `roll()` and `average()` methods
+2. **Equipment** (`equipment.ts`) - Passive stat modifiers with slot system (`EquipmentSlot` enum: Torso, Arms, Head, Legs, MainHand, OffHand). Factory functions: `createArmaduraDeFerro()`, `createCotaDeMalla()`, `createArmaduraDeCuir()`, `createBracalsDeCuir()`. `EquipmentTemplate` interface with metadata (id, name, slot, labels, creator). `ALL_EQUIPMENT` array of all templates. `DEFAULT_EQUIPMENT` map from character template ID to default equipment IDs
+3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 20+ variants (Stun, SkipNextTurns, StrengthBoost, MagicBoost, MultiTarget, Sacrifice, Vengeance, BloodThirst, etc.). `getCardTargetRequirement()` returns targeting info for UI
+4. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `RestOfCombat`
+5. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (wounds, modifiers, stun, dodge, focus interruption, etc.). Factory functions: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createGoblin()`, `createGoblinShaman()`, plus `Naked` variants without equipment. Exports `ALL_CHARACTER_TEMPLATES` (for UI roster) and `CARD_ICONS` (card name to icon path mapping)
+6. **CombatEngine** (`combat.ts`, ~1150 lines) - The core combat loop with two interfaces:
+   - **Web UI**: `prepareRound()` + `submitSelectionsAndResolve(selections)` for phased player-driven resolution
+   - **Simulator**: `runRound()` / `runCombat()` for fully automated AI-vs-AI battles
+   - Handles: speed-based resolution, attack/defense rolls, defense card interception, focus interruption, vengeance counter-attacks, sacrifice redirects, poison, absorb pain, combo execution, 20+ special effects
+   - Tracks `LogEntry[]` for combat log display and `CombatStats` for statistical analysis
+7. **AI** (`ai.ts`) - `selectCardAI()` for weighted random card selection, `planCombos()` for greedy team combo coordination
 
 ### AI Card Selection
 
@@ -157,13 +216,48 @@ The AI uses weighted random selection. Weights are influenced by:
 - Ally health state (prefer defense when allies are wounded, high priority if ally is playing focus)
 - Focus card type priorities (dodge when near death, strength/magic boosts rated high, BloodThirst scales with wounded enemies)
 - Card speed modifier (faster cards get slight preference)
+- Combo planning: AI coordinates 2-character combos (e.g., CoordinatedAmbush + Attack, AllyStrengthThisTurn + PhysicalAttack)
+
+## Simulator (`packages/simulator/`)
+
+CLI-based batch simulator (`@pimpampum/simulator`) for balance testing. Depends on `@pimpampum/engine`. Uses `tsx` to run TypeScript directly.
 
 ### Simulation Output
 
-1. **Card Type Effectiveness** - Plays, win correlation, interrupt rates per card type
-2. **Individual Card Effectiveness** - Per-card statistics across all matchups
-3. **2v2 Win Rate Matrix** - Row vs column for all team compositions
-4. **Overall Team Power Ranking** - Aggregate win rates with visual bar chart
+Runs 5 battle configurations (1v1, 2v1, 2v2, 3v2, 3v3) with all team compositions. For each:
+1. **Win Rate Matrix** - Row team vs column team
+2. **Team Power Rankings** - Aggregate win rates
+3. **Class Win Rates** - Per-class games/wins/percentage
+4. **Card Type Effectiveness** - Plays, win correlation, interrupt rates per card type
+5. **Individual Card Effectiveness** - Per-card statistics sorted by win correlation
+
+## Web App (`packages/web/`)
+
+Vue 3 single-page application (`@pimpampum/web`) for playing Pim Pam Pum in the browser. Uses Vite for dev/build, depends on `@pimpampum/engine`.
+
+### Game Flow (Phases)
+
+1. **Setup** (`SetupScreen.vue`) - Build player team and enemy team from character roster (max 3 per side), choose equipment per character (toggle buttons grouped by slot, defaults from `DEFAULT_EQUIPMENT`)
+2. **Card Selection** (`CombatScreen.vue`) - Each living player character selects a card from their hand
+3. **Target Selection** (`TargetSelector.vue`) - Modal prompts for cards requiring enemy/ally targets
+4. **Resolution** - AI selects enemy cards, engine resolves the round, combat log updates
+5. **Victory** (`VictoryScreen.vue`) - Display winner overlay with play again option
+
+### Key Components
+
+- **`useGame.ts`** composable - Central game state management (Vue 3 Composition API). Manages phase transitions, player selections, target queue, per-character equipment selection, and CombatEngine interaction
+- **`CharacterPortrait.vue`** - Displays character icon, name, wound hearts, stats (F/M/D/V), and active modifier badges
+- **`MiniCard.vue`** - Individual card display with type-colored header, icon, stats, and selected/disabled states
+- **`CombatLog.vue`** - Scrollable, color-coded combat log with auto-scroll
+
+### Styling
+
+Medieval fantasy theme with CSS variables matching the card design system:
+- Dark background with parchment accents (`--parchment: #e8dcc4`)
+- Class-colored borders (same palette as cards.html)
+- Card type-colored headers (same palette as cards.html)
+- Fonts: Cinzel Decorative (titles), Crimson Text (body), MedievalSharp (subtitles)
+- Vite config allows serving icons from project root via `server.fs.allow`
 
 ## Card Design
 
@@ -192,6 +286,7 @@ Loaded via Google Fonts import:
 - **Guerrer**: Dark red (#8b2c2c)
 - **Murri**: Dark green (#2c5a3f)
 - **Mag**: Dark purple (#3d2c6b)
+- **Bàrbar**: Dark amber (#8b5a2c)
 - **Objecte**: Brown (#5c4a32)
 - **Goblin**: Dark olive (#4a5c2c) *(cards.html only)*
 - **Goblin Shaman**: Dark magenta (#5c2c4a) *(cards.html only)*
@@ -233,7 +328,7 @@ Each card follows this structure from top to bottom:
 ### Card Classes
 
 Each card element needs TWO CSS classes:
-- **Class**: `guerrer`, `murri`, `mag`, `objecte`, `goblin`, or `goblin-shaman` (sets border color)
+- **Class**: `guerrer`, `murri`, `mag`, `barbar`, `objecte`, `goblin`, or `goblin-shaman` (sets border color)
 - **Type**: `atac-fisic`, `atac-magic`, `defensa`, `focus`, or `character` (sets header color)
 
 Example: `<div class="card mag atac-magic">`
@@ -249,11 +344,12 @@ The full card collection (`cards/cards.html`) contains these printable sections:
 1. **Cartes de Guerrer** - 6 ability cards
 2. **Cartes de Murri** - 6 ability cards
 3. **Cartes de Mag** - 6 ability cards
-4. **Objectes** - 4 equipment cards
-5. **Goblin** - 1 character card + 4 ability cards
-6. **Goblin Xaman** - 1 character card + 5 ability cards
-7. **Personatges** - 3 player character stat cards (Guerrer, Murri, Mag)
-8. **Referència** - 3 copies of a rules summary card
+4. **Cartes de Bàrbar** - 6 ability cards
+5. **Objectes** - 4 equipment cards
+6. **Goblin** - 1 character card + 4 ability cards
+7. **Goblin Xaman** - 1 character card + 5 ability cards
+8. **Personatges** - 4 player character stat cards (Guerrer, Murri, Mag, Bàrbar)
+9. **Referència** - 3 copies of a rules summary card
 
 Character cards use the `character` CSS class and display all base stats with icons. Rules cards use the `rules-card` class.
 
@@ -261,7 +357,8 @@ Print layout: `@media print` hides section titles (`.no-print`), sets gap to 0, 
 
 ## Development Environment
 
-- **Nix**: `flake.nix` provides a dev shell with `csv-tui` for viewing CSV files interactively
-- **Rust**: Edition 2021, single dependency `rand = "0.8"`
+- **Nix**: `flake.nix` provides a dev shell with `csv-tui`, `nodejs_22`, and `pnpm`
+- **TypeScript**: Strict mode, ES2022 target, ESNext modules, bundler module resolution
+- **pnpm**: Workspace monorepo with `packages/*` glob
 - **No test suite**: Balance is verified via statistical simulation output, not unit tests
 - **No CI/CD**: No automated pipelines configured

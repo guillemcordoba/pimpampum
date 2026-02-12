@@ -1,0 +1,1283 @@
+import { DiceRoll } from './dice.js';
+import { Card, CardType, isAttack, isDefense, isFocus, isPhysical } from './card.js';
+import { CombatModifier, ModifierDuration } from './modifier.js';
+import { Character } from './character.js';
+import { selectCardAI, planCombos, PlannedCombo } from './ai.js';
+
+export interface LogEntry {
+  type: 'round' | 'play' | 'attack' | 'defense' | 'hit' | 'miss' | 'effect' | 'death' | 'focus-interrupted' | 'vengeance' | 'sacrifice' | 'skip';
+  text: string;
+  team?: number;
+  characterName?: string;
+}
+
+export interface CardSelection {
+  cardIdx: number;
+  attackTarget?: [number, number]; // [team, idx] — for attacks and enemy-targeting effects
+  allyTarget?: [number, number];   // [team, idx] — for defense and ally-targeting effects
+}
+
+export interface PlannedAction {
+  team: number;
+  charIdx: number;
+  cardIdx: number;
+  characterName: string;
+  characterClass: string;
+  cardName: string;
+  cardType: CardType;
+  effectiveSpeed: number;
+}
+
+export interface CardStats {
+  plays: number;
+  playsByWinner: number;
+  interrupted: number;
+}
+
+export interface CombatStats {
+  cardStats: Map<string, CardStats>;
+  cardTypeStats: Map<string, CardStats>;
+  classWins: Map<string, number>;
+  classGames: Map<string, number>;
+}
+
+function newCardStats(): CardStats {
+  return { plays: 0, playsByWinner: 0, interrupted: 0 };
+}
+
+export function newCombatStats(): CombatStats {
+  return {
+    cardStats: new Map(),
+    cardTypeStats: new Map(),
+    classWins: new Map(),
+    classGames: new Map(),
+  };
+}
+
+export function mergeCombatStats(target: CombatStats, other: CombatStats): void {
+  for (const [name, stats] of other.cardStats) {
+    const entry = target.cardStats.get(name) ?? newCardStats();
+    entry.plays += stats.plays;
+    entry.playsByWinner += stats.playsByWinner;
+    entry.interrupted += stats.interrupted;
+    target.cardStats.set(name, entry);
+  }
+  for (const [name, stats] of other.cardTypeStats) {
+    const entry = target.cardTypeStats.get(name) ?? newCardStats();
+    entry.plays += stats.plays;
+    entry.playsByWinner += stats.playsByWinner;
+    entry.interrupted += stats.interrupted;
+    target.cardTypeStats.set(name, entry);
+  }
+  for (const [cls, wins] of other.classWins) {
+    target.classWins.set(cls, (target.classWins.get(cls) ?? 0) + wins);
+  }
+  for (const [cls, games] of other.classGames) {
+    target.classGames.set(cls, (target.classGames.get(cls) ?? 0) + games);
+  }
+}
+
+function cardTypeStr(cardType: CardType): string {
+  return cardType;
+}
+
+export class CombatEngine {
+  public team1: Character[];
+  public team2: Character[];
+  public roundNumber = 0;
+  public maxRounds = 20;
+  public verbose: boolean;
+
+  // Combat state
+  public vengeanceTargets = new Map<string, string>();
+  public sacrificeTargets = new Map<string, string>();
+  public coordinatedAmbushTarget: string | null = null;
+  public woundedThisRound = new Set<string>();
+
+  // Combo planning
+  public team1ComboPlan: PlannedCombo[] = [];
+  public team2ComboPlan: PlannedCombo[] = [];
+
+  // Statistics tracking
+  public stats: CombatStats = newCombatStats();
+  public team1CardsPlayed: [string, string][] = [];
+  public team2CardsPlayed: [string, string][] = [];
+
+  // Log entries for web UI
+  public logEntries: LogEntry[] = [];
+
+  // Step-by-step resolution state
+  public pendingActions: PlannedAction[] = [];
+  public pendingActionIndex = 0;
+
+  // Per-character target overrides for web UI (set before resolution, cleared after)
+  private resolveTargets = new Map<string, { attackTarget?: [number, number]; allyTarget?: [number, number] }>();
+
+  constructor(team1: Character[], team2: Character[], verbose = false) {
+    this.team1 = team1;
+    this.team2 = team2;
+    this.verbose = verbose;
+
+    for (const c of this.team1) {
+      c.team = 1;
+      c.resetForNewCombat();
+    }
+    for (const c of this.team2) {
+      c.team = 2;
+      c.resetForNewCombat();
+    }
+  }
+
+  private log(msg: string): void {
+    if (this.verbose) console.log(msg);
+  }
+
+  private addLog(entry: LogEntry): void {
+    this.logEntries.push(entry);
+  }
+
+  getLivingEnemies(team: number): number[] {
+    const enemyTeam = team === 1 ? this.team2 : this.team1;
+    return enemyTeam
+      .map((c, i) => c.isAlive() ? i : -1)
+      .filter(i => i >= 0);
+  }
+
+  getLivingAllies(team: number, excludeIdx?: number): number[] {
+    const allyTeam = team === 1 ? this.team1 : this.team2;
+    return allyTeam
+      .map((c, i) => c.isAlive() && i !== excludeIdx ? i : -1)
+      .filter(i => i >= 0);
+  }
+
+  private getTeam(team: number): Character[] {
+    return team === 1 ? this.team1 : this.team2;
+  }
+
+  private getEnemyTeam(team: number): Character[] {
+    return team === 1 ? this.team2 : this.team1;
+  }
+
+  private recordPlay(cardName: string, cardType: string): void {
+    if (!this.stats.cardStats.has(cardName)) this.stats.cardStats.set(cardName, newCardStats());
+    this.stats.cardStats.get(cardName)!.plays++;
+    if (!this.stats.cardTypeStats.has(cardType)) this.stats.cardTypeStats.set(cardType, newCardStats());
+    this.stats.cardTypeStats.get(cardType)!.plays++;
+  }
+
+  private recordWinnerPlay(cardName: string, cardType: string): void {
+    if (!this.stats.cardStats.has(cardName)) this.stats.cardStats.set(cardName, newCardStats());
+    this.stats.cardStats.get(cardName)!.playsByWinner++;
+    if (!this.stats.cardTypeStats.has(cardType)) this.stats.cardTypeStats.set(cardType, newCardStats());
+    this.stats.cardTypeStats.get(cardType)!.playsByWinner++;
+  }
+
+  private recordInterrupted(cardName: string, cardType: string): void {
+    if (!this.stats.cardStats.has(cardName)) this.stats.cardStats.set(cardName, newCardStats());
+    this.stats.cardStats.get(cardName)!.interrupted++;
+    if (!this.stats.cardTypeStats.has(cardType)) this.stats.cardTypeStats.set(cardType, newCardStats());
+    this.stats.cardTypeStats.get(cardType)!.interrupted++;
+  }
+
+  selectTarget(attacker: Character): [number, number] | null {
+    const enemies = this.getLivingEnemies(attacker.team);
+    if (enemies.length === 0) return null;
+
+    const enemyTeam = this.getEnemyTeam(attacker.team);
+
+    const wounded = enemies.filter(i => enemyTeam[i].currentWounds > 0);
+    let targetIdx: number;
+
+    if (wounded.length > 0) {
+      targetIdx = wounded.reduce((best, i) =>
+        enemyTeam[i].currentWounds > enemyTeam[best].currentWounds ? i : best, wounded[0]);
+    } else {
+      targetIdx = enemies.reduce((best, i) =>
+        enemyTeam[i].getEffectiveDefense() < enemyTeam[best].getEffectiveDefense() ? i : best, enemies[0]);
+    }
+
+    const targetTeam = attacker.team === 1 ? 2 : 1;
+    return [targetTeam, targetIdx];
+  }
+
+  private resolveAttack(
+    attackerTeam: number,
+    attackerIdx: number,
+    targetTeam: number,
+    targetIdx: number,
+    card: Card,
+  ): boolean {
+    let tIdx = targetIdx;
+    const targetList = this.getTeam(targetTeam);
+    if (!targetList[tIdx].isAlive()) return false;
+
+    const targetName = targetList[tIdx].name;
+
+    // Check for sacrifice redirect
+    const sacrificerName = this.sacrificeTargets.get(targetName);
+    if (sacrificerName) {
+      let found: [number, number] | null = null;
+      for (let i = 0; i < this.team1.length; i++) {
+        if (this.team1[i].name === sacrificerName && this.team1[i].isAlive()) {
+          found = [1, i];
+          break;
+        }
+      }
+      if (!found) {
+        for (let i = 0; i < this.team2.length; i++) {
+          if (this.team2[i].name === sacrificerName && this.team2[i].isAlive()) {
+            found = [2, i];
+            break;
+          }
+        }
+      }
+      if (found) {
+        this.log(`  → ${sacrificerName} intercepts the attack meant for ${targetName}!`);
+        this.addLog({ type: 'sacrifice', text: `${sacrificerName} intercepts the attack meant for ${targetName}!`, characterName: sacrificerName });
+        tIdx = found[1];
+      }
+    }
+
+    const target = this.getTeam(targetTeam)[tIdx];
+
+    if (target.dodging) {
+      this.log(`  → ${target.name} dodges the attack!`);
+      this.addLog({ type: 'miss', text: `${target.name} dodges the attack!`, characterName: target.name });
+      return false;
+    }
+
+    const attacker = this.getTeam(attackerTeam)[attackerIdx];
+
+    const [attackStat, dice] = isPhysical(card.cardType)
+      ? [attacker.getEffectiveStrength(), card.physicalAttack]
+      : [attacker.getEffectiveMagic(), card.magicAttack];
+
+    const diceRoll = dice ? dice.roll() : 0;
+    const attackBonus = attacker.getAttackBonus(target.name);
+    const totalAttack = attackStat + diceRoll + attackBonus;
+
+    const targetNameForVengeance = target.name;
+    const attackerName = attacker.name;
+
+    // Check if target has a defense card protecting them
+    const defenseTeamChar = this.getTeam(targetTeam);
+    const defenseBonusInfo = defenseTeamChar[tIdx].popDefenseBonus();
+
+    let totalDefense: number;
+    let defenderInfo: [number, number, string] | null = null;
+
+    if (defenseBonusInfo) {
+      const [defTeam, defIdx, defName, defValue] = defenseBonusInfo;
+      this.log(`  → ${defName} is defending with defense ${defValue}!`);
+      this.addLog({ type: 'defense', text: `${defName} defends with defense ${defValue}!`, characterName: defName });
+      totalDefense = defValue;
+      defenderInfo = [defTeam, defIdx, defName];
+    } else {
+      totalDefense = this.getTeam(targetTeam)[tIdx].getEffectiveDefense();
+    }
+
+    this.log(`  → Attack: ${attackStat} + ${diceRoll} (dice) + ${attackBonus} (bonus) = ${totalAttack}`);
+    this.log(`  → Defense: ${totalDefense}`);
+
+    // Log attack roll details for web UI
+    const statLabel = isPhysical(card.cardType) ? 'F' : 'M';
+    const diceStr = dice ? `${dice}` : '';
+    let attackParts = `${statLabel} ${attackStat}`;
+    if (diceStr) attackParts += ` + ${diceStr}(${diceRoll})`;
+    if (attackBonus !== 0) attackParts += ` + ${attackBonus}`;
+    attackParts += ` = ${totalAttack}`;
+    this.addLog({ type: 'attack', text: `${attackParts} vs D ${totalDefense}`, characterName: attackerName });
+
+    // Check for vengeance counter-attack
+    const protectorName = this.vengeanceTargets.get(targetNameForVengeance);
+    if (protectorName) {
+      let protectorStrength = 0;
+      let protectorFound = false;
+      for (const c of [...this.team1, ...this.team2]) {
+        if (c.name === protectorName && c.isAlive()) {
+          protectorStrength = c.getEffectiveStrength();
+          protectorFound = true;
+          break;
+        }
+      }
+      if (protectorFound) {
+        const counterAttack = protectorStrength + new DiceRoll(1, 8).roll();
+        const attackerForCounter = this.getTeam(attackerTeam)[attackerIdx];
+        const attackerDef = attackerForCounter.getEffectiveDefense();
+        this.log(`  → Vengeance! ${protectorName} counter-attacks with ${counterAttack} vs ${attackerDef}`);
+        this.addLog({ type: 'vengeance', text: `${protectorName} counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: protectorName });
+        if (counterAttack > attackerDef) {
+          const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
+          const died = attackerMut.takeWound();
+          this.woundedThisRound.add(attackerName);
+          this.log(`  → ${attackerName} takes a wound from vengeance! (${attackerMut.currentWounds}/${attackerMut.maxWounds})`);
+          this.addLog({ type: 'hit', text: `${attackerName} takes a wound from vengeance! (${attackerMut.currentWounds}/${attackerMut.maxWounds})`, characterName: attackerName });
+          if (died) {
+            this.log(`  ★ ${attackerName} is defeated!`);
+            this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
+          }
+        }
+      }
+    }
+
+    if (totalAttack > totalDefense) {
+      // Attack succeeds
+      let woundTeam: number, woundIdx: number, woundName: string;
+
+      if (defenderInfo) {
+        const [defTeam, defIdx, defName] = defenderInfo;
+        this.checkFocusInterruption(defTeam, defIdx);
+        const defenderMut = this.getTeam(defTeam)[defIdx];
+        const died = defenderMut.takeWound();
+        this.woundedThisRound.add(defName);
+        this.log(`  → HIT! ${defName} (defender) takes a wound! (${defenderMut.currentWounds}/${defenderMut.maxWounds})`);
+        this.addLog({ type: 'hit', text: `${defName} (defender) takes a wound! (${defenderMut.currentWounds}/${defenderMut.maxWounds})`, characterName: defName });
+        if (died) {
+          this.log(`  ★ ${defName} is defeated!`);
+          this.addLog({ type: 'death', text: `${defName} is defeated!`, characterName: defName });
+        }
+        woundTeam = defTeam;
+        woundIdx = defIdx;
+        woundName = defName;
+      } else {
+        this.checkFocusInterruption(targetTeam, tIdx);
+        const targetMut = this.getTeam(targetTeam)[tIdx];
+        const tName = targetMut.name;
+        const died = targetMut.takeWound();
+        this.woundedThisRound.add(tName);
+        this.log(`  → HIT! ${tName} takes a wound! (${targetMut.currentWounds}/${targetMut.maxWounds})`);
+        this.addLog({ type: 'hit', text: `${tName} takes a wound! (${targetMut.currentWounds}/${targetMut.maxWounds})`, characterName: tName });
+        if (died) {
+          this.log(`  ★ ${tName} is defeated!`);
+          this.addLog({ type: 'death', text: `${tName} is defeated!`, characterName: tName });
+        }
+        woundTeam = targetTeam;
+        woundIdx = tIdx;
+        woundName = tName;
+      }
+
+      // Poison weapon check
+      if (isPhysical(card.cardType)) {
+        const attackerCheck = this.getTeam(attackerTeam)[attackerIdx];
+        if (attackerCheck.hasPoisonWeapon) {
+          const recipient = this.getTeam(woundTeam)[woundIdx];
+          if (recipient.isAlive()) {
+            const died = recipient.takeWound();
+            this.log(`  → Poison deals extra wound to ${woundName}! (${recipient.currentWounds}/${recipient.maxWounds})`);
+            this.addLog({ type: 'effect', text: `Poison deals extra wound to ${woundName}! (${recipient.currentWounds}/${recipient.maxWounds})`, characterName: woundName });
+            if (died) {
+              this.log(`  ★ ${woundName} is defeated by poison!`);
+              this.addLog({ type: 'death', text: `${woundName} is defeated by poison!`, characterName: woundName });
+            }
+          }
+        }
+      }
+      return true;
+    } else {
+      this.log('  → MISS! Attack blocked.');
+      this.addLog({ type: 'miss', text: `${attackerName}'s attack is blocked by ${this.getTeam(targetTeam)[tIdx].name}!`, characterName: attackerName });
+
+      // Focus is interrupted when receiving an attack
+      if (defenderInfo) {
+        this.checkFocusInterruption(defenderInfo[0], defenderInfo[1]);
+      } else {
+        this.checkFocusInterruption(targetTeam, tIdx);
+      }
+
+      // Absorb pain on defender
+      if (defenderInfo) {
+        const [defTeam, defIdx, defName] = defenderInfo;
+        const defender = this.getTeam(defTeam)[defIdx];
+        if (defender.hasAbsorbPain) {
+          defender.modifiers.push(
+            new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource('Absorvir dolor'),
+          );
+          this.log(`  → ${defName} gains +1 defense from Absorvir dolor!`);
+          this.addLog({ type: 'effect', text: `${defName} gains +1 defense from Absorvir dolor!`, characterName: defName });
+        }
+      }
+      return false;
+    }
+  }
+
+  private resolveCard(charTeam: number, charIdx: number, card: Card): void {
+    const character = this.getTeam(charTeam)[charIdx];
+    const charName = character.name;
+    const charClass = character.characterClass;
+    const cardName = card.name;
+    const cardTypeS = cardTypeStr(card.cardType);
+
+    this.recordPlay(cardName, cardTypeS);
+    if (charTeam === 1) {
+      this.team1CardsPlayed.push([cardName, cardTypeS]);
+    } else {
+      this.team2CardsPlayed.push([cardName, cardTypeS]);
+    }
+
+    this.log(`\n${charName} (${charClass}) plays ${card.name}`);
+    this.addLog({ type: 'play', text: `${charName} plays ${card.name}`, team: charTeam, characterName: charName });
+
+    if (isFocus(card.cardType)) {
+      if (this.getTeam(charTeam)[charIdx].focusInterrupted) {
+        this.recordInterrupted(cardName, cardTypeS);
+        this.log('  → Focus interrupted! Card has no effect.');
+        this.addLog({ type: 'focus-interrupted', text: `${charName}'s ${card.name} is interrupted!`, characterName: charName });
+        return;
+      }
+    }
+
+    if (isAttack(card.cardType)) {
+      if (this.getTeam(charTeam)[charIdx].stunned) {
+        this.log(`  → ${charName} is stunned and cannot attack!`);
+        this.addLog({ type: 'effect', text: `${charName} is stunned and cannot attack!`, characterName: charName });
+        return;
+      }
+    }
+
+    // Handle attacks
+    if (isAttack(card.cardType)) {
+      const eTeam = charTeam === 1 ? 2 : 1;
+      const overrides = this.resolveTargets.get(charName);
+
+      let targets: number[];
+      if (card.effect.type === 'MultiTarget') {
+        const enemies = this.getLivingEnemies(charTeam);
+        targets = enemies.slice(0, card.effect.count);
+      } else if (overrides?.attackTarget && overrides.attackTarget[0] === eTeam) {
+        targets = [overrides.attackTarget[1]];
+      } else {
+        const result = this.selectTarget(this.getTeam(charTeam)[charIdx]);
+        targets = result ? [result[1]] : [];
+      }
+
+      for (const ti of targets) {
+        this.resolveAttack(charTeam, charIdx, eTeam, ti, card);
+      }
+
+      // Handle stun effect
+      if (card.effect.type === 'Stun') {
+        const stunTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
+        if (stunTarget) {
+          const [tTeam, tIdx] = stunTarget;
+          const tChar = this.getTeam(tTeam)[tIdx];
+          if (tChar.isAlive()) {
+            tChar.stunned = true;
+            this.log(`  → ${tChar.name} is stunned!`);
+            this.addLog({ type: 'effect', text: `${tChar.name} is stunned!`, characterName: tChar.name });
+          }
+        }
+      }
+
+      // Handle speed debuff
+      if (card.effect.type === 'EnemySpeedDebuff') {
+        const debuffTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
+        if (debuffTarget) {
+          const [tTeam, tIdx] = debuffTarget;
+          const tChar = this.getTeam(tTeam)[tIdx];
+          if (tChar.isAlive()) {
+            tChar.modifiers.push(
+              new CombatModifier('speed', -card.effect.amount, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            this.log(`  → ${tChar.name} gets -${card.effect.amount} speed next turn!`);
+            this.addLog({ type: 'effect', text: `${tChar.name} gets -${card.effect.amount} speed next turn!`, characterName: tChar.name });
+          }
+        }
+      }
+
+      // Handle strength debuff
+      if (card.effect.type === 'EnemyStrengthDebuff') {
+        const strDebuffTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
+        if (strDebuffTarget) {
+          const [tTeam, tIdx] = strDebuffTarget;
+          const tChar = this.getTeam(tTeam)[tIdx];
+          if (tChar.isAlive()) {
+            tChar.modifiers.push(
+              new CombatModifier('strength', -card.effect.amount, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            this.log(`  → ${tChar.name} gets -${card.effect.amount} strength next turn!`);
+          }
+        }
+      }
+
+      // Handle Embestida effect
+      if (card.effect.type === 'EmbestidaEffect') {
+        const embTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
+        if (embTarget) {
+          const [tTeam, tIdx] = embTarget;
+          const tChar = this.getTeam(tTeam)[tIdx];
+          if (tChar.isAlive()) {
+            tChar.modifiers.push(
+              new CombatModifier('speed', -2, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            this.log(`  → ${tChar.name} gets -2 speed next turn!`);
+            this.addLog({ type: 'effect', text: `${tChar.name} gets -2 speed next turn!`, characterName: tChar.name });
+          }
+        }
+        // Self -3 speed next turn
+        const attacker = this.getTeam(charTeam)[charIdx];
+        attacker.modifiers.push(
+          new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource(card.name),
+        );
+        this.log(`  → ${charName} gets -3 speed next turn!`);
+      }
+
+      // Handle Reckless Attack
+      if (card.effect.type === 'RecklessAttack') {
+        const attacker = this.getTeam(charTeam)[charIdx];
+        attacker.modifiers.push(
+          new CombatModifier('defense', -2, ModifierDuration.ThisAndNextTurn).withSource(card.name),
+        );
+        this.log(`  → ${charName} gets -2 defense this and next turn!`);
+        this.addLog({ type: 'effect', text: `${charName} gets -2 defense this and next turn!`, characterName: charName });
+      }
+
+      // Handle skip turns
+      if (card.effect.type === 'SkipNextTurn') {
+        this.getTeam(charTeam)[charIdx].skipTurns = 1;
+        this.log(`  → ${charName} will skip next turn!`);
+      }
+      if (card.effect.type === 'SkipNextTurns') {
+        this.getTeam(charTeam)[charIdx].skipTurns = card.effect.count;
+        this.log(`  → ${charName} will skip the next ${card.effect.count} turns!`);
+      }
+    }
+
+    // Handle defense cards
+    if (isDefense(card.cardType)) {
+      const defOverrides = this.resolveTargets.get(charName);
+
+      if (card.effect.type === 'Sacrifice') {
+        let protectedIdx: number | null = null;
+        if (defOverrides?.allyTarget && defOverrides.allyTarget[0] === charTeam) {
+          protectedIdx = defOverrides.allyTarget[1];
+        } else {
+          const allies = this.getLivingAllies(charTeam, charIdx);
+          if (allies.length > 0) protectedIdx = allies[0];
+        }
+        if (protectedIdx !== null) {
+          const allyTeam = this.getTeam(charTeam);
+          const protectedName = allyTeam[protectedIdx].name;
+          this.sacrificeTargets.set(protectedName, charName);
+          this.log(`  → ${charName} will intercept attacks against ${protectedName}!`);
+          this.addLog({ type: 'effect', text: `${charName} will intercept attacks against ${protectedName}!`, characterName: charName });
+        }
+      } else if (card.defense) {
+        const defenseDice = card.defense;
+        const allyTeamArr = this.getTeam(charTeam);
+
+        let defTargets: number[];
+        if (card.effect.type === 'DefendMultiple') {
+          const allies = this.getLivingAllies(charTeam);
+          defTargets = allies.slice(0, card.effect.count);
+        } else if (defOverrides?.allyTarget && defOverrides.allyTarget[0] === charTeam) {
+          defTargets = [defOverrides.allyTarget[1]];
+        } else {
+          const allies = this.getLivingAllies(charTeam);
+          defTargets = allies.slice(0, 1);
+        }
+
+        const defenderBaseDefense = (() => {
+          const defender = this.getTeam(charTeam)[charIdx];
+          return defender.defense + defender.getStatModifier('defense') + defender.getEquipmentDefense();
+        })();
+
+        for (const ti of defTargets) {
+          allyTeamArr[ti].defenseBonuses.push([charTeam, charIdx, charName, defenderBaseDefense, defenseDice]);
+          this.log(`  → ${allyTeamArr[ti].name} gains +${defenderBaseDefense} + ${defenseDice} defense this round from ${charName}!`);
+          this.addLog({ type: 'defense', text: `${allyTeamArr[ti].name} gains defense from ${charName}!`, characterName: allyTeamArr[ti].name });
+        }
+
+        if (card.effect.type === 'AbsorbPain') {
+          this.getTeam(charTeam)[charIdx].hasAbsorbPain = true;
+        }
+      }
+    }
+
+    // Handle focus cards
+    if (isFocus(card.cardType)) {
+      switch (card.effect.type) {
+        case 'StrengthBoost': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.modifiers.push(
+            new CombatModifier('strength', card.effect.amount, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          this.log(`  → ${charName} gains +${card.effect.amount} Strength for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${card.effect.amount} Strength for rest of combat!`, characterName: charName });
+          break;
+        }
+        case 'MagicBoost': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.modifiers.push(
+            new CombatModifier('magic', card.effect.amount, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          this.log(`  → ${charName} gains +${card.effect.amount} Magic for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${card.effect.amount} Magic for rest of combat!`, characterName: charName });
+          break;
+        }
+        case 'RageBoost': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.modifiers.push(new CombatModifier('strength', 2, ModifierDuration.RestOfCombat).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('defense', 2, ModifierDuration.RestOfCombat).withSource(card.name));
+          this.log(`  → ${charName} gains +2 Strength and +2 Defense for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +2 Strength and +2 Defense for rest of combat!`, characterName: charName });
+          break;
+        }
+        case 'IntimidatingRoar': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            enemyTeam[idx].modifiers.push(new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource(card.name));
+            enemyTeam[idx].modifiers.push(new CombatModifier('speed', -2, ModifierDuration.NextTurn).withSource(card.name));
+          }
+          this.log('  → Enemies get -2 strength and -2 speed next turn!');
+          this.addLog({ type: 'effect', text: 'Enemies get -2 strength and -2 speed next turn!', characterName: charName });
+          break;
+        }
+        case 'AllyStrengthThisTurn': {
+          const allies = this.getLivingAllies(charTeam, charIdx);
+          const allyTeam = this.getTeam(charTeam);
+          for (const idx of allies) {
+            allyTeam[idx].modifiers.push(
+              new CombatModifier('strength', card.effect.amount, ModifierDuration.ThisTurn).withSource(card.name),
+            );
+          }
+          this.log(`  → All allies gain +${card.effect.amount} Strength this turn!`);
+          this.addLog({ type: 'effect', text: `All allies gain +${card.effect.amount} Strength this turn!`, characterName: charName });
+          break;
+        }
+        case 'DefenseBoostDuration': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          const focusOverrides = this.resolveTargets.get(charName);
+          ch.modifiers.push(
+            new CombatModifier('defense', 0, ModifierDuration.ThisAndNextTurn)
+              .withDice(card.effect.dice)
+              .withSource(card.name),
+          );
+          let defBoostAllyIdx: number | null = null;
+          if (focusOverrides?.allyTarget && focusOverrides.allyTarget[0] === charTeam) {
+            defBoostAllyIdx = focusOverrides.allyTarget[1];
+          } else {
+            const allies = this.getLivingAllies(charTeam, charIdx);
+            if (allies.length > 0) defBoostAllyIdx = allies[0];
+          }
+          if (defBoostAllyIdx !== null) {
+            const allyTeam = this.getTeam(charTeam);
+            const allyName = allyTeam[defBoostAllyIdx].name;
+            allyTeam[defBoostAllyIdx].modifiers.push(
+              new CombatModifier('defense', 0, ModifierDuration.ThisAndNextTurn)
+                .withDice(card.effect.dice)
+                .withSource(card.name),
+            );
+            this.log(`  → ${charName} and ${allyName} gain +${card.effect.dice} defense this and next turn!`);
+            this.addLog({ type: 'effect', text: `${charName} and ${allyName} gain +${card.effect.dice} defense!`, characterName: charName });
+          }
+          break;
+        }
+        case 'TeamSpeedDefenseBoost': {
+          const allAllies = this.getLivingAllies(charTeam);
+          const allyTeam = this.getTeam(charTeam);
+          allyTeam[charIdx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.RestOfCombat).withSource(card.name));
+          allyTeam[charIdx].modifiers.push(new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource(card.name));
+          for (const idx of allAllies) {
+            if (idx !== charIdx) {
+              allyTeam[idx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.RestOfCombat).withSource(card.name));
+              allyTeam[idx].modifiers.push(new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource(card.name));
+            }
+          }
+          this.log('  → All allies gain +2 speed and +1 defense for rest of combat!');
+          this.addLog({ type: 'effect', text: 'All allies gain +2 speed and +1 defense for rest of combat!', characterName: charName });
+          break;
+        }
+        case 'IceTrap': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            enemyTeam[idx].modifiers.push(new CombatModifier('speed', -4, ModifierDuration.NextTurn).withSource(card.name));
+          }
+          this.log('  → Enemies get -4 speed next turn!');
+          this.addLog({ type: 'effect', text: 'Enemies get -4 speed next turn!', characterName: charName });
+          break;
+        }
+        case 'BlindingSmoke': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            enemyTeam[idx].modifiers.push(new CombatModifier('speed', -4, ModifierDuration.NextTurn).withSource(card.name));
+            enemyTeam[idx].modifiers.push(new CombatModifier('defense', -2, ModifierDuration.NextTurn).withSource(card.name));
+          }
+          const allies = this.getLivingAllies(charTeam);
+          const allyTeam = this.getTeam(charTeam);
+          for (const idx of allies) {
+            allyTeam[idx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.NextTurn).withSource(card.name));
+          }
+          this.log('  → Enemies get -4 speed and -2 defense, allies get +2 speed next turn!');
+          this.addLog({ type: 'effect', text: 'Enemies get -4 speed / -2 defense, allies get +2 speed next turn!', characterName: charName });
+          break;
+        }
+        case 'DodgeWithSpeedBoost': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.dodging = true;
+          ch.modifiers.push(new CombatModifier('speed', 3, ModifierDuration.NextTurn).withSource(card.name));
+          this.log(`  → ${charName} will dodge all attacks this turn, +3 speed next turn!`);
+          this.addLog({ type: 'effect', text: `${charName} dodges all attacks, +3 speed next turn!`, characterName: charName });
+          break;
+        }
+        case 'CoordinatedAmbush': {
+          const caOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let ambushTargetIdx: number | null = null;
+          if (caOverrides?.attackTarget) {
+            ambushTargetIdx = caOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            ambushTargetIdx = enemies[0];
+          }
+          if (ambushTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const tName = enemyTeam[ambushTargetIdx].name;
+            this.coordinatedAmbushTarget = tName;
+            const allies = this.getLivingAllies(charTeam, charIdx);
+            const allyTeam = this.getTeam(charTeam);
+            for (const idx of allies) {
+              allyTeam[idx].modifiers.push(
+                new CombatModifier('attack_bonus', 0, ModifierDuration.ThisTurn)
+                  .withDice(new DiceRoll(1, 6, 2))
+                  .withSource(card.name)
+                  .withCondition(`attacking_${tName}`),
+              );
+            }
+            this.log(`  → Allies get +1d6+2 when attacking ${tName}!`);
+            this.addLog({ type: 'effect', text: `Allies get +1d6+2 when attacking ${tName}!`, characterName: charName });
+          }
+          break;
+        }
+        case 'Vengeance': {
+          const vengOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let protectName: string;
+          if (vengOverrides?.allyTarget && vengOverrides.allyTarget[0] === charTeam) {
+            protectName = allyTeam[vengOverrides.allyTarget[1]].name;
+          } else {
+            const allies = this.getLivingAllies(charTeam, charIdx);
+            if (allies.length === 0) {
+              protectName = charName;
+            } else {
+              const wounded = allies.filter(i => allyTeam[i].currentWounds > 0);
+              if (wounded.length > 0) {
+                const best = wounded.reduce((b, i) =>
+                  allyTeam[i].currentWounds > allyTeam[b].currentWounds ? i : b, wounded[0]);
+                protectName = allyTeam[best].name;
+              } else {
+                protectName = allyTeam[allies[0]].name;
+              }
+            }
+          }
+          this.vengeanceTargets.set(protectName, charName);
+          this.log(`  → ${charName} will counter-attack anyone who attacks ${protectName}!`);
+          this.addLog({ type: 'effect', text: `${charName} will counter-attack anyone attacking ${protectName}!`, characterName: charName });
+          break;
+        }
+        case 'EnchantWeapon': {
+          const ewOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let ewTargetIdx: number;
+          if (ewOverrides?.allyTarget && ewOverrides.allyTarget[0] === charTeam) {
+            ewTargetIdx = ewOverrides.allyTarget[1];
+          } else {
+            const allies = this.getLivingAllies(charTeam);
+            ewTargetIdx = allies.length > 0
+              ? allies.reduce((best, i) =>
+                  Math.max(allyTeam[i].strength, allyTeam[i].magic) >
+                  Math.max(allyTeam[best].strength, allyTeam[best].magic) ? i : best, allies[0])
+              : charIdx;
+          }
+          const tName = allyTeam[ewTargetIdx].name;
+          allyTeam[ewTargetIdx].modifiers.push(
+            new CombatModifier('attack_bonus', 0, ModifierDuration.RestOfCombat)
+              .withDice(new DiceRoll(1, 6))
+              .withSource(card.name),
+          );
+          this.log(`  → ${tName}'s attacks now deal +1d6 damage!`);
+          this.addLog({ type: 'effect', text: `${tName}'s attacks now deal +1d6 damage!`, characterName: tName });
+          break;
+        }
+        case 'PoisonWeapon': {
+          const pwOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let pwTargetIdx: number;
+          if (pwOverrides?.allyTarget && pwOverrides.allyTarget[0] === charTeam) {
+            pwTargetIdx = pwOverrides.allyTarget[1];
+          } else {
+            const allies = this.getLivingAllies(charTeam, charIdx);
+            pwTargetIdx = allies.length > 0
+              ? allies.reduce((best, i) =>
+                  allyTeam[i].strength > allyTeam[best].strength ? i : best, allies[0])
+              : charIdx;
+          }
+          const tName = allyTeam[pwTargetIdx].name;
+          allyTeam[pwTargetIdx].hasPoisonWeapon = true;
+          this.log(`  → ${tName}'s physical attacks now deal an extra wound!`);
+          this.addLog({ type: 'effect', text: `${tName}'s physical attacks now deal an extra wound!`, characterName: tName });
+          break;
+        }
+        case 'BloodThirst': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            if (enemyTeam[idx].woundedThisCombat) {
+              const eName = enemyTeam[idx].name;
+              const died = enemyTeam[idx].takeWound();
+              this.log(`  → ${eName} takes a wound from Blood Thirst! (${enemyTeam[idx].currentWounds}/${enemyTeam[idx].maxWounds})`);
+              this.addLog({ type: 'hit', text: `${eName} takes a wound from Blood Thirst! (${enemyTeam[idx].currentWounds}/${enemyTeam[idx].maxWounds})`, characterName: eName });
+              if (died) {
+                this.log(`  ★ ${eName} is defeated!`);
+                this.addLog({ type: 'death', text: `${eName} is defeated!`, characterName: eName });
+              }
+            }
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  }
+
+  private checkFocusInterruption(targetTeam: number, targetIdx: number): void {
+    const target = this.getTeam(targetTeam)[targetIdx];
+    if (target.playedCardIdx !== null) {
+      if (isFocus(target.cards[target.playedCardIdx].cardType)) {
+        target.focusInterrupted = true;
+      }
+    }
+  }
+
+  isCombatOver(): boolean {
+    const team1Alive = this.team1.some(c => c.isAlive());
+    const team2Alive = this.team2.some(c => c.isAlive());
+    return !team1Alive || !team2Alive;
+  }
+
+  // =========================================================================
+  // WEB UI INTERFACE — split round into phases
+  // =========================================================================
+
+  /** Prepare a new round: resets state and returns which characters need input */
+  prepareRound(): { skipping: Map<number, Set<number>> } {
+    this.roundNumber++;
+    this.coordinatedAmbushTarget = null;
+    this.woundedThisRound.clear();
+    this.logEntries = [];
+
+    this.addLog({ type: 'round', text: `Round ${this.roundNumber}` });
+
+    const skipping = new Map<number, Set<number>>();
+    skipping.set(1, new Set());
+    skipping.set(2, new Set());
+
+    for (let idx = 0; idx < this.team1.length; idx++) {
+      if (!this.team1[idx].isAlive()) continue;
+      if (this.team1[idx].resetForNewRound()) {
+        skipping.get(1)!.add(idx);
+        this.addLog({ type: 'skip', text: `${this.team1[idx].name} skips this turn!`, team: 1, characterName: this.team1[idx].name });
+      }
+    }
+    for (let idx = 0; idx < this.team2.length; idx++) {
+      if (!this.team2[idx].isAlive()) continue;
+      if (this.team2[idx].resetForNewRound()) {
+        skipping.get(2)!.add(idx);
+        this.addLog({ type: 'skip', text: `${this.team2[idx].name} skips this turn!`, team: 2, characterName: this.team2[idx].name });
+      }
+    }
+
+    return { skipping };
+  }
+
+  /** Submit card selections for both teams and resolve the round */
+  submitSelectionsAndResolve(
+    selections: Map<string, CardSelection>,
+  ): LogEntry[] {
+    this.logEntries = [];
+    this.resolveTargets.clear();
+
+    // Build action list and populate target overrides
+    const actions: [number, number, number][] = []; // [team, charIdx, cardIdx]
+
+    for (let idx = 0; idx < this.team1.length; idx++) {
+      const sel = selections.get(this.team1[idx].name);
+      if (sel === undefined) continue;
+      this.team1[idx].playedCardIdx = sel.cardIdx;
+      actions.push([1, idx, sel.cardIdx]);
+      if (sel.attackTarget || sel.allyTarget) {
+        this.resolveTargets.set(this.team1[idx].name, {
+          attackTarget: sel.attackTarget,
+          allyTarget: sel.allyTarget,
+        });
+      }
+    }
+    for (let idx = 0; idx < this.team2.length; idx++) {
+      const sel = selections.get(this.team2[idx].name);
+      if (sel === undefined) continue;
+      this.team2[idx].playedCardIdx = sel.cardIdx;
+      actions.push([2, idx, sel.cardIdx]);
+      if (sel.attackTarget || sel.allyTarget) {
+        this.resolveTargets.set(this.team2[idx].name, {
+          attackTarget: sel.attackTarget,
+          allyTarget: sel.allyTarget,
+        });
+      }
+    }
+
+    // Sort by speed (highest first)
+    actions.sort((a, b) => {
+      const charA = this.getTeam(a[0])[a[1]];
+      const charB = this.getTeam(b[0])[b[1]];
+      const speedA = charA.getEffectiveSpeed(charA.cards[a[2]]);
+      const speedB = charB.getEffectiveSpeed(charB.cards[b[2]]);
+      return speedB - speedA;
+    });
+
+    // Resolve
+    for (const [team, charIdx, cardIdx] of actions) {
+      const ch = this.getTeam(team)[charIdx];
+      if (!ch.isAlive()) continue;
+      const card = ch.cards[cardIdx];
+      this.resolveCard(team, charIdx, card);
+      if (this.isCombatOver()) break;
+    }
+
+    // End of round cleanup
+    for (const ch of [...this.team1, ...this.team2]) {
+      ch.advanceTurnModifiers();
+      ch.stunned = false;
+    }
+
+    return this.logEntries;
+  }
+
+  // =========================================================================
+  // WEB UI — step-by-step resolution
+  // =========================================================================
+
+  /** Plan actions: set up card selections and sort by speed, but don't resolve. */
+  planActions(selections: Map<string, CardSelection>): PlannedAction[] {
+    this.logEntries = [];
+    this.resolveTargets.clear();
+
+    const actions: [number, number, number][] = [];
+
+    for (let idx = 0; idx < this.team1.length; idx++) {
+      const sel = selections.get(this.team1[idx].name);
+      if (sel === undefined) continue;
+      this.team1[idx].playedCardIdx = sel.cardIdx;
+      actions.push([1, idx, sel.cardIdx]);
+      if (sel.attackTarget || sel.allyTarget) {
+        this.resolveTargets.set(this.team1[idx].name, {
+          attackTarget: sel.attackTarget,
+          allyTarget: sel.allyTarget,
+        });
+      }
+    }
+    for (let idx = 0; idx < this.team2.length; idx++) {
+      const sel = selections.get(this.team2[idx].name);
+      if (sel === undefined) continue;
+      this.team2[idx].playedCardIdx = sel.cardIdx;
+      actions.push([2, idx, sel.cardIdx]);
+      if (sel.attackTarget || sel.allyTarget) {
+        this.resolveTargets.set(this.team2[idx].name, {
+          attackTarget: sel.attackTarget,
+          allyTarget: sel.allyTarget,
+        });
+      }
+    }
+
+    // Sort by speed (highest first)
+    actions.sort((a, b) => {
+      const charA = this.getTeam(a[0])[a[1]];
+      const charB = this.getTeam(b[0])[b[1]];
+      const speedA = charA.getEffectiveSpeed(charA.cards[a[2]]);
+      const speedB = charB.getEffectiveSpeed(charB.cards[b[2]]);
+      return speedB - speedA;
+    });
+
+    this.pendingActions = actions.map(([team, charIdx, cardIdx]) => {
+      const ch = this.getTeam(team)[charIdx];
+      const card = ch.cards[cardIdx];
+      return {
+        team,
+        charIdx,
+        cardIdx,
+        characterName: ch.name,
+        characterClass: ch.characterClass,
+        cardName: card.name,
+        cardType: card.cardType,
+        effectiveSpeed: ch.getEffectiveSpeed(card),
+      };
+    });
+    this.pendingActionIndex = 0;
+
+    return this.pendingActions;
+  }
+
+  /** Resolve the next pending action. Returns logs for just this action. */
+  resolveNextAction(): { action: PlannedAction | null; logs: LogEntry[]; done: boolean; combatOver: boolean } {
+    if (this.pendingActionIndex >= this.pendingActions.length) {
+      return { action: null, logs: [], done: true, combatOver: this.isCombatOver() };
+    }
+
+    const planned = this.pendingActions[this.pendingActionIndex];
+    this.pendingActionIndex++;
+    this.logEntries = [];
+
+    const ch = this.getTeam(planned.team)[planned.charIdx];
+    if (!ch.isAlive()) {
+      this.addLog({ type: 'skip', text: `${planned.characterName} can no longer act.`, characterName: planned.characterName });
+      return {
+        action: planned,
+        logs: this.logEntries,
+        done: this.pendingActionIndex >= this.pendingActions.length,
+        combatOver: this.isCombatOver(),
+      };
+    }
+
+    const card = ch.cards[planned.cardIdx];
+    this.resolveCard(planned.team, planned.charIdx, card);
+
+    const combatOver = this.isCombatOver();
+    const done = combatOver || this.pendingActionIndex >= this.pendingActions.length;
+
+    return { action: planned, logs: this.logEntries, done, combatOver };
+  }
+
+  /** Set a resolve target for a character (used for resolution-time targeting). */
+  setResolveTarget(charName: string, targets: { attackTarget?: [number, number]; allyTarget?: [number, number] }): void {
+    this.resolveTargets.set(charName, targets);
+  }
+
+  /** End-of-round cleanup after step-by-step resolution. */
+  finishRound(): void {
+    for (const ch of [...this.team1, ...this.team2]) {
+      ch.advanceTurnModifiers();
+      ch.stunned = false;
+    }
+    this.pendingActions = [];
+    this.pendingActionIndex = 0;
+  }
+
+  // =========================================================================
+  // FULL AUTO COMBAT (for simulator)
+  // =========================================================================
+
+  runRound(): boolean {
+    this.roundNumber++;
+    this.log(`\n${'─'.repeat(50)}`);
+    this.log(`ROUND ${this.roundNumber}`);
+    this.log('─'.repeat(50));
+
+    this.coordinatedAmbushTarget = null;
+    this.woundedThisRound.clear();
+
+    const actions: [number, number, number][] = [];
+    const logs: string[] = [];
+
+    const team1Assigned = new Set<number>();
+    const team2Assigned = new Set<number>();
+
+    // Reset rounds for all living characters
+    const team1Skipping = new Set<number>();
+    const team2Skipping = new Set<number>();
+
+    for (let idx = 0; idx < this.team1.length; idx++) {
+      if (!this.team1[idx].isAlive()) continue;
+      if (this.team1[idx].resetForNewRound()) {
+        logs.push(`${this.team1[idx].name} skips this turn!`);
+        team1Skipping.add(idx);
+      }
+    }
+    for (let idx = 0; idx < this.team2.length; idx++) {
+      if (!this.team2[idx].isAlive()) continue;
+      if (this.team2[idx].resetForNewRound()) {
+        logs.push(`${this.team2[idx].name} skips this turn!`);
+        team2Skipping.add(idx);
+      }
+    }
+
+    // Team 1 combo check
+    if (this.team1ComboPlan.length > 0) {
+      while (this.team1ComboPlan.length > 0) {
+        const combo = this.team1ComboPlan[0];
+        const pa = combo.playerAIdx;
+        const pb = combo.playerBIdx;
+
+        const aAvail = this.team1[pa]?.isAlive() && !team1Skipping.has(pa);
+        const bAvail = this.team1[pb]?.isAlive() && !team1Skipping.has(pb);
+
+        if (!aAvail || !bAvail) {
+          this.team1ComboPlan.shift();
+          continue;
+        }
+
+        if (Math.random() < 0.95) {
+          this.team1[pa].playedCardIdx = combo.cardAIdx;
+          actions.push([1, pa, combo.cardAIdx]);
+          logs.push(`${this.team1[pa].name} selects: ${this.team1[pa].cards[combo.cardAIdx].name} (combo!)`);
+          team1Assigned.add(pa);
+
+          this.team1[pb].playedCardIdx = combo.cardBIdx;
+          actions.push([1, pb, combo.cardBIdx]);
+          logs.push(`${this.team1[pb].name} selects: ${this.team1[pb].cards[combo.cardBIdx].name} (combo!)`);
+          team1Assigned.add(pb);
+        }
+
+        this.team1ComboPlan.shift();
+        break;
+      }
+    }
+
+    // Team 2 combo check
+    if (this.team2ComboPlan.length > 0) {
+      while (this.team2ComboPlan.length > 0) {
+        const combo = this.team2ComboPlan[0];
+        const pa = combo.playerAIdx;
+        const pb = combo.playerBIdx;
+
+        const aAvail = this.team2[pa]?.isAlive() && !team2Skipping.has(pa);
+        const bAvail = this.team2[pb]?.isAlive() && !team2Skipping.has(pb);
+
+        if (!aAvail || !bAvail) {
+          this.team2ComboPlan.shift();
+          continue;
+        }
+
+        if (Math.random() < 0.95) {
+          this.team2[pa].playedCardIdx = combo.cardAIdx;
+          actions.push([2, pa, combo.cardAIdx]);
+          logs.push(`${this.team2[pa].name} selects: ${this.team2[pa].cards[combo.cardAIdx].name} (combo!)`);
+          team2Assigned.add(pa);
+
+          this.team2[pb].playedCardIdx = combo.cardBIdx;
+          actions.push([2, pb, combo.cardBIdx]);
+          logs.push(`${this.team2[pb].name} selects: ${this.team2[pb].cards[combo.cardBIdx].name} (combo!)`);
+          team2Assigned.add(pb);
+        }
+
+        this.team2ComboPlan.shift();
+        break;
+      }
+    }
+
+    // Individual card selection
+    for (let idx = 0; idx < this.team1.length; idx++) {
+      if (!this.team1[idx].isAlive() || team1Skipping.has(idx) || team1Assigned.has(idx)) continue;
+      const cardIdx = selectCardAI(this.team1[idx], this);
+      this.team1[idx].playedCardIdx = cardIdx;
+      actions.push([1, idx, cardIdx]);
+      logs.push(`${this.team1[idx].name} selects: ${this.team1[idx].cards[cardIdx].name}`);
+    }
+    for (let idx = 0; idx < this.team2.length; idx++) {
+      if (!this.team2[idx].isAlive() || team2Skipping.has(idx) || team2Assigned.has(idx)) continue;
+      const cardIdx = selectCardAI(this.team2[idx], this);
+      this.team2[idx].playedCardIdx = cardIdx;
+      actions.push([2, idx, cardIdx]);
+      logs.push(`${this.team2[idx].name} selects: ${this.team2[idx].cards[cardIdx].name}`);
+    }
+
+    for (const l of logs) this.log(l);
+
+    if (actions.length === 0) return false;
+
+    // Sort by speed
+    actions.sort((a, b) => {
+      const charA = this.getTeam(a[0])[a[1]];
+      const charB = this.getTeam(b[0])[b[1]];
+      const speedA = charA.getEffectiveSpeed(charA.cards[a[2]]);
+      const speedB = charB.getEffectiveSpeed(charB.cards[b[2]]);
+      return speedB - speedA;
+    });
+
+    this.log('\nResolution order (by speed):');
+    for (const [team, charIdx, cardIdx] of actions) {
+      const ch = this.getTeam(team)[charIdx];
+      const c = ch.cards[cardIdx];
+      const speed = ch.getEffectiveSpeed(c);
+      this.log(`  ${ch.name}: ${speed} (base ${ch.speed} + card ${c.speedMod} + mods)`);
+    }
+
+    // Resolve actions
+    for (const [team, charIdx, cardIdx] of actions) {
+      const ch = this.getTeam(team)[charIdx];
+      if (!ch.isAlive()) continue;
+      const card = ch.cards[cardIdx];
+      this.resolveCard(team, charIdx, card);
+      if (this.isCombatOver()) return false;
+    }
+
+    // End of round cleanup
+    for (const ch of [...this.team1, ...this.team2]) {
+      ch.advanceTurnModifiers();
+      ch.stunned = false;
+    }
+
+    return true;
+  }
+
+  runCombat(): number {
+    this.log('='.repeat(50));
+    this.log('COMBAT START');
+    this.log('='.repeat(50));
+
+    this.log('\nTeam 1:');
+    for (const c of this.team1) {
+      this.log(`  ${c.name} (${c.characterClass}) - MF:${c.maxWounds} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
+    }
+    this.log('\nTeam 2:');
+    for (const c of this.team2) {
+      this.log(`  ${c.name} (${c.characterClass}) - MF:${c.maxWounds} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
+    }
+
+    // Pre-combat combo planning
+    this.team1ComboPlan = planCombos(this.team1);
+    this.team2ComboPlan = planCombos(this.team2);
+
+    if (this.team1ComboPlan.length > 0) this.log(`\nTeam 1 planned ${this.team1ComboPlan.length} combos`);
+    if (this.team2ComboPlan.length > 0) this.log(`Team 2 planned ${this.team2ComboPlan.length} combos`);
+
+    while (this.roundNumber < this.maxRounds) {
+      if (!this.runRound()) break;
+    }
+
+    const team1Alive = this.team1.filter(c => c.isAlive()).length;
+    const team2Alive = this.team2.filter(c => c.isAlive()).length;
+
+    this.log(`\n${'─'.repeat(50)}`);
+    this.log('COMBAT END');
+    this.log('─'.repeat(50));
+
+    let winner: number;
+    if (team1Alive > 0 && team2Alive === 0) {
+      this.log('TEAM 1 WINS!');
+      winner = 1;
+    } else if (team2Alive > 0 && team1Alive === 0) {
+      this.log('TEAM 2 WINS!');
+      winner = 2;
+    } else if (team1Alive > team2Alive) {
+      this.log(`TEAM 1 WINS! (${team1Alive} vs ${team2Alive} survivors)`);
+      winner = 1;
+    } else if (team2Alive > team1Alive) {
+      this.log(`TEAM 2 WINS! (${team2Alive} vs ${team1Alive} survivors)`);
+      winner = 2;
+    } else {
+      this.log('DRAW!');
+      winner = 0;
+    }
+
+    // Record winner's cards
+    const winnerCards = winner === 1 ? this.team1CardsPlayed : winner === 2 ? this.team2CardsPlayed : null;
+    if (winnerCards) {
+      for (const [cardName, cardType] of winnerCards) {
+        this.recordWinnerPlay(cardName, cardType);
+      }
+    }
+
+    return winner;
+  }
+}
