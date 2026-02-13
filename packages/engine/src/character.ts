@@ -211,8 +211,8 @@ export function createFighter(name: string): Character {
       .withDescription('Tots els aliats reben F+2 aquest torn.'),
     new Card('Formació defensiva', CardType.Focus)
       .withSpeedMod(-4)
-      .withEffect({ type: 'DefenseBoostDuration', dice: new DiceRoll(1, 10), turns: 2 })
-      .withDescription('Tu i tots els aliats D+1d10 per la resta del combat.'),
+      .withEffect({ type: 'DefenseBoostDuration', dice: new DiceRoll(1, 6), turns: 2 })
+      .withDescription('Tu i tots els aliats D+1d6 per la resta del combat.'),
   ];
   return new Character(name, 3, 2, 0, 4, 2, cards, 'Fighter');
 }
@@ -222,8 +222,8 @@ export function createWizard(name: string): Character {
     new Card('Pantalla protectora', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(1)
-      .withEffect({ type: 'DefendMultiple', count: 3 })
-      .withDescription('Defensa a 3 jugadors que triïs.'),
+      .withEffect({ type: 'DefendMultiple', count: 2 })
+      .withDescription('Defensa a 2 jugadors que triïs.'),
     new Card('Bola de foc', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(0),
