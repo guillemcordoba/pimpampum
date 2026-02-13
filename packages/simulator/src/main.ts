@@ -9,8 +9,31 @@ import {
   createBarbarian,
   createGoblin,
   createGoblinShaman,
+  ALL_EQUIPMENT,
+  EquipmentSlot,
 } from '@pimpampum/engine';
-import type { CombatStats } from '@pimpampum/engine';
+import type { CombatStats, EquipmentTemplate } from '@pimpampum/engine';
+
+// =============================================================================
+// RANDOM EQUIPMENT ASSIGNMENT
+// =============================================================================
+
+const equipmentBySlot = new Map<EquipmentSlot, EquipmentTemplate[]>();
+for (const tmpl of ALL_EQUIPMENT) {
+  const list = equipmentBySlot.get(tmpl.slot) ?? [];
+  list.push(tmpl);
+  equipmentBySlot.set(tmpl.slot, list);
+}
+
+function assignRandomEquipment(character: Character): void {
+  for (const [, items] of equipmentBySlot) {
+    // Equally likely: nothing or any of the items in this slot
+    const roll = Math.floor(Math.random() * (items.length + 1));
+    if (roll < items.length) {
+      character.equip(items[roll].creator());
+    }
+  }
+}
 
 // =============================================================================
 // SIMULATION RUNNER
@@ -43,8 +66,16 @@ function runSimulation(
   };
 
   for (let i = 0; i < numSimulations; i++) {
-    const team1 = team1Creators.map((creator, j) => creator(`T1_${j}_${i}`));
-    const team2 = team2Creators.map((creator, j) => creator(`T2_${j}_${i}`));
+    const team1 = team1Creators.map((creator, j) => {
+      const c = creator(`T1_${j}_${i}`);
+      assignRandomEquipment(c);
+      return c;
+    });
+    const team2 = team2Creators.map((creator, j) => {
+      const c = creator(`T2_${j}_${i}`);
+      assignRandomEquipment(c);
+      return c;
+    });
 
     const team1Classes = team1.map(c => c.characterClass);
     const team2Classes = team2.map(c => c.characterClass);
@@ -87,41 +118,38 @@ function getAllCreators(): [string, CharacterCreator][] {
   ];
 }
 
+function combinationsWithReplacement(n: number, k: number): number[][] {
+  const results: number[][] = [];
+  const current: number[] = [];
+  function generate(start: number, remaining: number): void {
+    if (remaining === 0) {
+      results.push([...current]);
+      return;
+    }
+    for (let i = start; i < n; i++) {
+      current.push(i);
+      generate(i, remaining - 1);
+      current.pop();
+    }
+  }
+  generate(0, k);
+  return results;
+}
+
 function generateTeamCompositions(teamSize: number): [string, CharacterCreator[]][] {
   const creators = getAllCreators();
   const compositions: [string, CharacterCreator[]][] = [];
 
-  if (teamSize === 1) {
-    for (const [name, creator] of creators) {
-      compositions.push([name, [creator]]);
+  for (const indices of combinationsWithReplacement(creators.length, teamSize)) {
+    const teamCreators = indices.map(i => creators[i][1]);
+    // Count occurrences of each class
+    const counts = new Map<number, number>();
+    for (const idx of indices) counts.set(idx, (counts.get(idx) ?? 0) + 1);
+    const parts: string[] = [];
+    for (const [idx, count] of counts) {
+      parts.push(count > 1 ? `${count}x ${creators[idx][0]}` : creators[idx][0]);
     }
-  } else if (teamSize === 2) {
-    for (let i = 0; i < creators.length; i++) {
-      for (let j = i; j < creators.length; j++) {
-        const name = i === j
-          ? `2x ${creators[i][0]}`
-          : `${creators[i][0]}+${creators[j][0]}`;
-        compositions.push([name, [creators[i][1], creators[j][1]]]);
-      }
-    }
-  } else if (teamSize === 3) {
-    for (let i = 0; i < creators.length; i++) {
-      for (let j = i; j < creators.length; j++) {
-        for (let k = j; k < creators.length; k++) {
-          let name: string;
-          if (i === j && j === k) {
-            name = `3x ${creators[i][0]}`;
-          } else if (i === j) {
-            name = `2x ${creators[i][0]}+${creators[k][0]}`;
-          } else if (j === k) {
-            name = `${creators[i][0]}+2x ${creators[j][0]}`;
-          } else {
-            name = `${creators[i][0]}+${creators[j][0]}+${creators[k][0]}`;
-          }
-          compositions.push([name, [creators[i][1], creators[j][1], creators[k][1]]]);
-        }
-      }
-    }
+    compositions.push([parts.join('+'), teamCreators]);
   }
 
   return compositions;
@@ -369,6 +397,10 @@ function main(): void {
     [2, 2, 200],
     [3, 2, 150],
     [3, 3, 100],
+    [4, 3, 50],
+    [4, 4, 30],
+    [5, 4, 10],
+    [5, 5, 8],
   ];
 
   for (const [team1Size, team2Size, sims] of configs) {

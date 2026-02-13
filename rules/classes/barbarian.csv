@@ -1,10 +1,10 @@
 Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
-3,3,0,2,3,,,
+3,4,0,2,3,,,
 ,,,,,,,
 Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
-,Ràbia,Focus,,,,-3,"Força +3 i Defensa +3 per la resta del combat"
-,Destral de guerra,Atac físic,1d8,,,-1,
-,Atac temerari,Atac físic,1d6,,,1,Tu tens Defensa -2 aquest torn i el següent.
-,Escomesa salvatge,Atac físic,1d4,,,0,Pot atacar a dos enemics alhora.
-,Resistir,Defensa,,,1d6,0,Si absorveix un atac: Defensa +1 per la resta del combat.
-,Rugit intimidant,Focus,,,,1,"Tots els enemics reben Força -3 i Velocitat -2 el següent torn."
+,Ràbia,Focus,,,,-6,Força +6 i Defensa +6 per la resta del combat.
+,Destral de guerra,Atac físic,1d6,,,-1,
+,Atac temerari,Atac físic,1d4,,,1,Tu tens Defensa -2 aquest torn i el següent.
+,Escomesa salvatge,Atac físic,1d4-1,,,0,Afecta a 2 enemics que triïs.
+,Resistir,Defensa,,,1d8,2,Si absorveix un atac: Defensa +1 per la resta del combat.
+,Rugit intimidant,Focus,,,,1,"Cada oponent tira 1d4. Els que treuen 2 o menys queden atordits i no actuen aquest torn."

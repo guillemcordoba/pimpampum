@@ -145,19 +145,6 @@ Passive items that modify stats permanently during combat. Slot-based system (To
 | Goblin | 2 | 0 | 1 | 3 | 3 | 4 cards |
 | Goblin Shaman | 1 | 4 | 0 | 2 | 3 | 5 cards |
 
-### Default Equipment
-
-The simulator and web app assign default equipment. These are not class restrictions — any class can equip any item. In the web app, players can change equipment on the setup screen before starting combat.
-
-| Character | Default Equipment |
-|-----------|-------------------|
-| Guerrer | Armadura de cuir, Braçals de cuir |
-| Murri | Armadura de cuir, Braçals de cuir |
-| Mag | Braçals de cuir |
-| Bàrbar | Braçals de cuir |
-| Goblin | Braçals de cuir |
-| Goblin Shaman | None |
-
 ### Equipment Items
 
 | Item | Slot | Defense | Speed |
@@ -197,10 +184,10 @@ The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runti
 ### Architecture
 
 1. **DiceRoll** (`dice.ts`) - Dice notation parsing and rolling (e.g., "1d6", "2d4-1") with `roll()` and `average()` methods
-2. **Equipment** (`equipment.ts`) - Passive stat modifiers with slot system (`EquipmentSlot` enum: Torso, Arms, Head, Legs, MainHand, OffHand). Factory functions: `createArmaduraDeFerro()`, `createCotaDeMalla()`, `createArmaduraDeCuir()`, `createBracalsDeCuir()`. `EquipmentTemplate` interface with metadata (id, name, slot, labels, creator). `ALL_EQUIPMENT` array of all templates. `DEFAULT_EQUIPMENT` map from character template ID to default equipment IDs
+2. **Equipment** (`equipment.ts`) - Passive stat modifiers with slot system (`EquipmentSlot` enum: Torso, Arms, Head, Legs, MainHand, OffHand). Factory functions: `createArmaduraDeFerro()`, `createCotaDeMalla()`, `createArmaduraDeCuir()`, `createBracalsDeCuir()`. `EquipmentTemplate` interface with metadata (id, name, slot, labels, creator). `ALL_EQUIPMENT` array of all templates
 3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 20+ variants (Stun, SkipNextTurns, StrengthBoost, MagicBoost, MultiTarget, Sacrifice, Vengeance, BloodThirst, etc.). `getCardTargetRequirement()` returns targeting info for UI
 4. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `RestOfCombat`
-5. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (wounds, modifiers, stun, dodge, focus interruption, etc.). Factory functions: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createGoblin()`, `createGoblinShaman()`, plus `Naked` variants without equipment. Exports `ALL_CHARACTER_TEMPLATES` (for UI roster) and `CARD_ICONS` (card name to icon path mapping)
+5. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (wounds, modifiers, stun, dodge, focus interruption, etc.). Factory functions create unequipped characters: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createGoblin()`, `createGoblinShaman()`. Exports `ALL_CHARACTER_TEMPLATES` (for UI roster) and `CARD_ICONS` (card name to icon path mapping)
 6. **CombatEngine** (`combat.ts`, ~1150 lines) - The core combat loop with two interfaces:
    - **Web UI**: `prepareRound()` + `submitSelectionsAndResolve(selections)` for phased player-driven resolution
    - **Simulator**: `runRound()` / `runCombat()` for fully automated AI-vs-AI battles
@@ -220,11 +207,11 @@ The AI uses weighted random selection. Weights are influenced by:
 
 ## Simulator (`packages/simulator/`)
 
-CLI-based batch simulator (`@pimpampum/simulator`) for balance testing. Depends on `@pimpampum/engine`. Uses `tsx` to run TypeScript directly.
+CLI-based batch simulator (`@pimpampum/simulator`) for balance testing. Depends on `@pimpampum/engine`. Uses `tsx` to run TypeScript directly. Each character receives randomly assigned equipment per battle (equally likely: nothing or any item in each slot) to test class balance across all loadouts.
 
 ### Simulation Output
 
-Runs 5 battle configurations (1v1, 2v1, 2v2, 3v2, 3v3) with all team compositions. For each:
+Runs battle configurations (1v1 through 5v5) with all team compositions. For each:
 1. **Win Rate Matrix** - Row team vs column team
 2. **Team Power Rankings** - Aggregate win rates
 3. **Class Win Rates** - Per-class games/wins/percentage
@@ -237,7 +224,7 @@ Vue 3 single-page application (`@pimpampum/web`) for playing Pim Pam Pum in the 
 
 ### Game Flow (Phases)
 
-1. **Setup** (`SetupScreen.vue`) - Build player team and enemy team from character roster (max 3 per side), choose equipment per character (toggle buttons grouped by slot, defaults from `DEFAULT_EQUIPMENT`)
+1. **Setup** (`SetupScreen.vue`) - Build player team and enemy team from character roster (max 3 per side), choose equipment per character (toggle buttons grouped by slot, no defaults)
 2. **Card Selection** (`CombatScreen.vue`) - Each living player character selects a card from their hand
 3. **Target Selection** (`TargetSelector.vue`) - Modal prompts for cards requiring enemy/ally targets
 4. **Resolution** - AI selects enemy cards, engine resolves the round, combat log updates

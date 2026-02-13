@@ -4,6 +4,7 @@ export enum ModifierDuration {
   ThisTurn = 'ThisTurn',
   NextTurn = 'NextTurn',
   ThisAndNextTurn = 'ThisAndNextTurn',
+  NextTwoTurns = 'NextTwoTurns',
   RestOfCombat = 'RestOfCombat',
 }
 

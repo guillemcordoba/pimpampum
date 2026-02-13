@@ -663,6 +663,11 @@ body {
   border-color: gold;
 }
 
+.target-option.target-selected .portrait {
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.8);
+  border-color: gold;
+}
+
 /* =============================================================================
    VICTORY SCREEN
    ============================================================================= */

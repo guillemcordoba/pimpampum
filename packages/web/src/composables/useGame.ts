@@ -4,9 +4,9 @@ import {
   selectCardAI,
   assignStrategies,
   getCardTargetRequirement,
+  getCardTargetCount,
   ALL_CHARACTER_TEMPLATES,
   ALL_EQUIPMENT,
-  DEFAULT_EQUIPMENT,
 } from '@pimpampum/engine';
 import type { LogEntry, CharacterTemplate, CardSelection, PlannedAction } from '@pimpampum/engine';
 
@@ -21,6 +21,7 @@ export interface TargetPrompt {
   charName: string;
   cardName: string;
   requirement: 'enemy' | 'ally' | 'ally_other';
+  count: number;
 }
 
 export function useGame() {
@@ -37,6 +38,7 @@ export function useGame() {
 
   // Resolution-time target selection
   const currentTargetPrompt = ref<TargetPrompt | null>(null);
+  const multiTargetSelections = ref<[number, number][]>([]);
 
   // Step-by-step resolution state
   const actionQueue = ref<PlannedAction[]>([]);
@@ -50,7 +52,7 @@ export function useGame() {
   function addToPlayerTeam(template: CharacterTemplate) {
     if (playerTeamTemplates.value.length >= 3) return;
     playerTeamTemplates.value.push(template);
-    playerEquipment.value.push(DEFAULT_EQUIPMENT[template.id] ?? []);
+    playerEquipment.value.push([]);
   }
 
   function removeFromPlayerTeam(index: number) {
@@ -61,7 +63,7 @@ export function useGame() {
   function addToEnemyTeam(template: CharacterTemplate) {
     if (enemyTeamTemplates.value.length >= 3) return;
     enemyTeamTemplates.value.push(template);
-    enemyEquipment.value.push(DEFAULT_EQUIPMENT[template.id] ?? []);
+    enemyEquipment.value.push([]);
   }
 
   function removeFromEnemyTeam(index: number) {
@@ -203,11 +205,14 @@ export function useGame() {
           const card = ch.cards[next.cardIdx];
           const req = getCardTargetRequirement(card);
           if (req !== 'none') {
+            const count = getCardTargetCount(card);
+            multiTargetSelections.value = [];
             currentTargetPrompt.value = {
               charIdx: next.charIdx,
               charName: next.characterName,
               cardName: next.cardName,
               requirement: req,
+              count,
             };
             return; // Wait for target selection
           }
@@ -218,10 +223,47 @@ export function useGame() {
     doResolveNext();
   }
 
+  function toggleMultiTarget(team: number, idx: number) {
+    const existing = multiTargetSelections.value.findIndex(t => t[0] === team && t[1] === idx);
+    if (existing >= 0) {
+      multiTargetSelections.value.splice(existing, 1);
+    } else {
+      multiTargetSelections.value.push([team, idx]);
+    }
+    multiTargetSelections.value = [...multiTargetSelections.value];
+  }
+
+  function confirmMultiTarget() {
+    if (!currentTargetPrompt.value || !engine.value) return;
+    const prompt = currentTargetPrompt.value;
+    const charName = engine.value.team1[prompt.charIdx].name;
+
+    if (prompt.requirement === 'enemy') {
+      engine.value.setResolveTarget(charName, { attackTargets: multiTargetSelections.value });
+    } else {
+      engine.value.setResolveTarget(charName, { allyTargets: multiTargetSelections.value });
+    }
+
+    multiTargetSelections.value = [];
+    currentTargetPrompt.value = null;
+    doResolveNext();
+  }
+
   function selectTarget(team: number, idx: number) {
     if (!currentTargetPrompt.value || !engine.value) return;
 
     const prompt = currentTargetPrompt.value;
+
+    // Multi-target: accumulate selections
+    if (prompt.count > 1) {
+      toggleMultiTarget(team, idx);
+      if (multiTargetSelections.value.length === prompt.count) {
+        confirmMultiTarget();
+      }
+      return;
+    }
+
+    // Single target
     const charName = engine.value.team1[prompt.charIdx].name;
     const targets: { attackTarget?: [number, number]; allyTarget?: [number, number] } = {};
 
@@ -327,6 +369,7 @@ export function useGame() {
     winner,
     roundSkipping,
     currentTargetPrompt,
+    multiTargetSelections,
     actionQueue,
     currentActionIndex,
     highlightedTarget,
@@ -344,6 +387,7 @@ export function useGame() {
     canConfirmCards,
     confirmCards,
     selectTarget,
+    confirmMultiTarget,
     startResolving,
     advanceResolution,
     nextRound,

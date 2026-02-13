@@ -30,7 +30,7 @@ export type SpecialEffect =
   | { type: 'Stun' }
   | { type: 'SkipNextTurn' }
   | { type: 'SkipNextTurns'; count: number }
-  | { type: 'StrengthBoost'; amount: number }
+  | { type: 'StrengthBoost'; amount: number; dice?: DiceRoll }
   | { type: 'MagicBoost'; amount: number }
   | { type: 'AllyStrengthThisTurn'; amount: number }
   | { type: 'DefenseBoostDuration'; dice: DiceRoll; turns: number }
@@ -52,7 +52,8 @@ export type SpecialEffect =
   | { type: 'PoisonWeapon' }
   | { type: 'RageBoost' }
   | { type: 'RecklessAttack' }
-  | { type: 'IntimidatingRoar' };
+  | { type: 'IntimidatingRoar' }
+  | { type: 'CounterThrow' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -61,7 +62,6 @@ export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other';
 /** Determine what kind of target the player needs to select for a card */
 export function getCardTargetRequirement(card: Card): TargetRequirement {
   if (isAttack(card.cardType)) {
-    if (card.effect.type === 'MultiTarget') return 'none';
     return 'enemy';
   }
   if (isDefense(card.cardType)) {
@@ -75,11 +75,18 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
       case 'PoisonWeapon': return 'none';
-      case 'DefenseBoostDuration': return 'ally_other';
+      case 'DefenseBoostDuration': return 'none';
       default: return 'none';
     }
   }
   return 'none';
+}
+
+/** How many targets the player needs to select for a card */
+export function getCardTargetCount(card: Card): number {
+  if (card.effect.type === 'MultiTarget') return card.effect.count;
+  if (card.effect.type === 'DefendMultiple') return card.effect.count;
+  return 1;
 }
 
 /** A card that can be played during combat */

@@ -1,10 +1,10 @@
 export { DiceRoll } from './dice.js';
-export { Equipment, EquipmentSlot, createArmaduraDeFerro, createCotaDeMalla, createArmaduraDeCuir, createBracalsDeCuir, ALL_EQUIPMENT, DEFAULT_EQUIPMENT } from './equipment.js';
+export { Equipment, EquipmentSlot, createArmaduraDeFerro, createCotaDeMalla, createArmaduraDeCuir, createBracalsDeCuir, ALL_EQUIPMENT } from './equipment.js';
 export type { EquipmentTemplate } from './equipment.js';
-export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement } from './card.js';
+export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement, getCardTargetCount } from './card.js';
 export type { SpecialEffect, TargetRequirement } from './card.js';
 export { CombatModifier, ModifierDuration } from './modifier.js';
-export { Character, createFighter, createWizard, createRogue, createBarbarian, createGoblin, createGoblinShaman, createFighterNaked, createWizardNaked, createRogueNaked, createBarbarianNaked, createGoblinNaked, createGoblinShamanNaked, ALL_CHARACTER_TEMPLATES, CARD_ICONS } from './character.js';
+export { Character, createFighter, createWizard, createRogue, createBarbarian, createGoblin, createGoblinShaman, ALL_CHARACTER_TEMPLATES, CARD_ICONS } from './character.js';
 export type { CharacterTemplate, DefenseBonus } from './character.js';
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
 export type { LogEntry, CardStats, CombatStats, CardSelection, PlannedAction } from './combat.js';

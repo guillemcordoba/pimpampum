@@ -2,10 +2,6 @@ import { DiceRoll } from './dice.js';
 import { Equipment } from './equipment.js';
 import { Card, CardType, isPhysical, isFocus } from './card.js';
 import { CombatModifier, ModifierDuration } from './modifier.js';
-import {
-  createArmaduraDeCuir,
-  createBracalsDeCuir,
-} from './equipment.js';
 import { AIStrategy } from './strategy.js';
 
 /** Defense bonus: [defenderTeam, defenderIdx, defenderName, flatDefense, dice] */
@@ -28,6 +24,7 @@ export class Character {
   public woundedThisCombat = false;
   public hasAbsorbPain = false;
   public hasPoisonWeapon = false;
+  public hasCounterThrow = false;
 
   constructor(
     public name: string,
@@ -146,6 +143,7 @@ export class Character {
     this.woundedThisCombat = false;
     this.hasAbsorbPain = false;
     this.hasPoisonWeapon = false;
+    this.hasCounterThrow = false;
   }
 
   /** Returns true if the character is skipping this turn */
@@ -172,6 +170,9 @@ export class Character {
         case ModifierDuration.ThisAndNextTurn:
           m.duration = ModifierDuration.NextTurn;
           return true;
+        case ModifierDuration.NextTwoTurns:
+          m.duration = ModifierDuration.NextTurn;
+          return true;
         case ModifierDuration.RestOfCombat:
           return true;
       }
@@ -186,233 +187,184 @@ export class Character {
 export function createFighter(name: string): Character {
   const cards = [
     new Card('Espasa llarga', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(-2)
       .withEffect({ type: 'Stun' })
       .withDescription('Aturdeix: anul·la els atacs que el jugador atacat anés a fer aquest combat.'),
     new Card('Sacrifici', CardType.Defense)
-      .withSpeedMod(4)
+      .withSpeedMod(6)
       .withEffect({ type: 'Sacrifice' })
       .withDescription('Tria un jugador. Rep tots els atacs que li farien aquest torn.'),
     new Card('Ràbia traumada', CardType.Focus)
-      .withSpeedMod(-3)
-      .withEffect({ type: 'StrengthBoost', amount: 5 })
-      .withDescription('F+5 per la resta del combat.'),
+      .withSpeedMod(-9)
+      .withEffect({ type: 'StrengthBoost', amount: 4, dice: new DiceRoll(1, 8) })
+      .withDescription('F+1d8+4 per la resta del combat.'),
     new Card('Embestida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(2)
       .withEffect({ type: 'EmbestidaEffect' })
       .withDescription('El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.'),
     new Card('Crit de guerra', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(1)
       .withEffect({ type: 'AllyStrengthThisTurn', amount: 2 })
       .withDescription('Tots els aliats reben F+2 aquest torn.'),
     new Card('Formació defensiva', CardType.Focus)
-      .withSpeedMod(2)
-      .withEffect({ type: 'DefenseBoostDuration', dice: new DiceRoll(1, 6), turns: 2 })
-      .withDescription('Tu i un aliat D+1d6 aquest torn i el següent.'),
+      .withSpeedMod(-4)
+      .withEffect({ type: 'DefenseBoostDuration', dice: new DiceRoll(1, 10), turns: 2 })
+      .withDescription('Tu i tots els aliats D+1d10 per la resta del combat.'),
   ];
-  const character = new Character(name, 3, 1, 0, 4, 2, cards, 'Fighter');
-  character.equip(createArmaduraDeCuir());
-  character.equip(createBracalsDeCuir());
-  return character;
+  return new Character(name, 3, 2, 0, 4, 2, cards, 'Fighter');
 }
 
 export function createWizard(name: string): Character {
   const cards = [
     new Card('Pantalla protectora', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(-1)
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(1)
       .withEffect({ type: 'DefendMultiple', count: 3 })
       .withDescription('Defensa a 3 jugadors que triïs.'),
     new Card('Bola de foc', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 6))
+      .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0),
     new Card('Raig de gel', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4))
+      .withMagicAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(0)
       .withEffect({ type: 'EnemySpeedDebuff', amount: 2 })
       .withDescription('El jugador atacat té V-2 el següent torn.'),
     new Card('Trampa de gel', CardType.Focus)
-      .withSpeedMod(1)
+      .withSpeedMod(-5)
       .withEffect({ type: 'IceTrap' })
-      .withDescription('Tots els enemics reben V-4 el següent torn.'),
+      .withDescription('Tots els enemics reben V-8 els dos pròxims torns.'),
     new Card('Cadena de llamps', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 6, -3))
+      .withMagicAttack(new DiceRoll(1, 4, -3))
       .withSpeedMod(-1)
       .withEffect({ type: 'MultiTarget', count: 2 })
       .withDescription('Afecta a 2 enemics que triïs.'),
     new Card('Camp de distorsió', CardType.Focus)
-      .withSpeedMod(-1)
+      .withSpeedMod(-7)
       .withEffect({ type: 'TeamSpeedDefenseBoost' })
-      .withDescription('Tots els jugadors aliats reben V+2 i D+1 per la resta del combat.'),
+      .withDescription('Tots els jugadors aliats reben V+4 i D+4 per la resta del combat.'),
   ];
-  const character = new Character(name, 3, 0, 5, 2, 2, cards, 'Wizard');
-  character.equip(createBracalsDeCuir());
-  return character;
+  return new Character(name, 3, 0, 5, 1, 2, cards, 'Wizard');
 }
 
 export function createRogue(name: string): Character {
   const cards = [
     new Card('Emboscada coordinada', CardType.Focus)
-      .withSpeedMod(4)
-      .withEffect({ type: 'CoordinatedAmbush' })
-      .withDescription("Tria un enemic. Tots els aliats que l'ataquin reben +1d8+2 a la seva tirada."),
-    new Card('Fum cegador', CardType.Focus)
       .withSpeedMod(3)
+      .withEffect({ type: 'CoordinatedAmbush' })
+      .withDescription("Tria un enemic. Tots els aliats que l'ataquin reben +1d6+2 a la seva tirada."),
+    new Card('Bomba de fum', CardType.Focus)
+      .withSpeedMod(-3)
       .withEffect({ type: 'BlindingSmoke' })
-      .withDescription('Enemics reben V-4 i D-2 i aliats reben V+2 durant el següent torn.'),
-    new Card('Braçals de cuir', CardType.Defense)
-      .withDefense(new DiceRoll(1, 4))
-      .withSpeedMod(2),
+      .withDescription('Enemics reben V-8 i D-8 i aliats reben V+4 el següent torn.'),
+    new Card('Clon de fum', CardType.Defense)
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(2)
+      .withEffect({ type: 'CounterThrow' })
+      .withDescription("L'atacant rep V-3 el següent torn."),
     new Card('Ballesta', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(3),
     new Card('Dagues', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(3)
       .withEffect({ type: 'MultiTarget', count: 2 })
-      .withDescription('Pot atacar a dos enemics alhora.'),
+      .withDescription('Afecta a 2 enemics que triïs.'),
     new Card('El·lusió', CardType.Focus)
-      .withSpeedMod(3)
+      .withSpeedMod(5)
       .withEffect({ type: 'DodgeWithSpeedBoost' })
-      .withDescription("Esquiva tots els atacs que se't farien aquest torn. V+5 i F+8 al següent torn."),
+      .withDescription("Esquiva tots els atacs rebuts aquest torn. V+5 i F+4 el següent torn."),
     new Card('Enverinar arma', CardType.Focus)
-      .withSpeedMod(0)
+      .withSpeedMod(-6)
       .withEffect({ type: 'PoisonWeapon' })
-      .withDescription('Tria 2 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics causen una ferida addicional.'),
+      .withDescription('Tria 3 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics causen una ferida addicional.'),
     new Card('Foc alquímic', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 6))
+      .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(1),
   ];
-  const character = new Character(name, 3, 2, 2, 3, 4, cards, 'Rogue');
-  character.equip(createArmaduraDeCuir());
-  character.equip(createBracalsDeCuir());
-  return character;
+  return new Character(name, 3, 2, 1, 2, 4, cards, 'Rogue');
 }
 
 export function createBarbarian(name: string): Character {
   const cards = [
     new Card('Ràbia', CardType.Focus)
-      .withSpeedMod(-3)
+      .withSpeedMod(-6)
       .withEffect({ type: 'RageBoost' })
-      .withDescription('F+3 i D+3 per la resta del combat.'),
+      .withDescription('F+6 i D+6 per la resta del combat.'),
     new Card('Destral de guerra', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 8))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(-1),
     new Card('Atac temerari', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'RecklessAttack' })
       .withDescription('Tu tens D-2 aquest torn i el següent.'),
     new Card('Escomesa salvatge', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(0)
       .withEffect({ type: 'MultiTarget', count: 2 })
-      .withDescription('Pot atacar a dos enemics alhora.'),
+      .withDescription('Afecta a 2 enemics que triïs.'),
     new Card('Resistir', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(0)
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(2)
       .withEffect({ type: 'AbsorbPain' })
       .withDescription('Si absorveix un atac, D+1 per la resta del combat.'),
     new Card('Rugit intimidant', CardType.Focus)
       .withSpeedMod(1)
       .withEffect({ type: 'IntimidatingRoar' })
-      .withDescription('Tots els enemics reben F-2 i V-2 el següent torn.'),
+      .withDescription("Cada oponent tira 1d4. Els que treuen 2 o menys queden atordits i no actuen aquest torn."),
   ];
-  const character = new Character(name, 3, 3, 0, 2, 3, cards, 'Barbarian');
-  character.equip(createBracalsDeCuir());
-  return character;
+  return new Character(name, 3, 4, 0, 2, 3, cards, 'Barbarian');
 }
 
 export function createGoblin(name: string): Character {
   const cards = [
     new Card('Fúria enfollida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(2, 6))
+      .withPhysicalAttack(new DiceRoll(2, 4))
       .withSpeedMod(5)
       .withEffect({ type: 'SkipNextTurns', count: 1 })
       .withDescription('No jugues cap carta el següent torn.'),
     new Card('Maça de punxes', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1),
     new Card('Escut de fusta', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(2),
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(4),
     new Card('Venjança', CardType.Focus)
-      .withSpeedMod(1)
+      .withSpeedMod(-5)
       .withEffect({ type: 'Vengeance' })
       .withDescription("Tria un jugador. Els jugadors que l'ataquin durant aquest combat reben un atac físic F+1d8."),
   ];
-  const character = new Character(name, 3, 2, 0, 3, 3, cards, 'Goblin');
-  character.equip(createBracalsDeCuir());
-  return character;
+  return new Character(name, 3, 2, 0, 3, 3, cards, 'Goblin');
 }
 
 export function createGoblinShaman(name: string): Character {
   const cards = [
     new Card('Llamp', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(2, 4))
+      .withMagicAttack(new DiceRoll(2, 4, -2))
       .withSpeedMod(0),
     new Card('Possessió demoníaca', CardType.Focus)
-      .withSpeedMod(1)
-      .withEffect({ type: 'MagicBoost', amount: 5 })
-      .withDescription('M+5 per la resta del combat.'),
+      .withSpeedMod(-5)
+      .withEffect({ type: 'MagicBoost', amount: 7 })
+      .withDescription('M+7 per la resta del combat.'),
     new Card('Set de sang', CardType.Focus)
-      .withSpeedMod(0)
+      .withSpeedMod(-6)
       .withEffect({ type: 'BloodThirst' })
       .withDescription('Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida.'),
     new Card('Pluja de flames', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4, -3))
-      .withSpeedMod(-1)
+      .withMagicAttack(new DiceRoll(1, 4, -2))
+      .withSpeedMod(-4)
       .withEffect({ type: 'MultiTarget', count: 3 })
       .withDescription('Afecta a 3 enemics que triïs.'),
     new Card('Absorvir dolor', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(1)
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(3)
       .withEffect({ type: 'AbsorbPain' })
       .withDescription('Si absorveix un atac, D+1 per la resta del combat.'),
   ];
-  const character = new Character(name, 3, 1, 4, 2, 3, cards, 'GoblinShaman');
-  character.equip(createBracalsDeCuir());
-  return character;
-}
-
-// Naked variants (no equipment) for comparison analysis
-export function createFighterNaked(name: string): Character {
-  const c = createFighter(name);
-  c.equipment = [];
-  return c;
-}
-
-export function createWizardNaked(name: string): Character {
-  const c = createWizard(name);
-  c.equipment = [];
-  return c;
-}
-
-export function createRogueNaked(name: string): Character {
-  const c = createRogue(name);
-  c.equipment = [];
-  return c;
-}
-
-export function createBarbarianNaked(name: string): Character {
-  const c = createBarbarian(name);
-  c.equipment = [];
-  return c;
-}
-
-export function createGoblinNaked(name: string): Character {
-  const c = createGoblin(name);
-  c.equipment = [];
-  return c;
-}
-
-export function createGoblinShamanNaked(name: string): Character {
-  const c = createGoblinShaman(name);
-  c.equipment = [];
-  return c;
+  return new Character(name, 3, 1, 4, 2, 3, cards, 'GoblinShaman');
 }
 
 // =============================================================================
@@ -438,7 +390,7 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
     displayName: 'Guerrer',
     classCss: 'guerrer',
     iconPath: 'icons/000000/transparent/1x1/delapouite/black-knight-helm.svg',
-    baseStrength: 1, baseMagic: 0, baseDefense: 4, baseSpeed: 2, baseMaxWounds: 3,
+    baseStrength: 2, baseMagic: 0, baseDefense: 4, baseSpeed: 2, baseMaxWounds: 3,
     creator: createFighter,
   },
   {
@@ -446,7 +398,7 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
     displayName: 'Murri',
     classCss: 'murri',
     iconPath: 'icons/000000/transparent/1x1/lorc/rogue.svg',
-    baseStrength: 2, baseMagic: 2, baseDefense: 3, baseSpeed: 4, baseMaxWounds: 3,
+    baseStrength: 2, baseMagic: 1, baseDefense: 2, baseSpeed: 4, baseMaxWounds: 3,
     creator: createRogue,
   },
   {
@@ -454,7 +406,7 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
     displayName: 'Mag',
     classCss: 'mag',
     iconPath: 'icons/000000/transparent/1x1/lorc/wizard-staff.svg',
-    baseStrength: 0, baseMagic: 5, baseDefense: 2, baseSpeed: 2, baseMaxWounds: 3,
+    baseStrength: 0, baseMagic: 5, baseDefense: 1, baseSpeed: 2, baseMaxWounds: 3,
     creator: createWizard,
   },
   {
@@ -462,7 +414,7 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
     displayName: 'Bàrbar',
     classCss: 'barbar',
     iconPath: 'icons/000000/transparent/1x1/delapouite/barbarian.svg',
-    baseStrength: 3, baseMagic: 0, baseDefense: 2, baseSpeed: 3, baseMaxWounds: 3,
+    baseStrength: 4, baseMagic: 0, baseDefense: 2, baseSpeed: 3, baseMaxWounds: 3,
     creator: createBarbarian,
   },
   {
@@ -492,8 +444,8 @@ export const CARD_ICONS: Record<string, string> = {
   'Crit de guerra': 'icons/000000/transparent/1x1/lorc/shouting.svg',
   'Formació defensiva': 'icons/000000/transparent/1x1/lorc/rally-the-troops.svg',
   'Emboscada coordinada': 'icons/000000/transparent/1x1/lorc/hidden.svg',
-  'Fum cegador': 'icons/000000/transparent/1x1/lorc/dust-cloud.svg',
-  'Braçals de cuir': 'icons/000000/transparent/1x1/lorc/mailed-fist.svg',
+  'Bomba de fum': 'icons/000000/transparent/1x1/lorc/dust-cloud.svg',
+  'Clon de fum': 'icons/000000/transparent/1x1/lorc/two-shadows.svg',
   'Ballesta': 'icons/000000/transparent/1x1/carl-olsen/crossbow.svg',
   'Dagues': 'icons/000000/transparent/1x1/lorc/daggers.svg',
   'El·lusió': 'icons/000000/transparent/1x1/lorc/ghost.svg',

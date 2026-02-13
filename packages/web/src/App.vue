@@ -8,9 +8,21 @@ import TargetSelector from './components/TargetSelector.vue';
 
 const game = useGame();
 
+const isMultiSelect = computed(() => {
+  const p = game.currentTargetPrompt.value;
+  return p ? p.count > 1 : false;
+});
+
 const targetPromptText = computed(() => {
   const p = game.currentTargetPrompt.value;
   if (!p) return '';
+  if (p.count > 1) {
+    const selected = game.multiTargetSelections.value.length;
+    if (p.requirement === 'enemy') {
+      return `${p.charName}: Tria ${p.count} enemics per ${p.cardName} (${selected}/${p.count})`;
+    }
+    return `${p.charName}: Tria ${p.count} aliats per ${p.cardName} (${selected}/${p.count})`;
+  }
   if (p.requirement === 'enemy') {
     return `${p.charName}: Tria un enemic per ${p.cardName}`;
   }
@@ -46,6 +58,32 @@ const targetTemplates = computed(() => {
   });
 });
 
+/** Map actual team indices in multiTargetSelections back to filtered indices shown in TargetSelector */
+const selectedFilteredIndices = computed(() => {
+  const p = game.currentTargetPrompt.value;
+  if (!p || !game.engine.value) return [];
+
+  const teamNum = p.requirement === 'enemy' ? 2 : 1;
+  const team = teamNum === 2 ? game.engine.value.team2 : game.engine.value.team1;
+
+  // Build mapping: filtered index → actual team index
+  const actualIndices: number[] = [];
+  for (let i = 0; i < team.length; i++) {
+    if (!team[i].isAlive()) continue;
+    if (p.requirement === 'ally_other' && i === p.charIdx) continue;
+    actualIndices.push(i);
+  }
+
+  // For each selection, find its filtered index
+  const result: number[] = [];
+  for (const [selTeam, selIdx] of game.multiTargetSelections.value) {
+    if (selTeam !== teamNum) continue;
+    const filteredIdx = actualIndices.indexOf(selIdx);
+    if (filteredIdx >= 0) result.push(filteredIdx);
+  }
+  return result;
+});
+
 function handleTargetSelect(filteredIndex: number) {
   const p = game.currentTargetPrompt.value;
   if (!p || !game.engine.value) return;
@@ -69,6 +107,10 @@ function handleTargetSelect(filteredIndex: number) {
       game.selectTarget(1, eligible[filteredIndex]);
     }
   }
+}
+
+function handleMultiTargetConfirm() {
+  game.confirmMultiTarget();
 }
 
 const showCombatScreen = computed(() => {
@@ -123,7 +165,10 @@ const showCombatScreen = computed(() => {
     :targets="targetList"
     :templates="targetTemplates"
     :cancellable="false"
+    :multi-select="isMultiSelect"
+    :selected-indices="selectedFilteredIndices"
     @select="handleTargetSelect($event)"
+    @confirm="handleMultiTargetConfirm"
     @cancel="() => {}"
   />
 

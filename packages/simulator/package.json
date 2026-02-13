@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/main.ts"
+    "start": "tsx src/main.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^3"
   }
 }

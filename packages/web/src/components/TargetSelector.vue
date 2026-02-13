@@ -7,12 +7,19 @@ const props = defineProps<{
   targets: Character[];
   templates: CharacterTemplate[];
   cancellable?: boolean;
+  multiSelect?: boolean;
+  selectedIndices?: number[];
 }>();
 
 const emit = defineEmits<{
   (e: 'select', index: number): void;
+  (e: 'confirm'): void;
   (e: 'cancel'): void;
 }>();
+
+function isSelected(i: number): boolean {
+  return props.selectedIndices?.includes(i) ?? false;
+}
 
 function onOverlayClick() {
   if (props.cancellable !== false) emit('cancel');
@@ -28,6 +35,7 @@ function onOverlayClick() {
           v-for="(target, i) in targets"
           :key="i"
           class="target-option"
+          :class="{ 'target-selected': multiSelect && isSelected(i) }"
           @click="emit('select', i)"
         >
           <CharacterPortrait
@@ -37,6 +45,14 @@ function onOverlayClick() {
           />
         </div>
       </div>
+      <button
+        v-if="multiSelect && (selectedIndices?.length ?? 0) > 0"
+        class="btn btn-primary"
+        style="margin-top: 1rem;"
+        @click="emit('confirm')"
+      >
+        Confirmar
+      </button>
     </div>
   </div>
 </template>
