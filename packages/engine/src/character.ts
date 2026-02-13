@@ -101,9 +101,19 @@ export class Character {
     return this.defenseBonuses.length > 0;
   }
 
-  /** Pop one defense bonus and return [defenderTeam, defenderIdx, defenderName, totalDefense] */
-  popDefenseBonus(): [number, number, string, number] | null {
-    const bonus = this.defenseBonuses.pop();
+  /** Get active defense bonus and return [defenderTeam, defenderIdx, defenderName, totalDefense].
+   *  Defense cards redirect ALL attacks to the defended player for the round.
+   *  Bonuses from dead defenders are removed. */
+  popDefenseBonus(getTeam?: (team: number) => Character[]): [number, number, string, number] | null {
+    if (getTeam) {
+      for (let i = this.defenseBonuses.length - 1; i >= 0; i--) {
+        const [team, idx] = this.defenseBonuses[i];
+        if (!getTeam(team)[idx].isAlive()) {
+          this.defenseBonuses.splice(i, 1);
+        }
+      }
+    }
+    const bonus = this.defenseBonuses[this.defenseBonuses.length - 1];
     if (!bonus) return null;
     const [team, idx, name, flatDefense, dice] = bonus;
     const total = flatDefense + dice.roll();
@@ -200,7 +210,7 @@ export function createFighter(name: string): Character {
       .withEffect({ type: 'StrengthBoost', amount: 4, dice: new DiceRoll(1, 8) })
       .withDescription('F+1d8+4 per la resta del combat.'),
     new Card('Embestida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(2)
       .withEffect({ type: 'EmbestidaEffect' })
       .withDescription('El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.'),
@@ -343,7 +353,7 @@ export function createGoblin(name: string): Character {
 export function createGoblinShaman(name: string): Character {
   const cards = [
     new Card('Llamp', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(2, 4))
+      .withMagicAttack(new DiceRoll(2, 4, -2))
       .withSpeedMod(0),
     new Card('Possessió demoníaca', CardType.Focus)
       .withSpeedMod(-3)
@@ -354,7 +364,7 @@ export function createGoblinShaman(name: string): Character {
       .withEffect({ type: 'BloodThirst' })
       .withDescription('Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida.'),
     new Card('Pluja de flames', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4))
+      .withMagicAttack(new DiceRoll(1, 4, -2))
       .withSpeedMod(-4)
       .withEffect({ type: 'MultiTarget', count: 3 })
       .withDescription('Afecta a 3 enemics que triïs.'),

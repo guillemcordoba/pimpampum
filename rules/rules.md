@@ -31,7 +31,7 @@ Hi ha cartes d'atac físiques i màgiques. Quan es resol una carta d'acció d'at
 
 ## Cartes de defensa
 
-Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. El proper atac que rebi l'aliat triat durant aquest torn el rebràs tu. Si múltiples jugadors defensen al mateix jugador, cada carta de defensa protegeix contra un únic atac (no s'acumulen).
+Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu.
 
 
 Fora de combat, els jugadors es poden canviar les cartes que porten actives. Es poden intercanviar els objectes entre ells, i canviar les habilitats actives per habilitats que ja havien après anteriorment. Els jugadors no es poden canviar habilitats entre ells.

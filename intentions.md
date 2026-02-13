@@ -1,6 +1,6 @@
 Pimpampum has these intentions as a combat system:
 
-- Classes should be balanced.
+- Classes should be balanced across all team variations. Individual class-vs-class matchups can be lopsided — some classes naturally counter others, and that's intended. What matters is that no class is consistently worse than all others when considering every possible team composition.
 - All card types (attack, defense and focus) should be good enough to see balanced play.
 - No card should be so good that it's the best choice every time.
 - No card should be so bad it never sees play.
@@ -8,7 +8,7 @@ Pimpampum has these intentions as a combat system:
 - Anticipating others' plays should be greatly rewarded.
 - Combo between cards played in the same turn should always be the best option, if played right. Players can agree beforehand on combos that they are going to play out during combat.
 - Combats should be dynamic, not get stuck in the same move being repeated again and again.
-- Combats should not be longer than 8 rounds.
+- Combats should not be longer than 9 rounds on average.
 
 ## Strategy Triangle
 

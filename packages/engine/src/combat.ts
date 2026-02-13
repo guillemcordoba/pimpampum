@@ -282,7 +282,7 @@ export class CombatEngine {
 
     // Check if target has a defense card protecting them
     const defenseTeamChar = this.getTeam(targetTeam);
-    const defenseBonusInfo = defenseTeamChar[tIdx].popDefenseBonus();
+    const defenseBonusInfo = defenseTeamChar[tIdx].popDefenseBonus((t) => this.getTeam(t));
 
     let totalDefense: number;
     let defenderInfo: [number, number, string] | null = null;
@@ -648,6 +648,14 @@ export class CombatEngine {
           this.log(`  → ${allyTeamArr[ti].name} gains +${defenderBaseDefense} + ${defenseDice} defense this round from ${charName}!`);
           this.addLog({ type: 'defense', text: `${allyTeamArr[ti].name} gains defense from ${charName}!`, characterName: allyTeamArr[ti].name });
         }
+
+        // Defender self-boost: playing defense puts you in a defensive stance,
+        // making direct attacks against you harder to land (uses the card's defense dice)
+        character.modifiers.push(
+          new CombatModifier('defense', 0, ModifierDuration.ThisTurn)
+            .withDice(defenseDice)
+            .withSource(card.name),
+        );
 
         if (card.effect.type === 'AbsorbPain') {
           this.getTeam(charTeam)[charIdx].hasAbsorbPain = true;

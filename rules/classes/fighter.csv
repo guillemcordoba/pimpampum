@@ -5,6 +5,6 @@ Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Espasa llarga,Atac físic,1d6,,,-2,Aturdeix: anul·la els atacs que el jugador atacat anés a fer aquest combat.
 ,Sacrifici,Defensa,,,,6,Tria un jugador. Rep tots els atacs que li farien aquest torn.
 ,Ràbia traumada,Focus,,,,-3,Força +1d8+4 per la resta del combat.
-,Embestida,Atac físic,1d6,,,2,El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.
+,Embestida,Atac físic,1d4,,,2,El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.
 ,Crit de guerra,Atac físic,1d4,,,1,Tots els aliats reben força +2 aquest torn.
 ,Formació defensiva,Focus,,,,-2,Tu i tots els aliats D+1d6 per la resta del combat.

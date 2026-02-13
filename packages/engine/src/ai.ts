@@ -124,26 +124,52 @@ function selectProtect(character: Character, engine: AIEngineView): number {
     }
   }
 
+  // Check if any ally has a permanent buff (Power ally already buffed)
+  let allyHasBuff = false;
+  for (const idx of allies) {
+    if (allyTeam[idx].modifiers.some(
+      m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0,
+    )) {
+      allyHasBuff = true;
+      break;
+    }
+  }
+
+  // When only 1 enemy remains, aggressive play finishes the fight faster
+  const fewEnemies = enemies.length <= 1;
+
   const weights: number[] = [];
 
   for (const card of character.cards) {
     let weight = 10.0;
 
     if (isDefense(card.cardType)) {
-      if (allyLikelyFocus) {
-        // Pre-agreed coordination: defend when ally is likely playing focus
-        weight += 40.0;
+      if (fewEnemies) {
+        // Few enemies left — finish them off, less need for defense
+        weight += 5.0;
+      } else if (allyLikelyFocus) {
+        // Pre-agreed coordination: strongly defend when ally is likely playing focus
+        weight += 80.0;
       } else if (allyCritical) {
         weight += 25.0;
+      } else if (allyHasBuff) {
+        // Keep defending the buffed ally — defense redirects ALL attacks
+        weight += 30.0;
       } else {
         // No urgent reason to defend — moderate priority
         weight += 10.0;
       }
     } else if (isAttack(card.cardType)) {
-      if (allyLikelyFocus) {
-        weight += 3.0;
+      if (fewEnemies) {
+        // Few enemies left — go aggressive to close out the fight
+        weight += 25.0;
+      } else if (allyLikelyFocus) {
+        weight += 1.0;
+      } else if (allyHasBuff) {
+        // Buffed ally is the primary damage dealer — Protect shields them
+        weight += 8.0;
       } else {
-        // When ally is buffed (or no Power ally), contribute damage
+        // No Power ally — contribute damage
         weight += 18.0;
 
         const attackStat = isPhysical(card.cardType)
@@ -170,22 +196,27 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         }
       }
     } else if (isFocus(card.cardType)) {
-      switch (card.effect.type) {
-        case 'BlindingSmoke':
-        case 'IntimidatingRoar':
-        case 'IceTrap':
-          weight += 12.0;
-          break;
-        case 'TeamSpeedBoost':
-        case 'DefenseBoostDuration':
-          weight += 15.0;
-          break;
-        case 'DodgeWithSpeedBoost':
-          if (character.currentWounds >= character.maxWounds - 1) weight += 15.0;
-          else weight += 3.0;
-          break;
-        default:
-          weight += 3.0;
+      if (allyLikelyFocus) {
+        // Ally needs defense — don't focus, defend instead
+        weight += 1.0;
+      } else {
+        switch (card.effect.type) {
+          case 'BlindingSmoke':
+          case 'IntimidatingRoar':
+          case 'IceTrap':
+            weight += 12.0;
+            break;
+          case 'TeamSpeedBoost':
+          case 'DefenseBoostDuration':
+            weight += 15.0;
+            break;
+          case 'DodgeWithSpeedBoost':
+            if (character.currentWounds >= character.maxWounds - 1) weight += 15.0;
+            else weight += 3.0;
+            break;
+          default:
+            weight += 3.0;
+        }
       }
     }
 
@@ -210,7 +241,8 @@ function selectPower(character: Character, engine: AIEngineView): number {
     let weight = 10.0;
 
     if (isFocus(card.cardType) && !hasRestOfCombatBuff) {
-      // Power strategy strongly prefers focus cards before getting buffed.
+      // Power strategy prefers attack-boosting focus cards.
+      // Utility-only focus (speed/defense) is less valuable — sometimes better to just attack.
       // No speed penalty applied — slow focus cards are the whole point.
       switch (card.effect.type) {
         case 'StrengthBoost':
@@ -220,21 +252,22 @@ function selectPower(character: Character, engine: AIEngineView): number {
         case 'EnchantWeapon':
           weight += 40.0;
           break;
+        case 'CoordinatedAmbush':
+          weight += 30.0;
+          break;
         case 'DefenseBoostDuration':
         case 'TeamSpeedBoost':
         case 'BlindingSmoke':
         case 'IceTrap':
-          weight += 30.0;
+          // Utility focus — helpful but doesn't boost attack power
+          weight += 15.0;
           break;
         case 'DodgeWithSpeedBoost':
           if (character.currentWounds >= character.maxWounds - 1) weight += 35.0;
-          else weight += 15.0;
-          break;
-        case 'CoordinatedAmbush':
-          weight += 25.0;
+          else weight += 10.0;
           break;
         default:
-          weight += 20.0;
+          weight += 10.0;
       }
       weights.push(Math.max(1.0, weight));
       continue;
@@ -242,7 +275,8 @@ function selectPower(character: Character, engine: AIEngineView): number {
       if (hasRestOfCombatBuff) {
         weight += 30.0;
       } else {
-        weight += 5.0;
+        // Not buffed yet — still attack if focus available is utility-only
+        weight += 12.0;
       }
 
       const attackStat = isPhysical(card.cardType)

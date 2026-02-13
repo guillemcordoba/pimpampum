@@ -127,7 +127,7 @@ Dice notation in CSVs: `1d8`, `1d6`, `2d4`, `1d4-1`, etc.
 
 - **Atac físic** (Physical Attack): Compares Força + dice vs target Defensa
 - **Atac màgic** (Magic Attack): Compares Màgia + dice vs target Defensa
-- **Defensa** (Defense): Choose an ally to defend; uses your defense stat instead of theirs. Each defense card blocks one attack. If the attack penetrates, the defender takes the wound, not the defended ally
+- **Defensa** (Defense): Choose an ally to defend. The defense card redirects all attacks targeting the defended ally for the entire round. If an attack penetrates, the defender takes the wound, not the defended ally
 - **Focus**: Special effect cards. Interrupted (cancelled) if the player is hit by an attack or receives an undefended attack before the card resolves
 
 ### Equipment
