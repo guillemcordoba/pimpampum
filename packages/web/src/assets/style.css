@@ -305,6 +305,9 @@ body {
 }
 
 .combat-log-panel {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -313,6 +316,7 @@ body {
 .combat-log-panel .combat-log {
   flex: 1;
   max-height: none;
+  overflow-y: auto;
 }
 
 .enemy-zone {
@@ -437,8 +441,13 @@ body {
 
 .card-hand {
   display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.card-hand .mini-card {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* =============================================================================
