@@ -8,5 +8,7 @@ export { Character, createFighter, createWizard, createRogue, createBarbarian, c
 export type { CharacterTemplate, DefenseBonus } from './character.js';
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
 export type { LogEntry, CardStats, CombatStats, CardSelection, PlannedAction } from './combat.js';
-export { selectCardAI, planCombos, comboScore } from './ai.js';
-export type { PlannedCombo, AIEngineView } from './ai.js';
+export { selectCardAI, assignStrategies } from './ai.js';
+export type { AIEngineView } from './ai.js';
+export { AIStrategy } from './strategy.js';
+export type { StrategyStats } from './strategy.js';

@@ -2,7 +2,8 @@ import { DiceRoll } from './dice.js';
 import { Card, CardType, isAttack, isDefense, isFocus, isPhysical } from './card.js';
 import { CombatModifier, ModifierDuration } from './modifier.js';
 import { Character } from './character.js';
-import { selectCardAI, planCombos, PlannedCombo } from './ai.js';
+import { selectCardAI, assignStrategies } from './ai.js';
+import type { StrategyStats } from './strategy.js';
 
 export interface LogEntry {
   type: 'round' | 'play' | 'attack' | 'defense' | 'hit' | 'miss' | 'effect' | 'death' | 'focus-interrupted' | 'vengeance' | 'sacrifice' | 'skip';
@@ -39,6 +40,7 @@ export interface CombatStats {
   cardTypeStats: Map<string, CardStats>;
   classWins: Map<string, number>;
   classGames: Map<string, number>;
+  strategyStats: Map<string, StrategyStats>;
 }
 
 function newCardStats(): CardStats {
@@ -51,6 +53,7 @@ export function newCombatStats(): CombatStats {
     cardTypeStats: new Map(),
     classWins: new Map(),
     classGames: new Map(),
+    strategyStats: new Map(),
   };
 }
 
@@ -75,6 +78,12 @@ export function mergeCombatStats(target: CombatStats, other: CombatStats): void 
   for (const [cls, games] of other.classGames) {
     target.classGames.set(cls, (target.classGames.get(cls) ?? 0) + games);
   }
+  for (const [strategy, stats] of other.strategyStats) {
+    const entry = target.strategyStats.get(strategy) ?? { games: 0, wins: 0 };
+    entry.games += stats.games;
+    entry.wins += stats.wins;
+    target.strategyStats.set(strategy, entry);
+  }
 }
 
 function cardTypeStr(cardType: CardType): string {
@@ -93,10 +102,6 @@ export class CombatEngine {
   public sacrificeTargets = new Map<string, string>();
   public coordinatedAmbushTarget: string | null = null;
   public woundedThisRound = new Set<string>();
-
-  // Combo planning
-  public team1ComboPlan: PlannedCombo[] = [];
-  public team2ComboPlan: PlannedCombo[] = [];
 
   // Statistics tracking
   public stats: CombatStats = newCombatStats();
@@ -616,17 +621,17 @@ export class CombatEngine {
         }
         case 'RageBoost': {
           const ch = this.getTeam(charTeam)[charIdx];
-          ch.modifiers.push(new CombatModifier('strength', 2, ModifierDuration.RestOfCombat).withSource(card.name));
-          ch.modifiers.push(new CombatModifier('defense', 2, ModifierDuration.RestOfCombat).withSource(card.name));
-          this.log(`  → ${charName} gains +2 Strength and +2 Defense for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +2 Strength and +2 Defense for rest of combat!`, characterName: charName });
+          ch.modifiers.push(new CombatModifier('strength', 3, ModifierDuration.RestOfCombat).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('defense', 3, ModifierDuration.RestOfCombat).withSource(card.name));
+          this.log(`  → ${charName} gains +3 Strength and +3 Defense for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +3 Strength and +3 Defense for rest of combat!`, characterName: charName });
           break;
         }
         case 'IntimidatingRoar': {
           const enemies = this.getLivingEnemies(charTeam);
           const enemyTeam = this.getEnemyTeam(charTeam);
           for (const idx of enemies) {
-            enemyTeam[idx].modifiers.push(new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource(card.name));
+            enemyTeam[idx].modifiers.push(new CombatModifier('strength', -3, ModifierDuration.NextTurn).withSource(card.name));
             enemyTeam[idx].modifiers.push(new CombatModifier('speed', -2, ModifierDuration.NextTurn).withSource(card.name));
           }
           this.log('  → Enemies get -2 strength and -2 speed next turn!');
@@ -677,15 +682,15 @@ export class CombatEngine {
           const allAllies = this.getLivingAllies(charTeam);
           const allyTeam = this.getTeam(charTeam);
           allyTeam[charIdx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.RestOfCombat).withSource(card.name));
-          allyTeam[charIdx].modifiers.push(new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource(card.name));
+          allyTeam[charIdx].modifiers.push(new CombatModifier('defense', 2, ModifierDuration.RestOfCombat).withSource(card.name));
           for (const idx of allAllies) {
             if (idx !== charIdx) {
               allyTeam[idx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.RestOfCombat).withSource(card.name));
-              allyTeam[idx].modifiers.push(new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource(card.name));
+              allyTeam[idx].modifiers.push(new CombatModifier('defense', 2, ModifierDuration.RestOfCombat).withSource(card.name));
             }
           }
-          this.log('  → All allies gain +2 speed and +1 defense for rest of combat!');
-          this.addLog({ type: 'effect', text: 'All allies gain +2 speed and +1 defense for rest of combat!', characterName: charName });
+          this.log('  → All allies gain +2 speed and +2 defense for rest of combat!');
+          this.addLog({ type: 'effect', text: 'All allies gain +2 speed and +2 defense for rest of combat!', characterName: charName });
           break;
         }
         case 'IceTrap': {
@@ -703,23 +708,24 @@ export class CombatEngine {
           const enemyTeam = this.getEnemyTeam(charTeam);
           for (const idx of enemies) {
             enemyTeam[idx].modifiers.push(new CombatModifier('speed', -4, ModifierDuration.NextTurn).withSource(card.name));
-            enemyTeam[idx].modifiers.push(new CombatModifier('defense', -2, ModifierDuration.NextTurn).withSource(card.name));
+            enemyTeam[idx].modifiers.push(new CombatModifier('defense', -4, ModifierDuration.NextTurn).withSource(card.name));
           }
           const allies = this.getLivingAllies(charTeam);
           const allyTeam = this.getTeam(charTeam);
           for (const idx of allies) {
             allyTeam[idx].modifiers.push(new CombatModifier('speed', 2, ModifierDuration.NextTurn).withSource(card.name));
           }
-          this.log('  → Enemies get -4 speed and -2 defense, allies get +2 speed next turn!');
-          this.addLog({ type: 'effect', text: 'Enemies get -4 speed / -2 defense, allies get +2 speed next turn!', characterName: charName });
+          this.log('  → Enemies get -4 speed and -4 defense, allies get +2 speed next turn!');
+          this.addLog({ type: 'effect', text: 'Enemies get -4 speed / -4 defense, allies get +2 speed next turn!', characterName: charName });
           break;
         }
         case 'DodgeWithSpeedBoost': {
           const ch = this.getTeam(charTeam)[charIdx];
           ch.dodging = true;
-          ch.modifiers.push(new CombatModifier('speed', 3, ModifierDuration.NextTurn).withSource(card.name));
-          this.log(`  → ${charName} will dodge all attacks this turn, +3 speed next turn!`);
-          this.addLog({ type: 'effect', text: `${charName} dodges all attacks, +3 speed next turn!`, characterName: charName });
+          ch.modifiers.push(new CombatModifier('speed', 5, ModifierDuration.NextTurn).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('strength', 8, ModifierDuration.NextTurn).withSource(card.name));
+          this.log(`  → ${charName} will dodge all attacks this turn, +5 speed and +8 strength next turn!`);
+          this.addLog({ type: 'effect', text: `${charName} dodges all attacks, +5 speed and +8 strength next turn!`, characterName: charName });
           break;
         }
         case 'CoordinatedAmbush': {
@@ -735,18 +741,18 @@ export class CombatEngine {
             const enemyTeam = this.getEnemyTeam(charTeam);
             const tName = enemyTeam[ambushTargetIdx].name;
             this.coordinatedAmbushTarget = tName;
-            const allies = this.getLivingAllies(charTeam, charIdx);
+            const allies = this.getLivingAllies(charTeam);
             const allyTeam = this.getTeam(charTeam);
             for (const idx of allies) {
               allyTeam[idx].modifiers.push(
                 new CombatModifier('attack_bonus', 0, ModifierDuration.ThisTurn)
-                  .withDice(new DiceRoll(1, 6, 2))
+                  .withDice(new DiceRoll(1, 8, 2))
                   .withSource(card.name)
                   .withCondition(`attacking_${tName}`),
               );
             }
-            this.log(`  → Allies get +1d6+2 when attacking ${tName}!`);
-            this.addLog({ type: 'effect', text: `Allies get +1d6+2 when attacking ${tName}!`, characterName: charName });
+            this.log(`  → Team gets +1d8+2 when attacking ${tName}!`);
+            this.addLog({ type: 'effect', text: `Team gets +1d8+2 when attacking ${tName}!`, characterName: charName });
           }
           break;
         }
@@ -801,22 +807,18 @@ export class CombatEngine {
           break;
         }
         case 'PoisonWeapon': {
-          const pwOverrides = this.resolveTargets.get(charName);
           const allyTeam = this.getTeam(charTeam);
-          let pwTargetIdx: number;
-          if (pwOverrides?.allyTarget && pwOverrides.allyTarget[0] === charTeam) {
-            pwTargetIdx = pwOverrides.allyTarget[1];
-          } else {
-            const allies = this.getLivingAllies(charTeam, charIdx);
-            pwTargetIdx = allies.length > 0
-              ? allies.reduce((best, i) =>
-                  allyTeam[i].strength > allyTeam[best].strength ? i : best, allies[0])
-              : charIdx;
+          const allAllies = this.getLivingAllies(charTeam);
+          // Pick up to 2 allies (including self) sorted by strength
+          const sorted = [...allAllies].sort((a, b) => allyTeam[b].strength - allyTeam[a].strength);
+          const targets = sorted.slice(0, 2);
+          const names: string[] = [];
+          for (const idx of targets) {
+            allyTeam[idx].hasPoisonWeapon = true;
+            names.push(allyTeam[idx].name);
           }
-          const tName = allyTeam[pwTargetIdx].name;
-          allyTeam[pwTargetIdx].hasPoisonWeapon = true;
-          this.log(`  → ${tName}'s physical attacks now deal an extra wound!`);
-          this.addLog({ type: 'effect', text: `${tName}'s physical attacks now deal an extra wound!`, characterName: tName });
+          this.log(`  → ${names.join(' and ')}'s physical attacks now deal an extra wound!`);
+          this.addLog({ type: 'effect', text: `${names.join(' and ')}'s physical attacks now deal an extra wound!`, characterName: charName });
           break;
         }
         case 'BloodThirst': {
@@ -1079,9 +1081,6 @@ export class CombatEngine {
     const actions: [number, number, number][] = [];
     const logs: string[] = [];
 
-    const team1Assigned = new Set<number>();
-    const team2Assigned = new Set<number>();
-
     // Reset rounds for all living characters
     const team1Skipping = new Set<number>();
     const team2Skipping = new Set<number>();
@@ -1101,80 +1100,16 @@ export class CombatEngine {
       }
     }
 
-    // Team 1 combo check
-    if (this.team1ComboPlan.length > 0) {
-      while (this.team1ComboPlan.length > 0) {
-        const combo = this.team1ComboPlan[0];
-        const pa = combo.playerAIdx;
-        const pb = combo.playerBIdx;
-
-        const aAvail = this.team1[pa]?.isAlive() && !team1Skipping.has(pa);
-        const bAvail = this.team1[pb]?.isAlive() && !team1Skipping.has(pb);
-
-        if (!aAvail || !bAvail) {
-          this.team1ComboPlan.shift();
-          continue;
-        }
-
-        if (Math.random() < 0.95) {
-          this.team1[pa].playedCardIdx = combo.cardAIdx;
-          actions.push([1, pa, combo.cardAIdx]);
-          logs.push(`${this.team1[pa].name} selects: ${this.team1[pa].cards[combo.cardAIdx].name} (combo!)`);
-          team1Assigned.add(pa);
-
-          this.team1[pb].playedCardIdx = combo.cardBIdx;
-          actions.push([1, pb, combo.cardBIdx]);
-          logs.push(`${this.team1[pb].name} selects: ${this.team1[pb].cards[combo.cardBIdx].name} (combo!)`);
-          team1Assigned.add(pb);
-        }
-
-        this.team1ComboPlan.shift();
-        break;
-      }
-    }
-
-    // Team 2 combo check
-    if (this.team2ComboPlan.length > 0) {
-      while (this.team2ComboPlan.length > 0) {
-        const combo = this.team2ComboPlan[0];
-        const pa = combo.playerAIdx;
-        const pb = combo.playerBIdx;
-
-        const aAvail = this.team2[pa]?.isAlive() && !team2Skipping.has(pa);
-        const bAvail = this.team2[pb]?.isAlive() && !team2Skipping.has(pb);
-
-        if (!aAvail || !bAvail) {
-          this.team2ComboPlan.shift();
-          continue;
-        }
-
-        if (Math.random() < 0.95) {
-          this.team2[pa].playedCardIdx = combo.cardAIdx;
-          actions.push([2, pa, combo.cardAIdx]);
-          logs.push(`${this.team2[pa].name} selects: ${this.team2[pa].cards[combo.cardAIdx].name} (combo!)`);
-          team2Assigned.add(pa);
-
-          this.team2[pb].playedCardIdx = combo.cardBIdx;
-          actions.push([2, pb, combo.cardBIdx]);
-          logs.push(`${this.team2[pb].name} selects: ${this.team2[pb].cards[combo.cardBIdx].name} (combo!)`);
-          team2Assigned.add(pb);
-        }
-
-        this.team2ComboPlan.shift();
-        break;
-      }
-    }
-
     // Individual card selection
     for (let idx = 0; idx < this.team1.length; idx++) {
-      if (!this.team1[idx].isAlive() || team1Skipping.has(idx) || team1Assigned.has(idx)) continue;
+      if (!this.team1[idx].isAlive() || team1Skipping.has(idx)) continue;
       const cardIdx = selectCardAI(this.team1[idx], this);
       this.team1[idx].playedCardIdx = cardIdx;
       actions.push([1, idx, cardIdx]);
       logs.push(`${this.team1[idx].name} selects: ${this.team1[idx].cards[cardIdx].name}`);
     }
     for (let idx = 0; idx < this.team2.length; idx++) {
-      if (!this.team2[idx].isAlive() || team2Skipping.has(idx) || team2Assigned.has(idx)) continue;
+      if (!this.team2[idx].isAlive() || team2Skipping.has(idx)) continue;
       const cardIdx = selectCardAI(this.team2[idx], this);
       this.team2[idx].playedCardIdx = cardIdx;
       actions.push([2, idx, cardIdx]);
@@ -1234,12 +1169,9 @@ export class CombatEngine {
       this.log(`  ${c.name} (${c.characterClass}) - MF:${c.maxWounds} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
     }
 
-    // Pre-combat combo planning
-    this.team1ComboPlan = planCombos(this.team1);
-    this.team2ComboPlan = planCombos(this.team2);
-
-    if (this.team1ComboPlan.length > 0) this.log(`\nTeam 1 planned ${this.team1ComboPlan.length} combos`);
-    if (this.team2ComboPlan.length > 0) this.log(`Team 2 planned ${this.team2ComboPlan.length} combos`);
+    // Assign AI strategies
+    assignStrategies(this.team1);
+    assignStrategies(this.team2);
 
     while (this.roundNumber < this.maxRounds) {
       if (!this.runRound()) break;
@@ -1275,6 +1207,19 @@ export class CombatEngine {
     if (winnerCards) {
       for (const [cardName, cardType] of winnerCards) {
         this.recordWinnerPlay(cardName, cardType);
+      }
+    }
+
+    // Record strategy stats
+    const winnerTeam = winner === 1 ? this.team1 : winner === 2 ? this.team2 : null;
+    for (const c of [...this.team1, ...this.team2]) {
+      if (c.aiStrategy) {
+        const entry = this.stats.strategyStats.get(c.aiStrategy) ?? { games: 0, wins: 0 };
+        entry.games++;
+        if (winnerTeam && winnerTeam.includes(c) && c.isAlive()) {
+          entry.wins++;
+        }
+        this.stats.strategyStats.set(c.aiStrategy, entry);
       }
     }
 

@@ -74,7 +74,7 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'CoordinatedAmbush': return 'enemy';
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
-      case 'PoisonWeapon': return 'ally';
+      case 'PoisonWeapon': return 'none';
       case 'DefenseBoostDuration': return 'ally_other';
       default: return 'none';
     }

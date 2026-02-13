@@ -1,12 +1,12 @@
 Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
-3,2,2,1,4,,,
+3,2,2,3,4,,,
 ,,,,,,,
 Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
-,Emboscada coordinada,Focus,,,,4,Tria un enemic. Tots els aliats que l'ataquin reben +1d6+2 a la seva tirada.
-,Fum cegador,Focus,,,,3,"Enemics -4 velocitat i -2 defensa, aliats +2 velocitat durant el següent torn."
+,Emboscada coordinada,Focus,,,,4,Tria un enemic. Tots els aliats que l'ataquin reben +1d8+2 a la seva tirada.
+,Fum cegador,Focus,,,,3,"Enemics -4 velocitat i -4 defensa, aliats +2 velocitat durant el següent torn."
 ,Braçals de cuir,Defensa,,,1d4,2,
 ,Ballesta,Atac físic,1d6,,,3,
 ,Dagues,Atac físic,1d4,,,3,Pot atacar a dos enemics alhora.
-,El·lusió,Focus,,,,3,Esquiva tots els atacs que se't farien aquest torn. Velocitat +3 al següent torn.
-,Enverinar arma,Focus,,,,2,"Tria un aliat. Durant la resta del combat, els seus atacs físics causen una ferida addicional."
+,El·lusió,Focus,,,,3,Esquiva tots els atacs que se't farien aquest torn. V+5 i F+8 al següent torn.
+,Enverinar arma,Focus,,,,0,"Tria 2 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics causen una ferida addicional."
 ,Foc alquímic,Atac màgic,,1d6,,1,

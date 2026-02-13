@@ -1,9 +1,9 @@
 Màximes ferides,Força,Màgia,Defensa,Velocitat,,,
-3,1,4,0,2,,,
+3,1,4,2,3,,,
 ,,,,,,,
 Nivell,Nom,Tipus,Atac Físic,Atac Màgic,Defensa,Velocitat,Efecte
 ,Llamp,Atac màgic,,2d4,,0,
-,Possessió demoníaca,Focus,,,,-4,Atac màgic +4 per la resta del combat
-,Set de sang,Focus,,,,-4,Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida
+,Possessió demoníaca,Focus,,,,1,Atac màgic +5 per la resta del combat
+,Set de sang,Focus,,,,0,Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida
 ,Pluja de flames,Atac màgic,,1d4-3,,-1,Afecta a 3 enemics que triis
-,Absorvir dolor,Defensa,,,1d4,1,"Si absorveix un atac, +1 defensa per la resta del combat "
+,Absorvir dolor,Defensa,,,1d6,1,"Si absorveix un atac, +1 defensa per la resta del combat "

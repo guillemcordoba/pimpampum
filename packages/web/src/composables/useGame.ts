@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import {
   CombatEngine,
   selectCardAI,
+  assignStrategies,
   getCardTargetRequirement,
   ALL_CHARACTER_TEMPLATES,
   ALL_EQUIPMENT,
@@ -102,6 +103,7 @@ export function useGame() {
     });
 
     engine.value = new CombatEngine(team1, team2);
+    assignStrategies(team2);
     combatLog.value = [];
     playerSelections.value = new Map();
     winner.value = 0;

@@ -269,6 +269,28 @@ function printCardStats(stats: CombatStats): void {
   }
 }
 
+function printStrategyStats(stats: CombatStats): void {
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('STRATEGY EFFECTIVENESS');
+  console.log('='.repeat(60));
+  console.log(`${pad('Strategy', 12)} ${pad('Games', 10, true)} ${pad('Wins', 10, true)} ${pad('Win Rate', 12, true)}`);
+  console.log('-'.repeat(60));
+
+  const entries = [...stats.strategyStats.entries()];
+  entries.sort((a, b) => {
+    const rateA = a[1].games > 0 ? a[1].wins / a[1].games : 0;
+    const rateB = b[1].games > 0 ? b[1].wins / b[1].games : 0;
+    return rateB - rateA;
+  });
+
+  for (const [strategy, s] of entries) {
+    const winRate = s.games > 0 ? (s.wins / s.games) * 100 : 0;
+    const barLen = Math.floor(winRate / 2.5);
+    const bar = '█'.repeat(barLen);
+    console.log(`${pad(strategy, 12)} ${pad(String(s.games), 10, true)} ${pad(String(s.wins), 10, true)} ${pad(winRate.toFixed(1) + '%', 11, true)} ${bar}`);
+  }
+}
+
 function printSummary(stats: CombatStats): void {
   console.log(`\n${'='.repeat(70)}`);
   console.log('OVERALL SUMMARY');
@@ -356,6 +378,7 @@ function main(): void {
 
   printClassStats(allStats);
   printCardStats(allStats);
+  printStrategyStats(allStats);
   printSummary(allStats);
 }
 
