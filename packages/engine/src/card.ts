@@ -31,10 +31,10 @@ export type SpecialEffect =
   | { type: 'SkipNextTurn' }
   | { type: 'SkipNextTurns'; count: number }
   | { type: 'StrengthBoost'; amount: number; dice?: DiceRoll }
-  | { type: 'MagicBoost'; amount: number }
+  | { type: 'MagicBoost'; amount: number; dice?: DiceRoll }
   | { type: 'AllyStrengthThisTurn'; amount: number }
   | { type: 'DefenseBoostDuration'; dice: DiceRoll; turns: number }
-  | { type: 'TeamSpeedDefenseBoost' }
+  | { type: 'TeamSpeedBoost' }
   | { type: 'EnemySpeedDebuff'; amount: number }
   | { type: 'EnemyStrengthDebuff'; amount: number }
   | { type: 'EmbestidaEffect' }
@@ -50,7 +50,7 @@ export type SpecialEffect =
   | { type: 'MultiTarget'; count: number }
   | { type: 'DefendMultiple'; count: number }
   | { type: 'PoisonWeapon' }
-  | { type: 'RageBoost' }
+  | { type: 'RageBoost'; amount: number; dice?: DiceRoll; speedBoost: number }
   | { type: 'RecklessAttack' }
   | { type: 'IntimidatingRoar' }
   | { type: 'CounterThrow' };

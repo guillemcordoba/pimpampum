@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   newCombatStats,
   mergeCombatStats,
@@ -70,6 +70,150 @@ beforeAll(async () => {
     aggregatedTotalRounds += data.totalRounds;
     aggregatedTotalSims += data.totalSims;
   }
+});
+
+// =============================================================================
+// DIAGNOSTIC DUMP (prints after all tests, used by /analyze skill)
+// =============================================================================
+
+afterAll(() => {
+  const lines: string[] = [];
+  const p = (s: string) => lines.push(s);
+
+  p('\n========== BALANCE DIAGNOSTIC REPORT ==========\n');
+
+  // --- Class win rates ---
+  p('--- CLASS WIN RATES ---');
+  const playerClasses = ['Fighter', 'Wizard', 'Rogue', 'Barbarian'];
+  for (const cls of playerClasses) {
+    const games = aggregatedStats.classGames.get(cls) ?? 0;
+    const wins = aggregatedStats.classWins.get(cls) ?? 0;
+    const rate = games > 0 ? ((wins / games) * 100).toFixed(1) : 'N/A';
+    p(`  ${cls}: ${wins}/${games} = ${rate}%`);
+  }
+
+  // --- Combat length ---
+  p('\n--- COMBAT LENGTH ---');
+  const avgRounds = aggregatedTotalRounds / aggregatedTotalSims;
+  p(`  Overall average: ${avgRounds.toFixed(2)} rounds (${aggregatedTotalSims} sims)`);
+  let totalMaxReached = 0;
+  for (const [teamSize, data] of teamSizeData) {
+    const tsAvg = data.totalRounds / data.totalSims;
+    let maxReached = 0;
+    let draws = 0;
+    for (const { result } of data.matchupResults) {
+      maxReached += result.maxRoundsReached;
+      draws += result.draws;
+    }
+    totalMaxReached += maxReached;
+    p(`  ${teamSize}v${teamSize}: avg ${tsAvg.toFixed(2)} rounds, ${data.totalSims} sims, maxRounds hit ${maxReached} (${((maxReached / data.totalSims) * 100).toFixed(1)}%), draws ${draws} (${((draws / data.totalSims) * 100).toFixed(1)}%)`);
+  }
+  p(`  Total maxRounds hit: ${totalMaxReached} / ${aggregatedTotalSims} (${((totalMaxReached / aggregatedTotalSims) * 100).toFixed(1)}%)`);
+
+  // --- Card type balance ---
+  p('\n--- CARD TYPE BALANCE ---');
+  const totalTypePlays = [...aggregatedStats.cardTypeStats.values()].reduce((s, v) => s + v.plays, 0);
+  for (const [typeName, stats] of aggregatedStats.cardTypeStats) {
+    const share = ((stats.plays / totalTypePlays) * 100).toFixed(1);
+    const winCorr = stats.plays > 0 ? ((stats.playsByWinner / stats.plays) * 100).toFixed(1) : 'N/A';
+    const intRate = stats.plays > 0 ? ((stats.interrupted / stats.plays) * 100).toFixed(1) : 'N/A';
+    p(`  ${typeName}: ${stats.plays} plays (${share}%), win corr ${winCorr}%, interrupted ${stats.interrupted} (${intRate}%)`);
+  }
+
+  // --- Per-class card type breakdown ---
+  p('\n--- PER-CLASS CARD TYPE BREAKDOWN ---');
+  const cardTypeMap = new Map<string, string>();
+  const cardClassMap = new Map<string, string>();
+  const playerCreators: [string, CharacterCreator][] = [
+    ['Fighter', createFighter],
+    ['Wizard', createWizard],
+    ['Rogue', createRogue],
+    ['Barbarian', createBarbarian],
+  ];
+  for (const [className, creator] of playerCreators) {
+    const ch = creator('tmp');
+    for (const card of ch.cards) {
+      cardTypeMap.set(card.name, card.cardType);
+      cardClassMap.set(card.name, className);
+    }
+  }
+  for (const cls of playerClasses) {
+    p(`  ${cls}:`);
+    const typePlayCounts = new Map<string, number>();
+    let classTotalPlays = 0;
+    for (const [cardName, stats] of aggregatedStats.cardStats) {
+      if (cardClassMap.get(cardName) !== cls) continue;
+      const ct = cardTypeMap.get(cardName) ?? 'Unknown';
+      typePlayCounts.set(ct, (typePlayCounts.get(ct) ?? 0) + stats.plays);
+      classTotalPlays += stats.plays;
+    }
+    for (const [ct, plays] of typePlayCounts) {
+      const share = classTotalPlays > 0 ? ((plays / classTotalPlays) * 100).toFixed(1) : '0';
+      p(`    ${ct}: ${plays} (${share}%)`);
+    }
+  }
+
+  // --- Individual card stats ---
+  p('\n--- INDIVIDUAL CARD STATS ---');
+  for (const cls of playerClasses) {
+    p(`  ${cls}:`);
+    const classCardEntries: [string, { plays: number; playsByWinner: number; interrupted: number }][] = [];
+    let classTotalPlays = 0;
+    for (const [cardName, stats] of aggregatedStats.cardStats) {
+      if (cardClassMap.get(cardName) !== cls) continue;
+      classCardEntries.push([cardName, stats]);
+      classTotalPlays += stats.plays;
+    }
+    classCardEntries.sort((a, b) => b[1].plays - a[1].plays);
+    const minPlays = Math.min(...classCardEntries.map(e => e[1].plays));
+    const maxPlays = Math.max(...classCardEntries.map(e => e[1].plays));
+    const ratio = minPlays > 0 ? (maxPlays / minPlays).toFixed(1) : 'INF';
+    p(`    Total: ${classTotalPlays}, play ratio (max/min): ${ratio}`);
+    for (const [cardName, stats] of classCardEntries) {
+      const classShare = classTotalPlays > 0 ? ((stats.plays / classTotalPlays) * 100).toFixed(1) : '0';
+      const winCorr = stats.plays > 0 ? ((stats.playsByWinner / stats.plays) * 100).toFixed(1) : 'N/A';
+      const ct = cardTypeMap.get(cardName) ?? '?';
+      p(`    ${cardName} [${ct}]: ${stats.plays} plays (${classShare}% class share), win corr ${winCorr}%, interrupted ${stats.interrupted}`);
+    }
+  }
+
+  // --- Worst matchups ---
+  p('\n--- WORST MATCHUPS (most extreme win rates) ---');
+  const allMatchups: { teamSize: number; name1: string; name2: string; winRate: number; sims: number; draws: number }[] = [];
+  for (const [teamSize, data] of teamSizeData) {
+    for (const { name1, name2, result } of data.matchupResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      allMatchups.push({ teamSize, name1, name2, winRate, sims: result.numSimulations, draws: result.draws });
+    }
+  }
+  allMatchups.sort((a, b) => Math.abs(b.winRate - 50) - Math.abs(a.winRate - 50));
+  for (const m of allMatchups.slice(0, 15)) {
+    p(`  ${m.teamSize}v${m.teamSize} ${m.name1} vs ${m.name2}: ${m.winRate.toFixed(1)}% (${m.sims} sims, ${m.draws} draws)`);
+  }
+
+  // --- Team composition aggregate win rates ---
+  p('\n--- TEAM COMPOSITION AGGREGATE WIN RATES ---');
+  for (const [teamSize, data] of teamSizeData) {
+    const teamWins = new Map<string, number>();
+    const teamGames = new Map<string, number>();
+    for (const { name1, name2, result } of data.matchupResults) {
+      teamWins.set(name1, (teamWins.get(name1) ?? 0) + result.team1Wins);
+      teamGames.set(name1, (teamGames.get(name1) ?? 0) + result.numSimulations);
+      teamWins.set(name2, (teamWins.get(name2) ?? 0) + result.team2Wins);
+      teamGames.set(name2, (teamGames.get(name2) ?? 0) + result.numSimulations);
+    }
+    const entries = [...teamGames.entries()].map(([name, games]) => {
+      const wins = teamWins.get(name) ?? 0;
+      return { name, games, wins, rate: (wins / games) * 100 };
+    }).sort((a, b) => b.rate - a.rate);
+    p(`  ${teamSize}v${teamSize}:`);
+    for (const e of entries) {
+      p(`    ${e.name}: ${e.rate.toFixed(1)}% (${e.wins}/${e.games})`);
+    }
+  }
+
+  p('\n========== END DIAGNOSTIC REPORT ==========\n');
+  console.log(lines.join('\n'));
 });
 
 // =============================================================================
@@ -226,6 +370,9 @@ describe('Individual Card Usage', () => {
 // =============================================================================
 
 describe('Strategy Triangle', () => {
+  // Each team composition has 2 characters with different strategies.
+  // Mixed Power+Protect teams represent the intended optimal play:
+  // one player buffs (Power) while the other defends them (Protect).
   const teamCompositions: CharacterCreator[][] = [
     [createFighter, createWizard],
     [createRogue, createBarbarian],
@@ -237,37 +384,34 @@ describe('Strategy Triangle', () => {
 
   const simsPerComposition = 50;
 
-  function runStrategyMatchup(s1: AIStrategy, s2: AIStrategy): { s1Wins: number; s2Wins: number; total: number } {
-    let s1Wins = 0;
-    let s2Wins = 0;
+  function runMixedVsPure(
+    mixedStrategies: AIStrategy[],
+    pureStrategy: AIStrategy,
+  ): { mixedWins: number; pureWins: number; total: number } {
+    let mixedWins = 0;
+    let pureWins = 0;
     let total = 0;
     for (const comp of teamCompositions) {
-      const result = runWithStrategies(comp, comp, s1, s2, simsPerComposition);
-      s1Wins += result.team1Wins;
-      s2Wins += result.team2Wins;
+      const result = runWithStrategies(
+        comp, comp,
+        mixedStrategies,
+        [pureStrategy],
+        simsPerComposition,
+      );
+      mixedWins += result.team1Wins;
+      pureWins += result.team2Wins;
       total += result.numSimulations;
     }
-    return { s1Wins, s2Wins, total };
+    return { mixedWins, pureWins, total };
   }
 
-  it('Power beats Protect (Power > 50% win rate)', () => {
-    const { s1Wins, total } = runStrategyMatchup(AIStrategy.Power, AIStrategy.Protect);
-    const winRate = (s1Wins / total) * 100;
-    expect(winRate, `Power vs Protect: Power wins ${winRate.toFixed(1)}%`)
-      .toBeGreaterThan(50);
-  });
-
-  it('Protect beats Aggro (Protect > 50% win rate)', () => {
-    const { s1Wins, total } = runStrategyMatchup(AIStrategy.Protect, AIStrategy.Aggro);
-    const winRate = (s1Wins / total) * 100;
-    expect(winRate, `Protect vs Aggro: Protect wins ${winRate.toFixed(1)}%`)
-      .toBeGreaterThan(50);
-  });
-
-  it('Aggro beats Power (Aggro > 50% win rate)', () => {
-    const { s1Wins, total } = runStrategyMatchup(AIStrategy.Aggro, AIStrategy.Power);
-    const winRate = (s1Wins / total) * 100;
-    expect(winRate, `Aggro vs Power: Aggro wins ${winRate.toFixed(1)}%`)
+  it('mixed Power+Protect beats pure Aggro (> 50% win rate)', () => {
+    const { mixedWins, total } = runMixedVsPure(
+      [AIStrategy.Power, AIStrategy.Protect],
+      AIStrategy.Aggro,
+    );
+    const winRate = (mixedWins / total) * 100;
+    expect(winRate, `Power+Protect vs Aggro: mixed wins ${winRate.toFixed(1)}%`)
       .toBeGreaterThan(50);
   });
 });

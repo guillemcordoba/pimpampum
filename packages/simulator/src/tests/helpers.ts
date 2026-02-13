@@ -27,6 +27,7 @@ export interface SimulationResults {
   draws: number;
   totalRounds: number;
   numSimulations: number;
+  maxRoundsReached: number;
   stats: CombatStats;
 }
 
@@ -64,6 +65,7 @@ export function runMatchup(
     team2Wins: 0,
     draws: 0,
     totalRounds: 0,
+    maxRoundsReached: 0,
     numSimulations,
     stats: newCombatStats(),
   };
@@ -87,6 +89,7 @@ export function runMatchup(
     const winner = engine.runCombat();
 
     results.totalRounds += engine.roundNumber;
+    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
     mergeCombatStats(results.stats, engine.stats);
 
     for (const cls of team1Classes) {
@@ -109,12 +112,13 @@ export function runMatchup(
 /**
  * Run simulations with forced strategies (bypasses runCombat's assignStrategies).
  * Uses a manual loop with runRound() so strategies aren't overwritten.
+ * Accepts per-character strategy arrays — strategies cycle over team members.
  */
 export function runWithStrategies(
   team1Creators: CharacterCreator[],
   team2Creators: CharacterCreator[],
-  strategy1: AIStrategy,
-  strategy2: AIStrategy,
+  strategies1: AIStrategy[],
+  strategies2: AIStrategy[],
   numSimulations: number,
 ): SimulationResults {
   const results: SimulationResults = {
@@ -122,6 +126,7 @@ export function runWithStrategies(
     team2Wins: 0,
     draws: 0,
     totalRounds: 0,
+    maxRoundsReached: 0,
     numSimulations,
     stats: newCombatStats(),
   };
@@ -143,9 +148,9 @@ export function runWithStrategies(
 
     const engine = new CombatEngine(team1, team2, false);
 
-    // Force strategies (don't call runCombat which calls assignStrategies)
-    for (const c of team1) c.aiStrategy = strategy1;
-    for (const c of team2) c.aiStrategy = strategy2;
+    // Force per-character strategies (cycle over the array)
+    for (let j = 0; j < team1.length; j++) team1[j].aiStrategy = strategies1[j % strategies1.length];
+    for (let j = 0; j < team2.length; j++) team2[j].aiStrategy = strategies2[j % strategies2.length];
 
     while (engine.roundNumber < engine.maxRounds) {
       if (!engine.runRound()) break;
@@ -184,6 +189,7 @@ export function runWithStrategies(
     }
 
     results.totalRounds += engine.roundNumber;
+    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
     mergeCombatStats(results.stats, engine.stats);
 
     for (const cls of team1Classes) {

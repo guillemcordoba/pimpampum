@@ -648,19 +648,23 @@ export class CombatEngine {
         }
         case 'MagicBoost': {
           const ch = this.getTeam(charTeam)[charIdx];
+          const magicDiceBonus = card.effect.dice ? card.effect.dice.roll() : 0;
+          const totalMagic = card.effect.amount + magicDiceBonus;
           ch.modifiers.push(
-            new CombatModifier('magic', card.effect.amount, ModifierDuration.RestOfCombat).withSource(card.name),
+            new CombatModifier('magic', totalMagic, ModifierDuration.RestOfCombat).withSource(card.name),
           );
-          this.log(`  → ${charName} gains +${card.effect.amount} Magic for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +${card.effect.amount} Magic for rest of combat!`, characterName: charName });
+          this.log(`  → ${charName} gains +${totalMagic} Magic for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${totalMagic} Magic for rest of combat!`, characterName: charName });
           break;
         }
         case 'RageBoost': {
           const ch = this.getTeam(charTeam)[charIdx];
-          ch.modifiers.push(new CombatModifier('strength', 6, ModifierDuration.RestOfCombat).withSource(card.name));
-          ch.modifiers.push(new CombatModifier('defense', 6, ModifierDuration.RestOfCombat).withSource(card.name));
-          this.log(`  → ${charName} gains +6 Strength and +6 Defense for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +6 Strength and +6 Defense for rest of combat!`, characterName: charName });
+          const diceBonus = card.effect.dice ? card.effect.dice.roll() : 0;
+          const totalStrength = card.effect.amount + diceBonus;
+          ch.modifiers.push(new CombatModifier('strength', totalStrength, ModifierDuration.RestOfCombat).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('speed', card.effect.speedBoost, ModifierDuration.RestOfCombat).withSource(card.name));
+          this.log(`  → ${charName} gains +${totalStrength} Strength and +${card.effect.speedBoost} Speed for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${totalStrength} Strength and +${card.effect.speedBoost} Speed for rest of combat!`, characterName: charName });
           break;
         }
         case 'IntimidatingRoar': {
@@ -713,19 +717,17 @@ export class CombatEngine {
           this.addLog({ type: 'effect', text: `${defBoostNames.join(', ')} gain +${card.effect.dice} defense!`, characterName: charName });
           break;
         }
-        case 'TeamSpeedDefenseBoost': {
+        case 'TeamSpeedBoost': {
           const allAllies = this.getLivingAllies(charTeam);
           const allyTeam = this.getTeam(charTeam);
           allyTeam[charIdx].modifiers.push(new CombatModifier('speed', 4, ModifierDuration.RestOfCombat).withSource(card.name));
-          allyTeam[charIdx].modifiers.push(new CombatModifier('defense', 4, ModifierDuration.RestOfCombat).withSource(card.name));
           for (const idx of allAllies) {
             if (idx !== charIdx) {
               allyTeam[idx].modifiers.push(new CombatModifier('speed', 4, ModifierDuration.RestOfCombat).withSource(card.name));
-              allyTeam[idx].modifiers.push(new CombatModifier('defense', 4, ModifierDuration.RestOfCombat).withSource(card.name));
             }
           }
-          this.log('  → All allies gain +4 speed and +4 defense for rest of combat!');
-          this.addLog({ type: 'effect', text: 'All allies gain +4 speed and +4 defense for rest of combat!', characterName: charName });
+          this.log('  → All allies gain +4 speed for rest of combat!');
+          this.addLog({ type: 'effect', text: 'All allies gain +4 speed for rest of combat!', characterName: charName });
           break;
         }
         case 'IceTrap': {

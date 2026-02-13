@@ -187,7 +187,7 @@ export class Character {
 export function createFighter(name: string): Character {
   const cards = [
     new Card('Espasa llarga', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(-2)
       .withEffect({ type: 'Stun' })
       .withDescription('Aturdeix: anul·la els atacs que el jugador atacat anés a fer aquest combat.'),
@@ -196,16 +196,16 @@ export function createFighter(name: string): Character {
       .withEffect({ type: 'Sacrifice' })
       .withDescription('Tria un jugador. Rep tots els atacs que li farien aquest torn.'),
     new Card('Ràbia traumada', CardType.Focus)
-      .withSpeedMod(-9)
+      .withSpeedMod(-5)
       .withEffect({ type: 'StrengthBoost', amount: 4, dice: new DiceRoll(1, 8) })
       .withDescription('F+1d8+4 per la resta del combat.'),
     new Card('Embestida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(2)
       .withEffect({ type: 'EmbestidaEffect' })
       .withDescription('El jugador atacat té V-2 el següent torn. Tu tens V-3 el següent torn.'),
     new Card('Crit de guerra', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4, -1))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'AllyStrengthThisTurn', amount: 2 })
       .withDescription('Tots els aliats reben F+2 aquest torn.'),
@@ -225,10 +225,10 @@ export function createWizard(name: string): Character {
       .withEffect({ type: 'DefendMultiple', count: 3 })
       .withDescription('Defensa a 3 jugadors que triïs.'),
     new Card('Bola de foc', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4))
+      .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(0),
     new Card('Raig de gel', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4, -1))
+      .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
       .withEffect({ type: 'EnemySpeedDebuff', amount: 2 })
       .withDescription('El jugador atacat té V-2 el següent torn.'),
@@ -237,14 +237,14 @@ export function createWizard(name: string): Character {
       .withEffect({ type: 'IceTrap' })
       .withDescription('Tots els enemics reben V-8 els dos pròxims torns.'),
     new Card('Cadena de llamps', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4, -3))
+      .withMagicAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(-1)
       .withEffect({ type: 'MultiTarget', count: 2 })
       .withDescription('Afecta a 2 enemics que triïs.'),
     new Card('Camp de distorsió', CardType.Focus)
       .withSpeedMod(-7)
-      .withEffect({ type: 'TeamSpeedDefenseBoost' })
-      .withDescription('Tots els jugadors aliats reben V+4 i D+4 per la resta del combat.'),
+      .withEffect({ type: 'TeamSpeedBoost' })
+      .withDescription('Tots els jugadors aliats reben V+4 per la resta del combat.'),
   ];
   return new Character(name, 3, 0, 5, 1, 2, cards, 'Wizard');
 }
@@ -265,10 +265,10 @@ export function createRogue(name: string): Character {
       .withEffect({ type: 'CounterThrow' })
       .withDescription("L'atacant rep V-3 el següent torn."),
     new Card('Ballesta', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(3),
     new Card('Dagues', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4, -1))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(3)
       .withEffect({ type: 'MultiTarget', count: 2 })
       .withDescription('Afecta a 2 enemics que triïs.'),
@@ -281,7 +281,7 @@ export function createRogue(name: string): Character {
       .withEffect({ type: 'PoisonWeapon' })
       .withDescription('Tria 3 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics causen una ferida addicional.'),
     new Card('Foc alquímic', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4))
+      .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(1),
   ];
   return new Character(name, 3, 2, 1, 2, 4, cards, 'Rogue');
@@ -291,18 +291,18 @@ export function createBarbarian(name: string): Character {
   const cards = [
     new Card('Ràbia', CardType.Focus)
       .withSpeedMod(-6)
-      .withEffect({ type: 'RageBoost' })
-      .withDescription('F+6 i D+6 per la resta del combat.'),
+      .withEffect({ type: 'RageBoost', amount: 2, dice: new DiceRoll(1, 6), speedBoost: 3 })
+      .withDescription('F+1d6+2 i V+3 per la resta del combat.'),
     new Card('Destral de guerra', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(-1),
     new Card('Atac temerari', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(1)
       .withEffect({ type: 'RecklessAttack' })
       .withDescription('Tu tens D-2 aquest torn i el següent.'),
     new Card('Escomesa salvatge', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4, -1))
+      .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
       .withEffect({ type: 'MultiTarget', count: 2 })
       .withDescription('Afecta a 2 enemics que triïs.'),
@@ -322,12 +322,12 @@ export function createBarbarian(name: string): Character {
 export function createGoblin(name: string): Character {
   const cards = [
     new Card('Fúria enfollida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(2, 4))
+      .withPhysicalAttack(new DiceRoll(2, 6))
       .withSpeedMod(5)
       .withEffect({ type: 'SkipNextTurns', count: 1 })
       .withDescription('No jugues cap carta el següent torn.'),
     new Card('Maça de punxes', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
+      .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(1),
     new Card('Escut de fusta', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
@@ -343,18 +343,18 @@ export function createGoblin(name: string): Character {
 export function createGoblinShaman(name: string): Character {
   const cards = [
     new Card('Llamp', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(2, 4, -2))
+      .withMagicAttack(new DiceRoll(2, 4))
       .withSpeedMod(0),
     new Card('Possessió demoníaca', CardType.Focus)
       .withSpeedMod(-5)
-      .withEffect({ type: 'MagicBoost', amount: 7 })
-      .withDescription('M+7 per la resta del combat.'),
+      .withEffect({ type: 'MagicBoost', amount: 3, dice: new DiceRoll(1, 6) })
+      .withDescription('M+1d6+3 per la resta del combat.'),
     new Card('Set de sang', CardType.Focus)
       .withSpeedMod(-6)
       .withEffect({ type: 'BloodThirst' })
       .withDescription('Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida.'),
     new Card('Pluja de flames', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4, -2))
+      .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(-4)
       .withEffect({ type: 'MultiTarget', count: 3 })
       .withDescription('Afecta a 3 enemics que triïs.'),

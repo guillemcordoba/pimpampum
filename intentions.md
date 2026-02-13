@@ -23,7 +23,7 @@ This triangle emerges from a key design mechanism: **focus cards are often high 
 However, not all focus cards follow this pattern. Some focus cards are **quick to resolve and smaller in impact** — utility effects like dodges, minor buffs, or situational advantages that don't need the same level of team protection. These lighter focus cards add variety to the focus category and give players options that don't always demand a full team commitment to pull off.
 
 The balance levers that maintain this triangle:
-- **Focus power** — high enough that a resolved focus card is game-changing (e.g. F+6/D+6, V+4/D+4 team-wide for rest of combat)
+- **Focus power** — high enough that a resolved focus card is game-changing (e.g. F+1d6+2/V+3, V+4 team-wide for rest of combat)
 - **Focus speed** — slow enough (V-5 to V-9) that most attacks resolve before focus does
 - **Defense card speed** — fast enough (V+1 to V+6) to reliably intercept attacks before they land
 - **Base defense + armor** — high enough that attacks without buffs rarely hit, making raw aggro unreliable

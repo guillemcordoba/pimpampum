@@ -130,7 +130,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         case 'IceTrap':
           weight += 12.0;
           break;
-        case 'TeamSpeedDefenseBoost':
+        case 'TeamSpeedBoost':
         case 'DefenseBoostDuration':
           weight += 15.0;
           break;
