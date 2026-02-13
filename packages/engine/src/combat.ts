@@ -189,7 +189,24 @@ export class CombatEngine {
     if (enemies.length === 0) return null;
 
     const enemyTeam = this.getEnemyTeam(attacker.team);
+    const targetTeam = attacker.team === 1 ? 2 : 1;
 
+    // Smart targeting after reveal: prioritize enemies playing focus (to interrupt them)
+    const focusEnemies = enemies.filter(i =>
+      enemyTeam[i].playedCardIdx !== null &&
+      isFocus(enemyTeam[i].cards[enemyTeam[i].playedCardIdx!].cardType),
+    );
+    if (focusEnemies.length > 0) {
+      // Target the focus enemy with the slowest card (most impactful to interrupt)
+      const targetIdx = focusEnemies.reduce((best, i) => {
+        const bestSpeed = enemyTeam[best].getEffectiveSpeed(enemyTeam[best].cards[enemyTeam[best].playedCardIdx!]);
+        const iSpeed = enemyTeam[i].getEffectiveSpeed(enemyTeam[i].cards[enemyTeam[i].playedCardIdx!]);
+        return iSpeed < bestSpeed ? i : best;
+      }, focusEnemies[0]);
+      return [targetTeam, targetIdx];
+    }
+
+    // Otherwise: target most wounded, then lowest defense
     const wounded = enemies.filter(i => enemyTeam[i].currentWounds > 0);
     let targetIdx: number;
 
@@ -201,7 +218,6 @@ export class CombatEngine {
         enemyTeam[i].getEffectiveDefense() < enemyTeam[best].getEffectiveDefense() ? i : best, enemies[0]);
     }
 
-    const targetTeam = attacker.team === 1 ? 2 : 1;
     return [targetTeam, targetIdx];
   }
 
@@ -583,8 +599,13 @@ export class CombatEngine {
         if (defOverrides?.allyTarget && defOverrides.allyTarget[0] === charTeam) {
           protectedIdx = defOverrides.allyTarget[1];
         } else {
+          // Smart sacrifice targeting: prefer ally playing focus (after reveal)
           const allies = this.getLivingAllies(charTeam, charIdx);
-          if (allies.length > 0) protectedIdx = allies[0];
+          const focusAlly = allies.find(i => {
+            const ally = this.getTeam(charTeam)[i];
+            return ally.playedCardIdx !== null && isFocus(ally.cards[ally.playedCardIdx].cardType);
+          });
+          protectedIdx = focusAlly ?? (allies.length > 0 ? allies[0] : null);
         }
         if (protectedIdx !== null) {
           const allyTeam = this.getTeam(charTeam);
@@ -608,8 +629,13 @@ export class CombatEngine {
         } else if (defOverrides?.allyTarget && defOverrides.allyTarget[0] === charTeam) {
           defTargets = [defOverrides.allyTarget[1]];
         } else {
-          const allies = this.getLivingAllies(charTeam);
-          defTargets = allies.slice(0, 1);
+          // Smart defense targeting: prefer ally playing focus (after reveal)
+          const allies = this.getLivingAllies(charTeam, charIdx);
+          const focusAlly = allies.find(i => {
+            const ally = this.getTeam(charTeam)[i];
+            return ally.playedCardIdx !== null && isFocus(ally.cards[ally.playedCardIdx].cardType);
+          });
+          defTargets = focusAlly !== undefined ? [focusAlly] : allies.slice(0, 1);
         }
 
         const defenderBaseDefense = (() => {
@@ -1139,20 +1165,24 @@ export class CombatEngine {
       }
     }
 
-    // Individual card selection
+    // Card selection is simultaneous — no peeking at ally picks.
+    // Collect selections first, then assign playedCardIdx after.
+    const pendingSelections: [number, number, number][] = [];
     for (let idx = 0; idx < this.team1.length; idx++) {
       if (!this.team1[idx].isAlive() || team1Skipping.has(idx)) continue;
       const cardIdx = selectCardAI(this.team1[idx], this);
-      this.team1[idx].playedCardIdx = cardIdx;
-      actions.push([1, idx, cardIdx]);
-      logs.push(`${this.team1[idx].name} selects: ${this.team1[idx].cards[cardIdx].name}`);
+      pendingSelections.push([1, idx, cardIdx]);
     }
     for (let idx = 0; idx < this.team2.length; idx++) {
       if (!this.team2[idx].isAlive() || team2Skipping.has(idx)) continue;
       const cardIdx = selectCardAI(this.team2[idx], this);
-      this.team2[idx].playedCardIdx = cardIdx;
-      actions.push([2, idx, cardIdx]);
-      logs.push(`${this.team2[idx].name} selects: ${this.team2[idx].cards[cardIdx].name}`);
+      pendingSelections.push([2, idx, cardIdx]);
+    }
+    // Reveal: assign all playedCardIdx simultaneously
+    for (const [team, idx, cardIdx] of pendingSelections) {
+      this.getTeam(team)[idx].playedCardIdx = cardIdx;
+      actions.push([team, idx, cardIdx]);
+      logs.push(`${this.getTeam(team)[idx].name} selects: ${this.getTeam(team)[idx].cards[cardIdx].name}`);
     }
 
     for (const l of logs) this.log(l);
