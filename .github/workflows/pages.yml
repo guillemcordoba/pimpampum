@@ -32,9 +32,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Copy icons into dist
-        run: cp -r icons/ packages/web/dist/icons/
-
       - name: SPA routing fallback
         run: cp packages/web/dist/index.html packages/web/dist/404.html
 

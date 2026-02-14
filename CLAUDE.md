@@ -14,9 +14,8 @@ pimpampum/
 ├── flake.nix                      # Nix dev environment (csv-tui, nodejs_22, pnpm)
 ├── flake.lock                     # Nix lock file (nixpkgs-unstable)
 ├── .gitignore                     # Ignores node_modules/, dist/, /target
-├── .github/workflows/pages.yml    # GitHub Pages deployment (builds web + copies icons)
-├── rules/
-│   └── rules.md                   # Game rules and combat mechanics (Catalan, prose)
+├── .github/workflows/pages.yml    # GitHub Pages deployment (builds web)
+├── rules.md                   # Game rules and combat mechanics (Catalan, prose)
 ├── packages/
 │   ├── engine/                    # @pimpampum/engine - Core game logic + data (SOLE SOURCE OF TRUTH)
 │   │   ├── package.json
@@ -42,6 +41,10 @@ pimpampum/
 │       ├── tsconfig.json
 │       ├── vite.config.ts
 │       ├── index.html
+│       ├── public/
+│       │   └── icons/             # ~4170 SVG icons from game-icons.net (CC BY 3.0)
+│       │       └── 000000/transparent/1x1/
+│       │           └── [artist]/[icon-name].svg
 │       └── src/
 │           ├── main.ts            # Vue app entry point + router setup
 │           ├── App.vue            # Root component (AppLayout + router-view)
@@ -76,11 +79,8 @@ pimpampum/
 │               ├── CharacterDetailView.vue # Character + ability cards (printable)
 │               ├── ObjectsView.vue        # Equipment cards (printable)
 │               └── RulesView.vue          # 3x rules summary card (printable)
-├── cards/
-│   └── card-template.html         # CSS design reference for card styling
-└── icons/                         # ~4170 SVG icons from game-icons.net (CC BY 3.0)
-    └── 000000/transparent/1x1/
-        └── [artist]/[icon-name].svg
+└── cards/
+    └── card-template.html         # CSS design reference for card styling
 ```
 
 ## Source of Truth
@@ -92,7 +92,7 @@ The **engine** (`packages/engine/`) is the sole source of truth for all game dat
 - **Card icons**: `CARD_ICONS` in `characters/index.ts`
 - **Equipment definitions**: Factory functions + `ALL_EQUIPMENT` in `equipment.ts`
 - **Display constants**: `CARD_TYPE_DISPLAY_NAMES`, `CARD_TYPE_CSS`, `STAT_ICONS`, `STAT_DISPLAY_NAMES`, `RULES_SUMMARY` in `display.ts`
-- **Game rules prose**: `rules/rules.md` (Catalan, not parsed by engine)
+- **Game rules prose**: `rules.md` (Catalan, not parsed by engine)
 
 The web app and simulator derive everything from the engine. There are no CSV files or static HTML card files.
 
@@ -258,7 +258,7 @@ Medieval fantasy theme with CSS variables matching the card design system:
 - Class-colored borders (same palette as card CSS)
 - Card type-colored headers (same palette as card CSS)
 - Fonts: Cinzel Decorative (titles), Crimson Text (body), MedievalSharp (subtitles)
-- Vite config allows serving icons from project root via `server.fs.allow`
+- Icons served from `packages/web/public/icons/` via Vite's public directory
 
 ## Card Design
 
@@ -301,11 +301,11 @@ Loaded via Google Fonts import:
 
 ### Icons
 
-Use icons from **icons/** folder (downloaded from game-icons.net, CC BY 3.0 license). The library contains ~4170 SVG files across 30+ artist directories.
+Use icons from **packages/web/public/icons/** folder (downloaded from game-icons.net, CC BY 3.0 license). The library contains ~4170 SVG files across 30+ artist directories. Vite serves these at `/icons/` at both dev and build time.
 
 Local icon path format:
 ```
-icons/000000/transparent/1x1/[artist]/[icon-name].svg
+packages/web/public/icons/000000/transparent/1x1/[artist]/[icon-name].svg
 ```
 
 Stat icons:
@@ -354,10 +354,9 @@ Do not consider the change complete until the simulation has been reviewed.
 
 The `.github/workflows/pages.yml` workflow:
 1. Installs pnpm + Node 22
-2. Runs `pnpm install --frozen-lockfile && pnpm build`
-3. Copies `icons/` into `packages/web/dist/icons/`
-4. Copies `index.html` to `404.html` (SPA routing fallback)
-5. Uploads `packages/web/dist/` as pages artifact
+2. Runs `pnpm install --frozen-lockfile && pnpm build` (icons are included via Vite's public directory)
+3. Copies `index.html` to `404.html` (SPA routing fallback)
+4. Uploads `packages/web/dist/` as pages artifact
 
 ## Development Environment
 
