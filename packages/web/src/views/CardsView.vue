@@ -12,6 +12,7 @@ import '../assets/cards.css';
 
 function getCharacterStats(t: CharacterTemplate) {
   return [
+    { key: 'lives' as const, value: t.baseLives, icon: STAT_ICONS.lives, label: STAT_DISPLAY_NAMES.lives },
     { key: 'strength' as const, value: t.baseStrength, icon: STAT_ICONS.strength, label: STAT_DISPLAY_NAMES.strength },
     { key: 'magic' as const, value: t.baseMagic, icon: STAT_ICONS.magic, label: STAT_DISPLAY_NAMES.magic },
     { key: 'defense' as const, value: t.baseDefense, icon: STAT_ICONS.defense, label: STAT_DISPLAY_NAMES.defense },
@@ -181,9 +182,6 @@ function handlePrintAll() {
               <span v-for="stat in getCharacterStats(classTemplate)" :key="stat.key" class="char-desc-stat">
                 <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
-              <span class="char-desc-stat">
-                MF {{ classTemplate.baseMaxWounds }}
-              </span>
             </div>
           </div>
         </div>
@@ -234,9 +232,6 @@ function handlePrintAll() {
               <span v-for="stat in getCharacterStats(enemyTemplate)" :key="stat.key" class="char-desc-stat">
                 <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
-              <span class="char-desc-stat">
-                MF {{ enemyTemplate.baseMaxWounds }}
-              </span>
             </div>
           </div>
         </div>
@@ -280,9 +275,6 @@ function handlePrintAll() {
               <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
                 <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
-              <span class="char-desc-stat">
-                MF {{ data.template.baseMaxWounds }}
-              </span>
             </div>
           </div>
         </div>
@@ -313,9 +305,6 @@ function handlePrintAll() {
             <div class="char-desc-stats">
               <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
                 <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
-              </span>
-              <span class="char-desc-stat">
-                MF {{ data.template.baseMaxWounds }}
               </span>
             </div>
           </div>

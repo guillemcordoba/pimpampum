@@ -12,7 +12,7 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
   baseMagic: 0,
   baseDefense: 1,
   baseSpeed: 3,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Ràbia': 'icons/000000/transparent/1x1/lorc/wolf-howl.svg',
     'Destral de guerra': 'icons/000000/transparent/1x1/lorc/battle-axe.svg',
@@ -35,13 +35,13 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
     new Card('Frenesia', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
-      .withEffect({ type: 'Frenzy', bonusDicePerWound: new DiceRoll(1, 4) })
-      .withDescription('+1d4 per cada ferida pròpia.'),
+      .withEffect({ type: 'Frenzy', bonusDicePerLostLife: new DiceRoll(1, 4) })
+      .withDescription('+1d4 per cada vida perduda.'),
     new Card('Ira imparable', CardType.Defense)
       .withDefense(new DiceRoll(0, 0, 1))
       .withSpeedMod(3)
       .withEffect({ type: 'BerserkerEndurance', strengthDice: new DiceRoll(1, 4), counterAttackDice: new DiceRoll(1, 6) })
-      .withDescription('Si rep una ferida, {F}+1d4 per la resta del combat i contraatac amb {F}+1d6.'),
+      .withDescription('Si perd una vida, {F}+1d4 per la resta del combat i contraatac amb {F}+1d6.'),
     new Card('Rugit intimidant', CardType.Focus)
       .withSpeedMod(1)
       .withEffect({ type: 'IntimidatingRoar' })

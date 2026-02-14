@@ -466,7 +466,7 @@
   z-index: 2;
 }
 
-/* -- Top row: header + wounds --------------------------------------------- */
+/* -- Top row: header + lives ---------------------------------------------- */
 
 .sheet-top {
   display: flex;
@@ -502,7 +502,7 @@
   min-height: 5mm;
 }
 
-.sheet-wounds {
+.sheet-lives {
   flex-shrink: 0;
 }
 
@@ -518,15 +518,15 @@
   margin-bottom: 2mm;
 }
 
-/* -- Wounds block --------------------------------------------------------- */
+/* -- Lives block ---------------------------------------------------------- */
 
-.sheet-wounds-row {
+.sheet-lives-row {
   display: flex;
   align-items: center;
   gap: 3mm;
 }
 
-.sheet-mf {
+.sheet-pv {
   font-family: 'Cinzel Decorative', serif;
   font-size: 11pt;
   font-weight: 700;
@@ -534,12 +534,12 @@
   white-space: nowrap;
 }
 
-.wound-circles {
+.life-circles {
   display: flex;
   gap: 2mm;
 }
 
-.wound-circle {
+.life-circle {
   width: 6mm;
   height: 6mm;
   border: 1.5px solid #2c1810;

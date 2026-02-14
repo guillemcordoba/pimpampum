@@ -392,19 +392,19 @@ body {
   margin-bottom: 0.4rem;
 }
 
-.portrait-wounds {
+.portrait-lives {
   display: flex;
   justify-content: center;
   gap: 3px;
   margin-bottom: 0.3rem;
 }
 
-.wound-heart {
+.life-heart {
   font-size: 1.3rem;
 }
 
-.wound-heart.full { color: #c44; }
-.wound-heart.empty { color: #666; }
+.life-heart.full { color: #c44; }
+.life-heart.empty { color: #666; }
 
 .portrait-stats {
   display: flex;

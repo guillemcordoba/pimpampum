@@ -11,10 +11,10 @@ const props = defineProps<{
   isHighlighted?: boolean;
 }>();
 
-const wounds = computed(() => {
+const lives = computed(() => {
   const result = [];
-  for (let i = 0; i < props.character.maxWounds; i++) {
-    result.push(i < props.character.currentWounds ? 'full' : 'empty');
+  for (let i = 0; i < props.character.maxLives; i++) {
+    result.push(i < props.character.currentLives ? 'full' : 'empty');
   }
   return result;
 });
@@ -57,13 +57,13 @@ const setAsideBadges = computed(() => {
   >
     <img class="portrait-icon" :src="'/' + template.iconPath" :alt="template.displayName">
     <div class="portrait-name">{{ character.name }}</div>
-    <div class="portrait-wounds">
+    <div class="portrait-lives">
       <span
-        v-for="(w, i) in wounds"
+        v-for="(w, i) in lives"
         :key="i"
-        class="wound-heart"
+        class="life-heart"
         :class="w"
-      >{{ w === 'full' ? '💀' : '❤️' }}</span>
+      >{{ w === 'full' ? '❤️' : '💀' }}</span>
     </div>
     <div class="portrait-stats">
       <span><img src="/icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F">{{ character.getEffectiveStrength() }}</span>

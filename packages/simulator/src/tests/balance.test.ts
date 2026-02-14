@@ -562,7 +562,7 @@ describe('Engine Sanity Checks', () => {
     }
   });
 
-  it('no character ends with negative wounds', () => {
+  it('no character ends with lives outside valid range', () => {
     const creators = getAllCreators();
     for (let i = 0; i < 100; i++) {
       const team1 = [creators[i % creators.length][1](`T1_${i}`), creators[(i + 1) % creators.length][1](`T1b_${i}`)];
@@ -572,11 +572,11 @@ describe('Engine Sanity Checks', () => {
       engine.runCombat();
 
       for (const c of [...engine.team1, ...engine.team2]) {
-        expect(c.currentWounds, `${c.name} has negative wounds`).toBeGreaterThanOrEqual(0);
-        // Poison can cause wounds to exceed maxWounds — this is a known engine behavior.
-        // Dead characters (wounds >= maxWounds) should not go beyond maxWounds + 1 (one poison tick).
-        expect(c.currentWounds, `${c.name} wounds ${c.currentWounds} far exceeds max ${c.maxWounds}`)
-          .toBeLessThanOrEqual(c.maxWounds + 1);
+        // Poison can cause lives to go to -1 (one poison tick after death) — this is known engine behavior.
+        expect(c.currentLives, `${c.name} lives ${c.currentLives} too low`)
+          .toBeGreaterThanOrEqual(-1);
+        expect(c.currentLives, `${c.name} lives ${c.currentLives} exceeds max ${c.maxLives}`)
+          .toBeLessThanOrEqual(c.maxLives);
       }
     }
   });

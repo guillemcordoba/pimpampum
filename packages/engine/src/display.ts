@@ -20,6 +20,7 @@ export const CARD_TYPE_CSS: Record<CardType, string> = {
 
 /** Icon paths for stat types */
 export const STAT_ICONS = {
+  lives: 'icons/000000/transparent/1x1/lorc/heart-drop.svg',
   strength: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
   magic: 'icons/000000/transparent/1x1/lorc/crystal-wand.svg',
   defense: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
@@ -28,6 +29,7 @@ export const STAT_ICONS = {
 
 /** Catalan display names for stats */
 export const STAT_DISPLAY_NAMES = {
+  lives: 'PV',
   strength: 'Força',
   magic: 'Màgia',
   defense: 'Defensa',
@@ -55,12 +57,12 @@ export const RULES_SUMMARY: RulesSection[] = [
   {
     title: 'Atac (físic o màgic)',
     type: 'text',
-    text: "Tria un enemic. Si la teva Força total o Màgia total supera la seva Defensa total, rep una ferida. Si el personatge té 3 ferides, mor.",
+    text: "Tria un enemic. Si la teva Força total o Màgia total supera la seva Defensa total, perd una vida. Si el personatge es queda sense vides, mor.",
   },
   {
     title: 'Defensa',
     type: 'text',
-    text: "Tria un aliat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu.",
+    text: "Tria un aliat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu. Si un atac d'àrea et colpeja a tu i al teu defensat, només perds una vida.",
   },
   {
     title: 'Focus',

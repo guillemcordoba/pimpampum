@@ -15,14 +15,14 @@ const equipmentSlots = [
   { label: 'Cames', icon: 'icons/000000/transparent/1x1/delapouite/leg-armor.svg' },
 ];
 
-const maxWoundCircles = 6;
+const maxLifeCircles = 6;
 </script>
 
 <template>
   <div class="character-sheet">
     <div class="sheet-frame"></div>
     <div class="sheet-inner">
-      <!-- Top row: name/class + wounds -->
+      <!-- Top row: name/class + lives -->
       <div class="sheet-top">
         <div class="sheet-header">
           <div class="sheet-name-line">
@@ -34,16 +34,16 @@ const maxWoundCircles = 6;
             <span class="sheet-blank-line"></span>
           </div>
         </div>
-        <div class="sheet-wounds">
-          <div class="sheet-section-title">Ferides</div>
-          <div class="sheet-wounds-row">
-            <span class="sheet-mf">MF:</span>
+        <div class="sheet-lives">
+          <div class="sheet-section-title">Punts de vida</div>
+          <div class="sheet-lives-row">
+            <span class="sheet-pv">PV:</span>
             <span class="sheet-stat-box empty"></span>
-            <div class="wound-circles">
+            <div class="life-circles">
               <span
-                v-for="i in maxWoundCircles"
+                v-for="i in maxLifeCircles"
                 :key="i"
-                class="wound-circle"
+                class="life-circle"
               ></span>
             </div>
           </div>

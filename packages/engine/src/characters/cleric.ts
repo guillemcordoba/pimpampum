@@ -12,7 +12,7 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
   baseMagic: 3,
   baseDefense: 3,
   baseSpeed: 2,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Toc de la mort': 'icons/000000/transparent/1x1/lorc/death-zone.svg',
     'Drenatge vital': 'icons/000000/transparent/1x1/lorc/bleeding-eye.svg',
@@ -31,7 +31,7 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(-1)
       .withEffect({ type: 'LifeDrain' })
-      .withDescription('Si impacta, cura 1 ferida.'),
+      .withDescription('Si impacta, recupera 1 vida.'),
     new Card('Maledicció mortal', CardType.Focus)
       .withSpeedMod(-3)
       .withEffect({ type: 'DeathCurse', dice: new DiceRoll(1, 4) })
@@ -44,10 +44,10 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
     new Card('Invocació espiritual', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'SpiritInvocation', dice: new DiceRoll(1, 4) })
-      .withDescription('Tu i tots els aliats {D}+1d4 per la resta del combat. Protecció mortal: la primera ferida es cura.'),
+      .withDescription('Tu i tots els aliats {D}+1d4 per la resta del combat. Protecció mortal: la primera vida perduda es recupera.'),
     new Card('Curació', CardType.Focus)
       .withSpeedMod(2)
       .withEffect({ type: 'HealAlly' })
-      .withDescription('Tria un aliat. Cura 1 ferida.'),
+      .withDescription('Tria un aliat. Recupera 1 vida.'),
   ],
 };

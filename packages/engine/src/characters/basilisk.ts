@@ -12,7 +12,7 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
   baseMagic: 3,
   baseDefense: 8,
   baseSpeed: 1,
-  baseMaxWounds: 8,
+  baseLives: 8,
   cardIcons: {
     'Mossegada verinosa': 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
     'Cop de cua': 'icons/000000/transparent/1x1/lorc/spiked-tail.svg',
@@ -26,7 +26,7 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(0)
       .withEffect({ type: 'VenomBite' })
-      .withDescription("Si fa ferida, l'enemic rep una ferida addicional el començament del següent torn."),
+      .withDescription("Si fa ferida, l'enemic perd una vida addicional el començament del següent torn."),
     new Card('Cop de cua', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(2)
@@ -47,6 +47,6 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
     new Card('Regeneració', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'Regenerate', amount: 2 })
-      .withDescription('Cura 2 ferides.'),
+      .withDescription('Recupera 2 vides.'),
   ],
 };

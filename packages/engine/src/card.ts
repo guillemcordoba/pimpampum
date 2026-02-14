@@ -61,7 +61,7 @@ export type SpecialEffect =
   | { type: 'SpiritInvocation'; dice: DiceRoll }
   | { type: 'HealAlly' }
   | { type: 'BerserkerEndurance'; strengthDice: DiceRoll; counterAttackDice: DiceRoll }
-  | { type: 'Frenzy'; bonusDicePerWound: DiceRoll }
+  | { type: 'Frenzy'; bonusDicePerLostLife: DiceRoll }
   | { type: 'PetrifyingGaze'; dice: DiceRoll; threshold: number; turns: number }
   | { type: 'Regenerate'; amount: number }
   | { type: 'VenomBite' };

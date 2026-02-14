@@ -79,7 +79,7 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       }
 
       for (const idx of enemies) {
-        if (enemyTeam[idx].currentWounds > 0) {
+        if (enemyTeam[idx].currentLives < enemyTeam[idx].maxLives) {
           weight += 15.0;
           break;
         }
@@ -89,7 +89,7 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
-          character.currentWounds >= character.maxWounds - 1) {
+          character.currentLives <= 1) {
         weight += 15.0;
       } else {
         weight += 2.0;
@@ -125,7 +125,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
   // Check if any ally is critically wounded
   let allyCritical = false;
   for (const idx of allies) {
-    if (allyTeam[idx].currentWounds >= allyTeam[idx].maxWounds - 1) {
+    if (allyTeam[idx].currentLives <= 1) {
       allyCritical = true;
       break;
     }
@@ -198,7 +198,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         }
 
         for (const idx of enemies) {
-          if (enemyTeam[idx].currentWounds > 0) {
+          if (enemyTeam[idx].currentLives < enemyTeam[idx].maxLives) {
             weight += 10.0;
             break;
           }
@@ -224,11 +224,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             weight += 10.0;
             break;
           case 'DodgeWithSpeedBoost':
-            if (character.currentWounds >= character.maxWounds - 1) weight += 15.0;
+            if (character.currentLives <= 1) weight += 15.0;
             else weight += 3.0;
             break;
           case 'HealAlly': {
-            const anyWounded = allies.some(i => allyTeam[i].currentWounds > 0);
+            const anyWounded = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
             if (anyWounded) weight += 15.0;
             else weight += 1.0;
             break;
@@ -286,13 +286,13 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 15.0;
           break;
         case 'DodgeWithSpeedBoost':
-          if (character.currentWounds >= character.maxWounds - 1) weight += 35.0;
+          if (character.currentLives <= 1) weight += 35.0;
           else weight += 10.0;
           break;
         case 'HealAlly': {
           const at = character.team === 1 ? engine.team1 : engine.team2;
           const al = engine.getLivingAllies(character.team);
-          const wounded = al.some(i => at[i].currentWounds > 0);
+          const wounded = al.some(i => at[i].currentLives < at[i].maxLives);
           if (wounded) weight += 20.0;
           else weight += 2.0;
           break;

@@ -17,7 +17,7 @@ export interface CharacterTemplate {
   baseMagic: number;
   baseDefense: number;
   baseSpeed: number;
-  baseMaxWounds: number;
+  baseLives: number;
   cardIcons: Record<string, string>;
   createCards: () => Card[];
 }
@@ -28,7 +28,7 @@ export class Character {
   public aiStrategy: AIStrategy | null = null;
 
   // Combat state
-  public currentWounds = 0;
+  public currentLives: number;
   public modifiers: CombatModifier[] = [];
   public defenseBonuses: DefenseBonus[] = [];
   public skipTurns = 0;
@@ -36,7 +36,7 @@ export class Character {
   public dodging = false;
   public focusInterrupted = false;
   public playedCardIdx: number | null = null;
-  public woundedThisCombat = false;
+  public hitThisCombat = false;
   public hasAbsorbPain = false;
   public hasPoisonWeapon = false;
   public hasCounterThrow = false;
@@ -45,22 +45,24 @@ export class Character {
   public hasBerserkerEndurance = false;
   public berserkerStrengthDice: DiceRoll | null = null;
   public berserkerCounterDice: DiceRoll | null = null;
-  public pendingVenomWounds = 0;
+  public pendingVenomDamage = 0;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
     public name: string,
-    public maxWounds: number,
+    public maxLives: number,
     public strength: number,
     public magic: number,
     public defense: number,
     public speed: number,
     public cards: Card[],
     public characterClass: string,
-  ) {}
+  ) {
+    this.currentLives = maxLives;
+  }
 
   isAlive(): boolean {
-    return this.currentWounds < this.maxWounds;
+    return this.currentLives > 0;
   }
 
   isCardSetAside(cardIdx: number): boolean {
@@ -68,9 +70,9 @@ export class Character {
   }
 
   /** Returns true if the character died */
-  takeWound(): boolean {
-    this.currentWounds++;
-    this.woundedThisCombat = true;
+  loseLife(): boolean {
+    this.currentLives--;
+    this.hitThisCombat = true;
     return !this.isAlive();
   }
 
@@ -170,7 +172,7 @@ export class Character {
   }
 
   resetForNewCombat(): void {
-    this.currentWounds = 0;
+    this.currentLives = this.maxLives;
     this.modifiers = [];
     this.defenseBonuses = [];
     this.skipTurns = 0;
@@ -178,7 +180,7 @@ export class Character {
     this.dodging = false;
     this.focusInterrupted = false;
     this.playedCardIdx = null;
-    this.woundedThisCombat = false;
+    this.hitThisCombat = false;
     this.hasAbsorbPain = false;
     this.hasPoisonWeapon = false;
     this.hasCounterThrow = false;
@@ -187,7 +189,7 @@ export class Character {
     this.hasBerserkerEndurance = false;
     this.berserkerStrengthDice = null;
     this.berserkerCounterDice = null;
-    this.pendingVenomWounds = 0;
+    this.pendingVenomDamage = 0;
     this.setAsideCards.clear();
   }
 
@@ -240,7 +242,7 @@ export class Character {
 export function createCharacter(template: CharacterTemplate, name: string): Character {
   return new Character(
     name,
-    template.baseMaxWounds,
+    template.baseLives,
     template.baseStrength,
     template.baseMagic,
     template.baseDefense,

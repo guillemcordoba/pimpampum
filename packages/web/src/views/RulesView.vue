@@ -11,7 +11,7 @@
         <h2>Característiques</h2>
         <p>Cada jugador té les següents característiques base representades amb un número:</p>
         <ul>
-          <li><strong>MF</strong> (Màximes ferides): ferides que pot acumular abans de morir (de 2 a 8).</li>
+          <li><strong>PV</strong> (Punts de vida): vides del personatge abans de morir (de 2 a 8).</li>
           <li><strong>V</strong> (Velocitat): determina l'ordre de resolució de les accions.</li>
           <li><strong>F</strong> (Força): s'utilitza per als atacs físics.</li>
           <li><strong>D</strong> (Defensa): redueix el dany dels atacs rebuts.</li>
@@ -21,7 +21,7 @@
 
       <section>
         <h2>Objectes passius</h2>
-        <p>Cada jugador pot portar objectes passius que modifiquin les seves característiques. Hi ha ranures d'equipament: només es pot portar un pantaló, un casc, una armadura, i una arma a cada mà. Hi ha armes de doble mà que ocupen les dues ranures.</p>
+        <p>Cada jugador pot portar objectes passius que modifiquin les seves característiques. Hi ha ranures d'equipament: només es pot portar un pantaló, un casc o una armadura de tors.</p>
       </section>
 
       <section>
@@ -43,9 +43,9 @@
 
       <section>
         <h2>Cartes d'atac</h2>
-        <p>Hi ha cartes d'<strong>atac físic</strong> i d'<strong>atac màgic</strong>. Quan es resol una carta d'atac, l'atacant tria un objectiu. L'objectiu rep una ferida si:</p>
+        <p>Hi ha cartes d'<strong>atac físic</strong> i d'<strong>atac màgic</strong>. Quan es resol una carta d'atac, l'atacant tria un objectiu. L'objectiu perd una vida si:</p>
         <p class="formula">Força (o Màgia) de l'atacant + dau &gt; Defensa de l'objectiu</p>
-        <p>Cada impacte causa exactament 1 ferida. Un personatge mor quan les seves ferides arriben a MF.</p>
+        <p>Cada impacte fa perdre exactament 1 vida. Un personatge mor quan es queda sense vides.</p>
       </section>
 
       <section>
@@ -60,10 +60,10 @@
 
       <section>
         <h2>Descans</h2>
-        <p>Entre combats, els jugadors poden descansar per recuperar ferides:</p>
+        <p>Entre combats, els jugadors poden descansar per recuperar vides:</p>
         <ul>
-          <li><strong>Descans curt</strong>: cada jugador cura 1 ferida.</li>
-          <li><strong>Descans llarg</strong>: cada jugador cura totes les ferides.</li>
+          <li><strong>Descans curt</strong>: cada jugador recupera 1 vida.</li>
+          <li><strong>Descans llarg</strong>: cada jugador recupera totes les vides.</li>
         </ul>
         <p>El DM decideix quan els jugadors poden fer un descans curt o llarg.</p>
       </section>

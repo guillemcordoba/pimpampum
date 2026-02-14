@@ -12,7 +12,7 @@ export const GOBLIN_TEMPLATE: CharacterTemplate = {
   baseMagic: 0,
   baseDefense: 3,
   baseSpeed: 3,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Fúria enfollida': 'icons/000000/transparent/1x1/delapouite/enrage.svg',
     'Maça de punxes': 'icons/000000/transparent/1x1/lorc/spiked-mace.svg',

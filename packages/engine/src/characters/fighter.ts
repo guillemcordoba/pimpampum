@@ -12,7 +12,7 @@ export const FIGHTER_TEMPLATE: CharacterTemplate = {
   baseMagic: 0,
   baseDefense: 4,
   baseSpeed: 2,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Espasa llarga': 'icons/000000/transparent/1x1/lorc/broadsword.svg',
     'Sacrifici': 'icons/000000/transparent/1x1/lorc/bleeding-heart.svg',

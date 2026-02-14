@@ -129,7 +129,7 @@ export class CombatEngine {
   public vengeanceTargets = new Map<string, string>();
   public sacrificeTargets = new Map<string, string>();
   public coordinatedAmbushTarget: string | null = null;
-  public woundedThisRound = new Set<string>();
+  public hitThisRound = new Set<string>();
 
   // Statistics tracking
   public stats: CombatStats = newCombatStats();
@@ -234,13 +234,13 @@ export class CombatEngine {
       return [targetTeam, targetIdx];
     }
 
-    // Otherwise: target most wounded, then lowest defense
-    const wounded = enemies.filter(i => enemyTeam[i].currentWounds > 0);
+    // Otherwise: target most hurt (lowest lives), then lowest defense
+    const hurt = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
     let targetIdx: number;
 
-    if (wounded.length > 0) {
-      targetIdx = wounded.reduce((best, i) =>
-        enemyTeam[i].currentWounds > enemyTeam[best].currentWounds ? i : best, wounded[0]);
+    if (hurt.length > 0) {
+      targetIdx = hurt.reduce((best, i) =>
+        enemyTeam[i].currentLives < enemyTeam[best].currentLives ? i : best, hurt[0]);
     } else {
       targetIdx = enemies.reduce((best, i) =>
         enemyTeam[i].getEffectiveDefense() < enemyTeam[best].getEffectiveDefense() ? i : best, enemies[0]);
@@ -255,6 +255,7 @@ export class CombatEngine {
     targetTeam: number,
     targetIdx: number,
     card: Card,
+    alreadyHitDefenders?: Set<string>,
   ): boolean {
     let tIdx = targetIdx;
     const targetList = this.getTeam(targetTeam);
@@ -303,10 +304,11 @@ export class CombatEngine {
 
     let diceRoll = dice ? dice.roll() : 0;
 
-    // Frenzy: +bonusDicePerWound per wound on self
-    if (card.effect?.type === 'Frenzy' && attacker.currentWounds > 0) {
-      for (let i = 0; i < attacker.currentWounds; i++) {
-        diceRoll += card.effect.bonusDicePerWound.roll();
+    // Frenzy: +bonusDicePerLostLife per lost life on self
+    if (card.effect?.type === 'Frenzy' && attacker.currentLives < attacker.maxLives) {
+      const lostLives = attacker.maxLives - attacker.currentLives;
+      for (let i = 0; i < lostLives; i++) {
+        diceRoll += card.effect.bonusDicePerLostLife.roll();
       }
     }
 
@@ -325,6 +327,13 @@ export class CombatEngine {
 
     if (defenseBonusInfo) {
       const [defTeam, defIdx, defName, defValue] = defenseBonusInfo;
+      // AoE defense: if this defender was already wounded by this attack burst, absorb without double wound
+      const defKey = `${defTeam}-${defIdx}`;
+      if (alreadyHitDefenders?.has(defKey)) {
+        this.log(`  → ${defName} already absorbed an attack from this burst — ${target.name} is protected!`);
+        this.addLog({ type: 'defense', text: `${defName} ja ha absorbit un atac d'aquesta ràfega — ${target.name} està protegit!`, characterName: defName });
+        return false;
+      }
       this.log(`  → ${defName} is defending with defense ${defValue}!`);
       this.addLog({ type: 'defense', text: `${defName} defends with defense ${defValue}!`, characterName: defName });
       totalDefense = defValue;
@@ -365,10 +374,10 @@ export class CombatEngine {
         this.addLog({ type: 'vengeance', text: `${protectorName} counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: protectorName });
         if (counterAttack > attackerDef) {
           const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
-          const died = attackerMut.takeWound();
-          this.woundedThisRound.add(attackerName);
-          this.log(`  → ${attackerName} takes a wound from vengeance! (${attackerMut.currentWounds}/${attackerMut.maxWounds})`);
-          this.addLog({ type: 'hit', text: `${attackerName} takes a wound from vengeance! (${attackerMut.currentWounds}/${attackerMut.maxWounds})`, characterName: attackerName });
+          const died = attackerMut.loseLife();
+          this.hitThisRound.add(attackerName);
+          this.log(`  → ${attackerName} loses a life from vengeance! (${attackerMut.currentLives}/${attackerMut.maxLives})`);
+          this.addLog({ type: 'hit', text: `${attackerName} loses a life from vengeance! (${attackerMut.currentLives}/${attackerMut.maxLives})`, characterName: attackerName });
           if (died) {
             this.log(`  ★ ${attackerName} is defeated!`);
             this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
@@ -385,10 +394,11 @@ export class CombatEngine {
         const [defTeam, defIdx, defName] = defenderInfo;
         this.checkFocusInterruption(defTeam, defIdx);
         const defenderMut = this.getTeam(defTeam)[defIdx];
-        const died = defenderMut.takeWound();
-        this.woundedThisRound.add(defName);
-        this.log(`  → HIT! ${defName} (defender) takes a wound! (${defenderMut.currentWounds}/${defenderMut.maxWounds})`);
-        this.addLog({ type: 'hit', text: `${defName} (defender) takes a wound! (${defenderMut.currentWounds}/${defenderMut.maxWounds})`, characterName: defName });
+        const died = defenderMut.loseLife();
+        this.hitThisRound.add(defName);
+        alreadyHitDefenders?.add(`${defTeam}-${defIdx}`);
+        this.log(`  → HIT! ${defName} (defender) loses a life! (${defenderMut.currentLives}/${defenderMut.maxLives})`);
+        this.addLog({ type: 'hit', text: `${defName} (defender) loses a life! (${defenderMut.currentLives}/${defenderMut.maxLives})`, characterName: defName });
         if (died) {
           this.log(`  ★ ${defName} is defeated!`);
           this.addLog({ type: 'death', text: `${defName} is defeated!`, characterName: defName });
@@ -410,10 +420,10 @@ export class CombatEngine {
           this.log(`  → ${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`);
           this.addLog({ type: 'vengeance', text: `${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: defName });
           if (counterAttack > attackerDef && attackerForCounter.isAlive()) {
-            const counterDied = attackerForCounter.takeWound();
-            this.woundedThisRound.add(attackerName);
-            this.log(`  → ${attackerName} takes a wound from counter-attack! (${attackerForCounter.currentWounds}/${attackerForCounter.maxWounds})`);
-            this.addLog({ type: 'hit', text: `${attackerName} takes a wound from counter-attack! (${attackerForCounter.currentWounds}/${attackerForCounter.maxWounds})`, characterName: attackerName });
+            const counterDied = attackerForCounter.loseLife();
+            this.hitThisRound.add(attackerName);
+            this.log(`  → ${attackerName} loses a life from counter-attack! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`);
+            this.addLog({ type: 'hit', text: `${attackerName} loses a life from counter-attack! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`, characterName: attackerName });
             if (counterDied) {
               this.log(`  ★ ${attackerName} is defeated!`);
               this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
@@ -428,10 +438,10 @@ export class CombatEngine {
         this.checkFocusInterruption(targetTeam, tIdx);
         const targetMut = this.getTeam(targetTeam)[tIdx];
         const tName = targetMut.name;
-        const died = targetMut.takeWound();
-        this.woundedThisRound.add(tName);
-        this.log(`  → HIT! ${tName} takes a wound! (${targetMut.currentWounds}/${targetMut.maxWounds})`);
-        this.addLog({ type: 'hit', text: `${tName} takes a wound! (${targetMut.currentWounds}/${targetMut.maxWounds})`, characterName: tName });
+        const died = targetMut.loseLife();
+        this.hitThisRound.add(tName);
+        this.log(`  → HIT! ${tName} loses a life! (${targetMut.currentLives}/${targetMut.maxLives})`);
+        this.addLog({ type: 'hit', text: `${tName} loses a life! (${targetMut.currentLives}/${targetMut.maxLives})`, characterName: tName });
         if (died) {
           this.log(`  ★ ${tName} is defeated!`);
           this.addLog({ type: 'death', text: `${tName} is defeated!`, characterName: tName });
@@ -447,9 +457,9 @@ export class CombatEngine {
         if (attackerCheck.hasPoisonWeapon) {
           const recipient = this.getTeam(woundTeam)[woundIdx];
           if (recipient.isAlive()) {
-            const died = recipient.takeWound();
-            this.log(`  → Poison deals extra wound to ${woundName}! (${recipient.currentWounds}/${recipient.maxWounds})`);
-            this.addLog({ type: 'effect', text: `Poison deals extra wound to ${woundName}! (${recipient.currentWounds}/${recipient.maxWounds})`, characterName: woundName });
+            const died = recipient.loseLife();
+            this.log(`  → Poison deals extra damage to ${woundName}! (${recipient.currentLives}/${recipient.maxLives})`);
+            this.addLog({ type: 'effect', text: `Poison deals extra damage to ${woundName}! (${recipient.currentLives}/${recipient.maxLives})`, characterName: woundName });
             if (died) {
               this.log(`  ★ ${woundName} is defeated by poison!`);
               this.addLog({ type: 'death', text: `${woundName} is defeated by poison!`, characterName: woundName });
@@ -581,25 +591,27 @@ export class CombatEngine {
         targets = result ? [result[1]] : [];
       }
 
+      const hitDefenders = new Set<string>();
       for (const ti of targets) {
-        const hit = this.resolveAttack(charTeam, charIdx, eTeam, ti, card);
+        hitDefenders.add(`${eTeam}-${ti}`);
+        const hit = this.resolveAttack(charTeam, charIdx, eTeam, ti, card, hitDefenders);
 
-        // LifeDrain: heal attacker 1 wound on hit
+        // LifeDrain: heal attacker 1 life on hit
         if (hit && card.effect.type === 'LifeDrain') {
           const attacker = this.getTeam(charTeam)[charIdx];
-          if (attacker.isAlive() && attacker.currentWounds > 0) {
-            attacker.currentWounds--;
-            this.log(`  → ${charName} drains life! Heals 1 wound. (${attacker.currentWounds}/${attacker.maxWounds})`);
-            this.addLog({ type: 'effect', text: `${charName} drains life! (${attacker.currentWounds}/${attacker.maxWounds})`, characterName: charName });
+          if (attacker.isAlive() && attacker.currentLives < attacker.maxLives) {
+            attacker.currentLives++;
+            this.log(`  → ${charName} drains life! Recovers 1 life. (${attacker.currentLives}/${attacker.maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} drains life! (${attacker.currentLives}/${attacker.maxLives})`, characterName: charName });
           }
         }
 
-        // VenomBite: on hit, target takes delayed wound next turn
+        // VenomBite: on hit, target takes delayed damage next turn
         if (hit && card.effect.type === 'VenomBite') {
           const vTarget = this.getTeam(eTeam)[ti];
           if (vTarget.isAlive()) {
-            vTarget.pendingVenomWounds++;
-            this.log(`  → ${vTarget.name} is poisoned! Will take a wound at start of next round.`);
+            vTarget.pendingVenomDamage++;
+            this.log(`  → ${vTarget.name} is poisoned! Will lose a life at start of next round.`);
             this.addLog({ type: 'effect', text: `${vTarget.name} is poisoned!`, characterName: vTarget.name });
           }
         }
@@ -960,10 +972,10 @@ export class CombatEngine {
             if (allies.length === 0) {
               protectName = charName;
             } else {
-              const wounded = allies.filter(i => allyTeam[i].currentWounds > 0);
-              if (wounded.length > 0) {
-                const best = wounded.reduce((b, i) =>
-                  allyTeam[i].currentWounds > allyTeam[b].currentWounds ? i : b, wounded[0]);
+              const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+              if (hurt.length > 0) {
+                const best = hurt.reduce((b, i) =>
+                  allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
                 protectName = allyTeam[best].name;
               } else {
                 protectName = allyTeam[allies[0]].name;
@@ -1018,11 +1030,11 @@ export class CombatEngine {
           const enemies = this.getLivingEnemies(charTeam);
           const enemyTeam = this.getEnemyTeam(charTeam);
           for (const idx of enemies) {
-            if (enemyTeam[idx].woundedThisCombat) {
+            if (enemyTeam[idx].hitThisCombat) {
               const eName = enemyTeam[idx].name;
-              const died = enemyTeam[idx].takeWound();
-              this.log(`  → ${eName} takes a wound from Blood Thirst! (${enemyTeam[idx].currentWounds}/${enemyTeam[idx].maxWounds})`);
-              this.addLog({ type: 'hit', text: `${eName} takes a wound from Blood Thirst! (${enemyTeam[idx].currentWounds}/${enemyTeam[idx].maxWounds})`, characterName: eName });
+              const died = enemyTeam[idx].loseLife();
+              this.log(`  → ${eName} loses a life from Blood Thirst! (${enemyTeam[idx].currentLives}/${enemyTeam[idx].maxLives})`);
+              this.addLog({ type: 'hit', text: `${eName} loses a life from Blood Thirst! (${enemyTeam[idx].currentLives}/${enemyTeam[idx].maxLives})`, characterName: eName });
               if (died) {
                 this.log(`  ★ ${eName} is defeated!`);
                 this.addLog({ type: 'death', text: `${eName} is defeated!`, characterName: eName });
@@ -1094,22 +1106,22 @@ export class CombatEngine {
           if (healOverrides?.allyTarget && healOverrides.allyTarget[0] === charTeam) {
             healIdx = healOverrides.allyTarget[1];
           } else {
-            // AI: pick most wounded ally
+            // AI: pick most hurt ally (lowest lives)
             const allies = this.getLivingAllies(charTeam);
-            const wounded = allies.filter(i => allyTeam[i].currentWounds > 0);
-            if (wounded.length > 0) {
-              healIdx = wounded.reduce((b, i) =>
-                allyTeam[i].currentWounds > allyTeam[b].currentWounds ? i : b, wounded[0]);
+            const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+            if (hurt.length > 0) {
+              healIdx = hurt.reduce((b, i) =>
+                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
             }
           }
-          if (healIdx !== null && allyTeam[healIdx].currentWounds > 0) {
-            allyTeam[healIdx].currentWounds--;
+          if (healIdx !== null && allyTeam[healIdx].currentLives < allyTeam[healIdx].maxLives) {
+            allyTeam[healIdx].currentLives++;
             const tName = allyTeam[healIdx].name;
-            this.log(`  → ${charName} heals ${tName}! (${allyTeam[healIdx].currentWounds}/${allyTeam[healIdx].maxWounds})`);
-            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentWounds}/${allyTeam[healIdx].maxWounds})`, characterName: charName });
+            this.log(`  → ${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
           } else {
-            this.log(`  → ${charName} tries to heal but no one is wounded.`);
-            this.addLog({ type: 'effect', text: `${charName} tries to heal but no one is wounded.`, characterName: charName });
+            this.log(`  → ${charName} tries to heal but no one is hurt.`);
+            this.addLog({ type: 'effect', text: `${charName} tries to heal but no one is hurt.`, characterName: charName });
           }
           break;
         }
@@ -1132,14 +1144,14 @@ export class CombatEngine {
         }
         case 'Regenerate': {
           const ch = this.getTeam(charTeam)[charIdx];
-          if (ch.currentWounds > 0) {
-            const healed = Math.min(card.effect.amount, ch.currentWounds);
-            ch.currentWounds -= healed;
-            this.log(`  → ${charName} regenerates ${healed} wound(s)! (${ch.currentWounds}/${ch.maxWounds})`);
-            this.addLog({ type: 'effect', text: `${charName} regenerates ${healed} wound(s)! (${ch.currentWounds}/${ch.maxWounds})`, characterName: charName });
+          if (ch.currentLives < ch.maxLives) {
+            const healed = Math.min(card.effect.amount, ch.maxLives - ch.currentLives);
+            ch.currentLives += healed;
+            this.log(`  → ${charName} regenerates ${healed} life/lives! (${ch.currentLives}/${ch.maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} regenerates ${healed} life/lives! (${ch.currentLives}/${ch.maxLives})`, characterName: charName });
           } else {
-            this.log(`  → ${charName} tries to regenerate but has no wounds.`);
-            this.addLog({ type: 'effect', text: `${charName} tries to regenerate but has no wounds.`, characterName: charName });
+            this.log(`  → ${charName} tries to regenerate but is at full health.`);
+            this.addLog({ type: 'effect', text: `${charName} tries to regenerate but is at full health.`, characterName: charName });
           }
           break;
         }
@@ -1181,7 +1193,7 @@ export class CombatEngine {
     this.roundNumber++;
     this.coordinatedAmbushTarget = null;
     this.sacrificeTargets.clear();
-    this.woundedThisRound.clear();
+    this.hitThisRound.clear();
     this.logEntries = [];
 
     this.addLog({ type: 'round', text: `Round ${this.roundNumber}` });
@@ -1205,18 +1217,18 @@ export class CombatEngine {
       }
     }
 
-    // Process venom wounds at round start
+    // Process venom damage at round start
     for (const ch of [...this.team1, ...this.team2]) {
-      if (ch.pendingVenomWounds > 0 && ch.isAlive()) {
-        for (let i = 0; i < ch.pendingVenomWounds; i++) {
-          const died = ch.takeWound();
-          this.addLog({ type: 'hit', text: `${ch.name} takes a venom wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+      if (ch.pendingVenomDamage > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingVenomDamage; i++) {
+          const died = ch.loseLife();
+          this.addLog({ type: 'hit', text: `${ch.name} loses a life from venom! (${ch.currentLives}/${ch.maxLives})`, characterName: ch.name });
           if (died) {
             this.addLog({ type: 'death', text: `${ch.name} is defeated by venom!`, characterName: ch.name });
             break;
           }
         }
-        ch.pendingVenomWounds = 0;
+        ch.pendingVenomDamage = 0;
       }
     }
 
@@ -1276,13 +1288,13 @@ export class CombatEngine {
       if (this.isCombatOver()) break;
     }
 
-    // Death ward healing
+    // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
-      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
-        ch.currentWounds--;
+      if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
+        ch.currentLives = Math.min(ch.maxLives, ch.currentLives + 1);
         ch.hasDeathWard = false;
-        this.log(`  → ${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`);
-        this.addLog({ type: 'effect', text: `${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+        this.log(`  → ${ch.name}'s death ward recovers 1 life! (${ch.currentLives}/${ch.maxLives})`);
+        this.addLog({ type: 'effect', text: `${ch.name}'s death ward recovers 1 life! (${ch.currentLives}/${ch.maxLives})`, characterName: ch.name });
       }
     }
 
@@ -1396,12 +1408,12 @@ export class CombatEngine {
 
   /** End-of-round cleanup after step-by-step resolution. */
   finishRound(): void {
-    // Death ward healing
+    // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
-      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
-        ch.currentWounds--;
+      if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
+        ch.currentLives = Math.min(ch.maxLives, ch.currentLives + 1);
         ch.hasDeathWard = false;
-        this.addLog({ type: 'effect', text: `${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+        this.addLog({ type: 'effect', text: `${ch.name}'s death ward recovers 1 life! (${ch.currentLives}/${ch.maxLives})`, characterName: ch.name });
       }
     }
 
@@ -1425,7 +1437,7 @@ export class CombatEngine {
 
     this.coordinatedAmbushTarget = null;
     this.sacrificeTargets.clear();
-    this.woundedThisRound.clear();
+    this.hitThisRound.clear();
 
     const actions: [number, number, number][] = [];
     const logs: string[] = [];
@@ -1449,18 +1461,18 @@ export class CombatEngine {
       }
     }
 
-    // Process venom wounds at round start
+    // Process venom damage at round start
     for (const ch of [...this.team1, ...this.team2]) {
-      if (ch.pendingVenomWounds > 0 && ch.isAlive()) {
-        for (let i = 0; i < ch.pendingVenomWounds; i++) {
-          const died = ch.takeWound();
-          this.log(`  → ${ch.name} takes a venom wound! (${ch.currentWounds}/${ch.maxWounds})`);
+      if (ch.pendingVenomDamage > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingVenomDamage; i++) {
+          const died = ch.loseLife();
+          this.log(`  → ${ch.name} loses a life from venom! (${ch.currentLives}/${ch.maxLives})`);
           if (died) {
             this.log(`  ★ ${ch.name} is defeated by venom!`);
             break;
           }
         }
-        ch.pendingVenomWounds = 0;
+        ch.pendingVenomDamage = 0;
       }
     }
     if (this.isCombatOver()) return false;
@@ -1515,12 +1527,12 @@ export class CombatEngine {
       if (this.isCombatOver()) return false;
     }
 
-    // Death ward healing
+    // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
-      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
-        ch.currentWounds--;
+      if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
+        ch.currentLives = Math.min(ch.maxLives, ch.currentLives + 1);
         ch.hasDeathWard = false;
-        this.log(`  → ${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`);
+        this.log(`  → ${ch.name}'s death ward recovers 1 life! (${ch.currentLives}/${ch.maxLives})`);
       }
     }
 
@@ -1540,11 +1552,11 @@ export class CombatEngine {
 
     this.log('\nTeam 1:');
     for (const c of this.team1) {
-      this.log(`  ${c.name} (${c.characterClass}) - MF:${c.maxWounds} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
+      this.log(`  ${c.name} (${c.characterClass}) - PV:${c.maxLives} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
     }
     this.log('\nTeam 2:');
     for (const c of this.team2) {
-      this.log(`  ${c.name} (${c.characterClass}) - MF:${c.maxWounds} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
+      this.log(`  ${c.name} (${c.characterClass}) - PV:${c.maxLives} F:${c.strength} M:${c.magic} D:${c.defense} V:${c.speed}`);
     }
 
     // Assign AI strategies

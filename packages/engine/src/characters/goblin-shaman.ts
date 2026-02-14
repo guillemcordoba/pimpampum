@@ -12,7 +12,7 @@ export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
   baseMagic: 4,
   baseDefense: 2,
   baseSpeed: 3,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Llamp': 'icons/000000/transparent/1x1/lorc/lightning-arc.svg',
     'Possessió demoníaca': 'icons/000000/transparent/1x1/lorc/daemon-skull.svg',
@@ -31,7 +31,7 @@ export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
     new Card('Set de sang', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'BloodThirst' })
-      .withDescription('Cada enemic que hagi rebut una ferida durant aquest combat rep una altra ferida.'),
+      .withDescription('Cada enemic que hagi perdut una vida durant aquest combat perd una altra vida.'),
     new Card('Pluja de flames', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4, -2))
       .withSpeedMod(-4)

@@ -3,13 +3,13 @@
 Pim Pam Pum és un sistema de combat per a jocs de rol de taula (DnD). 
 
 Cada jugador té les següents característiques base representades amb un número:
-MF: màximes ferides que pot acumular abans de morir. Els MF van des de 2 a 8.
+PV: punts de vida. Els PV van des de 2 a 8.
 V: velocitat
 F: força 
 D: defensa
 M: màgia
 
-Cada jugador pot portar objectes passius que modifiquin aquestes característiques. Hi ha items que no ocupen espai, i hi ha objectes que sí. Per exemple, només es pot portar un pantaló, un casc, una armadura, i una arma a cada mà. Hi ha armes de doble mà, no se'n pot portar dos alhora.
+Cada jugador pot portar objectes passius que modifiquin aquestes característiques. Hi ha items que no ocupen espai, i hi ha objectes que sí. Per exemple, només es pot portar un pantaló, un casc o una armadura de tors.
 
 El combat consisteix en una sèrie de rondes. Cada jugador tindrà una mà de cartes d'acció, que poden ser cartes d'objectes i cartes d'habilitats. Sempre que s'hagi de calcular el valor final d'una característica, es farà de la següent manera:
 
@@ -26,22 +26,23 @@ En cada ronda, els jugadors trien una carta de la mà, la posen de cap per vall,
 
 ## Cartes d'atac
 
-Hi ha cartes d'atac físiques i màgiques. Quan es resol una carta d'acció d'atac, el jugador atacant tria el jugador atacat. El jugador atacat rep una ferida si la força o màgia és més gran que la defensa, després de sumar tots els modificadors i daus.
+Hi ha cartes d'atac físiques i màgiques. Quan es resol una carta d'acció d'atac, el jugador atacant tria el jugador atacat. El jugador atacat perd una vida si la força o màgia és més gran que la defensa, després de sumar tots els modificadors i daus.
 
 
 ## Cartes de defensa
 
-Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu.
+Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu. Si un atac d'àrea afecta tant al defensor com al defensat, el defensor només rep un atac.
 
+## Canvis de cartes
 
 Fora de combat, els jugadors es poden canviar les cartes que porten actives. Es poden intercanviar els objectes entre ells, i canviar les habilitats actives per habilitats que ja havien après anteriorment. Els jugadors no es poden canviar habilitats entre ells.
 
 ## Descans
 
-Entre combats, els jugadors poden descansar per recuperar ferides. Hi ha dos tipus de descans:
+Entre combats, els jugadors poden descansar per recuperar vides. Hi ha dos tipus de descans:
 
-- **Descans curt**: Cada jugador cura 1 ferida.
-- **Descans llarg**: Cada jugador cura totes les ferides.
+- **Descans curt**: Cada jugador recupera 1 vida.
+- **Descans llarg**: Cada jugador recupera totes les vides.
 
 El DM decideix quan els jugadors poden fer un descans curt o llarg.
 

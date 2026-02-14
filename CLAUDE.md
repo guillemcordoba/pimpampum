@@ -111,7 +111,7 @@ The web app and simulator derive everything from the engine. There are no CSV fi
 - **Language**: All game content is in Catalan
 - **Combat format**: 2v2 team battles (players vs enemies)
 - **Characteristics** (scale 1-8):
-  - **MF** (Màximes ferides): Max wounds before death (typically 3)
+  - **PV** (Punts de vida): Lives before death (typically 3)
   - **V** (Velocitat): Speed - determines action order
   - **F** (Força): Strength - used for physical attacks
   - **D** (Defensa): Defense - reduces incoming damage
@@ -124,14 +124,14 @@ The web app and simulator derive everything from the engine. There are no CSV fi
 2. Cards are revealed simultaneously
 3. Cards resolve in speed order (highest speed first)
 4. An attack hits if `attack_stat + dice_roll > target_defense`
-5. A hit deals exactly 1 wound (no variable damage)
-6. A character dies when wounds reach MF
+5. A hit costs the target exactly 1 life (no variable damage)
+6. A character dies when lives reach 0
 
 ### Card Types
 
 - **Atac físic** (Physical Attack): Compares Força + dice vs target Defensa
 - **Atac màgic** (Magic Attack): Compares Màgia + dice vs target Defensa
-- **Defensa** (Defense): Choose an ally to defend. The defense card redirects all attacks targeting the defended ally for the entire round. If an attack penetrates, the defender takes the wound, not the defended ally
+- **Defensa** (Defense): Choose an ally to defend. The defense card redirects all attacks targeting the defended ally for the entire round. If an attack penetrates, the defender loses the life, not the defended ally
 - **Focus**: Special effect cards. Interrupted (cancelled) if the player is hit by an attack or receives an undefended attack before the card resolves
 
 ### Equipment
@@ -176,7 +176,7 @@ The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runti
 3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 20+ variants (Stun, SkipNextTurns, StrengthBoost, MagicBoost, MultiTarget, Sacrifice, Vengeance, BloodThirst, etc.). `getCardTargetRequirement()` returns targeting info for UI
 4. **Display** (`display.ts`) - Display constants for rendering: `CARD_TYPE_DISPLAY_NAMES` (Catalan names), `CARD_TYPE_CSS` (CSS class mapping), `STAT_ICONS` (icon paths), `STAT_DISPLAY_NAMES` (Catalan stat names), `RULES_SUMMARY` (structured rules card content)
 5. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `RestOfCombat`
-6. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (wounds, modifiers, stun, dodge, focus interruption, etc.). Factory functions create unequipped characters: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createCleric()`, `createGoblin()`, `createGoblinShaman()`. `CharacterTemplate` has `category: 'player' | 'enemy'`. Exports `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES`, and `CARD_ICONS`
+6. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (lives, modifiers, stun, dodge, focus interruption, etc.). Factory functions create unequipped characters: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createCleric()`, `createGoblin()`, `createGoblinShaman()`. `CharacterTemplate` has `category: 'player' | 'enemy'`. Exports `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES`, and `CARD_ICONS`
 7. **CombatEngine** (`combat.ts`, ~1150 lines) - The core combat loop with two interfaces:
    - **Web UI**: `prepareRound()` + `submitSelectionsAndResolve(selections)` for phased player-driven resolution
    - **Simulator**: `runRound()` / `runCombat()` for fully automated AI-vs-AI battles
@@ -247,7 +247,7 @@ Print: `@media print` hides nav and headers, shows only cards.
 ### Key Components
 
 - **`useGame.ts`** composable - Central game state management (Vue 3 Composition API). Manages phase transitions, player selections, target queue, per-character equipment selection, and CombatEngine interaction
-- **`CharacterPortrait.vue`** - Displays character icon, name, wound hearts, stats (F/M/D/V), and active modifier badges
+- **`CharacterPortrait.vue`** - Displays character icon, name, life hearts, stats (F/M/D/V), and active modifier badges
 - **`MiniCard.vue`** - Individual card display with type-colored header, icon, stats, and selected/disabled states
 - **`CombatLog.vue`** - Scrollable, color-coded combat log with auto-scroll
 

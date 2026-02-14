@@ -12,7 +12,7 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
   baseMagic: 5,
   baseDefense: 1,
   baseSpeed: 2,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Pantalla protectora': 'icons/000000/transparent/1x1/lorc/magic-shield.svg',
     'Bola de foc': 'icons/000000/transparent/1x1/lorc/fireball.svg',

@@ -12,7 +12,7 @@ export const ROGUE_TEMPLATE: CharacterTemplate = {
   baseMagic: 1,
   baseDefense: 2,
   baseSpeed: 4,
-  baseMaxWounds: 3,
+  baseLives: 3,
   cardIcons: {
     'Emboscada coordinada': 'icons/000000/transparent/1x1/lorc/hidden.svg',
     'Bomba de fum': 'icons/000000/transparent/1x1/lorc/dust-cloud.svg',
@@ -52,7 +52,7 @@ export const ROGUE_TEMPLATE: CharacterTemplate = {
     new Card('Enverinar arma', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'PoisonWeapon' })
-      .withDescription('Tria 3 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics causen una ferida addicional.'),
+      .withDescription('Tria 3 aliats (pot ser tu). Durant la resta del combat, els seus atacs físics fan perdre una vida addicional.'),
     new Card('Foc alquímic', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(1),
