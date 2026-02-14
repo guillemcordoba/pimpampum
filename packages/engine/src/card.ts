@@ -53,7 +53,12 @@ export type SpecialEffect =
   | { type: 'RageBoost'; amount: number; dice?: DiceRoll; speedBoost: number }
   | { type: 'RecklessAttack' }
   | { type: 'IntimidatingRoar' }
-  | { type: 'CounterThrow' };
+  | { type: 'CounterThrow' }
+  | { type: 'LifeDrain' }
+  | { type: 'TouchOfDeath'; strengthDebuff: number; magicDebuff: number }
+  | { type: 'DeathCurse'; dice: DiceRoll }
+  | { type: 'ShroudDebuff'; amount: number }
+  | { type: 'SpiritInvocation'; dice: DiceRoll };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -72,6 +77,7 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
   if (isFocus(card.cardType)) {
     switch (card.effect.type) {
       case 'CoordinatedAmbush': return 'enemy';
+      case 'DeathCurse': return 'enemy';
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
       case 'PoisonWeapon': return 'none';

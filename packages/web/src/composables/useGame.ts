@@ -1,10 +1,12 @@
 import { ref, computed } from 'vue';
 import {
+  Character,
   CombatEngine,
   selectCardAI,
   assignStrategies,
   getCardTargetRequirement,
   getCardTargetCount,
+  createCharacter,
   ALL_CHARACTER_TEMPLATES,
   ALL_EQUIPMENT,
 } from '@pimpampum/engine';
@@ -81,7 +83,7 @@ export function useGame() {
     enemyEquipment.value = [...enemyEquipment.value];
   }
 
-  function applyEquipment(character: ReturnType<CharacterTemplate['creator']>, equipIds: string[]) {
+  function applyEquipment(character: Character, equipIds: string[]) {
     character.equipment = [];
     const lookup = new Map(ALL_EQUIPMENT.map(e => [e.id, e]));
     for (const id of equipIds) {
@@ -94,12 +96,12 @@ export function useGame() {
     if (playerTeamTemplates.value.length === 0 || enemyTeamTemplates.value.length === 0) return;
 
     const team1 = playerTeamTemplates.value.map((t, i) => {
-      const c = t.creator(`${t.displayName} ${i + 1}`);
+      const c = createCharacter(t, `${t.displayName} ${i + 1}`);
       applyEquipment(c, playerEquipment.value[i] ?? []);
       return c;
     });
     const team2 = enemyTeamTemplates.value.map((t, i) => {
-      const c = t.creator(`${t.displayName} ${i + 1}`);
+      const c = createCharacter(t, `${t.displayName} ${i + 1}`);
       applyEquipment(c, enemyEquipment.value[i] ?? []);
       return c;
     });

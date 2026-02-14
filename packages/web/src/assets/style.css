@@ -22,6 +22,7 @@
   --class-barbar: #8b5a2c;
   --class-objecte: #5c4a32;
   --class-goblin: #4a5c2c;
+  --class-clergue: #2c4a4a;
   --class-goblin-shaman: #5c2c4a;
 
   /* Card type header colors */
@@ -42,7 +43,6 @@ body {
 #app {
   max-width: 1800px;
   margin: 0 auto;
-  padding: 1.5rem;
 }
 
 /* =============================================================================
@@ -158,6 +158,7 @@ body {
 .roster-tile.murri { border-color: var(--class-murri); }
 .roster-tile.mag { border-color: var(--class-mag); }
 .roster-tile.barbar { border-color: var(--class-barbar); }
+.roster-tile.clergue { border-color: var(--class-clergue); }
 .roster-tile.goblin { border-color: var(--class-goblin); }
 .roster-tile.goblin-shaman { border-color: var(--class-goblin-shaman); }
 
@@ -371,6 +372,7 @@ body {
 .portrait.murri { border-color: var(--class-murri); }
 .portrait.mag { border-color: var(--class-mag); }
 .portrait.barbar { border-color: var(--class-barbar); }
+.portrait.clergue { border-color: var(--class-clergue); }
 .portrait.goblin { border-color: var(--class-goblin); }
 .portrait.goblin-shaman { border-color: var(--class-goblin-shaman); }
 
@@ -546,6 +548,7 @@ body {
 .mini-card.murri { border-color: var(--class-murri); }
 .mini-card.mag { border-color: var(--class-mag); }
 .mini-card.barbar { border-color: var(--class-barbar); }
+.mini-card.clergue { border-color: var(--class-clergue); }
 .mini-card.goblin { border-color: var(--class-goblin); }
 .mini-card.goblin-shaman { border-color: var(--class-goblin-shaman); }
 
@@ -597,6 +600,13 @@ body {
   background: rgba(255, 255, 255, 0.4);
   border: 1px solid rgba(92, 74, 50, 0.3);
   border-radius: 4px;
+}
+
+.mini-card-effect .rules-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 1px;
 }
 
 .mini-card-stats {

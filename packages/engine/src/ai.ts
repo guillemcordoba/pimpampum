@@ -216,7 +216,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             break;
           case 'TeamSpeedBoost':
           case 'DefenseBoostDuration':
+          case 'SpiritInvocation':
             weight += 15.0;
+            break;
+          case 'DeathCurse':
+            weight += 10.0;
             break;
           case 'DodgeWithSpeedBoost':
             if (character.currentWounds >= character.maxWounds - 1) weight += 15.0;
@@ -263,12 +267,14 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 40.0;
           break;
         case 'CoordinatedAmbush':
+        case 'DeathCurse':
           weight += 30.0;
           break;
         case 'DefenseBoostDuration':
         case 'TeamSpeedBoost':
         case 'BlindingSmoke':
         case 'IceTrap':
+        case 'SpiritInvocation':
           // Utility focus — helpful but doesn't boost attack power
           weight += 15.0;
           break;

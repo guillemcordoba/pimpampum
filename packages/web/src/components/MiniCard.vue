@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Card, CardType, isPhysical, CARD_ICONS } from '@pimpampum/engine';
+import { renderDescription } from '../composables/useCardDisplay';
 
 const props = defineProps<{
   card: Card;
@@ -49,6 +50,10 @@ const stats = computed(() => {
   }
   return result;
 });
+
+const renderedDescription = computed(() =>
+  props.card.description ? renderDescription(props.card.description) : '',
+);
 </script>
 
 <template>
@@ -65,8 +70,7 @@ const stats = computed(() => {
       <img :src="iconPath" :alt="card.name">
     </div>
     <div class="mini-card-bottom">
-      <div v-if="card.description" class="mini-card-effect">
-        {{ card.description }}
+      <div v-if="card.description" class="mini-card-effect" v-html="renderedDescription">
       </div>
       <div class="mini-card-stats">
         <span v-for="(s, i) in stats" :key="i" style="display: flex; align-items: center; gap: 1px;">

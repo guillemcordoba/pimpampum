@@ -7,6 +7,7 @@ import {
   createWizard,
   createRogue,
   createBarbarian,
+  createCleric,
   createGoblin,
   createGoblinShaman,
   ALL_EQUIPMENT,
@@ -219,6 +220,7 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Wizard', createWizard],
     ['Rogue', createRogue],
     ['Barbarian', createBarbarian],
+    ['Cleric', createCleric],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
   ];
@@ -230,6 +232,7 @@ export function getPlayerCreators(): [string, CharacterCreator][] {
     ['Wizard', createWizard],
     ['Rogue', createRogue],
     ['Barbarian', createBarbarian],
+    ['Cleric', createCleric],
   ];
 }
 

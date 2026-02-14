@@ -1,0 +1,398 @@
+/* =============================================================================
+   PRINTABLE CARDS — Extracted from cards.html
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Uncial+Antiqua&family=MedievalSharp&family=Cinzel+Decorative:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+/* -- Card grid ------------------------------------------------------------ */
+
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+  max-width: 210mm;
+  margin: 0 auto;
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+  .app-nav, .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .card-grid {
+    gap: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* -- Base card ------------------------------------------------------------ */
+
+.print-card {
+  width: 63mm;
+  height: 88mm;
+  border-radius: 2mm;
+  position: relative;
+  overflow: hidden;
+  page-break-inside: avoid;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  background: var(--parchment);
+  border: 4px solid var(--border-color, #5c4a32);
+  flex-shrink: 0;
+}
+
+/* -- Class colors (outer border + inner frame) ----------------------------- */
+
+.print-card.guerrer { border-color: var(--class-guerrer); }
+.print-card.guerrer .card-frame { border-color: var(--class-guerrer); }
+.print-card.murri { border-color: var(--class-murri); }
+.print-card.murri .card-frame { border-color: var(--class-murri); }
+.print-card.mag { border-color: var(--class-mag); }
+.print-card.mag .card-frame { border-color: var(--class-mag); }
+.print-card.objecte { border-color: var(--class-objecte); }
+.print-card.objecte .card-frame { border-color: var(--class-objecte); }
+.print-card.goblin { border-color: var(--class-goblin); }
+.print-card.goblin .card-frame { border-color: var(--class-goblin); }
+.print-card.goblin-shaman { border-color: var(--class-goblin-shaman); }
+.print-card.goblin-shaman .card-frame { border-color: var(--class-goblin-shaman); }
+.print-card.barbar { border-color: var(--class-barbar); }
+.print-card.barbar .card-frame { border-color: var(--class-barbar); }
+.print-card.clergue { border-color: var(--class-clergue); }
+.print-card.clergue .card-frame { border-color: var(--class-clergue); }
+
+/* -- Card type header colors ----------------------------------------------- */
+
+.print-card.atac-fisic .card-header {
+  background: var(--type-atac-fisic);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.atac-fisic .card-name,
+.print-card.atac-fisic .card-subtitle { color: #f0e6d6; }
+.print-card.atac-fisic .card-subtitle { color: rgba(240,230,214,0.8); }
+
+.print-card.atac-magic .card-header {
+  background: var(--type-atac-magic);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.atac-magic .card-name,
+.print-card.atac-magic .card-subtitle { color: #f0e6d6; }
+.print-card.atac-magic .card-subtitle { color: rgba(240,230,214,0.8); }
+
+.print-card.defensa .card-header {
+  background: var(--type-defensa);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.defensa .card-name,
+.print-card.defensa .card-subtitle { color: #f0e6d6; }
+.print-card.defensa .card-subtitle { color: rgba(240,230,214,0.8); }
+
+.print-card.focus .card-header {
+  background: var(--type-focus);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.focus .card-name,
+.print-card.focus .card-subtitle { color: #f0e6d6; }
+.print-card.focus .card-subtitle { color: rgba(240,230,214,0.8); }
+
+/* Character card type header */
+.print-card.character .card-header {
+  background: var(--border-color, #5c4a32);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.character .card-name,
+.print-card.character .card-subtitle { color: #f0e6d6; }
+.print-card.character .card-subtitle { color: rgba(240,230,214,0.8); }
+
+/* -- Parchment texture overlay --------------------------------------------- */
+
+.print-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, rgba(92,74,50,0.2) 0%, transparent 40%),
+    linear-gradient(225deg, rgba(92,74,50,0.15) 0%, transparent 40%),
+    linear-gradient(315deg, rgba(92,74,50,0.1) 0%, transparent 40%),
+    linear-gradient(45deg, rgba(92,74,50,0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 20% 80%, rgba(139,90,43,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,90,43,0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 60%, rgba(160,120,60,0.08) 0%, transparent 60%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.print-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.15 0.4' numOctaves='2' seed='5'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23fiber)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* -- Card inner structure -------------------------------------------------- */
+
+.print-card .card-inner {
+  width: 100%;
+  height: 100%;
+  padding: 2.5mm;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.print-card .card-frame {
+  position: absolute;
+  inset: 3mm;
+  border: 3px solid var(--border-color, #5c4a32);
+  border-radius: 1mm;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.print-card .card-header {
+  text-align: center;
+  padding: 2mm 3mm 1mm;
+  position: relative;
+  z-index: 1;
+  height: 12mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.print-card .card-name {
+  font-family: 'Cinzel Decorative', 'Uncial Antiqua', serif;
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+  text-shadow: 0.5px 0.5px 0 rgba(255,255,255,0.3);
+}
+
+.print-card .card-name.small {
+  font-size: 9pt;
+}
+
+.print-card .card-subtitle {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 8pt;
+  color: #4a3f2f;
+  margin-top: 0.5mm;
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
+
+.print-card .card-art {
+  flex: 1;
+  margin: 1.5mm 3mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.02), rgba(0,0,0,0.08));
+  border-radius: 1mm;
+  min-height: 28mm;
+}
+
+.print-card .card-art img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
+.print-card .card-effect {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 8pt;
+  color: var(--text-dark);
+  text-align: center;
+  line-height: 1.3;
+  padding: 2mm 2.5mm;
+  margin: 0 3mm 1.5mm;
+  background: rgba(255,255,255,0.4);
+  border: 1px solid rgba(92,74,50,0.3);
+  border-radius: 1mm;
+  position: relative;
+  z-index: 1;
+}
+
+.print-card .card-effect em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+.print-card .card-stats {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2.5mm;
+  padding: 1mm 3mm 2mm;
+  position: relative;
+  z-index: 1;
+}
+
+.print-card .stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5mm;
+}
+
+.print-card .stat-icon {
+  width: 4.5mm;
+  height: 4.5mm;
+  opacity: 0.85;
+}
+
+.print-card .stat-icon img {
+  width: 100%;
+  height: 100%;
+  filter: brightness(0) saturate(100%);
+}
+
+.print-card .stat-value {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* -- Character card stats -------------------------------------------------- */
+
+.print-card .character-stats {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3mm;
+  position: relative;
+  z-index: 1;
+}
+
+.print-card .character-stat {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  margin-bottom: 2mm;
+}
+
+.print-card .character-stat-icon {
+  width: 6mm;
+  height: 6mm;
+}
+
+.print-card .character-stat-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.print-card .character-stat-name {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 8pt;
+  color: var(--text-dark);
+  flex: 1;
+}
+
+.print-card .character-stat-value {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* -- Rules card ------------------------------------------------------------ */
+
+.print-card.rules-card {
+  border-color: var(--border-color, #5c4a32);
+}
+.print-card.rules-card .card-frame {
+  border-color: var(--border-color, #5c4a32);
+}
+
+.print-card .rules-header {
+  background: var(--border-color, #5c4a32);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 1.5mm 3mm;
+  border-radius: 0;
+  height: 8mm;
+}
+.print-card .rules-header .card-name {
+  color: #f0e6d6;
+  font-size: 10pt;
+}
+
+.print-card .rules-content {
+  flex: 1;
+  padding: 2mm 3mm;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+  position: relative;
+  z-index: 1;
+}
+
+.print-card .rules-section {
+  margin-bottom: 1mm;
+}
+
+.print-card .rules-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 1mm;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.print-card .rules-list {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 6pt;
+  color: var(--text-dark);
+  margin-left: 3mm;
+  line-height: 1.4;
+}
+
+.print-card .rules-list li {
+  margin-bottom: 0.5mm;
+}
+
+.print-card .rules-text {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 6pt;
+  color: var(--text-dark);
+  line-height: 1.4;
+}
+
+.print-card .rules-icon {
+  width: 3mm;
+  height: 3mm;
+  vertical-align: middle;
+  margin-right: 0.3mm;
+}

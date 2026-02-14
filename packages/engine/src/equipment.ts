@@ -57,6 +57,7 @@ export interface EquipmentTemplate {
   slotLabel: string;
   defenseLabel: string;
   speedLabel: string;
+  iconPath: string;
   creator: () => Equipment;
 }
 
@@ -86,8 +87,8 @@ export function createBracalsDeCuir(): Equipment {
 }
 
 export const ALL_EQUIPMENT: EquipmentTemplate[] = [
-  { id: 'armadura-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+3', speedLabel: '-3', creator: createArmaduraDeFerro },
-  { id: 'cota-malla', name: 'Cota de malla', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '1d4', speedLabel: '-2', creator: createCotaDeMalla },
-  { id: 'armadura-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+2', speedLabel: '-1', creator: createArmaduraDeCuir },
-  { id: 'bracals-cuir', name: 'Braçals de cuir', slot: EquipmentSlot.Arms, slotLabel: 'Braços', defenseLabel: '+1', speedLabel: '0', creator: createBracalsDeCuir },
+  { id: 'armadura-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+3', speedLabel: '-3', iconPath: 'icons/000000/transparent/1x1/lorc/armor-vest.svg', creator: createArmaduraDeFerro },
+  { id: 'cota-malla', name: 'Cota de malla', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '1d4', speedLabel: '-2', iconPath: 'icons/000000/transparent/1x1/lorc/mail-shirt.svg', creator: createCotaDeMalla },
+  { id: 'armadura-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+2', speedLabel: '-1', iconPath: 'icons/000000/transparent/1x1/lorc/leather-vest.svg', creator: createArmaduraDeCuir },
+  { id: 'bracals-cuir', name: 'Braçals de cuir', slot: EquipmentSlot.Arms, slotLabel: 'Braços', defenseLabel: '+1', speedLabel: '0', iconPath: 'icons/000000/transparent/1x1/lorc/mailed-fist.svg', creator: createBracalsDeCuir },
 ];

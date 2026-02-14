@@ -36,6 +36,15 @@ Quan es resol una carta de defensa, el jugador defensant tria a un jugador defen
 
 Fora de combat, els jugadors es poden canviar les cartes que porten actives. Es poden intercanviar els objectes entre ells, i canviar les habilitats actives per habilitats que ja havien après anteriorment. Els jugadors no es poden canviar habilitats entre ells.
 
+## Descans
+
+Entre combats, els jugadors poden descansar per recuperar ferides. Hi ha dos tipus de descans:
+
+- **Descans curt**: Cada jugador cura 1 ferida.
+- **Descans llarg**: Cada jugador cura totes les ferides.
+
+El DM decideix quan els jugadors poden fer un descans curt o llarg.
+
 ## Cartes de focus
 
 Són cartes amb efectes especials. La carta de focus no es resol si, abans que es resolgui, el jugador rep un atac durant aquest torn.

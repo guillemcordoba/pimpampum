@@ -102,6 +102,8 @@ function getSetAsideDuration(effectType: string): number {
     case 'EnchantWeapon':
     case 'PoisonWeapon':
     case 'Vengeance':
+    case 'DeathCurse':
+    case 'SpiritInvocation':
       return -1;
     // NextTwoTurns effects — 3 turns set aside
     case 'IceTrap':
@@ -431,6 +433,15 @@ export class CombatEngine {
           this.log(`  → ${attackerName} is thrown off balance by ${defenderInfo[2]}! V-3 next turn.`);
           this.addLog({ type: 'effect', text: `${attackerName} gets V-3 next turn from Clon de fum!`, characterName: attackerName });
         }
+        // Shroud debuff: attacker gets F-2 next turn
+        if (defender.hasShroudDebuff) {
+          const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
+          attackerMut.modifiers.push(
+            new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource('Sudari protector'),
+          );
+          this.log(`  → ${attackerName} is weakened by ${defenderInfo[2]}'s shroud! F-2 next turn.`);
+          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Sudari protector!`, characterName: attackerName });
+        }
       }
       return true;
     } else {
@@ -464,6 +475,16 @@ export class CombatEngine {
           );
           this.log(`  → ${attackerName} is thrown off balance by ${defName}! V-3 next turn.`);
           this.addLog({ type: 'effect', text: `${attackerName} gets V-3 next turn from Clon de fum!`, characterName: attackerName });
+        }
+
+        // Shroud debuff: attacker gets F-2 next turn
+        if (defender.hasShroudDebuff) {
+          const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
+          attackerMut.modifiers.push(
+            new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource('Sudari protector'),
+          );
+          this.log(`  → ${attackerName} is weakened by ${defName}'s shroud! F-2 next turn.`);
+          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Sudari protector!`, characterName: attackerName });
         }
       }
       return false;
@@ -525,7 +546,32 @@ export class CombatEngine {
       }
 
       for (const ti of targets) {
-        this.resolveAttack(charTeam, charIdx, eTeam, ti, card);
+        const hit = this.resolveAttack(charTeam, charIdx, eTeam, ti, card);
+
+        // LifeDrain: heal attacker 1 wound on hit
+        if (hit && card.effect.type === 'LifeDrain') {
+          const attacker = this.getTeam(charTeam)[charIdx];
+          if (attacker.isAlive() && attacker.currentWounds > 0) {
+            attacker.currentWounds--;
+            this.log(`  → ${charName} drains life! Heals 1 wound. (${attacker.currentWounds}/${attacker.maxWounds})`);
+            this.addLog({ type: 'effect', text: `${charName} drains life! (${attacker.currentWounds}/${attacker.maxWounds})`, characterName: charName });
+          }
+        }
+
+        // TouchOfDeath: apply F-2 and M-2 to target next turn on hit
+        if (hit && card.effect.type === 'TouchOfDeath') {
+          const target = this.getTeam(eTeam)[ti];
+          if (target.isAlive()) {
+            target.modifiers.push(
+              new CombatModifier('strength', -card.effect.strengthDebuff, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            target.modifiers.push(
+              new CombatModifier('magic', -card.effect.magicDebuff, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            this.log(`  → ${target.name} gets F-${card.effect.strengthDebuff} and M-${card.effect.magicDebuff} next turn!`);
+            this.addLog({ type: 'effect', text: `${target.name} gets F-${card.effect.strengthDebuff} and M-${card.effect.magicDebuff} next turn!`, characterName: target.name });
+          }
+        }
       }
 
       // Handle stun effect
@@ -688,6 +734,9 @@ export class CombatEngine {
         }
         if (card.effect.type === 'CounterThrow') {
           this.getTeam(charTeam)[charIdx].hasCounterThrow = true;
+        }
+        if (card.effect.type === 'ShroudDebuff') {
+          this.getTeam(charTeam)[charIdx].hasShroudDebuff = true;
         }
       }
     }
@@ -935,6 +984,62 @@ export class CombatEngine {
           }
           break;
         }
+        case 'DeathCurse': {
+          const dcOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let curseTargetIdx: number | null = null;
+          if (dcOverrides?.attackTarget) {
+            curseTargetIdx = dcOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            curseTargetIdx = enemies[0];
+          }
+          if (curseTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const tName = enemyTeam[curseTargetIdx].name;
+            // Apply +1d4 attack bonus vs cursed target to self and all allies
+            character.modifiers.push(
+              new CombatModifier('attack_bonus', 0, ModifierDuration.RestOfCombat)
+                .withDice(card.effect.dice)
+                .withSource(card.name)
+                .withCondition(`attacking_${tName}`),
+            );
+            const allies = this.getLivingAllies(charTeam, charIdx);
+            const allyTeam = this.getTeam(charTeam);
+            for (const idx of allies) {
+              allyTeam[idx].modifiers.push(
+                new CombatModifier('attack_bonus', 0, ModifierDuration.RestOfCombat)
+                  .withDice(card.effect.dice)
+                  .withSource(card.name)
+                  .withCondition(`attacking_${tName}`),
+              );
+            }
+            this.log(`  → All allies get +${card.effect.dice} when attacking ${tName} for rest of combat!`);
+            this.addLog({ type: 'effect', text: `All allies get +${card.effect.dice} when attacking ${tName}!`, characterName: charName });
+          }
+          break;
+        }
+        case 'SpiritInvocation': {
+          // D+1d4 for self and all allies for rest of combat + death ward
+          character.modifiers.push(
+            new CombatModifier('defense', 0, ModifierDuration.RestOfCombat)
+              .withDice(card.effect.dice)
+              .withSource(card.name),
+          );
+          character.hasDeathWard = true;
+          const allies = this.getLivingAllies(charTeam, charIdx);
+          const allyTeam = this.getTeam(charTeam);
+          for (const idx of allies) {
+            allyTeam[idx].modifiers.push(
+              new CombatModifier('defense', 0, ModifierDuration.RestOfCombat)
+                .withDice(card.effect.dice)
+                .withSource(card.name),
+            );
+            allyTeam[idx].hasDeathWard = true;
+          }
+          this.log(`  → ${charName} and all allies gain +${card.effect.dice} defense for rest of combat and death ward!`);
+          this.addLog({ type: 'effect', text: `${charName} and allies gain +${card.effect.dice} defense and death ward!`, characterName: charName });
+          break;
+        }
         default:
           break;
       }
@@ -1053,6 +1158,16 @@ export class CombatEngine {
       if (this.isCombatOver()) break;
     }
 
+    // Death ward healing
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
+        ch.currentWounds--;
+        ch.hasDeathWard = false;
+        this.log(`  → ${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`);
+        this.addLog({ type: 'effect', text: `${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+      }
+    }
+
     // End of round cleanup
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
@@ -1163,6 +1278,15 @@ export class CombatEngine {
 
   /** End-of-round cleanup after step-by-step resolution. */
   finishRound(): void {
+    // Death ward healing
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
+        ch.currentWounds--;
+        ch.hasDeathWard = false;
+        this.addLog({ type: 'effect', text: `${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+      }
+    }
+
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
@@ -1255,6 +1379,15 @@ export class CombatEngine {
       const card = ch.cards[cardIdx];
       this.resolveCard(team, charIdx, card);
       if (this.isCombatOver()) return false;
+    }
+
+    // Death ward healing
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.hasDeathWard && ch.isAlive() && this.woundedThisRound.has(ch.name)) {
+        ch.currentWounds--;
+        ch.hasDeathWard = false;
+        this.log(`  → ${ch.name}'s death ward heals 1 wound! (${ch.currentWounds}/${ch.maxWounds})`);
+      }
     }
 
     // End of round cleanup
