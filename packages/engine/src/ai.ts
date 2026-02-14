@@ -86,6 +86,7 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       }
     } else if (isDefense(card.cardType)) {
       weight += 2.0;
+      if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentWounds >= character.maxWounds - 1) {
@@ -226,6 +227,12 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             if (character.currentWounds >= character.maxWounds - 1) weight += 15.0;
             else weight += 3.0;
             break;
+          case 'HealAlly': {
+            const anyWounded = allies.some(i => allyTeam[i].currentWounds > 0);
+            if (anyWounded) weight += 15.0;
+            else weight += 1.0;
+            break;
+          }
           default:
             weight += 3.0;
         }
@@ -282,6 +289,14 @@ function selectPower(character: Character, engine: AIEngineView): number {
           if (character.currentWounds >= character.maxWounds - 1) weight += 35.0;
           else weight += 10.0;
           break;
+        case 'HealAlly': {
+          const at = character.team === 1 ? engine.team1 : engine.team2;
+          const al = engine.getLivingAllies(character.team);
+          const wounded = al.some(i => at[i].currentWounds > 0);
+          if (wounded) weight += 20.0;
+          else weight += 2.0;
+          break;
+        }
         default:
           weight += 10.0;
       }

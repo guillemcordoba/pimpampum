@@ -10,6 +10,7 @@ import {
   createGoblin,
   createCleric,
   createGoblinShaman,
+  createBasilisk,
   ALL_EQUIPMENT,
   EquipmentSlot,
 } from '@pimpampum/engine';
@@ -117,6 +118,7 @@ function getAllCreators(): [string, CharacterCreator][] {
     ['Cleric', createCleric],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
+    ['Basilisk', createBasilisk],
   ];
 }
 

@@ -24,6 +24,7 @@
   --class-goblin: #4a5c2c;
   --class-clergue: #2c4a4a;
   --class-goblin-shaman: #5c2c4a;
+  --class-basilisc: #2c4a1a;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -161,6 +162,7 @@ body {
 .roster-tile.clergue { border-color: var(--class-clergue); }
 .roster-tile.goblin { border-color: var(--class-goblin); }
 .roster-tile.goblin-shaman { border-color: var(--class-goblin-shaman); }
+.roster-tile.basilisc { border-color: var(--class-basilisc); }
 
 .roster-tile img {
   width: 72px;
@@ -375,6 +377,7 @@ body {
 .portrait.clergue { border-color: var(--class-clergue); }
 .portrait.goblin { border-color: var(--class-goblin); }
 .portrait.goblin-shaman { border-color: var(--class-goblin-shaman); }
+.portrait.basilisc { border-color: var(--class-basilisc); }
 
 .portrait-icon {
   width: 64px;
@@ -551,6 +554,7 @@ body {
 .mini-card.clergue { border-color: var(--class-clergue); }
 .mini-card.goblin { border-color: var(--class-goblin); }
 .mini-card.goblin-shaman { border-color: var(--class-goblin-shaman); }
+.mini-card.basilisc { border-color: var(--class-basilisc); }
 
 .mini-card-header {
   padding: 6px 8px 5px;

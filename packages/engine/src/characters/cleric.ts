@@ -19,7 +19,7 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
     'Maledicció mortal': 'icons/000000/transparent/1x1/lorc/cursed-star.svg',
     'Sudari protector': 'icons/000000/transparent/1x1/lorc/shining-claw.svg',
     'Invocació espiritual': 'icons/000000/transparent/1x1/lorc/angel-wings.svg',
-    'Càstig diví': 'icons/000000/transparent/1x1/lorc/holy-hand-grenade.svg',
+    'Curació': 'icons/000000/transparent/1x1/delapouite/healing.svg',
   },
   createCards: () => [
     new Card('Toc de la mort', CardType.MagicAttack)
@@ -40,15 +40,14 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(1)
       .withEffect({ type: 'ShroudDebuff', amount: 2 })
-      .withDescription("L'atacant rep F-2 el següent torn."),
+      .withDescription("L'atacant rep {F}-2 el següent torn."),
     new Card('Invocació espiritual', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'SpiritInvocation', dice: new DiceRoll(1, 4) })
       .withDescription('Tu i tots els aliats {D}+1d4 per la resta del combat. Protecció mortal: la primera ferida es cura.'),
-    new Card('Càstig diví', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 4))
-      .withSpeedMod(1)
-      .withEffect({ type: 'MultiTarget', count: 2 })
-      .withDescription('Afecta a 2 enemics que triïs.'),
+    new Card('Curació', CardType.Focus)
+      .withSpeedMod(2)
+      .withEffect({ type: 'HealAlly' })
+      .withDescription('Tria un aliat. Cura 1 ferida.'),
   ],
 };

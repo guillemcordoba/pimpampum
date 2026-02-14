@@ -42,6 +42,10 @@ export class Character {
   public hasCounterThrow = false;
   public hasShroudDebuff = false;
   public hasDeathWard = false;
+  public hasBerserkerEndurance = false;
+  public berserkerStrengthDice: DiceRoll | null = null;
+  public berserkerCounterDice: DiceRoll | null = null;
+  public pendingVenomWounds = 0;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -180,6 +184,10 @@ export class Character {
     this.hasCounterThrow = false;
     this.hasShroudDebuff = false;
     this.hasDeathWard = false;
+    this.hasBerserkerEndurance = false;
+    this.berserkerStrengthDice = null;
+    this.berserkerCounterDice = null;
+    this.pendingVenomWounds = 0;
     this.setAsideCards.clear();
   }
 

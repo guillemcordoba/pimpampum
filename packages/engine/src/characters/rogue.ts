@@ -27,11 +27,11 @@ export const ROGUE_TEMPLATE: CharacterTemplate = {
     new Card('Emboscada coordinada', CardType.Focus)
       .withSpeedMod(3)
       .withEffect({ type: 'CoordinatedAmbush' })
-      .withDescription("Tria un enemic. Tots els aliats que l'ataquin reben +1d6+2 a la seva tirada."),
+      .withDescription("Tria un enemic. Tots els aliats que l'ataquin aquest torn reben +1d8+2 a la seva tirada."),
     new Card('Bomba de fum', CardType.Focus)
       .withSpeedMod(-1)
       .withEffect({ type: 'BlindingSmoke' })
-      .withDescription('Enemics {V}-8 i {D}-8, aliats {V}+4 el següent torn.'),
+      .withDescription('Enemics {V}-8 i {D}-8 el següent torn.'),
     new Card('Clon de fum', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(2)

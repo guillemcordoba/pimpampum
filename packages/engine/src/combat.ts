@@ -301,7 +301,15 @@ export class CombatEngine {
       ? [attacker.getEffectiveStrength(), card.physicalAttack]
       : [attacker.getEffectiveMagic(), card.magicAttack];
 
-    const diceRoll = dice ? dice.roll() : 0;
+    let diceRoll = dice ? dice.roll() : 0;
+
+    // Frenzy: +bonusDicePerWound per wound on self
+    if (card.effect?.type === 'Frenzy' && attacker.currentWounds > 0) {
+      for (let i = 0; i < attacker.currentWounds; i++) {
+        diceRoll += card.effect.bonusDicePerWound.roll();
+      }
+    }
+
     const attackBonus = attacker.getAttackBonus(target.name);
     const totalAttack = attackStat + diceRoll + attackBonus;
 
@@ -385,6 +393,34 @@ export class CombatEngine {
           this.log(`  ★ ${defName} is defeated!`);
           this.addLog({ type: 'death', text: `${defName} is defeated!`, characterName: defName });
         }
+
+        // BerserkerEndurance: on wound, gain strength and counter-attack
+        if (defenderMut.hasBerserkerEndurance && defenderMut.isAlive() && defenderMut.berserkerStrengthDice && defenderMut.berserkerCounterDice) {
+          const strGain = defenderMut.berserkerStrengthDice.roll();
+          defenderMut.modifiers.push(
+            new CombatModifier('strength', strGain, ModifierDuration.RestOfCombat).withSource('Ira imparable'),
+          );
+          this.log(`  → ${defName} gains +${strGain} strength from berserker rage!`);
+          this.addLog({ type: 'effect', text: `${defName} gains +${strGain} strength from berserker rage!`, characterName: defName });
+
+          // Counter-attack
+          const counterAttack = defenderMut.getEffectiveStrength() + defenderMut.berserkerCounterDice.roll();
+          const attackerForCounter = this.getTeam(attackerTeam)[attackerIdx];
+          const attackerDef = attackerForCounter.getEffectiveDefense();
+          this.log(`  → ${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`);
+          this.addLog({ type: 'vengeance', text: `${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: defName });
+          if (counterAttack > attackerDef && attackerForCounter.isAlive()) {
+            const counterDied = attackerForCounter.takeWound();
+            this.woundedThisRound.add(attackerName);
+            this.log(`  → ${attackerName} takes a wound from counter-attack! (${attackerForCounter.currentWounds}/${attackerForCounter.maxWounds})`);
+            this.addLog({ type: 'hit', text: `${attackerName} takes a wound from counter-attack! (${attackerForCounter.currentWounds}/${attackerForCounter.maxWounds})`, characterName: attackerName });
+            if (counterDied) {
+              this.log(`  ★ ${attackerName} is defeated!`);
+              this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
+            }
+          }
+        }
+
         woundTeam = defTeam;
         woundIdx = defIdx;
         woundName = defName;
@@ -555,6 +591,16 @@ export class CombatEngine {
             attacker.currentWounds--;
             this.log(`  → ${charName} drains life! Heals 1 wound. (${attacker.currentWounds}/${attacker.maxWounds})`);
             this.addLog({ type: 'effect', text: `${charName} drains life! (${attacker.currentWounds}/${attacker.maxWounds})`, characterName: charName });
+          }
+        }
+
+        // VenomBite: on hit, target takes delayed wound next turn
+        if (hit && card.effect.type === 'VenomBite') {
+          const vTarget = this.getTeam(eTeam)[ti];
+          if (vTarget.isAlive()) {
+            vTarget.pendingVenomWounds++;
+            this.log(`  → ${vTarget.name} is poisoned! Will take a wound at start of next round.`);
+            this.addLog({ type: 'effect', text: `${vTarget.name} is poisoned!`, characterName: vTarget.name });
           }
         }
 
@@ -738,6 +784,12 @@ export class CombatEngine {
         if (card.effect.type === 'ShroudDebuff') {
           this.getTeam(charTeam)[charIdx].hasShroudDebuff = true;
         }
+        if (card.effect.type === 'BerserkerEndurance') {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.hasBerserkerEndurance = true;
+          ch.berserkerStrengthDice = card.effect.strengthDice;
+          ch.berserkerCounterDice = card.effect.counterAttackDice;
+        }
       }
     }
 
@@ -856,13 +908,8 @@ export class CombatEngine {
             enemyTeam[idx].modifiers.push(new CombatModifier('speed', -8, ModifierDuration.NextTurn).withSource(card.name));
             enemyTeam[idx].modifiers.push(new CombatModifier('defense', -8, ModifierDuration.NextTurn).withSource(card.name));
           }
-          const allies = this.getLivingAllies(charTeam);
-          const allyTeam = this.getTeam(charTeam);
-          for (const idx of allies) {
-            allyTeam[idx].modifiers.push(new CombatModifier('speed', 4, ModifierDuration.NextTurn).withSource(card.name));
-          }
-          this.log('  → Enemies get -8 speed and -8 defense, allies get +4 speed next turn and the one after!');
-          this.addLog({ type: 'effect', text: 'Enemies get -8 speed / -8 defense, allies get +4 speed next turn and the one after!', characterName: charName });
+          this.log('  → Enemies get -8 speed and -8 defense next turn!');
+          this.addLog({ type: 'effect', text: 'Enemies get -8 speed / -8 defense next turn!', characterName: charName });
           break;
         }
         case 'DodgeWithSpeedBoost': {
@@ -892,7 +939,7 @@ export class CombatEngine {
             for (const idx of allies) {
               allyTeam[idx].modifiers.push(
                 new CombatModifier('attack_bonus', 0, ModifierDuration.ThisTurn)
-                  .withDice(new DiceRoll(1, 6, 2))
+                  .withDice(new DiceRoll(1, 8, 2))
                   .withSource(card.name)
                   .withCondition(`attacking_${tName}`),
               );
@@ -1040,6 +1087,62 @@ export class CombatEngine {
           this.addLog({ type: 'effect', text: `${charName} and allies gain +${card.effect.dice} defense and death ward!`, characterName: charName });
           break;
         }
+        case 'HealAlly': {
+          const healOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let healIdx: number | null = null;
+          if (healOverrides?.allyTarget && healOverrides.allyTarget[0] === charTeam) {
+            healIdx = healOverrides.allyTarget[1];
+          } else {
+            // AI: pick most wounded ally
+            const allies = this.getLivingAllies(charTeam);
+            const wounded = allies.filter(i => allyTeam[i].currentWounds > 0);
+            if (wounded.length > 0) {
+              healIdx = wounded.reduce((b, i) =>
+                allyTeam[i].currentWounds > allyTeam[b].currentWounds ? i : b, wounded[0]);
+            }
+          }
+          if (healIdx !== null && allyTeam[healIdx].currentWounds > 0) {
+            allyTeam[healIdx].currentWounds--;
+            const tName = allyTeam[healIdx].name;
+            this.log(`  → ${charName} heals ${tName}! (${allyTeam[healIdx].currentWounds}/${allyTeam[healIdx].maxWounds})`);
+            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentWounds}/${allyTeam[healIdx].maxWounds})`, characterName: charName });
+          } else {
+            this.log(`  → ${charName} tries to heal but no one is wounded.`);
+            this.addLog({ type: 'effect', text: `${charName} tries to heal but no one is wounded.`, characterName: charName });
+          }
+          break;
+        }
+        case 'PetrifyingGaze': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            const roll = card.effect.dice.roll();
+            if (roll <= card.effect.threshold) {
+              enemyTeam[idx].stunned = true;
+              enemyTeam[idx].skipTurns += card.effect.turns;
+              this.log(`  → ${enemyTeam[idx].name} rolls ${roll} — petrified! Stunned and skips ${card.effect.turns} turns!`);
+              this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} rolls ${roll} — petrified! Skips ${card.effect.turns} turns!`, characterName: enemyTeam[idx].name });
+            } else {
+              this.log(`  → ${enemyTeam[idx].name} rolls ${roll} — resists!`);
+              this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} rolls ${roll} — resists the gaze!`, characterName: enemyTeam[idx].name });
+            }
+          }
+          break;
+        }
+        case 'Regenerate': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          if (ch.currentWounds > 0) {
+            const healed = Math.min(card.effect.amount, ch.currentWounds);
+            ch.currentWounds -= healed;
+            this.log(`  → ${charName} regenerates ${healed} wound(s)! (${ch.currentWounds}/${ch.maxWounds})`);
+            this.addLog({ type: 'effect', text: `${charName} regenerates ${healed} wound(s)! (${ch.currentWounds}/${ch.maxWounds})`, characterName: charName });
+          } else {
+            this.log(`  → ${charName} tries to regenerate but has no wounds.`);
+            this.addLog({ type: 'effect', text: `${charName} tries to regenerate but has no wounds.`, characterName: charName });
+          }
+          break;
+        }
         default:
           break;
       }
@@ -1099,6 +1202,21 @@ export class CombatEngine {
       if (this.team2[idx].resetForNewRound()) {
         skipping.get(2)!.add(idx);
         this.addLog({ type: 'skip', text: `${this.team2[idx].name} skips this turn!`, team: 2, characterName: this.team2[idx].name });
+      }
+    }
+
+    // Process venom wounds at round start
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.pendingVenomWounds > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingVenomWounds; i++) {
+          const died = ch.takeWound();
+          this.addLog({ type: 'hit', text: `${ch.name} takes a venom wound! (${ch.currentWounds}/${ch.maxWounds})`, characterName: ch.name });
+          if (died) {
+            this.addLog({ type: 'death', text: `${ch.name} is defeated by venom!`, characterName: ch.name });
+            break;
+          }
+        }
+        ch.pendingVenomWounds = 0;
       }
     }
 
@@ -1330,6 +1448,22 @@ export class CombatEngine {
         team2Skipping.add(idx);
       }
     }
+
+    // Process venom wounds at round start
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.pendingVenomWounds > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingVenomWounds; i++) {
+          const died = ch.takeWound();
+          this.log(`  → ${ch.name} takes a venom wound! (${ch.currentWounds}/${ch.maxWounds})`);
+          if (died) {
+            this.log(`  ★ ${ch.name} is defeated by venom!`);
+            break;
+          }
+        }
+        ch.pendingVenomWounds = 0;
+      }
+    }
+    if (this.isCombatOver()) return false;
 
     // Card selection is simultaneous — no peeking at ally picks.
     // Collect selections first, then assign playedCardIdx after.

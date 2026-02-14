@@ -58,7 +58,13 @@ export type SpecialEffect =
   | { type: 'TouchOfDeath'; strengthDebuff: number; magicDebuff: number }
   | { type: 'DeathCurse'; dice: DiceRoll }
   | { type: 'ShroudDebuff'; amount: number }
-  | { type: 'SpiritInvocation'; dice: DiceRoll };
+  | { type: 'SpiritInvocation'; dice: DiceRoll }
+  | { type: 'HealAlly' }
+  | { type: 'BerserkerEndurance'; strengthDice: DiceRoll; counterAttackDice: DiceRoll }
+  | { type: 'Frenzy'; bonusDicePerWound: DiceRoll }
+  | { type: 'PetrifyingGaze'; dice: DiceRoll; threshold: number; turns: number }
+  | { type: 'Regenerate'; amount: number }
+  | { type: 'VenomBite' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -80,6 +86,7 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'DeathCurse': return 'enemy';
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
+      case 'HealAlly': return 'ally';
       case 'PoisonWeapon': return 'none';
       case 'DefenseBoostDuration': return 'none';
       default: return 'none';

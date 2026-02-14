@@ -87,14 +87,16 @@ pimpampum/
 
 The **engine** (`packages/engine/`) is the sole source of truth for all game data:
 
-- **Character definitions**: Factory functions in `character.ts` (stats, cards, effects)
-- **Character metadata**: `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES` in `character.ts`
-- **Card icons**: `CARD_ICONS` in `character.ts`
+- **Character definitions**: Per-character files in `characters/` (stats, cards, effects, icons)
+- **Character metadata**: `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES` in `characters/index.ts`
+- **Card icons**: `CARD_ICONS` in `characters/index.ts`
 - **Equipment definitions**: Factory functions + `ALL_EQUIPMENT` in `equipment.ts`
 - **Display constants**: `CARD_TYPE_DISPLAY_NAMES`, `CARD_TYPE_CSS`, `STAT_ICONS`, `STAT_DISPLAY_NAMES`, `RULES_SUMMARY` in `display.ts`
 - **Game rules prose**: `rules/rules.md` (Catalan, not parsed by engine)
 
 The web app and simulator derive everything from the engine. There are no CSV files or static HTML card files.
+
+**IMPORTANT: Card descriptions are authoritative.** Each card's `.withDescription()` text is the canonical definition of what that card does. When there is a discrepancy between a card's description and its effect implementation in `combat.ts`, the description is correct and the engine code must be updated to match.
 
 ## Design Intentions
 
@@ -136,26 +138,9 @@ The web app and simulator derive everything from the engine. There are no CSV fi
 
 Passive items that modify stats permanently during combat. Slot-based system (Tors/Torso, Braços/Arms, Cap/Head, Cames/Legs, Mà principal/MainHand, Mà secundària/OffHand). Only one item per slot. Cannot be changed mid-combat. Any class can equip any item.
 
-### Characters
+### Characters and Equipment Items
 
-| Character | F | M | D | V | MF | Cards |
-|-----------|---|---|---|---|----|-------|
-| Guerrer | 2 | 0 | 4 | 2 | 3 | 6 cards |
-| Murri | 2 | 1 | 2 | 4 | 3 | 8 cards |
-| Mag | 0 | 5 | 1 | 2 | 3 | 6 cards |
-| Bàrbar | 4 | 0 | 2 | 3 | 3 | 6 cards |
-| Clergue | 0 | 3 | 3 | 2 | 3 | 6 cards |
-| Goblin | 2 | 0 | 3 | 3 | 3 | 4 cards |
-| Goblin Shaman | 1 | 4 | 2 | 3 | 3 | 5 cards |
-
-### Equipment Items
-
-| Item | Slot | Defense | Speed |
-|------|------|---------|-------|
-| Armadura de ferro | Tors | +3 | -3 |
-| Cota de malla | Tors | 1d4 | -2 |
-| Armadura de cuir | Tors | +2 | -1 |
-| Braçals de cuir | Braços | +1 | 0 |
+Character stats and cards are defined in `packages/engine/src/characters/` (one file per character). Equipment items are defined in `packages/engine/src/equipment.ts` (`ALL_EQUIPMENT`).
 
 ## TypeScript Monorepo
 

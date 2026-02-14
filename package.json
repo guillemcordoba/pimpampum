@@ -3,13 +3,16 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm --filter web dev",
+    "dev": "concurrently -k \"pnpm --filter engine exec tsc --watch --preserveWatchOutput\" \"pnpm --filter web dev\"",
     "simulate": "pnpm --filter simulator start"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "typescript": "^5.4.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
