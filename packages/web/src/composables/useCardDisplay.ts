@@ -55,11 +55,13 @@ export function cardToDisplayProps(card: Card, classCss: string, className: stri
   };
 }
 
+const base = import.meta.env.BASE_URL;
+
 const STAT_TOKEN_MAP: Record<string, string> = {
-  '{F}': '/' + STAT_ICONS.strength,
-  '{M}': '/' + STAT_ICONS.magic,
-  '{D}': '/' + STAT_ICONS.defense,
-  '{V}': '/' + STAT_ICONS.speed,
+  '{F}': base + STAT_ICONS.strength,
+  '{M}': base + STAT_ICONS.magic,
+  '{D}': base + STAT_ICONS.defense,
+  '{V}': base + STAT_ICONS.speed,
 };
 
 /** Convert {F}, {M}, {D}, {V} tokens in description text to inline icon HTML */

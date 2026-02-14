@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { STAT_ICONS, STAT_DISPLAY_NAMES } from '@pimpampum/engine';
 
+const base = import.meta.env.BASE_URL;
+
 const stats = [
   { key: 'strength' as const },
   { key: 'magic' as const },
@@ -55,7 +57,7 @@ const maxLifeCircles = 6;
         <div v-for="stat in stats" :key="stat.key" class="stat-block">
           <!-- Stat header: icon + name + base box -->
           <div class="stat-block-header">
-            <img class="stat-block-icon" :src="'/' + STAT_ICONS[stat.key]" :alt="stat.key">
+            <img class="stat-block-icon" :src="base + STAT_ICONS[stat.key]" :alt="stat.key">
             <span class="stat-block-name">{{ STAT_DISPLAY_NAMES[stat.key] }}</span>
             <span class="sheet-stat-box empty"></span>
           </div>
@@ -69,7 +71,7 @@ const maxLifeCircles = 6;
       <!-- Bottom row: equipment slots -->
       <div class="sheet-equipment">
         <div v-for="slot in equipmentSlots" :key="slot.label" class="equip-slot">
-          <img class="equip-slot-icon" :src="'/' + slot.icon" :alt="slot.label">
+          <img class="equip-slot-icon" :src="base + slot.icon" :alt="slot.label">
           <span class="equip-slot-label">{{ slot.label }}</span>
         </div>
       </div>

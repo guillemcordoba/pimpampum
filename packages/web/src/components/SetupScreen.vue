@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { ALL_EQUIPMENT } from '@pimpampum/engine';
 import type { CharacterTemplate, EquipmentTemplate } from '@pimpampum/engine';
 
+const base = import.meta.env.BASE_URL;
+
 defineProps<{
   templates: CharacterTemplate[];
   playerTeam: CharacterTemplate[];
@@ -60,7 +62,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
         <div class="team-slots">
           <div v-for="(t, i) in playerTeam" :key="i" class="team-slot-wrap">
             <div class="team-slot" :class="t.classCss">
-              <img :src="'/' + t.iconPath" :alt="t.displayName">
+              <img :src="base + t.iconPath" :alt="t.displayName">
               <span class="slot-name">{{ t.displayName }}</span>
               <span class="portrait-stats">
                 F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}
@@ -101,7 +103,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
             class="roster-tile"
             :class="t.classCss"
           >
-            <img :src="'/' + t.iconPath" :alt="t.displayName"><br>
+            <img :src="base + t.iconPath" :alt="t.displayName"><br>
             <span class="name">{{ t.displayName }}</span>
             <div style="display: flex; gap: 4px; justify-content: center; margin-top: 0.4rem;">
               <button class="btn" style="font-size: 0.65rem; padding: 2px 8px;" @click="emit('addPlayer', t)">&larr;</button>
@@ -117,7 +119,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
         <div class="team-slots">
           <div v-for="(t, i) in enemyTeam" :key="i" class="team-slot-wrap">
             <div class="team-slot" :class="t.classCss">
-              <img :src="'/' + t.iconPath" :alt="t.displayName">
+              <img :src="base + t.iconPath" :alt="t.displayName">
               <span class="slot-name">{{ t.displayName }}</span>
               <span class="portrait-stats">
                 F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}

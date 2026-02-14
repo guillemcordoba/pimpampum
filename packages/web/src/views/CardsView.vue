@@ -26,6 +26,7 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const base = import.meta.env.BASE_URL;
 
 const activeSection = ref(props.section ?? 'classes');
 const activeClassId = ref(props.characterId ?? PLAYER_TEMPLATES[0].id);
@@ -168,19 +169,19 @@ function handlePrintAll() {
           :class="[t.classCss, { active: t.id === activeClassId }]"
           @click="selectClass(t.id)"
         >
-          <img :src="'/' + t.iconPath" :alt="t.displayName">
+          <img :src="base + t.iconPath" :alt="t.displayName">
           <span>{{ t.displayName }}</span>
         </button>
       </div>
 
       <div :class="{ 'no-print': printAll }">
         <div class="character-description" :class="classTemplate.classCss">
-          <img class="char-desc-icon" :src="'/' + classTemplate.iconPath" :alt="classTemplate.displayName">
+          <img class="char-desc-icon" :src="base + classTemplate.iconPath" :alt="classTemplate.displayName">
           <div class="char-desc-info">
             <h2 class="char-desc-name">{{ classTemplate.displayName }}</h2>
             <div class="char-desc-stats">
               <span v-for="stat in getCharacterStats(classTemplate)" :key="stat.key" class="char-desc-stat">
-                <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
             </div>
           </div>
@@ -218,19 +219,19 @@ function handlePrintAll() {
           :class="[t.classCss, { active: t.id === activeEnemyId }]"
           @click="selectEnemy(t.id)"
         >
-          <img :src="'/' + t.iconPath" :alt="t.displayName">
+          <img :src="base + t.iconPath" :alt="t.displayName">
           <span>{{ t.displayName }}</span>
         </button>
       </div>
 
       <div :class="{ 'no-print': printAll }">
         <div class="character-description" :class="enemyTemplate.classCss">
-          <img class="char-desc-icon" :src="'/' + enemyTemplate.iconPath" :alt="enemyTemplate.displayName">
+          <img class="char-desc-icon" :src="base + enemyTemplate.iconPath" :alt="enemyTemplate.displayName">
           <div class="char-desc-info">
             <h2 class="char-desc-name">{{ enemyTemplate.displayName }}</h2>
             <div class="char-desc-stats">
               <span v-for="stat in getCharacterStats(enemyTemplate)" :key="stat.key" class="char-desc-stat">
-                <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
             </div>
           </div>
@@ -268,12 +269,12 @@ function handlePrintAll() {
       <!-- All player classes -->
       <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
         <div class="character-description" :class="data.template.classCss">
-          <img class="char-desc-icon" :src="'/' + data.template.iconPath" :alt="data.template.displayName">
+          <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
           <div class="char-desc-info">
             <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
             <div class="char-desc-stats">
               <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
             </div>
           </div>
@@ -299,12 +300,12 @@ function handlePrintAll() {
       <!-- All enemies -->
       <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
         <div class="character-description" :class="data.template.classCss">
-          <img class="char-desc-icon" :src="'/' + data.template.iconPath" :alt="data.template.displayName">
+          <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
           <div class="char-desc-info">
             <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
             <div class="char-desc-stats">
               <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                <img :src="'/' + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
               </span>
             </div>
           </div>

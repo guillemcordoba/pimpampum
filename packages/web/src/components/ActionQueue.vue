@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { Character, CharacterTemplate, PlannedAction } from '@pimpampum/engine';
+import { STAT_ICONS } from '@pimpampum/engine';
 import MiniCard from './MiniCard.vue';
+
+const base = import.meta.env.BASE_URL;
 
 const props = defineProps<{
   actions: PlannedAction[];
@@ -41,7 +44,7 @@ function itemState(index: number): 'pending' | 'active' | 'resolved' {
         <span class="action-team-dot" :class="action.team === 1 ? 'player' : 'enemy'"></span>
         <span class="action-queue-char-name">{{ action.characterName }}</span>
         <span class="action-queue-speed">
-          <img src="/icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V" class="action-speed-icon">
+          <img :src="base + STAT_ICONS.speed" alt="V" class="action-speed-icon">
           {{ action.effectiveSpeed }}
         </span>
       </div>

@@ -14,6 +14,8 @@ const props = defineProps<{
   smallName?: boolean;
 }>();
 
+const base = import.meta.env.BASE_URL;
+
 const renderedEffect = computed(() =>
   props.effectText ? renderDescription(props.effectText) : '',
 );
@@ -28,12 +30,12 @@ const renderedEffect = computed(() =>
         <div class="card-subtitle">{{ subtitle }}</div>
       </div>
       <div class="card-art">
-        <img :src="'/' + iconPath" :alt="name">
+        <img :src="base + iconPath" :alt="name">
       </div>
       <div v-if="effectText" class="card-effect" v-html="renderedEffect"></div>
       <div class="card-stats">
         <div v-for="(stat, i) in stats" :key="i" class="stat">
-          <span class="stat-icon"><img :src="'/' + stat.iconPath" :alt="stat.value"></span>
+          <span class="stat-icon"><img :src="base + stat.iconPath" :alt="stat.value"></span>
           <span class="stat-value">{{ stat.value }}</span>
         </div>
       </div>

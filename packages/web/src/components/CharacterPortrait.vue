@@ -2,7 +2,9 @@
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
 import type { CharacterTemplate } from '@pimpampum/engine';
-import { ModifierDuration, CARD_ICONS } from '@pimpampum/engine';
+import { ModifierDuration, CARD_ICONS, STAT_ICONS } from '@pimpampum/engine';
+
+const base = import.meta.env.BASE_URL;
 
 const props = defineProps<{
   character: Character;
@@ -39,7 +41,7 @@ const setAsideBadges = computed(() => {
     if (card) {
       badges.push({
         name: card.name,
-        iconPath: '/' + (CARD_ICONS[card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg'),
+        iconPath: base + (CARD_ICONS[card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg'),
       });
     }
   }
@@ -55,7 +57,7 @@ const setAsideBadges = computed(() => {
       { dead: !character.isAlive(), highlighted: isHighlighted },
     ]"
   >
-    <img class="portrait-icon" :src="'/' + template.iconPath" :alt="template.displayName">
+    <img class="portrait-icon" :src="base + template.iconPath" :alt="template.displayName">
     <div class="portrait-name">{{ character.name }}</div>
     <div class="portrait-lives">
       <span
@@ -66,10 +68,10 @@ const setAsideBadges = computed(() => {
       >{{ w === 'full' ? '❤️' : '💀' }}</span>
     </div>
     <div class="portrait-stats">
-      <span><img src="/icons/000000/transparent/1x1/lorc/crossed-swords.svg" alt="F">{{ character.getEffectiveStrength() }}</span>
-      <span><img src="/icons/000000/transparent/1x1/lorc/crystal-wand.svg" alt="M">{{ character.getEffectiveMagic() }}</span>
-      <span><img src="/icons/000000/transparent/1x1/willdabeast/round-shield.svg" alt="D">{{ character.getEffectiveDefense() }}</span>
-      <span><img src="/icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg" alt="V">{{ character.getEffectiveSpeed() }}</span>
+      <span><img :src="base + STAT_ICONS.strength" alt="F">{{ character.getEffectiveStrength() }}</span>
+      <span><img :src="base + STAT_ICONS.magic" alt="M">{{ character.getEffectiveMagic() }}</span>
+      <span><img :src="base + STAT_ICONS.defense" alt="D">{{ character.getEffectiveDefense() }}</span>
+      <span><img :src="base + STAT_ICONS.speed" alt="V">{{ character.getEffectiveSpeed() }}</span>
     </div>
     <div v-if="modifierBadges.length > 0" class="portrait-modifiers">
       <span

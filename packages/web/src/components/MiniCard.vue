@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Card, CardType, isPhysical, CARD_ICONS } from '@pimpampum/engine';
+import { Card, CardType, isPhysical, CARD_ICONS, STAT_ICONS } from '@pimpampum/engine';
 import { renderDescription } from '../composables/useCardDisplay';
+
+const base = import.meta.env.BASE_URL;
 
 const props = defineProps<{
   card: Card;
@@ -30,23 +32,23 @@ const headerClass = computed(() => {
 });
 
 const iconPath = computed(() => {
-  return '/' + (CARD_ICONS[props.card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg');
+  return base + (CARD_ICONS[props.card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg');
 });
 
 const stats = computed(() => {
   const result: { icon: string; value: string }[] = [];
   if (props.card.physicalAttack) {
-    result.push({ icon: '/icons/000000/transparent/1x1/lorc/crossed-swords.svg', value: props.card.physicalAttack.toString() });
+    result.push({ icon: base + STAT_ICONS.strength, value: props.card.physicalAttack.toString() });
   }
   if (props.card.magicAttack) {
-    result.push({ icon: '/icons/000000/transparent/1x1/lorc/crystal-wand.svg', value: props.card.magicAttack.toString() });
+    result.push({ icon: base + STAT_ICONS.magic, value: props.card.magicAttack.toString() });
   }
   if (props.card.defense) {
-    result.push({ icon: '/icons/000000/transparent/1x1/willdabeast/round-shield.svg', value: props.card.defense.toString() });
+    result.push({ icon: base + STAT_ICONS.defense, value: props.card.defense.toString() });
   }
   if (props.card.speedMod !== 0) {
     const sign = props.card.speedMod > 0 ? '+' : '';
-    result.push({ icon: '/icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg', value: `${sign}${props.card.speedMod}` });
+    result.push({ icon: base + STAT_ICONS.speed, value: `${sign}${props.card.speedMod}` });
   }
   return result;
 });
