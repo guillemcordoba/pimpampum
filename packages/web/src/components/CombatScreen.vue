@@ -43,6 +43,12 @@ function isHighlighted(team: number, idx: number): boolean {
   return props.highlightedTarget.team === team && props.highlightedTarget.charIdx === idx;
 }
 
+function getSetAsideIndices(charIdx: number): Set<number> {
+  const char = props.playerTeam[charIdx];
+  if (!char) return new Set();
+  return new Set(char.setAsideCards.keys());
+}
+
 const isRevealOrResolving = (phase: string) =>
   phase === 'reveal' || phase === 'resolving';
 </script>
@@ -80,6 +86,7 @@ const isRevealOrResolving = (phase: string) =>
               :template="playerTeamTemplates[i]"
               :selected-card-idx="playerSelections.get(i)?.cardIdx ?? null"
               :disabled="phase !== 'card-selection'"
+              :set-aside-indices="getSetAsideIndices(i)"
               @select-card="emit('selectCard', { charIdx: i, cardIdx: $event })"
             />
           </div>

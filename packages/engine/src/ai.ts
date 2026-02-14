@@ -23,6 +23,10 @@ export function assignStrategies(team: Character[]): void {
 export function selectCardAI(character: Character, engine: AIEngineView): number {
   if (character.cards.length === 0) return 0;
 
+  // Edge case: all cards are set aside — pick the first non-set-aside, or 0
+  const available = character.cards.findIndex((_, i) => !character.isCardSetAside(i));
+  if (available === -1) return 0;
+
   const strategy = character.aiStrategy ?? AIStrategy.Aggro;
 
   switch (strategy) {
@@ -50,7 +54,9 @@ function selectAggro(character: Character, engine: AIEngineView): number {
   const enemyTeam = character.team === 1 ? engine.team2 : engine.team1;
   const weights: number[] = [];
 
-  for (const card of character.cards) {
+  for (let ci = 0; ci < character.cards.length; ci++) {
+    if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    const card = character.cards[ci];
     let weight = 10.0;
 
     if (isAttack(card.cardType)) {
@@ -140,7 +146,9 @@ function selectProtect(character: Character, engine: AIEngineView): number {
 
   const weights: number[] = [];
 
-  for (const card of character.cards) {
+  for (let ci = 0; ci < character.cards.length; ci++) {
+    if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    const card = character.cards[ci];
     let weight = 10.0;
 
     if (isDefense(card.cardType)) {
@@ -237,7 +245,9 @@ function selectPower(character: Character, engine: AIEngineView): number {
 
   const weights: number[] = [];
 
-  for (const card of character.cards) {
+  for (let ci = 0; ci < character.cards.length; ci++) {
+    if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    const card = character.cards[ci];
     let weight = 10.0;
 
     if (isFocus(card.cardType) && !hasRestOfCombatBuff) {

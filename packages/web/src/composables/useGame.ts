@@ -134,6 +134,9 @@ export function useGame() {
   }
 
   function selectCard(charIdx: number, cardIdx: number) {
+    // Don't allow selecting set-aside cards
+    if (engine.value && engine.value.team1[charIdx]?.isCardSetAside(cardIdx)) return;
+
     const current = playerSelections.value.get(charIdx);
     if (current?.cardIdx === cardIdx) {
       playerSelections.value.delete(charIdx);

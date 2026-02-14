@@ -35,3 +35,12 @@ The balance levers that maintain this triangle:
 - Rogue are quick and utility based classes, specializing in combos.
 - Wizards hit hard with their magic attacks, but are weak.
 - Barbarians are aggressive berserkers who need team protection to set up, then dominate with raw physical power.
+
+### Designing new classes and cards
+
+- Start by fitting the decisions to the lore and style of the class. Base stats should be balanced against other classes.
+- Cards should feel great to play and make sense from the skill/lore perspective. If a card is really powerful but doesn't fit the character style or its lore, then we should look first for something that actually fits, and then balance it so that it's a good enough card to see play.
+- Look online for D&D (and other role playing games) character lore and skills, to draw inspiration from them. You can also search for stories from similar characters, and design cards based on special moments 
+- Each class should have its own unique style and signature. Each of them must have a unique combination of strengths and weaknesses.
+- Cards should be original, not feel like repetitions of existing cards. They should be balanced with the existing cards.
+- Each class should have a "signature" card, that doesn't follow the normal style of cards in the game, but rather has a unique effect with a rather important impact in the game.

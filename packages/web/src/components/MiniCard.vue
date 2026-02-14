@@ -7,6 +7,7 @@ const props = defineProps<{
   classCss: string;
   selected?: boolean;
   disabled?: boolean;
+  setAside?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -53,9 +54,10 @@ const stats = computed(() => {
 <template>
   <div
     class="mini-card"
-    :class="[classCss, { selected, disabled }]"
-    @click="!disabled && emit('select')"
+    :class="[classCss, { selected, disabled, 'set-aside': setAside }]"
+    @click="!disabled && !setAside && emit('select')"
   >
+    <div v-if="setAside" class="set-aside-overlay">EN JOC</div>
     <div class="mini-card-header" :class="headerClass">
       {{ card.name }}
     </div>

@@ -342,6 +342,17 @@ Character cards use the `character` CSS class and display all base stats with ic
 
 Print layout: `@media print` hides section titles (`.no-print`), sets gap to 0, and uses white background. Card grid max width is 210mm (A4).
 
+## Balance Verification
+
+Any time a character, card, or equipment item is added, removed, or modified (in source material, engine, or both), treat the change as **experimental** until verified. After making the change, you MUST:
+
+1. Run the `/analyze` skill to execute the balance simulation
+2. Present the simulation results to the user
+3. Flag any balance problems, regressions, or conflicts with the design intentions in `intentions.md`
+4. Suggest fixes if the results reveal issues
+
+Do not consider the change complete until the simulation has been reviewed.
+
 ## Development Environment
 
 - **Nix**: `flake.nix` provides a dev shell with `csv-tui`, `nodejs_22`, and `pnpm`

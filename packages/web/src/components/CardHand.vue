@@ -8,6 +8,7 @@ const props = defineProps<{
   template: CharacterTemplate;
   selectedCardIdx: number | null;
   disabled?: boolean;
+  setAsideIndices?: Set<number>;
 }>();
 
 const emit = defineEmits<{
@@ -24,6 +25,7 @@ const emit = defineEmits<{
       :class-css="template.classCss"
       :selected="selectedCardIdx === i"
       :disabled="disabled"
+      :set-aside="setAsideIndices?.has(i) ?? false"
       @select="emit('selectCard', i)"
     />
   </div>

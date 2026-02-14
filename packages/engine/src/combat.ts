@@ -90,6 +90,32 @@ function cardTypeStr(cardType: CardType): string {
   return cardType;
 }
 
+/** How many turns a focus card should be set aside after resolving (-1 = permanent, 0 = not set aside) */
+function getSetAsideDuration(effectType: string): number {
+  switch (effectType) {
+    // RestOfCombat effects — permanent set-aside
+    case 'StrengthBoost':
+    case 'MagicBoost':
+    case 'RageBoost':
+    case 'TeamSpeedBoost':
+    case 'DefenseBoostDuration':
+    case 'EnchantWeapon':
+    case 'PoisonWeapon':
+    case 'Vengeance':
+      return -1;
+    // NextTwoTurns effects — 3 turns set aside
+    case 'IceTrap':
+      return 3;
+    // NextTurn effects — 2 turns set aside
+    case 'BlindingSmoke':
+    case 'DodgeWithSpeedBoost':
+      return 2;
+    // Immediate/ThisTurn effects — not set aside
+    default:
+      return 0;
+  }
+}
+
 export class CombatEngine {
   public team1: Character[];
   public team2: Character[];
@@ -911,6 +937,14 @@ export class CombatEngine {
         }
         default:
           break;
+      }
+
+      // Set aside the focus card if it has a lasting effect
+      if (character.playedCardIdx !== null) {
+        const duration = getSetAsideDuration(card.effect.type);
+        if (duration !== 0) {
+          character.setAsideCards.set(character.playedCardIdx, duration);
+        }
       }
     }
   }

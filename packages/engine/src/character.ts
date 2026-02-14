@@ -25,6 +25,7 @@ export class Character {
   public hasAbsorbPain = false;
   public hasPoisonWeapon = false;
   public hasCounterThrow = false;
+  public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
     public name: string,
@@ -41,6 +42,10 @@ export class Character {
     return this.currentWounds < this.maxWounds;
   }
 
+  isCardSetAside(cardIdx: number): boolean {
+    return this.setAsideCards.has(cardIdx);
+  }
+
   /** Returns true if the character died */
   takeWound(): boolean {
     this.currentWounds++;
@@ -51,6 +56,8 @@ export class Character {
   getStatModifier(stat: string, condition?: string): number {
     let total = 0;
     for (const m of this.modifiers) {
+      // Skip pending modifiers — they become active after advanceTurnModifiers()
+      if (m.duration === ModifierDuration.NextTurn || m.duration === ModifierDuration.NextTwoTurns) continue;
       if (m.stat === stat) {
         if (m.condition !== null) {
           if (condition !== undefined) {
@@ -154,6 +161,7 @@ export class Character {
     this.hasAbsorbPain = false;
     this.hasPoisonWeapon = false;
     this.hasCounterThrow = false;
+    this.setAsideCards.clear();
   }
 
   /** Returns true if the character is skipping this turn */
@@ -187,6 +195,17 @@ export class Character {
           return true;
       }
     });
+
+    // Decrement set-aside counters; remove expired ones (-1 = permanent, never expires)
+    for (const [cardIdx, remaining] of this.setAsideCards) {
+      if (remaining === -1) continue;
+      const next = remaining - 1;
+      if (next <= 0) {
+        this.setAsideCards.delete(cardIdx);
+      } else {
+        this.setAsideCards.set(cardIdx, next);
+      }
+    }
   }
 }
 
