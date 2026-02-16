@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const ROGUE_TEMPLATE: CharacterTemplate = {
@@ -30,7 +31,7 @@ export const ROGUE_TEMPLATE: CharacterTemplate = {
       .withDescription("Tria un enemic. Tots els aliats que l'ataquin aquest torn reben +1d8+2 a la seva tirada."),
     new Card('Bomba de fum', CardType.Focus)
       .withSpeedMod(-1)
-      .withEffect({ type: 'BlindingSmoke' })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -8 }, { characteristic: 'defense', amount: -8 }], target: 'enemies', duration: ModifierDuration.NextTurn })
       .withDescription('Enemics {V}-8 i {D}-8 el següent torn.'),
     new Card('Clon de fum', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))

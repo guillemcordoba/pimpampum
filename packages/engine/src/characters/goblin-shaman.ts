@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
@@ -26,7 +27,7 @@ export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(0),
     new Card('Possessió demoníaca', CardType.Focus)
       .withSpeedMod(-3)
-      .withEffect({ type: 'MagicBoost', amount: 3, dice: new DiceRoll(1, 6) })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'magic', amount: 3, dice: new DiceRoll(1, 6) }], target: 'self', duration: ModifierDuration.RestOfCombat })
       .withDescription('{M}+1d6+3 per la resta del combat.'),
     new Card('Set de sang', CardType.Focus)
       .withSpeedMod(-4)

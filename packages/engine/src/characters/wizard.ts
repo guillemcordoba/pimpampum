@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const WIZARD_TEMPLATE: CharacterTemplate = {
@@ -33,11 +34,11 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
     new Card('Raig de gel', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
-      .withEffect({ type: 'EnemySpeedDebuff', amount: 2 })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextTurn })
       .withDescription('El jugador atacat té {V}-2 el següent torn.'),
     new Card('Trampa de gel', CardType.Focus)
       .withSpeedMod(-3)
-      .withEffect({ type: 'IceTrap' })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -8 }], target: 'enemies', duration: ModifierDuration.NextTwoTurns })
       .withDescription('Tots els enemics reben {V}-8 els dos pròxims torns.'),
     new Card('Cadena de llamps', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4, -1))
@@ -46,7 +47,7 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
       .withDescription('Afecta a 2 enemics que triïs.'),
     new Card('Camp de distorsió', CardType.Focus)
       .withSpeedMod(-5)
-      .withEffect({ type: 'TeamSpeedBoost' })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: 4 }], target: 'team', duration: ModifierDuration.RestOfCombat })
       .withDescription('Tots els jugadors aliats reben {V}+4 per la resta del combat.'),
   ],
 };

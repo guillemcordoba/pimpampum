@@ -11,6 +11,7 @@ import {
   createCleric,
   createGoblinShaman,
   createBasilisk,
+  createMonk,
   ALL_EQUIPMENT,
   EquipmentSlot,
 } from '@pimpampum/engine';
@@ -116,9 +117,21 @@ function getAllCreators(): [string, CharacterCreator][] {
     ['Rogue', createRogue],
     ['Barbarian', createBarbarian],
     ['Cleric', createCleric],
+    ['Monk', createMonk],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
     ['Basilisk', createBasilisk],
+  ];
+}
+
+function getPlayerCreators(): [string, CharacterCreator][] {
+  return [
+    ['Fighter', createFighter],
+    ['Wizard', createWizard],
+    ['Rogue', createRogue],
+    ['Barbarian', createBarbarian],
+    ['Cleric', createCleric],
+    ['Monk', createMonk],
   ];
 }
 
@@ -384,6 +397,88 @@ function printSummary(stats: CombatStats): void {
 }
 
 // =============================================================================
+// HORDE ANALYSIS
+// =============================================================================
+
+function runHordeAnalysis(numSimulations: number): CombatStats {
+  console.log(`\n${'='.repeat(70)}`);
+  console.log(`HORDE ANALYSIS: 4 Players vs 10 Goblins (${numSimulations} sims per composition)`);
+  console.log('='.repeat(70));
+
+  const playerCreators = getPlayerCreators();
+  const hordeStats = newCombatStats();
+
+  // Generate all 4-player team compositions (with replacement)
+  const compositions: [string, CharacterCreator[]][] = [];
+  for (const indices of combinationsWithReplacement(playerCreators.length, 4)) {
+    const teamCreators = indices.map(i => playerCreators[i][1]);
+    const counts = new Map<number, number>();
+    for (const idx of indices) counts.set(idx, (counts.get(idx) ?? 0) + 1);
+    const parts: string[] = [];
+    for (const [idx, count] of counts) {
+      parts.push(count > 1 ? `${count}x ${playerCreators[idx][0]}` : playerCreators[idx][0]);
+    }
+    compositions.push([parts.join('+'), teamCreators]);
+  }
+
+  // 10 goblins — no equipment
+  const goblinCreators: CharacterCreator[] = Array(10).fill(createGoblin);
+
+  const compResults: [string, number, number][] = [];
+
+  for (const [name, creators] of compositions) {
+    let wins = 0;
+    for (let i = 0; i < numSimulations; i++) {
+      const team1 = creators.map((creator, j) => {
+        const c = creator(`T1_${j}_${i}`);
+        assignRandomEquipment(c);
+        return c;
+      });
+      const team2 = goblinCreators.map((creator, j) => creator(`Goblin_${j}_${i}`));
+
+      const engine = new CombatEngine(team1, team2);
+      engine.maxRounds = 30; // More rounds for horde battles
+      const winner = engine.runCombat();
+      mergeCombatStats(hordeStats, engine.stats);
+
+      // Track class stats
+      for (const c of team1) {
+        hordeStats.classGames.set(c.characterClass, (hordeStats.classGames.get(c.characterClass) ?? 0) + 1);
+        if (winner === 1) hordeStats.classWins.set(c.characterClass, (hordeStats.classWins.get(c.characterClass) ?? 0) + 1);
+      }
+      for (const c of team2) {
+        hordeStats.classGames.set(c.characterClass, (hordeStats.classGames.get(c.characterClass) ?? 0) + 1);
+        if (winner === 2) hordeStats.classWins.set(c.characterClass, (hordeStats.classWins.get(c.characterClass) ?? 0) + 1);
+      }
+
+      if (winner === 1) wins++;
+    }
+
+    const winRate = (wins / numSimulations) * 100;
+    compResults.push([name, wins, winRate]);
+  }
+
+  // Sort by win rate
+  compResults.sort((a, b) => b[2] - a[2]);
+
+  console.log(`\n${pad('Composition', 35)} ${pad('Wins', 8, true)} ${pad('Win Rate', 10, true)}`);
+  console.log('-'.repeat(60));
+
+  for (const [name, wins, winRate] of compResults) {
+    const barLen = Math.floor(winRate / 2.5);
+    const bar = '█'.repeat(barLen);
+    console.log(`${pad(name, 35)} ${pad(String(wins), 8, true)} ${pad(winRate.toFixed(1) + '%', 9, true)} ${bar}`);
+  }
+
+  // Overall player win rate
+  const totalWins = compResults.reduce((s, r) => s + r[1], 0);
+  const totalGames = compositions.length * numSimulations;
+  console.log(`\nOverall player win rate: ${((totalWins / totalGames) * 100).toFixed(1)}% (${totalWins}/${totalGames})`);
+
+  return hordeStats;
+}
+
+// =============================================================================
 // MAIN
 // =============================================================================
 
@@ -411,6 +506,10 @@ function main(): void {
     const stats = runBattleAnalysis(team1Size, team2Size, sims);
     mergeCombatStats(allStats, stats);
   }
+
+  // Horde analysis: 4 players vs 10 goblins
+  const hordeStats = runHordeAnalysis(200);
+  mergeCombatStats(allStats, hordeStats);
 
   printClassStats(allStats);
   printCardStats(allStats);

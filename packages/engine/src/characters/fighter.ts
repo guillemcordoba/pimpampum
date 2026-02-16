@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const FIGHTER_TEMPLATE: CharacterTemplate = {
@@ -33,7 +34,7 @@ export const FIGHTER_TEMPLATE: CharacterTemplate = {
       .withDescription('Tria un jugador. Rep tots els atacs que li farien aquest torn.'),
     new Card('Ràbia traumada', CardType.Focus)
       .withSpeedMod(-3)
-      .withEffect({ type: 'StrengthBoost', amount: 4, dice: new DiceRoll(1, 8) })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 4, dice: new DiceRoll(1, 8) }], target: 'self', duration: ModifierDuration.RestOfCombat })
       .withDescription('{F}+1d8+4 per la resta del combat.'),
     new Card('Embestida', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
@@ -43,11 +44,11 @@ export const FIGHTER_TEMPLATE: CharacterTemplate = {
     new Card('Crit de guerra', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
-      .withEffect({ type: 'AllyStrengthThisTurn', amount: 2 })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 2 }], target: 'allies', duration: ModifierDuration.ThisTurn })
       .withDescription('Tots els aliats reben {F}+2 aquest torn.'),
     new Card('Formació defensiva', CardType.Focus)
       .withSpeedMod(-2)
-      .withEffect({ type: 'DefenseBoostDuration', dice: new DiceRoll(1, 6), turns: 2 })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: 0, dice: new DiceRoll(1, 6) }], target: 'team', duration: ModifierDuration.RestOfCombat })
       .withDescription('Tu i tots els aliats {D}+1d6 per la resta del combat.'),
   ],
 };

@@ -27,15 +27,29 @@ pimpampum/
 │   │       ├── modifier.ts        # CombatModifier with durations
 │   │       ├── card.ts            # Card, CardType, SpecialEffect types
 │   │       ├── display.ts         # Display constants (card type names, CSS classes, stat icons, rules summary)
-│   │       ├── character.ts       # Character class + factory functions + templates + card icons
-│   │       ├── combat.ts          # CombatEngine - core combat loop (~1150 lines)
-│   │       ├── ai.ts              # AI card selection + combo planning
-│   │       └── strategy.ts        # AI strategy definitions
-│   ├── simulator/                 # @pimpampum/simulator - CLI balance testing
+│   │       ├── character.ts       # Character class + CharacterTemplate type + createCharacter factory
+│   │       ├── characters/        # Per-character definitions (one file per character)
+│   │       │   ├── index.ts       # Re-exports, ALL_CHARACTER_TEMPLATES, CARD_ICONS, create* factories
+│   │       │   ├── fighter.ts     # FIGHTER_TEMPLATE
+│   │       │   ├── wizard.ts      # WIZARD_TEMPLATE
+│   │       │   ├── rogue.ts       # ROGUE_TEMPLATE
+│   │       │   ├── barbarian.ts   # BARBARIAN_TEMPLATE
+│   │       │   ├── cleric.ts      # CLERIC_TEMPLATE
+│   │       │   ├── monk.ts        # MONK_TEMPLATE
+│   │       │   ├── goblin.ts      # GOBLIN_TEMPLATE
+│   │       │   ├── goblin-shaman.ts # GOBLIN_SHAMAN_TEMPLATE
+│   │       │   └── basilisk.ts    # BASILISK_TEMPLATE
+│   │       ├── combat.ts          # CombatEngine - core combat loop (~1300 lines)
+│   │       ├── ai.ts              # AI card selection (3 strategies: Aggro, Protect, Power)
+│   │       └── strategy.ts        # AIStrategy enum
+│   ├── simulator/                 # @pimpampum/simulator - Balance testing (vitest)
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── src/
-│   │       └── main.ts            # Batch simulation runner (~360 lines)
+│   │       ├── main.ts            # Batch simulation runner (~360 lines)
+│   │       └── tests/
+│   │           ├── balance.test.ts # Vitest balance test suite (~21 tests)
+│   │           └── helpers.ts     # Simulation runner helpers + team composition generation
 │   └── web/                       # @pimpampum/web - Vue 3 multi-page SPA
 │       ├── package.json
 │       ├── tsconfig.json
@@ -104,12 +118,22 @@ The web app and simulator derive everything from the engine. There are no CSV fi
 
 **IMPORTANT: When simulation results conflict with these intentions, immediately flag the discrepancy and propose fixes.**
 
+## Designing New Cards
+
+When creating new cards, follow this workflow:
+
+1. **Design the mechanic first** — write the card description (in Catalan) defining what the card does
+2. **Map to existing `SpecialEffect` types** — check if existing types can implement the mechanic:
+   - `CharacteristicModifier` handles any stat buff/debuff (strength, magic, defense, speed) on any target (self, allies, team, enemy, enemies) for any duration
+   - Other existing types: `Stun`, `MultiTarget`, `Sacrifice`, `Vengeance`, `EnchantWeapon`, etc.
+3. **Only create a new `SpecialEffect` variant** if no existing type can express the mechanic (e.g., mixed mechanics like conditional triggers, probabilistic effects, or multi-phase effects)
+
 ## Game Rules Summary
 
 ### Core Mechanics
 
 - **Language**: All game content is in Catalan
-- **Combat format**: 2v2 team battles (players vs enemies)
+- **Combat format**: Team battles (up to 10 per side). Standard play is 2v2 or 3v3. Horde mode: 4 players vs 10 goblins
 - **Characteristics** (scale 1-8):
   - **PV** (Punts de vida): Lives before death (typically 3)
   - **V** (Velocitat): Speed - determines action order
@@ -142,6 +166,15 @@ Passive items that modify stats permanently during combat. Slot-based system (To
 
 Character stats and cards are defined in `packages/engine/src/characters/` (one file per character). Equipment items are defined in `packages/engine/src/equipment.ts` (`ALL_EQUIPMENT`).
 
+### Goblin Horde
+
+Goblins are **horde units** — individually very weak (F1, M0, D1, V4, PV1) but designed to fight in large numbers (10 goblins vs 4 players). Their power comes from two horde-specific mechanics:
+
+- **PackTactics** (`SpecialEffect`): Attack bonus of +1 per N living allies (e.g., `alliesPerBonus: 3` means +1 per 3 allies). With 9 allies → +3 bonus. Computed in `resolveAttack()`.
+- **NimbleEscape** (`SpecialEffect`): Focus card that grants dodge this turn. Post-resolution, all successful hiders on a team get `+N strength` next turn where N = number of successful hiders. Implemented as a post-resolution step (`resolveNimbleEscape()`) in combat.ts. Set aside for 1 turn.
+
+Goblin cards: Atac de la horda (PackTactics physical attack), Punyalada ràpida (fast weak attack for focus interruption), Protegir el clan (defense), Amagar-se (NimbleEscape focus). Goblins do not receive equipment in horde simulations.
+
 ## TypeScript Monorepo
 
 The project uses a **pnpm workspace** monorepo with three packages that share a common TypeScript base config.
@@ -173,14 +206,16 @@ The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runti
 
 1. **DiceRoll** (`dice.ts`) - Dice notation parsing and rolling (e.g., "1d6", "2d4-1") with `roll()` and `average()` methods
 2. **Equipment** (`equipment.ts`) - Passive stat modifiers with slot system (`EquipmentSlot` enum: Torso, Arms, Head, Legs, MainHand, OffHand). Factory functions: `createArmaduraDeFerro()`, `createCotaDeMalla()`, `createArmaduraDeCuir()`, `createBracalsDeCuir()`. `EquipmentTemplate` interface with metadata (id, name, slot, labels, iconPath, creator). `ALL_EQUIPMENT` array of all templates
-3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 20+ variants (Stun, SkipNextTurns, StrengthBoost, MagicBoost, MultiTarget, Sacrifice, Vengeance, BloodThirst, etc.). `getCardTargetRequirement()` returns targeting info for UI
+3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 30+ variants. `CharacteristicModifier` is the unified type for all stat buff/debuff effects (replaces old individual types like StrengthBoost, MagicBoost, RageBoost). Other types include: `Stun`, `MultiTarget`, `Sacrifice`, `Vengeance`, `BloodThirst`, `PackTactics`, `NimbleEscape`, `SwiftStrike`, `PiercingStrike`, `FlurryOfBlows`, `Deflection`, `MeditationBoost`, `SilenceStrike`, `PetrifyingGaze`, `Regenerate`, `VenomBite`, etc. `getCardTargetRequirement()` returns targeting info for UI
 4. **Display** (`display.ts`) - Display constants for rendering: `CARD_TYPE_DISPLAY_NAMES` (Catalan names), `CARD_TYPE_CSS` (CSS class mapping), `STAT_ICONS` (icon paths), `STAT_DISPLAY_NAMES` (Catalan stat names), `RULES_SUMMARY` (structured rules card content)
-5. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `RestOfCombat`
-6. **Character** (`character.ts`) - Character state including base stats, equipment, cards, and combat state (lives, modifiers, stun, dodge, focus interruption, etc.). Factory functions create unequipped characters: `createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createCleric()`, `createGoblin()`, `createGoblinShaman()`. `CharacterTemplate` has `category: 'player' | 'enemy'`. Exports `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES`, and `CARD_ICONS`
-7. **CombatEngine** (`combat.ts`, ~1150 lines) - The core combat loop with two interfaces:
+5. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `NextTwoTurns`, `RestOfCombat`
+6. **Character** (`character.ts`) - Character class with base stats, equipment, cards, and combat state (lives, modifiers, stun, dodge, focus interruption, silenced, hasDeflection, etc.). `CharacterTemplate` defines character data; `createCharacter()` instantiates from a template
+   - **Characters** (`characters/`) - Per-character template files + `index.ts` with `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES`, `CARD_ICONS`, and factory functions (`createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createCleric()`, `createMonk()`, `createGoblin()`, `createGoblinShaman()`, `createBasilisk()`)
+7. **CombatEngine** (`combat.ts`, ~1700 lines) - The core combat loop with two interfaces:
    - **Web UI**: `prepareRound()` + `submitSelectionsAndResolve(selections)` for phased player-driven resolution
    - **Simulator**: `runRound()` / `runCombat()` for fully automated AI-vs-AI battles
-   - Handles: speed-based resolution, attack/defense rolls, defense card interception, focus interruption, vengeance counter-attacks, sacrifice redirects, poison, absorb pain, combo execution, 20+ special effects
+   - Handles: speed-based resolution, attack/defense rolls, defense card interception, focus interruption, vengeance counter-attacks, sacrifice redirects, poison, absorb pain, combo execution, PackTactics horde bonus, NimbleEscape coordinated hiding, 20+ special effects
+   - Post-resolution phase: `resolveNimbleEscape()` runs after all cards resolve to apply coordinated hiding bonuses
    - Tracks `LogEntry[]` for combat log display and `CombatStats` for statistical analysis
 8. **AI** (`ai.ts`) - `selectCardAI()` for weighted random card selection, `planCombos()` for greedy team combo coordination
 
@@ -188,7 +223,7 @@ The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runti
 
 The AI uses weighted random selection. Weights are influenced by:
 - Enemy health state (prefer attacks when enemies are near death)
-- Attack probability of hitting (compare attack stat + dice avg vs enemy avg defense)
+- Attack probability of hitting (compare attack stat + dice avg + PackTactics bonus vs enemy avg defense)
 - Ally health state (prefer defense when allies are wounded, high priority if ally is playing focus)
 - Focus card type priorities (dodge when near death, strength/magic boosts rated high, BloodThirst scales with wounded enemies)
 - Card speed modifier (faster cards get slight preference)
@@ -200,12 +235,25 @@ CLI-based batch simulator (`@pimpampum/simulator`) for balance testing. Depends 
 
 ### Simulation Output
 
-Runs battle configurations (1v1 through 5v5) with all team compositions. For each:
+Runs battle configurations (1v1 through 5v5) with all team compositions, plus horde analysis (4 players vs 10 goblins). For each:
 1. **Win Rate Matrix** - Row team vs column team
 2. **Team Power Rankings** - Aggregate win rates
 3. **Class Win Rates** - Per-class games/wins/percentage
 4. **Card Type Effectiveness** - Plays, win correlation, interrupt rates per card type
 5. **Individual Card Effectiveness** - Per-card statistics sorted by win correlation
+6. **Horde Analysis** - All 4-player compositions vs 10 goblins, per-composition win rates
+
+### Balance Test Suite
+
+The simulator has a vitest balance test suite (`src/tests/balance.test.ts`) with helpers in `src/tests/helpers.ts`. Run with `pnpm --filter simulator test`. Tests cover:
+- **Class Balance** — player class win rates between 35-65%, no composition consistently too weak/strong (enemy classes like Goblin/GoblinShaman are excluded from the aggregate check since they're designed as opponents, not competitive player-class partners)
+- **Combat Length** — average rounds between 2-9, per team size between 2-10
+- **Card Type Balance** — each card type has >= 8% play share
+- **Individual Card Usage** — every card gets >= 5% class share, win correlation 35-65%, no card > 10% of all plays
+- **Strategy Triangle** — Power+Protect competitive vs pure Aggro
+- **Class Identity** — Fighter defends, Wizard has highest magic, Barbarian leads physical attacks, Rogue uses focus
+- **Horde Balance** — 4 players vs 10 goblins: overall win rate 25-75%, no auto-win/auto-lose compositions, battles finish within 30 rounds, draws < 15%
+- **Engine Sanity** — combat terminates, valid winners, lives in valid range
 
 ## Web App (`packages/web/`)
 
@@ -226,7 +274,7 @@ Vue 3 multi-page SPA (`@pimpampum/web`) using Vue Router. Uses Vite for dev/buil
 
 ### Combat Game Flow (CombatView)
 
-1. **Setup** (`SetupScreen.vue`) - Build player team and enemy team from character roster (max 3 per side), choose equipment per character (toggle buttons grouped by slot, no defaults)
+1. **Setup** (`SetupScreen.vue`) - Build player team and enemy team from character roster (max 10 per side), choose equipment per character (toggle buttons grouped by slot, no defaults)
 2. **Card Selection** (`CombatScreen.vue`) - Each living player character selects a card from their hand
 3. **Target Selection** (`TargetSelector.vue`) - Modal prompts for cards requiring enemy/ally targets
 4. **Resolution** - AI selects enemy cards, engine resolves the round, combat log updates
@@ -289,6 +337,7 @@ Loaded via Google Fonts import:
 - **Mag**: Dark purple (#3d2c6b)
 - **Bàrbar**: Dark amber (#8b5a2c)
 - **Clergue**: Dark teal (#2c4a4a)
+- **Monjo**: Dark warm brown (#6b4c2c)
 - **Objecte**: Brown (#5c4a32)
 - **Goblin**: Dark olive (#4a5c2c)
 - **Goblin Shaman**: Dark magenta (#5c2c4a)
@@ -330,7 +379,7 @@ Each card follows this structure from top to bottom:
 ### Card Classes
 
 Each card element needs TWO CSS classes:
-- **Class**: `guerrer`, `murri`, `mag`, `barbar`, `clergue`, `objecte`, `goblin`, or `goblin-shaman` (sets border color)
+- **Class**: `guerrer`, `murri`, `mag`, `barbar`, `clergue`, `monjo`, `objecte`, `goblin`, or `goblin-shaman` (sets border color)
 - **Type**: `atac-fisic`, `atac-magic`, `defensa`, `focus`, or `character` (sets header color)
 
 Example: `<div class="print-card mag atac-magic">`
@@ -338,6 +387,22 @@ Example: `<div class="print-card mag atac-magic">`
 ### Card Size
 
 Standard playing card size: 63mm x 88mm
+
+## Adding a New Character Class
+
+When adding a new player class, ALL of these files need updating:
+
+1. **`packages/engine/src/characters/<class>.ts`** — New file with `<CLASS>_TEMPLATE` (stats, cards, effects, icons)
+2. **`packages/engine/src/card.ts`** — Add any new `SpecialEffect` variants to the discriminated union (prefer `CharacteristicModifier` for stat buffs/debuffs)
+3. **`packages/engine/src/character.ts`** — Add any new combat state fields, reset in `resetForNewCombat()` and `resetForNewRound()`
+4. **`packages/engine/src/combat.ts`** — Implement new effect handlers in card resolution
+5. **`packages/engine/src/characters/index.ts`** — Import/export template, add to `ALL_CHARACTER_TEMPLATES`, add `create<Class>` factory
+6. **`packages/engine/src/index.ts`** — Export `create<Class>` and `<CLASS>_TEMPLATE`
+7. **`packages/engine/src/ai.ts`** — Add AI weight handling for new effects in all 3 strategies (Aggro, Protect, Power)
+8. **`packages/web/src/assets/style.css`** — Add CSS variable `--class-<id>` and border-color rules for `.roster-tile.<id>`, `.portrait.<id>`, `.mini-card.<id>`
+9. **`packages/web/src/assets/cards.css`** — Add `.print-card.<id>` and `.print-card.<id> .card-frame` border-color rules
+10. **`packages/simulator/src/tests/helpers.ts`** — Add to `getAllCreators()` and `getPlayerCreators()` (or enemy equivalent)
+11. **`packages/simulator/src/tests/balance.test.ts`** — Add to `playerClasses` arrays, `playerCreators`/`playerCreatorMap` arrays, and relevant test compositions (e.g., strategy triangle if the class fits Power+Protect)
 
 ## Balance Verification
 
@@ -363,5 +428,5 @@ The `.github/workflows/pages.yml` workflow:
 - **Nix**: `flake.nix` provides a dev shell with `csv-tui`, `nodejs_22`, and `pnpm`
 - **TypeScript**: Strict mode, ES2022 target, ESNext modules, bundler module resolution
 - **pnpm**: Workspace monorepo with `packages/*` glob
-- **No test suite**: Balance is verified via statistical simulation output, not unit tests
+- **Test suite**: Balance tests via vitest in `packages/simulator/src/tests/balance.test.ts` (~21 tests covering class balance, combat length, card usage, strategy triangle, class identity, engine sanity). Run with `pnpm --filter simulator test`
 - **CI/CD**: GitHub Pages deployment via Actions workflow

@@ -46,6 +46,9 @@ export class Character {
   public berserkerStrengthDice: DiceRoll | null = null;
   public berserkerCounterDice: DiceRoll | null = null;
   public pendingVenomDamage = 0;
+  public silencedTurns = 0;
+  public hasDeflection = false;
+  public deflectionCounterDice: DiceRoll | null = null;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -190,6 +193,9 @@ export class Character {
     this.berserkerStrengthDice = null;
     this.berserkerCounterDice = null;
     this.pendingVenomDamage = 0;
+    this.silencedTurns = 0;
+    this.hasDeflection = false;
+    this.deflectionCounterDice = null;
     this.setAsideCards.clear();
   }
 
@@ -199,6 +205,8 @@ export class Character {
     this.focusInterrupted = false;
     this.playedCardIdx = null;
     this.defenseBonuses = [];
+    this.hasDeflection = false;
+    this.deflectionCounterDice = null;
     if (this.skipTurns > 0) {
       this.skipTurns--;
       return true;

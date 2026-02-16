@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const BARBARIAN_TEMPLATE: CharacterTemplate = {
@@ -24,7 +25,7 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
   createCards: () => [
     new Card('Ràbia', CardType.Focus)
       .withSpeedMod(-5)
-      .withEffect({ type: 'RageBoost', amount: 2, dice: new DiceRoll(1, 6), speedBoost: 3 })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 2, dice: new DiceRoll(1, 6) }, { characteristic: 'speed', amount: 3 }], target: 'self', duration: ModifierDuration.RestOfCombat })
       .withDescription('{F}+1d6+2 i {V}+3 per la resta del combat.'),
     new Card('Destral de guerra', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 8))

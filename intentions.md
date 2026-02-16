@@ -35,6 +35,8 @@ The balance levers that maintain this triangle:
 - Rogue are quick and utility based classes, specializing in combos.
 - Wizards hit hard with their magic attacks, but are weak.
 - Barbarians are aggressive berserkers who need team protection to set up, then dominate with raw physical power.
+- Clerics are magic-based support classes with healing, curses, and spirit invocations. They blend offense and utility.
+- Monks are fast, self-reliant martial artists who disrupt enemy strategies. They bypass defenses, silence focus plays, and reward precise, aggressive play. They are naturally Aggro-style (not Power+Protect) with mostly physical attacks and a defensive self-buff focus card.
 
 ### Designing new classes and cards
 

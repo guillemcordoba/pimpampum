@@ -52,7 +52,7 @@ export function useGame() {
   const enemyTeam = computed(() => engine.value?.team2 ?? []);
 
   function addToPlayerTeam(template: CharacterTemplate) {
-    if (playerTeamTemplates.value.length >= 3) return;
+    if (playerTeamTemplates.value.length >= 10) return;
     playerTeamTemplates.value.push(template);
     playerEquipment.value.push([]);
   }
@@ -63,7 +63,7 @@ export function useGame() {
   }
 
   function addToEnemyTeam(template: CharacterTemplate) {
-    if (enemyTeamTemplates.value.length >= 3) return;
+    if (enemyTeamTemplates.value.length >= 10) return;
     enemyTeamTemplates.value.push(template);
     enemyEquipment.value.push([]);
   }

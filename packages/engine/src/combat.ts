@@ -1,5 +1,5 @@
 import { DiceRoll } from './dice.js';
-import { Card, CardType, isAttack, isDefense, isFocus, isPhysical } from './card.js';
+import { Card, CardType, type SpecialEffect, isAttack, isDefense, isFocus, isPhysical } from './card.js';
 import { CombatModifier, ModifierDuration } from './modifier.js';
 import { Character } from './character.js';
 import { selectCardAI, assignStrategies } from './ai.js';
@@ -91,27 +91,31 @@ function cardTypeStr(cardType: CardType): string {
 }
 
 /** How many turns a focus card should be set aside after resolving (-1 = permanent, 0 = not set aside) */
-function getSetAsideDuration(effectType: string): number {
-  switch (effectType) {
+function getSetAsideDuration(effect: SpecialEffect): number {
+  if (effect.type === 'CharacteristicModifier') {
+    switch (effect.duration) {
+      case ModifierDuration.RestOfCombat: return -1;
+      case ModifierDuration.NextTwoTurns: return 3;
+      case ModifierDuration.NextTurn:
+      case ModifierDuration.ThisAndNextTurn: return 2;
+      default: return 0;
+    }
+  }
+  switch (effect.type) {
     // RestOfCombat effects — permanent set-aside
-    case 'StrengthBoost':
-    case 'MagicBoost':
-    case 'RageBoost':
-    case 'TeamSpeedBoost':
-    case 'DefenseBoostDuration':
     case 'EnchantWeapon':
     case 'PoisonWeapon':
     case 'Vengeance':
     case 'DeathCurse':
     case 'SpiritInvocation':
+    case 'MeditationBoost':
       return -1;
-    // NextTwoTurns effects — 3 turns set aside
-    case 'IceTrap':
-      return 3;
     // NextTurn effects — 2 turns set aside
-    case 'BlindingSmoke':
     case 'DodgeWithSpeedBoost':
       return 2;
+    // NimbleEscape — 1 turn set aside
+    case 'NimbleEscape':
+      return 1;
     // Immediate/ThisTurn effects — not set aside
     default:
       return 0;
@@ -313,14 +317,30 @@ export class CombatEngine {
     }
 
     const attackBonus = attacker.getAttackBonus(target.name);
-    const totalAttack = attackStat + diceRoll + attackBonus;
+
+    // PackTactics: bonus based on living allies
+    let packTacticsBonus = 0;
+    if (card.effect?.type === 'PackTactics') {
+      const livingAllies = this.getLivingAllies(attackerTeam, attackerIdx).length;
+      packTacticsBonus = Math.floor(livingAllies / card.effect.alliesPerBonus);
+    }
+
+    const totalAttack = attackStat + diceRoll + attackBonus + packTacticsBonus;
 
     const targetNameForVengeance = target.name;
     const attackerName = attacker.name;
 
+    // PiercingStrike: bypass defense card redirection entirely
+    const piercing = card.effect?.type === 'PiercingStrike';
+
     // Check if target has a defense card protecting them
     const defenseTeamChar = this.getTeam(targetTeam);
-    const defenseBonusInfo = defenseTeamChar[tIdx].popDefenseBonus((t) => this.getTeam(t));
+    const defenseBonusInfo = piercing ? null : defenseTeamChar[tIdx].popDefenseBonus((t) => this.getTeam(t));
+
+    if (piercing && defenseTeamChar[tIdx].hasDefenseBonus()) {
+      this.log(`  → Piercing strike bypasses defense protection!`);
+      this.addLog({ type: 'effect', text: `${attacker.name}'s piercing strike bypasses defense!`, characterName: attacker.name });
+    }
 
     let totalDefense: number;
     let defenderInfo: [number, number, string] | null = null;
@@ -351,6 +371,7 @@ export class CombatEngine {
     let attackParts = `${statLabel} ${attackStat}`;
     if (diceStr) attackParts += ` + ${diceStr}(${diceRoll})`;
     if (attackBonus !== 0) attackParts += ` + ${attackBonus}`;
+    if (packTacticsBonus > 0) attackParts += ` + ${packTacticsBonus}(horda)`;
     attackParts += ` = ${totalAttack}`;
     this.addLog({ type: 'attack', text: `${attackParts} vs D ${totalDefense}`, characterName: attackerName });
 
@@ -501,6 +522,29 @@ export class CombatEngine {
         this.checkFocusInterruption(targetTeam, tIdx);
       }
 
+      // Deflection: defender counter-attacks on successful block
+      if (defenderInfo) {
+        const [defTeam, defIdx, defName] = defenderInfo;
+        const defender = this.getTeam(defTeam)[defIdx];
+        if (defender.hasDeflection && defender.deflectionCounterDice && defender.isAlive()) {
+          const counterAttack = defender.getEffectiveStrength() + defender.deflectionCounterDice.roll();
+          const attackerForCounter = this.getTeam(attackerTeam)[attackerIdx];
+          const attackerDef = attackerForCounter.getEffectiveDefense();
+          this.log(`  → ${defName} deflects and counter-attacks with ${counterAttack} vs ${attackerDef}`);
+          this.addLog({ type: 'vengeance', text: `${defName} deflects and counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: defName });
+          if (counterAttack > attackerDef && attackerForCounter.isAlive()) {
+            const counterDied = attackerForCounter.loseLife();
+            this.hitThisRound.add(attackerName);
+            this.log(`  → ${attackerName} loses a life from deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`);
+            this.addLog({ type: 'hit', text: `${attackerName} loses a life from deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`, characterName: attackerName });
+            if (counterDied) {
+              this.log(`  ★ ${attackerName} is defeated!`);
+              this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
+            }
+          }
+        }
+      }
+
       // Absorb pain on defender
       if (defenderInfo) {
         const [defTeam, defIdx, defName] = defenderInfo;
@@ -555,7 +599,14 @@ export class CombatEngine {
     this.addLog({ type: 'play', text: `${charName} plays ${card.name}`, team: charTeam, characterName: charName });
 
     if (isFocus(card.cardType)) {
-      if (this.getTeam(charTeam)[charIdx].focusInterrupted) {
+      const focusChar = this.getTeam(charTeam)[charIdx];
+      // SilenceStrike: silenced characters have focus auto-interrupted
+      if (focusChar.silencedTurns > 0) {
+        focusChar.focusInterrupted = true;
+        this.log(`  → ${charName} is silenced! Focus is automatically interrupted.`);
+        this.addLog({ type: 'effect', text: `${charName} is silenced — focus interrupted!`, characterName: charName });
+      }
+      if (focusChar.focusInterrupted) {
         this.recordInterrupted(cardName, cardTypeS);
         this.log('  → Focus interrupted! Card has no effect.');
         this.addLog({ type: 'focus-interrupted', text: `${charName}'s ${card.name} is interrupted!`, characterName: charName });
@@ -594,6 +645,17 @@ export class CombatEngine {
       const hitDefenders = new Set<string>();
       for (const ti of targets) {
         hitDefenders.add(`${eTeam}-${ti}`);
+
+        // FlurryOfBlows: attack the same target twice
+        const attackCount = card.effect.type === 'FlurryOfBlows' ? 2 : 1;
+        for (let atkNum = 0; atkNum < attackCount; atkNum++) {
+          if (attackCount > 1 && atkNum > 0) {
+            const flurryTarget = this.getTeam(eTeam)[ti];
+            if (!flurryTarget.isAlive()) break;
+            this.log(`  → Flurry of Blows — second attack!`);
+            this.addLog({ type: 'effect', text: `${charName} attacks again!`, characterName: charName });
+          }
+
         const hit = this.resolveAttack(charTeam, charIdx, eTeam, ti, card, hitDefenders);
 
         // LifeDrain: heal attacker 1 life on hit
@@ -630,6 +692,30 @@ export class CombatEngine {
             this.addLog({ type: 'effect', text: `${target.name} gets F-${card.effect.strengthDebuff} and M-${card.effect.magicDebuff} next turn!`, characterName: target.name });
           }
         }
+
+        // SwiftStrike: on hit, attacker gets V+3 next turn
+        if (hit && card.effect.type === 'SwiftStrike') {
+          const attacker = this.getTeam(charTeam)[charIdx];
+          if (attacker.isAlive()) {
+            attacker.modifiers.push(
+              new CombatModifier('speed', 3, ModifierDuration.NextTurn).withSource(card.name),
+            );
+            this.log(`  → ${charName} gains +3 speed next turn!`);
+            this.addLog({ type: 'effect', text: `${charName} gains +3 speed next turn!`, characterName: charName });
+          }
+        }
+
+        // SilenceStrike: on hit, target's focus is auto-interrupted for 2 turns
+        if (hit && card.effect.type === 'SilenceStrike') {
+          const target = this.getTeam(eTeam)[ti];
+          if (target.isAlive()) {
+            target.silencedTurns = 2;
+            this.log(`  → ${target.name} is silenced for 2 turns! Focus cards will be interrupted.`);
+            this.addLog({ type: 'effect', text: `${target.name} is silenced for 2 turns!`, characterName: target.name });
+          }
+        }
+
+        } // end FlurryOfBlows attack loop
       }
 
       // Handle stun effect
@@ -642,37 +728,6 @@ export class CombatEngine {
             tChar.stunned = true;
             this.log(`  → ${tChar.name} is stunned!`);
             this.addLog({ type: 'effect', text: `${tChar.name} is stunned!`, characterName: tChar.name });
-          }
-        }
-      }
-
-      // Handle speed debuff
-      if (card.effect.type === 'EnemySpeedDebuff') {
-        const debuffTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
-        if (debuffTarget) {
-          const [tTeam, tIdx] = debuffTarget;
-          const tChar = this.getTeam(tTeam)[tIdx];
-          if (tChar.isAlive()) {
-            tChar.modifiers.push(
-              new CombatModifier('speed', -card.effect.amount, ModifierDuration.NextTurn).withSource(card.name),
-            );
-            this.log(`  → ${tChar.name} gets -${card.effect.amount} speed next turn!`);
-            this.addLog({ type: 'effect', text: `${tChar.name} gets -${card.effect.amount} speed next turn!`, characterName: tChar.name });
-          }
-        }
-      }
-
-      // Handle strength debuff
-      if (card.effect.type === 'EnemyStrengthDebuff') {
-        const strDebuffTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
-        if (strDebuffTarget) {
-          const [tTeam, tIdx] = strDebuffTarget;
-          const tChar = this.getTeam(tTeam)[tIdx];
-          if (tChar.isAlive()) {
-            tChar.modifiers.push(
-              new CombatModifier('strength', -card.effect.amount, ModifierDuration.NextTurn).withSource(card.name),
-            );
-            this.log(`  → ${tChar.name} gets -${card.effect.amount} strength next turn!`);
           }
         }
       }
@@ -802,44 +857,17 @@ export class CombatEngine {
           ch.berserkerStrengthDice = card.effect.strengthDice;
           ch.berserkerCounterDice = card.effect.counterAttackDice;
         }
+        if (card.effect.type === 'Deflection') {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.hasDeflection = true;
+          ch.deflectionCounterDice = card.effect.counterAttackDice;
+        }
       }
     }
 
     // Handle focus cards
     if (isFocus(card.cardType)) {
       switch (card.effect.type) {
-        case 'StrengthBoost': {
-          const ch = this.getTeam(charTeam)[charIdx];
-          const diceBonus = card.effect.dice ? card.effect.dice.roll() : 0;
-          const totalBoost = card.effect.amount + diceBonus;
-          ch.modifiers.push(
-            new CombatModifier('strength', totalBoost, ModifierDuration.RestOfCombat).withSource(card.name),
-          );
-          this.log(`  → ${charName} gains +${totalBoost} Strength for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +${totalBoost} Strength for rest of combat!`, characterName: charName });
-          break;
-        }
-        case 'MagicBoost': {
-          const ch = this.getTeam(charTeam)[charIdx];
-          const magicDiceBonus = card.effect.dice ? card.effect.dice.roll() : 0;
-          const totalMagic = card.effect.amount + magicDiceBonus;
-          ch.modifiers.push(
-            new CombatModifier('magic', totalMagic, ModifierDuration.RestOfCombat).withSource(card.name),
-          );
-          this.log(`  → ${charName} gains +${totalMagic} Magic for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +${totalMagic} Magic for rest of combat!`, characterName: charName });
-          break;
-        }
-        case 'RageBoost': {
-          const ch = this.getTeam(charTeam)[charIdx];
-          const diceBonus = card.effect.dice ? card.effect.dice.roll() : 0;
-          const totalStrength = card.effect.amount + diceBonus;
-          ch.modifiers.push(new CombatModifier('strength', totalStrength, ModifierDuration.RestOfCombat).withSource(card.name));
-          ch.modifiers.push(new CombatModifier('speed', card.effect.speedBoost, ModifierDuration.RestOfCombat).withSource(card.name));
-          this.log(`  → ${charName} gains +${totalStrength} Strength and +${card.effect.speedBoost} Speed for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${charName} gains +${totalStrength} Strength and +${card.effect.speedBoost} Speed for rest of combat!`, characterName: charName });
-          break;
-        }
         case 'IntimidatingRoar': {
           const enemies = this.getLivingEnemies(charTeam);
           const enemyTeam = this.getEnemyTeam(charTeam);
@@ -854,74 +882,6 @@ export class CombatEngine {
               this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} rolls ${roll} — resists!`, characterName: enemyTeam[idx].name });
             }
           }
-          break;
-        }
-        case 'AllyStrengthThisTurn': {
-          const allies = this.getLivingAllies(charTeam, charIdx);
-          const allyTeam = this.getTeam(charTeam);
-          for (const idx of allies) {
-            allyTeam[idx].modifiers.push(
-              new CombatModifier('strength', card.effect.amount, ModifierDuration.ThisTurn).withSource(card.name),
-            );
-          }
-          this.log(`  → All allies gain +${card.effect.amount} Strength this turn!`);
-          this.addLog({ type: 'effect', text: `All allies gain +${card.effect.amount} Strength this turn!`, characterName: charName });
-          break;
-        }
-        case 'DefenseBoostDuration': {
-          const ch = this.getTeam(charTeam)[charIdx];
-          ch.modifiers.push(
-            new CombatModifier('defense', 0, ModifierDuration.RestOfCombat)
-              .withDice(card.effect.dice)
-              .withSource(card.name),
-          );
-          const defBoostAllies = this.getLivingAllies(charTeam, charIdx);
-          const defBoostAllyTeam = this.getTeam(charTeam);
-          const defBoostNames = [charName];
-          for (const idx of defBoostAllies) {
-            defBoostAllyTeam[idx].modifiers.push(
-              new CombatModifier('defense', 0, ModifierDuration.RestOfCombat)
-                .withDice(card.effect.dice)
-                .withSource(card.name),
-            );
-            defBoostNames.push(defBoostAllyTeam[idx].name);
-          }
-          this.log(`  → ${defBoostNames.join(', ')} gain +${card.effect.dice} defense for rest of combat!`);
-          this.addLog({ type: 'effect', text: `${defBoostNames.join(', ')} gain +${card.effect.dice} defense!`, characterName: charName });
-          break;
-        }
-        case 'TeamSpeedBoost': {
-          const allAllies = this.getLivingAllies(charTeam);
-          const allyTeam = this.getTeam(charTeam);
-          allyTeam[charIdx].modifiers.push(new CombatModifier('speed', 4, ModifierDuration.RestOfCombat).withSource(card.name));
-          for (const idx of allAllies) {
-            if (idx !== charIdx) {
-              allyTeam[idx].modifiers.push(new CombatModifier('speed', 4, ModifierDuration.RestOfCombat).withSource(card.name));
-            }
-          }
-          this.log('  → All allies gain +4 speed for rest of combat!');
-          this.addLog({ type: 'effect', text: 'All allies gain +4 speed for rest of combat!', characterName: charName });
-          break;
-        }
-        case 'IceTrap': {
-          const enemies = this.getLivingEnemies(charTeam);
-          const enemyTeam = this.getEnemyTeam(charTeam);
-          for (const idx of enemies) {
-            enemyTeam[idx].modifiers.push(new CombatModifier('speed', -8, ModifierDuration.NextTwoTurns).withSource(card.name));
-          }
-          this.log('  → Enemies get -8 speed for the next two turns!');
-          this.addLog({ type: 'effect', text: 'Enemies get -8 speed for the next two turns!', characterName: charName });
-          break;
-        }
-        case 'BlindingSmoke': {
-          const enemies = this.getLivingEnemies(charTeam);
-          const enemyTeam = this.getEnemyTeam(charTeam);
-          for (const idx of enemies) {
-            enemyTeam[idx].modifiers.push(new CombatModifier('speed', -8, ModifierDuration.NextTurn).withSource(card.name));
-            enemyTeam[idx].modifiers.push(new CombatModifier('defense', -8, ModifierDuration.NextTurn).withSource(card.name));
-          }
-          this.log('  → Enemies get -8 speed and -8 defense next turn!');
-          this.addLog({ type: 'effect', text: 'Enemies get -8 speed / -8 defense next turn!', characterName: charName });
           break;
         }
         case 'DodgeWithSpeedBoost': {
@@ -1142,6 +1102,27 @@ export class CombatEngine {
           }
           break;
         }
+        case 'NimbleEscape': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.dodging = true;
+          this.log(`  → ${charName} hides! Dodges all attacks this turn.`);
+          this.addLog({ type: 'effect', text: `${charName} s'amaga! Esquiva tots els atacs.`, characterName: charName });
+          break;
+        }
+        case 'MeditationBoost': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          const defDiceRoll = card.effect.defenseDice.roll();
+          const totalDefBoost = card.effect.defenseFlat + defDiceRoll;
+          ch.modifiers.push(
+            new CombatModifier('defense', totalDefBoost, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          ch.modifiers.push(
+            new CombatModifier('speed', card.effect.speedBoost, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          this.log(`  → ${charName} meditates! Gains +${totalDefBoost} Defense and +${card.effect.speedBoost} Speed for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${totalDefBoost} Defense and +${card.effect.speedBoost} Speed for rest of combat!`, characterName: charName });
+          break;
+        }
         case 'Regenerate': {
           const ch = this.getTeam(charTeam)[charIdx];
           if (ch.currentLives < ch.maxLives) {
@@ -1161,10 +1142,107 @@ export class CombatEngine {
 
       // Set aside the focus card if it has a lasting effect
       if (character.playedCardIdx !== null) {
-        const duration = getSetAsideDuration(card.effect.type);
+        const duration = getSetAsideDuration(card.effect);
         if (duration !== 0) {
           character.setAsideCards.set(character.playedCardIdx, duration);
         }
+      }
+    }
+
+    // Handle CharacteristicModifier effects (card-type-agnostic — works on any card type)
+    if (card.effect.type === 'CharacteristicModifier') {
+      const eff = card.effect;
+
+      // Determine target characters
+      let targetChars: Character[] = [];
+      switch (eff.target) {
+        case 'self':
+          targetChars = [character];
+          break;
+        case 'allies': {
+          const allyIndices = this.getLivingAllies(charTeam, charIdx);
+          targetChars = allyIndices.map(i => this.getTeam(charTeam)[i]);
+          break;
+        }
+        case 'team': {
+          const allyIndices = this.getLivingAllies(charTeam, charIdx);
+          targetChars = [character, ...allyIndices.map(i => this.getTeam(charTeam)[i])];
+          break;
+        }
+        case 'enemy': {
+          const eTeam = charTeam === 1 ? 2 : 1;
+          const overrides = this.resolveTargets.get(charName);
+          let targetIdx: number | null = null;
+          if (overrides?.attackTarget && overrides.attackTarget[0] === eTeam) {
+            targetIdx = overrides.attackTarget[1];
+          } else {
+            const result = this.selectTarget(character);
+            targetIdx = result ? result[1] : null;
+          }
+          if (targetIdx !== null) {
+            const target = this.getTeam(eTeam)[targetIdx];
+            if (target.isAlive()) targetChars = [target];
+          }
+          break;
+        }
+        case 'enemies': {
+          const enemyIndices = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          targetChars = enemyIndices.map(i => enemyTeam[i]);
+          break;
+        }
+      }
+
+      // Apply each modifier to each target
+      for (const target of targetChars) {
+        for (const mod of eff.modifiers) {
+          let value = mod.amount;
+          if (mod.dice) {
+            value += mod.dice.roll();
+          }
+          target.modifiers.push(
+            new CombatModifier(mod.characteristic, value, eff.duration).withSource(card.name),
+          );
+          const sign = value >= 0 ? '+' : '';
+          this.log(`  → ${target.name} gets ${sign}${value} ${mod.characteristic}!`);
+          this.addLog({ type: 'effect', text: `${target.name} gets ${sign}${value} ${mod.characteristic}!`, characterName: target.name });
+        }
+      }
+
+      // Set aside for non-focus cards with lasting effects (focus cards handled above)
+      if (!isFocus(card.cardType) && character.playedCardIdx !== null) {
+        const duration = getSetAsideDuration(card.effect);
+        if (duration !== 0) {
+          character.setAsideCards.set(character.playedCardIdx, duration);
+        }
+      }
+    }
+
+  }
+
+  /** Post-resolution: count successful NimbleEscape users per team and apply F bonus */
+  private resolveNimbleEscape(): void {
+    for (const teamNum of [1, 2]) {
+      const team = this.getTeam(teamNum);
+      const hiders = team.filter(c =>
+        c.isAlive() && c.playedCardIdx !== null &&
+        isFocus(c.cards[c.playedCardIdx].cardType) &&
+        c.cards[c.playedCardIdx].effect.type === 'NimbleEscape' &&
+        !c.focusInterrupted,
+      );
+      if (hiders.length > 0) {
+        for (const hider of hiders) {
+          hider.modifiers.push(
+            new CombatModifier('strength', hiders.length, ModifierDuration.NextTurn)
+              .withSource('Amagar-se'),
+          );
+        }
+        this.log(`  → ${hiders.length} goblins hid — each gets +${hiders.length} strength next turn!`);
+        this.addLog({
+          type: 'effect',
+          text: `${hiders.length} goblins s'amaguen — cadascun guanya +${hiders.length} F el proper torn!`,
+          characterName: hiders[0].name,
+        });
       }
     }
   }
@@ -1288,6 +1366,9 @@ export class CombatEngine {
       if (this.isCombatOver()) break;
     }
 
+    // Post-resolution: NimbleEscape coordinated hiding bonus
+    this.resolveNimbleEscape();
+
     // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
       if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
@@ -1302,6 +1383,7 @@ export class CombatEngine {
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
+      if (ch.silencedTurns > 0) ch.silencedTurns--;
     }
 
     return this.logEntries;
@@ -1408,6 +1490,9 @@ export class CombatEngine {
 
   /** End-of-round cleanup after step-by-step resolution. */
   finishRound(): void {
+    // Post-resolution: NimbleEscape coordinated hiding bonus
+    this.resolveNimbleEscape();
+
     // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
       if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
@@ -1420,6 +1505,7 @@ export class CombatEngine {
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
+      if (ch.silencedTurns > 0) ch.silencedTurns--;
     }
     this.pendingActions = [];
     this.pendingActionIndex = 0;
@@ -1527,6 +1613,9 @@ export class CombatEngine {
       if (this.isCombatOver()) return false;
     }
 
+    // Post-resolution: NimbleEscape coordinated hiding bonus
+    this.resolveNimbleEscape();
+
     // Death ward recovery
     for (const ch of [...this.team1, ...this.team2]) {
       if (ch.hasDeathWard && ch.isAlive() && this.hitThisRound.has(ch.name)) {
@@ -1540,6 +1629,7 @@ export class CombatEngine {
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
+      if (ch.silencedTurns > 0) ch.silencedTurns--;
     }
 
     return true;

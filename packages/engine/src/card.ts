@@ -1,4 +1,5 @@
 import { DiceRoll } from './dice.js';
+import { ModifierDuration } from './modifier.js';
 
 export enum CardType {
   PhysicalAttack = 'PhysicalAttack',
@@ -30,16 +31,16 @@ export type SpecialEffect =
   | { type: 'Stun' }
   | { type: 'SkipNextTurn' }
   | { type: 'SkipNextTurns'; count: number }
-  | { type: 'StrengthBoost'; amount: number; dice?: DiceRoll }
-  | { type: 'MagicBoost'; amount: number; dice?: DiceRoll }
-  | { type: 'AllyStrengthThisTurn'; amount: number }
-  | { type: 'DefenseBoostDuration'; dice: DiceRoll; turns: number }
-  | { type: 'TeamSpeedBoost' }
-  | { type: 'EnemySpeedDebuff'; amount: number }
-  | { type: 'EnemyStrengthDebuff'; amount: number }
+  | { type: 'CharacteristicModifier';
+      modifiers: Array<{
+        characteristic: 'strength' | 'magic' | 'defense' | 'speed';
+        amount: number;
+        dice?: DiceRoll;
+      }>;
+      target: 'self' | 'allies' | 'team' | 'enemy' | 'enemies';
+      duration: ModifierDuration;
+    }
   | { type: 'EmbestidaEffect' }
-  | { type: 'IceTrap' }
-  | { type: 'BlindingSmoke' }
   | { type: 'DodgeWithSpeedBoost' }
   | { type: 'CoordinatedAmbush' }
   | { type: 'Sacrifice' }
@@ -50,7 +51,6 @@ export type SpecialEffect =
   | { type: 'MultiTarget'; count: number }
   | { type: 'DefendMultiple'; count: number }
   | { type: 'PoisonWeapon' }
-  | { type: 'RageBoost'; amount: number; dice?: DiceRoll; speedBoost: number }
   | { type: 'RecklessAttack' }
   | { type: 'IntimidatingRoar' }
   | { type: 'CounterThrow' }
@@ -64,7 +64,15 @@ export type SpecialEffect =
   | { type: 'Frenzy'; bonusDicePerLostLife: DiceRoll }
   | { type: 'PetrifyingGaze'; dice: DiceRoll; threshold: number; turns: number }
   | { type: 'Regenerate'; amount: number }
-  | { type: 'VenomBite' };
+  | { type: 'VenomBite' }
+  | { type: 'SwiftStrike' }
+  | { type: 'PiercingStrike' }
+  | { type: 'FlurryOfBlows' }
+  | { type: 'Deflection'; counterAttackDice: DiceRoll }
+  | { type: 'MeditationBoost'; defenseDice: DiceRoll; defenseFlat: number; speedBoost: number }
+  | { type: 'SilenceStrike' }
+  | { type: 'PackTactics'; alliesPerBonus: number }
+  | { type: 'NimbleEscape' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -88,7 +96,9 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'EnchantWeapon': return 'ally';
       case 'HealAlly': return 'ally';
       case 'PoisonWeapon': return 'none';
-      case 'DefenseBoostDuration': return 'none';
+      case 'CharacteristicModifier':
+        if (card.effect.target === 'enemy') return 'enemy';
+        return 'none';
       default: return 'none';
     }
   }

@@ -69,6 +69,8 @@
 .print-card.barbar .card-frame { border-color: var(--class-barbar); }
 .print-card.clergue { border-color: var(--class-clergue); }
 .print-card.clergue .card-frame { border-color: var(--class-clergue); }
+.print-card.monjo { border-color: var(--class-monjo); }
+.print-card.monjo .card-frame { border-color: var(--class-monjo); }
 .print-card.basilisc { border-color: var(--class-basilisc); }
 .print-card.basilisc .card-frame { border-color: var(--class-basilisc); }
 

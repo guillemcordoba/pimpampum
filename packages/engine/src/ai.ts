@@ -49,6 +49,18 @@ function weightedPick(weights: number[]): number {
   return weights.length - 1;
 }
 
+/** Compute expected PackTactics bonus for a card */
+function getPackTacticsBonus(card: { effect: { type: string } }, character: Character, engine: AIEngineView): number {
+  if (card.effect.type === 'PackTactics') {
+    const eff = card.effect as { type: 'PackTactics'; alliesPerBonus: number };
+    const allyTeam = character.team === 1 ? engine.team1 : engine.team2;
+    const charIdx = allyTeam.indexOf(character);
+    const livingAllies = engine.getLivingAllies(character.team, charIdx).length;
+    return Math.floor(livingAllies / eff.alliesPerBonus);
+  }
+  return 0;
+}
+
 function selectAggro(character: Character, engine: AIEngineView): number {
   const enemies = engine.getLivingEnemies(character.team);
   const enemyTeam = character.team === 1 ? engine.team2 : engine.team1;
@@ -68,12 +80,13 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       const diceAvg = isPhysical(card.cardType)
         ? (card.physicalAttack?.average() ?? 0)
         : (card.magicAttack?.average() ?? 0);
+      const packBonus = getPackTacticsBonus(card, character, engine);
 
       if (enemies.length > 0) {
         const avgDefense = enemyTeam
           .filter(e => e.isAlive())
           .reduce((sum, e) => sum + e.getEffectiveDefense(), 0) / enemies.length;
-        if (attackStat + diceAvg > avgDefense) {
+        if (attackStat + diceAvg + packBonus > avgDefense) {
           weight += 15.0;
         }
       }
@@ -84,13 +97,45 @@ function selectAggro(character: Character, engine: AIEngineView): number {
           break;
         }
       }
+      // PiercingStrike: bonus when enemies have defense-heavy allies (Protect strategy)
+      if (card.effect.type === 'PiercingStrike') {
+        const hasProtector = enemyTeam.some(e => e.isAlive() && e.aiStrategy === AIStrategy.Protect);
+        if (hasProtector) weight += 10.0;
+      }
+      // FlurryOfBlows: bonus against low-defense targets
+      if (card.effect.type === 'FlurryOfBlows') {
+        if (enemies.length > 0) {
+          const minDef = Math.min(...enemies.map(i => enemyTeam[i].getEffectiveDefense()));
+          if (character.getEffectiveStrength() + (card.physicalAttack?.average() ?? 0) > minDef) {
+            weight += 8.0;
+          }
+        }
+      }
+      // SilenceStrike: bonus when enemies have focus-heavy characters
+      if (card.effect.type === 'SilenceStrike') {
+        const hasBuffableEnemy = enemyTeam.some(e => e.isAlive() && !e.modifiers.some(
+          m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0,
+        ));
+        if (hasBuffableEnemy) weight += 5.0;
+      }
     } else if (isDefense(card.cardType)) {
       weight += 2.0;
       if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
+      if (card.effect.type === 'Deflection') weight += 4.0;
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
         weight += 15.0;
+      } else if (card.effect.type === 'MeditationBoost') {
+        const hasBuff = character.modifiers.some(
+          m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0,
+        );
+        if (!hasBuff) weight += 12.0;
+        else weight += 2.0;
+      } else if (card.effect.type === 'NimbleEscape') {
+        // Goblins like hiding — coordinated ambush next turn
+        const livingAllies = engine.getLivingAllies(character.team).length;
+        weight += 8.0 + livingAllies * 1.5;
       } else {
         weight += 2.0;
       }
@@ -187,12 +232,13 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         const diceAvg = isPhysical(card.cardType)
           ? (card.physicalAttack?.average() ?? 0)
           : (card.magicAttack?.average() ?? 0);
+        const packBonus = getPackTacticsBonus(card, character, engine);
 
         if (enemies.length > 0) {
           const avgDefense = enemyTeam
             .filter(e => e.isAlive())
             .reduce((sum, e) => sum + e.getEffectiveDefense(), 0) / enemies.length;
-          if (attackStat + diceAvg > avgDefense) {
+          if (attackStat + diceAvg + packBonus > avgDefense) {
             weight += 10.0;
           }
         }
@@ -210,19 +256,28 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         weight += 1.0;
       } else {
         switch (card.effect.type) {
-          case 'BlindingSmoke':
+          case 'CharacteristicModifier':
+            if (card.effect.target === 'enemies') weight += 12.0;
+            else if (card.effect.target === 'team') weight += 15.0;
+            else weight += 3.0;
+            break;
           case 'IntimidatingRoar':
-          case 'IceTrap':
             weight += 12.0;
             break;
-          case 'TeamSpeedBoost':
-          case 'DefenseBoostDuration':
           case 'SpiritInvocation':
             weight += 15.0;
             break;
           case 'DeathCurse':
             weight += 10.0;
             break;
+          case 'MeditationBoost': {
+            const hasBuff = character.modifiers.some(
+              m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0,
+            );
+            if (!hasBuff) weight += 12.0;
+            else weight += 2.0;
+            break;
+          }
           case 'DodgeWithSpeedBoost':
             if (character.currentLives <= 1) weight += 15.0;
             else weight += 3.0;
@@ -231,6 +286,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             const anyWounded = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
             if (anyWounded) weight += 15.0;
             else weight += 1.0;
+            break;
+          }
+          case 'NimbleEscape': {
+            const la = engine.getLivingAllies(character.team).length;
+            weight += 8.0 + la * 1.5;
             break;
           }
           default:
@@ -266,9 +326,14 @@ function selectPower(character: Character, engine: AIEngineView): number {
       // Utility-only focus (speed/defense) is less valuable — sometimes better to just attack.
       // No speed penalty applied — slow focus cards are the whole point.
       switch (card.effect.type) {
-        case 'StrengthBoost':
-        case 'MagicBoost':
-        case 'RageBoost':
+        case 'CharacteristicModifier': {
+          const isOffensiveSelf = card.effect.target === 'self' && card.effect.modifiers.some(
+            m => m.characteristic === 'strength' || m.characteristic === 'magic',
+          );
+          if (isOffensiveSelf) weight += 40.0;
+          else weight += 15.0;
+          break;
+        }
         case 'PoisonWeapon':
         case 'EnchantWeapon':
           weight += 40.0;
@@ -277,11 +342,8 @@ function selectPower(character: Character, engine: AIEngineView): number {
         case 'DeathCurse':
           weight += 30.0;
           break;
-        case 'DefenseBoostDuration':
-        case 'TeamSpeedBoost':
-        case 'BlindingSmoke':
-        case 'IceTrap':
         case 'SpiritInvocation':
+        case 'MeditationBoost':
           // Utility focus — helpful but doesn't boost attack power
           weight += 15.0;
           break;
@@ -295,6 +357,11 @@ function selectPower(character: Character, engine: AIEngineView): number {
           const wounded = al.some(i => at[i].currentLives < at[i].maxLives);
           if (wounded) weight += 20.0;
           else weight += 2.0;
+          break;
+        }
+        case 'NimbleEscape': {
+          const la = engine.getLivingAllies(character.team).length;
+          weight += 8.0 + la * 1.5;
           break;
         }
         default:
@@ -316,12 +383,13 @@ function selectPower(character: Character, engine: AIEngineView): number {
       const diceAvg = isPhysical(card.cardType)
         ? (card.physicalAttack?.average() ?? 0)
         : (card.magicAttack?.average() ?? 0);
+      const packBonus = getPackTacticsBonus(card, character, engine);
 
       if (enemies.length > 0) {
         const avgDefense = enemyTeam
           .filter(e => e.isAlive())
           .reduce((sum, e) => sum + e.getEffectiveDefense(), 0) / enemies.length;
-        if (attackStat + diceAvg > avgDefense) {
+        if (attackStat + diceAvg + packBonus > avgDefense) {
           weight += 10.0;
         }
       }
