@@ -10,12 +10,16 @@ import {
   createBarbarian,
   createCleric,
   createMonk,
+  createSpinedDevil,
+  createBoneDevil,
+  createHornedDevil,
 } from '@pimpampum/engine';
 import type { CombatStats } from '@pimpampum/engine';
 import {
   runMatchup,
   runWithStrategies,
   runHordeMatchup,
+  runEncounterMatchup,
   generateTeamCompositions,
   getAllCreators,
   getPlayerCreators,
@@ -244,9 +248,9 @@ describe('Class Balance', () => {
   it('no class is consistently worse than all others (aggregate win rate 20-80% per team composition)', () => {
     // Individual matchups can be extreme — class counters are intended.
     // What matters is that no team composition is consistently worse across ALL opponents.
-    // Enemy classes (Goblin, GoblinShaman) are excluded — they're designed as opponents,
+    // Enemy classes are excluded — they're designed as opponents,
     // not as competitive player-class partners.
-    const enemyClasses = ['Goblin', 'GoblinShaman'];
+    const enemyClasses = ['Goblin', 'GoblinShaman', 'SpinedDevil', 'BoneDevil', 'HornedDevil'];
     const hasEnemy = (name: string) => enemyClasses.some(ec => name.includes(ec));
 
     for (const [teamSize, data] of teamSizeData) {
@@ -653,5 +657,206 @@ describe('Engine Sanity Checks', () => {
           .toBeLessThanOrEqual(c.maxLives);
       }
     }
+  });
+});
+
+// =============================================================================
+// I. SPINED DEVIL HORDE (4 Players vs 7 Spined Devils)
+// =============================================================================
+
+describe('Spined Devil Horde', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => Array.from({ length: 7 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs 7 spined devils is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs spined devil horde: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(25);
+    expect(winRate, `Overall player win rate vs spined devil horde: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs spined devil horde', () => {
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs 7 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-win`)
+        .toBeLessThan(100);
+      expect(winRate, `${name} vs 7 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Spined devil horde avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Spined devil horde draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// J. BONE DEVIL ENCOUNTER (4 Players vs 1 Bone Devil + 4 Spined Devils)
+// =============================================================================
+
+describe('Bone Devil Encounter', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => [
+          createBoneDevil(`BDev_${i}`),
+          ...Array.from({ length: 4 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
+        ],
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs bone devil encounter is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs bone devil encounter: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(25);
+    expect(winRate, `Overall player win rate vs bone devil encounter: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs bone devil encounter', () => {
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs Bone Devil encounter: ${winRate.toFixed(1)}% — no composition should auto-win`)
+        .toBeLessThan(100);
+      expect(winRate, `${name} vs Bone Devil encounter: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Bone devil encounter avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Bone devil encounter draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// K. HORNED DEVIL BOSS (4 Players vs 1 Horned Devil + 1 Bone Devil)
+// =============================================================================
+
+describe('Horned Devil Boss', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => [
+          createHornedDevil(`HDev_${i}`),
+          createBoneDevil(`BDev_${i}`),
+        ],
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs horned devil boss is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs horned devil boss: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(25);
+    expect(winRate, `Overall player win rate vs horned devil boss: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs horned devil boss', () => {
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs Horned Devil boss: ${winRate.toFixed(1)}% — no composition should auto-win`)
+        .toBeLessThan(100);
+      expect(winRate, `${name} vs Horned Devil boss: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Horned devil boss avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Horned devil boss draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
   });
 });

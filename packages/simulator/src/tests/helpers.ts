@@ -12,6 +12,9 @@ import {
   createMonk,
   createGoblin,
   createGoblinShaman,
+  createSpinedDevil,
+  createBoneDevil,
+  createHornedDevil,
   ALL_EQUIPMENT,
   EquipmentSlot,
   AIStrategy,
@@ -226,6 +229,9 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Monk', createMonk],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
+    ['SpinedDevil', createSpinedDevil],
+    ['BoneDevil', createBoneDevil],
+    ['HornedDevil', createHornedDevil],
   ];
 }
 
@@ -279,6 +285,64 @@ export function generateTeamCompositions(teamSize: number, creatorsSource?: [str
 // =============================================================================
 // HORDE BATTLE SIMULATION
 // =============================================================================
+
+/**
+ * Run an encounter matchup: player team (with random equipment) vs a custom enemy team (no equipment).
+ * Uses higher maxRounds (30) since boss/horde battles take longer.
+ */
+export function runEncounterMatchup(
+  playerCreators: CharacterCreator[],
+  enemyFactory: (simIndex: number) => Character[],
+  numSimulations: number,
+): SimulationResults {
+  const results: SimulationResults = {
+    team1Wins: 0,
+    team2Wins: 0,
+    draws: 0,
+    totalRounds: 0,
+    maxRoundsReached: 0,
+    numSimulations,
+    stats: newCombatStats(),
+  };
+
+  for (let i = 0; i < numSimulations; i++) {
+    const team1 = playerCreators.map((creator, j) => {
+      const c = creator(`T1_${j}_${i}`);
+      assignRandomEquipment(c);
+      return c;
+    });
+    const team2 = enemyFactory(i);
+
+    const engine = new CombatEngine(team1, team2, false);
+    engine.maxRounds = 30;
+    assignStrategies(team1);
+    assignStrategies(team2);
+
+    while (engine.roundNumber < engine.maxRounds) {
+      if (!engine.runRound()) break;
+    }
+
+    const team1Alive = team1.filter(c => c.isAlive()).length;
+    const team2Alive = team2.filter(c => c.isAlive()).length;
+
+    let winner: number;
+    if (team1Alive > 0 && team2Alive === 0) winner = 1;
+    else if (team2Alive > 0 && team1Alive === 0) winner = 2;
+    else if (team1Alive > team2Alive) winner = 1;
+    else if (team2Alive > team1Alive) winner = 2;
+    else winner = 0;
+
+    results.totalRounds += engine.roundNumber;
+    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
+    mergeCombatStats(results.stats, engine.stats);
+
+    if (winner === 1) results.team1Wins++;
+    else if (winner === 2) results.team2Wins++;
+    else results.draws++;
+  }
+
+  return results;
+}
 
 /**
  * Run a horde matchup: player team (with random equipment) vs N goblins (no equipment).

@@ -109,6 +109,8 @@ function getSetAsideDuration(effect: SpecialEffect): number {
     case 'DeathCurse':
     case 'SpiritInvocation':
     case 'MeditationBoost':
+    case 'BloodContract':
+    case 'FuryScaling':
       return -1;
     // NextTurn effects — 2 turns set aside
     case 'DodgeWithSpeedBoost':
@@ -325,7 +327,27 @@ export class CombatEngine {
       packTacticsBonus = Math.floor(livingAllies / card.effect.alliesPerBonus);
     }
 
-    const totalAttack = attackStat + diceRoll + attackBonus + packTacticsBonus;
+    // Crossfire: bonus from allies who also played attack cards this turn
+    let crossfireBonus = 0;
+    if (card.effect?.type === 'Crossfire') {
+      const allyTeam = this.getTeam(attackerTeam);
+      let attackingAllies = 0;
+      for (let i = 0; i < allyTeam.length; i++) {
+        if (i === attackerIdx) continue;
+        if (!allyTeam[i].isAlive()) continue;
+        if (allyTeam[i].playedCardIdx !== null) {
+          const allyCard = allyTeam[i].cards[allyTeam[i].playedCardIdx!];
+          if (isAttack(allyCard.cardType)) attackingAllies++;
+        }
+      }
+      crossfireBonus = Math.min(attackingAllies, card.effect.maxBonus);
+      if (crossfireBonus > 0) {
+        this.log(`  → Crossfire: +${crossfireBonus} from allies attacking!`);
+        this.addLog({ type: 'effect', text: `${attacker.name} gains +${crossfireBonus} (foc creuat)`, characterName: attacker.name });
+      }
+    }
+
+    const totalAttack = attackStat + diceRoll + attackBonus + packTacticsBonus + crossfireBonus;
 
     const targetNameForVengeance = target.name;
     const attackerName = attacker.name;
@@ -333,9 +355,17 @@ export class CombatEngine {
     // PiercingStrike: bypass defense card redirection entirely
     const piercing = card.effect?.type === 'PiercingStrike';
 
+    // Impale: impaled targets can't be defended
+    const targetImpaled = target.impaledTurns > 0;
+
     // Check if target has a defense card protecting them
     const defenseTeamChar = this.getTeam(targetTeam);
-    const defenseBonusInfo = piercing ? null : defenseTeamChar[tIdx].popDefenseBonus((t) => this.getTeam(t));
+    const defenseBonusInfo = (piercing || targetImpaled) ? null : defenseTeamChar[tIdx].popDefenseBonus((t) => this.getTeam(t));
+
+    if (targetImpaled && defenseTeamChar[tIdx].hasDefenseBonus()) {
+      this.log(`  → ${target.name} is impaled — defense is bypassed!`);
+      this.addLog({ type: 'effect', text: `${target.name} is impaled — defense bypassed!`, characterName: target.name });
+    }
 
     if (piercing && defenseTeamChar[tIdx].hasDefenseBonus()) {
       this.log(`  → Piercing strike bypasses defense protection!`);
@@ -372,6 +402,7 @@ export class CombatEngine {
     if (diceStr) attackParts += ` + ${diceStr}(${diceRoll})`;
     if (attackBonus !== 0) attackParts += ` + ${attackBonus}`;
     if (packTacticsBonus > 0) attackParts += ` + ${packTacticsBonus}(horda)`;
+    if (crossfireBonus > 0) attackParts += ` + ${crossfireBonus}(foc creuat)`;
     attackParts += ` = ${totalAttack}`;
     this.addLog({ type: 'attack', text: `${attackParts} vs D ${totalDefense}`, characterName: attackerName });
 
@@ -489,6 +520,72 @@ export class CombatEngine {
         }
       }
 
+      // DoubleWound: attack deals 2 wounds total
+      if (card.effect?.type === 'DoubleWound') {
+        const recipient = this.getTeam(woundTeam)[woundIdx];
+        if (recipient.isAlive()) {
+          const died = recipient.loseLife();
+          this.log(`  → ${woundName} takes a double wound! (${recipient.currentLives}/${recipient.maxLives})`);
+          this.addLog({ type: 'hit', text: `${woundName} takes a double wound! (${recipient.currentLives}/${recipient.maxLives})`, characterName: woundName });
+          if (died) {
+            this.log(`  ★ ${woundName} is defeated!`);
+            this.addLog({ type: 'death', text: `${woundName} is defeated!`, characterName: woundName });
+          }
+        }
+      }
+
+      // DoomMark: marked targets lose an extra life when hit
+      {
+        const recipient = this.getTeam(woundTeam)[woundIdx];
+        if (recipient.doomMarked && recipient.isAlive()) {
+          const died = recipient.loseLife();
+          recipient.doomMarked = false;
+          this.log(`  → ${woundName}'s doom mark triggers — extra wound! (${recipient.currentLives}/${recipient.maxLives})`);
+          this.addLog({ type: 'hit', text: `${woundName}'s doom mark triggers! (${recipient.currentLives}/${recipient.maxLives})`, characterName: woundName });
+          if (died) {
+            this.log(`  ★ ${woundName} is defeated!`);
+            this.addLog({ type: 'death', text: `${woundName} is defeated!`, characterName: woundName });
+          }
+        }
+      }
+
+      // Impale: target can't be defended for 2 turns
+      if (card.effect?.type === 'Impale') {
+        const recipient = this.getTeam(woundTeam)[woundIdx];
+        if (recipient.isAlive()) {
+          recipient.impaledTurns = 2;
+          this.log(`  → ${woundName} is impaled! Cannot be defended for 2 turns.`);
+          this.addLog({ type: 'effect', text: `${woundName} is impaled!`, characterName: woundName });
+        }
+      }
+
+      // DebilitatingVenom: on hit, permanently reduce target's defense
+      if (card.effect?.type === 'DebilitatingVenom') {
+        const recipient = this.getTeam(woundTeam)[woundIdx];
+        if (recipient.isAlive()) {
+          recipient.modifiers.push(
+            new CombatModifier('defense', -card.effect.defenseReduction, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          this.log(`  → ${woundName} gets D-${card.effect.defenseReduction} permanently from venom!`);
+          this.addLog({ type: 'effect', text: `${woundName} gets D-${card.effect.defenseReduction} permanently!`, characterName: woundName });
+        }
+      }
+
+      // BloodContract: attacker pays 1 life if attacking the contracted team
+      {
+        const attackerCheck2 = this.getTeam(attackerTeam)[attackerIdx];
+        if (attackerCheck2.bloodContractTeam !== 0 && targetTeam === attackerCheck2.bloodContractTeam && attackerCheck2.isAlive()) {
+          const contractDied = attackerCheck2.loseLife();
+          this.hitThisRound.add(attackerName);
+          this.log(`  → ${attackerName}'s blood contract triggers — loses a life! (${attackerCheck2.currentLives}/${attackerCheck2.maxLives})`);
+          this.addLog({ type: 'hit', text: `${attackerName}'s blood contract triggers! (${attackerCheck2.currentLives}/${attackerCheck2.maxLives})`, characterName: attackerName });
+          if (contractDied) {
+            this.log(`  ★ ${attackerName} is defeated by blood contract!`);
+            this.addLog({ type: 'death', text: `${attackerName} is defeated by blood contract!`, characterName: attackerName });
+          }
+        }
+      }
+
       // Counter throw: attacker gets V-3 next turn
       if (defenderInfo) {
         const defender = this.getTeam(defenderInfo[0])[defenderInfo[1]];
@@ -538,6 +635,25 @@ export class CombatEngine {
             this.log(`  → ${attackerName} loses a life from deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`);
             this.addLog({ type: 'hit', text: `${attackerName} loses a life from deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`, characterName: attackerName });
             if (counterDied) {
+              this.log(`  ★ ${attackerName} is defeated!`);
+              this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
+            }
+          }
+        }
+      }
+
+      // InfernalRetaliation: defender hurts the attacker when blocking
+      if (defenderInfo) {
+        const [defTeam2, defIdx2, defName2] = defenderInfo;
+        const defender2 = this.getTeam(defTeam2)[defIdx2];
+        if (defender2.hasInfernalRetaliation && defender2.isAlive()) {
+          const attackerForRet = this.getTeam(attackerTeam)[attackerIdx];
+          if (attackerForRet.isAlive()) {
+            const retDied = attackerForRet.loseLife();
+            this.hitThisRound.add(attackerName);
+            this.log(`  → ${defName2}'s infernal defense burns ${attackerName}! (${attackerForRet.currentLives}/${attackerForRet.maxLives})`);
+            this.addLog({ type: 'hit', text: `${defName2}'s infernal defense burns ${attackerName}! (${attackerForRet.currentLives}/${attackerForRet.maxLives})`, characterName: attackerName });
+            if (retDied) {
               this.log(`  ★ ${attackerName} is defeated!`);
               this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
             }
@@ -718,6 +834,16 @@ export class CombatEngine {
         } // end FlurryOfBlows attack loop
       }
 
+      // FireAndRetreat: attacker dodges after attacking
+      if (card.effect.type === 'FireAndRetreat') {
+        const attacker = this.getTeam(charTeam)[charIdx];
+        if (attacker.isAlive()) {
+          attacker.dodging = true;
+          this.log(`  → ${charName} retreats after attacking — dodging!`);
+          this.addLog({ type: 'effect', text: `${charName} retreats — dodging!`, characterName: charName });
+        }
+      }
+
       // Handle stun effect
       if (card.effect.type === 'Stun') {
         const stunTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
@@ -861,6 +987,9 @@ export class CombatEngine {
           const ch = this.getTeam(charTeam)[charIdx];
           ch.hasDeflection = true;
           ch.deflectionCounterDice = card.effect.counterAttackDice;
+        }
+        if (card.effect.type === 'InfernalRetaliation') {
+          this.getTeam(charTeam)[charIdx].hasInfernalRetaliation = true;
         }
       }
     }
@@ -1136,6 +1265,90 @@ export class CombatEngine {
           }
           break;
         }
+        case 'LingeringFire': {
+          const lfOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let lfTargetIdx: number | null = null;
+          if (lfOverrides?.attackTarget) {
+            lfTargetIdx = lfOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            lfTargetIdx = enemies[0];
+          }
+          if (lfTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const tName = enemyTeam[lfTargetIdx].name;
+            enemyTeam[lfTargetIdx].pendingLingeringFireDamage++;
+            this.log(`  → ${tName} is set ablaze! Will lose a life at start of next round.`);
+            this.addLog({ type: 'effect', text: `${tName} is set ablaze!`, characterName: tName });
+          }
+          break;
+        }
+        case 'TerrorAura': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            for (const stat of ['strength', 'magic', 'defense', 'speed'] as const) {
+              enemyTeam[idx].modifiers.push(
+                new CombatModifier(stat, -card.effect.statReduction, ModifierDuration.ThisAndNextTurn).withSource(card.name),
+              );
+            }
+            this.log(`  → ${enemyTeam[idx].name} is terrified! All stats -${card.effect.statReduction} for 2 turns!`);
+            this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} is terrified! All stats -${card.effect.statReduction}!`, characterName: enemyTeam[idx].name });
+          }
+          break;
+        }
+        case 'DoomMark': {
+          const dmOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let dmTargetIdx: number | null = null;
+          if (dmOverrides?.attackTarget) {
+            dmTargetIdx = dmOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            dmTargetIdx = enemies[0];
+          }
+          if (dmTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const tName = enemyTeam[dmTargetIdx].name;
+            enemyTeam[dmTargetIdx].doomMarked = true;
+            this.log(`  → ${tName} is marked for doom! Next hit costs an extra life.`);
+            this.addLog({ type: 'effect', text: `${tName} is marked for doom!`, characterName: tName });
+          }
+          break;
+        }
+        case 'BloodContract': {
+          const bcOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let bcTargetIdx: number | null = null;
+          if (bcOverrides?.attackTarget) {
+            bcTargetIdx = bcOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            bcTargetIdx = enemies[0];
+          }
+          if (bcTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const tName = enemyTeam[bcTargetIdx].name;
+            enemyTeam[bcTargetIdx].bloodContractTeam = charTeam;
+            enemyTeam[bcTargetIdx].bloodContractSource = charName;
+            this.log(`  → ${tName} is bound by blood contract! Attacks against ${charName}'s team cost a life.`);
+            this.addLog({ type: 'effect', text: `${tName} is bound by blood contract!`, characterName: tName });
+          }
+          break;
+        }
+        case 'FuryScaling': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          const livesLost = ch.maxLives - ch.currentLives;
+          if (livesLost > 0) {
+            ch.modifiers.push(
+              new CombatModifier('strength', livesLost, ModifierDuration.RestOfCombat).withSource(card.name),
+            );
+            this.log(`  → ${charName}'s fury grows! +${livesLost} strength for rest of combat!`);
+            this.addLog({ type: 'effect', text: `${charName}'s fury grows! +${livesLost} strength!`, characterName: charName });
+          } else {
+            this.log(`  → ${charName} tries to channel fury but is uninjured.`);
+            this.addLog({ type: 'effect', text: `${charName} channels fury but is uninjured.`, characterName: charName });
+          }
+          break;
+        }
         default:
           break;
       }
@@ -1310,6 +1523,21 @@ export class CombatEngine {
       }
     }
 
+    // Process lingering fire damage at round start
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.pendingLingeringFireDamage > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingLingeringFireDamage; i++) {
+          const died = ch.loseLife();
+          this.addLog({ type: 'hit', text: `${ch.name} loses a life from fire! (${ch.currentLives}/${ch.maxLives})`, characterName: ch.name });
+          if (died) {
+            this.addLog({ type: 'death', text: `${ch.name} is defeated by fire!`, characterName: ch.name });
+            break;
+          }
+        }
+        ch.pendingLingeringFireDamage = 0;
+      }
+    }
+
     return { skipping };
   }
 
@@ -1379,11 +1607,25 @@ export class CombatEngine {
       }
     }
 
+    // Blood contract cleanup: clear contracts whose source is dead
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.bloodContractSource) {
+        const sourceAlive = [...this.team1, ...this.team2].some(
+          c => c.name === ch.bloodContractSource && c.isAlive(),
+        );
+        if (!sourceAlive) {
+          ch.bloodContractTeam = 0;
+          ch.bloodContractSource = '';
+        }
+      }
+    }
+
     // End of round cleanup
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
       if (ch.silencedTurns > 0) ch.silencedTurns--;
+      if (ch.impaledTurns > 0) ch.impaledTurns--;
     }
 
     return this.logEntries;
@@ -1502,10 +1744,24 @@ export class CombatEngine {
       }
     }
 
+    // Blood contract cleanup: clear contracts whose source is dead
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.bloodContractSource) {
+        const sourceAlive = [...this.team1, ...this.team2].some(
+          c => c.name === ch.bloodContractSource && c.isAlive(),
+        );
+        if (!sourceAlive) {
+          ch.bloodContractTeam = 0;
+          ch.bloodContractSource = '';
+        }
+      }
+    }
+
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
       if (ch.silencedTurns > 0) ch.silencedTurns--;
+      if (ch.impaledTurns > 0) ch.impaledTurns--;
     }
     this.pendingActions = [];
     this.pendingActionIndex = 0;
@@ -1559,6 +1815,21 @@ export class CombatEngine {
           }
         }
         ch.pendingVenomDamage = 0;
+      }
+    }
+
+    // Process lingering fire damage at round start
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.pendingLingeringFireDamage > 0 && ch.isAlive()) {
+        for (let i = 0; i < ch.pendingLingeringFireDamage; i++) {
+          const died = ch.loseLife();
+          this.log(`  → ${ch.name} loses a life from fire! (${ch.currentLives}/${ch.maxLives})`);
+          if (died) {
+            this.log(`  ★ ${ch.name} is defeated by fire!`);
+            break;
+          }
+        }
+        ch.pendingLingeringFireDamage = 0;
       }
     }
     if (this.isCombatOver()) return false;
@@ -1625,11 +1896,25 @@ export class CombatEngine {
       }
     }
 
+    // Blood contract cleanup: clear contracts whose source is dead
+    for (const ch of [...this.team1, ...this.team2]) {
+      if (ch.bloodContractSource) {
+        const sourceAlive = [...this.team1, ...this.team2].some(
+          c => c.name === ch.bloodContractSource && c.isAlive(),
+        );
+        if (!sourceAlive) {
+          ch.bloodContractTeam = 0;
+          ch.bloodContractSource = '';
+        }
+      }
+    }
+
     // End of round cleanup
     for (const ch of [...this.team1, ...this.team2]) {
       ch.advanceTurnModifiers();
       ch.stunned = false;
       if (ch.silencedTurns > 0) ch.silencedTurns--;
+      if (ch.impaledTurns > 0) ch.impaledTurns--;
     }
 
     return true;

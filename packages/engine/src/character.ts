@@ -49,6 +49,12 @@ export class Character {
   public silencedTurns = 0;
   public hasDeflection = false;
   public deflectionCounterDice: DiceRoll | null = null;
+  public pendingLingeringFireDamage = 0;
+  public doomMarked = false;
+  public impaledTurns = 0;
+  public bloodContractTeam = 0;
+  public bloodContractSource = '';
+  public hasInfernalRetaliation = false;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -196,6 +202,12 @@ export class Character {
     this.silencedTurns = 0;
     this.hasDeflection = false;
     this.deflectionCounterDice = null;
+    this.pendingLingeringFireDamage = 0;
+    this.doomMarked = false;
+    this.impaledTurns = 0;
+    this.bloodContractTeam = 0;
+    this.bloodContractSource = '';
+    this.hasInfernalRetaliation = false;
     this.setAsideCards.clear();
   }
 
@@ -207,6 +219,7 @@ export class Character {
     this.defenseBonuses = [];
     this.hasDeflection = false;
     this.deflectionCounterDice = null;
+    this.hasInfernalRetaliation = false;
     if (this.skipTurns > 0) {
       this.skipTurns--;
       return true;

@@ -9,6 +9,9 @@ import { GOBLIN_TEMPLATE } from './goblin.js';
 import { GOBLIN_SHAMAN_TEMPLATE } from './goblin-shaman.js';
 import { BASILISK_TEMPLATE } from './basilisk.js';
 import { MONK_TEMPLATE } from './monk.js';
+import { SPINED_DEVIL_TEMPLATE } from './spined-devil.js';
+import { BONE_DEVIL_TEMPLATE } from './bone-devil.js';
+import { HORNED_DEVIL_TEMPLATE } from './horned-devil.js';
 
 export { FIGHTER_TEMPLATE } from './fighter.js';
 export { ROGUE_TEMPLATE } from './rogue.js';
@@ -19,6 +22,9 @@ export { MONK_TEMPLATE } from './monk.js';
 export { GOBLIN_TEMPLATE } from './goblin.js';
 export { GOBLIN_SHAMAN_TEMPLATE } from './goblin-shaman.js';
 export { BASILISK_TEMPLATE } from './basilisk.js';
+export { SPINED_DEVIL_TEMPLATE } from './spined-devil.js';
+export { BONE_DEVIL_TEMPLATE } from './bone-devil.js';
+export { HORNED_DEVIL_TEMPLATE } from './horned-devil.js';
 
 export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
   FIGHTER_TEMPLATE,
@@ -30,6 +36,9 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
   GOBLIN_TEMPLATE,
   GOBLIN_SHAMAN_TEMPLATE,
   BASILISK_TEMPLATE,
+  SPINED_DEVIL_TEMPLATE,
+  BONE_DEVIL_TEMPLATE,
+  HORNED_DEVIL_TEMPLATE,
 ];
 
 export const PLAYER_TEMPLATES = ALL_CHARACTER_TEMPLATES.filter(t => t.category === 'player');
@@ -51,3 +60,6 @@ export const createGoblin = (name: string) => createCharacter(GOBLIN_TEMPLATE, n
 export const createGoblinShaman = (name: string) => createCharacter(GOBLIN_SHAMAN_TEMPLATE, name);
 export const createMonk = (name: string) => createCharacter(MONK_TEMPLATE, name);
 export const createBasilisk = (name: string) => createCharacter(BASILISK_TEMPLATE, name);
+export const createSpinedDevil = (name: string) => createCharacter(SPINED_DEVIL_TEMPLATE, name);
+export const createBoneDevil = (name: string) => createCharacter(BONE_DEVIL_TEMPLATE, name);
+export const createHornedDevil = (name: string) => createCharacter(HORNED_DEVIL_TEMPLATE, name);

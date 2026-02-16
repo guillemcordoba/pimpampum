@@ -72,7 +72,18 @@ export type SpecialEffect =
   | { type: 'MeditationBoost'; defenseDice: DiceRoll; defenseFlat: number; speedBoost: number }
   | { type: 'SilenceStrike' }
   | { type: 'PackTactics'; alliesPerBonus: number }
-  | { type: 'NimbleEscape' };
+  | { type: 'NimbleEscape' }
+  | { type: 'Crossfire'; maxBonus: number }
+  | { type: 'FireAndRetreat' }
+  | { type: 'LingeringFire' }
+  | { type: 'DebilitatingVenom'; defenseReduction: number }
+  | { type: 'TerrorAura'; statReduction: number }
+  | { type: 'DoomMark' }
+  | { type: 'Impale' }
+  | { type: 'BloodContract' }
+  | { type: 'FuryScaling' }
+  | { type: 'InfernalRetaliation' }
+  | { type: 'DoubleWound' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -92,6 +103,9 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
     switch (card.effect.type) {
       case 'CoordinatedAmbush': return 'enemy';
       case 'DeathCurse': return 'enemy';
+      case 'LingeringFire': return 'enemy';
+      case 'DoomMark': return 'enemy';
+      case 'BloodContract': return 'enemy';
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
       case 'HealAlly': return 'ally';

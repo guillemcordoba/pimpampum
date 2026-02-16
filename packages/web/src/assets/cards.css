@@ -73,6 +73,12 @@
 .print-card.monjo .card-frame { border-color: var(--class-monjo); }
 .print-card.basilisc { border-color: var(--class-basilisc); }
 .print-card.basilisc .card-frame { border-color: var(--class-basilisc); }
+.print-card.diable-espinos { border-color: var(--class-diable-espinos); }
+.print-card.diable-espinos .card-frame { border-color: var(--class-diable-espinos); }
+.print-card.diable-dos { border-color: var(--class-diable-dos); }
+.print-card.diable-dos .card-frame { border-color: var(--class-diable-dos); }
+.print-card.diable-banyut { border-color: var(--class-diable-banyut); }
+.print-card.diable-banyut .card-frame { border-color: var(--class-diable-banyut); }
 
 /* -- Card type header colors ----------------------------------------------- */
 

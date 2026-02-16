@@ -118,10 +118,29 @@ function selectAggro(character: Character, engine: AIEngineView): number {
         ));
         if (hasBuffableEnemy) weight += 5.0;
       }
+      // Crossfire: bonus for coordinated attacks
+      if (card.effect.type === 'Crossfire') weight += 12.0;
+      // FireAndRetreat: attack + dodge combo
+      if (card.effect.type === 'FireAndRetreat') {
+        weight += 10.0;
+        if (character.currentLives <= 1) weight += 8.0;
+      }
+      // DebilitatingVenom: permanent debuff
+      if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      // Impale: tactical — prevents defense
+      if (card.effect.type === 'Impale') weight += 8.0;
+      // DoubleWound: devastating double damage
+      if (card.effect.type === 'DoubleWound') {
+        weight += 15.0;
+        for (const idx of enemies) {
+          if (enemyTeam[idx].currentLives <= 2) { weight += 5.0; break; }
+        }
+      }
     } else if (isDefense(card.cardType)) {
       weight += 2.0;
       if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
       if (card.effect.type === 'Deflection') weight += 4.0;
+      if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
@@ -136,6 +155,17 @@ function selectAggro(character: Character, engine: AIEngineView): number {
         // Goblins like hiding — coordinated ambush next turn
         const livingAllies = engine.getLivingAllies(character.team).length;
         weight += 8.0 + livingAllies * 1.5;
+      } else if (card.effect.type === 'LingeringFire') {
+        weight += 10.0;
+      } else if (card.effect.type === 'TerrorAura') {
+        weight += 12.0 + enemies.length * 5.0;
+      } else if (card.effect.type === 'DoomMark') {
+        weight += 15.0;
+      } else if (card.effect.type === 'BloodContract') {
+        weight += 12.0;
+      } else if (card.effect.type === 'FuryScaling') {
+        const livesLost = character.maxLives - character.currentLives;
+        weight += 5.0 * livesLost;
       } else {
         weight += 2.0;
       }
@@ -213,6 +243,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         // No urgent reason to defend — moderate priority
         weight += 10.0;
       }
+      if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
     } else if (isAttack(card.cardType)) {
       if (fewEnemies) {
         // Few enemies left — go aggressive to close out the fight
@@ -250,6 +281,15 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           }
         }
       }
+      // Devil attack effect bonuses (apply regardless of ally state)
+      if (card.effect.type === 'Crossfire') weight += 12.0;
+      if (card.effect.type === 'FireAndRetreat') {
+        weight += 10.0;
+        if (character.currentLives <= 1) weight += 8.0;
+      }
+      if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      if (card.effect.type === 'Impale') weight += 8.0;
+      if (card.effect.type === 'DoubleWound') weight += 15.0;
     } else if (isFocus(card.cardType)) {
       if (allyLikelyFocus) {
         // Ally needs defense — don't focus, defend instead
@@ -291,6 +331,23 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           case 'NimbleEscape': {
             const la = engine.getLivingAllies(character.team).length;
             weight += 8.0 + la * 1.5;
+            break;
+          }
+          case 'LingeringFire':
+            weight += 10.0;
+            break;
+          case 'TerrorAura':
+            weight += 12.0 + enemies.length * 5.0;
+            break;
+          case 'DoomMark':
+            weight += 15.0;
+            break;
+          case 'BloodContract':
+            weight += 12.0;
+            break;
+          case 'FuryScaling': {
+            const livesLost2 = character.maxLives - character.currentLives;
+            weight += 5.0 * livesLost2;
             break;
           }
           default:
@@ -364,6 +421,23 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 8.0 + la * 1.5;
           break;
         }
+        case 'LingeringFire':
+          weight += 10.0;
+          break;
+        case 'TerrorAura':
+          weight += 12.0 + enemies.length * 5.0;
+          break;
+        case 'DoomMark':
+          weight += 15.0;
+          break;
+        case 'BloodContract':
+          weight += 30.0;
+          break;
+        case 'FuryScaling': {
+          const livesLost3 = character.maxLives - character.currentLives;
+          weight += livesLost3 > 0 ? 5.0 * livesLost3 : 2.0;
+          break;
+        }
         default:
           weight += 10.0;
       }
@@ -393,8 +467,18 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 10.0;
         }
       }
+      // Devil attack effect bonuses
+      if (card.effect.type === 'Crossfire') weight += 12.0;
+      if (card.effect.type === 'FireAndRetreat') {
+        weight += 10.0;
+        if (character.currentLives <= 1) weight += 8.0;
+      }
+      if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      if (card.effect.type === 'Impale') weight += 8.0;
+      if (card.effect.type === 'DoubleWound') weight += 15.0;
     } else if (isDefense(card.cardType)) {
       weight += 4.0;
+      if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
     } else if (isFocus(card.cardType) && hasRestOfCombatBuff) {
       weight += 2.0;
     }
