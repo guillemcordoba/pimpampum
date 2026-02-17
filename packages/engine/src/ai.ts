@@ -136,11 +136,30 @@ function selectAggro(character: Character, engine: AIEngineView): number {
           if (enemyTeam[idx].currentLives <= 2) { weight += 5.0; break; }
         }
       }
+      // DivineSmite: weight based on combined F+M
+      if (card.effect.type === 'DivineSmite') {
+        const combinedAttack = character.getEffectiveStrength() + character.getEffectiveMagic() + (card.physicalAttack?.average() ?? 0);
+        if (enemies.length > 0) {
+          const avgDef = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length;
+          if (combinedAttack > avgDef) weight += 8.0;
+        }
+      }
+      // Dissonance: AoE debuff on hit
+      if (card.effect.type === 'Dissonance') weight += 8.0;
+      // Overcharge: AoE + self-wound — scales with enemy count
+      if (card.effect.type === 'Overcharge') {
+        if (enemies.length >= 2) weight += 10.0;
+        else if (enemies.length === 1) weight -= 10.0;
+        if (character.currentLives <= 1) weight -= 20.0;
+        else if (character.currentLives >= 3) weight += 5.0;
+      }
     } else if (isDefense(card.cardType)) {
       weight += 2.0;
       if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
       if (card.effect.type === 'Deflection') weight += 4.0;
+      if (card.effect.type === 'MagicDeflection') weight += 4.0;
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
+      if (card.effect.type === 'SpellReflection') weight += 4.0;
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
@@ -166,6 +185,29 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       } else if (card.effect.type === 'FuryScaling') {
         const livesLost = character.maxLives - character.currentLives;
         weight += 5.0 * livesLost;
+      } else if (card.effect.type === 'VoiceOfValor') {
+        const allyTeamA = character.team === 1 ? engine.team1 : engine.team2;
+        const alliesA = engine.getLivingAllies(character.team);
+        const anyWoundedA = alliesA.some(i => allyTeamA[i].currentLives < allyTeamA[i].maxLives)
+          || character.currentLives < character.maxLives;
+        if (anyWoundedA) weight += 15.0;
+        else weight += 1.0;
+      } else if (card.effect.type === 'Charm') {
+        if (enemies.length >= 2) weight += 18.0;
+        else if (enemies.length === 1) weight += 8.0;
+      } else if (card.effect.type === 'Requiem') {
+        const woundedEnemies = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
+        weight += 5.0 + 5.0 * woundedEnemies.length;
+      } else if (card.effect.type === 'BloodMagic') {
+        if (character.currentLives >= 2) weight += 5.0;
+        else weight += 0.0;
+      } else if (card.effect.type === 'LayOnHands') {
+        const at = character.team === 1 ? engine.team1 : engine.team2;
+        const al = engine.getLivingAllies(character.team);
+        const wounded = al.some(i => at[i].currentLives < at[i].maxLives)
+          || character.currentLives < character.maxLives;
+        if (wounded) weight += 3.0;
+        else weight += 0.0;
       } else {
         weight += 2.0;
       }
@@ -244,6 +286,8 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         weight += 10.0;
       }
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
+      if (card.effect.type === 'MagicDeflection') weight += 4.0;
+      if (card.effect.type === 'SpellReflection') weight += 4.0;
     } else if (isAttack(card.cardType)) {
       if (fewEnemies) {
         // Few enemies left — go aggressive to close out the fight
@@ -290,7 +334,21 @@ function selectProtect(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
       if (card.effect.type === 'Impale') weight += 8.0;
       if (card.effect.type === 'DoubleWound') weight += 15.0;
-    } else if (isFocus(card.cardType)) {
+      if (card.effect.type === 'Dissonance') weight += 8.0;
+      if (card.effect.type === 'DivineSmite') {
+        const combinedAttack = character.getEffectiveStrength() + character.getEffectiveMagic() + (card.physicalAttack?.average() ?? 0);
+        if (enemies.length > 0) {
+          const avgDef = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length;
+          if (combinedAttack > avgDef) weight += 8.0;
+        }
+      }
+      if (card.effect.type === 'Overcharge') {
+        if (enemies.length >= 2) weight += 10.0;
+        else if (enemies.length === 1) weight -= 10.0;
+        if (character.currentLives <= 1) weight -= 20.0;
+        else if (character.currentLives >= 3) weight += 5.0;
+      }
+    } else if (isDefense(card.cardType)) {
       if (allyLikelyFocus) {
         // Ally needs defense — don't focus, defend instead
         weight += 1.0;
@@ -348,6 +406,32 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           case 'FuryScaling': {
             const livesLost2 = character.maxLives - character.currentLives;
             weight += 5.0 * livesLost2;
+            break;
+          }
+          case 'VoiceOfValor': {
+            const anyWoundedP = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
+              || character.currentLives < character.maxLives;
+            if (anyWoundedP) weight += 15.0;
+            else weight += 1.0;
+            break;
+          }
+          case 'Charm':
+            if (enemies.length >= 2) weight += 18.0;
+            else if (enemies.length === 1) weight += 8.0;
+            break;
+          case 'Requiem': {
+            const woundedEnemiesP = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
+            weight += 5.0 + 5.0 * woundedEnemiesP.length;
+            break;
+          }
+          case 'BloodMagic':
+            if (character.currentLives >= 2) weight += 3.0;
+            break;
+          case 'LayOnHands': {
+            const anyWoundedLOH = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
+              || character.currentLives < character.maxLives;
+            if (anyWoundedLOH) weight += 20.0;
+            else weight += 1.0;
             break;
           }
           default:
@@ -438,6 +522,36 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += livesLost3 > 0 ? 5.0 * livesLost3 : 2.0;
           break;
         }
+        case 'VoiceOfValor': {
+          const atPow = character.team === 1 ? engine.team1 : engine.team2;
+          const alPow = engine.getLivingAllies(character.team);
+          const anyWoundedPow = alPow.some(i => atPow[i].currentLives < atPow[i].maxLives)
+            || character.currentLives < character.maxLives;
+          if (anyWoundedPow) weight += 30.0;
+          else weight += 2.0;
+          break;
+        }
+        case 'Charm':
+          if (enemies.length >= 2) weight += 25.0;
+          else if (enemies.length === 1) weight += 10.0;
+          break;
+        case 'Requiem': {
+          const woundedEnemiesPow = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
+          weight += 5.0 + 8.0 * woundedEnemiesPow.length;
+          break;
+        }
+        case 'BloodMagic':
+          if (character.currentLives >= 2) weight += 25.0;
+          break;
+        case 'LayOnHands': {
+          const atLOH = character.team === 1 ? engine.team1 : engine.team2;
+          const alLOH = engine.getLivingAllies(character.team);
+          const woundedLOH = alLOH.some(i => atLOH[i].currentLives < atLOH[i].maxLives)
+            || character.currentLives < character.maxLives;
+          if (woundedLOH) weight += 15.0;
+          else weight += 2.0;
+          break;
+        }
         default:
           weight += 10.0;
       }
@@ -476,9 +590,25 @@ function selectPower(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
       if (card.effect.type === 'Impale') weight += 8.0;
       if (card.effect.type === 'DoubleWound') weight += 15.0;
+      if (card.effect.type === 'Dissonance') weight += 8.0;
+      if (card.effect.type === 'DivineSmite') {
+        const combinedAttack = character.getEffectiveStrength() + character.getEffectiveMagic() + (card.physicalAttack?.average() ?? 0);
+        if (enemies.length > 0) {
+          const avgDef = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length;
+          if (combinedAttack > avgDef) weight += 15.0;
+        }
+      }
+      if (card.effect.type === 'Overcharge') {
+        if (enemies.length >= 2) weight += 15.0;
+        else if (enemies.length === 1) weight -= 10.0;
+        if (character.currentLives <= 1) weight -= 20.0;
+        else if (character.currentLives >= 3) weight += 5.0;
+      }
     } else if (isDefense(card.cardType)) {
       weight += 4.0;
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
+      if (card.effect.type === 'MagicDeflection') weight += 4.0;
+      if (card.effect.type === 'SpellReflection') weight += 4.0;
     } else if (isFocus(card.cardType) && hasRestOfCombatBuff) {
       weight += 2.0;
     }

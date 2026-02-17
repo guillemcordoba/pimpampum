@@ -10,6 +10,9 @@ import {
   createBarbarian,
   createCleric,
   createMonk,
+  createBard,
+  createSorcerer,
+  createPaladin,
   createGoblin,
   createGoblinShaman,
   createSpinedDevil,
@@ -227,6 +230,9 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Barbarian', createBarbarian],
     ['Cleric', createCleric],
     ['Monk', createMonk],
+    ['Bard', createBard],
+    ['Sorcerer', createSorcerer],
+    ['Paladin', createPaladin],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
     ['SpinedDevil', createSpinedDevil],
@@ -243,6 +249,9 @@ export function getPlayerCreators(): [string, CharacterCreator][] {
     ['Barbarian', createBarbarian],
     ['Cleric', createCleric],
     ['Monk', createMonk],
+    ['Bard', createBard],
+    ['Sorcerer', createSorcerer],
+    ['Paladin', createPaladin],
   ];
 }
 

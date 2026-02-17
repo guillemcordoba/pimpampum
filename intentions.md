@@ -37,6 +37,11 @@ The balance levers that maintain this triangle:
 - Barbarians are aggressive berserkers who need team protection to set up, then dominate with raw physical power.
 - Clerics are magic-based support classes with healing, curses, and spirit invocations. They blend offense and utility.
 - Monks are fast, self-reliant martial artists who disrupt enemy strategies. They bypass defenses, silence focus plays, and reward precise, aggressive play. They are naturally Aggro-style (not Power+Protect) with mostly physical attacks and a defensive self-buff focus card.
+- Bards (Trobadors) are versatile, performance-based support classes whose songs reshape the entire battlefield. Unlike the Cleric (who heals individuals and curses specific targets), the Bard's effects are sweeping and theatrical — team-wide buffs, AoE debuffs, and the game's only mind control mechanic (Charm). They're fragile and need allies to shield their slow performances, but a well-protected Bard is a force multiplier that makes any team composition stronger.
+
+- Sorcerers (Bruixots) are fast, volatile magical glass cannons who trade life for overwhelming arcane power. They cast faster than any other caster but pay steep costs for their strongest abilities. Their Blood Magic focus card lets them sacrifice vitality for permanent magical power, and their Overcharge signature attack devastates enemies at the cost of self-inflicted wounds. They need healing allies to sustain their reckless playstyle.
+
+- Paladins (Paladins) are stalwart holy warriors who combine martial combat with divine faith. They excel at protecting allies with their high defense and faith-powered shields, while their signature Divine Smite channels divine magic through their weapon for uniquely powerful strikes. Their Lay on Hands provides emergency healing and cleansing, and their Sacred Oath grants permanent combat empowerment. They reward patient, team-oriented play.
 
 ### Designing new classes and cards
 

@@ -83,7 +83,18 @@ export type SpecialEffect =
   | { type: 'BloodContract' }
   | { type: 'FuryScaling' }
   | { type: 'InfernalRetaliation' }
-  | { type: 'DoubleWound' };
+  | { type: 'DoubleWound' }
+  | { type: 'Dissonance' }
+  | { type: 'MagicDeflection'; counterAttackDice: DiceRoll }
+  | { type: 'Charm' }
+  | { type: 'VoiceOfValor' }
+  | { type: 'Requiem' }
+  | { type: 'Overcharge' }
+  | { type: 'SpellReflection' }
+  | { type: 'BloodMagic' }
+  | { type: 'DivineSmite' }
+  | { type: 'DivineBulwark' }
+  | { type: 'LayOnHands' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -109,6 +120,9 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'Vengeance': return 'ally';
       case 'EnchantWeapon': return 'ally';
       case 'HealAlly': return 'ally';
+      case 'VoiceOfValor': return 'ally';
+      case 'LayOnHands': return 'ally';
+      case 'Charm': return 'enemy';
       case 'PoisonWeapon': return 'none';
       case 'CharacteristicModifier':
         if (card.effect.target === 'enemy') return 'enemy';

@@ -9,6 +9,9 @@ import { GOBLIN_TEMPLATE } from './goblin.js';
 import { GOBLIN_SHAMAN_TEMPLATE } from './goblin-shaman.js';
 import { BASILISK_TEMPLATE } from './basilisk.js';
 import { MONK_TEMPLATE } from './monk.js';
+import { BARD_TEMPLATE } from './bard.js';
+import { SORCERER_TEMPLATE } from './sorcerer.js';
+import { PALADIN_TEMPLATE } from './paladin.js';
 import { SPINED_DEVIL_TEMPLATE } from './spined-devil.js';
 import { BONE_DEVIL_TEMPLATE } from './bone-devil.js';
 import { HORNED_DEVIL_TEMPLATE } from './horned-devil.js';
@@ -19,6 +22,9 @@ export { WIZARD_TEMPLATE } from './wizard.js';
 export { BARBARIAN_TEMPLATE } from './barbarian.js';
 export { CLERIC_TEMPLATE } from './cleric.js';
 export { MONK_TEMPLATE } from './monk.js';
+export { BARD_TEMPLATE } from './bard.js';
+export { SORCERER_TEMPLATE } from './sorcerer.js';
+export { PALADIN_TEMPLATE } from './paladin.js';
 export { GOBLIN_TEMPLATE } from './goblin.js';
 export { GOBLIN_SHAMAN_TEMPLATE } from './goblin-shaman.js';
 export { BASILISK_TEMPLATE } from './basilisk.js';
@@ -33,6 +39,9 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
   BARBARIAN_TEMPLATE,
   CLERIC_TEMPLATE,
   MONK_TEMPLATE,
+  BARD_TEMPLATE,
+  SORCERER_TEMPLATE,
+  PALADIN_TEMPLATE,
   GOBLIN_TEMPLATE,
   GOBLIN_SHAMAN_TEMPLATE,
   BASILISK_TEMPLATE,
@@ -59,6 +68,9 @@ export const createCleric = (name: string) => createCharacter(CLERIC_TEMPLATE, n
 export const createGoblin = (name: string) => createCharacter(GOBLIN_TEMPLATE, name);
 export const createGoblinShaman = (name: string) => createCharacter(GOBLIN_SHAMAN_TEMPLATE, name);
 export const createMonk = (name: string) => createCharacter(MONK_TEMPLATE, name);
+export const createBard = (name: string) => createCharacter(BARD_TEMPLATE, name);
+export const createSorcerer = (name: string) => createCharacter(SORCERER_TEMPLATE, name);
+export const createPaladin = (name: string) => createCharacter(PALADIN_TEMPLATE, name);
 export const createBasilisk = (name: string) => createCharacter(BASILISK_TEMPLATE, name);
 export const createSpinedDevil = (name: string) => createCharacter(SPINED_DEVIL_TEMPLATE, name);
 export const createBoneDevil = (name: string) => createCharacter(BONE_DEVIL_TEMPLATE, name);

@@ -10,6 +10,9 @@ import {
   createBarbarian,
   createCleric,
   createMonk,
+  createBard,
+  createSorcerer,
+  createPaladin,
   createSpinedDevil,
   createBoneDevil,
   createHornedDevil,
@@ -91,7 +94,7 @@ afterAll(() => {
 
   // --- Class win rates ---
   p('--- CLASS WIN RATES ---');
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'sorcerer', 'paladin'];
   for (const cls of playerClasses) {
     const games = aggregatedStats.classGames.get(cls) ?? 0;
     const wins = aggregatedStats.classWins.get(cls) ?? 0;
@@ -138,6 +141,9 @@ afterAll(() => {
     ['barbarian', createBarbarian],
     ['cleric', createCleric],
     ['monk', createMonk],
+    ['bard', createBard],
+    ['sorcerer', createSorcerer],
+    ['paladin', createPaladin],
   ];
   for (const [className, creator] of playerCreators) {
     const ch = creator('tmp');
@@ -230,7 +236,7 @@ afterAll(() => {
 // =============================================================================
 
 describe('Class Balance', () => {
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'sorcerer', 'paladin'];
 
   it('every player class has aggregate win rate between 35% and 65%', () => {
     for (const cls of playerClasses) {
@@ -335,6 +341,9 @@ describe('Individual Card Usage', () => {
     ['barbarian', createBarbarian],
     ['cleric', createCleric],
     ['monk', createMonk],
+    ['bard', createBard],
+    ['sorcerer', createSorcerer],
+    ['paladin', createPaladin],
   ];
   for (const [className, creator] of playerCreatorMap) {
     const ch = creator('tmp');
@@ -412,6 +421,12 @@ describe('Strategy Triangle', () => {
     [createCleric, createBarbarian],
     [createCleric, createRogue],
     [createCleric, createWizard],
+    [createBard, createFighter],
+    [createBard, createWizard],
+    [createBard, createBarbarian],
+    [createPaladin, createFighter],
+    [createPaladin, createWizard],
+    [createPaladin, createBarbarian],
   ];
 
   const simsPerComposition = 400;
@@ -462,6 +477,9 @@ describe('Class Identity', () => {
       ['rogue', createRogue],
       ['barbarian', createBarbarian],
       ['cleric', createCleric],
+      ['bard', createBard],
+      ['sorcerer', createSorcerer],
+      ['paladin', createPaladin],
     ];
 
     const cardTypeMap = new Map<string, string>();
@@ -507,6 +525,9 @@ describe('Class Identity', () => {
       ['barbarian', createBarbarian],
       ['cleric', createCleric],
       ['monk', createMonk],
+      ['bard', createBard],
+      ['sorcerer', createSorcerer],
+      ['paladin', createPaladin],
     ];
     const wizardChar = createWizard('tmp');
     for (const [cls, creator] of others) {

@@ -111,6 +111,9 @@ function getSetAsideDuration(effect: SpecialEffect): number {
     case 'MeditationBoost':
     case 'BloodContract':
     case 'FuryScaling':
+    case 'VoiceOfValor':
+    case 'BloodMagic':
+    case 'LayOnHands':
       return -1;
     // NextTurn effects — 2 turns set aside
     case 'DodgeWithSpeedBoost':
@@ -347,7 +350,13 @@ export class CombatEngine {
       }
     }
 
-    const totalAttack = attackStat + diceRoll + attackBonus + packTacticsBonus + crossfireBonus;
+    // DivineSmite: add magic stat to physical attack
+    let divineSmiteBonus = 0;
+    if (card.effect?.type === 'DivineSmite') {
+      divineSmiteBonus = attacker.getEffectiveMagic();
+    }
+
+    const totalAttack = attackStat + diceRoll + attackBonus + packTacticsBonus + crossfireBonus + divineSmiteBonus;
 
     const targetNameForVengeance = target.name;
     const attackerName = attacker.name;
@@ -403,6 +412,7 @@ export class CombatEngine {
     if (attackBonus !== 0) attackParts += ` + ${attackBonus}`;
     if (packTacticsBonus > 0) attackParts += ` + ${packTacticsBonus}(horda)`;
     if (crossfireBonus > 0) attackParts += ` + ${crossfireBonus}(foc creuat)`;
+    if (divineSmiteBonus > 0) attackParts += ` + ${divineSmiteBonus}(càstig diví)`;
     attackParts += ` = ${totalAttack}`;
     this.addLog({ type: 'attack', text: `${attackParts} vs D ${totalDefense}`, characterName: attackerName });
 
@@ -642,6 +652,29 @@ export class CombatEngine {
         }
       }
 
+      // MagicDeflection: defender counter-attacks with magic on successful block
+      if (defenderInfo) {
+        const [defTeamM, defIdxM, defNameM] = defenderInfo;
+        const defenderM = this.getTeam(defTeamM)[defIdxM];
+        if (defenderM.hasMagicDeflection && defenderM.magicDeflectionCounterDice && defenderM.isAlive()) {
+          const counterAttack = defenderM.getEffectiveMagic() + defenderM.magicDeflectionCounterDice.roll();
+          const attackerForCounter = this.getTeam(attackerTeam)[attackerIdx];
+          const attackerDef = attackerForCounter.getEffectiveDefense();
+          this.log(`  → ${defNameM} counterpoints with magic! ${counterAttack} vs ${attackerDef}`);
+          this.addLog({ type: 'vengeance', text: `${defNameM} counterpoints with magic! ${counterAttack} vs ${attackerDef}`, characterName: defNameM });
+          if (counterAttack > attackerDef && attackerForCounter.isAlive()) {
+            const counterDied = attackerForCounter.loseLife();
+            this.hitThisRound.add(attackerName);
+            this.log(`  → ${attackerName} loses a life from magic deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`);
+            this.addLog({ type: 'hit', text: `${attackerName} loses a life from magic deflection! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`, characterName: attackerName });
+            if (counterDied) {
+              this.log(`  ★ ${attackerName} is defeated!`);
+              this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
+            }
+          }
+        }
+      }
+
       // InfernalRetaliation: defender hurts the attacker when blocking
       if (defenderInfo) {
         const [defTeam2, defIdx2, defName2] = defenderInfo;
@@ -657,6 +690,41 @@ export class CombatEngine {
               this.log(`  ★ ${attackerName} is defeated!`);
               this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
             }
+          }
+        }
+      }
+
+      // SpellReflection: if a magic attack misses against this defender, wound the attacker
+      if (defenderInfo) {
+        const [defTeamSR, defIdxSR, defNameSR] = defenderInfo;
+        const defenderSR = this.getTeam(defTeamSR)[defIdxSR];
+        if (defenderSR.hasSpellReflection && !isPhysical(card.cardType) && defenderSR.isAlive()) {
+          const attackerForRef = this.getTeam(attackerTeam)[attackerIdx];
+          if (attackerForRef.isAlive()) {
+            const refDied = attackerForRef.loseLife();
+            this.hitThisRound.add(attackerName);
+            this.log(`  → ${defNameSR}'s arcane barrier reflects magic back at ${attackerName}! (${attackerForRef.currentLives}/${attackerForRef.maxLives})`);
+            this.addLog({ type: 'hit', text: `${defNameSR}'s arcane barrier reflects magic at ${attackerName}! (${attackerForRef.currentLives}/${attackerForRef.maxLives})`, characterName: attackerName });
+            if (refDied) {
+              this.log(`  ★ ${attackerName} is defeated by spell reflection!`);
+              this.addLog({ type: 'death', text: `${attackerName} is defeated by spell reflection!`, characterName: attackerName });
+            }
+          }
+        }
+      }
+
+      // DivineBulwark: on miss, defended ally gains +1D RestOfCombat
+      if (defenderInfo) {
+        const [defTeamDB, defIdxDB, defNameDB] = defenderInfo;
+        const defenderDB = this.getTeam(defTeamDB)[defIdxDB];
+        if (defenderDB.hasDivineBulwark && defenderDB.isAlive()) {
+          const originalTarget = this.getTeam(targetTeam)[tIdx];
+          if (originalTarget.isAlive()) {
+            originalTarget.modifiers.push(
+              new CombatModifier('defense', 1, ModifierDuration.RestOfCombat).withSource('Escut de fe'),
+            );
+            this.log(`  → ${defNameDB}'s divine shield strengthens ${originalTarget.name}! +1 defense for rest of combat.`);
+            this.addLog({ type: 'effect', text: `${originalTarget.name} gains +1D from Escut de fe!`, characterName: originalTarget.name });
           }
         }
       }
@@ -751,6 +819,9 @@ export class CombatEngine {
           const enemies = this.getLivingEnemies(charTeam);
           targets = enemies.slice(0, card.effect.count);
         }
+      } else if (card.effect.type === 'Overcharge') {
+        // Overcharge: attack ALL living enemies
+        targets = this.getLivingEnemies(charTeam);
       } else if (overrides?.attackTarget && overrides.attackTarget[0] === eTeam) {
         targets = [overrides.attackTarget[1]];
       } else {
@@ -809,6 +880,21 @@ export class CombatEngine {
           }
         }
 
+        // Dissonance: on hit, ALL living enemies get -1 to all stats next turn
+        if (hit && card.effect.type === 'Dissonance') {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          for (const idx of enemies) {
+            for (const stat of ['strength', 'magic', 'defense', 'speed'] as const) {
+              enemyTeam[idx].modifiers.push(
+                new CombatModifier(stat, -1, ModifierDuration.NextTurn).withSource(card.name),
+              );
+            }
+          }
+          this.log(`  → Dissonant chord! All enemies get -1 to all stats next turn!`);
+          this.addLog({ type: 'effect', text: `All enemies get -1 to all stats next turn!`, characterName: charName });
+        }
+
         // SwiftStrike: on hit, attacker gets V+3 next turn
         if (hit && card.effect.type === 'SwiftStrike') {
           const attacker = this.getTeam(charTeam)[charIdx];
@@ -832,6 +918,21 @@ export class CombatEngine {
         }
 
         } // end FlurryOfBlows attack loop
+      }
+
+      // Overcharge: self-wound after all attacks resolve
+      if (card.effect.type === 'Overcharge') {
+        const attacker = this.getTeam(charTeam)[charIdx];
+        if (attacker.isAlive()) {
+          const died = attacker.loseLife();
+          this.hitThisRound.add(charName);
+          this.log(`  → ${charName} takes a self-wound from Overcharge! (${attacker.currentLives}/${attacker.maxLives})`);
+          this.addLog({ type: 'hit', text: `${charName} takes a self-wound from Overcharge! (${attacker.currentLives}/${attacker.maxLives})`, characterName: charName });
+          if (died) {
+            this.log(`  ★ ${charName} is defeated by Overcharge!`);
+            this.addLog({ type: 'death', text: `${charName} is defeated by Overcharge!`, characterName: charName });
+          }
+        }
       }
 
       // FireAndRetreat: attacker dodges after attacking
@@ -988,8 +1089,19 @@ export class CombatEngine {
           ch.hasDeflection = true;
           ch.deflectionCounterDice = card.effect.counterAttackDice;
         }
+        if (card.effect.type === 'MagicDeflection') {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.hasMagicDeflection = true;
+          ch.magicDeflectionCounterDice = card.effect.counterAttackDice;
+        }
         if (card.effect.type === 'InfernalRetaliation') {
           this.getTeam(charTeam)[charIdx].hasInfernalRetaliation = true;
+        }
+        if (card.effect.type === 'SpellReflection') {
+          this.getTeam(charTeam)[charIdx].hasSpellReflection = true;
+        }
+        if (card.effect.type === 'DivineBulwark') {
+          this.getTeam(charTeam)[charIdx].hasDivineBulwark = true;
         }
       }
     }
@@ -1346,6 +1458,169 @@ export class CombatEngine {
           } else {
             this.log(`  → ${charName} tries to channel fury but is uninjured.`);
             this.addLog({ type: 'effect', text: `${charName} channels fury but is uninjured.`, characterName: charName });
+          }
+          break;
+        }
+        case 'VoiceOfValor': {
+          const vovOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let vovIdx: number | null = null;
+          if (vovOverrides?.allyTarget && vovOverrides.allyTarget[0] === charTeam) {
+            vovIdx = vovOverrides.allyTarget[1];
+          } else {
+            // AI: pick most hurt ally (lowest lives)
+            const allies = this.getLivingAllies(charTeam);
+            const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+            if (hurt.length > 0) {
+              vovIdx = hurt.reduce((b, i) =>
+                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+            } else {
+              // No wounded allies — check self
+              if (character.currentLives < character.maxLives) {
+                vovIdx = charIdx;
+              }
+            }
+          }
+          if (vovIdx !== null && allyTeam[vovIdx].currentLives < allyTeam[vovIdx].maxLives) {
+            const target = allyTeam[vovIdx];
+            target.currentLives++;
+            target.modifiers.push(
+              new CombatModifier('strength', 2, ModifierDuration.RestOfCombat).withSource(card.name),
+            );
+            target.modifiers.push(
+              new CombatModifier('magic', 2, ModifierDuration.RestOfCombat).withSource(card.name),
+            );
+            const tName = target.name;
+            this.log(`  → ${charName} sings the Voice of Valor for ${tName}! Heals 1 life and gains +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} inspires ${tName}! Heals 1 life, +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`, characterName: charName });
+          } else {
+            this.log(`  → ${charName} sings the Voice of Valor but no one is wounded.`);
+            this.addLog({ type: 'effect', text: `${charName} sings but no one is wounded.`, characterName: charName });
+          }
+          break;
+        }
+        case 'Charm': {
+          const charmOverrides = this.resolveTargets.get(charName);
+          const enemies = this.getLivingEnemies(charTeam);
+          let charmTargetIdx: number | null = null;
+          if (charmOverrides?.attackTarget) {
+            charmTargetIdx = charmOverrides.attackTarget[1];
+          } else if (enemies.length > 0) {
+            charmTargetIdx = enemies[0];
+          }
+          if (charmTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const charmTarget = enemyTeam[charmTargetIdx];
+            if (charmTarget.isAlive()) {
+              // Stun the charmed target
+              charmTarget.stunned = true;
+              const tName = charmTarget.name;
+              this.log(`  → ${charName} charms ${tName}! Their turn is cancelled!`);
+              this.addLog({ type: 'effect', text: `${charName} charms ${tName}! Turn cancelled!`, characterName: charName });
+
+              // Wound a random OTHER living enemy
+              const otherEnemies = this.getLivingEnemies(charTeam).filter(i => i !== charmTargetIdx);
+              if (otherEnemies.length > 0) {
+                const victimIdx = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+                const victim = enemyTeam[victimIdx];
+                const victimDied = victim.loseLife();
+                this.hitThisRound.add(victim.name);
+                this.log(`  → ${tName}, confused, wounds ${victim.name}! (${victim.currentLives}/${victim.maxLives})`);
+                this.addLog({ type: 'hit', text: `${tName}, confused, wounds ${victim.name}! (${victim.currentLives}/${victim.maxLives})`, characterName: victim.name });
+                if (victimDied) {
+                  this.log(`  ★ ${victim.name} is defeated!`);
+                  this.addLog({ type: 'death', text: `${victim.name} is defeated!`, characterName: victim.name });
+                }
+              }
+            }
+          }
+          break;
+        }
+        case 'BloodMagic': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          // Sacrifice 1 life
+          const bmDied = ch.loseLife();
+          this.hitThisRound.add(charName);
+          this.log(`  → ${charName} sacrifices blood! Loses 1 life. (${ch.currentLives}/${ch.maxLives})`);
+          this.addLog({ type: 'hit', text: `${charName} sacrifices blood! (${ch.currentLives}/${ch.maxLives})`, characterName: charName });
+          if (bmDied) {
+            this.log(`  ★ ${charName} is defeated by Blood Magic!`);
+            this.addLog({ type: 'death', text: `${charName} is defeated by Blood Magic!`, characterName: charName });
+          } else {
+            // Apply +3M and +2V for rest of combat
+            ch.modifiers.push(
+              new CombatModifier('magic', 3, ModifierDuration.RestOfCombat).withSource(card.name),
+            );
+            ch.modifiers.push(
+              new CombatModifier('speed', 2, ModifierDuration.RestOfCombat).withSource(card.name),
+            );
+            this.log(`  → ${charName} gains +3 magic and +2 speed for rest of combat!`);
+            this.addLog({ type: 'effect', text: `${charName} gains +3M/+2V for rest of combat!`, characterName: charName });
+          }
+          break;
+        }
+        case 'LayOnHands': {
+          const healOverrides = this.resolveTargets.get(charName);
+          const allyTeam = this.getTeam(charTeam);
+          let healIdx: number | null = null;
+          if (healOverrides?.allyTarget && healOverrides.allyTarget[0] === charTeam) {
+            healIdx = healOverrides.allyTarget[1];
+          } else {
+            // AI: pick most hurt ally (or self)
+            const allies = this.getLivingAllies(charTeam);
+            const allCandidates = [...allies, charIdx];
+            const hurt = allCandidates.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+            if (hurt.length > 0) {
+              healIdx = hurt.reduce((b, i) =>
+                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+            }
+          }
+          if (healIdx !== null && allyTeam[healIdx].currentLives < allyTeam[healIdx].maxLives) {
+            allyTeam[healIdx].currentLives++;
+            const tName = allyTeam[healIdx].name;
+            this.log(`  → ${charName} lays hands on ${tName}! Healed to (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+
+            // Cleanse negative modifiers and silence
+            const target = allyTeam[healIdx];
+            const beforeMods = target.modifiers.length;
+            target.modifiers = target.modifiers.filter(m => m.getValue() >= 0);
+            const removed = beforeMods - target.modifiers.length;
+            if (target.silencedTurns > 0) {
+              target.silencedTurns = 0;
+              this.log(`  → ${tName} is cleansed of silence!`);
+              this.addLog({ type: 'effect', text: `${tName} is cleansed of silence!`, characterName: tName });
+            }
+            if (removed > 0) {
+              this.log(`  → ${tName} is cleansed of ${removed} negative effect(s)!`);
+              this.addLog({ type: 'effect', text: `${tName} is cleansed of ${removed} negative effect(s)!`, characterName: tName });
+            }
+          } else {
+            this.log(`  → ${charName} lays on hands but no one needs healing.`);
+            this.addLog({ type: 'effect', text: `${charName} lays on hands but no one needs healing.`, characterName: charName });
+          }
+          break;
+        }
+        case 'Requiem': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          let woundCount = 0;
+          for (const idx of enemies) {
+            if (enemyTeam[idx].currentLives < enemyTeam[idx].maxLives) {
+              const eName = enemyTeam[idx].name;
+              const died = enemyTeam[idx].loseLife();
+              woundCount++;
+              this.log(`  → ${eName} hears the Requiem and loses a life! (${enemyTeam[idx].currentLives}/${enemyTeam[idx].maxLives})`);
+              this.addLog({ type: 'hit', text: `${eName} hears the Requiem! (${enemyTeam[idx].currentLives}/${enemyTeam[idx].maxLives})`, characterName: eName });
+              if (died) {
+                this.log(`  ★ ${eName} is defeated!`);
+                this.addLog({ type: 'death', text: `${eName} is defeated!`, characterName: eName });
+              }
+            }
+          }
+          if (woundCount === 0) {
+            this.log(`  → ${charName} sings the Requiem but no enemies are wounded.`);
+            this.addLog({ type: 'effect', text: `${charName} sings the Requiem but no enemies are wounded.`, characterName: charName });
           }
           break;
         }
