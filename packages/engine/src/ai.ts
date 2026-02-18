@@ -202,6 +202,10 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       } else if (card.effect.type === 'Charm') {
         if (enemies.length >= 2) weight += 18.0;
         else if (enemies.length === 1) weight += 8.0;
+      } else if (card.effect.type === 'Counterspell') {
+        // Aggro prefers attacks; Counterspell is useful but not primary
+        weight += 8.0;
+        if (enemies.length >= 2) weight += 4.0;
       } else if (card.effect.type === 'Requiem') {
         const woundedEnemies = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
         weight += 5.0 + 5.0 * woundedEnemies.length;
@@ -219,6 +223,21 @@ function selectAggro(character: Character, engine: AIEngineView): number {
         const missingLives = character.maxLives - character.currentLives;
         if (missingLives > 0) weight += 30.0 + missingLives * 5.0;
         else weight += 2.0;
+      } else if (card.effect.type === 'WildShape') {
+        // Aggro wants to attack, not transform
+        // Also skip if already transformed or enemies are easy to hit
+        const alreadyTransformed = character.modifiers.some(
+          m => m.duration === ModifierDuration.RestOfCombat && m.source === card.name,
+        );
+        if (alreadyTransformed) {
+          weight += 0.0;
+        } else {
+          const avgDef = enemies.length > 0
+            ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length
+            : 0;
+          if (avgDef <= 2) weight += 1.0; // Enemies too weak, just attack
+          else weight += 5.0;
+        }
       } else {
         weight += 2.0;
       }
@@ -435,6 +454,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             if (enemies.length >= 2) weight += 18.0;
             else if (enemies.length === 1) weight += 8.0;
             break;
+          case 'Counterspell':
+            // Protect values denial — cancel an enemy's magical card to shield the team
+            weight += 12.0;
+            if (enemies.length >= 2) weight += 5.0;
+            break;
           case 'Requiem': {
             const woundedEnemiesP = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
             weight += 5.0 + 5.0 * woundedEnemiesP.length;
@@ -454,6 +478,21 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             const missingLivesP = character.maxLives - character.currentLives;
             if (missingLivesP > 0) weight += 30.0 + missingLivesP * 5.0;
             else weight += 2.0;
+            break;
+          }
+          case 'WildShape': {
+            // Protect values the defensive boost, but skip if already transformed
+            const alreadyTransformedP = character.modifiers.some(
+              m => m.duration === ModifierDuration.RestOfCombat && m.source === card.name,
+            );
+            if (alreadyTransformedP) weight += 0.0;
+            else {
+              const avgDefP = enemies.length > 0
+                ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length
+                : 0;
+              if (avgDefP <= 2) weight += 3.0; // Enemies too weak, prefer attacking/defending
+              else weight += 12.0;
+            }
             break;
           }
           default:
@@ -557,6 +596,10 @@ function selectPower(character: Character, engine: AIEngineView): number {
           if (enemies.length >= 2) weight += 25.0;
           else if (enemies.length === 1) weight += 10.0;
           break;
+        case 'Counterspell':
+          // Power prefers offensive focus; Counterspell is utility
+          weight += 10.0;
+          break;
         case 'Requiem': {
           const woundedEnemiesPow = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
           weight += 5.0 + 8.0 * woundedEnemiesPow.length;
@@ -578,6 +621,15 @@ function selectPower(character: Character, engine: AIEngineView): number {
           const missingLivesPow = character.maxLives - character.currentLives;
           if (missingLivesPow > 0) weight += 30.0 + missingLivesPow * 5.0;
           else weight += 2.0;
+          break;
+        }
+        case 'WildShape': {
+          // WildShape IS the power play — high priority, but skip if enemies are too weak
+          const avgDefPow = enemies.length > 0
+            ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length
+            : 0;
+          if (avgDefPow <= 2) weight += 5.0; // Enemies too weak, just attack them
+          else weight += 30.0;
           break;
         }
         default:

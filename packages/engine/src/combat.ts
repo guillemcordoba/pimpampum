@@ -114,6 +114,7 @@ function getSetAsideDuration(effect: SpecialEffect): number {
     case 'VoiceOfValor':
     case 'BloodMagic':
     case 'LayOnHands':
+    case 'WildShape':
       return -1;
     // NextTurn effects — 2 turns set aside
     case 'DodgeWithSpeedBoost':
@@ -753,6 +754,19 @@ export class CombatEngine {
 
     this.log(`\n${charName} (${charClass}) plays ${card.name}`);
     this.addLog({ type: 'play', text: `${charName} plays ${card.name}`, team: charTeam, characterName: charName });
+
+    // Counterspell: only cancels magic attacks and focus cards (not physical attacks or defense)
+    if (character.counterspelled) {
+      if (card.cardType === CardType.MagicAttack || isFocus(card.cardType)) {
+        this.recordInterrupted(cardName, cardTypeS);
+        this.log(`  → ${charName} has been counterspelled! Card has no effect.`);
+        this.addLog({ type: 'effect', text: `${charName} ha sigut contrarestat! La carta no té efecte.`, characterName: charName });
+        return;
+      }
+      // Physical attacks and defense cards are not affected by counterspell
+      this.log(`  → ${charName} was counterspelled but plays a non-magical card — not affected!`);
+      this.addLog({ type: 'effect', text: `${charName} ha sigut contrarestat però la seva carta no és màgica!`, characterName: charName });
+    }
 
     if (isFocus(card.cardType)) {
       const focusChar = this.getTeam(charTeam)[charIdx];
@@ -1452,6 +1466,27 @@ export class CombatEngine {
           }
           break;
         }
+        case 'Counterspell': {
+          const csOverrides = this.resolveTargets.get(charName);
+          const csEnemies = this.getLivingEnemies(charTeam);
+          let csTargetIdx: number | null = null;
+          if (csOverrides?.attackTarget) {
+            csTargetIdx = csOverrides.attackTarget[1];
+          } else if (csEnemies.length > 0) {
+            csTargetIdx = csEnemies[0];
+          }
+          if (csTargetIdx !== null) {
+            const enemyTeam = this.getEnemyTeam(charTeam);
+            const csTarget = enemyTeam[csTargetIdx];
+            if (csTarget.isAlive()) {
+              csTarget.counterspelled = true;
+              const tName = csTarget.name;
+              this.log(`  → ${charName} counterspells ${tName}! Their card is cancelled!`);
+              this.addLog({ type: 'effect', text: `${charName} contrarresta ${tName}! La seva carta s'anul·la!`, characterName: charName });
+            }
+          }
+          break;
+        }
         case 'Charm': {
           const charmOverrides = this.resolveTargets.get(charName);
           const enemies = this.getLivingEnemies(charTeam);
@@ -1566,6 +1601,23 @@ export class CombatEngine {
             this.log(`  → ${charName} lays on hands but no one needs healing.`);
             this.addLog({ type: 'effect', text: `${charName} lays on hands but no one needs healing.`, characterName: charName });
           }
+          break;
+        }
+        case 'WildShape': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          // Apply strength and defense boosts for rest of combat
+          ch.modifiers.push(
+            new CombatModifier('strength', card.effect.strengthBoost, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          ch.modifiers.push(
+            new CombatModifier('defense', card.effect.defenseBoost, ModifierDuration.RestOfCombat).withSource(card.name),
+          );
+          // Grant temporary lives
+          ch.maxLives += card.effect.temporaryLives;
+          ch.currentLives += card.effect.temporaryLives;
+          ch.wildShapeLivesBonus = card.effect.temporaryLives;
+          this.log(`  → ${charName} transforms into beast form! F+${card.effect.strengthBoost}, D+${card.effect.defenseBoost}, +${card.effect.temporaryLives} life! (${ch.currentLives}/${ch.maxLives})`);
+          this.addLog({ type: 'effect', text: `${charName} transforms into beast form! F+${card.effect.strengthBoost}/D+${card.effect.defenseBoost}/+${card.effect.temporaryLives} PV! (${ch.currentLives}/${ch.maxLives})`, characterName: charName });
           break;
         }
         case 'Requiem': {

@@ -59,6 +59,8 @@ export class Character {
   public hasInfernalRetaliation = false;
   public hasSpellReflection = false;
   public hasDivineBulwark = false;
+  public counterspelled = false;
+  public wildShapeLivesBonus = 0;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -185,6 +187,8 @@ export class Character {
   }
 
   resetForNewCombat(): void {
+    this.maxLives -= this.wildShapeLivesBonus;
+    this.wildShapeLivesBonus = 0;
     this.currentLives = this.maxLives;
     this.modifiers = [];
     this.defenseBonuses = [];
@@ -216,6 +220,7 @@ export class Character {
     this.hasInfernalRetaliation = false;
     this.hasSpellReflection = false;
     this.hasDivineBulwark = false;
+    this.counterspelled = false;
     this.setAsideCards.clear();
   }
 
@@ -232,6 +237,7 @@ export class Character {
     this.hasInfernalRetaliation = false;
     this.hasSpellReflection = false;
     this.hasDivineBulwark = false;
+    this.counterspelled = false;
     if (this.skipTurns > 0) {
       this.skipTurns--;
       return true;

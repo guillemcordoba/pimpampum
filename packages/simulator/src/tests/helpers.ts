@@ -13,6 +13,7 @@ import {
   createBard,
   createSorcerer,
   createPaladin,
+  createDruid,
   createGoblin,
   createGoblinShaman,
   createSpinedDevil,
@@ -233,6 +234,7 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Bard', createBard],
     ['Sorcerer', createSorcerer],
     ['Paladin', createPaladin],
+    ['Druid', createDruid],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
     ['SpinedDevil', createSpinedDevil],
@@ -252,6 +254,7 @@ export function getPlayerCreators(): [string, CharacterCreator][] {
     ['Bard', createBard],
     ['Sorcerer', createSorcerer],
     ['Paladin', createPaladin],
+    ['Druid', createDruid],
   ];
 }
 

@@ -28,6 +28,7 @@
   --class-trobador: #2c4a8b;
   --class-bruixot: #8b2c6b;
   --class-paladi: #2c3a6b;
+  --class-druida: #3a6b3a;
   --class-basilisc: #2c4a1a;
   --class-diable-espinos: #6b2020;
   --class-diable-dos: #4a3a5c;
@@ -173,6 +174,7 @@ body {
 .roster-tile.trobador { border-color: var(--class-trobador); }
 .roster-tile.bruixot { border-color: var(--class-bruixot); }
 .roster-tile.paladi { border-color: var(--class-paladi); }
+.roster-tile.druida { border-color: var(--class-druida); }
 .roster-tile.basilisc { border-color: var(--class-basilisc); }
 .roster-tile.diable-espinos { border-color: var(--class-diable-espinos); }
 .roster-tile.diable-dos { border-color: var(--class-diable-dos); }
@@ -400,6 +402,7 @@ body {
 .portrait.trobador { border-color: var(--class-trobador); }
 .portrait.bruixot { border-color: var(--class-bruixot); }
 .portrait.paladi { border-color: var(--class-paladi); }
+.portrait.druida { border-color: var(--class-druida); }
 .portrait.basilisc { border-color: var(--class-basilisc); }
 .portrait.diable-espinos { border-color: var(--class-diable-espinos); }
 .portrait.diable-dos { border-color: var(--class-diable-dos); }
@@ -584,6 +587,7 @@ body {
 .mini-card.trobador { border-color: var(--class-trobador); }
 .mini-card.bruixot { border-color: var(--class-bruixot); }
 .mini-card.paladi { border-color: var(--class-paladi); }
+.mini-card.druida { border-color: var(--class-druida); }
 .mini-card.basilisc { border-color: var(--class-basilisc); }
 .mini-card.diable-espinos { border-color: var(--class-diable-espinos); }
 .mini-card.diable-dos { border-color: var(--class-diable-dos); }

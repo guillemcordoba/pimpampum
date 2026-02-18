@@ -41,6 +41,8 @@ The balance levers that maintain this triangle:
 
 - Sorcerers (Bruixots) are fast, volatile magical glass cannons who trade life for overwhelming arcane power. They cast faster than any other caster but pay steep costs for their strongest abilities. Their Blood Magic focus card lets them sacrifice vitality for permanent magical power, and their Overcharge signature attack devastates enemies at the cost of self-inflicted wounds. They need healing allies to sustain their reckless playstyle.
 
+- Druids (Druides) are patient nature controllers who transform mid-combat into powerful beast forms. They start as moderate spellcasters with battlefield control (Entangle), but their signature Wild Shape transforms them into physical powerhouses with extra survivability — the only class that gains lives mid-combat. They need team protection to successfully transform (V-5, the slowest focus in the game), making them natural partners for Protect-style allies. After transforming, they become versatile combatants who switch between nature spells and beast attacks.
+
 - Paladins (Paladins) are stalwart holy warriors who combine martial combat with divine faith. They excel at protecting allies with their high defense and faith-powered shields, while their signature Divine Smite channels divine magic through their weapon for uniquely powerful strikes. Their Lay on Hands provides emergency healing and cleansing, and their Sacred Oath grants permanent combat empowerment. They reward patient, team-oriented play.
 
 ### Designing new classes and cards

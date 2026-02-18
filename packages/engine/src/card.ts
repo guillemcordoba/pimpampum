@@ -93,7 +93,9 @@ export type SpecialEffect =
   | { type: 'DivineBulwark' }
   | { type: 'LayOnHands' }
   | { type: 'ActionSurge'; secondAttackDice: DiceRoll }
-  | { type: 'SecondWind'; healAmount: number; defenseBoost: number };
+  | { type: 'SecondWind'; healAmount: number; defenseBoost: number }
+  | { type: 'Counterspell' }
+  | { type: 'WildShape'; strengthBoost: number; defenseBoost: number; temporaryLives: number };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -121,6 +123,7 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
       case 'VoiceOfValor': return 'ally';
       case 'LayOnHands': return 'ally';
       case 'Charm': return 'enemy';
+      case 'Counterspell': return 'enemy';
       case 'PoisonWeapon': return 'none';
       case 'CharacteristicModifier':
         if (card.effect.target === 'enemy') return 'enemy';

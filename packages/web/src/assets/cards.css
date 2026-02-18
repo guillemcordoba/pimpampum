@@ -77,6 +77,8 @@
 .print-card.bruixot .card-frame { border-color: var(--class-bruixot); }
 .print-card.paladi { border-color: var(--class-paladi); }
 .print-card.paladi .card-frame { border-color: var(--class-paladi); }
+.print-card.druida { border-color: var(--class-druida); }
+.print-card.druida .card-frame { border-color: var(--class-druida); }
 .print-card.basilisc { border-color: var(--class-basilisc); }
 .print-card.basilisc .card-frame { border-color: var(--class-basilisc); }
 .print-card.diable-espinos { border-color: var(--class-diable-espinos); }
