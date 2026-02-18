@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { PLAYER_TEMPLATES, ENEMY_TEMPLATES, ALL_EQUIPMENT, createCharacter, STAT_ICONS, STAT_DISPLAY_NAMES } from '@pimpampum/engine';
 import type { CharacterTemplate } from '@pimpampum/engine';
@@ -32,6 +32,24 @@ const activeSection = ref(props.section ?? 'classes');
 const activeClassId = ref(props.characterId ?? PLAYER_TEMPLATES[0].id);
 const activeEnemyId = ref(props.characterId ?? ENEMY_TEMPLATES[0].id);
 const printAll = ref(false);
+const showPrintDialog = ref(false);
+const printCharacters = reactive(
+  Object.fromEntries([...PLAYER_TEMPLATES, ...ENEMY_TEMPLATES].map(t => [t.id, true])),
+) as Record<string, boolean>;
+const printObjects = ref(true);
+const printRules = ref(true);
+const printSheet = ref(true);
+
+function toggleAllClasses(checked: boolean) {
+  for (const t of PLAYER_TEMPLATES) printCharacters[t.id] = checked;
+}
+function toggleAllEnemies(checked: boolean) {
+  for (const t of ENEMY_TEMPLATES) printCharacters[t.id] = checked;
+}
+const allClassesChecked = computed(() => PLAYER_TEMPLATES.every(t => printCharacters[t.id]));
+const someClassesChecked = computed(() => PLAYER_TEMPLATES.some(t => printCharacters[t.id]));
+const allEnemiesChecked = computed(() => ENEMY_TEMPLATES.every(t => printCharacters[t.id]));
+const someEnemiesChecked = computed(() => ENEMY_TEMPLATES.some(t => printCharacters[t.id]));
 
 watch(() => props.section, (s) => {
   if (s) activeSection.value = s;
@@ -112,13 +130,11 @@ function selectEnemy(id: string) {
 }
 
 function handlePrint() {
-  printAll.value = false;
-  window.print();
-}
-
-function handlePrintAll() {
+  showPrintDialog.value = false;
   printAll.value = true;
-  requestAnimationFrame(() => window.print());
+  requestAnimationFrame(() => {
+    window.print();
+  });
 }
 </script>
 
@@ -154,8 +170,7 @@ function handlePrintAll() {
         >Fitxa</button>
       </div>
       <div class="print-btn-col">
-        <button class="btn btn-sm" @click="handlePrintAll">Imprimir totes les cartes</button>
-        <button class="btn btn-sm btn-secondary" @click="handlePrint">Imprimir aquestes cartes</button>
+        <button class="btn btn-sm" @click="showPrintDialog = true">Imprimir</button>
       </div>
     </div>
 
@@ -264,70 +279,151 @@ function handlePrintAll() {
       </div>
     </template>
 
-    <!-- Print-all: all cards rendered, hidden on screen -->
-    <div v-if="printAll" class="print-all-section">
-      <!-- All player classes -->
-      <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
-        <div class="character-description" :class="data.template.classCss">
-          <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
-          <div class="char-desc-info">
-            <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
-            <div class="char-desc-stats">
-              <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
-              </span>
+    <!-- Print dialog -->
+    <Teleport to="body">
+      <div v-if="showPrintDialog" class="print-dialog-overlay no-print" @click.self="showPrintDialog = false">
+        <div class="print-dialog">
+          <h2 class="print-dialog-title">Imprimir</h2>
+          <p class="print-dialog-subtitle">Selecciona les seccions a imprimir:</p>
+          <div class="print-dialog-columns">
+            <div class="print-dialog-col">
+              <label class="print-dialog-group">
+                <input
+                  type="checkbox"
+                  :checked="allClassesChecked"
+                  :indeterminate="someClassesChecked && !allClassesChecked"
+                  @change="toggleAllClasses(($event.target as HTMLInputElement).checked)"
+                >
+                <span>Classes</span>
+              </label>
+              <div class="print-dialog-indent">
+                <label v-for="t in PLAYER_TEMPLATES" :key="t.id" class="print-dialog-check">
+                  <input type="checkbox" v-model="printCharacters[t.id]">
+                  <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
+                  <span>{{ t.displayName }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="print-dialog-col">
+              <label class="print-dialog-group">
+                <input
+                  type="checkbox"
+                  :checked="allEnemiesChecked"
+                  :indeterminate="someEnemiesChecked && !allEnemiesChecked"
+                  @change="toggleAllEnemies(($event.target as HTMLInputElement).checked)"
+                >
+                <span>Enemics</span>
+              </label>
+              <div class="print-dialog-indent">
+                <label v-for="t in ENEMY_TEMPLATES" :key="t.id" class="print-dialog-check">
+                  <input type="checkbox" v-model="printCharacters[t.id]">
+                  <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
+                  <span>{{ t.displayName }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="print-dialog-col">
+              <span class="print-dialog-group-label">Altres</span>
+              <div class="print-dialog-indent">
+                <label class="print-dialog-check">
+                  <input type="checkbox" v-model="printObjects">
+                  <span>Objectes</span>
+                </label>
+                <label class="print-dialog-check">
+                  <input type="checkbox" v-model="printRules">
+                  <span>Regles</span>
+                </label>
+                <label class="print-dialog-check">
+                  <input type="checkbox" v-model="printSheet">
+                  <span>Fitxa</span>
+                </label>
+              </div>
             </div>
           </div>
+          <div class="print-dialog-actions">
+            <button class="btn" @click="handlePrint">Imprimir</button>
+            <button class="btn btn-secondary" @click="showPrintDialog = false">Cancel·lar</button>
+          </div>
         </div>
-        <CardGrid>
-          <PrintableCard
-            v-for="(p, i) in data.cards"
-            :key="i"
-            v-bind="p"
-          />
-        </CardGrid>
+      </div>
+    </Teleport>
+
+    <!-- Print-all: all cards rendered, hidden on screen -->
+    <div v-if="printAll" class="print-all-section">
+      <!-- Player classes (per-character) -->
+      <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
+        <template v-if="printCharacters[data.template.id]">
+          <div class="character-description" :class="data.template.classCss">
+            <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
+            <div class="char-desc-info">
+              <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
+              <div class="char-desc-stats">
+                <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
+                  <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <CardGrid>
+            <PrintableCard
+              v-for="(p, i) in data.cards"
+              :key="i"
+              v-bind="p"
+            />
+          </CardGrid>
+        </template>
       </template>
 
       <!-- Equipment -->
-      <CardGrid>
-        <PrintableCard
-          v-for="(p, i) in equipDisplayProps"
-          :key="'equip-' + i"
-          v-bind="p"
-        />
-      </CardGrid>
-
-      <!-- All enemies -->
-      <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
-        <div class="character-description" :class="data.template.classCss">
-          <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
-          <div class="char-desc-info">
-            <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
-            <div class="char-desc-stats">
-              <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
-              </span>
-            </div>
-          </div>
-        </div>
+      <template v-if="printObjects">
         <CardGrid>
           <PrintableCard
-            v-for="(p, i) in data.cards"
-            :key="i"
+            v-for="(p, i) in equipDisplayProps"
+            :key="'equip-' + i"
             v-bind="p"
           />
         </CardGrid>
       </template>
 
+      <!-- Enemies (per-character) -->
+      <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
+        <template v-if="printCharacters[data.template.id]">
+          <div class="character-description" :class="data.template.classCss">
+            <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
+            <div class="char-desc-info">
+              <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
+              <div class="char-desc-stats">
+                <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
+                  <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <CardGrid>
+            <PrintableCard
+              v-for="(p, i) in data.cards"
+              :key="i"
+              v-bind="p"
+            />
+          </CardGrid>
+        </template>
+      </template>
+
       <!-- Rules -->
-      <CardGrid>
-        <RulesCard />
-        <RulesCard />
-        <RulesCard />
-      </CardGrid>
+      <template v-if="printRules">
+        <CardGrid>
+          <RulesCard />
+          <RulesCard />
+          <RulesCard />
+        </CardGrid>
+      </template>
 
       <!-- Character sheets -->
-      <CharacterSheet />
+      <template v-if="printSheet">
+        <CharacterSheet />
+      </template>
     </div>
   </div>
 </template>
@@ -439,9 +535,6 @@ function handlePrintAll() {
 .sub-tab.basilisc.active { border-color: var(--class-basilisc); }
 
 .print-btn-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
   flex-shrink: 0;
   position: absolute;
   right: 0;
@@ -453,11 +546,151 @@ function handlePrintAll() {
   padding: 0.3rem 0.75rem;
 }
 
-.btn-secondary {
+/* -- Print dialog -- */
+.print-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.print-dialog {
+  background: var(--bg-dark, #1a1410);
+  border: 2px solid var(--parchment-dark, #b8a88a);
+  border-radius: 8px;
+  padding: 1.5rem 2rem;
+  min-width: 280px;
+  max-width: 90vw;
+}
+
+.print-dialog-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--parchment, #e8dcc4);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0 0 0.25rem;
+}
+
+.print-dialog-subtitle {
+  font-family: 'Crimson Text', serif;
+  font-size: 1rem;
+  color: var(--parchment-dark, #b8a88a);
+  margin: 0 0 1rem;
+}
+
+.print-dialog-columns {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.25rem;
+}
+
+.print-dialog-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.print-dialog-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: 'MedievalSharp', serif;
+  font-size: 1.05rem;
+  color: var(--parchment, #e8dcc4);
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.print-dialog-group-label {
+  font-family: 'MedievalSharp', serif;
+  font-size: 1.05rem;
+  color: var(--parchment, #e8dcc4);
+  font-weight: bold;
+  padding-left: 0.1rem;
+}
+
+.print-dialog-indent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 1.6rem;
+}
+
+.print-dialog-icon {
+  width: 20px;
+  height: 20px;
+  filter: invert(0.7);
+}
+
+.print-dialog-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: 'MedievalSharp', serif;
+  font-size: 1.05rem;
+  color: var(--parchment, #e8dcc4);
+  cursor: pointer;
+}
+
+.print-dialog-group input[type="checkbox"],
+.print-dialog-check input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--parchment-dark, #b8a88a);
+  border-radius: 3px;
+  background: rgba(232, 220, 196, 0.06);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.print-dialog-group input[type="checkbox"]:checked,
+.print-dialog-check input[type="checkbox"]:checked {
+  background: rgba(232, 220, 196, 0.15);
+  border-color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-group input[type="checkbox"]:checked::after,
+.print-dialog-check input[type="checkbox"]:checked::after {
+  content: '\2713';
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 14px;
+  color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-group input[type="checkbox"]:indeterminate {
+  background: rgba(232, 220, 196, 0.15);
+  border-color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-group input[type="checkbox"]:indeterminate::after {
+  content: '\2012';
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 14px;
+  color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.print-dialog-actions .btn-secondary {
   opacity: 0.7;
 }
 
-.btn-secondary:hover {
+.print-dialog-actions .btn-secondary:hover {
   opacity: 1;
 }
 
