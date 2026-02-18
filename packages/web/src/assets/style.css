@@ -719,7 +719,6 @@ body {
 .log-entry.defense { color: #2f6a8a; }
 .log-entry.focus-interrupted { color: #999; font-style: italic; }
 .log-entry.vengeance { color: #6b3fa0; }
-.log-entry.sacrifice { color: #2f6a8a; font-weight: 600; }
 .log-entry.skip { color: #999; }
 
 /* =============================================================================

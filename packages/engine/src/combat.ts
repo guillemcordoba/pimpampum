@@ -6,7 +6,7 @@ import { selectCardAI, assignStrategies } from './ai.js';
 import type { StrategyStats } from './strategy.js';
 
 export interface LogEntry {
-  type: 'round' | 'play' | 'attack' | 'defense' | 'hit' | 'miss' | 'effect' | 'death' | 'focus-interrupted' | 'vengeance' | 'sacrifice' | 'skip';
+  type: 'round' | 'play' | 'attack' | 'defense' | 'hit' | 'miss' | 'effect' | 'death' | 'focus-interrupted' | 'vengeance' | 'skip';
   text: string;
   team?: number;
   characterName?: string;
@@ -136,7 +136,6 @@ export class CombatEngine {
 
   // Combat state
   public vengeanceTargets = new Map<string, string>();
-  public sacrificeTargets = new Map<string, string>();
   public coordinatedAmbushTarget: string | null = null;
   public hitThisRound = new Set<string>();
 
@@ -269,33 +268,6 @@ export class CombatEngine {
     let tIdx = targetIdx;
     const targetList = this.getTeam(targetTeam);
     if (!targetList[tIdx].isAlive()) return false;
-
-    const targetName = targetList[tIdx].name;
-
-    // Check for sacrifice redirect
-    const sacrificerName = this.sacrificeTargets.get(targetName);
-    if (sacrificerName) {
-      let found: [number, number] | null = null;
-      for (let i = 0; i < this.team1.length; i++) {
-        if (this.team1[i].name === sacrificerName && this.team1[i].isAlive()) {
-          found = [1, i];
-          break;
-        }
-      }
-      if (!found) {
-        for (let i = 0; i < this.team2.length; i++) {
-          if (this.team2[i].name === sacrificerName && this.team2[i].isAlive()) {
-            found = [2, i];
-            break;
-          }
-        }
-      }
-      if (found) {
-        this.log(`  → ${sacrificerName} intercepts the attack meant for ${targetName}!`);
-        this.addLog({ type: 'sacrifice', text: `${sacrificerName} intercepts the attack meant for ${targetName}!`, characterName: sacrificerName });
-        tIdx = found[1];
-      }
-    }
 
     const target = this.getTeam(targetTeam)[tIdx];
 
@@ -945,40 +917,41 @@ export class CombatEngine {
         }
       }
 
-      // Handle stun effect
-      if (card.effect.type === 'Stun') {
-        const stunTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
-        if (stunTarget) {
-          const [tTeam, tIdx] = stunTarget;
-          const tChar = this.getTeam(tTeam)[tIdx];
-          if (tChar.isAlive()) {
-            tChar.stunned = true;
-            this.log(`  → ${tChar.name} is stunned!`);
-            this.addLog({ type: 'effect', text: `${tChar.name} is stunned!`, characterName: tChar.name });
-          }
-        }
-      }
-
-      // Handle Embestida effect
-      if (card.effect.type === 'EmbestidaEffect') {
-        const embTarget = targets.length > 0 ? [eTeam, targets[0]] as [number, number] : this.selectTarget(this.getTeam(charTeam)[charIdx]);
-        if (embTarget) {
-          const [tTeam, tIdx] = embTarget;
-          const tChar = this.getTeam(tTeam)[tIdx];
-          if (tChar.isAlive()) {
-            tChar.modifiers.push(
-              new CombatModifier('speed', -2, ModifierDuration.NextTurn).withSource(card.name),
-            );
-            this.log(`  → ${tChar.name} gets -2 speed next turn!`);
-            this.addLog({ type: 'effect', text: `${tChar.name} gets -2 speed next turn!`, characterName: tChar.name });
-          }
-        }
-        // Self -3 speed next turn
+      // ActionSurge: after primary attack, make a second attack against a random living enemy
+      if (card.effect.type === 'ActionSurge') {
         const attacker = this.getTeam(charTeam)[charIdx];
-        attacker.modifiers.push(
-          new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource(card.name),
-        );
-        this.log(`  → ${charName} gets -3 speed next turn!`);
+        if (attacker.isAlive()) {
+          const livingEnemies = this.getLivingEnemies(charTeam);
+          if (livingEnemies.length > 0) {
+            const randomIdx = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+            this.log(`  → Action Surge! ${charName} attacks again!`);
+            this.addLog({ type: 'effect', text: `${charName} fa un segon atac!`, characterName: charName });
+
+            // Build a temporary card-like context for the second attack using the same dice
+            const secondAttackStat = attacker.getEffectiveStrength();
+            const secondDiceRoll = card.effect.secondAttackDice.roll();
+            const secondTotal = secondAttackStat + secondDiceRoll;
+            const secondTarget = this.getTeam(eTeam)[randomIdx];
+            const secondTargetDef = secondTarget.getEffectiveDefense();
+
+            this.addLog({ type: 'attack', text: `F ${secondAttackStat} + ${card.effect.secondAttackDice}(${secondDiceRoll}) = ${secondTotal} vs D ${secondTargetDef}`, characterName: charName });
+
+            if (secondTotal > secondTargetDef && secondTarget.isAlive()) {
+              this.checkFocusInterruption(eTeam, randomIdx);
+              const died = secondTarget.loseLife();
+              this.hitThisRound.add(secondTarget.name);
+              this.log(`  → HIT! ${secondTarget.name} loses a life! (${secondTarget.currentLives}/${secondTarget.maxLives})`);
+              this.addLog({ type: 'hit', text: `${secondTarget.name} loses a life! (${secondTarget.currentLives}/${secondTarget.maxLives})`, characterName: secondTarget.name });
+              if (died) {
+                this.log(`  ★ ${secondTarget.name} is defeated!`);
+                this.addLog({ type: 'death', text: `${secondTarget.name} is defeated!`, characterName: secondTarget.name });
+              }
+            } else {
+              this.log(`  → MISS! Second attack blocked by ${secondTarget.name}.`);
+              this.addLog({ type: 'miss', text: `${charName}'s second attack is blocked by ${secondTarget.name}!`, characterName: charName });
+            }
+          }
+        }
       }
 
       // Handle Reckless Attack
@@ -1006,27 +979,7 @@ export class CombatEngine {
     if (isDefense(card.cardType)) {
       const defOverrides = this.resolveTargets.get(charName);
 
-      if (card.effect.type === 'Sacrifice') {
-        let protectedIdx: number | null = null;
-        if (defOverrides?.allyTarget && defOverrides.allyTarget[0] === charTeam) {
-          protectedIdx = defOverrides.allyTarget[1];
-        } else {
-          // Smart sacrifice targeting: prefer ally playing focus (after reveal)
-          const allies = this.getLivingAllies(charTeam, charIdx);
-          const focusAlly = allies.find(i => {
-            const ally = this.getTeam(charTeam)[i];
-            return ally.playedCardIdx !== null && isFocus(ally.cards[ally.playedCardIdx].cardType);
-          });
-          protectedIdx = focusAlly ?? (allies.length > 0 ? allies[0] : null);
-        }
-        if (protectedIdx !== null) {
-          const allyTeam = this.getTeam(charTeam);
-          const protectedName = allyTeam[protectedIdx].name;
-          this.sacrificeTargets.set(protectedName, charName);
-          this.log(`  → ${charName} will intercept attacks against ${protectedName}!`);
-          this.addLog({ type: 'effect', text: `${charName} will intercept attacks against ${protectedName}!`, characterName: charName });
-        }
-      } else if (card.defense) {
+      if (card.defense) {
         const defenseDice = card.defense;
         const allyTeamArr = this.getTeam(charTeam);
 
@@ -1559,6 +1512,20 @@ export class CombatEngine {
           }
           break;
         }
+        case 'SecondWind': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          if (ch.currentLives < ch.maxLives) {
+            ch.currentLives = Math.min(ch.currentLives + card.effect.healAmount, ch.maxLives);
+            this.log(`  → ${charName} recovers ${card.effect.healAmount} life! (${ch.currentLives}/${ch.maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} recovers ${card.effect.healAmount} life! (${ch.currentLives}/${ch.maxLives})`, characterName: charName });
+          }
+          ch.modifiers.push(
+            new CombatModifier('defense', card.effect.defenseBoost, ModifierDuration.ThisTurn).withSource(card.name),
+          );
+          this.log(`  → ${charName} gains +${card.effect.defenseBoost} defense this turn!`);
+          this.addLog({ type: 'effect', text: `${charName} gains +${card.effect.defenseBoost} defense this turn!`, characterName: charName });
+          break;
+        }
         case 'LayOnHands': {
           const healOverrides = this.resolveTargets.get(charName);
           const allyTeam = this.getTeam(charTeam);
@@ -1758,7 +1725,6 @@ export class CombatEngine {
   prepareRound(): { skipping: Map<number, Set<number>> } {
     this.roundNumber++;
     this.coordinatedAmbushTarget = null;
-    this.sacrificeTargets.clear();
     this.hitThisRound.clear();
     this.logEntries = [];
 
@@ -2053,7 +2019,6 @@ export class CombatEngine {
     this.log('─'.repeat(50));
 
     this.coordinatedAmbushTarget = null;
-    this.sacrificeTargets.clear();
     this.hitThisRound.clear();
 
     const actions: [number, number, number][] = [];

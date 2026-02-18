@@ -32,7 +32,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
       .withEffect({ type: 'VoiceOfValor' })
       .withDescription("Tria un aliat ferit. Recupera 1 vida i guanya {F}+2 i {M}+2 per la resta del combat."),
     new Card('Contrapunt', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
+      .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(3)
       .withEffect({ type: 'MagicDeflection', counterAttackDice: new DiceRoll(1, 6) })
       .withDescription("Si l'atacant falla, contraataca amb {M}+1d6."),

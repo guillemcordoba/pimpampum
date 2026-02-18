@@ -38,7 +38,7 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
       .withDescription("Tria un enemic. Tu i tots els aliats rebeu +1d4 atacant-lo per la resta del combat."),
     new Card('Sudari protector', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
-      .withSpeedMod(1)
+      .withSpeedMod(2)
       .withEffect({ type: 'ShroudDebuff', amount: 2 })
       .withDescription("L'atacant rep {F}-2 el següent torn."),
     new Card('Invocació espiritual', CardType.Focus)

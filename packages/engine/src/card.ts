@@ -28,7 +28,6 @@ export function isPhysical(ct: CardType): boolean {
 /** Special effect types for cards — discriminated union */
 export type SpecialEffect =
   | { type: 'None' }
-  | { type: 'Stun' }
   | { type: 'SkipNextTurn' }
   | { type: 'SkipNextTurns'; count: number }
   | { type: 'CharacteristicModifier';
@@ -40,10 +39,8 @@ export type SpecialEffect =
       target: 'self' | 'allies' | 'team' | 'enemy' | 'enemies';
       duration: ModifierDuration;
     }
-  | { type: 'EmbestidaEffect' }
   | { type: 'DodgeWithSpeedBoost' }
   | { type: 'CoordinatedAmbush' }
-  | { type: 'Sacrifice' }
   | { type: 'Vengeance' }
   | { type: 'EnchantWeapon' }
   | { type: 'BloodThirst' }
@@ -94,7 +91,9 @@ export type SpecialEffect =
   | { type: 'BloodMagic' }
   | { type: 'DivineSmite' }
   | { type: 'DivineBulwark' }
-  | { type: 'LayOnHands' };
+  | { type: 'LayOnHands' }
+  | { type: 'ActionSurge'; secondAttackDice: DiceRoll }
+  | { type: 'SecondWind'; healAmount: number; defenseBoost: number };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -106,7 +105,6 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
     return 'enemy';
   }
   if (isDefense(card.cardType)) {
-    if (card.effect.type === 'Sacrifice') return 'ally_other';
     if (card.defense) return 'ally';
     return 'none';
   }

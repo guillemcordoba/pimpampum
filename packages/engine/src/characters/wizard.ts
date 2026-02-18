@@ -25,7 +25,7 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
   createCards: () => [
     new Card('Pantalla protectora', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
-      .withSpeedMod(1)
+      .withSpeedMod(2)
       .withEffect({ type: 'DefendMultiple', count: 2 })
       .withDescription('Defensa a 2 jugadors que triïs.'),
     new Card('Bola de foc', CardType.MagicAttack)

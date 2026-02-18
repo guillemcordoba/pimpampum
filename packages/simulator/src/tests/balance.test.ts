@@ -427,9 +427,15 @@ describe('Strategy Triangle', () => {
     [createPaladin, createFighter],
     [createPaladin, createWizard],
     [createPaladin, createBarbarian],
+    [createSorcerer, createFighter],
+    [createSorcerer, createWizard],
+    [createSorcerer, createBarbarian],
+    [createMonk, createFighter],
+    [createMonk, createRogue],
+    [createMonk, createCleric],
   ];
 
-  const simsPerComposition = 400;
+  const simsPerComposition = 500;
 
   function runMixedVsPure(
     mixedStrategies: AIStrategy[],
@@ -505,17 +511,17 @@ describe('Class Identity', () => {
     return usage;
   }
 
-  it('Fighter has meaningful Defense card usage', () => {
+  it('Fighter has high PhysicalAttack usage reflecting weapon mastery', () => {
     const usage = getClassCardTypeUsage();
     const fighterUsage = usage.get('fighter');
     expect(fighterUsage).toBeDefined();
 
     const totalPlays = [...fighterUsage!.values()].reduce((s, v) => s + v, 0);
-    const defensePlays = fighterUsage!.get('Defense') ?? 0;
-    const defenseShare = (defensePlays / totalPlays) * 100;
+    const physicalPlays = fighterUsage!.get('PhysicalAttack') ?? 0;
+    const physicalShare = (physicalPlays / totalPlays) * 100;
 
-    expect(defenseShare, `Fighter Defense usage: ${defenseShare.toFixed(1)}%`)
-      .toBeGreaterThanOrEqual(10);
+    expect(physicalShare, `Fighter PhysicalAttack usage: ${physicalShare.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(30);
   });
 
   it('Wizard deals the most magic damage (highest base Magic stat)', () => {

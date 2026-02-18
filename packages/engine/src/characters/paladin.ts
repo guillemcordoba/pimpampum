@@ -34,8 +34,8 @@ export const PALADIN_TEMPLATE: CharacterTemplate = {
       .withEffect({ type: 'DivineSmite' })
       .withDescription('Suma la teva {M} a la tirada d\'atac.'),
     new Card('Aura protectora', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(0)
+      .withDefense(new DiceRoll(1, 8))
+      .withSpeedMod(1)
       .withEffect({ type: 'DefendMultiple', count: 10 })
       .withDescription('Defensa tots els aliats a la vegada.'),
     new Card('Escut de fe', CardType.Defense)

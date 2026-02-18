@@ -153,6 +153,13 @@ function selectAggro(character: Character, engine: AIEngineView): number {
         if (character.currentLives <= 1) weight -= 20.0;
         else if (character.currentLives >= 3) weight += 5.0;
       }
+      // ActionSurge: double attack — strong aggro option
+      if (card.effect.type === 'ActionSurge') {
+        weight += 25.0;
+        for (const idx of enemies) {
+          if (enemyTeam[idx].currentLives < enemyTeam[idx].maxLives) { weight += 5.0; break; }
+        }
+      }
     } else if (isDefense(card.cardType)) {
       weight += 2.0;
       if (card.effect.type === 'BerserkerEndurance') weight += 5.0;
@@ -208,6 +215,10 @@ function selectAggro(character: Character, engine: AIEngineView): number {
           || character.currentLives < character.maxLives;
         if (wounded) weight += 3.0;
         else weight += 0.0;
+      } else if (card.effect.type === 'SecondWind') {
+        const missingLives = character.maxLives - character.currentLives;
+        if (missingLives > 0) weight += 30.0 + missingLives * 5.0;
+        else weight += 2.0;
       } else {
         weight += 2.0;
       }
@@ -348,6 +359,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         if (character.currentLives <= 1) weight -= 20.0;
         else if (character.currentLives >= 3) weight += 5.0;
       }
+      // ActionSurge: double attack
+      if (card.effect.type === 'ActionSurge') {
+        weight += 15.0;
+        if (fewEnemies) weight += 10.0;
+      }
     } else if (isDefense(card.cardType)) {
       if (allyLikelyFocus) {
         // Ally needs defense — don't focus, defend instead
@@ -432,6 +448,12 @@ function selectProtect(character: Character, engine: AIEngineView): number {
               || character.currentLives < character.maxLives;
             if (anyWoundedLOH) weight += 20.0;
             else weight += 1.0;
+            break;
+          }
+          case 'SecondWind': {
+            const missingLivesP = character.maxLives - character.currentLives;
+            if (missingLivesP > 0) weight += 30.0 + missingLivesP * 5.0;
+            else weight += 2.0;
             break;
           }
           default:
@@ -552,6 +574,12 @@ function selectPower(character: Character, engine: AIEngineView): number {
           else weight += 2.0;
           break;
         }
+        case 'SecondWind': {
+          const missingLivesPow = character.maxLives - character.currentLives;
+          if (missingLivesPow > 0) weight += 30.0 + missingLivesPow * 5.0;
+          else weight += 2.0;
+          break;
+        }
         default:
           weight += 10.0;
       }
@@ -603,6 +631,11 @@ function selectPower(character: Character, engine: AIEngineView): number {
         else if (enemies.length === 1) weight -= 10.0;
         if (character.currentLives <= 1) weight -= 20.0;
         else if (character.currentLives >= 3) weight += 5.0;
+      }
+      // ActionSurge: strong when buffed
+      if (card.effect.type === 'ActionSurge') {
+        if (hasRestOfCombatBuff) weight += 25.0;
+        else weight += 5.0;
       }
     } else if (isDefense(card.cardType)) {
       weight += 4.0;

@@ -31,7 +31,7 @@ The balance levers that maintain this triangle:
 
 ## Class Intentions
 
-- Fighters are good defensive classes, capable of protecting others, but slow and without being able to hit with that much damage.
+- Fighters (Guerrers) are versatile weapon masters with the widest attack variety. They're self-reliant (Second Wind), capable of burst damage (Action Surge), and team leadership (Battle Cry). Not tanks — the Paladin fills that role.
 - Rogue are quick and utility based classes, specializing in combos.
 - Wizards hit hard with their magic attacks, but are weak.
 - Barbarians are aggressive berserkers who need team protection to set up, then dominate with raw physical power.
