@@ -10,8 +10,8 @@ export const PALADIN_TEMPLATE: CharacterTemplate = {
   iconPath: 'icons/000000/transparent/1x1/lorc/winged-sword.svg',
   category: 'player',
   baseStrength: 2,
-  baseMagic: 2,
-  baseDefense: 3,
+  baseMagic: 1,
+  baseDefense: 4,
   baseSpeed: 2,
   baseLives: 3,
   cardIcons: {
