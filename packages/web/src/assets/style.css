@@ -26,6 +26,7 @@
   --class-goblin-shaman: #5c2c4a;
   --class-monjo: #6b4c2c;
   --class-trobador: #2c4a8b;
+  --class-fetiller: #6b2c5c;
   --class-bruixot: #8b2c6b;
   --class-paladi: #2c3a6b;
   --class-druida: #3a6b3a;
@@ -174,6 +175,7 @@ body {
 .roster-tile.goblin-shaman { border-color: var(--class-goblin-shaman); }
 .roster-tile.monjo { border-color: var(--class-monjo); }
 .roster-tile.trobador { border-color: var(--class-trobador); }
+.roster-tile.fetiller { border-color: var(--class-fetiller); }
 .roster-tile.bruixot { border-color: var(--class-bruixot); }
 .roster-tile.paladi { border-color: var(--class-paladi); }
 .roster-tile.druida { border-color: var(--class-druida); }
@@ -404,6 +406,7 @@ body {
 .portrait.goblin-shaman { border-color: var(--class-goblin-shaman); }
 .portrait.monjo { border-color: var(--class-monjo); }
 .portrait.trobador { border-color: var(--class-trobador); }
+.portrait.fetiller { border-color: var(--class-fetiller); }
 .portrait.bruixot { border-color: var(--class-bruixot); }
 .portrait.paladi { border-color: var(--class-paladi); }
 .portrait.druida { border-color: var(--class-druida); }
@@ -591,6 +594,7 @@ body {
 .mini-card.goblin-shaman { border-color: var(--class-goblin-shaman); }
 .mini-card.monjo { border-color: var(--class-monjo); }
 .mini-card.trobador { border-color: var(--class-trobador); }
+.mini-card.fetiller { border-color: var(--class-fetiller); }
 .mini-card.bruixot { border-color: var(--class-bruixot); }
 .mini-card.paladi { border-color: var(--class-paladi); }
 .mini-card.druida { border-color: var(--class-druida); }

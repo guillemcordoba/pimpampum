@@ -16,6 +16,7 @@ import { SPINED_DEVIL_TEMPLATE } from './spined-devil.js';
 import { BONE_DEVIL_TEMPLATE } from './bone-devil.js';
 import { HORNED_DEVIL_TEMPLATE } from './horned-devil.js';
 import { DRUID_TEMPLATE } from './druid.js';
+import { SORCERER_TEMPLATE } from './sorcerer.js';
 import { STONE_GOLEM_TEMPLATE } from './stone-golem.js';
 import { WOLF_TEMPLATE } from './wolf.js';
 
@@ -35,6 +36,7 @@ export { SPINED_DEVIL_TEMPLATE } from './spined-devil.js';
 export { BONE_DEVIL_TEMPLATE } from './bone-devil.js';
 export { HORNED_DEVIL_TEMPLATE } from './horned-devil.js';
 export { DRUID_TEMPLATE } from './druid.js';
+export { SORCERER_TEMPLATE } from './sorcerer.js';
 export { STONE_GOLEM_TEMPLATE } from './stone-golem.js';
 export { WOLF_TEMPLATE } from './wolf.js';
 
@@ -49,6 +51,7 @@ export const ALL_CHARACTER_TEMPLATES: CharacterTemplate[] = [
   WARLOCK_TEMPLATE,
   PALADIN_TEMPLATE,
   DRUID_TEMPLATE,
+  SORCERER_TEMPLATE,
   GOBLIN_TEMPLATE,
   GOBLIN_SHAMAN_TEMPLATE,
   BASILISK_TEMPLATE,
@@ -84,6 +87,7 @@ export const createBasilisk = (name: string) => createCharacter(BASILISK_TEMPLAT
 export const createSpinedDevil = (name: string) => createCharacter(SPINED_DEVIL_TEMPLATE, name);
 export const createBoneDevil = (name: string) => createCharacter(BONE_DEVIL_TEMPLATE, name);
 export const createDruid = (name: string) => createCharacter(DRUID_TEMPLATE, name);
+export const createSorcerer = (name: string) => createCharacter(SORCERER_TEMPLATE, name);
 export const createHornedDevil = (name: string) => createCharacter(HORNED_DEVIL_TEMPLATE, name);
 export const createStoneGolem = (name: string) => createCharacter(STONE_GOLEM_TEMPLATE, name);
 export const createWolf = (name: string) => createCharacter(WOLF_TEMPLATE, name);

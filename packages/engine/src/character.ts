@@ -61,6 +61,8 @@ export class Character {
   public hasDivineBulwark = false;
   public counterspelled = false;
   public wildShapeLivesBonus = 0;
+  public arcaneMarkCount = 0;
+  public hasSpellAbsorption = false;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -221,6 +223,8 @@ export class Character {
     this.hasSpellReflection = false;
     this.hasDivineBulwark = false;
     this.counterspelled = false;
+    this.arcaneMarkCount = 0;
+    this.hasSpellAbsorption = false;
     this.setAsideCards.clear();
   }
 
@@ -238,6 +242,7 @@ export class Character {
     this.hasSpellReflection = false;
     this.hasDivineBulwark = false;
     this.counterspelled = false;
+    this.hasSpellAbsorption = false;
     if (this.skipTurns > 0) {
       this.skipTurns--;
       return true;

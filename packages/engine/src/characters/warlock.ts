@@ -5,8 +5,8 @@ import type { CharacterTemplate } from '../character.js';
 
 export const WARLOCK_TEMPLATE: CharacterTemplate = {
   id: 'warlock',
-  displayName: 'Bruixot',
-  classCss: 'bruixot',
+  displayName: 'Fetiller',
+  classCss: 'fetiller',
   iconPath: 'icons/000000/transparent/1x1/lorc/magic-swirl.svg',
   category: 'player',
   baseStrength: 0,

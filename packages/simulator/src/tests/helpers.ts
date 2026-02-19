@@ -14,6 +14,7 @@ import {
   createWarlock,
   createPaladin,
   createDruid,
+  createSorcerer,
   createGoblin,
   createGoblinShaman,
   createSpinedDevil,
@@ -236,6 +237,7 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Warlock', createWarlock],
     ['Paladin', createPaladin],
     ['Druid', createDruid],
+    ['Sorcerer', createSorcerer],
     ['Goblin', createGoblin],
     ['GoblinShaman', createGoblinShaman],
     ['SpinedDevil', createSpinedDevil],
@@ -257,6 +259,7 @@ export function getPlayerCreators(): [string, CharacterCreator][] {
     ['Warlock', createWarlock],
     ['Paladin', createPaladin],
     ['Druid', createDruid],
+    ['Sorcerer', createSorcerer],
   ];
 }
 

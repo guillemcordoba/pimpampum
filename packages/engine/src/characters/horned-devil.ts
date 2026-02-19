@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const HORNED_DEVIL_TEMPLATE: CharacterTemplate = {
@@ -15,9 +16,9 @@ export const HORNED_DEVIL_TEMPLATE: CharacterTemplate = {
   baseLives: 4,
   cardIcons: {
     'Forquilla del diable': 'icons/000000/transparent/1x1/lorc/trident.svg',
-    'Càrrega imparable': 'icons/000000/transparent/1x1/delapouite/charging-bull.svg',
-    'Contracte de sang': 'icons/000000/transparent/1x1/lorc/scroll-unfurled.svg',
-    'Fúria creixent': 'icons/000000/transparent/1x1/lorc/thor-fist.svg',
+    'Alè de l\'infern': 'icons/000000/transparent/1x1/lorc/fire-breath.svg',
+    'Pilar de foc': 'icons/000000/transparent/1x1/lorc/fire-zone.svg',
+    'Flames de l\'avern': 'icons/000000/transparent/1x1/lorc/flame-tunnel.svg',
     'Defensa diabòlica': 'icons/000000/transparent/1x1/lorc/spiked-armor.svg',
     'Sentència infernal': 'icons/000000/transparent/1x1/lorc/flaming-trident.svg',
   },
@@ -27,17 +28,25 @@ export const HORNED_DEVIL_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(0)
       .withEffect({ type: 'Impale' })
       .withDescription("Si fa ferida, l'enemic no pot ser defensat durant 2 torns."),
-    new Card('Càrrega imparable', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 6))
-      .withSpeedMod(2),
-    new Card('Contracte de sang', CardType.Focus)
-      .withSpeedMod(-4)
-      .withEffect({ type: 'BloodContract' })
-      .withDescription("Lliga un enemic amb un contracte de sang. Cada cop que ataqui el teu equip, perd una vida."),
-    new Card('Fúria creixent', CardType.Focus)
+    new Card('Alè de l\'infern', CardType.MagicAttack)
+      .withMagicAttack(new DiceRoll(1, 4))
+      .withSpeedMod(0)
+      .withEffect({ type: 'MultiTarget', count: 3 })
+      .withDescription("Crema tres enemics amb un alè de foc infernal."),
+    new Card('Pilar de foc', CardType.MagicAttack)
+      .withMagicAttack(new DiceRoll(1, 6))
+      .withSpeedMod(-2)
+      .withEffect({ type: 'InfernalBurn', strengthReduction: 3 })
+      .withDescription("Si fa ferida, l'enemic perd F-3 durant 2 torns."),
+    new Card('Flames de l\'avern', CardType.Focus)
       .withSpeedMod(-3)
-      .withEffect({ type: 'FuryScaling' })
-      .withDescription("Guanya +1 F permanent per cada vida perduda."),
+      .withEffect({
+        type: 'CharacteristicModifier',
+        modifiers: [{ characteristic: 'defense', amount: -2 }],
+        target: 'enemies',
+        duration: ModifierDuration.RestOfCombat,
+      })
+      .withDescription("Invoca les flames de l'avern. Tots els enemics perden D-2 permanentment."),
     new Card('Defensa diabòlica', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(1)

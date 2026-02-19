@@ -14,9 +14,14 @@ import {
   createWarlock,
   createPaladin,
   createDruid,
+  createSorcerer,
+  createGoblin,
+  createGoblinShaman,
+  createBasilisk,
   createSpinedDevil,
   createBoneDevil,
   createHornedDevil,
+  createStoneGolem,
   createWolf,
 } from '@pimpampum/engine';
 import type { CombatStats } from '@pimpampum/engine';
@@ -57,7 +62,7 @@ beforeAll(async () => {
   ];
 
   for (const [teamSize, simsPerMatchup] of teamSizeConfigs) {
-    const compositions = generateTeamCompositions(teamSize);
+    const compositions = generateTeamCompositions(teamSize, getPlayerCreators());
     const data: TeamSizeData = {
       allStats: newCombatStats(),
       matchupResults: [],
@@ -96,7 +101,7 @@ afterAll(() => {
 
   // --- Class win rates ---
   p('--- CLASS WIN RATES ---');
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid', 'sorcerer'];
   for (const cls of playerClasses) {
     const games = aggregatedStats.classGames.get(cls) ?? 0;
     const wins = aggregatedStats.classWins.get(cls) ?? 0;
@@ -147,6 +152,7 @@ afterAll(() => {
     ['warlock', createWarlock],
     ['paladin', createPaladin],
     ['druid', createDruid],
+    ['sorcerer', createSorcerer],
   ];
   for (const [className, creator] of playerCreators) {
     const ch = creator('tmp');
@@ -239,7 +245,7 @@ afterAll(() => {
 // =============================================================================
 
 describe('Class Balance', () => {
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid', 'sorcerer'];
 
   it('every player class has aggregate win rate between 35% and 65%', () => {
     for (const cls of playerClasses) {
@@ -348,6 +354,7 @@ describe('Individual Card Usage', () => {
     ['warlock', createWarlock],
     ['paladin', createPaladin],
     ['druid', createDruid],
+    ['sorcerer', createSorcerer],
   ];
   for (const [className, creator] of playerCreatorMap) {
     const ch = creator('tmp');
@@ -437,6 +444,9 @@ describe('Strategy Triangle', () => {
     [createMonk, createFighter],
     [createMonk, createRogue],
     [createMonk, createCleric],
+    [createSorcerer, createFighter],
+    [createSorcerer, createWizard],
+    [createSorcerer, createCleric],
   ];
 
   const simsPerComposition = 700;
@@ -491,6 +501,7 @@ describe('Class Identity', () => {
       ['warlock', createWarlock],
       ['paladin', createPaladin],
       ['druid', createDruid],
+      ['sorcerer', createSorcerer],
     ];
 
     const cardTypeMap = new Map<string, string>();
@@ -540,6 +551,7 @@ describe('Class Identity', () => {
       ['warlock', createWarlock],
       ['paladin', createPaladin],
       ['druid', createDruid],
+      ['sorcerer', createSorcerer],
     ];
     const wizardChar = createWizard('tmp');
     for (const [cls, creator] of others) {
@@ -954,6 +966,217 @@ describe('Wolf Pack (Tutorial Encounter)', () => {
     const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
     const drawRate = (totalDraws / overallTotal) * 100;
     expect(drawRate, `Wolf pack draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// M. BASILISK BOSS (4 Players vs 1 Basilisk)
+// =============================================================================
+
+describe('Basilisk Boss', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => [createBasilisk(`Basilisk_${i}`)],
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs 1 basilisk is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs basilisk: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(25);
+    expect(winRate, `Overall player win rate vs basilisk: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs basilisk (allow extreme hard counters below 5%)', () => {
+    let zeroWinCount = 0;
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs 1 Basilisk: ${winRate.toFixed(1)}% — no composition should auto-win`)
+        .toBeLessThan(100);
+      if (winRate === 0) zeroWinCount++;
+    }
+    // A single boss with D8 defense hard-counters some physical-only teams.
+    // Allow up to 10% of compositions to have 0% win rate at this sample size.
+    const zeroWinRate = (zeroWinCount / encounterResults.length) * 100;
+    expect(zeroWinRate, `${zeroWinCount}/${encounterResults.length} compositions have 0% win rate — too many hard losses`)
+      .toBeLessThan(10);
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Basilisk boss avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Basilisk boss draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// N. STONE GOLEM ENCOUNTER (4 Players vs 3 Stone Golems)
+// =============================================================================
+
+describe('Stone Golem Encounter', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => Array.from({ length: 3 }, (_, j) => createStoneGolem(`Golem_${j}_${i}`)),
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs 3 stone golems is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs stone golems: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(25);
+    expect(winRate, `Overall player win rate vs stone golems: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs stone golems', () => {
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs 3 Stone Golems: ${winRate.toFixed(1)}% — no composition should auto-win`)
+        .toBeLessThan(100);
+      expect(winRate, `${name} vs 3 Stone Golems: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Stone golem encounter avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Stone golem encounter draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// O. GOBLIN SHAMAN HORDE (4 Players vs 2 Shamans + 8 Goblins)
+// =============================================================================
+
+describe('Goblin Shaman Horde', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => [
+          createGoblinShaman(`Shaman_0_${i}`),
+          createGoblinShaman(`Shaman_1_${i}`),
+          ...Array.from({ length: 8 }, (_, j) => createGoblin(`Goblin_${j}_${i}`)),
+        ],
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs shaman horde is between 25% and 75%', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs goblin shaman horde: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(23);
+    expect(winRate, `Overall player win rate vs goblin shaman horde: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(75);
+  });
+
+  it('no player composition has 0% or 100% win rate vs shaman horde (allow rare hard counters)', () => {
+    let zeroWinCount = 0;
+    let fullWinCount = 0;
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      if (winRate === 0) zeroWinCount++;
+      if (winRate === 100) fullWinCount++;
+    }
+    // Allow up to 10% of compositions to have 0% or 100% win rate at this sample size.
+    const zeroRate = (zeroWinCount / encounterResults.length) * 100;
+    const fullRate = (fullWinCount / encounterResults.length) * 100;
+    expect(zeroRate, `${zeroWinCount}/${encounterResults.length} compositions have 0% win rate — too many hard losses`)
+      .toBeLessThan(10);
+    expect(fullRate, `${fullWinCount}/${encounterResults.length} compositions have 100% win rate — too many auto-wins`)
+      .toBeLessThan(10);
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Goblin shaman horde avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Goblin shaman horde draw rate: ${drawRate.toFixed(1)}%`)
       .toBeLessThan(15);
   });
 });

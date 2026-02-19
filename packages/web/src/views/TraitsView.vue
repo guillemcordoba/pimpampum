@@ -302,6 +302,7 @@ const diceCount = computed(() => combinedTraits.value.length);
 .picker-btn.clergue.active { border-color: var(--class-clergue); }
 .picker-btn.monjo.active { border-color: var(--class-monjo); }
 .picker-btn.trobador.active { border-color: var(--class-trobador); }
+.picker-btn.fetiller.active { border-color: var(--class-fetiller); }
 .picker-btn.bruixot.active { border-color: var(--class-bruixot); }
 .picker-btn.paladi.active { border-color: var(--class-paladi); }
 .picker-btn.druida.active { border-color: var(--class-druida); }
@@ -322,6 +323,7 @@ const diceCount = computed(() => combinedTraits.value.length);
 .result-box.clergue { border-left-color: var(--class-clergue); }
 .result-box.monjo { border-left-color: var(--class-monjo); }
 .result-box.trobador { border-left-color: var(--class-trobador); }
+.result-box.fetiller { border-left-color: var(--class-fetiller); }
 .result-box.bruixot { border-left-color: var(--class-bruixot); }
 .result-box.paladi { border-left-color: var(--class-paladi); }
 .result-box.druida { border-left-color: var(--class-druida); }

@@ -555,6 +555,18 @@ export class CombatEngine {
         }
       }
 
+      // InfernalBurn: on hit, reduce target's strength for 2 turns
+      if (card.effect?.type === 'InfernalBurn') {
+        const recipient = this.getTeam(woundTeam)[woundIdx];
+        if (recipient.isAlive()) {
+          recipient.modifiers.push(
+            new CombatModifier('strength', -card.effect.strengthReduction, ModifierDuration.NextTwoTurns).withSource(card.name),
+          );
+          this.log(`  → ${woundName} gets F-${card.effect.strengthReduction} for 2 turns from infernal fire!`);
+          this.addLog({ type: 'effect', text: `${woundName} gets F-${card.effect.strengthReduction} for 2 turns!`, characterName: woundName });
+        }
+      }
+
       // BloodContract: attacker pays 1 life if attacking the contracted team
       {
         const attackerCheck2 = this.getTeam(attackerTeam)[attackerIdx];
@@ -687,6 +699,28 @@ export class CombatEngine {
         }
       }
 
+      // SpellAbsorption: if a magic attack misses against this defender, M+2 self and M-2 attacker next turn
+      if (defenderInfo) {
+        const [defTeamSA, defIdxSA, defNameSA] = defenderInfo;
+        const defenderSA = this.getTeam(defTeamSA)[defIdxSA];
+        if (defenderSA.hasSpellAbsorption && !isPhysical(card.cardType) && defenderSA.isAlive()) {
+          defenderSA.modifiers.push(
+            new CombatModifier('magic', 2, ModifierDuration.NextTurn).withSource('Absorció màgica'),
+          );
+          this.log(`  → ${defNameSA} absorbs magical energy! M+2 next turn.`);
+          this.addLog({ type: 'effect', text: `${defNameSA} absorbeix energia màgica! M+2 el pròxim torn.`, characterName: defNameSA });
+
+          const attackerForAbs = this.getTeam(attackerTeam)[attackerIdx];
+          if (attackerForAbs.isAlive()) {
+            attackerForAbs.modifiers.push(
+              new CombatModifier('magic', -2, ModifierDuration.NextTurn).withSource('Absorció màgica'),
+            );
+            this.log(`  → ${attackerName} is drained! M-2 next turn.`);
+            this.addLog({ type: 'effect', text: `${attackerName} perd energia! M-2 el pròxim torn.`, characterName: attackerName });
+          }
+        }
+      }
+
       // DivineBulwark: on miss, defended ally gains +1D RestOfCombat
       if (defenderInfo) {
         const [defTeamDB, defIdxDB, defNameDB] = defenderInfo;
@@ -806,6 +840,13 @@ export class CombatEngine {
           const enemies = this.getLivingEnemies(charTeam);
           targets = enemies.slice(0, card.effect.count);
         }
+      } else if (card.effect.type === 'ArcaneMark' && card.effect.count && card.effect.count > 1) {
+        if (overrides?.attackTargets && overrides.attackTargets.length > 0) {
+          targets = overrides.attackTargets.map(t => t[1]);
+        } else {
+          const enemies = this.getLivingEnemies(charTeam);
+          targets = enemies.slice(0, card.effect.count);
+        }
       } else if (card.effect.type === 'Overcharge') {
         // Overcharge: attack ALL living enemies
         targets = this.getLivingEnemies(charTeam);
@@ -901,6 +942,35 @@ export class CombatEngine {
             target.silencedTurns = 2;
             this.log(`  → ${target.name} is silenced for 2 turns! Focus cards will be interrupted.`);
             this.addLog({ type: 'effect', text: `${target.name} is silenced for 2 turns!`, characterName: target.name });
+          }
+        }
+
+        // ArcaneMark: on hit, mark target with an arcane mark
+        if (hit && card.effect.type === 'ArcaneMark') {
+          const target = this.getTeam(eTeam)[ti];
+          if (target.isAlive()) {
+            target.arcaneMarkCount++;
+            this.log(`  → ${target.name} is marked with an arcane mark! (${target.arcaneMarkCount} marks)`);
+            this.addLog({ type: 'effect', text: `${target.name} rep una marca arcana! (${target.arcaneMarkCount})`, characterName: target.name });
+          }
+        }
+
+        // SpellLeech: on hit, steal a random positive modifier from target
+        if (hit && card.effect.type === 'SpellLeech') {
+          const target = this.getTeam(eTeam)[ti];
+          const attacker = this.getTeam(charTeam)[charIdx];
+          if (target.isAlive() && attacker.isAlive()) {
+            const positiveModifiers = target.modifiers.filter(m => m.getValue() > 0);
+            if (positiveModifiers.length > 0) {
+              const stolen = positiveModifiers[Math.floor(Math.random() * positiveModifiers.length)];
+              target.modifiers = target.modifiers.filter(m => m !== stolen);
+              attacker.modifiers.push(stolen);
+              this.log(`  → ${charName} steals a modifier from ${target.name}! (${stolen.stat} ${stolen.getValue() > 0 ? '+' : ''}${stolen.getValue()})`);
+              this.addLog({ type: 'effect', text: `${charName} roba ${stolen.stat} ${stolen.getValue() > 0 ? '+' : ''}${stolen.getValue()} de ${target.name}!`, characterName: charName });
+            } else {
+              this.log(`  → ${charName} tries to steal but ${target.name} has no positive modifiers.`);
+              this.addLog({ type: 'effect', text: `${charName} intenta robar però ${target.name} no té modificadors positius.`, characterName: charName });
+            }
           }
         }
 
@@ -1067,6 +1137,9 @@ export class CombatEngine {
         }
         if (card.effect.type === 'SpellReflection') {
           this.getTeam(charTeam)[charIdx].hasSpellReflection = true;
+        }
+        if (card.effect.type === 'SpellAbsorption') {
+          this.getTeam(charTeam)[charIdx].hasSpellAbsorption = true;
         }
         if (card.effect.type === 'DivineBulwark') {
           this.getTeam(charTeam)[charIdx].hasDivineBulwark = true;
@@ -1641,6 +1714,38 @@ export class CombatEngine {
           if (woundCount === 0) {
             this.log(`  → ${charName} sings the Requiem but no enemies are wounded.`);
             this.addLog({ type: 'effect', text: `${charName} sings the Requiem but no enemies are wounded.`, characterName: charName });
+          }
+          break;
+        }
+        case 'ArcaneDetonation': {
+          const enemies = this.getLivingEnemies(charTeam);
+          const enemyTeam = this.getEnemyTeam(charTeam);
+          let totalDetonations = 0;
+          for (const idx of enemies) {
+            const enemy = enemyTeam[idx];
+            if (enemy.arcaneMarkCount > 0) {
+              const marks = enemy.arcaneMarkCount;
+              totalDetonations += marks;
+              enemy.arcaneMarkCount = 0;
+              for (let m = 0; m < marks; m++) {
+                if (!enemy.isAlive()) break;
+                const died = enemy.loseLife();
+                this.hitThisRound.add(enemy.name);
+                this.log(`  → ${enemy.name} takes detonation damage! (${enemy.currentLives}/${enemy.maxLives})`);
+                this.addLog({ type: 'hit', text: `${enemy.name} rep dany de detonació! (${enemy.currentLives}/${enemy.maxLives})`, characterName: enemy.name });
+                if (died) {
+                  this.log(`  ★ ${enemy.name} is defeated by arcane detonation!`);
+                  this.addLog({ type: 'death', text: `${enemy.name} is defeated by arcane detonation!`, characterName: enemy.name });
+                }
+              }
+            }
+          }
+          if (totalDetonations === 0) {
+            this.log(`  → ${charName} tries to detonate but no enemies have arcane marks.`);
+            this.addLog({ type: 'effect', text: `${charName} intenta detonar però cap enemic té marques arcanes.`, characterName: charName });
+          } else {
+            this.log(`  → ${charName} detonates ${totalDetonations} arcane marks!`);
+            this.addLog({ type: 'effect', text: `${charName} detona ${totalDetonations} marques arcanes!`, characterName: charName });
           }
           break;
         }

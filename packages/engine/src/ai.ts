@@ -127,6 +127,8 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       }
       // DebilitatingVenom: permanent debuff
       if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      // InfernalBurn: strength debuff on hit
+      if (card.effect.type === 'InfernalBurn') weight += 8.0;
       // Impale: tactical — prevents defense
       if (card.effect.type === 'Impale') weight += 8.0;
       // DoubleWound: devastating double damage
@@ -146,6 +148,17 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       }
       // Dissonance: AoE debuff on hit
       if (card.effect.type === 'Dissonance') weight += 8.0;
+      // ArcaneMark: moderate base, more valuable with fewer marks
+      if (card.effect.type === 'ArcaneMark') {
+        weight += 8.0;
+        if (card.effect.count && card.effect.count > 1 && enemies.length >= 2) weight += 6.0;
+      }
+      // SpellLeech: valuable when enemies have positive modifiers
+      if (card.effect.type === 'SpellLeech') {
+        const hasBuffedEnemy = enemyTeam.some(e => e.isAlive() && e.modifiers.some(m => m.getValue() > 0));
+        if (hasBuffedEnemy) weight += 15.0;
+        else weight += 2.0;
+      }
       // Overcharge: AoE + self-wound — scales with enemy count
       if (card.effect.type === 'Overcharge') {
         if (enemies.length >= 2) weight += 10.0;
@@ -167,6 +180,11 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
       if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'SpellAbsorption') {
+        const hasMagicEnemy = enemyTeam.some(e => e.isAlive() && e.magic > 0);
+        if (hasMagicEnemy) weight += 6.0;
+        else weight += 1.0;
+      }
     } else if (isFocus(card.cardType)) {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
@@ -217,6 +235,10 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       } else if (card.effect.type === 'Requiem') {
         const woundedEnemies = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
         weight += 5.0 + 5.0 * woundedEnemies.length;
+      } else if (card.effect.type === 'ArcaneDetonation') {
+        const totalMarks = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.arcaneMarkCount, 0);
+        if (totalMarks === 0) weight += 0.0;
+        else weight += 10.0 + totalMarks * 8.0;
       } else if (card.effect.type === 'BloodMagic') {
         if (character.currentLives >= 2) weight += 5.0;
         else weight += 0.0;
@@ -326,6 +348,11 @@ function selectProtect(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
       if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'SpellAbsorption') {
+        const hasMagicEnemyP = enemyTeam.some(e => e.isAlive() && e.magic > 0);
+        if (hasMagicEnemyP) weight += 8.0;
+        else weight += 1.0;
+      }
     } else if (isAttack(card.cardType)) {
       if (fewEnemies) {
         // Few enemies left — go aggressive to close out the fight
@@ -370,9 +397,19 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         if (character.currentLives <= 1) weight += 8.0;
       }
       if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      if (card.effect.type === 'InfernalBurn') weight += 8.0;
       if (card.effect.type === 'Impale') weight += 8.0;
       if (card.effect.type === 'DoubleWound') weight += 15.0;
       if (card.effect.type === 'Dissonance') weight += 8.0;
+      if (card.effect.type === 'ArcaneMark') {
+        weight += 5.0;
+        if (card.effect.count && card.effect.count > 1 && enemies.length >= 2) weight += 4.0;
+      }
+      if (card.effect.type === 'SpellLeech') {
+        const hasBuffedEnemyP = enemyTeam.some(e => e.isAlive() && e.modifiers.some(m => m.getValue() > 0));
+        if (hasBuffedEnemyP) weight += 12.0;
+        else weight += 1.0;
+      }
       if (card.effect.type === 'DivineSmite') {
         const combinedAttack = character.getEffectiveStrength() + character.getEffectiveMagic() + (card.physicalAttack?.average() ?? 0);
         if (enemies.length > 0) {
@@ -479,6 +516,12 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           case 'Requiem': {
             const woundedEnemiesP = enemies.filter(i => enemyTeam[i].currentLives < enemyTeam[i].maxLives);
             weight += 5.0 + 5.0 * woundedEnemiesP.length;
+            break;
+          }
+          case 'ArcaneDetonation': {
+            const totalMarksP = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.arcaneMarkCount, 0);
+            if (totalMarksP === 0) weight += 0.0;
+            else weight += 8.0 + totalMarksP * 6.0;
             break;
           }
           case 'BloodMagic':
@@ -631,6 +674,12 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 5.0 + 8.0 * woundedEnemiesPow.length;
           break;
         }
+        case 'ArcaneDetonation': {
+          const totalMarksPow = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.arcaneMarkCount, 0);
+          if (totalMarksPow === 0) weight += 0.0;
+          else weight += 10.0 + totalMarksPow * 8.0;
+          break;
+        }
         case 'BloodMagic':
           if (character.currentLives >= 2) weight += 25.0;
           break;
@@ -694,9 +743,19 @@ function selectPower(character: Character, engine: AIEngineView): number {
         if (character.currentLives <= 1) weight += 8.0;
       }
       if (card.effect.type === 'DebilitatingVenom') weight += 8.0;
+      if (card.effect.type === 'InfernalBurn') weight += 8.0;
       if (card.effect.type === 'Impale') weight += 8.0;
       if (card.effect.type === 'DoubleWound') weight += 15.0;
       if (card.effect.type === 'Dissonance') weight += 8.0;
+      if (card.effect.type === 'ArcaneMark') {
+        weight += 6.0;
+        if (card.effect.count && card.effect.count > 1 && enemies.length >= 2) weight += 4.0;
+      }
+      if (card.effect.type === 'SpellLeech') {
+        const hasBuffedEnemyPow = enemyTeam.some(e => e.isAlive() && e.modifiers.some(m => m.getValue() > 0));
+        if (hasBuffedEnemyPow) weight += 12.0;
+        else weight += 1.0;
+      }
       if (card.effect.type === 'DivineSmite') {
         const combinedAttack = character.getEffectiveStrength() + character.getEffectiveMagic() + (card.physicalAttack?.average() ?? 0);
         if (enemies.length > 0) {
@@ -720,6 +779,11 @@ function selectPower(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
       if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'SpellAbsorption') {
+        const hasMagicEnemyPow = enemyTeam.some(e => e.isAlive() && e.magic > 0);
+        if (hasMagicEnemyPow) weight += 6.0;
+        else weight += 1.0;
+      }
     } else if (isFocus(card.cardType) && hasRestOfCombatBuff) {
       weight += 2.0;
     }

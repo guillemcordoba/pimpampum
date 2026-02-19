@@ -73,6 +73,8 @@
 .print-card.monjo .card-frame { border-color: var(--class-monjo); }
 .print-card.trobador { border-color: var(--class-trobador); }
 .print-card.trobador .card-frame { border-color: var(--class-trobador); }
+.print-card.fetiller { border-color: var(--class-fetiller); }
+.print-card.fetiller .card-frame { border-color: var(--class-fetiller); }
 .print-card.bruixot { border-color: var(--class-bruixot); }
 .print-card.bruixot .card-frame { border-color: var(--class-bruixot); }
 .print-card.paladi { border-color: var(--class-paladi); }

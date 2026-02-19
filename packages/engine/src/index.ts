@@ -7,12 +7,12 @@ export { CombatModifier, ModifierDuration } from './modifier.js';
 export { Character, createCharacter } from './character.js';
 export type { CharacterTemplate, DefenseBonus } from './character.js';
 export {
-  createFighter, createWizard, createRogue, createBarbarian, createCleric, createMonk, createBard, createWarlock, createPaladin, createDruid,
+  createFighter, createWizard, createRogue, createBarbarian, createCleric, createMonk, createBard, createWarlock, createPaladin, createDruid, createSorcerer,
   createGoblin, createGoblinShaman, createBasilisk,
   createSpinedDevil, createBoneDevil, createHornedDevil, createStoneGolem, createWolf,
   ALL_CHARACTER_TEMPLATES, PLAYER_TEMPLATES, ENEMY_TEMPLATES, CARD_ICONS,
   FIGHTER_TEMPLATE, ROGUE_TEMPLATE, WIZARD_TEMPLATE, BARBARIAN_TEMPLATE,
-  CLERIC_TEMPLATE, MONK_TEMPLATE, BARD_TEMPLATE, WARLOCK_TEMPLATE, PALADIN_TEMPLATE, DRUID_TEMPLATE, GOBLIN_TEMPLATE, GOBLIN_SHAMAN_TEMPLATE, BASILISK_TEMPLATE,
+  CLERIC_TEMPLATE, MONK_TEMPLATE, BARD_TEMPLATE, WARLOCK_TEMPLATE, PALADIN_TEMPLATE, DRUID_TEMPLATE, SORCERER_TEMPLATE, GOBLIN_TEMPLATE, GOBLIN_SHAMAN_TEMPLATE, BASILISK_TEMPLATE,
   SPINED_DEVIL_TEMPLATE, BONE_DEVIL_TEMPLATE, HORNED_DEVIL_TEMPLATE, STONE_GOLEM_TEMPLATE, WOLF_TEMPLATE,
 } from './characters/index.js';
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';

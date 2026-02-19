@@ -164,6 +164,7 @@ export const CLASS_TRAITS: Record<string, string[]> = {
   monk:       ['agil', 'perceptiu'],
   bard:       ['persuasiu', 'artista'],
   warlock:    ['arcanista', 'temeros'],
+  sorcerer:   ['arcanista', 'sagac'],
   paladin:    ['devot', 'intimidant'],
   druid:      ['naturalista', 'curador'],
 };

@@ -81,6 +81,7 @@ export type SpecialEffect =
   | { type: 'FuryScaling' }
   | { type: 'InfernalRetaliation' }
   | { type: 'DoubleWound' }
+  | { type: 'InfernalBurn'; strengthReduction: number }
   | { type: 'Dissonance' }
   | { type: 'MagicDeflection'; counterAttackDice: DiceRoll }
   | { type: 'Charm' }
@@ -96,7 +97,11 @@ export type SpecialEffect =
   | { type: 'SecondWind'; healAmount: number; defenseBoost: number }
   | { type: 'Counterspell' }
   | { type: 'WildShape'; strengthBoost: number; defenseBoost: number; temporaryLives: number }
-  | { type: 'SummonAlly'; templateId: string };
+  | { type: 'SummonAlly'; templateId: string }
+  | { type: 'ArcaneMark'; count?: number }
+  | { type: 'ArcaneDetonation' }
+  | { type: 'SpellLeech' }
+  | { type: 'SpellAbsorption' };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 
@@ -139,6 +144,7 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
 export function getCardTargetCount(card: Card): number {
   if (card.effect.type === 'MultiTarget') return card.effect.count;
   if (card.effect.type === 'DefendMultiple') return card.effect.count;
+  if (card.effect.type === 'ArcaneMark' && card.effect.count && card.effect.count > 1) return card.effect.count;
   return 1;
 }
 
