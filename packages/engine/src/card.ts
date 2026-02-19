@@ -95,7 +95,8 @@ export type SpecialEffect =
   | { type: 'ActionSurge'; secondAttackDice: DiceRoll }
   | { type: 'SecondWind'; healAmount: number; defenseBoost: number }
   | { type: 'Counterspell' }
-  | { type: 'WildShape'; strengthBoost: number; defenseBoost: number; temporaryLives: number };
+  | { type: 'WildShape'; strengthBoost: number; defenseBoost: number; temporaryLives: number }
+  | { type: 'SummonAlly'; templateId: string };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 

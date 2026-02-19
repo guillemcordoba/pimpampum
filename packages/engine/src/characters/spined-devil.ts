@@ -9,15 +9,15 @@ export const SPINED_DEVIL_TEMPLATE: CharacterTemplate = {
   iconPath: 'icons/000000/transparent/1x1/lorc/imp.svg',
   category: 'enemy',
   baseStrength: 1,
-  baseMagic: 3,
-  baseDefense: 2,
-  baseSpeed: 5,
+  baseMagic: 1,
+  baseDefense: 1,
+  baseSpeed: 4,
   baseLives: 1,
   cardIcons: {
     'Espina de foc': 'icons/000000/transparent/1x1/lorc/fire-ray.svg',
     'Mossegada en vol': 'icons/000000/transparent/1x1/lorc/bat-wing.svg',
     'Cortina de foc': 'icons/000000/transparent/1x1/lorc/fire-shield.svg',
-    'Foc persistent': 'icons/000000/transparent/1x1/lorc/flame.svg',
+    'Foc persistent': 'icons/000000/transparent/1x1/lorc/flame-spin.svg',
   },
   createCards: () => [
     new Card('Espina de foc', CardType.MagicAttack)

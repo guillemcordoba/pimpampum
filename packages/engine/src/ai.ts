@@ -181,6 +181,14 @@ function selectAggro(character: Character, engine: AIEngineView): number {
         // Goblins like hiding — coordinated ambush next turn
         const livingAllies = engine.getLivingAllies(character.team).length;
         weight += 8.0 + livingAllies * 1.5;
+      } else if (card.effect.type === 'SummonAlly') {
+        // Wolves summon reinforcements — more valuable when pack is small, useless when large
+        const allyTeamSA = character.team === 1 ? engine.team1 : engine.team2;
+        if (allyTeamSA.length >= 10) weight -= 20.0;
+        else {
+          const livingAllies = engine.getLivingAllies(character.team).length;
+          weight += 10.0 + Math.max(0, 5.0 - livingAllies);
+        }
       } else if (card.effect.type === 'LingeringFire') {
         weight += 10.0;
       } else if (card.effect.type === 'TerrorAura') {
@@ -426,6 +434,15 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             weight += 8.0 + la * 1.5;
             break;
           }
+          case 'SummonAlly': {
+            const atSumP = character.team === 1 ? engine.team1 : engine.team2;
+            if (atSumP.length >= 10) weight -= 20.0;
+            else {
+              const laSum = engine.getLivingAllies(character.team).length;
+              weight += 10.0 + Math.max(0, 5.0 - laSum);
+            }
+            break;
+          }
           case 'LingeringFire':
             weight += 10.0;
             break;
@@ -564,6 +581,15 @@ function selectPower(character: Character, engine: AIEngineView): number {
         case 'NimbleEscape': {
           const la = engine.getLivingAllies(character.team).length;
           weight += 8.0 + la * 1.5;
+          break;
+        }
+        case 'SummonAlly': {
+          const atSumPow = character.team === 1 ? engine.team1 : engine.team2;
+          if (atSumPow.length >= 10) weight -= 20.0;
+          else {
+            const laSumPow = engine.getLivingAllies(character.team).length;
+            weight += 10.0 + Math.max(0, 5.0 - laSumPow);
+          }
           break;
         }
         case 'LingeringFire':

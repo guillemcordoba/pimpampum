@@ -87,6 +87,10 @@
 .print-card.diable-dos .card-frame { border-color: var(--class-diable-dos); }
 .print-card.diable-banyut { border-color: var(--class-diable-banyut); }
 .print-card.diable-banyut .card-frame { border-color: var(--class-diable-banyut); }
+.print-card.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
+.print-card.golem-de-pedra .card-frame { border-color: var(--class-golem-de-pedra); }
+.print-card.llop { border-color: var(--class-llop); }
+.print-card.llop .card-frame { border-color: var(--class-llop); }
 
 /* -- Card type header colors ----------------------------------------------- */
 
@@ -680,6 +684,28 @@
   color: var(--text-dark, #2c1810);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* -- Traits section ------------------------------------------------------- */
+
+.sheet-traits {
+  margin-top: 3mm;
+  padding-top: 3mm;
+  border-top: 1px dashed rgba(44,24,16,0.3);
+}
+
+.sheet-traits-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm 6mm;
+  margin-top: 2mm;
+}
+
+.sheet-trait-line {
+  flex: 1 1 40%;
+  min-width: 30mm;
+  border-bottom: 1.5px solid #2c1810;
+  min-height: 5mm;
 }
 
 /* -- Print styles for character sheet ------------------------------------- */

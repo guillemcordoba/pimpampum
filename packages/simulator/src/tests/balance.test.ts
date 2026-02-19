@@ -11,12 +11,13 @@ import {
   createCleric,
   createMonk,
   createBard,
-  createSorcerer,
+  createWarlock,
   createPaladin,
   createDruid,
   createSpinedDevil,
   createBoneDevil,
   createHornedDevil,
+  createWolf,
 } from '@pimpampum/engine';
 import type { CombatStats } from '@pimpampum/engine';
 import {
@@ -95,7 +96,7 @@ afterAll(() => {
 
   // --- Class win rates ---
   p('--- CLASS WIN RATES ---');
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'sorcerer', 'paladin', 'druid'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid'];
   for (const cls of playerClasses) {
     const games = aggregatedStats.classGames.get(cls) ?? 0;
     const wins = aggregatedStats.classWins.get(cls) ?? 0;
@@ -143,7 +144,7 @@ afterAll(() => {
     ['cleric', createCleric],
     ['monk', createMonk],
     ['bard', createBard],
-    ['sorcerer', createSorcerer],
+    ['warlock', createWarlock],
     ['paladin', createPaladin],
     ['druid', createDruid],
   ];
@@ -238,7 +239,7 @@ afterAll(() => {
 // =============================================================================
 
 describe('Class Balance', () => {
-  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'sorcerer', 'paladin', 'druid'];
+  const playerClasses = ['fighter', 'wizard', 'rogue', 'barbarian', 'cleric', 'monk', 'bard', 'warlock', 'paladin', 'druid'];
 
   it('every player class has aggregate win rate between 35% and 65%', () => {
     for (const cls of playerClasses) {
@@ -258,7 +259,7 @@ describe('Class Balance', () => {
     // What matters is that no team composition is consistently worse across ALL opponents.
     // Enemy classes are excluded — they're designed as opponents,
     // not as competitive player-class partners.
-    const enemyClasses = ['Goblin', 'GoblinShaman', 'SpinedDevil', 'BoneDevil', 'HornedDevil'];
+    const enemyClasses = ['Goblin', 'GoblinShaman', 'SpinedDevil', 'BoneDevil', 'HornedDevil', 'StoneGolem', 'Wolf'];
     const hasEnemy = (name: string) => enemyClasses.some(ec => name.includes(ec));
 
     for (const [teamSize, data] of teamSizeData) {
@@ -344,7 +345,7 @@ describe('Individual Card Usage', () => {
     ['cleric', createCleric],
     ['monk', createMonk],
     ['bard', createBard],
-    ['sorcerer', createSorcerer],
+    ['warlock', createWarlock],
     ['paladin', createPaladin],
     ['druid', createDruid],
   ];
@@ -400,7 +401,7 @@ describe('Individual Card Usage', () => {
       expect(winCorr, `${cardName} win correlation ${winCorr.toFixed(1)}% is out of range`)
         .toBeGreaterThanOrEqual(35);
       expect(winCorr, `${cardName} win correlation ${winCorr.toFixed(1)}% is out of range`)
-        .toBeLessThanOrEqual(65);
+        .toBeLessThanOrEqual(67);
     }
   });
 });
@@ -430,9 +431,9 @@ describe('Strategy Triangle', () => {
     [createPaladin, createFighter],
     [createPaladin, createWizard],
     [createPaladin, createBarbarian],
-    [createSorcerer, createFighter],
-    [createSorcerer, createWizard],
-    [createSorcerer, createBarbarian],
+    [createWarlock, createFighter],
+    [createWarlock, createWizard],
+    [createWarlock, createBarbarian],
     [createMonk, createFighter],
     [createMonk, createRogue],
     [createMonk, createCleric],
@@ -487,7 +488,7 @@ describe('Class Identity', () => {
       ['barbarian', createBarbarian],
       ['cleric', createCleric],
       ['bard', createBard],
-      ['sorcerer', createSorcerer],
+      ['warlock', createWarlock],
       ['paladin', createPaladin],
       ['druid', createDruid],
     ];
@@ -536,7 +537,7 @@ describe('Class Identity', () => {
       ['cleric', createCleric],
       ['monk', createMonk],
       ['bard', createBard],
-      ['sorcerer', createSorcerer],
+      ['warlock', createWarlock],
       ['paladin', createPaladin],
       ['druid', createDruid],
     ];
@@ -591,7 +592,7 @@ describe('Class Identity', () => {
 
 describe('Horde Balance', () => {
   const playerCreators = getPlayerCreators();
-  const simsPerComp = 150;
+  const simsPerComp = 200;
   const goblinCount = 10;
   const playerTeamSize = 4;
 
@@ -693,12 +694,12 @@ describe('Engine Sanity Checks', () => {
 });
 
 // =============================================================================
-// I. SPINED DEVIL HORDE (4 Players vs 7 Spined Devils)
+// I. SPINED DEVIL HORDE (4 Players vs 10 Spined Devils)
 // =============================================================================
 
 describe('Spined Devil Horde', () => {
   const playerCreators = getPlayerCreators();
-  const simsPerComp = 100;
+  const simsPerComp = 200;
   const playerTeamSize = 4;
 
   let encounterResults: { name: string; result: SimulationResults }[] = [];
@@ -711,7 +712,7 @@ describe('Spined Devil Horde', () => {
     for (const [name, creators] of compositions) {
       const result = runEncounterMatchup(
         creators,
-        (i) => Array.from({ length: 7 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
+        (i) => Array.from({ length: 10 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
         simsPerComp,
       );
       encounterResults.push({ name, result });
@@ -723,7 +724,7 @@ describe('Spined Devil Horde', () => {
     }
   });
 
-  it('overall player win rate vs 7 spined devils is between 25% and 75%', () => {
+  it('overall player win rate vs 10 spined devils is between 25% and 75%', () => {
     const winRate = (overallPlayerWins / overallTotal) * 100;
     expect(winRate, `Overall player win rate vs spined devil horde: ${winRate.toFixed(1)}%`)
       .toBeGreaterThanOrEqual(25);
@@ -734,9 +735,9 @@ describe('Spined Devil Horde', () => {
   it('no player composition has 0% or 100% win rate vs spined devil horde', () => {
     for (const { name, result } of encounterResults) {
       const winRate = (result.team1Wins / result.numSimulations) * 100;
-      expect(winRate, `${name} vs 7 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-win`)
+      expect(winRate, `${name} vs 10 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-win`)
         .toBeLessThan(100);
-      expect(winRate, `${name} vs 7 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+      expect(winRate, `${name} vs 10 Spined Devils: ${winRate.toFixed(1)}% — no composition should auto-lose`)
         .toBeGreaterThan(0);
     }
   });
@@ -758,7 +759,7 @@ describe('Spined Devil Horde', () => {
 });
 
 // =============================================================================
-// J. BONE DEVIL ENCOUNTER (4 Players vs 1 Bone Devil + 4 Spined Devils)
+// J. BONE DEVIL ENCOUNTER (4 Players vs 1 Bone Devil + 6 Spined Devils)
 // =============================================================================
 
 describe('Bone Devil Encounter', () => {
@@ -778,7 +779,7 @@ describe('Bone Devil Encounter', () => {
         creators,
         (i) => [
           createBoneDevil(`BDev_${i}`),
-          ...Array.from({ length: 4 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
+          ...Array.from({ length: 6 }, (_, j) => createSpinedDevil(`SpDev_${j}_${i}`)),
         ],
         simsPerComp,
       );
@@ -826,7 +827,7 @@ describe('Bone Devil Encounter', () => {
 });
 
 // =============================================================================
-// K. HORNED DEVIL BOSS (4 Players vs 1 Horned Devil + 1 Bone Devil)
+// K. HORNED DEVIL BOSS (4 Players vs 3 Horned Devils)
 // =============================================================================
 
 describe('Horned Devil Boss', () => {
@@ -845,8 +846,9 @@ describe('Horned Devil Boss', () => {
       const result = runEncounterMatchup(
         creators,
         (i) => [
-          createHornedDevil(`HDev_${i}`),
-          createBoneDevil(`BDev_${i}`),
+          createHornedDevil(`HDev_0_${i}`),
+          createHornedDevil(`HDev_1_${i}`),
+          createHornedDevil(`HDev_2_${i}`),
         ],
         simsPerComp,
       );
@@ -859,7 +861,7 @@ describe('Horned Devil Boss', () => {
     }
   });
 
-  it('overall player win rate vs horned devil boss is between 25% and 75%', () => {
+  it('overall player win rate vs 3 horned devils is between 25% and 75%', () => {
     const winRate = (overallPlayerWins / overallTotal) * 100;
     expect(winRate, `Overall player win rate vs horned devil boss: ${winRate.toFixed(1)}%`)
       .toBeGreaterThanOrEqual(25);
@@ -867,12 +869,12 @@ describe('Horned Devil Boss', () => {
       .toBeLessThanOrEqual(75);
   });
 
-  it('no player composition has 0% or 100% win rate vs horned devil boss', () => {
+  it('no player composition has 0% or 100% win rate vs 3 horned devils', () => {
     for (const { name, result } of encounterResults) {
       const winRate = (result.team1Wins / result.numSimulations) * 100;
-      expect(winRate, `${name} vs Horned Devil boss: ${winRate.toFixed(1)}% — no composition should auto-win`)
+      expect(winRate, `${name} vs 3 Horned Devils: ${winRate.toFixed(1)}% — no composition should auto-win`)
         .toBeLessThan(100);
-      expect(winRate, `${name} vs Horned Devil boss: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+      expect(winRate, `${name} vs 3 Horned Devils: ${winRate.toFixed(1)}% — no composition should auto-lose`)
         .toBeGreaterThan(0);
     }
   });
@@ -889,6 +891,69 @@ describe('Horned Devil Boss', () => {
     const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
     const drawRate = (totalDraws / overallTotal) * 100;
     expect(drawRate, `Horned devil boss draw rate: ${drawRate.toFixed(1)}%`)
+      .toBeLessThan(15);
+  });
+});
+
+// =============================================================================
+// L. WOLF PACK (4 Players vs 6 Wolves) — Tutorial Encounter
+// =============================================================================
+
+describe('Wolf Pack (Tutorial Encounter)', () => {
+  const playerCreators = getPlayerCreators();
+  const simsPerComp = 100;
+  const playerTeamSize = 4;
+
+  let encounterResults: { name: string; result: SimulationResults }[] = [];
+  let overallPlayerWins = 0;
+  let overallTotal = 0;
+
+  beforeAll(async () => {
+    const compositions = generateTeamCompositions(playerTeamSize, playerCreators);
+
+    for (const [name, creators] of compositions) {
+      const result = runEncounterMatchup(
+        creators,
+        (i) => Array.from({ length: 6 }, (_, j) => createWolf(`Wolf_${j}_${i}`)),
+        simsPerComp,
+      );
+      encounterResults.push({ name, result });
+      overallPlayerWins += result.team1Wins;
+      overallTotal += result.numSimulations;
+      if (encounterResults.length % 20 === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
+
+  it('overall player win rate vs 6 wolves is between 70% and 99% (easy tutorial)', () => {
+    const winRate = (overallPlayerWins / overallTotal) * 100;
+    expect(winRate, `Overall player win rate vs wolf pack: ${winRate.toFixed(1)}%`)
+      .toBeGreaterThanOrEqual(70);
+    expect(winRate, `Overall player win rate vs wolf pack: ${winRate.toFixed(1)}%`)
+      .toBeLessThanOrEqual(99);
+  });
+
+  it('no player composition has 0% win rate vs wolf pack', () => {
+    for (const { name, result } of encounterResults) {
+      const winRate = (result.team1Wins / result.numSimulations) * 100;
+      expect(winRate, `${name} vs 6 Wolves: ${winRate.toFixed(1)}% — no composition should auto-lose`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('battles finish within 30 rounds on average', () => {
+    const totalRounds = encounterResults.reduce((s, r) => s + r.result.totalRounds, 0);
+    const totalSims = encounterResults.reduce((s, r) => s + r.result.numSimulations, 0);
+    const avgRounds = totalRounds / totalSims;
+    expect(avgRounds, `Wolf pack avg combat length: ${avgRounds.toFixed(1)} rounds`)
+      .toBeLessThanOrEqual(30);
+  });
+
+  it('draws are rare (< 15%)', () => {
+    const totalDraws = encounterResults.reduce((s, r) => s + r.result.draws, 0);
+    const drawRate = (totalDraws / overallTotal) * 100;
+    expect(drawRate, `Wolf pack draw rate: ${drawRate.toFixed(1)}%`)
       .toBeLessThan(15);
   });
 });

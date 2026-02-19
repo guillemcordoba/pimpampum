@@ -3,8 +3,8 @@ import { DiceRoll } from '../dice.js';
 import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
-export const SORCERER_TEMPLATE: CharacterTemplate = {
-  id: 'sorcerer',
+export const WARLOCK_TEMPLATE: CharacterTemplate = {
+  id: 'warlock',
   displayName: 'Bruixot',
   classCss: 'bruixot',
   iconPath: 'icons/000000/transparent/1x1/lorc/magic-swirl.svg',

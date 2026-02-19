@@ -1,7 +1,8 @@
 import { DiceRoll } from './dice.js';
 import { Card, CardType, type SpecialEffect, isAttack, isDefense, isFocus, isPhysical } from './card.js';
 import { CombatModifier, ModifierDuration } from './modifier.js';
-import { Character } from './character.js';
+import { Character, createCharacter } from './character.js';
+import { ALL_CHARACTER_TEMPLATES } from './characters/index.js';
 import { selectCardAI, assignStrategies } from './ai.js';
 import type { StrategyStats } from './strategy.js';
 
@@ -1640,6 +1641,26 @@ export class CombatEngine {
           if (woundCount === 0) {
             this.log(`  → ${charName} sings the Requiem but no enemies are wounded.`);
             this.addLog({ type: 'effect', text: `${charName} sings the Requiem but no enemies are wounded.`, characterName: charName });
+          }
+          break;
+        }
+        case 'SummonAlly': {
+          const summonEffect = card.effect as { type: 'SummonAlly'; templateId: string };
+          const allyTeam = this.getTeam(charTeam);
+          if (allyTeam.length >= 10) {
+            this.log(`  → ${charName} howls but the pack is too large!`);
+            this.addLog({ type: 'effect', text: `${charName} udola però la manada és massa gran!`, characterName: charName });
+          } else {
+            const template = ALL_CHARACTER_TEMPLATES.find(t => t.id === summonEffect.templateId);
+            if (template) {
+              const summonName = `${template.displayName} ${allyTeam.length + 1}`;
+              const summoned = createCharacter(template, summonName);
+              summoned.team = charTeam;
+              summoned.resetForNewCombat();
+              allyTeam.push(summoned);
+              this.log(`  → ${charName} howls! A new ${template.displayName} joins the battle!`);
+              this.addLog({ type: 'effect', text: `${charName} udola! Un nou ${template.displayName} s'uneix al combat!`, characterName: charName });
+            }
           }
           break;
         }

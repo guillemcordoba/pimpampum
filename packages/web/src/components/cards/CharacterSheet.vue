@@ -35,6 +35,10 @@ const maxLifeCircles = 6;
             <span class="sheet-label">Classe:</span>
             <span class="sheet-blank-line"></span>
           </div>
+          <div class="sheet-name-line">
+            <span class="sheet-label">Raça:</span>
+            <span class="sheet-blank-line"></span>
+          </div>
         </div>
         <div class="sheet-lives">
           <div class="sheet-section-title">Punts de vida</div>
@@ -73,6 +77,19 @@ const maxLifeCircles = 6;
         <div v-for="slot in equipmentSlots" :key="slot.label" class="equip-slot">
           <img class="equip-slot-icon" :src="base + slot.icon" :alt="slot.label">
           <span class="equip-slot-label">{{ slot.label }}</span>
+        </div>
+      </div>
+
+      <!-- Traits section -->
+      <div class="sheet-traits">
+        <div class="sheet-section-title">Trets</div>
+        <div class="sheet-traits-lines">
+          <span class="sheet-trait-line"></span>
+          <span class="sheet-trait-line"></span>
+          <span class="sheet-trait-line"></span>
+          <span class="sheet-trait-line"></span>
+          <span class="sheet-trait-line"></span>
+          <span class="sheet-trait-line"></span>
         </div>
       </div>
     </div>

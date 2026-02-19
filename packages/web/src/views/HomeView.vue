@@ -19,6 +19,12 @@
         <div class="nav-tile-desc">Classes, objectes i enemics</div>
       </router-link>
 
+      <router-link to="/trets" class="nav-tile">
+        <div class="nav-tile-icon">&#9733;</div>
+        <div class="nav-tile-title">Trets</div>
+        <div class="nav-tile-desc">Trets i resolució fora de combat</div>
+      </router-link>
+
       <router-link to="/combat" class="nav-tile">
         <div class="nav-tile-icon">&#9876;</div>
         <div class="nav-tile-title">Combat</div>

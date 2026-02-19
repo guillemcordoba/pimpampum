@@ -9,10 +9,10 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
   iconPath: 'icons/000000/transparent/1x1/delapouite/spiked-dragon-head.svg',
   category: 'enemy',
   baseStrength: 7,
-  baseMagic: 3,
+  baseMagic: 0,
   baseDefense: 8,
-  baseSpeed: 1,
-  baseLives: 8,
+  baseSpeed: 2,
+  baseLives: 6,
   cardIcons: {
     'Mossegada verinosa': 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
     'Cop de cua': 'icons/000000/transparent/1x1/lorc/spiked-tail.svg',

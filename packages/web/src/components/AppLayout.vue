@@ -10,6 +10,7 @@ const route = useRoute();
     <div class="nav-links">
       <router-link to="/rules" :class="{ active: route.path === '/rules' }">Regles</router-link>
       <router-link to="/cards" :class="{ active: route.path.startsWith('/cards') }">Cartes</router-link>
+      <router-link to="/trets" :class="{ active: route.path === '/trets' }">Trets</router-link>
       <router-link to="/combat" :class="{ active: route.path === '/combat' }">Combat</router-link>
     </div>
   </nav>

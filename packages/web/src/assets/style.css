@@ -33,6 +33,8 @@
   --class-diable-espinos: #6b2020;
   --class-diable-dos: #4a3a5c;
   --class-diable-banyut: #5c1a1a;
+  --class-golem-de-pedra: #5a5a5a;
+  --class-llop: #5a4a3a;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -179,6 +181,8 @@ body {
 .roster-tile.diable-espinos { border-color: var(--class-diable-espinos); }
 .roster-tile.diable-dos { border-color: var(--class-diable-dos); }
 .roster-tile.diable-banyut { border-color: var(--class-diable-banyut); }
+.roster-tile.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
+.roster-tile.llop { border-color: var(--class-llop); }
 
 .roster-tile img {
   width: 72px;
@@ -407,6 +411,8 @@ body {
 .portrait.diable-espinos { border-color: var(--class-diable-espinos); }
 .portrait.diable-dos { border-color: var(--class-diable-dos); }
 .portrait.diable-banyut { border-color: var(--class-diable-banyut); }
+.portrait.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
+.portrait.llop { border-color: var(--class-llop); }
 
 .portrait-icon {
   width: 64px;
@@ -592,6 +598,8 @@ body {
 .mini-card.diable-espinos { border-color: var(--class-diable-espinos); }
 .mini-card.diable-dos { border-color: var(--class-diable-dos); }
 .mini-card.diable-banyut { border-color: var(--class-diable-banyut); }
+.mini-card.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
+.mini-card.llop { border-color: var(--class-llop); }
 
 .mini-card-header {
   padding: 6px 8px 5px;

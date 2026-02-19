@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { PLAYER_TEMPLATES, ENEMY_TEMPLATES, ALL_EQUIPMENT, createCharacter, STAT_ICONS, STAT_DISPLAY_NAMES } from '@pimpampum/engine';
+import { PLAYER_TEMPLATES, ENEMY_TEMPLATES, ALL_EQUIPMENT, createCharacter, STAT_ICONS, STAT_DISPLAY_NAMES, getTraitsForClass } from '@pimpampum/engine';
 import type { CharacterTemplate } from '@pimpampum/engine';
 import { cardToDisplayProps, equipmentToDisplayProps } from '../composables/useCardDisplay';
 import CardGrid from '../components/cards/CardGrid.vue';
@@ -197,6 +197,12 @@ function handlePrint() {
             <div class="char-desc-stats">
               <span v-for="stat in getCharacterStats(classTemplate)" :key="stat.key" class="char-desc-stat">
                 <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+              </span>
+            </div>
+            <div v-if="getTraitsForClass(classTemplate.id).length" class="char-desc-traits">
+              <span v-for="trait in getTraitsForClass(classTemplate.id)" :key="trait.id" class="trait-badge">
+                <img :src="base + trait.iconPath" :alt="trait.displayName">
+                {{ trait.displayName }}
               </span>
             </div>
           </div>
@@ -533,6 +539,7 @@ function handlePrint() {
 .sub-tab.goblin.active { border-color: var(--class-goblin); }
 .sub-tab.goblin-shaman.active { border-color: var(--class-goblin-shaman); }
 .sub-tab.basilisc.active { border-color: var(--class-basilisc); }
+.sub-tab.llop.active { border-color: var(--class-llop); }
 
 .print-btn-col {
   flex-shrink: 0;
@@ -718,6 +725,7 @@ function handlePrint() {
 .character-description.clergue { border-left-color: var(--class-clergue); }
 .character-description.goblin { border-left-color: var(--class-goblin); }
 .character-description.goblin-shaman { border-left-color: var(--class-goblin-shaman); }
+.character-description.llop { border-left-color: var(--class-llop); }
 
 .char-desc-icon {
   width: 48px;
@@ -797,5 +805,33 @@ function handlePrint() {
     height: 4mm;
     filter: none;
   }
+}
+
+/* -- Trait badges -- */
+.char-desc-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.trait-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border: 1.5px solid rgba(232, 220, 196, 0.25);
+  border-radius: 4px;
+  background: rgba(232, 220, 196, 0.06);
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 0.8rem;
+  color: var(--parchment-dark);
+  white-space: nowrap;
+}
+
+.trait-badge img {
+  width: 14px;
+  height: 14px;
+  filter: invert(0.6);
 }
 </style>

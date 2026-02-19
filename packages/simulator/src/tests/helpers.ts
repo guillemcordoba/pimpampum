@@ -11,7 +11,7 @@ import {
   createCleric,
   createMonk,
   createBard,
-  createSorcerer,
+  createWarlock,
   createPaladin,
   createDruid,
   createGoblin,
@@ -19,6 +19,7 @@ import {
   createSpinedDevil,
   createBoneDevil,
   createHornedDevil,
+  createStoneGolem,
   ALL_EQUIPMENT,
   EquipmentSlot,
   AIStrategy,
@@ -232,7 +233,7 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['Cleric', createCleric],
     ['Monk', createMonk],
     ['Bard', createBard],
-    ['Sorcerer', createSorcerer],
+    ['Warlock', createWarlock],
     ['Paladin', createPaladin],
     ['Druid', createDruid],
     ['Goblin', createGoblin],
@@ -240,6 +241,7 @@ export function getAllCreators(): [string, CharacterCreator][] {
     ['SpinedDevil', createSpinedDevil],
     ['BoneDevil', createBoneDevil],
     ['HornedDevil', createHornedDevil],
+    ['StoneGolem', createStoneGolem],
   ];
 }
 
@@ -252,7 +254,7 @@ export function getPlayerCreators(): [string, CharacterCreator][] {
     ['Cleric', createCleric],
     ['Monk', createMonk],
     ['Bard', createBard],
-    ['Sorcerer', createSorcerer],
+    ['Warlock', createWarlock],
     ['Paladin', createPaladin],
     ['Druid', createDruid],
   ];
