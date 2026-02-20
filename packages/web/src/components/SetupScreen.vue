@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ALL_EQUIPMENT } from '@pimpampum/engine';
+import { ALL_EQUIPMENT, PLAYER_TEMPLATES, ENEMY_TEMPLATES } from '@pimpampum/engine';
 import type { CharacterTemplate, EquipmentTemplate } from '@pimpampum/engine';
 
 const base = import.meta.env.BASE_URL;
@@ -34,11 +34,8 @@ const equipBySlot = computed(() => {
 });
 
 function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: string[], eqId: string, slotLabel: string) {
-  // Get all equipment IDs for this slot
   const slotIds = new Set((equipBySlot.value.get(slotLabel) ?? []).map(e => e.id));
-  // Remove any current equipment in this slot
   let newIds = currentIds.filter(id => !slotIds.has(id));
-  // If clicking a different item (not deselecting), add it
   if (!currentIds.includes(eqId)) {
     newIds.push(eqId);
   }
@@ -52,12 +49,11 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
 
 <template>
   <div class="screen">
-    <h1 class="screen-title">Pim Pam Pum</h1>
     <p class="screen-subtitle">Tria els teus personatges i enemics</p>
 
-    <div class="setup-layout">
+    <div class="setup-four-col">
       <!-- Player team -->
-      <div class="team-column">
+      <div class="setup-side">
         <div class="team-header">El teu equip</div>
         <div class="team-slots">
           <div v-for="(t, i) in playerTeam" :key="i" class="team-slot-wrap">
@@ -65,7 +61,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
               <img :src="base + t.iconPath" :alt="t.displayName">
               <span class="slot-name">{{ t.displayName }}</span>
               <span class="portrait-stats">
-                F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}
+                PV:{{ t.baseLives }} F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}
               </span>
               <button class="remove-btn" @click="emit('removePlayer', i)">&times;</button>
             </div>
@@ -88,41 +84,60 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
               </div>
             </div>
           </div>
-          <div v-if="playerTeam.length === 0" style="color: #666; text-align: center; padding: 1rem;">
+          <div v-if="playerTeam.length === 0" class="team-empty">
             Afegeix personatges &rarr;
           </div>
         </div>
       </div>
 
-      <!-- Roster -->
-      <div>
-        <div class="roster-grid">
+      <!-- Player character roster -->
+      <div class="setup-roster">
+        <div class="roster-header">Personatges</div>
+        <div class="roster-list">
           <div
-            v-for="t in templates"
+            v-for="t in PLAYER_TEMPLATES"
             :key="t.id"
-            class="roster-tile"
+            class="roster-row"
             :class="t.classCss"
           >
-            <img :src="base + t.iconPath" :alt="t.displayName"><br>
-            <span class="name">{{ t.displayName }}</span>
-            <div style="display: flex; gap: 4px; justify-content: center; margin-top: 0.4rem;">
-              <button class="btn" style="font-size: 0.65rem; padding: 2px 8px;" @click="emit('addPlayer', t)">&larr;</button>
-              <button class="btn" style="font-size: 0.65rem; padding: 2px 8px;" @click="emit('addEnemy', t)">&rarr;</button>
-            </div>
+            <button class="roster-arrow" @click="emit('addPlayer', t)">&larr;</button>
+            <img :src="base + t.iconPath" :alt="t.displayName">
+            <span class="roster-row-name">{{ t.displayName }}</span>
+            <span class="roster-row-stats">PV:{{ t.baseLives }} F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}</span>
+            <button class="roster-arrow" @click="emit('addEnemy', t)">&rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enemy character roster -->
+      <div class="setup-roster">
+        <div class="roster-header">Enemics</div>
+        <div class="roster-list">
+          <div
+            v-for="t in ENEMY_TEMPLATES"
+            :key="t.id"
+            class="roster-row"
+            :class="t.classCss"
+          >
+            <button class="roster-arrow" @click="emit('addPlayer', t)">&larr;</button>
+            <img :src="base + t.iconPath" :alt="t.displayName">
+            <span class="roster-row-name">{{ t.displayName }}</span>
+            <span class="roster-row-stats">PV:{{ t.baseLives }} F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}</span>
+            <button class="roster-arrow" @click="emit('addEnemy', t)">&rarr;</button>
           </div>
         </div>
       </div>
 
       <!-- Enemy team -->
-      <div class="team-column">
-        <div class="team-header">Enemics</div>
+      <div class="setup-side">
+        <div class="team-header">El seu equip</div>
         <div class="team-slots">
           <div v-for="(t, i) in enemyTeam" :key="i" class="team-slot-wrap">
             <div class="team-slot" :class="t.classCss">
               <img :src="base + t.iconPath" :alt="t.displayName">
               <span class="slot-name">{{ t.displayName }}</span>
               <span class="portrait-stats">
-                F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}
+                PV:{{ t.baseLives }} F:{{ t.baseStrength }} M:{{ t.baseMagic }} D:{{ t.baseDefense }} V:{{ t.baseSpeed }}
               </span>
               <button class="remove-btn" @click="emit('removeEnemy', i)">&times;</button>
             </div>
@@ -145,7 +160,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
               </div>
             </div>
           </div>
-          <div v-if="enemyTeam.length === 0" style="color: #666; text-align: center; padding: 1rem;">
+          <div v-if="enemyTeam.length === 0" class="team-empty">
             &larr; Afegeix enemics
           </div>
         </div>

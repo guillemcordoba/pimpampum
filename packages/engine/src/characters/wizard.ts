@@ -35,7 +35,7 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(2)
       .withEffect({ type: 'PiercingStrike' })
-      .withDescription("Tres projectils de força arcana. Ignora les cartes de Defensa — sempre colpeja l'objectiu original."),
+      .withDescription("Ignora les cartes de Defensa — sempre colpeja l'objectiu original."),
     new Card('Cadena de llamps', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4, -1))
       .withSpeedMod(-1)

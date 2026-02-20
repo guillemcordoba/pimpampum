@@ -43,8 +43,8 @@ export class Character {
   public hasShroudDebuff = false;
   public hasDeathWard = false;
   public hasBerserkerEndurance = false;
-  public berserkerStrengthDice: DiceRoll | null = null;
-  public berserkerCounterDice: DiceRoll | null = null;
+  public berserkerStrengthBoost = 0;
+  public berserkerSpeedBoost = 0;
   public pendingVenomDamage = 0;
   public silencedTurns = 0;
   public hasDeflection = false;
@@ -57,12 +57,13 @@ export class Character {
   public bloodContractTeam = 0;
   public bloodContractSource = '';
   public hasInfernalRetaliation = false;
-  public hasSpellReflection = false;
+  public hasCursedWard = false;
   public hasDivineBulwark = false;
   public counterspelled = false;
   public wildShapeLivesBonus = 0;
   public arcaneMarkCount = 0;
   public hasSpellAbsorption = false;
+  public charmedConfusion = false;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -206,8 +207,8 @@ export class Character {
     this.hasShroudDebuff = false;
     this.hasDeathWard = false;
     this.hasBerserkerEndurance = false;
-    this.berserkerStrengthDice = null;
-    this.berserkerCounterDice = null;
+    this.berserkerStrengthBoost = 0;
+    this.berserkerSpeedBoost = 0;
     this.pendingVenomDamage = 0;
     this.silencedTurns = 0;
     this.hasDeflection = false;
@@ -220,11 +221,12 @@ export class Character {
     this.bloodContractTeam = 0;
     this.bloodContractSource = '';
     this.hasInfernalRetaliation = false;
-    this.hasSpellReflection = false;
+    this.hasCursedWard = false;
     this.hasDivineBulwark = false;
     this.counterspelled = false;
     this.arcaneMarkCount = 0;
     this.hasSpellAbsorption = false;
+    this.charmedConfusion = false;
     this.setAsideCards.clear();
   }
 
@@ -234,12 +236,15 @@ export class Character {
     this.focusInterrupted = false;
     this.playedCardIdx = null;
     this.defenseBonuses = [];
+    this.hasBerserkerEndurance = false;
+    this.berserkerStrengthBoost = 0;
+    this.berserkerSpeedBoost = 0;
     this.hasDeflection = false;
     this.deflectionCounterDice = null;
     this.hasMagicDeflection = false;
     this.magicDeflectionCounterDice = null;
     this.hasInfernalRetaliation = false;
-    this.hasSpellReflection = false;
+    this.hasCursedWard = false;
     this.hasDivineBulwark = false;
     this.counterspelled = false;
     this.hasSpellAbsorption = false;

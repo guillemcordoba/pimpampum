@@ -19,7 +19,7 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
     'Destral de guerra': 'icons/000000/transparent/1x1/lorc/battle-axe.svg',
     'Cop Demolidor': 'icons/000000/transparent/1x1/lorc/hammer-drop.svg',
     'Frenesia': 'icons/000000/transparent/1x1/lorc/flame-claws.svg',
-    'Ira imparable': 'icons/000000/transparent/1x1/lorc/spiked-armor.svg',
+    'Venjança': 'icons/000000/transparent/1x1/lorc/spiked-armor.svg',
     'Rugit intimidant': 'icons/000000/transparent/1x1/lorc/shouting.svg',
   },
   createCards: () => [
@@ -37,15 +37,15 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'Frenzy', bonusDicePerLostLife: new DiceRoll(1, 4) })
-      .withDescription('+1d4 per cada vida perduda.'),
-    new Card('Ira imparable', CardType.Defense)
+      .withDescription('{F}+1d4 per cada vida perduda.'),
+    new Card('Venjança', CardType.Defense)
       .withDefense(new DiceRoll(0, 0, 1))
-      .withSpeedMod(3)
-      .withEffect({ type: 'BerserkerEndurance', strengthDice: new DiceRoll(1, 4), counterAttackDice: new DiceRoll(1, 6) })
-      .withDescription('Si perd una vida, {F}+1d4 per la resta del combat i contraatac amb {F}+1d6.'),
+      .withSpeedMod(5)
+      .withEffect({ type: 'BerserkerEndurance', strengthBoost: 4, speedBoost: 2 })
+      .withDescription('Si rep dany, {F}+4 i {V}+2 per la resta del combat.'),
     new Card('Rugit intimidant', CardType.Focus)
       .withSpeedMod(1)
-      .withEffect({ type: 'IntimidatingRoar' })
-      .withDescription("Cada oponent tira 1d4. Els que treuen 2 o menys queden atordits i no actuen aquest torn."),
+      .withEffect({ type: 'IntimidatingRoar', dice: new DiceRoll(1, 6), threshold: 3 })
+      .withDescription("Per cada oponent: compara {F}+1d6 amb ({F}+{M})+3 de l'oponent. Si supera, queda atordit aquest torn."),
   ],
 };

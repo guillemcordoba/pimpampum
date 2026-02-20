@@ -10,10 +10,10 @@ export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
   iconPath: 'icons/000000/transparent/1x1/delapouite/skull-staff.svg',
   category: 'enemy',
   baseStrength: 1,
-  baseMagic: 4,
-  baseDefense: 2,
+  baseMagic: 5,
+  baseDefense: 3,
   baseSpeed: 3,
-  baseLives: 3,
+  baseLives: 4,
   cardIcons: {
     'Llamp': 'icons/000000/transparent/1x1/lorc/lightning-arc.svg',
     'Possessió demoníaca': 'icons/000000/transparent/1x1/lorc/daemon-skull.svg',

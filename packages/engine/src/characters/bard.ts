@@ -8,7 +8,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
   classCss: 'trobador',
   iconPath: 'icons/000000/transparent/1x1/lorc/lyre.svg',
   category: 'player',
-  baseStrength: 1,
+  baseStrength: 0,
   baseMagic: 4,
   baseDefense: 2,
   baseSpeed: 3,
@@ -16,30 +16,30 @@ export const BARD_TEMPLATE: CharacterTemplate = {
   cardIcons: {
     'Acord dissonant': 'icons/000000/transparent/1x1/lorc/sonic-boom.svg',
     'Veu del valor': 'icons/000000/transparent/1x1/lorc/rally-the-troops.svg',
-    'Contrapunt': 'icons/000000/transparent/1x1/lorc/shield-echoes.svg',
+    'Eco protector': 'icons/000000/transparent/1x1/lorc/shield-echoes.svg',
     'Melodia encisadora': 'icons/000000/transparent/1x1/lorc/charm.svg',
     'Himne de batalla': 'icons/000000/transparent/1x1/lorc/music-spell.svg',
     'Rèquiem': 'icons/000000/transparent/1x1/lorc/death-note.svg',
   },
   createCards: () => [
     new Card('Acord dissonant', CardType.MagicAttack)
-      .withMagicAttack(new DiceRoll(1, 6))
+      .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
       .withEffect({ type: 'Dissonance' })
-      .withDescription("Si impacta, tots els enemics reben {F}-1, {M}-1, {D}-1 i {V}-1 el següent torn."),
+      .withDescription("Si fa mal, tots els enemics reben {F}-1, {M}-1, {D}-1 i {V}-1 el següent torn."),
     new Card('Veu del valor', CardType.Focus)
       .withSpeedMod(-2)
       .withEffect({ type: 'VoiceOfValor' })
       .withDescription("Tria un aliat ferit. Recupera 1 vida i guanya {F}+2 i {M}+2 per la resta del combat."),
-    new Card('Contrapunt', CardType.Defense)
-      .withDefense(new DiceRoll(1, 8))
-      .withSpeedMod(3)
-      .withEffect({ type: 'MagicDeflection', counterAttackDice: new DiceRoll(1, 6) })
-      .withDescription("Si l'atacant falla, contraataca amb {M}+1d6."),
+    new Card('Eco protector', CardType.Defense)
+      .withDefense(new DiceRoll(1, 6))
+      .withSpeedMod(1)
+      .withEffect({ type: 'DefendMultiple', count: 2 })
+      .withDescription('Defensa a 2 aliats que triïs.'),
     new Card('Melodia encisadora', CardType.Focus)
       .withSpeedMod(-5)
       .withEffect({ type: 'Charm' })
-      .withDescription("Tria un enemic. El seu torn és cancel·lat i, confós, fereix un aliat aleatori del seu equip."),
+      .withDescription("Tria un enemic. El seu següent torn és cancel·lat i, confós, fereix un aliat aleatori del seu equip."),
     new Card('Himne de batalla', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
@@ -48,6 +48,6 @@ export const BARD_TEMPLATE: CharacterTemplate = {
     new Card('Rèquiem', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'Requiem' })
-      .withDescription("Tots els enemics que hagin perdut vides reben 1 ferida."),
+      .withDescription("Tots els enemics que hagin perdut vides en perden una altra."),
   ],
 };

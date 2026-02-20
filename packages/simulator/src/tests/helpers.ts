@@ -299,6 +299,29 @@ export function generateTeamCompositions(teamSize: number, creatorsSource?: [str
   return compositions;
 }
 
+/**
+ * Generate a single random team composition of the given size.
+ * Returns [name, creators[]] where indices are sorted for consistent naming.
+ */
+export function randomTeamCreators(
+  teamSize: number,
+  creatorsSource?: [string, CharacterCreator][],
+): [string, CharacterCreator[]] {
+  const creators = creatorsSource ?? getPlayerCreators();
+  const indices = Array.from({ length: teamSize }, () =>
+    Math.floor(Math.random() * creators.length),
+  ).sort((a, b) => a - b);
+
+  const teamCreators = indices.map(i => creators[i][1]);
+  const counts = new Map<number, number>();
+  for (const idx of indices) counts.set(idx, (counts.get(idx) ?? 0) + 1);
+  const parts: string[] = [];
+  for (const [idx, count] of counts) {
+    parts.push(count > 1 ? `${count}x ${creators[idx][0]}` : creators[idx][0]);
+  }
+  return [parts.join('+'), teamCreators];
+}
+
 // =============================================================================
 // HORDE BATTLE SIMULATION
 // =============================================================================

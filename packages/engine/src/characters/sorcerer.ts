@@ -7,7 +7,7 @@ export const SORCERER_TEMPLATE: CharacterTemplate = {
   id: 'sorcerer',
   displayName: 'Bruixot',
   classCss: 'bruixot',
-  iconPath: 'icons/000000/transparent/1x1/lorc/fire-spell-cast.svg',
+  iconPath: 'icons/000000/transparent/1x1/delapouite/fire-spell-cast.svg',
   category: 'player',
   baseStrength: 0,
   baseMagic: 4,
@@ -16,10 +16,10 @@ export const SORCERER_TEMPLATE: CharacterTemplate = {
   baseLives: 3,
   cardIcons: {
     'Robatori arcà': 'icons/000000/transparent/1x1/lorc/hand.svg',
-    'Marca bessona': 'icons/000000/transparent/1x1/lorc/double-face.svg',
+    'Marca bessona': 'icons/000000/transparent/1x1/lorc/double-face-mask.svg',
     'Raig potenciat': 'icons/000000/transparent/1x1/lorc/beam-wake.svg',
     'Absorció màgica': 'icons/000000/transparent/1x1/lorc/magic-shield.svg',
-    'Detonació arcana': 'icons/000000/transparent/1x1/lorc/blast.svg',
+    'Detonació arcana': 'icons/000000/transparent/1x1/sbed/blast.svg',
     'Distorsió temporal': 'icons/000000/transparent/1x1/lorc/time-trap.svg',
   },
   createCards: () => [
@@ -27,22 +27,22 @@ export const SORCERER_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'SpellLeech' })
-      .withDescription('Si impacta, roba un modificador positiu aleatori de l\'enemic.'),
+      .withDescription('Si fa mal, roba un modificador de l\'enemic.'),
     new Card('Marca bessona', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
       .withEffect({ type: 'ArcaneMark', count: 2 })
-      .withDescription('Ataca 2 enemics. Si impacta, els marca amb una marca arcana.'),
+      .withDescription('Ataca 2 enemics. Els marca amb una marca arcana.'),
     new Card('Raig potenciat', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 8))
       .withSpeedMod(-1)
       .withEffect({ type: 'ArcaneMark' })
-      .withDescription('Si impacta, marca l\'enemic amb una marca arcana.'),
+      .withDescription('Marca l\'enemic amb una marca arcana.'),
     new Card('Absorció màgica', CardType.Defense)
       .withDefense(new DiceRoll(1, 6))
       .withSpeedMod(2)
       .withEffect({ type: 'SpellAbsorption' })
-      .withDescription('Si un atac màgic falla, guanyes {M}+2 i l\'atacant rep {M}-2 el pròxim torn.'),
+      .withDescription('En defensar d\'un atac, guanyes {M}+2 i l\'atacant perd {M}+2 el següent torn.'),
     new Card('Detonació arcana', CardType.Focus)
       .withSpeedMod(-3)
       .withEffect({ type: 'ArcaneDetonation' })

@@ -17,20 +17,30 @@ const equipmentSlots = [
   { label: 'Cames', icon: 'icons/000000/transparent/1x1/delapouite/leg-armor.svg' },
 ];
 
-const maxLifeCircles = 6;
 </script>
 
 <template>
   <div class="character-sheet">
     <div class="sheet-frame"></div>
     <div class="sheet-inner">
-      <!-- Top row: name/class + lives -->
+      <!-- Top row: name+lives (left) + class/race/traits (right) -->
       <div class="sheet-top">
-        <div class="sheet-header">
+        <div class="sheet-header-left">
           <div class="sheet-name-line">
             <span class="sheet-label">Nom:</span>
             <span class="sheet-blank-line"></span>
           </div>
+          <div class="sheet-lives">
+            <div class="sheet-section-title">Punts de vida</div>
+            <div class="sheet-lives-row">
+              <span class="sheet-pv">PV:</span>
+              <span class="sheet-stat-box empty"></span>
+              <span class="sheet-pv">/</span>
+              <span class="sheet-stat-box empty"></span>
+            </div>
+          </div>
+        </div>
+        <div class="sheet-header-right">
           <div class="sheet-name-line">
             <span class="sheet-label">Classe:</span>
             <span class="sheet-blank-line"></span>
@@ -39,19 +49,9 @@ const maxLifeCircles = 6;
             <span class="sheet-label">Raça:</span>
             <span class="sheet-blank-line"></span>
           </div>
-        </div>
-        <div class="sheet-lives">
-          <div class="sheet-section-title">Punts de vida</div>
-          <div class="sheet-lives-row">
-            <span class="sheet-pv">PV:</span>
-            <span class="sheet-stat-box empty"></span>
-            <div class="life-circles">
-              <span
-                v-for="i in maxLifeCircles"
-                :key="i"
-                class="life-circle"
-              ></span>
-            </div>
+          <div class="sheet-name-line">
+            <span class="sheet-label">Trets:</span>
+            <span class="sheet-blank-line"></span>
           </div>
         </div>
       </div>
@@ -80,18 +80,6 @@ const maxLifeCircles = 6;
         </div>
       </div>
 
-      <!-- Traits section -->
-      <div class="sheet-traits">
-        <div class="sheet-section-title">Trets</div>
-        <div class="sheet-traits-lines">
-          <span class="sheet-trait-line"></span>
-          <span class="sheet-trait-line"></span>
-          <span class="sheet-trait-line"></span>
-          <span class="sheet-trait-line"></span>
-          <span class="sheet-trait-line"></span>
-          <span class="sheet-trait-line"></span>
-        </div>
-      </div>
     </div>
   </div>
 </template>

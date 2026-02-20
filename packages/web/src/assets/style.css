@@ -125,77 +125,105 @@ body {
    SETUP SCREEN
    ============================================================================= */
 
-.setup-layout {
+.setup-four-col {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 2rem;
+  grid-template-columns: 1fr auto auto 1fr;
+  gap: 1rem;
   align-items: start;
 }
 
-.team-column {
-  min-height: 200px;
+.setup-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setup-roster {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .team-header {
   font-family: 'Cinzel Decorative', serif;
   font-size: 1.4rem;
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid rgba(232, 220, 196, 0.3);
 }
 
-.roster-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.roster-tile {
-  background: rgba(232, 220, 196, 0.08);
-  border: 2px solid rgba(232, 220, 196, 0.2);
-  border-radius: 8px;
-  padding: 1rem;
+.team-empty {
+  color: #666;
   text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  padding: 1rem;
 }
 
-.roster-tile:hover {
-  background: rgba(232, 220, 196, 0.15);
-  border-color: var(--parchment-dark);
+.roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.roster-tile.guerrer { border-color: var(--class-guerrer); }
-.roster-tile.murri { border-color: var(--class-murri); }
-.roster-tile.mag { border-color: var(--class-mag); }
-.roster-tile.barbar { border-color: var(--class-barbar); }
-.roster-tile.clergue { border-color: var(--class-clergue); }
-.roster-tile.goblin { border-color: var(--class-goblin); }
-.roster-tile.goblin-shaman { border-color: var(--class-goblin-shaman); }
-.roster-tile.monjo { border-color: var(--class-monjo); }
-.roster-tile.trobador { border-color: var(--class-trobador); }
-.roster-tile.fetiller { border-color: var(--class-fetiller); }
-.roster-tile.bruixot { border-color: var(--class-bruixot); }
-.roster-tile.paladi { border-color: var(--class-paladi); }
-.roster-tile.druida { border-color: var(--class-druida); }
-.roster-tile.basilisc { border-color: var(--class-basilisc); }
-.roster-tile.diable-espinos { border-color: var(--class-diable-espinos); }
-.roster-tile.diable-dos { border-color: var(--class-diable-dos); }
-.roster-tile.diable-banyut { border-color: var(--class-diable-banyut); }
-.roster-tile.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
-.roster-tile.llop { border-color: var(--class-llop); }
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(232, 220, 196, 0.06);
+  border: 1px solid rgba(232, 220, 196, 0.15);
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+}
 
-.roster-tile img {
-  width: 72px;
-  height: 72px;
+.roster-row:hover {
+  background: rgba(232, 220, 196, 0.12);
+}
+
+.roster-row img {
+  width: 22px;
+  height: 22px;
   filter: invert(1) brightness(0.85);
-  margin-bottom: 0.5rem;
+  flex-shrink: 0;
 }
 
-.roster-tile .name {
+.roster-row-name {
   font-family: 'MedievalSharp', serif;
-  font-size: 1.15rem;
+  font-size: 0.85rem;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.roster-row-stats {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 0.65rem;
+  color: var(--parchment-dark, #b8a88a);
+  white-space: nowrap;
+}
+
+.roster-header {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(232, 220, 196, 0.2);
+}
+
+.roster-arrow {
+  background: none;
+  border: 1px solid rgba(232, 220, 196, 0.2);
+  border-radius: 3px;
+  color: var(--parchment, #e8dcc4);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 0.35rem;
+  line-height: 1.4;
+  opacity: 0.4;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.roster-arrow:hover {
+  opacity: 1;
+  background: rgba(232, 220, 196, 0.15);
 }
 
 .team-slots {
@@ -330,7 +358,7 @@ body {
   gap: 1.5rem;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .combat-log-panel {
@@ -353,6 +381,10 @@ body {
   justify-content: center;
   gap: 2rem;
   flex-wrap: wrap;
+}
+
+.enemy-zone.horde {
+  gap: 0.4rem;
 }
 
 .player-zone {
@@ -508,6 +540,69 @@ body {
   width: 16px;
   height: 16px;
   opacity: 0.7;
+}
+
+/* Compact portrait (horde mode with many enemies) */
+.portrait.compact {
+  min-width: 72px;
+  padding: 0.35rem 0.3rem;
+  border-radius: 6px;
+  border-width: 1px;
+}
+
+.portrait.compact .portrait-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0.15rem;
+}
+
+.portrait.compact .portrait-name {
+  font-size: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+.portrait.compact .portrait-lives {
+  gap: 1px;
+  margin-bottom: 0.15rem;
+}
+
+.portrait.compact .life-heart {
+  font-size: 0.75rem;
+}
+
+.portrait.compact .portrait-stats {
+  gap: 0.3rem;
+  font-size: 0.7rem;
+}
+
+.portrait.compact .portrait-stats img {
+  width: 12px;
+  height: 12px;
+}
+
+.portrait.compact .portrait-modifiers {
+  gap: 1px;
+  margin-top: 0.1rem;
+}
+
+.portrait.compact .modifier-badge {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+}
+
+.portrait.compact .portrait-set-aside {
+  gap: 2px;
+  margin-top: 0.15rem;
+}
+
+.portrait.compact .set-aside-badge {
+  width: 16px;
+  height: 16px;
+}
+
+.portrait.compact .set-aside-badge img {
+  width: 11px;
+  height: 11px;
 }
 
 /* =============================================================================
@@ -760,7 +855,9 @@ body {
   border-radius: 10px;
   padding: 2rem;
   text-align: center;
-  max-width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .target-prompt h3 {

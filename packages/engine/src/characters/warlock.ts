@@ -30,7 +30,7 @@ export const WARLOCK_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(0)
       .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextTurn })
-      .withDescription('Si impacta, l\'enemic rep {D}-2 el pròxim torn.'),
+      .withDescription('Si fa mal, l\'enemic rep {D}-2 el pròxim torn.'),
     new Card('Sobrecàrrega', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 8))
       .withSpeedMod(-2)
@@ -40,12 +40,12 @@ export const WARLOCK_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'LifeDrain' })
-      .withDescription('Si impacta, recuperes 1 vida.'),
+      .withDescription('Si fa mal, recuperes 1 vida.'),
     new Card('Barrera arcana', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(2)
-      .withEffect({ type: 'SpellReflection' })
-      .withDescription('Si un atac màgic falla, l\'atacant rep 1 ferida.'),
+      .withEffect({ type: 'CursedWard' })
+      .withDescription('Si bloqueges un atac, l\'atacant rep {V}-3 el pròxim torn.'),
     new Card('Màgia de sang', CardType.Focus)
       .withSpeedMod(-3)
       .withEffect({ type: 'BloodMagic' })

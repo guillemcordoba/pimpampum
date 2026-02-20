@@ -9,11 +9,11 @@ export const STONE_GOLEM_TEMPLATE: CharacterTemplate = {
   classCss: 'golem-de-pedra',
   iconPath: 'icons/000000/transparent/1x1/delapouite/rock-golem.svg',
   category: 'enemy',
-  baseStrength: 5,
+  baseStrength: 7,
   baseMagic: 0,
-  baseDefense: 5,
+  baseDefense: 7,
   baseSpeed: 1,
-  baseLives: 4,
+  baseLives: 5,
   cardIcons: {
     'Cop de pedra': 'icons/000000/transparent/1x1/lorc/fist.svg',
     'Destrossa': 'icons/000000/transparent/1x1/lorc/thor-fist.svg',
@@ -29,7 +29,7 @@ export const STONE_GOLEM_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(-3)
       .withEffect({ type: 'DoubleWound' })
-      .withDescription('Cop devastador que causa 2 ferides si impacta.'),
+      .withDescription('Cop devastador que causa 2 ferides si fa mal.'),
     new Card('Terratrèmol', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(-2)

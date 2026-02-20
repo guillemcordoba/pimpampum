@@ -49,15 +49,15 @@ export type SpecialEffect =
   | { type: 'DefendMultiple'; count: number }
   | { type: 'PoisonWeapon' }
   | { type: 'RecklessAttack' }
-  | { type: 'IntimidatingRoar' }
+  | { type: 'IntimidatingRoar'; dice: DiceRoll; threshold: number }
   | { type: 'CounterThrow' }
   | { type: 'LifeDrain' }
   | { type: 'TouchOfDeath'; strengthDebuff: number; magicDebuff: number }
   | { type: 'DeathCurse'; dice: DiceRoll }
   | { type: 'ShroudDebuff'; amount: number }
   | { type: 'SpiritInvocation'; dice: DiceRoll }
-  | { type: 'HealAlly' }
-  | { type: 'BerserkerEndurance'; strengthDice: DiceRoll; counterAttackDice: DiceRoll }
+  | { type: 'HealAlly'; amount: number }
+  | { type: 'BerserkerEndurance'; strengthBoost: number; speedBoost?: number }
   | { type: 'Frenzy'; bonusDicePerLostLife: DiceRoll }
   | { type: 'PetrifyingGaze'; dice: DiceRoll; threshold: number; turns: number }
   | { type: 'Regenerate'; amount: number }
@@ -88,7 +88,7 @@ export type SpecialEffect =
   | { type: 'VoiceOfValor' }
   | { type: 'Requiem' }
   | { type: 'Overcharge' }
-  | { type: 'SpellReflection' }
+  | { type: 'CursedWard' }
   | { type: 'BloodMagic' }
   | { type: 'DivineSmite' }
   | { type: 'DivineBulwark' }
@@ -101,7 +101,8 @@ export type SpecialEffect =
   | { type: 'ArcaneMark'; count?: number }
   | { type: 'ArcaneDetonation' }
   | { type: 'SpellLeech' }
-  | { type: 'SpellAbsorption' };
+  | { type: 'SpellAbsorption' }
+  | { type: 'WindStance'; strengthBoost: number };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 

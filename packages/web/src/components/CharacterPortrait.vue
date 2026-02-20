@@ -11,6 +11,7 @@ const props = defineProps<{
   template: CharacterTemplate;
   isEnemy?: boolean;
   isHighlighted?: boolean;
+  compact?: boolean;
 }>();
 
 const lives = computed(() => {
@@ -54,7 +55,7 @@ const setAsideBadges = computed(() => {
     class="portrait"
     :class="[
       template.classCss,
-      { dead: !character.isAlive(), highlighted: isHighlighted },
+      { dead: !character.isAlive(), highlighted: isHighlighted, compact: compact },
     ]"
   >
     <img class="portrait-icon" :src="base + template.iconPath" :alt="template.displayName">

@@ -58,7 +58,7 @@ const isRevealOrResolving = (phase: string) =>
     <!-- Main content (left) -->
     <div class="combat-main">
       <!-- Enemy zone (top) -->
-      <div class="enemy-zone">
+      <div class="enemy-zone" :class="{ horde: enemyTeam.length > 5 }">
         <CharacterPortrait
           v-for="(char, i) in enemyTeam"
           :key="i"
@@ -66,6 +66,7 @@ const isRevealOrResolving = (phase: string) =>
           :template="enemyTeamTemplates[i]"
           :is-enemy="true"
           :is-highlighted="isHighlighted(2, i)"
+          :compact="enemyTeam.length > 5"
         />
       </div>
 

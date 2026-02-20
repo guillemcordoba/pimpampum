@@ -179,7 +179,7 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'Deflection') weight += 4.0;
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
-      if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'CursedWard') weight += 4.0;
       if (card.effect.type === 'SpellAbsorption') {
         const hasMagicEnemy = enemyTeam.some(e => e.isAlive() && e.magic > 0);
         if (hasMagicEnemy) weight += 6.0;
@@ -189,6 +189,10 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
         weight += 15.0;
+      } else if (card.effect.type === 'WindStance') {
+        // Quick dodge + strength setup — aggressive tempo play
+        if (character.currentLives <= 1) weight += 15.0;
+        else weight += 12.0;
       } else if (card.effect.type === 'MeditationBoost') {
         const hasBuff = character.modifiers.some(
           m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0,
@@ -268,6 +272,14 @@ function selectAggro(character: Character, engine: AIEngineView): number {
           if (avgDef <= 2) weight += 1.0; // Enemies too weak, just attack
           else weight += 5.0;
         }
+      } else if (card.effect.type === 'IntimidatingRoar') {
+        // Stun value scales with number of enemies and F advantage
+        const rF = character.getEffectiveStrength();
+        const avgFM = enemies.length > 0
+          ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveStrength() + e.getEffectiveMagic(), 0) / enemies.length
+          : 0;
+        const advantage = rF - avgFM;
+        weight += 8.0 + enemies.length * 2.0 + advantage * 2.0;
       } else {
         weight += 2.0;
       }
@@ -347,7 +359,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
       }
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
-      if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'CursedWard') weight += 4.0;
       if (card.effect.type === 'SpellAbsorption') {
         const hasMagicEnemyP = enemyTeam.some(e => e.isAlive() && e.magic > 0);
         if (hasMagicEnemyP) weight += 8.0;
@@ -428,7 +440,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
         weight += 15.0;
         if (fewEnemies) weight += 10.0;
       }
-    } else if (isDefense(card.cardType)) {
+    } else if (isFocus(card.cardType)) {
       if (allyLikelyFocus) {
         // Ally needs defense — don't focus, defend instead
         weight += 1.0;
@@ -439,9 +451,15 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             else if (card.effect.target === 'team') weight += 15.0;
             else weight += 3.0;
             break;
-          case 'IntimidatingRoar':
-            weight += 12.0;
+          case 'IntimidatingRoar': {
+            const rFP = character.getEffectiveStrength();
+            const avgFMP = enemies.length > 0
+              ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveStrength() + e.getEffectiveMagic(), 0) / enemies.length
+              : 0;
+            const advantageP = rFP - avgFMP;
+            weight += 10.0 + enemies.length * 2.0 + advantageP * 2.0;
             break;
+          }
           case 'SpiritInvocation':
             weight += 15.0;
             break;
@@ -458,6 +476,10 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           }
           case 'DodgeWithSpeedBoost':
             if (character.currentLives <= 1) weight += 15.0;
+            else weight += 3.0;
+            break;
+          case 'WindStance':
+            if (character.currentLives <= 1) weight += 10.0;
             else weight += 3.0;
             break;
           case 'HealAlly': {
@@ -613,6 +635,10 @@ function selectPower(character: Character, engine: AIEngineView): number {
           if (character.currentLives <= 1) weight += 35.0;
           else weight += 10.0;
           break;
+        case 'WindStance':
+          if (character.currentLives <= 1) weight += 20.0;
+          else weight += 10.0;
+          break;
         case 'HealAlly': {
           const at = character.team === 1 ? engine.team1 : engine.team2;
           const al = engine.getLivingAllies(character.team);
@@ -707,6 +733,15 @@ function selectPower(character: Character, engine: AIEngineView): number {
           else weight += 30.0;
           break;
         }
+        case 'IntimidatingRoar': {
+          const rFPow = character.getEffectiveStrength();
+          const avgFMPow = enemies.length > 0
+            ? enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveStrength() + e.getEffectiveMagic(), 0) / enemies.length
+            : 0;
+          const advantagePow = rFPow - avgFMPow;
+          weight += 8.0 + enemies.length * 2.0 + advantagePow * 2.0;
+          break;
+        }
         default:
           weight += 10.0;
       }
@@ -778,7 +813,7 @@ function selectPower(character: Character, engine: AIEngineView): number {
       weight += 4.0;
       if (card.effect.type === 'InfernalRetaliation') weight += 6.0;
       if (card.effect.type === 'MagicDeflection') weight += 4.0;
-      if (card.effect.type === 'SpellReflection') weight += 4.0;
+      if (card.effect.type === 'CursedWard') weight += 4.0;
       if (card.effect.type === 'SpellAbsorption') {
         const hasMagicEnemyPow = enemyTeam.some(e => e.isAlive() && e.magic > 0);
         if (hasMagicEnemyPow) weight += 6.0;

@@ -119,6 +119,7 @@ function getSetAsideDuration(effect: SpecialEffect): number {
       return -1;
     // NextTurn effects — 2 turns set aside
     case 'DodgeWithSpeedBoost':
+    case 'WindStance':
       return 2;
     // NimbleEscape — 1 turn set aside
     case 'NimbleEscape':
@@ -440,31 +441,20 @@ export class CombatEngine {
           this.addLog({ type: 'death', text: `${defName} is defeated!`, characterName: defName });
         }
 
-        // BerserkerEndurance: on wound, gain strength and counter-attack
-        if (defenderMut.hasBerserkerEndurance && defenderMut.isAlive() && defenderMut.berserkerStrengthDice && defenderMut.berserkerCounterDice) {
-          const strGain = defenderMut.berserkerStrengthDice.roll();
+        // BerserkerEndurance: on wound, gain strength + speed rest of combat
+        if (defenderMut.hasBerserkerEndurance && defenderMut.isAlive() && defenderMut.berserkerStrengthBoost > 0) {
           defenderMut.modifiers.push(
-            new CombatModifier('strength', strGain, ModifierDuration.RestOfCombat).withSource('Ira imparable'),
+            new CombatModifier('strength', defenderMut.berserkerStrengthBoost, ModifierDuration.RestOfCombat).withSource('Venjança'),
           );
-          this.log(`  → ${defName} gains +${strGain} strength from berserker rage!`);
-          this.addLog({ type: 'effect', text: `${defName} gains +${strGain} strength from berserker rage!`, characterName: defName });
-
-          // Counter-attack
-          const counterAttack = defenderMut.getEffectiveStrength() + defenderMut.berserkerCounterDice.roll();
-          const attackerForCounter = this.getTeam(attackerTeam)[attackerIdx];
-          const attackerDef = attackerForCounter.getEffectiveDefense();
-          this.log(`  → ${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`);
-          this.addLog({ type: 'vengeance', text: `${defName} counter-attacks with ${counterAttack} vs ${attackerDef}`, characterName: defName });
-          if (counterAttack > attackerDef && attackerForCounter.isAlive()) {
-            const counterDied = attackerForCounter.loseLife();
-            this.hitThisRound.add(attackerName);
-            this.log(`  → ${attackerName} loses a life from counter-attack! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`);
-            this.addLog({ type: 'hit', text: `${attackerName} loses a life from counter-attack! (${attackerForCounter.currentLives}/${attackerForCounter.maxLives})`, characterName: attackerName });
-            if (counterDied) {
-              this.log(`  ★ ${attackerName} is defeated!`);
-              this.addLog({ type: 'death', text: `${attackerName} is defeated!`, characterName: attackerName });
-            }
+          if (defenderMut.berserkerSpeedBoost > 0) {
+            defenderMut.modifiers.push(
+              new CombatModifier('speed', defenderMut.berserkerSpeedBoost, ModifierDuration.RestOfCombat).withSource('Venjança'),
+            );
           }
+          const boosts = [`+${defenderMut.berserkerStrengthBoost} strength`];
+          if (defenderMut.berserkerSpeedBoost > 0) boosts.push(`+${defenderMut.berserkerSpeedBoost} speed`);
+          this.log(`  → ${defName} gains ${boosts.join(' and ')} for the rest of combat from vengeance!`);
+          this.addLog({ type: 'effect', text: `${defName} gains ${boosts.join(' and ')} for the rest of combat from vengeance!`, characterName: defName });
         }
 
         woundTeam = defTeam;
@@ -680,21 +670,18 @@ export class CombatEngine {
         }
       }
 
-      // SpellReflection: if a magic attack misses against this defender, wound the attacker
+      // CursedWard: if an attack misses against this defender, attacker gets V-3 next turn
       if (defenderInfo) {
-        const [defTeamSR, defIdxSR, defNameSR] = defenderInfo;
-        const defenderSR = this.getTeam(defTeamSR)[defIdxSR];
-        if (defenderSR.hasSpellReflection && !isPhysical(card.cardType) && defenderSR.isAlive()) {
-          const attackerForRef = this.getTeam(attackerTeam)[attackerIdx];
-          if (attackerForRef.isAlive()) {
-            const refDied = attackerForRef.loseLife();
-            this.hitThisRound.add(attackerName);
-            this.log(`  → ${defNameSR}'s arcane barrier reflects magic back at ${attackerName}! (${attackerForRef.currentLives}/${attackerForRef.maxLives})`);
-            this.addLog({ type: 'hit', text: `${defNameSR}'s arcane barrier reflects magic at ${attackerName}! (${attackerForRef.currentLives}/${attackerForRef.maxLives})`, characterName: attackerName });
-            if (refDied) {
-              this.log(`  ★ ${attackerName} is defeated by spell reflection!`);
-              this.addLog({ type: 'death', text: `${attackerName} is defeated by spell reflection!`, characterName: attackerName });
-            }
+        const [defTeamCW, defIdxCW, defNameCW] = defenderInfo;
+        const defenderCW = this.getTeam(defTeamCW)[defIdxCW];
+        if (defenderCW.hasCursedWard && defenderCW.isAlive()) {
+          const attackerForCW = this.getTeam(attackerTeam)[attackerIdx];
+          if (attackerForCW.isAlive()) {
+            attackerForCW.modifiers.push(
+              new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource('Barrera arcana'),
+            );
+            this.log(`  → ${defNameCW}'s cursed ward slows ${attackerName}! V-3 next turn.`);
+            this.addLog({ type: 'effect', text: `La barrera arcana de ${defNameCW} alenteix ${attackerName}! {V}-3 el pròxim torn.`, characterName: attackerName });
           }
         }
       }
@@ -945,8 +932,8 @@ export class CombatEngine {
           }
         }
 
-        // ArcaneMark: on hit, mark target with an arcane mark
-        if (hit && card.effect.type === 'ArcaneMark') {
+        // ArcaneMark: mark target regardless of hit
+        if (card.effect?.type === 'ArcaneMark') {
           const target = this.getTeam(eTeam)[ti];
           if (target.isAlive()) {
             target.arcaneMarkCount++;
@@ -955,21 +942,20 @@ export class CombatEngine {
           }
         }
 
-        // SpellLeech: on hit, steal a random positive modifier from target
+        // SpellLeech: on hit, steal a random modifier from target
         if (hit && card.effect.type === 'SpellLeech') {
           const target = this.getTeam(eTeam)[ti];
           const attacker = this.getTeam(charTeam)[charIdx];
           if (target.isAlive() && attacker.isAlive()) {
-            const positiveModifiers = target.modifiers.filter(m => m.getValue() > 0);
-            if (positiveModifiers.length > 0) {
-              const stolen = positiveModifiers[Math.floor(Math.random() * positiveModifiers.length)];
+            if (target.modifiers.length > 0) {
+              const stolen = target.modifiers[Math.floor(Math.random() * target.modifiers.length)];
               target.modifiers = target.modifiers.filter(m => m !== stolen);
               attacker.modifiers.push(stolen);
               this.log(`  → ${charName} steals a modifier from ${target.name}! (${stolen.stat} ${stolen.getValue() > 0 ? '+' : ''}${stolen.getValue()})`);
               this.addLog({ type: 'effect', text: `${charName} roba ${stolen.stat} ${stolen.getValue() > 0 ? '+' : ''}${stolen.getValue()} de ${target.name}!`, characterName: charName });
             } else {
-              this.log(`  → ${charName} tries to steal but ${target.name} has no positive modifiers.`);
-              this.addLog({ type: 'effect', text: `${charName} intenta robar però ${target.name} no té modificadors positius.`, characterName: charName });
+              this.log(`  → ${charName} tries to steal but ${target.name} has no modifiers.`);
+              this.addLog({ type: 'effect', text: `${charName} intenta robar però ${target.name} no té modificadors.`, characterName: charName });
             }
           }
         }
@@ -1119,8 +1105,8 @@ export class CombatEngine {
         if (card.effect.type === 'BerserkerEndurance') {
           const ch = this.getTeam(charTeam)[charIdx];
           ch.hasBerserkerEndurance = true;
-          ch.berserkerStrengthDice = card.effect.strengthDice;
-          ch.berserkerCounterDice = card.effect.counterAttackDice;
+          ch.berserkerStrengthBoost = card.effect.strengthBoost;
+          ch.berserkerSpeedBoost = card.effect.speedBoost ?? 0;
         }
         if (card.effect.type === 'Deflection') {
           const ch = this.getTeam(charTeam)[charIdx];
@@ -1135,8 +1121,8 @@ export class CombatEngine {
         if (card.effect.type === 'InfernalRetaliation') {
           this.getTeam(charTeam)[charIdx].hasInfernalRetaliation = true;
         }
-        if (card.effect.type === 'SpellReflection') {
-          this.getTeam(charTeam)[charIdx].hasSpellReflection = true;
+        if (card.effect.type === 'CursedWard') {
+          this.getTeam(charTeam)[charIdx].hasCursedWard = true;
         }
         if (card.effect.type === 'SpellAbsorption') {
           this.getTeam(charTeam)[charIdx].hasSpellAbsorption = true;
@@ -1151,17 +1137,23 @@ export class CombatEngine {
     if (isFocus(card.cardType)) {
       switch (card.effect.type) {
         case 'IntimidatingRoar': {
+          const roarer = this.getTeam(charTeam)[charIdx];
+          const roarerF = roarer.getEffectiveStrength();
           const enemies = this.getLivingEnemies(charTeam);
           const enemyTeam = this.getEnemyTeam(charTeam);
           for (const idx of enemies) {
-            const roll = new DiceRoll(1, 4).roll();
-            if (roll <= 2) {
-              enemyTeam[idx].stunned = true;
-              this.log(`  → ${enemyTeam[idx].name} rolls ${roll} — stunned!`);
-              this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} rolls ${roll} — stunned!`, characterName: enemyTeam[idx].name });
+            const enemy = enemyTeam[idx];
+            const enemyFM = enemy.getEffectiveStrength() + enemy.getEffectiveMagic();
+            const roll = card.effect.dice.roll();
+            const attackTotal = roarerF + roll;
+            const resistTotal = enemyFM + card.effect.threshold;
+            if (attackTotal > resistTotal) {
+              enemy.stunned = true;
+              this.log(`  → ${enemy.name}: F${roarerF}+${roll}=${attackTotal} > ${enemyFM}+${card.effect.threshold}=${resistTotal} — stunned!`);
+              this.addLog({ type: 'effect', text: `${enemy.name}: ${attackTotal} vs ${resistTotal} — stunned!`, characterName: enemy.name });
             } else {
-              this.log(`  → ${enemyTeam[idx].name} rolls ${roll} — resists!`);
-              this.addLog({ type: 'effect', text: `${enemyTeam[idx].name} rolls ${roll} — resists!`, characterName: enemyTeam[idx].name });
+              this.log(`  → ${enemy.name}: F${roarerF}+${roll}=${attackTotal} ≤ ${enemyFM}+${card.effect.threshold}=${resistTotal} — resists!`);
+              this.addLog({ type: 'effect', text: `${enemy.name}: ${attackTotal} vs ${resistTotal} — resists!`, characterName: enemy.name });
             }
           }
           break;
@@ -1173,6 +1165,14 @@ export class CombatEngine {
           ch.modifiers.push(new CombatModifier('strength', 4, ModifierDuration.NextTurn).withSource(card.name));
           this.log(`  → ${charName} will dodge all attacks this turn, +5 speed and +4 strength next turn!`);
           this.addLog({ type: 'effect', text: `${charName} dodges all attacks, +5 speed and +4 strength next turn!`, characterName: charName });
+          break;
+        }
+        case 'WindStance': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.dodging = true;
+          ch.modifiers.push(new CombatModifier('strength', card.effect.strengthBoost, ModifierDuration.NextTurn).withSource(card.name));
+          this.log(`  → ${charName} enters a wind stance! Dodges all attacks, +${card.effect.strengthBoost} strength next turn!`);
+          this.addLog({ type: 'effect', text: `${charName} adopta la postura del vent! Esquiva tots els atacs, +${card.effect.strengthBoost} força el torn següent!`, characterName: charName });
           break;
         }
         case 'CoordinatedAmbush': {
@@ -1357,10 +1357,11 @@ export class CombatEngine {
             }
           }
           if (healIdx !== null && allyTeam[healIdx].currentLives < allyTeam[healIdx].maxLives) {
-            allyTeam[healIdx].currentLives++;
+            const healAmount = Math.min(card.effect.amount, allyTeam[healIdx].maxLives - allyTeam[healIdx].currentLives);
+            allyTeam[healIdx].currentLives += healAmount;
             const tName = allyTeam[healIdx].name;
-            this.log(`  → ${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
-            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            this.log(`  → ${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+            this.addLog({ type: 'effect', text: `${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
           } else {
             this.log(`  → ${charName} tries to heal but no one is hurt.`);
             this.addLog({ type: 'effect', text: `${charName} tries to heal but no one is hurt.`, characterName: charName });
@@ -1574,26 +1575,12 @@ export class CombatEngine {
             const enemyTeam = this.getEnemyTeam(charTeam);
             const charmTarget = enemyTeam[charmTargetIdx];
             if (charmTarget.isAlive()) {
-              // Stun the charmed target
-              charmTarget.stunned = true;
+              // Charm: target skips their NEXT turn and wounds an ally when confused
+              charmTarget.skipTurns = 1;
+              charmTarget.charmedConfusion = true;
               const tName = charmTarget.name;
-              this.log(`  → ${charName} charms ${tName}! Their turn is cancelled!`);
-              this.addLog({ type: 'effect', text: `${charName} charms ${tName}! Turn cancelled!`, characterName: charName });
-
-              // Wound a random OTHER living enemy
-              const otherEnemies = this.getLivingEnemies(charTeam).filter(i => i !== charmTargetIdx);
-              if (otherEnemies.length > 0) {
-                const victimIdx = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
-                const victim = enemyTeam[victimIdx];
-                const victimDied = victim.loseLife();
-                this.hitThisRound.add(victim.name);
-                this.log(`  → ${tName}, confused, wounds ${victim.name}! (${victim.currentLives}/${victim.maxLives})`);
-                this.addLog({ type: 'hit', text: `${tName}, confused, wounds ${victim.name}! (${victim.currentLives}/${victim.maxLives})`, characterName: victim.name });
-                if (victimDied) {
-                  this.log(`  ★ ${victim.name} is defeated!`);
-                  this.addLog({ type: 'death', text: `${victim.name} is defeated!`, characterName: victim.name });
-                }
-              }
+              this.log(`  → ${charName} charms ${tName}! Their next turn will be cancelled!`);
+              this.addLog({ type: 'effect', text: `${charName} encisa ${tName}! El seu següent torn serà cancel·lat!`, characterName: charName });
             }
           }
           break;
@@ -1880,6 +1867,24 @@ export class CombatEngine {
     }
   }
 
+  private resolveCharmedConfusion(team: Character[]): void {
+    for (const ch of team) {
+      if (!ch.charmedConfusion || !ch.isAlive()) continue;
+      ch.charmedConfusion = false;
+      // Find living allies (teammates other than the charmed character)
+      const allies = team.filter(a => a !== ch && a.isAlive());
+      if (allies.length === 0) continue;
+      const victim = allies[Math.floor(Math.random() * allies.length)];
+      const victimDied = victim.loseLife();
+      this.log(`  → ${ch.name}, confused, wounds ${victim.name}! (${victim.currentLives}/${victim.maxLives})`);
+      this.addLog({ type: 'hit', text: `${ch.name}, confós, fereix ${victim.name}! (${victim.currentLives}/${victim.maxLives})`, characterName: victim.name });
+      if (victimDied) {
+        this.log(`  ★ ${victim.name} is defeated!`);
+        this.addLog({ type: 'death', text: `${victim.name} ha caigut!`, characterName: victim.name });
+      }
+    }
+  }
+
   private checkFocusInterruption(targetTeam: number, targetIdx: number): void {
     const target = this.getTeam(targetTeam)[targetIdx];
     if (target.playedCardIdx !== null) {
@@ -1956,6 +1961,10 @@ export class CombatEngine {
         ch.pendingLingeringFireDamage = 0;
       }
     }
+
+    // Process charmed confusion at round start
+    this.resolveCharmedConfusion(this.team1);
+    this.resolveCharmedConfusion(this.team2);
 
     return { skipping };
   }
@@ -2250,6 +2259,11 @@ export class CombatEngine {
         ch.pendingLingeringFireDamage = 0;
       }
     }
+
+    // Process charmed confusion at round start
+    this.resolveCharmedConfusion(this.team1);
+    this.resolveCharmedConfusion(this.team2);
+
     if (this.isCombatOver()) return false;
 
     // Card selection is simultaneous — no peeking at ally picks.

@@ -20,13 +20,14 @@ export const MONK_TEMPLATE: CharacterTemplate = {
     'Contracop': 'icons/000000/transparent/1x1/lorc/grapple.svg',
     'Meditació': 'icons/000000/transparent/1x1/lorc/meditation.svg',
     'Cop de silenci': 'icons/000000/transparent/1x1/lorc/silence.svg',
+    'Postura del vent': 'icons/000000/transparent/1x1/lorc/whirlwind.svg',
   },
   createCards: () => [
     new Card('Cop de puny', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(3)
       .withEffect({ type: 'SwiftStrike' })
-      .withDescription('Si impacta, rep {V}+3 el torn següent.'),
+      .withDescription('Si fa mal, rep {V}+3 el torn següent.'),
     new Card('Puntada voladora', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(-1)
@@ -50,6 +51,10 @@ export const MONK_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
       .withEffect({ type: 'SilenceStrike' })
-      .withDescription("Si impacta, les cartes Focus del defensor es cancel·len automàticament els proper 2 torns."),
+      .withDescription("Si fa mal, les cartes Focus del defensor es cancel·len automàticament els proper 2 torns."),
+    new Card('Postura del vent', CardType.Focus)
+      .withSpeedMod(2)
+      .withEffect({ type: 'WindStance', strengthBoost: 3 })
+      .withDescription('Esquiva tots els atacs aquest torn. {F}+3 el torn següent.'),
   ],
 };

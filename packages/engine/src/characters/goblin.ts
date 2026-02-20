@@ -8,9 +8,9 @@ export const GOBLIN_TEMPLATE: CharacterTemplate = {
   classCss: 'goblin',
   iconPath: 'icons/000000/transparent/1x1/delapouite/goblin-head.svg',
   category: 'enemy',
-  baseStrength: 1,
+  baseStrength: 2,
   baseMagic: 0,
-  baseDefense: 1,
+  baseDefense: 2,
   baseSpeed: 4,
   baseLives: 1,
   cardIcons: {
@@ -21,12 +21,12 @@ export const GOBLIN_TEMPLATE: CharacterTemplate = {
   },
   createCards: () => [
     new Card('Atac de la horda', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4))
-      .withSpeedMod(1)
-      .withEffect({ type: 'PackTactics', alliesPerBonus: 3 })
-      .withDescription("Guanyes +1 a l'atac per cada 3 aliats vius."),
+      .withPhysicalAttack(new DiceRoll(0, 0))
+      .withSpeedMod(0)
+      .withEffect({ type: 'Crossfire', maxBonus: 10 })
+      .withDescription("{F}+1 per cada altre aliat que també ataca aquest torn."),
     new Card('Punyalada ràpida', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 4, -1))
+      .withPhysicalAttack(new DiceRoll(1, 4, -2))
       .withSpeedMod(3),
     new Card('Protegir el clan', CardType.Defense)
       .withDefense(new DiceRoll(1, 6))

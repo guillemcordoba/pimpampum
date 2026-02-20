@@ -8,9 +8,9 @@ export const WOLF_TEMPLATE: CharacterTemplate = {
   classCss: 'llop',
   iconPath: 'icons/000000/transparent/1x1/lorc/wolf-head.svg',
   category: 'enemy',
-  baseStrength: 2,
+  baseStrength: 3,
   baseMagic: 0,
-  baseDefense: 0,
+  baseDefense: 1,
   baseSpeed: 5,
   baseLives: 1,
   cardIcons: {
