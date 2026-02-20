@@ -356,75 +356,47 @@ function handlePrint() {
       </div>
     </Teleport>
 
-    <!-- Print-all: all cards rendered, hidden on screen -->
+    <!-- Print-all: single continuous 3x3 grid for easy cutting -->
     <div v-if="printAll" class="print-all-section">
-      <!-- Player classes (per-character) -->
-      <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
-        <template v-if="printCharacters[data.template.id]">
-          <div class="character-description" :class="data.template.classCss">
-            <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
-            <div class="char-desc-info">
-              <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
-              <div class="char-desc-stats">
-                <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                  <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <CardGrid>
+      <CardGrid>
+        <!-- Player class cards -->
+        <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
+          <template v-if="printCharacters[data.template.id]">
             <PrintableCard
               v-for="(p, i) in data.cards"
-              :key="i"
+              :key="'c' + ci + '-' + i"
               v-bind="p"
             />
-          </CardGrid>
+          </template>
         </template>
-      </template>
 
-      <!-- Equipment -->
-      <template v-if="printObjects">
-        <CardGrid>
+        <!-- Equipment -->
+        <template v-if="printObjects">
           <PrintableCard
             v-for="(p, i) in equipDisplayProps"
             :key="'equip-' + i"
             v-bind="p"
           />
-        </CardGrid>
-      </template>
+        </template>
 
-      <!-- Enemies (per-character) -->
-      <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
-        <template v-if="printCharacters[data.template.id]">
-          <div class="character-description" :class="data.template.classCss">
-            <img class="char-desc-icon" :src="base + data.template.iconPath" :alt="data.template.displayName">
-            <div class="char-desc-info">
-              <h2 class="char-desc-name">{{ data.template.displayName }}</h2>
-              <div class="char-desc-stats">
-                <span v-for="stat in data.stats" :key="stat.key" class="char-desc-stat">
-                  <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <CardGrid>
+        <!-- Enemy cards -->
+        <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
+          <template v-if="printCharacters[data.template.id]">
             <PrintableCard
               v-for="(p, i) in data.cards"
-              :key="i"
+              :key="'e' + ci + '-' + i"
               v-bind="p"
             />
-          </CardGrid>
+          </template>
         </template>
-      </template>
 
-      <!-- Rules -->
-      <template v-if="printRules">
-        <CardGrid>
+        <!-- Rules -->
+        <template v-if="printRules">
           <RulesCard />
           <RulesCard />
           <RulesCard />
-        </CardGrid>
-      </template>
+        </template>
+      </CardGrid>
 
       <!-- Character sheets -->
       <template v-if="printSheet">
@@ -804,6 +776,9 @@ function handlePrint() {
     width: 4mm;
     height: 4mm;
     filter: none;
+  }
+  .char-desc-stats {
+    display: none;
   }
 }
 

@@ -26,9 +26,19 @@
     padding: 0 !important;
   }
   .card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 63mm);
     gap: 0 !important;
     max-width: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
+    justify-content: center;
+  }
+  .card-grid > .print-card:nth-child(9n) {
+    break-after: page;
+  }
+  .print-card {
+    box-shadow: none;
+    border-radius: 0;
   }
   * {
     -webkit-print-color-adjust: exact !important;
