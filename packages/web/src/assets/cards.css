@@ -754,7 +754,6 @@
   .character-sheet {
     box-shadow: none;
     page-break-inside: avoid;
-    page-break-after: always;
     margin: 0 auto;
   }
 }
