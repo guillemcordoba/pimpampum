@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RULES_SUMMARY } from '@pimpampum/engine';
+import { renderDescription } from '../../composables/useCardDisplay';
 </script>
 
 <template>
@@ -13,9 +14,9 @@ import { RULES_SUMMARY } from '@pimpampum/engine';
         <div v-for="(section, i) in RULES_SUMMARY" :key="i" class="rules-section">
           <div class="rules-title">{{ section.title }}</div>
           <ol v-if="section.type === 'ordered-list'" class="rules-list">
-            <li v-for="(item, j) in section.items" :key="j">{{ item }}</li>
+            <li v-for="(item, j) in section.items" :key="j" v-html="renderDescription(item)"></li>
           </ol>
-          <div v-else class="rules-text">{{ section.text }}</div>
+          <div v-else class="rules-text" v-html="renderDescription(section.text ?? '')"></div>
         </div>
       </div>
     </div>

@@ -33,9 +33,24 @@ const activeClassId = ref(props.characterId ?? PLAYER_TEMPLATES[0].id);
 const activeEnemyId = ref(props.characterId ?? ENEMY_TEMPLATES[0].id);
 const printAll = ref(false);
 const showPrintDialog = ref(false);
-const printCharacters = reactive(
-  Object.fromEntries([...PLAYER_TEMPLATES, ...ENEMY_TEMPLATES].map(t => [t.id, true])),
-) as Record<string, boolean>;
+// Per-character per-card print selection
+const characterCardNames = computed(() => {
+  const map: Record<string, string[]> = {};
+  for (const t of [...PLAYER_TEMPLATES, ...ENEMY_TEMPLATES]) {
+    const ch = createCharacter(t, t.displayName);
+    map[t.id] = ch.cards.map(c => c.name);
+  }
+  return map;
+});
+const printCards = reactive<Record<string, Record<string, boolean>>>(
+  Object.fromEntries(
+    [...PLAYER_TEMPLATES, ...ENEMY_TEMPLATES].map(t => {
+      const ch = createCharacter(t, t.displayName);
+      return [t.id, Object.fromEntries(ch.cards.map(c => [c.name, true]))];
+    }),
+  ),
+);
+const expandedCharacters = ref(new Set<string>());
 const printObjects = ref(true);
 const printRules = ref(true);
 const printRulesCount = ref(3);
@@ -43,16 +58,32 @@ const printSheet = ref(true);
 const printSheetCount = ref(3);
 const saveInk = ref(false);
 
+function isCharFullyChecked(id: string): boolean {
+  const cards = printCards[id];
+  return cards ? Object.values(cards).every(Boolean) : false;
+}
+function isCharAnyChecked(id: string): boolean {
+  const cards = printCards[id];
+  return cards ? Object.values(cards).some(Boolean) : false;
+}
+function toggleCharacter(id: string, checked: boolean) {
+  const cards = printCards[id];
+  if (cards) for (const key of Object.keys(cards)) cards[key] = checked;
+}
+function toggleExpand(id: string) {
+  const set = expandedCharacters.value;
+  if (set.has(id)) set.delete(id); else set.add(id);
+}
 function toggleAllClasses(checked: boolean) {
-  for (const t of PLAYER_TEMPLATES) printCharacters[t.id] = checked;
+  for (const t of PLAYER_TEMPLATES) toggleCharacter(t.id, checked);
 }
 function toggleAllEnemies(checked: boolean) {
-  for (const t of ENEMY_TEMPLATES) printCharacters[t.id] = checked;
+  for (const t of ENEMY_TEMPLATES) toggleCharacter(t.id, checked);
 }
-const allClassesChecked = computed(() => PLAYER_TEMPLATES.every(t => printCharacters[t.id]));
-const someClassesChecked = computed(() => PLAYER_TEMPLATES.some(t => printCharacters[t.id]));
-const allEnemiesChecked = computed(() => ENEMY_TEMPLATES.every(t => printCharacters[t.id]));
-const someEnemiesChecked = computed(() => ENEMY_TEMPLATES.some(t => printCharacters[t.id]));
+const allClassesChecked = computed(() => PLAYER_TEMPLATES.every(t => isCharFullyChecked(t.id)));
+const someClassesChecked = computed(() => PLAYER_TEMPLATES.some(t => isCharAnyChecked(t.id)));
+const allEnemiesChecked = computed(() => ENEMY_TEMPLATES.every(t => isCharFullyChecked(t.id)));
+const someEnemiesChecked = computed(() => ENEMY_TEMPLATES.some(t => isCharAnyChecked(t.id)));
 
 watch(() => props.section, (s) => {
   if (s) activeSection.value = s;
@@ -320,11 +351,27 @@ async function handlePrint() {
                 <span>Classes</span>
               </label>
               <div class="print-dialog-indent">
-                <label v-for="t in PLAYER_TEMPLATES" :key="t.id" class="print-dialog-check">
-                  <input type="checkbox" v-model="printCharacters[t.id]">
-                  <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
-                  <span>{{ t.displayName }}</span>
-                </label>
+                <div v-for="t in PLAYER_TEMPLATES" :key="t.id" class="print-dialog-char">
+                  <label class="print-dialog-check">
+                    <button class="print-dialog-expand" @click.prevent="toggleExpand(t.id)">
+                      {{ expandedCharacters.has(t.id) ? '▾' : '▸' }}
+                    </button>
+                    <input
+                      type="checkbox"
+                      :checked="isCharFullyChecked(t.id)"
+                      :indeterminate="isCharAnyChecked(t.id) && !isCharFullyChecked(t.id)"
+                      @change="toggleCharacter(t.id, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
+                    <span>{{ t.displayName }}</span>
+                  </label>
+                  <div v-if="expandedCharacters.has(t.id)" class="print-dialog-cards">
+                    <label v-for="cardName in characterCardNames[t.id]" :key="cardName" class="print-dialog-check print-dialog-card-check">
+                      <input type="checkbox" v-model="printCards[t.id][cardName]">
+                      <span>{{ cardName }}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -339,11 +386,27 @@ async function handlePrint() {
                 <span>Enemics</span>
               </label>
               <div class="print-dialog-indent">
-                <label v-for="t in ENEMY_TEMPLATES" :key="t.id" class="print-dialog-check">
-                  <input type="checkbox" v-model="printCharacters[t.id]">
-                  <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
-                  <span>{{ t.displayName }}</span>
-                </label>
+                <div v-for="t in ENEMY_TEMPLATES" :key="t.id" class="print-dialog-char">
+                  <label class="print-dialog-check">
+                    <button class="print-dialog-expand" @click.prevent="toggleExpand(t.id)">
+                      {{ expandedCharacters.has(t.id) ? '▾' : '▸' }}
+                    </button>
+                    <input
+                      type="checkbox"
+                      :checked="isCharFullyChecked(t.id)"
+                      :indeterminate="isCharAnyChecked(t.id) && !isCharFullyChecked(t.id)"
+                      @change="toggleCharacter(t.id, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <img :src="base + t.iconPath" :alt="t.displayName" class="print-dialog-icon">
+                    <span>{{ t.displayName }}</span>
+                  </label>
+                  <div v-if="expandedCharacters.has(t.id)" class="print-dialog-cards">
+                    <label v-for="cardName in characterCardNames[t.id]" :key="cardName" class="print-dialog-check print-dialog-card-check">
+                      <input type="checkbox" v-model="printCards[t.id][cardName]">
+                      <span>{{ cardName }}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -399,10 +462,9 @@ async function handlePrint() {
       <CardGrid>
         <!-- Player class cards -->
         <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
-          <template v-if="printCharacters[data.template.id]">
+          <template v-for="(p, i) in data.cards" :key="'c' + ci + '-' + i">
             <PrintableCard
-              v-for="(p, i) in data.cards"
-              :key="'c' + ci + '-' + i"
+              v-if="printCards[data.template.id]?.[p.name]"
               v-bind="p"
             />
           </template>
@@ -419,10 +481,9 @@ async function handlePrint() {
 
         <!-- Enemy cards -->
         <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
-          <template v-if="printCharacters[data.template.id]">
+          <template v-for="(p, i) in data.cards" :key="'e' + ci + '-' + i">
             <PrintableCard
-              v-for="(p, i) in data.cards"
-              :key="'e' + ci + '-' + i"
+              v-if="printCards[data.template.id]?.[p.name]"
               v-bind="p"
             />
           </template>
@@ -681,12 +742,14 @@ async function handlePrint() {
   color: var(--parchment, #e8dcc4);
 }
 
-.print-dialog-group input[type="checkbox"]:indeterminate {
+.print-dialog-group input[type="checkbox"]:indeterminate,
+.print-dialog-check input[type="checkbox"]:indeterminate {
   background: rgba(232, 220, 196, 0.15);
   border-color: var(--parchment, #e8dcc4);
 }
 
-.print-dialog-group input[type="checkbox"]:indeterminate::after {
+.print-dialog-group input[type="checkbox"]:indeterminate::after,
+.print-dialog-check input[type="checkbox"]:indeterminate::after {
   content: '\2012';
   position: absolute;
   top: -1px;
@@ -713,6 +776,48 @@ async function handlePrint() {
 .print-dialog-count::-webkit-inner-spin-button,
 .print-dialog-count::-webkit-outer-spin-button {
   opacity: 1;
+}
+
+.print-dialog-char {
+  display: flex;
+  flex-direction: column;
+}
+
+.print-dialog-expand {
+  background: none;
+  border: none;
+  color: var(--parchment-dark, #b8a88a);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.1rem 0 0;
+  line-height: 1;
+}
+
+.print-dialog-expand:hover {
+  color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-left: 2.4rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.15rem;
+}
+
+.print-dialog-card-check {
+  font-size: 0.9rem !important;
+  color: var(--parchment-dark, #b8a88a) !important;
+}
+
+.print-dialog-card-check input[type="checkbox"] {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.print-dialog-card-check input[type="checkbox"]:checked::after {
+  font-size: 11px !important;
 }
 
 .print-dialog-separator {

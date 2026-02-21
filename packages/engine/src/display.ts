@@ -51,13 +51,13 @@ export const RULES_SUMMARY: RulesSection[] = [
     items: [
       'Tria una carta i posa-la bocaterrosa',
       'Revela totes les cartes alhora',
-      'Resol per ordre de Velocitat total',
+      'Resol per ordre de {V} velocitat total',
     ],
   },
   {
     title: 'Atac (físic o màgic)',
     type: 'text',
-    text: "Tria un enemic. Si la teva Força total o Màgia total supera la seva Defensa total, perd una vida. Si el personatge es queda sense vides, és derrotat. Es recupera si se li cura una vida.",
+    text: "Tria un enemic. Si la teva {F} força total o {M} màgia total supera la seva {D} defensa total, perd una vida. Si el personatge es queda sense vides, és derrotat. Es recupera si se li cura una vida.",
   },
   {
     title: 'Defensa',
