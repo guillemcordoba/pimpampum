@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const MONK_TEMPLATE: CharacterTemplate = {
@@ -18,7 +19,7 @@ export const MONK_TEMPLATE: CharacterTemplate = {
     'Puntada voladora': 'icons/000000/transparent/1x1/delapouite/high-kick.svg',
     'Ràfega de cops': 'icons/000000/transparent/1x1/lorc/fulguro-punch.svg',
     'Contracop': 'icons/000000/transparent/1x1/lorc/grapple.svg',
-    'Meditació': 'icons/000000/transparent/1x1/lorc/meditation.svg',
+    'Concentració de ki': 'icons/000000/transparent/1x1/lorc/meditation.svg',
     'Cop de silenci': 'icons/000000/transparent/1x1/lorc/silence.svg',
     'Postura del vent': 'icons/000000/transparent/1x1/lorc/whirlwind.svg',
   },
@@ -27,7 +28,7 @@ export const MONK_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(3)
       .withEffect({ type: 'SwiftStrike' })
-      .withDescription('Si fa mal, rep {V}+3 el torn següent.'),
+      .withDescription('Si fa mal, rep {F}+2 el torn següent.'),
     new Card('Puntada voladora', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(-1)
@@ -43,10 +44,10 @@ export const MONK_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(2)
       .withEffect({ type: 'Deflection', counterAttackDice: new DiceRoll(1, 4) })
       .withDescription("Si l'atac falla, contraataca l'atacant amb {F}+1d4."),
-    new Card('Meditació', CardType.Focus)
-      .withSpeedMod(-4)
-      .withEffect({ type: 'MeditationBoost', defenseDice: new DiceRoll(1, 6), defenseFlat: 2, speedBoost: 2 })
-      .withDescription('{D}+1d6+2 i {V}+2 per la resta del combat.'),
+    new Card('Concentració de ki', CardType.Focus)
+      .withSpeedMod(1)
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 2 }], target: 'self', duration: ModifierDuration.NextNTurns(3) })
+      .withDescription('{F}+2 durant 3 torns.'),
     new Card('Cop de silenci', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)

@@ -16,7 +16,7 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
   baseLives: 3,
   cardIcons: {
     'Ràbia': 'icons/000000/transparent/1x1/lorc/wolf-howl.svg',
-    'Destral de guerra': 'icons/000000/transparent/1x1/lorc/battle-axe.svg',
+    'Gran escomesa': 'icons/000000/transparent/1x1/lorc/battle-axe.svg',
     'Atac Temerari': 'icons/000000/transparent/1x1/lorc/hammer-drop.svg',
     'Frenesia': 'icons/000000/transparent/1x1/lorc/flame-claws.svg',
     'Venjança': 'icons/000000/transparent/1x1/lorc/spiked-armor.svg',
@@ -27,9 +27,11 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(-5)
       .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 2, dice: new DiceRoll(1, 6) }, { characteristic: 'speed', amount: 3 }], target: 'self', duration: ModifierDuration.RestOfCombat })
       .withDescription('{F}+1d6+2 i {V}+3 per la resta del combat.'),
-    new Card('Destral de guerra', CardType.PhysicalAttack)
-      .withPhysicalAttack(new DiceRoll(1, 8))
-      .withSpeedMod(-1),
+    new Card('Gran escomesa', CardType.PhysicalAttack)
+      .withPhysicalAttack(new DiceRoll(1, 6))
+      .withSpeedMod(-1)
+      .withEffect({ type: 'MultiTarget', count: 2 })
+      .withDescription('Colpeja fins a 2 enemics amb un gran arc de destral.'),
     new Card('Atac Temerari', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 10))
       .withSpeedMod(-1)

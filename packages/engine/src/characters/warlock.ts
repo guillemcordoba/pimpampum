@@ -17,7 +17,7 @@ export const WARLOCK_TEMPLATE: CharacterTemplate = {
   cardIcons: {
     'Dard arcà': 'icons/000000/transparent/1x1/lorc/magic-palm.svg',
     'Raig corrosiu': 'icons/000000/transparent/1x1/lorc/fire-ray.svg',
-    'Sobrecàrrega': 'icons/000000/transparent/1x1/lorc/explosion-rays.svg',
+    'Explosió': 'icons/000000/transparent/1x1/lorc/explosion-rays.svg',
     'Raig vampíric': 'icons/000000/transparent/1x1/lorc/drop.svg',
     'Barrera arcana': 'icons/000000/transparent/1x1/lorc/shield-reflect.svg',
     'Màgia de sang': 'icons/000000/transparent/1x1/lorc/droplets.svg',
@@ -31,11 +31,11 @@ export const WARLOCK_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(0)
       .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextNTurns(1) })
       .withDescription('Si fa mal, l\'enemic rep {D}-2 el pròxim torn.'),
-    new Card('Sobrecàrrega', CardType.MagicAttack)
+    new Card('Explosió', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 8))
       .withSpeedMod(-2)
       .withEffect({ type: 'Overcharge' })
-      .withDescription('Atac a tots els enemics. Després, et fas 1 ferida a tu mateix.'),
+      .withDescription('Atac a tots els personatges (aliats inclosos). Després, et fas 1 ferida a tu mateix.'),
     new Card('Raig vampíric', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)

@@ -13,7 +13,7 @@ export const STONE_GOLEM_TEMPLATE: CharacterTemplate = {
   baseMagic: 0,
   baseDefense: 7,
   baseSpeed: 1,
-  baseLives: 5,
+  baseLives: 4,
   cardIcons: {
     'Cop de pedra': 'icons/000000/transparent/1x1/lorc/fist.svg',
     'Destrossa': 'icons/000000/transparent/1x1/lorc/thor-fist.svg',

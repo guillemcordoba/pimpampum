@@ -116,6 +116,7 @@ function getSetAsideDuration(effect: SpecialEffect): number {
     // NextTurn effects — 2 turns set aside
     case 'DodgeWithSpeedBoost':
     case 'WindStance':
+    case 'ArcaneTeleport':
       return 2;
     // NimbleEscape — 1 turn set aside
     case 'NimbleEscape':
@@ -848,7 +849,7 @@ export class CombatEngine {
           targets = enemies.slice(0, card.effect.count);
         }
       } else if (card.effect.type === 'Overcharge') {
-        // Overcharge: attack ALL living enemies
+        // Overcharge: attack ALL living enemies (allies handled separately below)
         targets = this.getLivingEnemies(charTeam);
       } else if (overrides?.attackTarget && overrides.attackTarget[0] === eTeam) {
         targets = [overrides.attackTarget[1]];
@@ -923,15 +924,15 @@ export class CombatEngine {
           this.addLog({ type: 'effect', text: `All enemies get -1 to all stats next turn!`, characterName: charName });
         }
 
-        // SwiftStrike: on hit, attacker gets V+3 next turn
+        // SwiftStrike: on hit, attacker gets F+2 next turn
         if (hit && card.effect.type === 'SwiftStrike') {
           const attacker = this.getTeam(charTeam)[charIdx];
           if (attacker.isAlive()) {
             attacker.modifiers.push(
-              new CombatModifier('speed', 3, ModifierDuration.NextNTurns(1)).withSource(card.name),
+              new CombatModifier('strength', 2, ModifierDuration.NextNTurns(1)).withSource(card.name),
             );
-            this.log(`  → ${charName} gains +3 speed next turn!`);
-            this.addLog({ type: 'effect', text: `${charName} gains +3 speed next turn!`, characterName: charName });
+            this.log(`  → ${charName} gains +2 strength next turn!`);
+            this.addLog({ type: 'effect', text: `${charName} gains +2 strength next turn!`, characterName: charName });
           }
         }
 
@@ -992,8 +993,14 @@ export class CombatEngine {
         } // end FlurryOfBlows attack loop
       }
 
-      // Overcharge: self-wound after all attacks resolve
+      // Overcharge: attack allies with reduced dice (1d6-1), then self-wound
       if (card.effect.type === 'Overcharge') {
+        const allyTargets = this.getLivingAllies(charTeam, charIdx);
+        const allyCard = Object.create(card) as Card;
+        allyCard.magicAttack = new DiceRoll(1, 6, -2);
+        for (const ai of allyTargets) {
+          this.resolveAttack(charTeam, charIdx, charTeam, ai, allyCard, new Set());
+        }
         const attacker = this.getTeam(charTeam)[charIdx];
         if (attacker.isAlive()) {
           const died = attacker.loseLife();
@@ -1205,6 +1212,14 @@ export class CombatEngine {
           this.addLog({ type: 'effect', text: `${charName} adopta la postura del vent! Esquiva tots els atacs, +${card.effect.strengthBoost} força el torn següent!`, characterName: charName });
           break;
         }
+        case 'ArcaneTeleport': {
+          const ch = this.getTeam(charTeam)[charIdx];
+          ch.dodging = true;
+          ch.modifiers.push(new CombatModifier('magic', card.effect.magicBoost, ModifierDuration.NextNTurns(1)).withSource(card.name));
+          this.log(`  → ${charName} teleports! Dodges all attacks, +${card.effect.magicBoost} magic next turn!`);
+          this.addLog({ type: 'effect', text: `${charName} es teletransporta! Esquiva tots els atacs, +${card.effect.magicBoost} màgia el torn següent!`, characterName: charName });
+          break;
+        }
         case 'CoordinatedAmbush': {
           const caOverrides = this.resolveTargets.get(charName);
           const enemies = this.getLivingEnemies(charTeam);
@@ -1350,13 +1365,12 @@ export class CombatEngine {
           break;
         }
         case 'SpiritInvocation': {
-          // D+1d4 for self and all allies for rest of combat + death ward
+          // D+dice for self and all allies for rest of combat
           character.modifiers.push(
             new CombatModifier('defense', 0, ModifierDuration.RestOfCombat)
               .withDice(card.effect.dice)
               .withSource(card.name),
           );
-          character.hasDeathWard = true;
           const allies = this.getLivingAllies(charTeam, charIdx);
           const allyTeam = this.getTeam(charTeam);
           for (const idx of allies) {
@@ -1365,10 +1379,9 @@ export class CombatEngine {
                 .withDice(card.effect.dice)
                 .withSource(card.name),
             );
-            allyTeam[idx].hasDeathWard = true;
           }
-          this.log(`  → ${charName} and all allies gain +${card.effect.dice} defense for rest of combat and death ward!`);
-          this.addLog({ type: 'effect', text: `${charName} and allies gain +${card.effect.dice} defense and death ward!`, characterName: charName });
+          this.log(`  → ${charName} and all allies gain +${card.effect.dice} defense for rest of combat!`);
+          this.addLog({ type: 'effect', text: `${charName} and allies gain +${card.effect.dice} defense!`, characterName: charName });
           break;
         }
         case 'HealAlly': {

@@ -103,7 +103,8 @@ export type SpecialEffect =
   | { type: 'ArcaneDetonation' }
   | { type: 'SpellLeech' }
   | { type: 'SpellAbsorption' }
-  | { type: 'WindStance'; strengthBoost: number };
+  | { type: 'WindStance'; strengthBoost: number }
+  | { type: 'ArcaneTeleport'; magicBoost: number };
 
 export const EFFECT_NONE: SpecialEffect = { type: 'None' };
 

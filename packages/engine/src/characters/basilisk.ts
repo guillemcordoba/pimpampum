@@ -11,8 +11,8 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
   baseStrength: 9,
   baseMagic: 0,
   baseDefense: 9,
-  baseSpeed: 2,
-  baseLives: 10,
+  baseSpeed: 1,
+  baseLives: 9,
   cardIcons: {
     'Mossegada verinosa': 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
     'Cop de cua': 'icons/000000/transparent/1x1/lorc/spiked-tail.svg',

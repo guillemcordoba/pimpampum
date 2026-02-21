@@ -18,8 +18,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
     'Acord dissonant': 'icons/000000/transparent/1x1/lorc/sonic-boom.svg',
     'Veu del valor': 'icons/000000/transparent/1x1/lorc/rally-the-troops.svg',
     'Eco protector': 'icons/000000/transparent/1x1/lorc/shield-echoes.svg',
-    'Melodia encisadora': 'icons/000000/transparent/1x1/lorc/charm.svg',
-    'Cançó hipnòtica': 'icons/000000/transparent/1x1/lorc/oily-spiral.svg',
+'Cançó hipnòtica': 'icons/000000/transparent/1x1/lorc/oily-spiral.svg',
     'Rèquiem': 'icons/000000/transparent/1x1/lorc/death-note.svg',
     'Balada heroica': 'icons/000000/transparent/1x1/delapouite/musical-notes.svg',
   },
@@ -38,11 +37,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(1)
       .withEffect({ type: 'DefendMultiple', count: 2 })
       .withDescription('Defensa a 2 aliats que triïs.'),
-    new Card('Melodia encisadora', CardType.Focus)
-      .withSpeedMod(-5)
-      .withEffect({ type: 'Charm' })
-      .withDescription("Tria un enemic. El seu següent torn és cancel·lat i, confós, fereix un aliat aleatori del seu equip."),
-    new Card('Cançó hipnòtica', CardType.MagicAttack)
+new Card('Cançó hipnòtica', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
       .withEffect({ type: 'HypnoticSong', dice: new DiceRoll(1, 20), threshold: 10, turns: 2 })

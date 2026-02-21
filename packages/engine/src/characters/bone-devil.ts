@@ -10,7 +10,7 @@ export const BONE_DEVIL_TEMPLATE: CharacterTemplate = {
   category: 'enemy',
   baseStrength: 5,
   baseMagic: 3,
-  baseDefense: 5,
+  baseDefense: 4,
   baseSpeed: 3,
   baseLives: 5,
   cardIcons: {

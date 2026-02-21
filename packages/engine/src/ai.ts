@@ -200,8 +200,8 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       if (card.effect.type === 'DodgeWithSpeedBoost' &&
           character.currentLives <= 1) {
         weight += 15.0;
-      } else if (card.effect.type === 'WindStance') {
-        // Quick dodge + strength setup — aggressive tempo play
+      } else if (card.effect.type === 'WindStance' || card.effect.type === 'ArcaneTeleport') {
+        // Quick dodge + stat setup — aggressive tempo play
         if (character.currentLives <= 1) weight += 15.0;
         else weight += 12.0;
       } else if (card.effect.type === 'MeditationBoost') {
@@ -508,6 +508,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             else weight += 3.0;
             break;
           case 'WindStance':
+          case 'ArcaneTeleport':
             if (character.currentLives <= 1) weight += 10.0;
             else weight += 3.0;
             break;
@@ -684,6 +685,7 @@ function selectPower(character: Character, engine: AIEngineView): number {
           else weight += 10.0;
           break;
         case 'WindStance':
+        case 'ArcaneTeleport':
           if (character.currentLives <= 1) weight += 20.0;
           else weight += 10.0;
           break;

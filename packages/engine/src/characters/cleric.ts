@@ -45,8 +45,8 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
       .withDescription("L'atacant rep {F}-2 el següent torn."),
     new Card('Invocació espiritual', CardType.Focus)
       .withSpeedMod(-4)
-      .withEffect({ type: 'SpiritInvocation', dice: new DiceRoll(1, 4) })
-      .withDescription('Tu i tots els aliats guanyeu {D}+1d4 per la resta del combat. A més, la primera vegada que cada aliat rep una ferida, la recupera immediatament (un sol ús per aliat).'),
+      .withEffect({ type: 'SpiritInvocation', dice: new DiceRoll(1, 6) })
+      .withDescription('Tu i tots els aliats guanyeu {D}+1d6 per la resta del combat.'),
     new Card('Curació', CardType.Focus)
       .withSpeedMod(2)
       .withEffect({ type: 'HealAlly', amount: 2 })
