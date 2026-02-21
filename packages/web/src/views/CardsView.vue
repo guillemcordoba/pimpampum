@@ -38,7 +38,9 @@ const printCharacters = reactive(
 ) as Record<string, boolean>;
 const printObjects = ref(true);
 const printRules = ref(true);
+const printRulesCount = ref(3);
 const printSheet = ref(true);
+const printSheetCount = ref(3);
 const saveInk = ref(false);
 
 function toggleAllClasses(checked: boolean) {
@@ -355,10 +357,26 @@ async function handlePrint() {
                 <label class="print-dialog-check">
                   <input type="checkbox" v-model="printRules">
                   <span>Regles</span>
+                  <input
+                    v-if="printRules"
+                    type="number"
+                    v-model.number="printRulesCount"
+                    min="1"
+                    max="20"
+                    class="print-dialog-count"
+                  >
                 </label>
                 <label class="print-dialog-check">
                   <input type="checkbox" v-model="printSheet">
                   <span>Fitxa</span>
+                  <input
+                    v-if="printSheet"
+                    type="number"
+                    v-model.number="printSheetCount"
+                    min="1"
+                    max="20"
+                    class="print-dialog-count"
+                  >
                 </label>
               </div>
               <div class="print-dialog-separator"></div>
@@ -412,15 +430,13 @@ async function handlePrint() {
 
         <!-- Rules -->
         <template v-if="printRules">
-          <RulesCard />
-          <RulesCard />
-          <RulesCard />
+          <RulesCard v-for="i in printRulesCount" :key="'rules-' + i" />
         </template>
       </CardGrid>
 
       <!-- Character sheets -->
       <template v-if="printSheet">
-        <CharacterSheet />
+        <CharacterSheet v-for="i in printSheetCount" :key="'sheet-' + i" />
       </template>
     </div>
   </div>
@@ -677,6 +693,26 @@ async function handlePrint() {
   left: 2px;
   font-size: 14px;
   color: var(--parchment, #e8dcc4);
+}
+
+.print-dialog-count {
+  width: 3rem;
+  margin-left: auto;
+  padding: 0.15rem 0.3rem;
+  border: 1.5px solid var(--parchment-dark, #b8a88a);
+  border-radius: 3px;
+  background: rgba(232, 220, 196, 0.06);
+  color: var(--parchment, #e8dcc4);
+  font-family: 'MedievalSharp', serif;
+  font-size: 1rem;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.print-dialog-count::-webkit-inner-spin-button,
+.print-dialog-count::-webkit-outer-spin-button {
+  opacity: 1;
 }
 
 .print-dialog-separator {
