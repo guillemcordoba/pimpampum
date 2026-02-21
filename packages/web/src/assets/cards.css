@@ -36,6 +36,8 @@
   .card-grid > .print-card:nth-child(9n) {
     break-after: page;
   }
+
+  /* Full quality (default) */
   .print-card {
     box-shadow: none;
     border-radius: 0;
@@ -43,6 +45,25 @@
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* ---- Save-ink mode: remove parchment background ---- */
+  .save-ink .print-card {
+    background: white;
+  }
+  .save-ink .print-card::before,
+  .save-ink .print-card::after {
+    display: none;
+  }
+  .save-ink .print-card .card-art {
+    background: none;
+  }
+  .save-ink .character-sheet {
+    background: white;
+  }
+  .save-ink .character-sheet::before,
+  .save-ink .character-sheet::after {
+    display: none;
   }
 }
 

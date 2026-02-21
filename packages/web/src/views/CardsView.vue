@@ -39,6 +39,7 @@ const printCharacters = reactive(
 const printObjects = ref(true);
 const printRules = ref(true);
 const printSheet = ref(true);
+const saveInk = ref(false);
 
 function toggleAllClasses(checked: boolean) {
   for (const t of PLAYER_TEMPLATES) printCharacters[t.id] = checked;
@@ -129,12 +130,26 @@ function selectEnemy(id: string) {
   router.replace(`/cards/enemies/${id}`);
 }
 
-function handlePrint() {
+async function handlePrint() {
   showPrintDialog.value = false;
   printAll.value = true;
-  requestAnimationFrame(() => {
-    window.print();
-  });
+  // Wait for Vue to render the print-all-section, then wait for all images to load
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  const section = document.querySelector('.print-all-section');
+  if (section) {
+    const images = Array.from(section.querySelectorAll('img'));
+    await Promise.all(
+      images.map(img =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            }),
+      ),
+    );
+  }
+  window.print();
 }
 </script>
 
@@ -346,6 +361,11 @@ function handlePrint() {
                   <span>Fitxa</span>
                 </label>
               </div>
+              <div class="print-dialog-separator"></div>
+              <label class="print-dialog-check">
+                <input type="checkbox" v-model="saveInk">
+                <span>Estalviar tinta</span>
+              </label>
             </div>
           </div>
           <div class="print-dialog-actions">
@@ -357,7 +377,7 @@ function handlePrint() {
     </Teleport>
 
     <!-- Print-all: single continuous 3x3 grid for easy cutting -->
-    <div v-if="printAll" class="print-all-section">
+    <div v-if="printAll" class="print-all-section" :class="{ 'save-ink': saveInk }">
       <CardGrid>
         <!-- Player class cards -->
         <template v-for="(data, ci) in allClassData" :key="'class-' + ci">
@@ -659,6 +679,11 @@ function handlePrint() {
   color: var(--parchment, #e8dcc4);
 }
 
+.print-dialog-separator {
+  border-top: 1px solid rgba(232, 220, 196, 0.15);
+  margin: 0.4rem 0;
+}
+
 .print-dialog-actions {
   display: flex;
   gap: 0.75rem;
@@ -674,7 +699,8 @@ function handlePrint() {
 }
 
 .print-all-section {
-  display: none;
+  height: 0;
+  overflow: hidden;
 }
 
 /* -- Character description header -- */
@@ -752,7 +778,8 @@ function handlePrint() {
     padding: 0;
   }
   .print-all-section {
-    display: block;
+    height: auto;
+    overflow: visible;
   }
   .character-description {
     margin-bottom: 2mm;
