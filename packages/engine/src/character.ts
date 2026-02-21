@@ -1,7 +1,7 @@
 import { DiceRoll } from './dice.js';
 import { Equipment } from './equipment.js';
 import { Card } from './card.js';
-import { CombatModifier, ModifierDuration } from './modifier.js';
+import { CombatModifier } from './modifier.js';
 import { AIStrategy } from './strategy.js';
 
 /** Defense bonus: [defenderTeam, defenderIdx, defenderName, flatDefense, dice] */
@@ -64,6 +64,7 @@ export class Character {
   public arcaneMarkCount = 0;
   public hasSpellAbsorption = false;
   public charmedConfusion = false;
+  public forceRandomCardTurns = 0;
   public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
 
   constructor(
@@ -98,7 +99,7 @@ export class Character {
     let total = 0;
     for (const m of this.modifiers) {
       // Skip pending modifiers — they become active after advanceTurnModifiers()
-      if (m.duration === ModifierDuration.NextTurn || m.duration === ModifierDuration.NextTwoTurns) continue;
+      if (typeof m.duration === 'object' && m.duration.pending) continue;
       if (m.stat === stat) {
         if (m.condition !== null) {
           if (condition !== undefined) {
@@ -185,8 +186,15 @@ export class Character {
   }
 
   equip(item: Equipment): void {
+    const oldItem = this.equipment.find(e => e.slot === item.slot);
+    if (oldItem?.consumableCard) {
+      this.cards = this.cards.filter(c => c !== oldItem.consumableCard);
+    }
     this.equipment = this.equipment.filter(e => e.slot !== item.slot);
     this.equipment.push(item);
+    if (item.consumableCard) {
+      this.cards.push(item.consumableCard);
+    }
   }
 
   resetForNewCombat(): void {
@@ -227,7 +235,11 @@ export class Character {
     this.arcaneMarkCount = 0;
     this.hasSpellAbsorption = false;
     this.charmedConfusion = false;
+    this.forceRandomCardTurns = 0;
     this.setAsideCards.clear();
+    for (const card of this.cards) {
+      if (card.isConsumable) card.consumed = false;
+    }
   }
 
   /** Returns true if the character is skipping this turn */
@@ -257,21 +269,12 @@ export class Character {
 
   advanceTurnModifiers(): void {
     this.modifiers = this.modifiers.filter(m => {
-      switch (m.duration) {
-        case ModifierDuration.ThisTurn:
-          return false;
-        case ModifierDuration.NextTurn:
-          m.duration = ModifierDuration.ThisTurn;
-          return true;
-        case ModifierDuration.ThisAndNextTurn:
-          m.duration = ModifierDuration.NextTurn;
-          return true;
-        case ModifierDuration.NextTwoTurns:
-          m.duration = ModifierDuration.NextTurn;
-          return true;
-        case ModifierDuration.RestOfCombat:
-          return true;
-      }
+      if (m.duration === 'ThisTurn') return false;
+      if (m.duration === 'RestOfCombat') return true;
+      const d = m.duration;
+      if (d.pending) d.pending = false;
+      d.remaining--;
+      return d.remaining >= 0;
     });
 
     // Decrement set-aside counters; remove expired ones (-1 = permanent, never expires)

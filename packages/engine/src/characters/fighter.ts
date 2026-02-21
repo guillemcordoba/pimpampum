@@ -43,7 +43,7 @@ export const FIGHTER_TEMPLATE: CharacterTemplate = {
     new Card('Segon alè', CardType.Focus)
       .withSpeedMod(3)
       .withEffect({ type: 'SecondWind', healAmount: 1, defenseBoost: 2 })
-      .withDescription('Recupera 1 vida i guanya {D}+2 aquest torn.'),
+      .withDescription('Cura 1 vida i guanya {D}+2 aquest torn.'),
     new Card('Crit de guerra', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: 0, dice: new DiceRoll(1, 4) }], target: 'team', duration: ModifierDuration.RestOfCombat })

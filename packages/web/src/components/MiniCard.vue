@@ -11,6 +11,7 @@ const props = defineProps<{
   selected?: boolean;
   disabled?: boolean;
   setAside?: boolean;
+  consumed?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -61,10 +62,11 @@ const renderedDescription = computed(() =>
 <template>
   <div
     class="mini-card"
-    :class="[classCss, { selected, disabled, 'set-aside': setAside }]"
-    @click="!disabled && !setAside && emit('select')"
+    :class="[classCss, { selected, disabled, 'set-aside': setAside, consumed }]"
+    @click="!disabled && !setAside && !consumed && emit('select')"
   >
     <div v-if="setAside" class="set-aside-overlay">EN JOC</div>
+    <div v-if="consumed" class="consumed-overlay">CONSUMIT</div>
     <div class="mini-card-header" :class="headerClass">
       {{ card.name }}
     </div>

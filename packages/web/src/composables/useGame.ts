@@ -6,6 +6,7 @@ import {
   assignStrategies,
   getCardTargetRequirement,
   getCardTargetCount,
+  isHealingCard,
   createCharacter,
   ALL_CHARACTER_TEMPLATES,
   ALL_EQUIPMENT,
@@ -24,6 +25,7 @@ export interface TargetPrompt {
   cardName: string;
   requirement: 'enemy' | 'ally' | 'ally_other';
   count: number;
+  isHealing: boolean;
 }
 
 export function useGame() {
@@ -37,6 +39,7 @@ export function useGame() {
   const playerSelections = ref<Map<number, PlayerSelection>>(new Map());
   const winner = ref<number>(0);
   const roundSkipping = ref<Map<number, Set<number>>>(new Map());
+  const roundForcedRandom = ref<Map<number, Map<number, number>>>(new Map());
 
   // Resolution-time target selection
   const currentTargetPrompt = ref<TargetPrompt | null>(null);
@@ -125,8 +128,18 @@ export function useGame() {
 
     const result = engine.value.prepareRound();
     roundSkipping.value = result.skipping;
+    roundForcedRandom.value = result.forcedRandom;
     combatLog.value.push(...engine.value.logEntries);
     playerSelections.value = new Map();
+
+    // Auto-select random cards for hypnotized player characters
+    const playerForced = result.forcedRandom.get(1);
+    if (playerForced) {
+      for (const [charIdx, cardIdx] of playerForced) {
+        playerSelections.value.set(charIdx, { cardIdx });
+      }
+      playerSelections.value = new Map(playerSelections.value);
+    }
     currentTargetPrompt.value = null;
     actionQueue.value = [];
     currentActionIndex.value = -1;
@@ -136,8 +149,12 @@ export function useGame() {
   }
 
   function selectCard(charIdx: number, cardIdx: number) {
+    // Don't allow changing forced random cards (hypnotized)
+    if (roundForcedRandom.value.get(1)?.has(charIdx)) return;
     // Don't allow selecting set-aside cards
     if (engine.value && engine.value.team1[charIdx]?.isCardSetAside(cardIdx)) return;
+    // Don't allow selecting consumed cards
+    if (engine.value && engine.value.team1[charIdx]?.cards[cardIdx]?.consumed) return;
 
     const current = playerSelections.value.get(charIdx);
     if (current?.cardIdx === cardIdx) {
@@ -177,9 +194,12 @@ export function useGame() {
 
     // AI selections for enemy team
     const skips2 = roundSkipping.value.get(2) ?? new Set();
+    const enemyForced = roundForcedRandom.value.get(2);
     for (let i = 0; i < engine.value.team2.length; i++) {
       if (!engine.value.team2[i].isAlive() || skips2.has(i)) continue;
-      const cardIdx = selectCardAI(engine.value.team2[i], engine.value);
+      const cardIdx = enemyForced?.has(i)
+        ? enemyForced.get(i)!
+        : selectCardAI(engine.value.team2[i], engine.value);
       engine.value.team2[i].playedCardIdx = cardIdx;
       selections.set(engine.value.team2[i].name, { cardIdx });
     }
@@ -218,6 +238,7 @@ export function useGame() {
               cardName: next.cardName,
               requirement: req,
               count,
+              isHealing: isHealingCard(card),
             };
             return; // Wait for target selection
           }
@@ -373,6 +394,7 @@ export function useGame() {
     playerSelections,
     winner,
     roundSkipping,
+    roundForcedRandom,
     currentTargetPrompt,
     multiTargetSelections,
     actionQueue,

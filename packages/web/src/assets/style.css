@@ -683,6 +683,34 @@ body {
   white-space: nowrap;
 }
 
+.mini-card.consumed {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.mini-card.consumed:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.consumed-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(180, 40, 40, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  z-index: 2;
+  pointer-events: none;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
 .mini-card.guerrer { border-color: var(--class-guerrer); }
 .mini-card.murri { border-color: var(--class-murri); }
 .mini-card.mag { border-color: var(--class-mag); }
@@ -886,6 +914,32 @@ body {
 .target-option.target-selected .portrait {
   box-shadow: 0 0 16px rgba(255, 215, 0, 0.8);
   border-color: gold;
+}
+
+.target-option.target-defeated {
+  position: relative;
+  opacity: 0.6;
+}
+
+.target-option.target-defeated .portrait {
+  border-color: #666;
+  filter: grayscale(0.5);
+}
+
+.target-option.target-defeated:hover .portrait {
+  opacity: 1;
+  filter: grayscale(0);
+  box-shadow: 0 0 12px rgba(100, 200, 100, 0.5);
+  border-color: #6a6;
+}
+
+.defeated-label {
+  display: block;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.75rem;
+  color: #c44;
+  text-align: center;
+  margin-top: 0.2rem;
 }
 
 /* =============================================================================

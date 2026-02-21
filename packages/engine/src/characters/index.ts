@@ -69,6 +69,7 @@ export const ENEMY_TEMPLATES = ALL_CHARACTER_TEMPLATES.filter(t => t.category ==
 export const CARD_ICONS: Record<string, string> = Object.assign(
   {},
   ...ALL_CHARACTER_TEMPLATES.map(t => t.cardIcons),
+  { 'Poció de guarició': 'icons/000000/transparent/1x1/delapouite/health-potion.svg' },
 );
 
 // Backward-compatible factory functions

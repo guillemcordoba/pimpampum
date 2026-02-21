@@ -9,6 +9,7 @@ export interface AIEngineView {
   team2: Character[];
   getLivingEnemies(team: number): number[];
   getLivingAllies(team: number, excludeIdx?: number): number[];
+  getDefeatedAllies(team: number, excludeIdx?: number): number[];
 }
 
 /** Assign a uniformly random strategy to each character */
@@ -23,8 +24,8 @@ export function assignStrategies(team: Character[]): void {
 export function selectCardAI(character: Character, engine: AIEngineView): number {
   if (character.cards.length === 0) return 0;
 
-  // Edge case: all cards are set aside — pick the first non-set-aside, or 0
-  const available = character.cards.findIndex((_, i) => !character.isCardSetAside(i));
+  // Edge case: all cards are set aside or consumed — pick the first available, or 0
+  const available = character.cards.findIndex((c, i) => !character.isCardSetAside(i) && !c.consumed);
   if (available === -1) return 0;
 
   const strategy = character.aiStrategy ?? AIStrategy.Aggro;
@@ -68,6 +69,7 @@ function selectAggro(character: Character, engine: AIEngineView): number {
 
   for (let ci = 0; ci < character.cards.length; ci++) {
     if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    if (character.cards[ci].consumed) { weights.push(0); continue; }
     const card = character.cards[ci];
     let weight = 10.0;
 
@@ -120,6 +122,8 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       }
       // Crossfire: bonus for coordinated attacks
       if (card.effect.type === 'Crossfire') weight += 12.0;
+      // HypnoticSong: disruptive on-hit debuff
+      if (card.effect.type === 'HypnoticSong') weight += 10.0;
       // FireAndRetreat: attack + dodge combo
       if (card.effect.type === 'FireAndRetreat') {
         weight += 10.0;
@@ -145,6 +149,13 @@ function selectAggro(character: Character, engine: AIEngineView): number {
           const avgDef = enemyTeam.filter(e => e.isAlive()).reduce((s, e) => s + e.getEffectiveDefense(), 0) / enemies.length;
           if (combinedAttack > avgDef) weight += 8.0;
         }
+      }
+      // RecklessAttack: high risk/reward — prefer when buffed or enemies near death, avoid when low HP
+      if (card.effect.type === 'RecklessAttack') {
+        weight += 8.0;
+        if (character.currentLives <= 1) weight -= 15.0;
+        const hasBuff = character.modifiers.some(m => m.duration === ModifierDuration.RestOfCombat && m.getValue() > 0);
+        if (hasBuff) weight += 10.0;
       }
       // Dissonance: AoE debuff on hit
       if (card.effect.type === 'Dissonance') weight += 8.0;
@@ -225,10 +236,14 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       } else if (card.effect.type === 'VoiceOfValor') {
         const allyTeamA = character.team === 1 ? engine.team1 : engine.team2;
         const alliesA = engine.getLivingAllies(character.team);
-        const anyWoundedA = alliesA.some(i => allyTeamA[i].currentLives < allyTeamA[i].maxLives)
-          || character.currentLives < character.maxLives;
-        if (anyWoundedA) weight += 15.0;
-        else weight += 1.0;
+        const defeatedA = engine.getDefeatedAllies(character.team);
+        if (defeatedA.length > 0) weight += 25.0;
+        else {
+          const anyWoundedA = alliesA.some(i => allyTeamA[i].currentLives < allyTeamA[i].maxLives)
+            || character.currentLives < character.maxLives;
+          if (anyWoundedA) weight += 15.0;
+          else weight += 1.0;
+        }
       } else if (card.effect.type === 'Charm') {
         if (enemies.length >= 2) weight += 18.0;
         else if (enemies.length === 1) weight += 8.0;
@@ -249,14 +264,22 @@ function selectAggro(character: Character, engine: AIEngineView): number {
       } else if (card.effect.type === 'LayOnHands') {
         const at = character.team === 1 ? engine.team1 : engine.team2;
         const al = engine.getLivingAllies(character.team);
-        const wounded = al.some(i => at[i].currentLives < at[i].maxLives)
-          || character.currentLives < character.maxLives;
-        if (wounded) weight += 3.0;
-        else weight += 0.0;
+        const defeatedLOH = engine.getDefeatedAllies(character.team);
+        if (defeatedLOH.length > 0) weight += 15.0;
+        else {
+          const wounded = al.some(i => at[i].currentLives < at[i].maxLives)
+            || character.currentLives < character.maxLives;
+          if (wounded) weight += 3.0;
+          else weight += 0.0;
+        }
       } else if (card.effect.type === 'SecondWind') {
         const missingLives = character.maxLives - character.currentLives;
         if (missingLives > 0) weight += 30.0 + missingLives * 5.0;
         else weight += 2.0;
+      } else if (card.effect.type === 'Regenerate') {
+        const missingLivesRegen = character.maxLives - character.currentLives;
+        if (missingLivesRegen > 0) weight += 20.0 + missingLivesRegen * 5.0;
+        else weight += 0.0;
       } else if (card.effect.type === 'WildShape') {
         // Aggro wants to attack, not transform
         // Also skip if already transformed or enemies are easy to hit
@@ -338,6 +361,7 @@ function selectProtect(character: Character, engine: AIEngineView): number {
 
   for (let ci = 0; ci < character.cards.length; ci++) {
     if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    if (character.cards[ci].consumed) { weights.push(0); continue; }
     const card = character.cards[ci];
     let weight = 10.0;
 
@@ -402,8 +426,13 @@ function selectProtect(character: Character, engine: AIEngineView): number {
           }
         }
       }
-      // Devil attack effect bonuses (apply regardless of ally state)
+      // Attack effect bonuses (apply regardless of ally state)
+      if (card.effect.type === 'RecklessAttack') {
+        weight += 5.0;
+        if (character.currentLives <= 1) weight -= 15.0;
+      }
       if (card.effect.type === 'Crossfire') weight += 12.0;
+      if (card.effect.type === 'HypnoticSong') weight += 10.0;
       if (card.effect.type === 'FireAndRetreat') {
         weight += 10.0;
         if (character.currentLives <= 1) weight += 8.0;
@@ -483,9 +512,13 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             else weight += 3.0;
             break;
           case 'HealAlly': {
-            const anyWounded = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
-            if (anyWounded) weight += 15.0;
-            else weight += 1.0;
+            const defeatedHA = engine.getDefeatedAllies(character.team);
+            if (defeatedHA.length > 0) weight += 25.0;
+            else {
+              const anyWounded = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+              if (anyWounded) weight += 15.0;
+              else weight += 1.0;
+            }
             break;
           }
           case 'NimbleEscape': {
@@ -520,10 +553,14 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             break;
           }
           case 'VoiceOfValor': {
-            const anyWoundedP = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
-              || character.currentLives < character.maxLives;
-            if (anyWoundedP) weight += 15.0;
-            else weight += 1.0;
+            const defeatedVoVP = engine.getDefeatedAllies(character.team);
+            if (defeatedVoVP.length > 0) weight += 25.0;
+            else {
+              const anyWoundedP = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
+                || character.currentLives < character.maxLives;
+              if (anyWoundedP) weight += 15.0;
+              else weight += 1.0;
+            }
             break;
           }
           case 'Charm':
@@ -550,16 +587,26 @@ function selectProtect(character: Character, engine: AIEngineView): number {
             if (character.currentLives >= 2) weight += 3.0;
             break;
           case 'LayOnHands': {
-            const anyWoundedLOH = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
-              || character.currentLives < character.maxLives;
-            if (anyWoundedLOH) weight += 20.0;
-            else weight += 1.0;
+            const defeatedLOHP = engine.getDefeatedAllies(character.team);
+            if (defeatedLOHP.length > 0) weight += 30.0;
+            else {
+              const anyWoundedLOH = allies.some(i => allyTeam[i].currentLives < allyTeam[i].maxLives)
+                || character.currentLives < character.maxLives;
+              if (anyWoundedLOH) weight += 20.0;
+              else weight += 1.0;
+            }
             break;
           }
           case 'SecondWind': {
             const missingLivesP = character.maxLives - character.currentLives;
             if (missingLivesP > 0) weight += 30.0 + missingLivesP * 5.0;
             else weight += 2.0;
+            break;
+          }
+          case 'Regenerate': {
+            const missingLivesRegen = character.maxLives - character.currentLives;
+            if (missingLivesRegen > 0) weight += 25.0 + missingLivesRegen * 5.0;
+            else weight += 0.0;
             break;
           }
           case 'WildShape': {
@@ -602,6 +649,7 @@ function selectPower(character: Character, engine: AIEngineView): number {
 
   for (let ci = 0; ci < character.cards.length; ci++) {
     if (character.isCardSetAside(ci)) { weights.push(0); continue; }
+    if (character.cards[ci].consumed) { weights.push(0); continue; }
     const card = character.cards[ci];
     let weight = 10.0;
 
@@ -640,11 +688,15 @@ function selectPower(character: Character, engine: AIEngineView): number {
           else weight += 10.0;
           break;
         case 'HealAlly': {
-          const at = character.team === 1 ? engine.team1 : engine.team2;
-          const al = engine.getLivingAllies(character.team);
-          const wounded = al.some(i => at[i].currentLives < at[i].maxLives);
-          if (wounded) weight += 20.0;
-          else weight += 2.0;
+          const defeatedHAPow = engine.getDefeatedAllies(character.team);
+          if (defeatedHAPow.length > 0) weight += 30.0;
+          else {
+            const at = character.team === 1 ? engine.team1 : engine.team2;
+            const al = engine.getLivingAllies(character.team);
+            const wounded = al.some(i => at[i].currentLives < at[i].maxLives);
+            if (wounded) weight += 20.0;
+            else weight += 2.0;
+          }
           break;
         }
         case 'NimbleEscape': {
@@ -679,12 +731,16 @@ function selectPower(character: Character, engine: AIEngineView): number {
           break;
         }
         case 'VoiceOfValor': {
-          const atPow = character.team === 1 ? engine.team1 : engine.team2;
-          const alPow = engine.getLivingAllies(character.team);
-          const anyWoundedPow = alPow.some(i => atPow[i].currentLives < atPow[i].maxLives)
-            || character.currentLives < character.maxLives;
-          if (anyWoundedPow) weight += 30.0;
-          else weight += 2.0;
+          const defeatedVoVPow = engine.getDefeatedAllies(character.team);
+          if (defeatedVoVPow.length > 0) weight += 40.0;
+          else {
+            const atPow = character.team === 1 ? engine.team1 : engine.team2;
+            const alPow = engine.getLivingAllies(character.team);
+            const anyWoundedPow = alPow.some(i => atPow[i].currentLives < atPow[i].maxLives)
+              || character.currentLives < character.maxLives;
+            if (anyWoundedPow) weight += 30.0;
+            else weight += 2.0;
+          }
           break;
         }
         case 'Charm':
@@ -710,18 +766,28 @@ function selectPower(character: Character, engine: AIEngineView): number {
           if (character.currentLives >= 2) weight += 25.0;
           break;
         case 'LayOnHands': {
-          const atLOH = character.team === 1 ? engine.team1 : engine.team2;
-          const alLOH = engine.getLivingAllies(character.team);
-          const woundedLOH = alLOH.some(i => atLOH[i].currentLives < atLOH[i].maxLives)
-            || character.currentLives < character.maxLives;
-          if (woundedLOH) weight += 15.0;
-          else weight += 2.0;
+          const defeatedLOHPow = engine.getDefeatedAllies(character.team);
+          if (defeatedLOHPow.length > 0) weight += 25.0;
+          else {
+            const atLOH = character.team === 1 ? engine.team1 : engine.team2;
+            const alLOH = engine.getLivingAllies(character.team);
+            const woundedLOH = alLOH.some(i => atLOH[i].currentLives < atLOH[i].maxLives)
+              || character.currentLives < character.maxLives;
+            if (woundedLOH) weight += 15.0;
+            else weight += 2.0;
+          }
           break;
         }
         case 'SecondWind': {
           const missingLivesPow = character.maxLives - character.currentLives;
           if (missingLivesPow > 0) weight += 30.0 + missingLivesPow * 5.0;
           else weight += 2.0;
+          break;
+        }
+        case 'Regenerate': {
+          const missingLivesRegen = character.maxLives - character.currentLives;
+          if (missingLivesRegen > 0) weight += 20.0 + missingLivesRegen * 5.0;
+          else weight += 0.0;
           break;
         }
         case 'WildShape': {
@@ -771,8 +837,15 @@ function selectPower(character: Character, engine: AIEngineView): number {
           weight += 10.0;
         }
       }
-      // Devil attack effect bonuses
+      // Attack effect bonuses
+      if (card.effect.type === 'RecklessAttack') {
+        // Power loves reckless when buffed — go all in
+        if (hasRestOfCombatBuff) weight += 12.0;
+        else weight += 5.0;
+        if (character.currentLives <= 1) weight -= 15.0;
+      }
       if (card.effect.type === 'Crossfire') weight += 12.0;
+      if (card.effect.type === 'HypnoticSong') weight += 10.0;
       if (card.effect.type === 'FireAndRetreat') {
         weight += 10.0;
         if (character.currentLives <= 1) weight += 8.0;

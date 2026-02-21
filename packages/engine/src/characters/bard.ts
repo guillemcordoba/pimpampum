@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const BARD_TEMPLATE: CharacterTemplate = {
@@ -8,8 +9,8 @@ export const BARD_TEMPLATE: CharacterTemplate = {
   classCss: 'trobador',
   iconPath: 'icons/000000/transparent/1x1/lorc/lyre.svg',
   category: 'player',
-  baseStrength: 0,
-  baseMagic: 4,
+  baseStrength: 1,
+  baseMagic: 3,
   baseDefense: 2,
   baseSpeed: 3,
   baseLives: 3,
@@ -18,8 +19,9 @@ export const BARD_TEMPLATE: CharacterTemplate = {
     'Veu del valor': 'icons/000000/transparent/1x1/lorc/rally-the-troops.svg',
     'Eco protector': 'icons/000000/transparent/1x1/lorc/shield-echoes.svg',
     'Melodia encisadora': 'icons/000000/transparent/1x1/lorc/charm.svg',
-    'Himne de batalla': 'icons/000000/transparent/1x1/lorc/music-spell.svg',
+    'Cançó hipnòtica': 'icons/000000/transparent/1x1/lorc/oily-spiral.svg',
     'Rèquiem': 'icons/000000/transparent/1x1/lorc/death-note.svg',
+    'Balada heroica': 'icons/000000/transparent/1x1/delapouite/musical-notes.svg',
   },
   createCards: () => [
     new Card('Acord dissonant', CardType.MagicAttack)
@@ -30,7 +32,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
     new Card('Veu del valor', CardType.Focus)
       .withSpeedMod(-2)
       .withEffect({ type: 'VoiceOfValor' })
-      .withDescription("Tria un aliat ferit. Recupera 1 vida i guanya {F}+2 i {M}+2 per la resta del combat."),
+      .withDescription("Tria un aliat ferit. Cura 1 vida i guanya {F}+2 i {M}+2 per la resta del combat."),
     new Card('Eco protector', CardType.Defense)
       .withDefense(new DiceRoll(1, 6))
       .withSpeedMod(1)
@@ -40,14 +42,26 @@ export const BARD_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(-5)
       .withEffect({ type: 'Charm' })
       .withDescription("Tria un enemic. El seu següent torn és cancel·lat i, confós, fereix un aliat aleatori del seu equip."),
-    new Card('Himne de batalla', CardType.MagicAttack)
+    new Card('Cançó hipnòtica', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
-      .withEffect({ type: 'Crossfire', maxBonus: 4 })
-      .withDescription("Guanyes +1 a l'atac per cada aliat que també ataqui (màx +4)."),
+      .withEffect({ type: 'HypnoticSong', dice: new DiceRoll(1, 20), threshold: 10, turns: 2 })
+      .withDescription("**1d20 > 10**: l'enemic juga una carta aleatòria durant els següents 2 torns."),
     new Card('Rèquiem', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'Requiem' })
       .withDescription("Tots els enemics que hagin perdut vides en perden una altra."),
+    new Card('Balada heroica', CardType.Focus)
+      .withSpeedMod(-3)
+      .withEffect({
+        type: 'CharacteristicModifier',
+        modifiers: [
+          { characteristic: 'strength', amount: 2 },
+          { characteristic: 'magic', amount: 2 },
+        ],
+        target: 'allies',
+        duration: ModifierDuration.RestOfCombat,
+      })
+      .withDescription('Tots els aliats guanyen {F}+2 i {M}+2 per la resta del combat.'),
   ],
 };

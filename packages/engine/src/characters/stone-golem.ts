@@ -9,7 +9,7 @@ export const STONE_GOLEM_TEMPLATE: CharacterTemplate = {
   classCss: 'golem-de-pedra',
   iconPath: 'icons/000000/transparent/1x1/delapouite/rock-golem.svg',
   category: 'enemy',
-  baseStrength: 7,
+  baseStrength: 6,
   baseMagic: 0,
   baseDefense: 7,
   baseSpeed: 1,

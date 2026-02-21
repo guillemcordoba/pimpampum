@@ -5,6 +5,7 @@ import {
   STAT_ICONS,
 } from '@pimpampum/engine';
 import type { Card, EquipmentTemplate } from '@pimpampum/engine';
+import { EquipmentSlot } from '@pimpampum/engine';
 
 export interface CardStat {
   iconPath: string;
@@ -64,26 +65,36 @@ const STAT_TOKEN_MAP: Record<string, string> = {
   '{V}': base + STAT_ICONS.speed,
 };
 
-/** Convert {F}, {M}, {D}, {V} tokens in description text to inline icon HTML */
+/** Convert {F}, {M}, {D}, {V} tokens and **bold** in description text to inline HTML */
 export function renderDescription(text: string): string {
-  return text.replace(/\{[FMDV]\}/g, (token) => {
-    const src = STAT_TOKEN_MAP[token];
-    return src ? `<img src="${src}" class="rules-icon" alt="${token[1]}">` : token;
-  });
+  return text
+    .replace(/\{[FMDV]\}/g, (token) => {
+      const src = STAT_TOKEN_MAP[token];
+      return src ? `<img src="${src}" class="rules-icon" alt="${token[1]}">` : token;
+    })
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }
 
 export function equipmentToDisplayProps(template: EquipmentTemplate): CardDisplayProps {
   const stats: CardStat[] = [];
+  const isConsumable = template.slot === EquipmentSlot.Consumable;
 
-  stats.push({ iconPath: STAT_ICONS.defense, value: template.defenseLabel });
-  stats.push({ iconPath: STAT_ICONS.speed, value: template.speedLabel });
+  if (!template.effectLabel || isConsumable) {
+    if (template.defenseLabel !== '-') {
+      stats.push({ iconPath: STAT_ICONS.defense, value: template.defenseLabel });
+    }
+    if (template.speedLabel !== '-') {
+      stats.push({ iconPath: STAT_ICONS.speed, value: template.speedLabel });
+    }
+  }
 
   return {
     name: template.name,
-    subtitle: `Objecte | ${template.slotLabel}`,
+    subtitle: isConsumable ? 'Objecte consumible / Focus' : `Objecte | ${template.slotLabel}`,
     classCss: 'objecte',
-    typeCss: 'defensa',
+    typeCss: isConsumable ? 'focus' : 'defensa',
     iconPath: template.iconPath,
+    effectText: template.effectLabel,
     stats,
     smallName: false,
   };

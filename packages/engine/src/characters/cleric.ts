@@ -1,5 +1,6 @@
 import { Card, CardType } from '../card.js';
 import { DiceRoll } from '../dice.js';
+import { ModifierDuration } from '../modifier.js';
 import type { CharacterTemplate } from '../character.js';
 
 export const CLERIC_TEMPLATE: CharacterTemplate = {
@@ -17,9 +18,10 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
     'Toc de la mort': 'icons/000000/transparent/1x1/lorc/death-zone.svg',
     'Drenatge vital': 'icons/000000/transparent/1x1/lorc/bleeding-eye.svg',
     'Maledicció mortal': 'icons/000000/transparent/1x1/lorc/cursed-star.svg',
-    'Sudari protector': 'icons/000000/transparent/1x1/lorc/shining-claw.svg',
+    'Mantell diví': 'icons/000000/transparent/1x1/lorc/shining-claw.svg',
     'Invocació espiritual': 'icons/000000/transparent/1x1/lorc/angel-wings.svg',
     'Curació': 'icons/000000/transparent/1x1/delapouite/healing.svg',
+    'Benedicció': 'icons/000000/transparent/1x1/lorc/beams-aura.svg',
   },
   createCards: () => [
     new Card('Toc de la mort', CardType.MagicAttack)
@@ -31,12 +33,12 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(-1)
       .withEffect({ type: 'LifeDrain' })
-      .withDescription('Si fa mal, recupera 1 vida.'),
+      .withDescription('Si fa mal, cura 1 vida.'),
     new Card('Maledicció mortal', CardType.Focus)
       .withSpeedMod(-3)
       .withEffect({ type: 'DeathCurse', dice: new DiceRoll(1, 4) })
       .withDescription("Tria un enemic. Tu i tots els aliats rebeu +1d4 atacant-lo per la resta del combat."),
-    new Card('Sudari protector', CardType.Defense)
+    new Card('Mantell diví', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(2)
       .withEffect({ type: 'ShroudDebuff', amount: 2 })
@@ -48,6 +50,18 @@ export const CLERIC_TEMPLATE: CharacterTemplate = {
     new Card('Curació', CardType.Focus)
       .withSpeedMod(2)
       .withEffect({ type: 'HealAlly', amount: 2 })
-      .withDescription('Tria un aliat. Recupera 2 vides.'),
+      .withDescription('Tria un aliat. Cura 2 vides.'),
+    new Card('Benedicció', CardType.Focus)
+      .withSpeedMod(3)
+      .withEffect({
+        type: 'CharacteristicModifier',
+        modifiers: [
+          { characteristic: 'strength', amount: 2 },
+          { characteristic: 'magic', amount: 2 },
+        ],
+        target: 'allies',
+        duration: ModifierDuration.ThisTurn,
+      })
+      .withDescription("Tots els aliats reben {F}+2 i {M}+2 aquest torn."),
   ],
 };

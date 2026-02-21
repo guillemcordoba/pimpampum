@@ -9,7 +9,7 @@ export const SPINED_DEVIL_TEMPLATE: CharacterTemplate = {
   iconPath: 'icons/000000/transparent/1x1/lorc/imp.svg',
   category: 'enemy',
   baseStrength: 2,
-  baseMagic: 2,
+  baseMagic: 1,
   baseDefense: 2,
   baseSpeed: 4,
   baseLives: 2,

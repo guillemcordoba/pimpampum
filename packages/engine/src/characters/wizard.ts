@@ -47,7 +47,7 @@ export const WIZARD_TEMPLATE: CharacterTemplate = {
       .withDescription("Tria un enemic. Si juga una carta màgica o de Focus, s'anul·la. No afecta atacs físics ni defenses."),
     new Card('Polimorfisme', CardType.Focus)
       .withSpeedMod(-3)
-      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: -4 }, { characteristic: 'magic', amount: -4 }, { characteristic: 'defense', amount: -3 }], target: 'enemy', duration: ModifierDuration.NextTwoTurns })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'strength', amount: -4 }, { characteristic: 'magic', amount: -4 }, { characteristic: 'defense', amount: -3 }], target: 'enemy', duration: ModifierDuration.NextNTurns(2) })
       .withDescription("Transforma un enemic en un gripau. L'enemic té {F}-4, {M}-4 i {D}-3 els dos pròxims torns."),
   ],
 };

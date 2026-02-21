@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
 import type { CharacterTemplate } from '@pimpampum/engine';
-import { ModifierDuration, CARD_ICONS, STAT_ICONS } from '@pimpampum/engine';
+import { CARD_ICONS, STAT_ICONS } from '@pimpampum/engine';
 
 const base = import.meta.env.BASE_URL;
 
@@ -26,7 +26,7 @@ const modifierBadges = computed(() => {
   return props.character.modifiers.map(m => {
     const sign = m.value >= 0 ? '+' : '';
     const val = m.dice ? m.dice.toString() : `${sign}${m.value}`;
-    const pending = m.duration === ModifierDuration.NextTurn || m.duration === ModifierDuration.NextTwoTurns;
+    const pending = typeof m.duration === 'object' && m.duration.pending;
     return {
       text: `${m.stat.charAt(0).toUpperCase()} ${val}`,
       positive: m.value >= 0,

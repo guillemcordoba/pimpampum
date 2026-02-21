@@ -1,12 +1,15 @@
 import { DiceRoll } from './dice.js';
 
-export enum ModifierDuration {
-  ThisTurn = 'ThisTurn',
-  NextTurn = 'NextTurn',
-  ThisAndNextTurn = 'ThisAndNextTurn',
-  NextTwoTurns = 'NextTwoTurns',
-  RestOfCombat = 'RestOfCombat',
-}
+export type ModifierDuration =
+  | 'ThisTurn'
+  | 'RestOfCombat'
+  | { remaining: number; pending: boolean };
+
+export const ModifierDuration = {
+  ThisTurn: 'ThisTurn' as const,
+  RestOfCombat: 'RestOfCombat' as const,
+  NextNTurns(n: number): ModifierDuration { return { remaining: n, pending: true }; },
+};
 
 export class CombatModifier {
   public dice: DiceRoll | null = null;

@@ -26,6 +26,7 @@ const emit = defineEmits<{
       :selected="selectedCardIdx === i"
       :disabled="disabled"
       :set-aside="setAsideIndices?.has(i) ?? false"
+      :consumed="card.consumed"
       @select="emit('selectCard', i)"
     />
   </div>

@@ -17,7 +17,7 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
   cardIcons: {
     'Ràbia': 'icons/000000/transparent/1x1/lorc/wolf-howl.svg',
     'Destral de guerra': 'icons/000000/transparent/1x1/lorc/battle-axe.svg',
-    'Cop Demolidor': 'icons/000000/transparent/1x1/lorc/hammer-drop.svg',
+    'Atac Temerari': 'icons/000000/transparent/1x1/lorc/hammer-drop.svg',
     'Frenesia': 'icons/000000/transparent/1x1/lorc/flame-claws.svg',
     'Venjança': 'icons/000000/transparent/1x1/lorc/spiked-armor.svg',
     'Rugit intimidant': 'icons/000000/transparent/1x1/lorc/shouting.svg',
@@ -30,9 +30,11 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
     new Card('Destral de guerra', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(-1),
-    new Card('Cop Demolidor', CardType.PhysicalAttack)
+    new Card('Atac Temerari', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 10))
-      .withSpeedMod(-3),
+      .withSpeedMod(-1)
+      .withEffect({ type: 'RecklessAttack', defenseReduction: 3 })
+      .withDescription('{D}-3 aquest torn i el següent.'),
     new Card('Frenesia', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))
       .withSpeedMod(1)
@@ -46,6 +48,6 @@ export const BARBARIAN_TEMPLATE: CharacterTemplate = {
     new Card('Rugit intimidant', CardType.Focus)
       .withSpeedMod(1)
       .withEffect({ type: 'IntimidatingRoar', dice: new DiceRoll(1, 6), threshold: 3 })
-      .withDescription("Per cada oponent: compara {F}+1d6 amb ({F}+{M})+3 de l'oponent. Si supera, queda atordit aquest torn."),
+      .withDescription("Per cada oponent: **{F}+1d6 teva > {F}+{M}+3 enemic**: l'enemic queda atordit aquest torn, es cancel·la la seva acció."),
   ],
 };

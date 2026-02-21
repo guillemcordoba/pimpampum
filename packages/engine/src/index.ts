@@ -1,7 +1,7 @@
 export { DiceRoll } from './dice.js';
-export { Equipment, EquipmentSlot, createArmaduraDeFerro, createCotaDeMalla, createArmaduraDeCuir, createBracalsDeCuir, ALL_EQUIPMENT } from './equipment.js';
+export { Equipment, EquipmentSlot, createArmaduraDeFerro, createCotaDeMalla, createArmaduraDeCuir, createBracalsDeCuir, createPocioDeGuaricio, ALL_EQUIPMENT } from './equipment.js';
 export type { EquipmentTemplate } from './equipment.js';
-export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement, getCardTargetCount } from './card.js';
+export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement, getCardTargetCount, isHealingCard } from './card.js';
 export type { SpecialEffect, TargetRequirement } from './card.js';
 export { CombatModifier, ModifierDuration } from './modifier.js';
 export { Character, createCharacter } from './character.js';

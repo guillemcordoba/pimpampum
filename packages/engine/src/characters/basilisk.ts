@@ -12,7 +12,7 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
   baseMagic: 0,
   baseDefense: 9,
   baseSpeed: 2,
-  baseLives: 9,
+  baseLives: 10,
   cardIcons: {
     'Mossegada verinosa': 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
     'Cop de cua': 'icons/000000/transparent/1x1/lorc/spiked-tail.svg',
@@ -26,7 +26,7 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(0)
       .withEffect({ type: 'VenomBite' })
-      .withDescription("Si fa ferida, l'enemic perd una vida addicional el començament del següent torn."),
+      .withDescription("Si fa ferida, l'enemic perd una vida addicional al final del següent torn."),
     new Card('Cop de cua', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 8))
       .withSpeedMod(2)
@@ -40,13 +40,13 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
     new Card('Mirada petrificant', CardType.Focus)
       .withSpeedMod(-2)
       .withEffect({ type: 'PetrifyingGaze', dice: new DiceRoll(1, 6), threshold: 3, turns: 3 })
-      .withDescription('Cada enemic tira 1d6. Els que treuen 3 o menys queden petrificats: atordits i salten els 3 propers torns.'),
+      .withDescription('Per cada enemic: **1d6 < 3**: queda petrificat, salta els 3 propers torns.'),
     new Card('Escames impenetrables', CardType.Defense)
       .withDefense(new DiceRoll(1, 8))
       .withSpeedMod(4),
     new Card('Regeneració', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'Regenerate', amount: 2 })
-      .withDescription('Recupera 2 vides.'),
+      .withDescription('Cura 2 vides.'),
   ],
 };

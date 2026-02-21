@@ -49,7 +49,7 @@ export const SORCERER_TEMPLATE: CharacterTemplate = {
       .withDescription('Detona totes les marques arcanes. Cada marca causa 1 ferida.'),
     new Card('Distorsió temporal', CardType.Focus)
       .withSpeedMod(-4)
-      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -2 }], target: 'enemies', duration: ModifierDuration.RestOfCombat })
-      .withDescription('Tots els enemics reben {V}-2 per la resta del combat.'),
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -2 }], target: 'enemies', duration: ModifierDuration.NextNTurns(3) })
+      .withDescription('Tots els enemics reben {V}-2 durant 3 torns.'),
   ],
 };

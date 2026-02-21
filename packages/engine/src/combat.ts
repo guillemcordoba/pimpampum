@@ -94,13 +94,9 @@ function cardTypeStr(cardType: CardType): string {
 /** How many turns a focus card should be set aside after resolving (-1 = permanent, 0 = not set aside) */
 function getSetAsideDuration(effect: SpecialEffect): number {
   if (effect.type === 'CharacteristicModifier') {
-    switch (effect.duration) {
-      case ModifierDuration.RestOfCombat: return -1;
-      case ModifierDuration.NextTwoTurns: return 3;
-      case ModifierDuration.NextTurn:
-      case ModifierDuration.ThisAndNextTurn: return 2;
-      default: return 0;
-    }
+    if (effect.duration === 'RestOfCombat') return -1;
+    if (typeof effect.duration === 'object') return effect.duration.remaining + 1;
+    return 0;
   }
   switch (effect.type) {
     // RestOfCombat effects — permanent set-aside
@@ -194,12 +190,29 @@ export class CombatEngine {
       .filter(i => i >= 0);
   }
 
+  getDefeatedAllies(team: number, excludeIdx?: number): number[] {
+    const allyTeam = team === 1 ? this.team1 : this.team2;
+    return allyTeam
+      .map((c, i) => !c.isAlive() && i !== excludeIdx ? i : -1)
+      .filter(i => i >= 0);
+  }
+
   private getTeam(team: number): Character[] {
     return team === 1 ? this.team1 : this.team2;
   }
 
   private getEnemyTeam(team: number): Character[] {
     return team === 1 ? this.team2 : this.team1;
+  }
+
+  /** Select a random available (non-set-aside, non-consumed) card for a hypnotized character */
+  private selectRandomCard(character: Character): number {
+    const available: number[] = [];
+    for (let i = 0; i < character.cards.length; i++) {
+      if (!character.isCardSetAside(i) && !character.cards[i].consumed) available.push(i);
+    }
+    character.forceRandomCardTurns--;
+    return available[Math.floor(Math.random() * available.length)];
   }
 
   private recordPlay(cardName: string, cardType: string): void {
@@ -550,7 +563,7 @@ export class CombatEngine {
         const recipient = this.getTeam(woundTeam)[woundIdx];
         if (recipient.isAlive()) {
           recipient.modifiers.push(
-            new CombatModifier('strength', -card.effect.strengthReduction, ModifierDuration.NextTwoTurns).withSource(card.name),
+            new CombatModifier('strength', -card.effect.strengthReduction, ModifierDuration.NextNTurns(2)).withSource(card.name),
           );
           this.log(`  → ${woundName} gets F-${card.effect.strengthReduction} for 2 turns from infernal fire!`);
           this.addLog({ type: 'effect', text: `${woundName} gets F-${card.effect.strengthReduction} for 2 turns!`, characterName: woundName });
@@ -578,7 +591,7 @@ export class CombatEngine {
         if (defender.hasCounterThrow) {
           const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
           attackerMut.modifiers.push(
-            new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource('Clon de fum'),
+            new CombatModifier('speed', -3, ModifierDuration.NextNTurns(1)).withSource('Clon de fum'),
           );
           this.log(`  → ${attackerName} is thrown off balance by ${defenderInfo[2]}! V-3 next turn.`);
           this.addLog({ type: 'effect', text: `${attackerName} gets V-3 next turn from Clon de fum!`, characterName: attackerName });
@@ -587,10 +600,10 @@ export class CombatEngine {
         if (defender.hasShroudDebuff) {
           const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
           attackerMut.modifiers.push(
-            new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource('Sudari protector'),
+            new CombatModifier('strength', -2, ModifierDuration.NextNTurns(1)).withSource('Mantell diví'),
           );
           this.log(`  → ${attackerName} is weakened by ${defenderInfo[2]}'s shroud! F-2 next turn.`);
-          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Sudari protector!`, characterName: attackerName });
+          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Mantell diví!`, characterName: attackerName });
         }
       }
       return true;
@@ -678,7 +691,7 @@ export class CombatEngine {
           const attackerForCW = this.getTeam(attackerTeam)[attackerIdx];
           if (attackerForCW.isAlive()) {
             attackerForCW.modifiers.push(
-              new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource('Barrera arcana'),
+              new CombatModifier('speed', -3, ModifierDuration.NextNTurns(1)).withSource('Barrera arcana'),
             );
             this.log(`  → ${defNameCW}'s cursed ward slows ${attackerName}! V-3 next turn.`);
             this.addLog({ type: 'effect', text: `La barrera arcana de ${defNameCW} alenteix ${attackerName}! {V}-3 el pròxim torn.`, characterName: attackerName });
@@ -692,7 +705,7 @@ export class CombatEngine {
         const defenderSA = this.getTeam(defTeamSA)[defIdxSA];
         if (defenderSA.hasSpellAbsorption && !isPhysical(card.cardType) && defenderSA.isAlive()) {
           defenderSA.modifiers.push(
-            new CombatModifier('magic', 2, ModifierDuration.NextTurn).withSource('Absorció màgica'),
+            new CombatModifier('magic', 2, ModifierDuration.NextNTurns(1)).withSource('Absorció màgica'),
           );
           this.log(`  → ${defNameSA} absorbs magical energy! M+2 next turn.`);
           this.addLog({ type: 'effect', text: `${defNameSA} absorbeix energia màgica! M+2 el pròxim torn.`, characterName: defNameSA });
@@ -700,7 +713,7 @@ export class CombatEngine {
           const attackerForAbs = this.getTeam(attackerTeam)[attackerIdx];
           if (attackerForAbs.isAlive()) {
             attackerForAbs.modifiers.push(
-              new CombatModifier('magic', -2, ModifierDuration.NextTurn).withSource('Absorció màgica'),
+              new CombatModifier('magic', -2, ModifierDuration.NextNTurns(1)).withSource('Absorció màgica'),
             );
             this.log(`  → ${attackerName} is drained! M-2 next turn.`);
             this.addLog({ type: 'effect', text: `${attackerName} perd energia! M-2 el pròxim torn.`, characterName: attackerName });
@@ -740,7 +753,7 @@ export class CombatEngine {
         if (defender.hasCounterThrow) {
           const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
           attackerMut.modifiers.push(
-            new CombatModifier('speed', -3, ModifierDuration.NextTurn).withSource('Clon de fum'),
+            new CombatModifier('speed', -3, ModifierDuration.NextNTurns(1)).withSource('Clon de fum'),
           );
           this.log(`  → ${attackerName} is thrown off balance by ${defName}! V-3 next turn.`);
           this.addLog({ type: 'effect', text: `${attackerName} gets V-3 next turn from Clon de fum!`, characterName: attackerName });
@@ -750,10 +763,10 @@ export class CombatEngine {
         if (defender.hasShroudDebuff) {
           const attackerMut = this.getTeam(attackerTeam)[attackerIdx];
           attackerMut.modifiers.push(
-            new CombatModifier('strength', -2, ModifierDuration.NextTurn).withSource('Sudari protector'),
+            new CombatModifier('strength', -2, ModifierDuration.NextNTurns(1)).withSource('Mantell diví'),
           );
           this.log(`  → ${attackerName} is weakened by ${defName}'s shroud! F-2 next turn.`);
-          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Sudari protector!`, characterName: attackerName });
+          this.addLog({ type: 'effect', text: `${attackerName} gets F-2 next turn from Mantell diví!`, characterName: attackerName });
         }
       }
       return false;
@@ -885,10 +898,10 @@ export class CombatEngine {
           const target = this.getTeam(eTeam)[ti];
           if (target.isAlive()) {
             target.modifiers.push(
-              new CombatModifier('strength', -card.effect.strengthDebuff, ModifierDuration.NextTurn).withSource(card.name),
+              new CombatModifier('strength', -card.effect.strengthDebuff, ModifierDuration.NextNTurns(1)).withSource(card.name),
             );
             target.modifiers.push(
-              new CombatModifier('magic', -card.effect.magicDebuff, ModifierDuration.NextTurn).withSource(card.name),
+              new CombatModifier('magic', -card.effect.magicDebuff, ModifierDuration.NextNTurns(1)).withSource(card.name),
             );
             this.log(`  → ${target.name} gets F-${card.effect.strengthDebuff} and M-${card.effect.magicDebuff} next turn!`);
             this.addLog({ type: 'effect', text: `${target.name} gets F-${card.effect.strengthDebuff} and M-${card.effect.magicDebuff} next turn!`, characterName: target.name });
@@ -902,7 +915,7 @@ export class CombatEngine {
           for (const idx of enemies) {
             for (const stat of ['strength', 'magic', 'defense', 'speed'] as const) {
               enemyTeam[idx].modifiers.push(
-                new CombatModifier(stat, -1, ModifierDuration.NextTurn).withSource(card.name),
+                new CombatModifier(stat, -1, ModifierDuration.NextNTurns(1)).withSource(card.name),
               );
             }
           }
@@ -915,7 +928,7 @@ export class CombatEngine {
           const attacker = this.getTeam(charTeam)[charIdx];
           if (attacker.isAlive()) {
             attacker.modifiers.push(
-              new CombatModifier('speed', 3, ModifierDuration.NextTurn).withSource(card.name),
+              new CombatModifier('speed', 3, ModifierDuration.NextNTurns(1)).withSource(card.name),
             );
             this.log(`  → ${charName} gains +3 speed next turn!`);
             this.addLog({ type: 'effect', text: `${charName} gains +3 speed next turn!`, characterName: charName });
@@ -929,6 +942,22 @@ export class CombatEngine {
             target.silencedTurns = 2;
             this.log(`  → ${target.name} is silenced for 2 turns! Focus cards will be interrupted.`);
             this.addLog({ type: 'effect', text: `${target.name} is silenced for 2 turns!`, characterName: target.name });
+          }
+        }
+
+        // HypnoticSong: roll dice, if above threshold target plays random cards
+        if (card.effect.type === 'HypnoticSong') {
+          const target = this.getTeam(eTeam)[ti];
+          if (target.isAlive()) {
+            const roll = card.effect.dice.roll();
+            if (roll > card.effect.threshold) {
+              target.forceRandomCardTurns = card.effect.turns;
+              this.log(`  → Hypnotic song roll: ${roll} > ${card.effect.threshold} — ${target.name} is hypnotized for ${card.effect.turns} turns!`);
+              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} > ${card.effect.threshold}): ${target.name} hipnotitzat ${card.effect.turns} torns!`, characterName: target.name });
+            } else {
+              this.log(`  → Hypnotic song roll: ${roll} ≤ ${card.effect.threshold} — ${target.name} resists!`);
+              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} ≤ ${card.effect.threshold}): ${target.name} resisteix!`, characterName: target.name });
+            }
           }
         }
 
@@ -1028,11 +1057,12 @@ export class CombatEngine {
       // Handle Reckless Attack
       if (card.effect.type === 'RecklessAttack') {
         const attacker = this.getTeam(charTeam)[charIdx];
+        const defRed = card.effect.defenseReduction;
         attacker.modifiers.push(
-          new CombatModifier('defense', -2, ModifierDuration.ThisAndNextTurn).withSource(card.name),
+          new CombatModifier('defense', -defRed, { remaining: 1, pending: false }).withSource(card.name),
         );
-        this.log(`  → ${charName} gets -2 defense this and next turn!`);
-        this.addLog({ type: 'effect', text: `${charName} gets -2 defense this and next turn!`, characterName: charName });
+        this.log(`  → ${charName} gets -${defRed} defense this and next turn!`);
+        this.addLog({ type: 'effect', text: `${charName} gets -${defRed} defense this and next turn!`, characterName: charName });
       }
 
       // Handle skip turns
@@ -1161,8 +1191,8 @@ export class CombatEngine {
         case 'DodgeWithSpeedBoost': {
           const ch = this.getTeam(charTeam)[charIdx];
           ch.dodging = true;
-          ch.modifiers.push(new CombatModifier('speed', 5, ModifierDuration.NextTurn).withSource(card.name));
-          ch.modifiers.push(new CombatModifier('strength', 4, ModifierDuration.NextTurn).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('speed', 5, ModifierDuration.NextNTurns(1)).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('strength', 4, ModifierDuration.NextNTurns(1)).withSource(card.name));
           this.log(`  → ${charName} will dodge all attacks this turn, +5 speed and +4 strength next turn!`);
           this.addLog({ type: 'effect', text: `${charName} dodges all attacks, +5 speed and +4 strength next turn!`, characterName: charName });
           break;
@@ -1170,7 +1200,7 @@ export class CombatEngine {
         case 'WindStance': {
           const ch = this.getTeam(charTeam)[charIdx];
           ch.dodging = true;
-          ch.modifiers.push(new CombatModifier('strength', card.effect.strengthBoost, ModifierDuration.NextTurn).withSource(card.name));
+          ch.modifiers.push(new CombatModifier('strength', card.effect.strengthBoost, ModifierDuration.NextNTurns(1)).withSource(card.name));
           this.log(`  → ${charName} enters a wind stance! Dodges all attacks, +${card.effect.strengthBoost} strength next turn!`);
           this.addLog({ type: 'effect', text: `${charName} adopta la postura del vent! Esquiva tots els atacs, +${card.effect.strengthBoost} força el torn següent!`, characterName: charName });
           break;
@@ -1348,20 +1378,31 @@ export class CombatEngine {
           if (healOverrides?.allyTarget && healOverrides.allyTarget[0] === charTeam) {
             healIdx = healOverrides.allyTarget[1];
           } else {
-            // AI: pick most hurt ally (lowest lives)
-            const allies = this.getLivingAllies(charTeam);
-            const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
-            if (hurt.length > 0) {
-              healIdx = hurt.reduce((b, i) =>
-                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+            // AI: prefer defeated allies (recuperation), then most hurt living ally
+            const defeated = this.getDefeatedAllies(charTeam);
+            if (defeated.length > 0) {
+              healIdx = defeated[0];
+            } else {
+              const allies = this.getLivingAllies(charTeam);
+              const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+              if (hurt.length > 0) {
+                healIdx = hurt.reduce((b, i) =>
+                  allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+              }
             }
           }
           if (healIdx !== null && allyTeam[healIdx].currentLives < allyTeam[healIdx].maxLives) {
+            const wasDefeated = allyTeam[healIdx].currentLives === 0;
             const healAmount = Math.min(card.effect.amount, allyTeam[healIdx].maxLives - allyTeam[healIdx].currentLives);
             allyTeam[healIdx].currentLives += healAmount;
             const tName = allyTeam[healIdx].name;
-            this.log(`  → ${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
-            this.addLog({ type: 'effect', text: `${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            if (wasDefeated) {
+              this.log(`  → ${charName} recuperates ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} recupera ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            } else {
+              this.log(`  → ${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} heals ${tName} for ${healAmount} life/lives! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            }
           } else {
             this.log(`  → ${charName} tries to heal but no one is hurt.`);
             this.addLog({ type: 'effect', text: `${charName} tries to heal but no one is hurt.`, characterName: charName });
@@ -1443,7 +1484,7 @@ export class CombatEngine {
           for (const idx of enemies) {
             for (const stat of ['strength', 'magic', 'defense', 'speed'] as const) {
               enemyTeam[idx].modifiers.push(
-                new CombatModifier(stat, -card.effect.statReduction, ModifierDuration.ThisAndNextTurn).withSource(card.name),
+                new CombatModifier(stat, -card.effect.statReduction, { remaining: 1, pending: false }).withSource(card.name),
               );
             }
             this.log(`  → ${enemyTeam[idx].name} is terrified! All stats -${card.effect.statReduction} for 2 turns!`);
@@ -1510,20 +1551,26 @@ export class CombatEngine {
           if (vovOverrides?.allyTarget && vovOverrides.allyTarget[0] === charTeam) {
             vovIdx = vovOverrides.allyTarget[1];
           } else {
-            // AI: pick most hurt ally (lowest lives)
-            const allies = this.getLivingAllies(charTeam);
-            const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
-            if (hurt.length > 0) {
-              vovIdx = hurt.reduce((b, i) =>
-                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+            // AI: prefer defeated allies (recuperation), then most hurt living ally, then self
+            const defeated = this.getDefeatedAllies(charTeam);
+            if (defeated.length > 0) {
+              vovIdx = defeated[0];
             } else {
-              // No wounded allies — check self
-              if (character.currentLives < character.maxLives) {
-                vovIdx = charIdx;
+              const allies = this.getLivingAllies(charTeam);
+              const hurt = allies.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+              if (hurt.length > 0) {
+                vovIdx = hurt.reduce((b, i) =>
+                  allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+              } else {
+                // No wounded allies — check self
+                if (character.currentLives < character.maxLives) {
+                  vovIdx = charIdx;
+                }
               }
             }
           }
           if (vovIdx !== null && allyTeam[vovIdx].currentLives < allyTeam[vovIdx].maxLives) {
+            const wasDefeated = allyTeam[vovIdx].currentLives === 0;
             const target = allyTeam[vovIdx];
             target.currentLives++;
             target.modifiers.push(
@@ -1533,8 +1580,13 @@ export class CombatEngine {
               new CombatModifier('magic', 2, ModifierDuration.RestOfCombat).withSource(card.name),
             );
             const tName = target.name;
-            this.log(`  → ${charName} sings the Voice of Valor for ${tName}! Heals 1 life and gains +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`);
-            this.addLog({ type: 'effect', text: `${charName} inspires ${tName}! Heals 1 life, +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`, characterName: charName });
+            if (wasDefeated) {
+              this.log(`  → ${charName} sings the Voice of Valor and recuperates ${tName}! +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} inspira i recupera ${tName}! +2F/+2M per la resta del combat! (${target.currentLives}/${target.maxLives})`, characterName: charName });
+            } else {
+              this.log(`  → ${charName} sings the Voice of Valor for ${tName}! Heals 1 life and gains +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} inspires ${tName}! Heals 1 life, +2F/+2M for rest of combat! (${target.currentLives}/${target.maxLives})`, characterName: charName });
+            }
           } else {
             this.log(`  → ${charName} sings the Voice of Valor but no one is wounded.`);
             this.addLog({ type: 'effect', text: `${charName} sings but no one is wounded.`, characterName: charName });
@@ -1629,20 +1681,31 @@ export class CombatEngine {
           if (healOverrides?.allyTarget && healOverrides.allyTarget[0] === charTeam) {
             healIdx = healOverrides.allyTarget[1];
           } else {
-            // AI: pick most hurt ally (or self)
-            const allies = this.getLivingAllies(charTeam);
-            const allCandidates = [...allies, charIdx];
-            const hurt = allCandidates.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
-            if (hurt.length > 0) {
-              healIdx = hurt.reduce((b, i) =>
-                allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+            // AI: prefer defeated allies (recuperation), then most hurt living ally (or self)
+            const defeated = this.getDefeatedAllies(charTeam);
+            if (defeated.length > 0) {
+              healIdx = defeated[0];
+            } else {
+              const allies = this.getLivingAllies(charTeam);
+              const allCandidates = [...allies, charIdx];
+              const hurt = allCandidates.filter(i => allyTeam[i].currentLives < allyTeam[i].maxLives);
+              if (hurt.length > 0) {
+                healIdx = hurt.reduce((b, i) =>
+                  allyTeam[i].currentLives < allyTeam[b].currentLives ? i : b, hurt[0]);
+              }
             }
           }
           if (healIdx !== null && allyTeam[healIdx].currentLives < allyTeam[healIdx].maxLives) {
+            const wasDefeated = allyTeam[healIdx].currentLives === 0;
             allyTeam[healIdx].currentLives++;
             const tName = allyTeam[healIdx].name;
-            this.log(`  → ${charName} lays hands on ${tName}! Healed to (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
-            this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            if (wasDefeated) {
+              this.log(`  → ${charName} lays hands on ${tName} and recuperates them! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} recupera ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            } else {
+              this.log(`  → ${charName} lays hands on ${tName}! Healed to (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`);
+              this.addLog({ type: 'effect', text: `${charName} heals ${tName}! (${allyTeam[healIdx].currentLives}/${allyTeam[healIdx].maxLives})`, characterName: charName });
+            }
 
             // Cleanse negative modifiers and silence
             const target = allyTeam[healIdx];
@@ -1767,6 +1830,11 @@ export class CombatEngine {
           character.setAsideCards.set(character.playedCardIdx, duration);
         }
       }
+
+      // Consume consumable cards after successful focus resolution
+      if (card.isConsumable && !card.consumed) {
+        card.consumed = true;
+      }
     }
 
     // Handle CharacteristicModifier effects (card-type-agnostic — works on any card type)
@@ -1853,7 +1921,7 @@ export class CombatEngine {
       if (hiders.length > 0) {
         for (const hider of hiders) {
           hider.modifiers.push(
-            new CombatModifier('strength', hiders.length, ModifierDuration.NextTurn)
+            new CombatModifier('strength', hiders.length, ModifierDuration.NextNTurns(1))
               .withSource('Amagar-se'),
           );
         }
@@ -1905,7 +1973,7 @@ export class CombatEngine {
   // =========================================================================
 
   /** Prepare a new round: resets state and returns which characters need input */
-  prepareRound(): { skipping: Map<number, Set<number>> } {
+  prepareRound(): { skipping: Map<number, Set<number>>; forcedRandom: Map<number, Map<number, number>> } {
     this.roundNumber++;
     this.coordinatedAmbushTarget = null;
     this.hitThisRound.clear();
@@ -1966,7 +2034,19 @@ export class CombatEngine {
     this.resolveCharmedConfusion(this.team1);
     this.resolveCharmedConfusion(this.team2);
 
-    return { skipping };
+    // Assign random cards for hypnotized characters
+    const forcedRandom = new Map<number, Map<number, number>>();
+    for (const [teamNum, team] of [[1, this.team1], [2, this.team2]] as const) {
+      for (let idx = 0; idx < team.length; idx++) {
+        if (!team[idx].isAlive() || team[idx].forceRandomCardTurns <= 0) continue;
+        if (!forcedRandom.has(teamNum)) forcedRandom.set(teamNum, new Map());
+        const cardIdx = this.selectRandomCard(team[idx]);
+        forcedRandom.get(teamNum)!.set(idx, cardIdx);
+        this.addLog({ type: 'effect', text: `${team[idx].name} està hipnotitzat i juga una carta aleatòria!`, characterName: team[idx].name });
+      }
+    }
+
+    return { skipping, forcedRandom };
   }
 
   /** Submit card selections for both teams and resolve the round */
@@ -2271,12 +2351,16 @@ export class CombatEngine {
     const pendingSelections: [number, number, number][] = [];
     for (let idx = 0; idx < this.team1.length; idx++) {
       if (!this.team1[idx].isAlive() || team1Skipping.has(idx)) continue;
-      const cardIdx = selectCardAI(this.team1[idx], this);
+      const cardIdx = this.team1[idx].forceRandomCardTurns > 0
+        ? this.selectRandomCard(this.team1[idx])
+        : selectCardAI(this.team1[idx], this);
       pendingSelections.push([1, idx, cardIdx]);
     }
     for (let idx = 0; idx < this.team2.length; idx++) {
       if (!this.team2[idx].isAlive() || team2Skipping.has(idx)) continue;
-      const cardIdx = selectCardAI(this.team2[idx], this);
+      const cardIdx = this.team2[idx].forceRandomCardTurns > 0
+        ? this.selectRandomCard(this.team2[idx])
+        : selectCardAI(this.team2[idx], this);
       pendingSelections.push([2, idx, cardIdx]);
     }
     // Reveal: assign all playedCardIdx simultaneously

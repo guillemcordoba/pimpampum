@@ -45,7 +45,7 @@ export const DRUID_TEMPLATE: CharacterTemplate = {
       .withDescription('Transformació en bèstia: {F}+4, {D}+1 i +1 PV per la resta del combat. Un sol ús.'),
     new Card('Lligams de natura', CardType.Focus)
       .withSpeedMod(-2)
-      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -3 }, { characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextTwoTurns })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: -3 }, { characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextNTurns(2) })
       .withDescription('Tria un enemic. {V}-3 i {D}-2 durant els pròxims 2 torns.'),
   ],
 };

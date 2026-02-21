@@ -48,7 +48,7 @@ export type SpecialEffect =
   | { type: 'MultiTarget'; count: number }
   | { type: 'DefendMultiple'; count: number }
   | { type: 'PoisonWeapon' }
-  | { type: 'RecklessAttack' }
+  | { type: 'RecklessAttack'; defenseReduction: number }
   | { type: 'IntimidatingRoar'; dice: DiceRoll; threshold: number }
   | { type: 'CounterThrow' }
   | { type: 'LifeDrain' }
@@ -71,6 +71,7 @@ export type SpecialEffect =
   | { type: 'PackTactics'; alliesPerBonus: number }
   | { type: 'NimbleEscape' }
   | { type: 'Crossfire'; maxBonus: number }
+  | { type: 'HypnoticSong'; dice: DiceRoll; threshold: number; turns: number }
   | { type: 'FireAndRetreat' }
   | { type: 'LingeringFire' }
   | { type: 'DebilitatingVenom'; defenseReduction: number }
@@ -141,6 +142,13 @@ export function getCardTargetRequirement(card: Card): TargetRequirement {
   return 'none';
 }
 
+/** Whether a card is a healing card that can target defeated allies for recuperation */
+export function isHealingCard(card: Card): boolean {
+  return card.effect.type === 'HealAlly'
+    || card.effect.type === 'VoiceOfValor'
+    || card.effect.type === 'LayOnHands';
+}
+
 /** How many targets the player needs to select for a card */
 export function getCardTargetCount(card: Card): number {
   if (card.effect.type === 'MultiTarget') return card.effect.count;
@@ -157,6 +165,8 @@ export class Card {
   public speedMod = 0;
   public effect: SpecialEffect = EFFECT_NONE;
   public description = '';
+  public isConsumable = false;
+  public consumed = false;
 
   constructor(
     public readonly name: string,
@@ -190,6 +200,11 @@ export class Card {
 
   withDescription(description: string): this {
     this.description = description;
+    return this;
+  }
+
+  withConsumable(): this {
+    this.isConsumable = true;
     return this;
   }
 }

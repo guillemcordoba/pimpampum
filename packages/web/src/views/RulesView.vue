@@ -45,7 +45,7 @@
         <h2>Cartes d'atac</h2>
         <p>Hi ha cartes d'<strong>atac físic</strong> i d'<strong>atac màgic</strong>. Quan es resol una carta d'atac, l'atacant tria un objectiu. L'objectiu perd una vida si:</p>
         <p class="formula">Força (o Màgia) de l'atacant + dau &gt; Defensa de l'objectiu</p>
-        <p>Cada impacte fa perdre exactament 1 vida. Un personatge mor quan es queda sense vides.</p>
+        <p>Cada impacte fa perdre exactament 1 vida. Un personatge és derrotat quan es queda sense vides. Es recupera si se li cura una vida.</p>
       </section>
 
       <section>

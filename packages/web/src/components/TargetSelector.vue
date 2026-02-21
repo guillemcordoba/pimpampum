@@ -35,14 +35,14 @@ function onOverlayClick() {
           v-for="(target, i) in targets"
           :key="i"
           class="target-option"
-          :class="{ 'target-selected': multiSelect && isSelected(i) }"
+          :class="{ 'target-selected': multiSelect && isSelected(i), 'target-defeated': !target.isAlive() }"
           @click="emit('select', i)"
         >
           <CharacterPortrait
-            v-if="target.isAlive()"
             :character="target"
             :template="templates[i]"
           />
+          <span v-if="!target.isAlive()" class="defeated-label">Derrotat</span>
         </div>
       </div>
       <button

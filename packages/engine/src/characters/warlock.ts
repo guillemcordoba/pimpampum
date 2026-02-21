@@ -29,7 +29,7 @@ export const WARLOCK_TEMPLATE: CharacterTemplate = {
     new Card('Raig corrosiu', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 6))
       .withSpeedMod(0)
-      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextTurn })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: -2 }], target: 'enemy', duration: ModifierDuration.NextNTurns(1) })
       .withDescription('Si fa mal, l\'enemic rep {D}-2 el pròxim torn.'),
     new Card('Sobrecàrrega', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 8))

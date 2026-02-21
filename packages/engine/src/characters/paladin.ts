@@ -26,7 +26,7 @@ export const PALADIN_TEMPLATE: CharacterTemplate = {
     new Card('Escomesa sagrada', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 6))
       .withSpeedMod(0)
-      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: 1 }], target: 'self', duration: ModifierDuration.NextTurn })
+      .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'defense', amount: 1 }], target: 'self', duration: ModifierDuration.NextNTurns(1) })
       .withDescription('Guanyes {D}+1 el pròxim torn.'),
     new Card('Càstig diví', CardType.PhysicalAttack)
       .withPhysicalAttack(new DiceRoll(1, 4))

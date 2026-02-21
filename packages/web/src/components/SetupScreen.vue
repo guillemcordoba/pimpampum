@@ -78,7 +78,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
                   :key="eq.id"
                   class="equip-toggle"
                   :class="{ active: (playerEquipment[i] ?? []).includes(eq.id) }"
-                  :title="`D:${eq.defenseLabel} V:${eq.speedLabel}`"
+                  :title="eq.effectLabel ?? `D:${eq.defenseLabel} V:${eq.speedLabel}`"
                   @click="toggleEquip('player', i, playerEquipment[i] ?? [], eq.id, slotLabel)"
                 >{{ eq.name }}</button>
               </div>
@@ -154,7 +154,7 @@ function toggleEquip(team: 'player' | 'enemy', charIdx: number, currentIds: stri
                   :key="eq.id"
                   class="equip-toggle"
                   :class="{ active: (enemyEquipment[i] ?? []).includes(eq.id) }"
-                  :title="`D:${eq.defenseLabel} V:${eq.speedLabel}`"
+                  :title="eq.effectLabel ?? `D:${eq.defenseLabel} V:${eq.speedLabel}`"
                   @click="toggleEquip('enemy', i, enemyEquipment[i] ?? [], eq.id, slotLabel)"
                 >{{ eq.name }}</button>
               </div>

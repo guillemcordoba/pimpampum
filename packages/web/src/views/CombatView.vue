@@ -40,7 +40,8 @@ const targetList = computed(() => {
     return game.engine.value.team2.filter(c => c.isAlive());
   }
   return game.engine.value.team1.filter((c, i) => {
-    if (!c.isAlive()) return false;
+    // Healing cards can target defeated allies for recuperation
+    if (!c.isAlive() && !p.isHealing) return false;
     if (p.requirement === 'ally_other' && i === p.charIdx) return false;
     return true;
   });
@@ -56,7 +57,8 @@ const targetTemplates = computed(() => {
   }
   return game.playerTeamTemplates.value.filter((_, i) => {
     const c = game.engine.value!.team1[i];
-    if (!c.isAlive()) return false;
+    // Healing cards can target defeated allies for recuperation
+    if (!c.isAlive() && !p.isHealing) return false;
     if (p.requirement === 'ally_other' && i === p.charIdx) return false;
     return true;
   });
@@ -73,7 +75,7 @@ const selectedFilteredIndices = computed(() => {
   // Build mapping: filtered index → actual team index
   const actualIndices: number[] = [];
   for (let i = 0; i < team.length; i++) {
-    if (!team[i].isAlive()) continue;
+    if (!team[i].isAlive() && !(teamNum === 1 && p.isHealing)) continue;
     if (p.requirement === 'ally_other' && i === p.charIdx) continue;
     actualIndices.push(i);
   }
@@ -102,7 +104,7 @@ function handleTargetSelect(filteredIndex: number) {
   } else {
     const eligible = game.engine.value.team1
       .map((c, i) => {
-        if (!c.isAlive()) return -1;
+        if (!c.isAlive() && !p.isHealing) return -1;
         if (p.requirement === 'ally_other' && i === p.charIdx) return -1;
         return i;
       })
@@ -155,6 +157,7 @@ const showCombatScreen = computed(() => {
       :combat-log="game.combatLog.value"
       :player-selections="game.playerSelections.value"
       :round-skipping="game.roundSkipping.value"
+      :round-forced-random="game.roundForcedRandom.value"
       :phase="game.gamePhase.value"
       :can-confirm="game.canConfirmCards()"
       :action-queue="game.actionQueue.value"

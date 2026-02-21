@@ -57,16 +57,16 @@ export const RULES_SUMMARY: RulesSection[] = [
   {
     title: 'Atac (físic o màgic)',
     type: 'text',
-    text: "Tria un enemic. Si la teva Força total o Màgia total supera la seva Defensa total, perd una vida. Si el personatge es queda sense vides, mor.",
+    text: "Tria un enemic. Si la teva Força total o Màgia total supera la seva Defensa total, perd una vida. Si el personatge es queda sense vides, és derrotat. Es recupera si se li cura una vida.",
   },
   {
     title: 'Defensa',
     type: 'text',
-    text: "Tria un aliat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu. Si un atac d'àrea et colpeja a tu i al teu defensat, només perds una vida.",
+    text: "Tria un aliat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu.",
   },
   {
     title: 'Focus',
     type: 'text',
-    text: "Efecte especial. Es cancel·la si reps un atac durant aquest torn.",
+    text: "Efecte especial. Si reps un atac abans de que es resolgui, es cancel·la.",
   },
 ];

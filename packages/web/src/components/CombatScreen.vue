@@ -18,6 +18,7 @@ const props = defineProps<{
   combatLog: LogEntry[];
   playerSelections: Map<number, PlayerSelection>;
   roundSkipping: Map<number, Set<number>>;
+  roundForcedRandom: Map<number, Map<number, number>>;
   phase: string;
   canConfirm: boolean;
   actionQueue: PlannedAction[];
@@ -36,6 +37,10 @@ const emit = defineEmits<{
 
 function isSkipping(team: number, idx: number): boolean {
   return props.roundSkipping.get(team)?.has(idx) ?? false;
+}
+
+function isForcedRandom(team: number, idx: number): boolean {
+  return props.roundForcedRandom.get(team)?.has(idx) ?? false;
 }
 
 function isHighlighted(team: number, idx: number): boolean {
@@ -81,8 +86,11 @@ const isRevealOrResolving = (phase: string) =>
             <div v-if="isSkipping(1, i)" class="player-section-skip">
               Salta aquest torn
             </div>
+            <div v-else-if="isForcedRandom(1, i)" class="player-section-skip" style="color: var(--magic-color, #6b3fa0);">
+              Hipnotitzat! Carta aleatòria
+            </div>
             <CardHand
-              v-else-if="char.isAlive()"
+              v-if="!isSkipping(1, i) && char.isAlive()"
               :character="char"
               :template="playerTeamTemplates[i]"
               :selected-card-idx="playerSelections.get(i)?.cardIdx ?? null"
