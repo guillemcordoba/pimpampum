@@ -51,7 +51,10 @@ const printCards = reactive<Record<string, Record<string, boolean>>>(
   ),
 );
 const expandedCharacters = ref(new Set<string>());
-const printObjects = ref(true);
+const printEquip = reactive<Record<string, boolean>>(
+  Object.fromEntries(ALL_EQUIPMENT.map(e => [e.name, true])),
+);
+const expandedObjects = ref(false);
 const printRules = ref(true);
 const printRulesCount = ref(3);
 const printSheet = ref(true);
@@ -73,6 +76,11 @@ function toggleCharacter(id: string, checked: boolean) {
 function toggleExpand(id: string) {
   const set = expandedCharacters.value;
   if (set.has(id)) set.delete(id); else set.add(id);
+}
+const allEquipChecked = computed(() => ALL_EQUIPMENT.every(e => printEquip[e.name]));
+const someEquipChecked = computed(() => ALL_EQUIPMENT.some(e => printEquip[e.name]));
+function toggleAllEquip(checked: boolean) {
+  for (const e of ALL_EQUIPMENT) printEquip[e.name] = checked;
 }
 function toggleAllClasses(checked: boolean) {
   for (const t of PLAYER_TEMPLATES) toggleCharacter(t.id, checked);
@@ -413,10 +421,26 @@ async function handlePrint() {
             <div class="print-dialog-col">
               <span class="print-dialog-group-label">Altres</span>
               <div class="print-dialog-indent">
-                <label class="print-dialog-check">
-                  <input type="checkbox" v-model="printObjects">
-                  <span>Objectes</span>
-                </label>
+                <div class="print-dialog-char">
+                  <label class="print-dialog-check">
+                    <button class="print-dialog-expand" @click.prevent="expandedObjects = !expandedObjects">
+                      {{ expandedObjects ? '▾' : '▸' }}
+                    </button>
+                    <input
+                      type="checkbox"
+                      :checked="allEquipChecked"
+                      :indeterminate="someEquipChecked && !allEquipChecked"
+                      @change="toggleAllEquip(($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>Objectes</span>
+                  </label>
+                  <div v-if="expandedObjects" class="print-dialog-cards">
+                    <label v-for="e in ALL_EQUIPMENT" :key="e.name" class="print-dialog-check print-dialog-card-check">
+                      <input type="checkbox" v-model="printEquip[e.name]">
+                      <span>{{ e.name }}</span>
+                    </label>
+                  </div>
+                </div>
                 <label class="print-dialog-check">
                   <input type="checkbox" v-model="printRules">
                   <span>Regles</span>
@@ -471,12 +495,8 @@ async function handlePrint() {
         </template>
 
         <!-- Equipment -->
-        <template v-if="printObjects">
-          <PrintableCard
-            v-for="(p, i) in equipDisplayProps"
-            :key="'equip-' + i"
-            v-bind="p"
-          />
+        <template v-for="(p, i) in equipDisplayProps" :key="'equip-' + i">
+          <PrintableCard v-if="printEquip[p.name]" v-bind="p" />
         </template>
 
         <!-- Enemy cards -->
@@ -640,6 +660,9 @@ async function handlePrint() {
   padding: 1.5rem 2rem;
   min-width: 280px;
   max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .print-dialog-title {
@@ -663,6 +686,8 @@ async function handlePrint() {
   display: flex;
   gap: 2rem;
   margin-bottom: 1.25rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .print-dialog-col {

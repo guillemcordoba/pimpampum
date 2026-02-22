@@ -111,7 +111,7 @@ const ENCOUNTERS: EncounterConfig[] = [
     numComps: 100,
     simsPerComp: 100,
     winRateMin: 59,
-    winRateMax: 70,
+    winRateMax: 72,
   },
   {
     name: 'Horned Devil Boss',

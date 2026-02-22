@@ -946,18 +946,20 @@ export class CombatEngine {
           }
         }
 
-        // HypnoticSong: roll dice, if above threshold target plays random cards
+        // HypnoticSong: roll dice, if above threshold + target defense, target plays random cards
         if (card.effect.type === 'HypnoticSong') {
           const target = this.getTeam(eTeam)[ti];
           if (target.isAlive()) {
             const roll = card.effect.dice.roll();
-            if (roll > card.effect.threshold) {
+            const targetDef = target.getEffectiveDefense();
+            const dc = card.effect.threshold + targetDef;
+            if (roll > dc) {
               target.forceRandomCardTurns = card.effect.turns;
-              this.log(`  → Hypnotic song roll: ${roll} > ${card.effect.threshold} — ${target.name} is hypnotized for ${card.effect.turns} turns!`);
-              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} > ${card.effect.threshold}): ${target.name} hipnotitzat ${card.effect.turns} torns!`, characterName: target.name });
+              this.log(`  → Hypnotic song roll: ${roll} > ${dc} (${card.effect.threshold}+${targetDef}) — ${target.name} is hypnotized for ${card.effect.turns} turns!`);
+              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} > ${dc}): ${target.name} hipnotitzat ${card.effect.turns} torns!`, characterName: target.name });
             } else {
-              this.log(`  → Hypnotic song roll: ${roll} ≤ ${card.effect.threshold} — ${target.name} resists!`);
-              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} ≤ ${card.effect.threshold}): ${target.name} resisteix!`, characterName: target.name });
+              this.log(`  → Hypnotic song roll: ${roll} ≤ ${dc} (${card.effect.threshold}+${targetDef}) — ${target.name} resists!`);
+              this.addLog({ type: 'effect', text: `Cançó hipnòtica (${roll} ≤ ${dc}): ${target.name} resisteix!`, characterName: target.name });
             }
           }
         }

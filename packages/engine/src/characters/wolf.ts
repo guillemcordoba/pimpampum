@@ -8,10 +8,10 @@ export const WOLF_TEMPLATE: CharacterTemplate = {
   classCss: 'llop',
   iconPath: 'icons/000000/transparent/1x1/lorc/wolf-head.svg',
   category: 'enemy',
-  baseStrength: 3,
+  baseStrength: 2,
   baseMagic: 0,
   baseDefense: 1,
-  baseSpeed: 5,
+  baseSpeed: 4,
   baseLives: 1,
   cardIcons: {
     'Mossegada de la manada': 'icons/000000/transparent/1x1/delapouite/neck-bite.svg',

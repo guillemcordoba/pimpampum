@@ -17,7 +17,7 @@ export const BARD_TEMPLATE: CharacterTemplate = {
   cardIcons: {
     'Acord dissonant': 'icons/000000/transparent/1x1/lorc/sonic-boom.svg',
     'Veu del valor': 'icons/000000/transparent/1x1/lorc/rally-the-troops.svg',
-    'Eco protector': 'icons/000000/transparent/1x1/lorc/shield-echoes.svg',
+    'Harmonia protectora': 'icons/000000/transparent/1x1/lorc/bell-shield.svg',
 'Cançó hipnòtica': 'icons/000000/transparent/1x1/lorc/oily-spiral.svg',
     'Rèquiem': 'icons/000000/transparent/1x1/lorc/death-note.svg',
     'Balada heroica': 'icons/000000/transparent/1x1/delapouite/musical-notes.svg',
@@ -32,16 +32,21 @@ export const BARD_TEMPLATE: CharacterTemplate = {
       .withSpeedMod(-2)
       .withEffect({ type: 'VoiceOfValor' })
       .withDescription("Tria un aliat ferit. Cura 1 vida i guanya {F}+2 i {M}+2 per la resta del combat."),
-    new Card('Eco protector', CardType.Defense)
-      .withDefense(new DiceRoll(1, 6))
-      .withSpeedMod(1)
-      .withEffect({ type: 'DefendMultiple', count: 2 })
-      .withDescription('Defensa a 2 aliats que triïs.'),
+    new Card('Harmonia protectora', CardType.Defense)
+      .withDefense(new DiceRoll(1, 4))
+      .withSpeedMod(2)
+      .withEffect({
+        type: 'CharacteristicModifier',
+        modifiers: [{ characteristic: 'defense', amount: 2 }],
+        target: 'team',
+        duration: ModifierDuration.ThisTurn,
+      })
+      .withDescription('Tot l\'equip guanya {D}+2 aquest torn.'),
 new Card('Cançó hipnòtica', CardType.MagicAttack)
       .withMagicAttack(new DiceRoll(1, 4))
       .withSpeedMod(0)
-      .withEffect({ type: 'HypnoticSong', dice: new DiceRoll(1, 20), threshold: 10, turns: 2 })
-      .withDescription("**1d20 > 10**: l'enemic juga una carta aleatòria durant els següents 2 torns."),
+      .withEffect({ type: 'HypnoticSong', dice: new DiceRoll(1, 20), threshold: 8, turns: 2 })
+      .withDescription("**1d20 > 8 + {D} enemic**: l'enemic juga una carta aleatòria durant els següents 2 torns."),
     new Card('Rèquiem', CardType.Focus)
       .withSpeedMod(-4)
       .withEffect({ type: 'Requiem' })
