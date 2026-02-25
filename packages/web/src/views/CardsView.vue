@@ -60,6 +60,9 @@ const printRules = ref(true);
 const printRulesCount = ref(3);
 const printSheet = ref(true);
 const printSheetCount = ref(3);
+const printEnemyStatCards = reactive<Record<string, boolean>>(
+  Object.fromEntries(ENEMY_TEMPLATES.map(t => [t.id, true])),
+);
 const saveInk = ref(false);
 
 function isCharFullyChecked(id: string): boolean {
@@ -411,6 +414,10 @@ async function handlePrint() {
                     <span>{{ t.displayName }}</span>
                   </label>
                   <div v-if="expandedCharacters.has(t.id)" class="print-dialog-cards">
+                    <label class="print-dialog-check print-dialog-card-check">
+                      <input type="checkbox" v-model="printEnemyStatCards[t.id]">
+                      <span>Fitxa</span>
+                    </label>
                     <label v-for="cardName in characterCardNames[t.id]" :key="cardName" class="print-dialog-check print-dialog-card-check">
                       <input type="checkbox" v-model="printCards[t.id][cardName]">
                       <span>{{ cardName }}</span>
@@ -504,7 +511,7 @@ async function handlePrint() {
         <!-- Enemy cards -->
         <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
           <CharacterCard
-            v-if="isCharAnyChecked(data.template.id)"
+            v-if="printEnemyStatCards[data.template.id]"
             :template="data.template"
           />
           <template v-for="(p, i) in data.cards" :key="'e' + ci + '-' + i">
