@@ -6,6 +6,7 @@ import type { CharacterTemplate } from '@pimpampum/engine';
 import { cardToDisplayProps, equipmentToDisplayProps } from '../composables/useCardDisplay';
 import CardGrid from '../components/cards/CardGrid.vue';
 import PrintableCard from '../components/cards/PrintableCard.vue';
+import CharacterCard from '../components/cards/CharacterCard.vue';
 import RulesCard from '../components/cards/RulesCard.vue';
 import CharacterSheet from '../components/cards/CharacterSheet.vue';
 import '../assets/cards.css';
@@ -314,6 +315,7 @@ async function handlePrint() {
           </div>
         </div>
         <CardGrid>
+          <CharacterCard :template="enemyTemplate" />
           <PrintableCard
             v-for="(p, i) in enemyCardProps"
             :key="i"
@@ -501,6 +503,10 @@ async function handlePrint() {
 
         <!-- Enemy cards -->
         <template v-for="(data, ci) in allEnemyData" :key="'enemy-' + ci">
+          <CharacterCard
+            v-if="isCharAnyChecked(data.template.id)"
+            :template="data.template"
+          />
           <template v-for="(p, i) in data.cards" :key="'e' + ci + '-' + i">
             <PrintableCard
               v-if="printCards[data.template.id]?.[p.name]"

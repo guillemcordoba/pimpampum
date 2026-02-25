@@ -10,6 +10,7 @@ const props = defineProps<{
 }>();
 
 const stats = [
+  { key: 'lives' as const, value: props.template.baseLives },
   { key: 'strength' as const, value: props.template.baseStrength },
   { key: 'magic' as const, value: props.template.baseMagic },
   { key: 'defense' as const, value: props.template.baseDefense },
@@ -31,7 +32,7 @@ const stats = [
       <div class="character-stats">
         <div v-for="stat in stats" :key="stat.key" class="character-stat">
           <span class="character-stat-icon"><img :src="base + STAT_ICONS[stat.key]" :alt="stat.key"></span>
-          <span class="character-stat-name">{{ STAT_DISPLAY_NAMES[stat.key] }}</span>
+          <span class="character-stat-name">{{ stat.key === 'lives' ? 'Vida' : STAT_DISPLAY_NAMES[stat.key] }}</span>
           <span class="character-stat-value">{{ stat.value }}</span>
         </div>
       </div>
