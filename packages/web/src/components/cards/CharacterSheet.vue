@@ -9,77 +9,76 @@ const stats = [
   { key: 'defense' as const },
   { key: 'speed' as const },
 ];
-
-const equipmentSlots = [
-  { label: 'Cap', icon: 'icons/000000/transparent/1x1/lorc/visored-helm.svg' },
-  { label: 'Tors', icon: 'icons/000000/transparent/1x1/lorc/armor-vest.svg' },
-  { label: 'Braços', icon: 'icons/000000/transparent/1x1/lorc/mailed-fist.svg' },
-  { label: 'Cames', icon: 'icons/000000/transparent/1x1/delapouite/leg-armor.svg' },
-];
-
 </script>
 
 <template>
   <div class="character-sheet">
     <div class="sheet-frame"></div>
     <div class="sheet-inner">
-      <!-- Top row: name+lives (left) + class/race/traits (right) -->
-      <div class="sheet-top">
-        <div class="sheet-header-left">
-          <div class="sheet-name-line">
-            <span class="sheet-label">Nom:</span>
-            <span class="sheet-blank-line"></span>
+      <div class="sheet-columns">
+        <!-- Left column: identity fields -->
+        <div class="sheet-col-left">
+          <div class="sheet-field">
+            <span class="sheet-label">Nom</span>
+            <div class="sheet-field-lines">
+              <div class="sheet-blank-line"></div>
+            </div>
           </div>
-          <div class="sheet-lives">
-            <div class="sheet-section-title">Punts de vida</div>
-            <div class="sheet-lives-row">
-              <span class="sheet-pv">PV:</span>
-              <span class="sheet-stat-box empty"></span>
-              <span class="sheet-pv">/</span>
+          <div class="sheet-field">
+            <span class="sheet-label">Classe</span>
+            <div class="sheet-field-lines">
+              <div class="sheet-blank-line"></div>
+            </div>
+          </div>
+          <div class="sheet-field">
+            <span class="sheet-label">Raça</span>
+            <div class="sheet-field-lines">
+              <div class="sheet-blank-line"></div>
+            </div>
+          </div>
+          <div class="sheet-field sheet-field-grow">
+            <span class="sheet-label">Trets</span>
+            <div class="sheet-field-lines">
+              <div class="sheet-blank-line"></div>
+              <div class="sheet-blank-line"></div>
+              <div class="sheet-blank-line"></div>
+              <div class="sheet-blank-line"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: PV + stats -->
+        <div class="sheet-col-right">
+          <div class="sheet-stats-list">
+            <!-- Vida -->
+            <div class="sheet-stat-row sheet-stat-row-vida">
+              <img class="sheet-stat-icon" :src="base + STAT_ICONS.lives" alt="lives">
+              <span class="sheet-stat-name">Vida</span>
+              <div class="sheet-wounds-box"></div>
+              <span class="sheet-pv-slash">/</span>
+              <div class="sheet-stat-box empty"></div>
+            </div>
+            <!-- Other stats -->
+            <div v-for="stat in stats" :key="stat.key" class="sheet-stat-row">
+              <img class="sheet-stat-icon" :src="base + STAT_ICONS[stat.key]" :alt="stat.key">
+              <span class="sheet-stat-name">{{ STAT_DISPLAY_NAMES[stat.key] }}</span>
               <span class="sheet-stat-box empty"></span>
             </div>
           </div>
         </div>
-        <div class="sheet-header-right">
-          <div class="sheet-name-line">
-            <span class="sheet-label">Classe:</span>
-            <span class="sheet-blank-line"></span>
-          </div>
-          <div class="sheet-name-line">
-            <span class="sheet-label">Raça:</span>
-            <span class="sheet-blank-line"></span>
-          </div>
-          <div class="sheet-name-line">
-            <span class="sheet-label">Trets:</span>
-            <span class="sheet-blank-line"></span>
-          </div>
-        </div>
       </div>
 
-      <!-- Middle: 4 stat blocks in a row -->
-      <div class="sheet-stats-row">
-        <div v-for="stat in stats" :key="stat.key" class="stat-block">
-          <!-- Stat header: icon + name + base box -->
-          <div class="stat-block-header">
-            <img class="stat-block-icon" :src="base + STAT_ICONS[stat.key]" :alt="stat.key">
-            <span class="stat-block-name">{{ STAT_DISPLAY_NAMES[stat.key] }}</span>
-            <span class="sheet-stat-box empty"></span>
-          </div>
-          <!-- Modifier area (open box for dice) -->
-          <div class="stat-block-modifier">
-            <span class="stat-block-mod-label">Mod.</span>
-          </div>
+      <!-- Bottom: blocks -->
+      <div class="sheet-bottom-blocks">
+        <div class="sheet-block-wrapper">
+          <span class="sheet-block-title">Història</span>
+          <div class="sheet-block"></div>
+        </div>
+        <div class="sheet-block-wrapper">
+          <span class="sheet-block-title">Notes</span>
+          <div class="sheet-block"></div>
         </div>
       </div>
-
-      <!-- Bottom row: equipment slots -->
-      <div class="sheet-equipment">
-        <div v-for="slot in equipmentSlots" :key="slot.label" class="equip-slot">
-          <img class="equip-slot-icon" :src="base + slot.icon" :alt="slot.label">
-          <span class="equip-slot-label">{{ slot.label }}</span>
-        </div>
-      </div>
-
     </div>
   </div>
 </template>
