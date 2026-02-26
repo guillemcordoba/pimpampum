@@ -133,7 +133,7 @@ When creating new cards, follow this workflow:
 ### Core Mechanics
 
 - **Language**: All game content is in Catalan
-- **Combat format**: Team battles (up to 10 per side). Standard play is 2v2 or 3v3. Horde mode: 4 players vs 10 goblins
+- **Combat format**: Team battles (up to 10 per side). Standard play is 2v2 or 3v3. Encounter mode: predefined enemy compositions
 - **Characteristics** (scale 1-8):
   - **PV** (Punts de vida): Lives before death (typically 3)
   - **V** (Velocitat): Speed - determines action order
@@ -168,12 +168,12 @@ Character stats and cards are defined in `packages/engine/src/characters/` (one 
 
 ### Goblin Horde
 
-Goblins are **horde units** — individually very weak (F1, M0, D1, V4, PV1) but designed to fight in large numbers (10 goblins vs 4 players). Their power comes from two horde-specific mechanics:
+Goblins are **horde units** — individually very weak but designed to fight in large numbers. Their power comes from two horde-specific mechanics:
 
-- **PackTactics** (`SpecialEffect`): Attack bonus of +1 per N living allies (e.g., `alliesPerBonus: 3` means +1 per 3 allies). With 9 allies → +3 bonus. Computed in `resolveAttack()`.
+- **PackTactics** (`SpecialEffect`): Attack bonus of +1 per N living allies (e.g., `alliesPerBonus: 3` means +1 per 3 allies). Computed in `resolveAttack()`.
 - **NimbleEscape** (`SpecialEffect`): Focus card that grants dodge this turn. Post-resolution, all successful hiders on a team get `+N strength` next turn where N = number of successful hiders. Implemented as a post-resolution step (`resolveNimbleEscape()`) in combat.ts. Set aside for 1 turn.
 
-Goblin cards: Atac de la horda (PackTactics physical attack), Punyalada ràpida (fast weak attack for focus interruption), Protegir el clan (defense), Amagar-se (NimbleEscape focus). Goblins do not receive equipment in horde simulations.
+Goblin cards: Atac de la horda (PackTactics physical attack), Punyalada ràpida (fast weak attack for focus interruption), Protegir el clan (defense), Amagar-se (NimbleEscape focus). Goblins do not receive equipment in encounter simulations. See `encounters.test.ts` for exact encounter compositions.
 
 ## TypeScript Monorepo
 
@@ -235,13 +235,13 @@ CLI-based batch simulator (`@pimpampum/simulator`) for balance testing. Depends 
 
 ### Simulation Output
 
-Runs battle configurations (1v1 through 5v5) with all team compositions, plus horde analysis (4 players vs 10 goblins). For each:
+Runs battle configurations (1v1 through 5v5) with all team compositions, plus encounter analysis. For each:
 1. **Win Rate Matrix** - Row team vs column team
 2. **Team Power Rankings** - Aggregate win rates
 3. **Class Win Rates** - Per-class games/wins/percentage
 4. **Card Type Effectiveness** - Plays, win correlation, interrupt rates per card type
 5. **Individual Card Effectiveness** - Per-card statistics sorted by win correlation
-6. **Horde Analysis** - All 4-player compositions vs 10 goblins, per-composition win rates
+6. **Encounter Analysis** - Per-encounter win rates across player compositions
 
 ### Balance Test Suite
 
@@ -252,7 +252,7 @@ The simulator has a vitest balance test suite (`src/tests/balance.test.ts`) with
 - **Individual Card Usage** — every card gets >= 5% class share, win correlation 35-65%, no card > 10% of all plays
 - **Strategy Triangle** — Power+Protect competitive vs pure Aggro
 - **Class Identity** — Fighter defends, Wizard has highest magic, Barbarian leads physical attacks, Rogue uses focus
-- **Horde Balance** — 4 players vs 10 goblins: overall win rate 25-75%, no auto-win/auto-lose compositions, battles finish within 30 rounds, draws < 15%
+- **Encounter Balance** — per-encounter win rates, no auto-win/auto-lose compositions, battles finish within max rounds, draws < 15%. See `encounters.test.ts` for exact compositions and thresholds
 - **Engine Sanity** — combat terminates, valid winners, lives in valid range
 
 ## Web App (`packages/web/`)

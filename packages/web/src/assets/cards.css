@@ -381,6 +381,15 @@
   color: var(--text-dark);
 }
 
+.print-card .character-stat-box {
+  width: 5.5mm;
+  height: 5.5mm;
+  border: 1.5px solid var(--text-dark, #2c1810);
+  border-radius: 0.5mm;
+  background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+
 /* -- Rules card ------------------------------------------------------------ */
 
 .print-card.rules-card {

@@ -318,7 +318,7 @@ async function handlePrint() {
           </div>
         </div>
         <CardGrid>
-          <CharacterCard :template="enemyTemplate" />
+          <CharacterCard :template="enemyTemplate" hideStats />
           <PrintableCard
             v-for="(p, i) in enemyCardProps"
             :key="i"
@@ -513,6 +513,7 @@ async function handlePrint() {
           <CharacterCard
             v-if="printEnemyStatCards[data.template.id]"
             :template="data.template"
+            hideStats
           />
           <template v-for="(p, i) in data.cards" :key="'e' + ci + '-' + i">
             <PrintableCard

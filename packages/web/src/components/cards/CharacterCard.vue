@@ -7,6 +7,7 @@ const base = import.meta.env.BASE_URL;
 const props = defineProps<{
   template: CharacterTemplate;
   subtitle?: string;
+  hideStats?: boolean;
 }>();
 
 const stats = [
@@ -33,7 +34,8 @@ const stats = [
         <div v-for="stat in stats" :key="stat.key" class="character-stat">
           <span class="character-stat-icon"><img :src="base + STAT_ICONS[stat.key]" :alt="stat.key"></span>
           <span class="character-stat-name">{{ stat.key === 'lives' ? 'Vida' : STAT_DISPLAY_NAMES[stat.key] }}</span>
-          <span class="character-stat-value">{{ stat.value }}</span>
+          <span v-if="hideStats" class="character-stat-box"></span>
+          <span v-else class="character-stat-value">{{ stat.value }}</span>
         </div>
       </div>
     </div>
