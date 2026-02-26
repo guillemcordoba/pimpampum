@@ -15,6 +15,10 @@
   margin: 0 auto;
 }
 
+@page {
+  size: portrait;
+}
+
 @media print {
   body {
     background: white !important;
