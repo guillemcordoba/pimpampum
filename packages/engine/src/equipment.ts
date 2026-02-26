@@ -105,10 +105,21 @@ export function createPocioDeGuaricio(): Equipment {
     .withConsumableCard(card);
 }
 
+export function createPocioDeVelocitat(): Equipment {
+  const card = new Card('Poció de velocitat', CardType.Focus)
+    .withSpeedMod(2)
+    .withEffect({ type: 'CharacteristicModifier', modifiers: [{ characteristic: 'speed', amount: 5 }], target: 'self', duration: 'RestOfCombat' })
+    .withDescription("Consumible. {V}+5 per la resta del combat.")
+    .withConsumable();
+  return new Equipment('Poció de velocitat', EquipmentSlot.Consumable)
+    .withConsumableCard(card);
+}
+
 export const ALL_EQUIPMENT: EquipmentTemplate[] = [
   { id: 'armadura-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+3', speedLabel: '-3', iconPath: 'icons/000000/transparent/1x1/lorc/armor-vest.svg', creator: createArmaduraDeFerro },
   { id: 'cota-malla', name: 'Cota de malla', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '1d4', speedLabel: '-2', iconPath: 'icons/000000/transparent/1x1/lorc/mail-shirt.svg', creator: createCotaDeMalla },
   { id: 'armadura-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Torso, slotLabel: 'Tors', defenseLabel: '+2', speedLabel: '-1', iconPath: 'icons/000000/transparent/1x1/lorc/leather-vest.svg', creator: createArmaduraDeCuir },
   { id: 'bracals-cuir', name: 'Braçals de cuir', slot: EquipmentSlot.Arms, slotLabel: 'Braços', defenseLabel: '+1', speedLabel: '0', iconPath: 'icons/000000/transparent/1x1/lorc/mailed-fist.svg', creator: createBracalsDeCuir },
   { id: 'pocio-guaricio', name: 'Poció de guarició', slot: EquipmentSlot.Consumable, slotLabel: 'Consumible', defenseLabel: '-', speedLabel: '+2', effectLabel: 'Cura 1 vida', iconPath: 'icons/000000/transparent/1x1/delapouite/health-potion.svg', creator: createPocioDeGuaricio },
+  { id: 'pocio-velocitat', name: 'Poció de velocitat', slot: EquipmentSlot.Consumable, slotLabel: 'Consumible', defenseLabel: '-', speedLabel: '+2', effectLabel: '{V}+5 per la resta del combat', iconPath: 'icons/000000/transparent/1x1/lorc/potion-ball.svg', creator: createPocioDeVelocitat },
 ];

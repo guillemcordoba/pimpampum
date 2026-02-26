@@ -55,6 +55,9 @@ const expandedCharacters = ref(new Set<string>());
 const printEquip = reactive<Record<string, boolean>>(
   Object.fromEntries(ALL_EQUIPMENT.map(e => [e.name, true])),
 );
+const printEquipCount = reactive<Record<string, number>>(
+  Object.fromEntries(ALL_EQUIPMENT.map(e => [e.name, 1])),
+);
 const expandedObjects = ref(false);
 const printRules = ref(true);
 const printRulesCount = ref(3);
@@ -447,6 +450,14 @@ async function handlePrint() {
                     <label v-for="e in ALL_EQUIPMENT" :key="e.name" class="print-dialog-check print-dialog-card-check">
                       <input type="checkbox" v-model="printEquip[e.name]">
                       <span>{{ e.name }}</span>
+                      <input
+                        v-if="printEquip[e.name]"
+                        type="number"
+                        v-model.number="printEquipCount[e.name]"
+                        min="1"
+                        max="20"
+                        class="print-dialog-count"
+                      >
                     </label>
                   </div>
                 </div>
@@ -505,7 +516,9 @@ async function handlePrint() {
 
         <!-- Equipment -->
         <template v-for="(p, i) in equipDisplayProps" :key="'equip-' + i">
-          <PrintableCard v-if="printEquip[p.name]" v-bind="p" />
+          <template v-if="printEquip[p.name]">
+            <PrintableCard v-for="c in printEquipCount[p.name]" :key="'equip-' + i + '-' + c" v-bind="p" />
+          </template>
         </template>
 
         <!-- Enemy cards -->
