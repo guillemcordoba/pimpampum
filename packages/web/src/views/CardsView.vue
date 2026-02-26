@@ -79,6 +79,7 @@ function isCharAnyChecked(id: string): boolean {
 function toggleCharacter(id: string, checked: boolean) {
   const cards = printCards[id];
   if (cards) for (const key of Object.keys(cards)) cards[key] = checked;
+  if (id in printEnemyStatCards) printEnemyStatCards[id] = checked;
 }
 function toggleExpand(id: string) {
   const set = expandedCharacters.value;
