@@ -19,6 +19,12 @@
         <div class="nav-tile-desc">Classes, objectes i enemics</div>
       </router-link>
 
+      <router-link to="/encounters" class="nav-tile">
+        <div class="nav-tile-icon">&#9760;</div>
+        <div class="nav-tile-title">Equips enemics</div>
+        <div class="nav-tile-desc">Trobades amb enemics per mida de grup</div>
+      </router-link>
+
       <router-link to="/trets" class="nav-tile">
         <div class="nav-tile-icon">&#9733;</div>
         <div class="nav-tile-title">Trets</div>

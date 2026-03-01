@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { PLAYER_TEMPLATES, ENEMY_TEMPLATES, ALL_EQUIPMENT, createCharacter, STAT_ICONS, STAT_DISPLAY_NAMES, getTraitsForClass } from '@pimpampum/engine';
+import { PLAYER_TEMPLATES, ENEMY_TEMPLATES, ALL_EQUIPMENT, createCharacter, getScaledStats, STAT_ICONS, STAT_DISPLAY_NAMES, getTraitsForClass } from '@pimpampum/engine';
 import type { CharacterTemplate } from '@pimpampum/engine';
 import { cardToDisplayProps, equipmentToDisplayProps } from '../composables/useCardDisplay';
 import CardGrid from '../components/cards/CardGrid.vue';
@@ -21,6 +21,18 @@ function getCharacterStats(t: CharacterTemplate) {
   ];
 }
 
+function getScaledCharacterStats(t: CharacterTemplate, playerCount: number) {
+  const scaled = getScaledStats(t, playerCount);
+  return [
+    { key: 'lives' as const, value: scaled.lives, base: t.baseLives, icon: STAT_ICONS.lives, label: STAT_DISPLAY_NAMES.lives },
+    { key: 'strength' as const, value: scaled.strength, base: t.baseStrength, icon: STAT_ICONS.strength, label: STAT_DISPLAY_NAMES.strength },
+    { key: 'magic' as const, value: scaled.magic, base: t.baseMagic, icon: STAT_ICONS.magic, label: STAT_DISPLAY_NAMES.magic },
+    { key: 'defense' as const, value: scaled.defense, base: t.baseDefense, icon: STAT_ICONS.defense, label: STAT_DISPLAY_NAMES.defense },
+    { key: 'speed' as const, value: scaled.speed, base: t.baseSpeed, icon: STAT_ICONS.speed, label: STAT_DISPLAY_NAMES.speed },
+  ];
+}
+
+
 const props = defineProps<{
   section?: string;
   characterId?: string;
@@ -32,6 +44,7 @@ const base = import.meta.env.BASE_URL;
 const activeSection = ref(props.section ?? 'classes');
 const activeClassId = ref(props.characterId ?? PLAYER_TEMPLATES[0].id);
 const activeEnemyId = ref(props.characterId ?? ENEMY_TEMPLATES[0].id);
+const playerCount = ref(5);
 const printAll = ref(false);
 const showPrintDialog = ref(false);
 // Per-character per-card print selection
@@ -296,6 +309,17 @@ async function handlePrint() {
 
     <!-- Enemies subsection -->
     <template v-if="activeSection === 'enemies'">
+      <div class="player-count-selector no-print">
+        <span class="player-count-label">Jugadors:</span>
+        <button
+          v-for="pc in [3, 4, 5, 6]"
+          :key="pc"
+          class="player-count-btn"
+          :class="{ active: playerCount === pc, baseline: pc === 5 }"
+          @click="playerCount = pc"
+        >{{ pc }}</button>
+      </div>
+
       <div class="sub-tabs no-print">
         <button
           v-for="t in ENEMY_TEMPLATES"
@@ -315,8 +339,18 @@ async function handlePrint() {
           <div class="char-desc-info">
             <h2 class="char-desc-name">{{ enemyTemplate.displayName }}</h2>
             <div class="char-desc-stats">
-              <span v-for="stat in getCharacterStats(enemyTemplate)" :key="stat.key" class="char-desc-stat">
+              <span
+                v-for="stat in getScaledCharacterStats(enemyTemplate, playerCount)"
+                :key="stat.key"
+                class="char-desc-stat"
+                :class="{
+                  'stat-up': stat.value > stat.base,
+                  'stat-down': stat.value < stat.base,
+                }"
+              >
                 <img :src="base + stat.icon" :alt="stat.label"> {{ stat.label }} {{ stat.value }}
+                <span v-if="stat.value > stat.base" class="stat-arrow up-arrow"></span>
+                <span v-else-if="stat.value < stat.base" class="stat-arrow down-arrow"></span>
               </span>
             </div>
           </div>
@@ -962,6 +996,77 @@ async function handlePrint() {
   width: 18px;
   height: 18px;
   filter: invert(0.6);
+}
+
+/* -- Player count selector -- */
+.player-count-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.player-count-label {
+  font-family: 'MedievalSharp', serif;
+  font-size: 1rem;
+  color: var(--parchment-dark);
+  margin-right: 0.25rem;
+}
+
+.player-count-btn {
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(232, 220, 196, 0.2);
+  border-radius: 6px;
+  background: rgba(232, 220, 196, 0.06);
+  color: var(--parchment-dark);
+  font-family: 'MedievalSharp', serif;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.player-count-btn:hover {
+  background: rgba(232, 220, 196, 0.12);
+  color: var(--parchment);
+}
+
+.player-count-btn.active {
+  background: rgba(232, 220, 196, 0.15);
+  color: var(--parchment);
+  border-color: var(--parchment-dark);
+}
+
+.player-count-btn.baseline {
+  border-style: dashed;
+}
+
+.player-count-btn.baseline.active {
+  border-style: solid;
+}
+
+/* -- Scaled stat indicators -- */
+.stat-up {
+  color: #6b9e6b !important;
+}
+
+.stat-down {
+  color: #c4784e !important;
+}
+
+.stat-arrow {
+  display: inline-block;
+  font-size: 0.75rem;
+  margin-left: 0.1rem;
+}
+
+.up-arrow::after {
+  content: '\25B2';
+}
+
+.down-arrow::after {
+  content: '\25BC';
 }
 
 @media print {

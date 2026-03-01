@@ -14,6 +14,12 @@ export const STONE_GOLEM_TEMPLATE: CharacterTemplate = {
   baseDefense: 7,
   baseSpeed: 1,
   baseLives: 4,
+  scaling: {
+    3: { lives: 4, strength: 6, defense: 7 },
+    4: { lives: 3, strength: 6, defense: 7 },
+    // 5 = base stats (2 golems: PV4/F6/D7)
+    6: { lives: 3, strength: 6, defense: 7 },
+  },
   cardIcons: {
     'Cop de pedra': 'icons/000000/transparent/1x1/lorc/fist.svg',
     'Destrossa': 'icons/000000/transparent/1x1/lorc/thor-fist.svg',

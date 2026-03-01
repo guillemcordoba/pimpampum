@@ -7,6 +7,9 @@ import { AIStrategy } from './strategy.js';
 /** Defense bonus: [defenderTeam, defenderIdx, defenderName, flatDefense, dice] */
 export type DefenseBonus = [number, number, string, number, DiceRoll];
 
+/** Per-player-count stat overrides for enemy scaling */
+export type ScalingOverrides = Record<number, Partial<{ lives: number; strength: number; magic: number; defense: number; speed: number }>>;
+
 export interface CharacterTemplate {
   id: string;
   displayName: string;
@@ -20,6 +23,8 @@ export interface CharacterTemplate {
   baseLives: number;
   cardIcons: Record<string, string>;
   createCards: () => Card[];
+  /** Optional stat scaling by player count (enemies only) */
+  scaling?: ScalingOverrides;
 }
 
 export class Character {
@@ -299,6 +304,33 @@ export function createCharacter(template: CharacterTemplate, name: string): Char
     template.baseMagic,
     template.baseDefense,
     template.baseSpeed,
+    template.createCards(),
+    template.id,
+  );
+}
+
+/** Get stats for a template scaled to a given player count. Falls back to base stats. */
+export function getScaledStats(template: CharacterTemplate, playerCount: number): { lives: number; strength: number; magic: number; defense: number; speed: number } {
+  const overrides = template.scaling?.[playerCount];
+  return {
+    lives: overrides?.lives ?? template.baseLives,
+    strength: overrides?.strength ?? template.baseStrength,
+    magic: overrides?.magic ?? template.baseMagic,
+    defense: overrides?.defense ?? template.baseDefense,
+    speed: overrides?.speed ?? template.baseSpeed,
+  };
+}
+
+/** Create a Character from a template with stats scaled for a player count */
+export function createCharacterForPlayerCount(template: CharacterTemplate, name: string, playerCount: number): Character {
+  const stats = getScaledStats(template, playerCount);
+  return new Character(
+    name,
+    stats.lives,
+    stats.strength,
+    stats.magic,
+    stats.defense,
+    stats.speed,
     template.createCards(),
     template.id,
   );

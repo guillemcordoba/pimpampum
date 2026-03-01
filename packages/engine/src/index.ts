@@ -4,8 +4,8 @@ export type { EquipmentTemplate } from './equipment.js';
 export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement, getCardTargetCount, isHealingCard } from './card.js';
 export type { SpecialEffect, TargetRequirement } from './card.js';
 export { CombatModifier, ModifierDuration } from './modifier.js';
-export { Character, createCharacter } from './character.js';
-export type { CharacterTemplate, DefenseBonus } from './character.js';
+export { Character, createCharacter, getScaledStats, createCharacterForPlayerCount } from './character.js';
+export type { CharacterTemplate, ScalingOverrides, DefenseBonus } from './character.js';
 export {
   createFighter, createWizard, createRogue, createBarbarian, createCleric, createMonk, createBard, createWarlock, createPaladin, createDruid, createSorcerer,
   createGoblin, createGoblinShaman, createBasilisk,
@@ -25,3 +25,5 @@ export { CARD_TYPE_DISPLAY_NAMES, CARD_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES,
 export type { RulesSection } from './display.js';
 export { ALL_TRAITS, ALL_RACES, CLASS_TRAITS, OUT_OF_COMBAT_RULES, getTraitById, getTraitsForClass, getTraitsForRace } from './traits.js';
 export type { TraitDefinition, RaceDefinition } from './traits.js';
+export { ALL_ENCOUNTERS } from './encounters.js';
+export type { EncounterEnemyGroup, EncounterDefinition } from './encounters.js';

@@ -13,6 +13,12 @@ export const BONE_DEVIL_TEMPLATE: CharacterTemplate = {
   baseDefense: 4,
   baseSpeed: 3,
   baseLives: 5,
+  scaling: {
+    3: { lives: 3, strength: 4, defense: 3 },
+    4: { lives: 4, strength: 4, defense: 3 },
+    // 5 = base stats
+    6: { lives: 6, strength: 6, defense: 5 },
+  },
   cardIcons: {
     'Fibló verinós': 'icons/000000/transparent/1x1/lorc/poison-gas.svg',
     'Esgarrapada': 'icons/000000/transparent/1x1/lorc/claw-slashes.svg',

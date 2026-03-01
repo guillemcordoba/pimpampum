@@ -34,6 +34,11 @@ const router = createRouter({
       }),
     },
     {
+      path: '/encounters',
+      name: 'encounters',
+      component: () => import('../views/EncountersView.vue'),
+    },
+    {
       path: '/trets',
       name: 'trets',
       component: () => import('../views/TraitsView.vue'),

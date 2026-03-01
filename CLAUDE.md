@@ -27,7 +27,8 @@ pimpampum/
 │   │       ├── modifier.ts        # CombatModifier with durations
 │   │       ├── card.ts            # Card, CardType, SpecialEffect types
 │   │       ├── display.ts         # Display constants (card type names, CSS classes, stat icons, rules summary)
-│   │       ├── character.ts       # Character class + CharacterTemplate type + createCharacter factory
+│   │       ├── character.ts       # Character class + CharacterTemplate type + createCharacter + scaling
+│   │       ├── encounters.ts     # EncounterDefinition types + ALL_ENCOUNTERS (per-player-count)
 │   │       ├── characters/        # Per-character definitions (one file per character)
 │   │       │   ├── index.ts       # Re-exports, ALL_CHARACTER_TEMPLATES, CARD_ICONS, create* factories
 │   │       │   ├── fighter.ts     # FIGHTER_TEMPLATE
@@ -106,6 +107,8 @@ The **engine** (`packages/engine/`) is the sole source of truth for all game dat
 - **Card icons**: `CARD_ICONS` in `characters/index.ts`
 - **Equipment definitions**: Factory functions + `ALL_EQUIPMENT` in `equipment.ts`
 - **Display constants**: `CARD_TYPE_DISPLAY_NAMES`, `CARD_TYPE_CSS`, `STAT_ICONS`, `STAT_DISPLAY_NAMES`, `RULES_SUMMARY` in `display.ts`
+- **Enemy scaling**: `scaling` field on `CharacterTemplate` with per-player-count stat overrides. Use `getScaledStats()` and `createCharacterForPlayerCount()` from `character.ts`
+- **Encounter definitions**: `ALL_ENCOUNTERS` in `encounters.ts` with per-player-count compositions (enemy template + count)
 - **Game rules prose**: `rules.md` (Catalan, not parsed by engine)
 
 The web app and simulator derive everything from the engine. There are no CSV files or static HTML card files.
@@ -209,8 +212,9 @@ The core game logic library (`@pimpampum/engine`). Pure TypeScript with no runti
 3. **Card / CardType / SpecialEffect** (`card.ts`) - Card definitions. `CardType` enum: `PhysicalAttack`, `MagicAttack`, `Defense`, `Focus`, `PhysicalDefense`. `SpecialEffect` is a discriminated union with 30+ variants. `CharacteristicModifier` is the unified type for all stat buff/debuff effects (replaces old individual types like StrengthBoost, MagicBoost, RageBoost). Other types include: `Stun`, `MultiTarget`, `Sacrifice`, `Vengeance`, `BloodThirst`, `PackTactics`, `NimbleEscape`, `SwiftStrike`, `PiercingStrike`, `FlurryOfBlows`, `Deflection`, `MeditationBoost`, `SilenceStrike`, `PetrifyingGaze`, `Regenerate`, `VenomBite`, etc. `getCardTargetRequirement()` returns targeting info for UI
 4. **Display** (`display.ts`) - Display constants for rendering: `CARD_TYPE_DISPLAY_NAMES` (Catalan names), `CARD_TYPE_CSS` (CSS class mapping), `STAT_ICONS` (icon paths), `STAT_DISPLAY_NAMES` (Catalan stat names), `RULES_SUMMARY` (structured rules card content)
 5. **CombatModifier / ModifierDuration** (`modifier.ts`) - Temporary stat modifications with durations: `ThisTurn`, `NextTurn`, `ThisAndNextTurn`, `NextTwoTurns`, `RestOfCombat`
-6. **Character** (`character.ts`) - Character class with base stats, equipment, cards, and combat state (lives, modifiers, stun, dodge, focus interruption, silenced, hasDeflection, etc.). `CharacterTemplate` defines character data; `createCharacter()` instantiates from a template
+6. **Character** (`character.ts`) - Character class with base stats, equipment, cards, and combat state (lives, modifiers, stun, dodge, focus interruption, silenced, hasDeflection, etc.). `CharacterTemplate` defines character data with optional `scaling` field for per-player-count stat overrides; `createCharacter()` instantiates from a template; `getScaledStats()` returns stats for a given player count; `createCharacterForPlayerCount()` creates a character with scaled stats
    - **Characters** (`characters/`) - Per-character template files + `index.ts` with `ALL_CHARACTER_TEMPLATES`, `PLAYER_TEMPLATES`, `ENEMY_TEMPLATES`, `CARD_ICONS`, and factory functions (`createFighter()`, `createWizard()`, `createRogue()`, `createBarbarian()`, `createCleric()`, `createMonk()`, `createGoblin()`, `createGoblinShaman()`, `createBasilisk()`)
+9. **Encounters** (`encounters.ts`) - `EncounterDefinition` type with id, name, difficulty, and per-player-count compositions (3/4/5/6). `ALL_ENCOUNTERS` array of all encounter definitions
 7. **CombatEngine** (`combat.ts`, ~1700 lines) - The core combat loop with two interfaces:
    - **Web UI**: `prepareRound()` + `submitSelectionsAndResolve(selections)` for phased player-driven resolution
    - **Simulator**: `runRound()` / `runCombat()` for fully automated AI-vs-AI battles
@@ -252,7 +256,7 @@ The simulator has a vitest balance test suite (`src/tests/balance.test.ts`) with
 - **Individual Card Usage** — every card gets >= 5% class share, win correlation 35-65%, no card > 10% of all plays
 - **Strategy Triangle** — Power+Protect competitive vs pure Aggro
 - **Class Identity** — Fighter defends, Wizard has highest magic, Barbarian leads physical attacks, Rogue uses focus
-- **Encounter Balance** — per-encounter win rates, no auto-win/auto-lose compositions, battles finish within max rounds, draws < 15%. See `encounters.test.ts` for exact compositions and thresholds
+- **Encounter Balance** — parametric tests for each encounter × each player count (3, 4, 5, 6). Uses `createCharacterForPlayerCount()` for scaled enemy stats and per-player-count compositions from `ALL_ENCOUNTERS`. Tests: win rates within target range, no auto-win/auto-lose, battles finish within 30 rounds, draws < 15%. See `encounters.test.ts`
 - **Engine Sanity** — combat terminates, valid winners, lives in valid range
 
 ## Web App (`packages/web/`)

@@ -14,6 +14,12 @@ export const GOBLIN_SHAMAN_TEMPLATE: CharacterTemplate = {
   baseDefense: 3,
   baseSpeed: 3,
   baseLives: 4,
+  scaling: {
+    3: { lives: 2, magic: 4, defense: 2 },
+    4: { lives: 3, magic: 4, defense: 3 },
+    // 5 = base stats
+    6: { lives: 5, magic: 6, defense: 4 },
+  },
   cardIcons: {
     'Llamp': 'icons/000000/transparent/1x1/lorc/lightning-arc.svg',
     'Possessió demoníaca': 'icons/000000/transparent/1x1/lorc/daemon-skull.svg',

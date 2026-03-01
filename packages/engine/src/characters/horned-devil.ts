@@ -14,6 +14,12 @@ export const HORNED_DEVIL_TEMPLATE: CharacterTemplate = {
   baseDefense: 6,
   baseSpeed: 2,
   baseLives: 6,
+  scaling: {
+    3: { lives: 4, strength: 6, defense: 4 },
+    4: { lives: 5, strength: 7, defense: 5 },
+    // 5 = base stats (2 devils: PV6/F8/D6)
+    6: { lives: 5, strength: 7, defense: 5 },
+  },
   cardIcons: {
     'Forquilla del diable': 'icons/000000/transparent/1x1/lorc/trident.svg',
     'Alè de l\'infern': 'icons/000000/transparent/1x1/lorc/fire-breath.svg',

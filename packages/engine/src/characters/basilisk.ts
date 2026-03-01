@@ -13,6 +13,12 @@ export const BASILISK_TEMPLATE: CharacterTemplate = {
   baseDefense: 9,
   baseSpeed: 1,
   baseLives: 9,
+  scaling: {
+    3: { lives: 5, strength: 7, defense: 7 },
+    4: { lives: 7, strength: 8, defense: 8 },
+    // 5 = base stats
+    6: { lives: 12, defense: 10 },
+  },
   cardIcons: {
     'Mossegada verinosa': 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
     'Cop de cua': 'icons/000000/transparent/1x1/lorc/spiked-tail.svg',
