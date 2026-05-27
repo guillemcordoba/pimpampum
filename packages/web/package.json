@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*",
+    "@pimpampum/skills": "workspace:*",
+    "@pimpampum/enemies": "workspace:*",
     "vue": "^3.4.0",
     "vue-router": "^5.0.2"
   },

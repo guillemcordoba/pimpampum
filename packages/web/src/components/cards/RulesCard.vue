@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RULES_SUMMARY } from '@pimpampum/engine';
-import { renderDescription } from '../../composables/useCardDisplay';
+import { renderDescription } from '../../composables/useActionDisplay';
 </script>
 
 <template>

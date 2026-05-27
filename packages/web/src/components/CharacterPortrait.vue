@@ -1,91 +1,96 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
-import type { CharacterTemplate } from '@pimpampum/engine';
-import { CARD_ICONS, STAT_ICONS } from '@pimpampum/engine';
+import { STAT_ICONS } from '@pimpampum/engine';
 
 const base = import.meta.env.BASE_URL;
 
 const props = defineProps<{
   character: Character;
-  template: CharacterTemplate;
   isEnemy?: boolean;
   isHighlighted?: boolean;
   compact?: boolean;
 }>();
 
-const lives = computed(() => {
-  const result = [];
-  for (let i = 0; i < props.character.maxLives; i++) {
-    result.push(i < props.character.currentLives ? 'full' : 'empty');
-  }
-  return result;
-});
+const pvPct = computed(() => Math.max(0, Math.round(100 * props.character.currentPV / props.character.maxPV)));
 
-const modifierBadges = computed(() => {
-  return props.character.modifiers.map(m => {
-    const sign = m.value >= 0 ? '+' : '';
-    const val = m.dice ? m.dice.toString() : `${sign}${m.value}`;
-    const pending = typeof m.duration === 'object' && m.duration.pending;
-    return {
-      text: `${m.stat.charAt(0).toUpperCase()} ${val}`,
-      positive: m.value >= 0,
-      pending,
-    };
-  });
-});
+const skills = computed(() =>
+  [...props.character.skills.entries()].map(([id, level]) => ({ id, level: props.character.getSkillLevel(id) })));
 
-const setAsideBadges = computed(() => {
-  const badges: { name: string; iconPath: string }[] = [];
-  for (const [cardIdx] of props.character.setAsideCards) {
-    const card = props.character.cards[cardIdx];
-    if (card) {
-      badges.push({
-        name: card.name,
-        iconPath: base + (CARD_ICONS[card.name] ?? 'icons/000000/transparent/1x1/lorc/crossed-swords.svg'),
-      });
-    }
+const statusBadges = computed(() => {
+  const out: { text: string; positive: boolean; pending: boolean }[] = [];
+  for (const m of props.character.modifiers) {
+    const val = m.dice ? m.dice.toString() : `${m.value >= 0 ? '+' : ''}${m.value}`;
+    const pending = typeof m.duration === 'object' && (m.duration as { pending?: boolean }).pending === true;
+    out.push({ text: `${m.stat} ${val}`, positive: m.value >= 0, pending });
   }
-  return badges;
+  for (const [key, entry] of props.character.statuses) {
+    out.push({ text: entry.value > 1 ? `${key} ×${entry.value}` : key, positive: false, pending: false });
+  }
+  return out;
 });
 </script>
 
 <template>
   <div
     class="portrait"
-    :class="[
-      template.classCss,
-      { dead: !character.isAlive(), highlighted: isHighlighted, compact: compact },
-    ]"
+    :class="[character.characterClass, { dead: !character.isAlive(), highlighted: isHighlighted, compact }]"
   >
-    <img class="portrait-icon" :src="base + template.iconPath" :alt="template.displayName">
+    <img class="portrait-icon" :src="base + character.iconPath" :alt="character.name">
     <div class="portrait-name">{{ character.name }}</div>
-    <div class="portrait-lives">
-      <span
-        v-for="(w, i) in lives"
-        :key="i"
-        class="life-heart"
-        :class="w"
-      >{{ w === 'full' ? '❤️' : '💀' }}</span>
+    <div class="portrait-pv">
+      <div class="pv-bar"><div class="pv-fill" :style="{ width: pvPct + '%' }"></div></div>
+      <span class="pv-text">
+        <img :src="base + STAT_ICONS.pv" alt="PV">{{ character.currentPV }}/{{ character.maxPV }}
+      </span>
     </div>
     <div class="portrait-stats">
-      <span><img :src="base + STAT_ICONS.strength" alt="F">{{ character.getEffectiveStrength() }}</span>
-      <span><img :src="base + STAT_ICONS.magic" alt="M">{{ character.getEffectiveMagic() }}</span>
-      <span><img :src="base + STAT_ICONS.defense" alt="D">{{ character.getEffectiveDefense() }}</span>
-      <span><img :src="base + STAT_ICONS.speed" alt="V">{{ character.getEffectiveSpeed() }}</span>
+      <span v-for="s in skills" :key="s.id" class="skill-chip">{{ s.id }} {{ s.level }}</span>
     </div>
-    <div v-if="modifierBadges.length > 0" class="portrait-modifiers">
+    <div v-if="statusBadges.length > 0" class="portrait-modifiers">
       <span
-        v-for="(b, i) in modifierBadges"
+        v-for="(b, i) in statusBadges"
         :key="i"
         class="modifier-badge"
         :class="{ positive: b.positive, negative: !b.positive, pending: b.pending }"
       >{{ b.text }}</span>
     </div>
-    <div v-if="setAsideBadges.length > 0" class="portrait-set-aside">
-      <span v-for="(b, i) in setAsideBadges" :key="i" class="set-aside-badge" :title="b.name">
-        <img :src="b.iconPath" :alt="b.name">
-      </span>
-    </div>
   </div>
 </template>
+
+<style scoped>
+.portrait-pv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0.2rem 0;
+}
+.pv-bar {
+  width: 80%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pv-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #b33, #6c3);
+  transition: width 0.3s;
+}
+.pv-text {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.8rem;
+}
+.pv-text img {
+  width: 14px;
+  height: 14px;
+}
+.skill-chip {
+  font-size: 0.65rem;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+</style>

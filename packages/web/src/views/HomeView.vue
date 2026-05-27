@@ -13,22 +13,22 @@
         <div class="nav-tile-desc">Resum de les regles de combat</div>
       </router-link>
 
-      <router-link to="/cards" class="nav-tile">
+      <router-link to="/skills" class="nav-tile">
         <div class="nav-tile-icon">&#9812;</div>
-        <div class="nav-tile-title">Cartes</div>
-        <div class="nav-tile-desc">Classes, objectes i enemics</div>
+        <div class="nav-tile-title">Habilitats</div>
+        <div class="nav-tile-desc">Habilitats i les seves accions</div>
       </router-link>
 
-      <router-link to="/encounters" class="nav-tile">
+      <router-link to="/objects" class="nav-tile">
+        <div class="nav-tile-icon">&#128737;</div>
+        <div class="nav-tile-title">Objectes</div>
+        <div class="nav-tile-desc">Equipament i objectes</div>
+      </router-link>
+
+      <router-link to="/enemies" class="nav-tile">
         <div class="nav-tile-icon">&#9760;</div>
-        <div class="nav-tile-title">Equips enemics</div>
-        <div class="nav-tile-desc">Trobades amb enemics per mida de grup</div>
-      </router-link>
-
-      <router-link to="/trets" class="nav-tile">
-        <div class="nav-tile-icon">&#9733;</div>
-        <div class="nav-tile-title">Trets</div>
-        <div class="nav-tile-desc">Trets i resolució fora de combat</div>
+        <div class="nav-tile-title">Enemics</div>
+        <div class="nav-tile-desc">Enemics i les seves accions</div>
       </router-link>
 
       <router-link to="/combat" class="nav-tile">
@@ -43,22 +43,36 @@
 <style scoped>
 .home-page {
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 1rem;
+  min-height: calc(100vh - 6.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-page .screen-title {
+  margin: 0.5rem 0;
+}
+
+.home-page .screen-subtitle {
+  margin-bottom: 1.25rem;
 }
 
 .nav-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
   max-width: 900px;
-  margin: 2rem auto 0;
+  width: 100%;
+  margin: 1.5rem auto 0;
 }
 
 .nav-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem 1.5rem;
+  padding: 1.4rem 1.5rem;
   background: rgba(232, 220, 196, 0.08);
   border: 2px solid rgba(232, 220, 196, 0.2);
   border-radius: 10px;
@@ -74,8 +88,8 @@
 }
 
 .nav-tile-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .nav-tile-title {

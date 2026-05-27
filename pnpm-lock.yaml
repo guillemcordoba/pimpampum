@@ -15,6 +15,19 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/enemies:
+    dependencies:
+      '@pimpampum/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@pimpampum/skills':
+        specifier: workspace:*
+        version: link:../skills
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/engine:
     devDependencies:
       typescript:
@@ -23,9 +36,15 @@ importers:
 
   packages/simulator:
     dependencies:
+      '@pimpampum/enemies':
+        specifier: workspace:*
+        version: link:../enemies
       '@pimpampum/engine':
         specifier: workspace:*
         version: link:../engine
+      '@pimpampum/skills':
+        specifier: workspace:*
+        version: link:../skills
     devDependencies:
       tsx:
         specifier: ^4.7.0
@@ -37,11 +56,27 @@ importers:
         specifier: ^3
         version: 3.2.4(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/web:
+  packages/skills:
     dependencies:
       '@pimpampum/engine':
         specifier: workspace:*
         version: link:../engine
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/web:
+    dependencies:
+      '@pimpampum/enemies':
+        specifier: workspace:*
+        version: link:../enemies
+      '@pimpampum/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@pimpampum/skills':
+        specifier: workspace:*
+        version: link:../skills
       vue:
         specifier: ^3.4.0
         version: 3.5.28(typescript@5.9.3)

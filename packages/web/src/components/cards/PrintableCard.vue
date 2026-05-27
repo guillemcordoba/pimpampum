@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { renderDescription } from '../../composables/useCardDisplay';
-import type { CardStat } from '../../composables/useCardDisplay';
+import { renderDescription } from '../../composables/useActionDisplay';
+import type { CardStat } from '../../composables/useActionDisplay';
 
 const props = defineProps<{
   name: string;

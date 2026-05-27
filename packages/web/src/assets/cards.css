@@ -171,6 +171,16 @@
 .print-card.focus .card-subtitle { color: #f0e6d6; }
 .print-card.focus .card-subtitle { color: rgba(240,230,214,0.8); }
 
+.print-card.objecte .card-header {
+  background: var(--type-objecte);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.objecte .card-name,
+.print-card.objecte .card-subtitle { color: #f0e6d6; }
+.print-card.objecte .card-subtitle { color: rgba(240,230,214,0.8); }
+
 /* Character card type header */
 .print-card.character .card-header {
   background: var(--border-color, #5c4a32);
@@ -406,9 +416,9 @@
 .print-card .rules-header {
   background: var(--border-color, #5c4a32);
   margin: -2.5mm -2.5mm 0 -2.5mm;
-  padding: 1.5mm 3mm;
+  padding: 1mm 3mm;
   border-radius: 0;
-  height: 8mm;
+  height: 6.5mm;
 }
 .print-card .rules-header .card-name {
   color: #f0e6d6;
@@ -417,45 +427,50 @@
 
 .print-card .rules-content {
   flex: 1;
+  min-height: 0;
   padding: 2mm 3mm;
   display: flex;
   flex-direction: column;
-  gap: 1.5mm;
+  justify-content: space-between;
+  gap: 1mm;
   position: relative;
   z-index: 1;
+  text-align: left;
+  overflow-wrap: break-word;
 }
 
 .print-card .rules-section {
-  margin-bottom: 1mm;
+  margin-bottom: 0;
 }
 
 .print-card .rules-title {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 8pt;
+  font-size: 7pt;
   font-weight: 700;
   color: var(--text-dark);
-  margin-bottom: 1mm;
+  margin-bottom: 0.4mm;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .print-card .rules-list {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 6pt;
+  font-size: 5.5pt;
   color: var(--text-dark);
-  margin-left: 3mm;
-  line-height: 1.4;
+  padding-left: 4mm;
+  list-style-position: outside;
+  line-height: 1.25;
 }
 
 .print-card .rules-list li {
-  margin-bottom: 0.5mm;
+  margin-bottom: 0.3mm;
 }
 
 .print-card .rules-text {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 6pt;
+  font-size: 5.5pt;
   color: var(--text-dark);
-  line-height: 1.4;
+  line-height: 1.25;
 }
 
 .print-card .rules-icon {

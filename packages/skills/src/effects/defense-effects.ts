@@ -1,0 +1,41 @@
+import { EffectHandler, DiceRoll } from '@pimpampum/engine';
+import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
+
+/** Defense-rider effects: onResolve runs at guard setup; onDefend runs when a block lands. */
+export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
+  // Counter-attack the attacker when an attack is blocked.
+  counter: {
+    onDefend(ctx) {
+      if (!ctx.target) return;
+      const dice = diceParam(ctx.params, 'dice') ?? new DiceRoll(1, 6);
+      ctx.engine.performExtraAttack(ctx.source, ctx.target, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} contraataca` });
+    },
+    aiWeight() { return 0.5; },
+  },
+
+  // On a successful block, the attacker directly loses PV (spiked / infernal retaliation).
+  retaliate_wound: {
+    onDefend(ctx) {
+      if (!ctx.target) return;
+      const amount = num(ctx.params, 'amount', 2);
+      ctx.engine.log('defense', `${ctx.source.name} repèl l'atac: ${ctx.target.name} rep ${amount} de dany.`, ctx.source.team);
+      ctx.engine.applyPvLoss(ctx.target, amount, ctx.source);
+    },
+    aiWeight() { return 0.5; },
+  },
+
+  // On a successful block, debuff the attacker.
+  debuff_on_block: {
+    onDefend(ctx) {
+      if (!ctx.target) return;
+      applyMod(ctx.target, str(ctx.params, 'kind', 'skill') as ModKind, -num(ctx.params, 'amount', 6), durParam(ctx.params, 'duration', 'nextTurn'), 'Repèl');
+    },
+    aiWeight() { return 0.3; },
+  },
+
+  // Extra passive armour for the round the defense is played.
+  self_armor: {
+    onResolve(ctx) { applyMod(ctx.source, 'armor', num(ctx.params, 'amount', 2), 'thisTurn', ctx.action.name); },
+    aiWeight() { return 0.3; },
+  },
+};

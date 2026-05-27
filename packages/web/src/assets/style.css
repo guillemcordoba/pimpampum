@@ -20,7 +20,7 @@
   --class-murri: #2c5a3f;
   --class-mag: #3d2c6b;
   --class-barbar: #8b5a2c;
-  --class-objecte: #5c4a32;
+  --class-objecte: #6b6b6b;
   --class-goblin: #4a5c2c;
   --class-clergue: #2c4a4a;
   --class-goblin-shaman: #5c2c4a;
@@ -42,6 +42,7 @@
   --type-atac-magic: #6b3fa0;
   --type-defensa: #2f6a8a;
   --type-focus: #8a7a2f;
+  --type-objecte: #5e5e5e;
 }
 
 body {
@@ -654,6 +655,15 @@ body {
   cursor: not-allowed;
 }
 
+.mini-card.readonly {
+  cursor: default;
+}
+
+.mini-card.readonly:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .mini-card.set-aside {
   opacity: 0.55;
   cursor: not-allowed;
@@ -854,6 +864,7 @@ body {
 }
 
 .log-entry.attack { color: #6a5a3a; font-family: 'Crimson Text', Georgia, serif; font-size: 0.9rem; padding-left: 1em; }
+.log-entry.roll { color: #8a7d63; font-style: italic; font-size: 0.8rem; padding-left: 1em; }
 .log-entry.hit { color: #a63d2f; }
 .log-entry.miss { color: #888; font-style: italic; }
 .log-entry.death { color: #8b1a1a; font-weight: 700; }

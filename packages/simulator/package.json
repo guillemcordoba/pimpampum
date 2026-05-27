@@ -8,7 +8,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pimpampum/engine": "workspace:*"
+    "@pimpampum/engine": "workspace:*",
+    "@pimpampum/skills": "workspace:*",
+    "@pimpampum/enemies": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

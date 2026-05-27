@@ -1,42 +1,46 @@
-import { CardType } from './card.js';
+import { ActionType } from './types.js';
 
-/** Catalan display names for card types */
-export const CARD_TYPE_DISPLAY_NAMES: Record<CardType, string> = {
-  [CardType.PhysicalAttack]: 'Atac físic',
-  [CardType.MagicAttack]: 'Atac màgic',
-  [CardType.Defense]: 'Defensa',
-  [CardType.Focus]: 'Focus',
-  [CardType.PhysicalDefense]: 'Defensa física',
+/** Catalan display names for action types. */
+export const ACTION_TYPE_DISPLAY_NAMES: Record<ActionType, string> = {
+  [ActionType.Atac]: 'Atac',
+  [ActionType.Defensa]: 'Defensa',
+  [ActionType.Focus]: 'Focus',
 };
 
-/** CSS class names for card types */
-export const CARD_TYPE_CSS: Record<CardType, string> = {
-  [CardType.PhysicalAttack]: 'atac-fisic',
-  [CardType.MagicAttack]: 'atac-magic',
-  [CardType.Defense]: 'defensa',
-  [CardType.Focus]: 'focus',
-  [CardType.PhysicalDefense]: 'defensa',
+/** CSS class names for action types (reuses existing card header palette). */
+export const ACTION_TYPE_CSS: Record<ActionType, string> = {
+  [ActionType.Atac]: 'atac-fisic',
+  [ActionType.Defensa]: 'defensa',
+  [ActionType.Focus]: 'focus',
 };
 
-/** Icon paths for stat types */
+/** Icon paths for the per-action stat row and character sheets. */
 export const STAT_ICONS = {
-  lives: 'icons/000000/transparent/1x1/lorc/heart-drop.svg',
-  strength: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
-  magic: 'icons/000000/transparent/1x1/lorc/crystal-wand.svg',
-  defense: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
+  pv: 'icons/000000/transparent/1x1/lorc/heart-drop.svg',
   speed: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
+  damage: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
+  armor: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
+  skill: 'icons/000000/transparent/1x1/lorc/skills.svg',
 } as const;
 
-/** Catalan display names for stats */
 export const STAT_DISPLAY_NAMES = {
-  lives: 'PV',
-  strength: 'Força',
-  magic: 'Màgia',
-  defense: 'Defensa',
+  pv: 'PV',
   speed: 'Velocitat',
+  damage: 'Dany',
+  armor: 'Armadura',
+  skill: 'Habilitat',
 } as const;
 
-/** Structured rules summary content for the rules card */
+/** Equipment slot Catalan labels. */
+export const SLOT_LABELS: Record<string, string> = {
+  Torso: 'Tors',
+  Head: 'Cap',
+  Arms: 'Braços',
+  Legs: 'Cames',
+  MainHand: 'Mà principal',
+  OffHand: 'Mà secundària',
+};
+
 export interface RulesSection {
   title: string;
   type: 'ordered-list' | 'text';
@@ -49,24 +53,29 @@ export const RULES_SUMMARY: RulesSection[] = [
     title: 'Ronda de combat',
     type: 'ordered-list',
     items: [
-      'Tria una carta i posa-la bocaterrosa',
-      'Revela totes les cartes alhora',
-      'Resol per ordre de {V} velocitat total',
+      'Tria una acció i posa-la bocaterrosa',
+      'Revela totes les accions alhora',
+      'Resol per ordre de velocitat (més alta primer)',
     ],
   },
   {
-    title: 'Atac (físic o màgic)',
+    title: 'Atac',
     type: 'text',
-    text: "Tria un enemic. Si la teva {F} força total o {M} màgia total supera la seva {D} defensa total, perd una vida. Si el personatge es queda sense vides, és derrotat. Es recupera si se li cura una vida.",
+    text: "Tira d20 + nivell d'habilitat. Si supera la defensa de l'objectiu (o si no en té), impactes: tira els daus de dany, resta l'armadura passiva i el resultat es resta dels PV.",
   },
   {
     title: 'Defensa',
     type: 'text',
-    text: "Tria un aliat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu.",
+    text: 'Tria un aliat a protegir. Cada atac que rebi ell o tu es resol contra la teva tirada de defensa. Si un atac penetra, el dany el reps tu.',
   },
   {
     title: 'Focus',
     type: 'text',
-    text: "Efecte especial. Si reps un atac abans de que es resolgui, es cancel·la.",
+    text: "Efecte especial, normalment lent. Es cancel·la si reps un atac sense defensa abans que es resolgui.",
+  },
+  {
+    title: 'Pujar de nivell',
+    type: 'text',
+    text: "Després de cada tirada: si falles per menys de 10 o encertes per menys de 5, l'habilitat puja un nivell.",
   },
 ];

@@ -1,29 +1,46 @@
+// Dice
 export { DiceRoll } from './dice.js';
-export { Equipment, EquipmentSlot, createArmaduraDeFerro, createCotaDeMalla, createArmaduraDeCuir, createBracalsDeCuir, createPocioDeGuaricio, ALL_EQUIPMENT } from './equipment.js';
-export type { EquipmentTemplate } from './equipment.js';
-export { Card, CardType, isAttack, isDefense, isFocus, isPhysical, EFFECT_NONE, getCardTargetRequirement, getCardTargetCount, isHealingCard } from './card.js';
-export type { SpecialEffect, TargetRequirement } from './card.js';
+
+// Core types
+export { ActionType, EquipmentSlot, isAttack, isDefenseAction, isFocusAction } from './types.js';
+export type {
+  SkillInstance, ActionEffect, ActionDefinition, SkillBonus,
+  EquipmentDefinition, CharacterDefinition, TargetRequirement,
+} from './types.js';
+
+// Resolution math
+export { rollD20, resolveAttack, resolveDamage, checkSkillUp, rollAttackDamage } from './resolution.js';
+export type { AttackOutcome } from './resolution.js';
+
+// Effects registry
+export { EffectRegistry, newAttackModifiers } from './effects.js';
+export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext } from './effects.js';
+
+// Actions
+export { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
+
+// Modifiers
 export { CombatModifier, ModifierDuration } from './modifier.js';
-export { Character, createCharacter, getScaledStats, createCharacterForPlayerCount } from './character.js';
-export type { CharacterTemplate, ScalingOverrides, DefenseBonus } from './character.js';
-export {
-  createFighter, createWizard, createRogue, createBarbarian, createCleric, createMonk, createBard, createWarlock, createPaladin, createDruid, createSorcerer,
-  createGoblin, createGoblinShaman, createBasilisk,
-  createSpinedDevil, createBoneDevil, createHornedDevil, createStoneGolem, createWolf,
-  ALL_CHARACTER_TEMPLATES, PLAYER_TEMPLATES, ENEMY_TEMPLATES, CARD_ICONS,
-  FIGHTER_TEMPLATE, ROGUE_TEMPLATE, WIZARD_TEMPLATE, BARBARIAN_TEMPLATE,
-  CLERIC_TEMPLATE, MONK_TEMPLATE, BARD_TEMPLATE, WARLOCK_TEMPLATE, PALADIN_TEMPLATE, DRUID_TEMPLATE, SORCERER_TEMPLATE, GOBLIN_TEMPLATE, GOBLIN_SHAMAN_TEMPLATE, BASILISK_TEMPLATE,
-  SPINED_DEVIL_TEMPLATE, BONE_DEVIL_TEMPLATE, HORNED_DEVIL_TEMPLATE, STONE_GOLEM_TEMPLATE, WOLF_TEMPLATE,
-} from './characters/index.js';
+
+// Characters
+export { Character, createCharacter, characterSkillSum } from './character.js';
+export type { StatusEntry, Guard, CreateCharacterOptions } from './character.js';
+
+// Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
-export type { LogEntry, CardStats, CombatStats, CardSelection, PlannedAction } from './combat.js';
-export { selectCardAI, assignStrategies } from './ai.js';
-export type { AIEngineView } from './ai.js';
+export type {
+  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions,
+  RevealedAction, TargetPrompt, StepResult, RoundPrep,
+} from './combat.js';
+
+// AI
+export { selectAction, assignStrategies, availableActionIndices } from './ai.js';
+export type { AIView, PlannedAction } from './ai.js';
+
+// Strategy
 export { AIStrategy } from './strategy.js';
 export type { StrategyStats } from './strategy.js';
-export { CARD_TYPE_DISPLAY_NAMES, CARD_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, RULES_SUMMARY } from './display.js';
+
+// Display constants
+export { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, SLOT_LABELS, RULES_SUMMARY } from './display.js';
 export type { RulesSection } from './display.js';
-export { ALL_TRAITS, ALL_RACES, CLASS_TRAITS, OUT_OF_COMBAT_RULES, getTraitById, getTraitsForClass, getTraitsForRace } from './traits.js';
-export type { TraitDefinition, RaceDefinition } from './traits.js';
-export { ALL_ENCOUNTERS } from './encounters.js';
-export type { EncounterEnemyGroup, EncounterDefinition } from './encounters.js';

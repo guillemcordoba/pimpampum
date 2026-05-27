@@ -1,51 +1,100 @@
 # Pim Pam Pum
 
-Pim Pam Pum és un sistema de combat per a jocs de rol de taula (DnD). 
+Pim Pam Pum és un sistema de joc de rol de taula amb combat tàctic per equips.
 
-Cada jugador té les següents característiques base representades amb un número:
-PV: punts de vida. Els PV van des de 2 a 8.
-V: velocitat
-F: força 
-D: defensa
-M: màgia
+## Característiques
 
-Cada jugador pot portar objectes passius que modifiquin aquestes característiques. Hi ha items que no ocupen espai, i hi ha objectes que sí. Per exemple, només es pot portar un pantaló, un casc o una armadura de tors.
+Cada personatge té una sola característica base:
 
-El combat consisteix en una sèrie de rondes. Cada jugador tindrà una mà de cartes d'acció, que poden ser cartes d'objectes i cartes d'habilitats. Sempre que s'hagi de calcular el valor final d'una característica, es farà de la següent manera:
+- **PV** (Punts de vida): els punts de vida que té el personatge abans de morir.
 
-Característica final = Característica base + modificadors d'objectes passius + modificador d'acció + modificadors de combat
+## Habilitats
 
-En cada ronda, els jugadors trien una carta de la mà, la posen de cap per vall, i les revelen alhora. Les cartes es resolen per ordre de velocitat. Cada carta pot tenir:
-- Modificador de característica:
-  - Velocitat
-  - Defensa: només cartes de defensa
-  - Força i màgia: només cartes d'atac
-- Modificador característica a ell mateix o a altres jugadors per la resta del combat.
-- Efectes especials.
+Cada personatge té un conjunt d'habilitats, cadascuna amb un nivell entre 1 i 100. Exemples d'habilitats: Esgrima, Piromància, Furtivitat, Geomància, Ninjutsu de Foc, Tir amb Arc...
 
+Quan una habilitat puja de nivell, pot desbloquejar noves accions.
 
-## Cartes d'atac
+## Accions
 
-Hi ha cartes d'atac físiques i màgiques. Quan es resol una carta d'acció d'atac, el jugador atacant tria el jugador atacat. El jugador atacat perd una vida si la força o màgia és més gran que la defensa, després de sumar tots els modificadors i daus.
+Les accions són les capacitats que un personatge pot fer servir, tant en combat com fora de combat. Cada acció pertany a una habilitat i es desbloqueja quan l'habilitat arriba a un cert nivell.
 
+Cada acció té:
+- **Habilitat**: l'habilitat associada.
+- **Velocitat**: un valor que determina quan es resol l'acció (més alt = es resol primer).
+- **Tipus**: Atac, Defensa o Focus.
 
-## Cartes de defensa
+### Accions d'atac
 
-Quan es resol una carta de defensa, el jugador defensant tria a un jugador defensat. Tots els atacs que rebi l'aliat triat durant aquest torn els rebràs tu. Si un atac d'àrea afecta tant al defensor com al defensat, el defensor només rep un atac.
+Les accions d'atac tenen, a més:
+- **Daus de dany**: els daus que es tiren quan l'atac impacta (per exemple, 1d8, 2d6).
 
-## Canvis de cartes
+Quan es resol una acció d'atac, l'atacant tria un objectiu. Es fa una tirada d'habilitat:
 
-Fora de combat, els jugadors es poden canviar les cartes que porten actives. Es poden intercanviar els objectes entre ells, i canviar les habilitats actives per habilitats que ja havien après anteriorment. Els jugadors no es poden canviar habilitats entre ells.
+- **Atacant**: d20 + nivell d'habilitat + modificadors de l'acció
+- **Defensor** (si té una acció de defensa activa): d20 + nivell d'habilitat de defensa + modificadors de defensa
+- **Sense defensa**: l'atac impacta automàticament.
+
+Si el total de l'atacant supera el del defensor (o si no hi ha defensa), l'atac impacta. Es tiren els daus de dany de l'acció, es resta l'armadura passiva de l'objectiu, i el resultat (mínim 0) es resta dels PV.
+
+### Accions de defensa
+
+Quan un jugador juga una acció de defensa, tria un aliat a defensar. Tots els atacs dirigits a l'aliat defensat o al defensor es resolen contra la tirada de defensa del defensor (d20 + habilitat de defensa + modificadors).
+
+El defensor tira per separat contra cada atac que rebi ell o l'aliat defensat durant el torn. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el defensor, no l'aliat.
+
+### Accions de focus
+
+Les accions de focus tenen efectes especials. Normalment són lentes (velocitat baixa). Una acció de focus no es resol si, abans que es resolgui, el jugador rep un atac sense defensa durant aquest torn.
+
+## Resolució de combat
+
+El combat consisteix en una sèrie de rondes:
+
+1. Tots els jugadors trien una acció de la seva mà, la posen de cap per avall, i es revelen alhora.
+2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada s'apliquen.
+3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
+4. Cada acció de defensa es resol reactivament quan un atac arriba al defensor o al seu aliat defensat.
+5. Les accions de focus es cancel·len si el jugador rep un impacte abans que l'acció es resolgui.
+
+## Pujar de nivell
+
+Després de cada tirada d'habilitat (atac, defensa, o fora de combat), es comprova el marge:
+
+- **Fallar per menys de 10**: l'habilitat puja un nivell (+1).
+- **Encertar per menys de 5**: l'habilitat puja un nivell (+1).
+
+Això crea una zona ideal on fer servir habilitats contra reptes al teu nivell és el que més t'ensenya. Les tasques massa fàcils (encertar per 5 o més) no ensenyen res. Els fracassos catastròfics (fallar per 10 o més) són massa aclaparadors per aprendre'n.
+
+## Objectes i equipament
+
+Els personatges poden portar objectes passius que modifiquen les seves capacitats. El sistema d'espais d'equipament és:
+- **Tors**: armadura de cos
+- **Cap**: casc
+- **Braços**: bracals, guants
+- **Cames**: pantalons, botes
+- **Mà principal**: arma principal
+- **Mà secundària**: escut, arma secundària
+
+Només es pot portar un objecte per espai. Els objectes poden donar:
+- **Armadura passiva**: reducció plana de dany a cada impacte rebut.
+- **Bonificacions d'habilitat**: millores al nivell d'habilitat en certes accions.
+- **Penalització de velocitat**: les armadures pesades redueixen la velocitat de totes les accions del portador.
+
+La decisió entre armadura pesada (més protecció, més lent) i armadura lleugera (menys protecció, sense penalització) és una elecció tàctica important.
+
+## Canvis d'equipament
+
+Fora de combat, els jugadors es poden intercanviar objectes entre ells i canviar les accions actives per accions que ja havien après anteriorment. Els jugadors no es poden intercanviar habilitats entre ells.
+
+## Fora de combat
+
+Les accions es poden fer servir fora de combat per fer tirades d'habilitat. El director de joc (DM) estableix un nivell de dificultat per a la tasca. Es tira d20 + nivell d'habilitat + modificadors contra la dificultat. Les regles de pujar de nivell s'apliquen igualment.
 
 ## Descans
 
-Entre combats, els jugadors poden descansar per recuperar vides. Hi ha dos tipus de descans:
+Entre combats, els jugadors poden descansar per recuperar vides:
 
-- **Descans curt**: Cada jugador recupera 1 vida.
-- **Descans llarg**: Cada jugador recupera totes les vides.
+- **Descans curt**: cada jugador recupera 1 PV.
+- **Descans llarg**: cada jugador recupera tots els PV.
 
 El DM decideix quan els jugadors poden fer un descans curt o llarg.
-
-## Cartes de focus
-
-Són cartes amb efectes especials. La carta de focus no es resol si, abans que es resolgui, el jugador rep un atac durant aquest torn.

@@ -1,445 +1,118 @@
 import {
-  Character,
-  CombatEngine,
-  newCombatStats,
-  mergeCombatStats,
-  assignStrategies,
-  createFighter,
-  createWizard,
-  createRogue,
-  createBarbarian,
-  createCleric,
-  createMonk,
-  createBard,
-  createWarlock,
-  createPaladin,
-  createDruid,
-  createSorcerer,
-  createGoblin,
-  createGoblinShaman,
-  createSpinedDevil,
-  createBoneDevil,
-  createHornedDevil,
-  createStoneGolem,
-  ALL_EQUIPMENT,
-  EquipmentSlot,
-  AIStrategy,
+  Character, CombatEngine, CombatStats, newCombatStats,
+  assignStrategies, AIStrategy, EffectRegistry,
 } from '@pimpampum/engine';
-import type { CombatStats, EquipmentTemplate } from '@pimpampum/engine';
+import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, createRegistry } from '@pimpampum/skills';
+import { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter } from '@pimpampum/enemies';
 
-// =============================================================================
-// TYPES
-// =============================================================================
+/** Shared registry for all simulations. */
+export const REGISTRY: EffectRegistry = createRegistry();
 
-export type CharacterCreator = (name: string) => Character;
+/** Default PV pool for a generated player character. */
+export const PLAYER_PV = 10;
 
-export interface SimulationResults {
-  team1Wins: number;
-  team2Wins: number;
+export function randInt(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+export function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/** Randomly equip 0-3 items across distinct slots. */
+function randomEquipment(): string[] {
+  const bySlot = new Map<string, string[]>();
+  for (const e of ALL_EQUIPMENT) {
+    if (!bySlot.has(e.slot)) bySlot.set(e.slot, []);
+    bySlot.get(e.slot)!.push(e.id);
+  }
+  const chosen: string[] = [];
+  for (const ids of bySlot.values()) {
+    if (Math.random() < 0.5) chosen.push(pick(ids));
+  }
+  return chosen;
+}
+
+/**
+ * Build a random player character with total skill levels summing to ~budget,
+ * spread over 1-2 skills, plus random equipment.
+ */
+export function randomPlayer(name: string, budget: number, equip = true): Character {
+  const nSkills = randInt(1, 2);
+  const chosen = shuffle(PLAYER_SKILLS).slice(0, nSkills);
+  const skills: Record<string, number> = {};
+  let remaining = budget;
+  chosen.forEach((s, i) => {
+    const last = i === chosen.length - 1;
+    const lvl = last ? remaining : Math.round(remaining * (0.4 + Math.random() * 0.3));
+    skills[s.id] = Math.max(5, Math.min(90, lvl));
+    remaining -= skills[s.id];
+  });
+  return buildCharacter({
+    name,
+    classCss: chosen[0].classCss,
+    iconPath: chosen[0].iconPath,
+    pv: PLAYER_PV,
+    skills,
+    equipment: equip ? randomEquipment() : [],
+  });
+}
+
+/** A team of `size` random players, each with the given per-player budget. */
+export function randomTeam(prefix: string, size: number, perPlayerBudget: number, equip = true): Character[] {
+  return Array.from({ length: size }, (_, i) => randomPlayer(`${prefix}${i + 1}`, perPlayerBudget, equip));
+}
+
+const STRATS = [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect];
+
+/** Run one match; returns winning team index (0/1) or null for a draw. */
+export function runMatch(teamA: Character[], teamB: Character[], stats?: CombatStats, maxRounds = 40): number | null {
+  assignStrategies(teamA, shuffle(STRATS));
+  assignStrategies(teamB, shuffle(STRATS));
+  const engine = new CombatEngine(teamA, teamB, { registry: REGISTRY, maxRounds });
+  return engine.runCombat(stats).winner;
+}
+
+export interface MatchupResult {
+  games: number;
+  aWins: number;
+  bWins: number;
   draws: number;
   totalRounds: number;
-  numSimulations: number;
-  maxRoundsReached: number;
-  stats: CombatStats;
 }
 
-// =============================================================================
-// RANDOM EQUIPMENT
-// =============================================================================
-
-const equipmentBySlot = new Map<EquipmentSlot, EquipmentTemplate[]>();
-for (const tmpl of ALL_EQUIPMENT) {
-  const list = equipmentBySlot.get(tmpl.slot) ?? [];
-  list.push(tmpl);
-  equipmentBySlot.set(tmpl.slot, list);
-}
-
-function assignRandomEquipment(character: Character): void {
-  for (const [, items] of equipmentBySlot) {
-    const roll = Math.floor(Math.random() * (items.length + 1));
-    if (roll < items.length) {
-      character.equip(items[roll].creator());
+/** Repeatedly fight two freshly-built teams (factories) and tally results. */
+export function runMatchup(makeA: () => Character[], makeB: () => Character[], games: number, stats?: CombatStats): MatchupResult {
+  const res: MatchupResult = { games, aWins: 0, bWins: 0, draws: 0, totalRounds: 0 };
+  for (let i = 0; i < games; i++) {
+    const teamA = makeA();
+    const teamB = makeB();
+    const before = stats ? { ...stats } : undefined;
+    const local = newCombatStats();
+    const winner = runMatch(teamA, teamB, stats ? local : undefined);
+    if (stats) {
+      stats.combats += local.combats;
+      stats.rounds += local.rounds;
+      for (const k of Object.keys(local.actionPlays)) stats.actionPlays[k] = (stats.actionPlays[k] ?? 0) + local.actionPlays[k];
+      for (const k of Object.keys(local.actionWinPlays)) stats.actionWinPlays[k] = (stats.actionWinPlays[k] ?? 0) + local.actionWinPlays[k];
+      for (const k of Object.keys(local.actionTypePlays)) stats.actionTypePlays[k] = (stats.actionTypePlays[k] ?? 0) + local.actionTypePlays[k];
     }
+    void before;
+    res.totalRounds += local.rounds || 0;
+    if (winner === 0) res.aWins++;
+    else if (winner === 1) res.bWins++;
+    else res.draws++;
   }
+  return res;
 }
 
-// =============================================================================
-// SIMULATION RUNNERS
-// =============================================================================
-
-export function runMatchup(
-  team1Creators: CharacterCreator[],
-  team2Creators: CharacterCreator[],
-  numSimulations: number,
-): SimulationResults {
-  const results: SimulationResults = {
-    team1Wins: 0,
-    team2Wins: 0,
-    draws: 0,
-    totalRounds: 0,
-    maxRoundsReached: 0,
-    numSimulations,
-    stats: newCombatStats(),
-  };
-
-  for (let i = 0; i < numSimulations; i++) {
-    const team1 = team1Creators.map((creator, j) => {
-      const c = creator(`T1_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-    const team2 = team2Creators.map((creator, j) => {
-      const c = creator(`T2_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-
-    const team1Classes = team1.map(c => c.characterClass);
-    const team2Classes = team2.map(c => c.characterClass);
-
-    const engine = new CombatEngine(team1, team2, false);
-    const winner = engine.runCombat();
-
-    results.totalRounds += engine.roundNumber;
-    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
-    mergeCombatStats(results.stats, engine.stats);
-
-    for (const cls of team1Classes) {
-      results.stats.classGames.set(cls, (results.stats.classGames.get(cls) ?? 0) + 1);
-      if (winner === 1) results.stats.classWins.set(cls, (results.stats.classWins.get(cls) ?? 0) + 1);
-    }
-    for (const cls of team2Classes) {
-      results.stats.classGames.set(cls, (results.stats.classGames.get(cls) ?? 0) + 1);
-      if (winner === 2) results.stats.classWins.set(cls, (results.stats.classWins.get(cls) ?? 0) + 1);
-    }
-
-    if (winner === 1) results.team1Wins++;
-    else if (winner === 2) results.team2Wins++;
-    else results.draws++;
-  }
-
-  return results;
-}
-
-/**
- * Run simulations with forced strategies (bypasses runCombat's assignStrategies).
- * Uses a manual loop with runRound() so strategies aren't overwritten.
- * Accepts per-character strategy arrays — strategies cycle over team members.
- */
-export function runWithStrategies(
-  team1Creators: CharacterCreator[],
-  team2Creators: CharacterCreator[],
-  strategies1: AIStrategy[],
-  strategies2: AIStrategy[],
-  numSimulations: number,
-): SimulationResults {
-  const results: SimulationResults = {
-    team1Wins: 0,
-    team2Wins: 0,
-    draws: 0,
-    totalRounds: 0,
-    maxRoundsReached: 0,
-    numSimulations,
-    stats: newCombatStats(),
-  };
-
-  for (let i = 0; i < numSimulations; i++) {
-    const team1 = team1Creators.map((creator, j) => {
-      const c = creator(`T1_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-    const team2 = team2Creators.map((creator, j) => {
-      const c = creator(`T2_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-
-    const team1Classes = team1.map(c => c.characterClass);
-    const team2Classes = team2.map(c => c.characterClass);
-
-    const engine = new CombatEngine(team1, team2, false);
-
-    // Force per-character strategies (cycle over the array)
-    for (let j = 0; j < team1.length; j++) team1[j].aiStrategy = strategies1[j % strategies1.length];
-    for (let j = 0; j < team2.length; j++) team2[j].aiStrategy = strategies2[j % strategies2.length];
-
-    while (engine.roundNumber < engine.maxRounds) {
-      if (!engine.runRound()) break;
-    }
-
-    const team1Alive = team1.filter(c => c.isAlive()).length;
-    const team2Alive = team2.filter(c => c.isAlive()).length;
-
-    let winner: number;
-    if (team1Alive > 0 && team2Alive === 0) winner = 1;
-    else if (team2Alive > 0 && team1Alive === 0) winner = 2;
-    else if (team1Alive > team2Alive) winner = 1;
-    else if (team2Alive > team1Alive) winner = 2;
-    else winner = 0;
-
-    // Record winner's cards
-    const winnerCards = winner === 1 ? engine.team1CardsPlayed : winner === 2 ? engine.team2CardsPlayed : null;
-    if (winnerCards) {
-      for (const [cardName, cardType] of winnerCards) {
-        if (!engine.stats.cardStats.has(cardName)) engine.stats.cardStats.set(cardName, { plays: 0, playsByWinner: 0, interrupted: 0 });
-        engine.stats.cardStats.get(cardName)!.playsByWinner++;
-        if (!engine.stats.cardTypeStats.has(cardType)) engine.stats.cardTypeStats.set(cardType, { plays: 0, playsByWinner: 0, interrupted: 0 });
-        engine.stats.cardTypeStats.get(cardType)!.playsByWinner++;
-      }
-    }
-
-    // Record strategy stats
-    const winnerTeam = winner === 1 ? team1 : winner === 2 ? team2 : null;
-    for (const c of [...team1, ...team2]) {
-      if (c.aiStrategy) {
-        const entry = engine.stats.strategyStats.get(c.aiStrategy) ?? { games: 0, wins: 0 };
-        entry.games++;
-        if (winnerTeam && winnerTeam.includes(c)) entry.wins++;
-        engine.stats.strategyStats.set(c.aiStrategy, entry);
-      }
-    }
-
-    results.totalRounds += engine.roundNumber;
-    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
-    mergeCombatStats(results.stats, engine.stats);
-
-    for (const cls of team1Classes) {
-      results.stats.classGames.set(cls, (results.stats.classGames.get(cls) ?? 0) + 1);
-      if (winner === 1) results.stats.classWins.set(cls, (results.stats.classWins.get(cls) ?? 0) + 1);
-    }
-    for (const cls of team2Classes) {
-      results.stats.classGames.set(cls, (results.stats.classGames.get(cls) ?? 0) + 1);
-      if (winner === 2) results.stats.classWins.set(cls, (results.stats.classWins.get(cls) ?? 0) + 1);
-    }
-
-    if (winner === 1) results.team1Wins++;
-    else if (winner === 2) results.team2Wins++;
-    else results.draws++;
-  }
-
-  return results;
-}
-
-// =============================================================================
-// TEAM COMPOSITION GENERATION
-// =============================================================================
-
-export function getAllCreators(): [string, CharacterCreator][] {
-  return [
-    ['Fighter', createFighter],
-    ['Wizard', createWizard],
-    ['Rogue', createRogue],
-    ['Barbarian', createBarbarian],
-    ['Cleric', createCleric],
-    ['Monk', createMonk],
-    ['Bard', createBard],
-    ['Warlock', createWarlock],
-    ['Paladin', createPaladin],
-    ['Druid', createDruid],
-    ['Sorcerer', createSorcerer],
-    ['Goblin', createGoblin],
-    ['GoblinShaman', createGoblinShaman],
-    ['SpinedDevil', createSpinedDevil],
-    ['BoneDevil', createBoneDevil],
-    ['HornedDevil', createHornedDevil],
-    ['StoneGolem', createStoneGolem],
-  ];
-}
-
-export function getPlayerCreators(): [string, CharacterCreator][] {
-  return [
-    ['Fighter', createFighter],
-    ['Wizard', createWizard],
-    ['Rogue', createRogue],
-    ['Barbarian', createBarbarian],
-    ['Cleric', createCleric],
-    ['Monk', createMonk],
-    ['Bard', createBard],
-    ['Warlock', createWarlock],
-    ['Paladin', createPaladin],
-    ['Druid', createDruid],
-    ['Sorcerer', createSorcerer],
-  ];
-}
-
-function combinationsWithReplacement(n: number, k: number): number[][] {
-  const results: number[][] = [];
-  const current: number[] = [];
-  function generate(start: number, remaining: number): void {
-    if (remaining === 0) {
-      results.push([...current]);
-      return;
-    }
-    for (let i = start; i < n; i++) {
-      current.push(i);
-      generate(i, remaining - 1);
-      current.pop();
-    }
-  }
-  generate(0, k);
-  return results;
-}
-
-export function generateTeamCompositions(teamSize: number, creatorsSource?: [string, CharacterCreator][]): [string, CharacterCreator[]][] {
-  const creators = creatorsSource ?? getAllCreators();
-  const compositions: [string, CharacterCreator[]][] = [];
-
-  for (const indices of combinationsWithReplacement(creators.length, teamSize)) {
-    const teamCreators = indices.map(i => creators[i][1]);
-    const counts = new Map<number, number>();
-    for (const idx of indices) counts.set(idx, (counts.get(idx) ?? 0) + 1);
-    const parts: string[] = [];
-    for (const [idx, count] of counts) {
-      parts.push(count > 1 ? `${count}x ${creators[idx][0]}` : creators[idx][0]);
-    }
-    compositions.push([parts.join('+'), teamCreators]);
-  }
-
-  return compositions;
-}
-
-/**
- * Generate a single random team composition of the given size.
- * Returns [name, creators[]] where indices are sorted for consistent naming.
- */
-export function randomTeamCreators(
-  teamSize: number,
-  creatorsSource?: [string, CharacterCreator][],
-): [string, CharacterCreator[]] {
-  const creators = creatorsSource ?? getPlayerCreators();
-  const indices = Array.from({ length: teamSize }, () =>
-    Math.floor(Math.random() * creators.length),
-  ).sort((a, b) => a - b);
-
-  const teamCreators = indices.map(i => creators[i][1]);
-  const counts = new Map<number, number>();
-  for (const idx of indices) counts.set(idx, (counts.get(idx) ?? 0) + 1);
-  const parts: string[] = [];
-  for (const [idx, count] of counts) {
-    parts.push(count > 1 ? `${count}x ${creators[idx][0]}` : creators[idx][0]);
-  }
-  return [parts.join('+'), teamCreators];
-}
-
-// =============================================================================
-// HORDE BATTLE SIMULATION
-// =============================================================================
-
-/**
- * Run an encounter matchup: player team (with random equipment) vs a custom enemy team (no equipment).
- * Uses higher maxRounds (30) since boss/horde battles take longer.
- */
-export function runEncounterMatchup(
-  playerCreators: CharacterCreator[],
-  enemyFactory: (simIndex: number) => Character[],
-  numSimulations: number,
-): SimulationResults {
-  const results: SimulationResults = {
-    team1Wins: 0,
-    team2Wins: 0,
-    draws: 0,
-    totalRounds: 0,
-    maxRoundsReached: 0,
-    numSimulations,
-    stats: newCombatStats(),
-  };
-
-  for (let i = 0; i < numSimulations; i++) {
-    const team1 = playerCreators.map((creator, j) => {
-      const c = creator(`T1_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-    const team2 = enemyFactory(i);
-
-    const engine = new CombatEngine(team1, team2, false);
-    engine.maxRounds = 30;
-    assignStrategies(team1);
-    assignStrategies(team2);
-
-    while (engine.roundNumber < engine.maxRounds) {
-      if (!engine.runRound()) break;
-    }
-
-    const team1Alive = team1.filter(c => c.isAlive()).length;
-    const team2Alive = team2.filter(c => c.isAlive()).length;
-
-    let winner: number;
-    if (team1Alive > 0 && team2Alive === 0) winner = 1;
-    else if (team2Alive > 0 && team1Alive === 0) winner = 2;
-    else if (team1Alive > team2Alive) winner = 1;
-    else if (team2Alive > team1Alive) winner = 2;
-    else winner = 0;
-
-    results.totalRounds += engine.roundNumber;
-    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
-    mergeCombatStats(results.stats, engine.stats);
-
-    if (winner === 1) results.team1Wins++;
-    else if (winner === 2) results.team2Wins++;
-    else results.draws++;
-  }
-
-  return results;
-}
-
-/**
- * Run a horde matchup: player team (with random equipment) vs N goblins (no equipment).
- * Uses higher maxRounds (30) since horde battles take longer.
- */
-export function runHordeMatchup(
-  playerCreators: CharacterCreator[],
-  goblinCount: number,
-  numSimulations: number,
-): SimulationResults {
-  const results: SimulationResults = {
-    team1Wins: 0,
-    team2Wins: 0,
-    draws: 0,
-    totalRounds: 0,
-    maxRoundsReached: 0,
-    numSimulations,
-    stats: newCombatStats(),
-  };
-
-  for (let i = 0; i < numSimulations; i++) {
-    const team1 = playerCreators.map((creator, j) => {
-      const c = creator(`T1_${j}_${i}`);
-      assignRandomEquipment(c);
-      return c;
-    });
-    const team2 = Array.from({ length: goblinCount }, (_, j) =>
-      createGoblin(`Goblin_${j}_${i}`),
-    );
-
-    const engine = new CombatEngine(team1, team2, false);
-    engine.maxRounds = 30;
-    assignStrategies(team1);
-    assignStrategies(team2);
-
-    while (engine.roundNumber < engine.maxRounds) {
-      if (!engine.runRound()) break;
-    }
-
-    const team1Alive = team1.filter(c => c.isAlive()).length;
-    const team2Alive = team2.filter(c => c.isAlive()).length;
-
-    let winner: number;
-    if (team1Alive > 0 && team2Alive === 0) winner = 1;
-    else if (team2Alive > 0 && team1Alive === 0) winner = 2;
-    else if (team1Alive > team2Alive) winner = 1;
-    else if (team2Alive > team1Alive) winner = 2;
-    else winner = 0;
-
-    results.totalRounds += engine.roundNumber;
-    if (engine.roundNumber >= engine.maxRounds) results.maxRoundsReached++;
-    mergeCombatStats(results.stats, engine.stats);
-
-    if (winner === 1) results.team1Wins++;
-    else if (winner === 2) results.team2Wins++;
-    else results.draws++;
-  }
-
-  return results;
-}
+export { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter };

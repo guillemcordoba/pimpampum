@@ -14,34 +14,19 @@ const router = createRouter({
       component: () => import('../views/CombatView.vue'),
     },
     {
-      path: '/cards',
-      name: 'cards',
+      path: '/skills',
+      name: 'skills',
       component: () => import('../views/CardsView.vue'),
     },
     {
-      path: '/cards/:section',
-      name: 'cards-section',
-      component: () => import('../views/CardsView.vue'),
-      props: route => ({ section: route.params.section as string }),
+      path: '/objects',
+      name: 'objects',
+      component: () => import('../views/ObjectsView.vue'),
     },
     {
-      path: '/cards/:section/:id',
-      name: 'cards-detail',
-      component: () => import('../views/CardsView.vue'),
-      props: route => ({
-        section: route.params.section as string,
-        characterId: route.params.id as string,
-      }),
-    },
-    {
-      path: '/encounters',
-      name: 'encounters',
-      component: () => import('../views/EncountersView.vue'),
-    },
-    {
-      path: '/trets',
-      name: 'trets',
-      component: () => import('../views/TraitsView.vue'),
+      path: '/enemies',
+      name: 'enemies',
+      component: () => import('../views/EnemiesView.vue'),
     },
     {
       path: '/rules',

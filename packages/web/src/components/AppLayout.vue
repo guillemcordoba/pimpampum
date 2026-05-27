@@ -9,9 +9,9 @@ const route = useRoute();
     <router-link to="/" class="nav-title">Pim Pam Pum</router-link>
     <div class="nav-links">
       <router-link to="/rules" :class="{ active: route.path === '/rules' }">Regles</router-link>
-      <router-link to="/cards" :class="{ active: route.path.startsWith('/cards') }">Cartes</router-link>
-      <router-link to="/encounters" :class="{ active: route.path === '/encounters' }">Equips enemics</router-link>
-      <router-link to="/trets" :class="{ active: route.path === '/trets' }">Trets</router-link>
+      <router-link to="/skills" :class="{ active: route.path.startsWith('/skills') }">Habilitats</router-link>
+      <router-link to="/objects" :class="{ active: route.path === '/objects' }">Objectes</router-link>
+      <router-link to="/enemies" :class="{ active: route.path === '/enemies' }">Enemics</router-link>
       <router-link to="/combat" :class="{ active: route.path === '/combat' }">Combat</router-link>
     </div>
   </nav>

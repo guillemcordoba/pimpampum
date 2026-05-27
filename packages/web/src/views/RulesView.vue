@@ -1,78 +1,83 @@
 <script setup lang="ts">
+import CardGrid from '../components/cards/CardGrid.vue';
+import RulesCard from '../components/cards/RulesCard.vue';
 </script>
 
 <template>
   <div class="rules-page">
-    <h1 class="screen-title">Regles</h1>
-    <p class="screen-subtitle">Mecàniques de combat de Pim Pam Pum</p>
+    <h1 class="screen-title no-print">Regles</h1>
+    <p class="screen-subtitle no-print">Mecàniques de combat de Pim Pam Pum</p>
 
-    <div class="rules-content">
+    <div class="rules-content no-print">
       <section>
-        <h2>Característiques</h2>
-        <p>Cada jugador té les següents característiques base representades amb un número:</p>
+        <h2>Característica base</h2>
+        <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): vides del personatge abans de morir (de 2 a 8).</li>
-          <li><strong>V</strong> (Velocitat): determina l'ordre de resolució de les accions.</li>
-          <li><strong>F</strong> (Força): s'utilitza per als atacs físics.</li>
-          <li><strong>D</strong> (Defensa): redueix el dany dels atacs rebuts.</li>
-          <li><strong>M</strong> (Màgia): s'utilitza per als atacs màgics.</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de morir.</li>
         </ul>
       </section>
 
       <section>
-        <h2>Objectes passius</h2>
-        <p>Cada jugador pot portar objectes passius que modifiquin les seves característiques. Hi ha ranures d'equipament: només es pot portar un pantaló, un casc o una armadura de tors.</p>
-      </section>
-
-      <section>
-        <h2>Fórmula de característiques</h2>
-        <p>Sempre que s'hagi de calcular el valor final d'una característica:</p>
-        <p class="formula">Característica final = Base + Objectes passius + Modificador d'acció + Modificadors de combat</p>
+        <h2>Habilitats i accions</h2>
+        <p>Cada personatge té un conjunt d'<strong>habilitats</strong>, cadascuna amb un nivell d'1 a 100. En pujar de nivell, una habilitat desbloqueja noves <strong>accions</strong>.</p>
+        <p>Cada acció pertany a una habilitat i té una <strong>velocitat</strong> (determina quan es resol) i un <strong>tipus</strong>: Atac, Defensa o Focus. Les accions d'atac tenen també <strong>daus de dany</strong>.</p>
       </section>
 
       <section>
         <h2>Rondes de combat</h2>
-        <p>El combat consisteix en una sèrie de rondes. Cada jugador tindrà una mà de cartes d'acció (cartes d'objectes i cartes d'habilitats).</p>
         <ol>
-          <li>Cada jugador tria una carta de la mà i la posa de cap per vall.</li>
-          <li>Es revelen totes les cartes alhora.</li>
-          <li>Les cartes es resolen per ordre de velocitat (de més alta a més baixa).</li>
+          <li>Cada jugador tria una acció i la posa de cap per avall.</li>
+          <li>Es revelen totes les accions alhora.</li>
+          <li>Es resolen per ordre de velocitat (de més alta a més baixa). En cas d'empat, es resolen simultàniament.</li>
         </ol>
-        <p>Cada carta pot tenir modificadors de característica (velocitat, defensa, força, màgia), modificadors permanents per la resta del combat, i efectes especials.</p>
       </section>
 
       <section>
-        <h2>Cartes d'atac</h2>
-        <p>Hi ha cartes d'<strong>atac físic</strong> i d'<strong>atac màgic</strong>. Quan es resol una carta d'atac, l'atacant tria un objectiu. L'objectiu perd una vida si:</p>
-        <p class="formula">Força (o Màgia) de l'atacant + dau &gt; Defensa de l'objectiu</p>
-        <p>Cada impacte fa perdre exactament 1 vida. Un personatge és derrotat quan es queda sense vides. Es recupera si se li cura una vida.</p>
+        <h2>Accions d'atac</h2>
+        <p>L'atacant tria un objectiu i fa una tirada d'habilitat:</p>
+        <p class="formula">d20 + nivell d'habilitat + modificadors</p>
+        <p>Si supera la tirada de defensa de l'objectiu (o si no en té defensa, impacta automàticament), es tiren els daus de dany, es resta l'<strong>armadura passiva</strong> i el resultat (mínim 0) es resta dels PV.</p>
       </section>
 
       <section>
-        <h2>Cartes de defensa</h2>
-        <p>Quan es resol una carta de defensa, el defensor tria un aliat a defensar. Tots els atacs que rebi l'aliat triat durant aquesta ronda els rep el defensor en lloc seu.</p>
+        <h2>Accions de defensa</h2>
+        <p>El defensor tria un aliat a protegir. Cada atac dirigit a l'aliat defensat o al defensor es resol contra la tirada de defensa del defensor. Si un atac penetra, el dany el rep el defensor, no l'aliat.</p>
       </section>
 
       <section>
-        <h2>Cartes de focus</h2>
-        <p>Són cartes amb efectes especials. La carta de focus <strong>s'interromp</strong> (es cancel·la) si el jugador rep un atac abans que la carta es resolgui durant la ronda.</p>
+        <h2>Accions de focus</h2>
+        <p>Efectes especials, normalment lents. Una acció de focus <strong>es cancel·la</strong> si el jugador rep un atac sense defensa abans que es resolgui.</p>
+      </section>
+
+      <section>
+        <h2>Pujar de nivell</h2>
+        <p>Després de cada tirada d'habilitat es comprova el marge:</p>
+        <ul>
+          <li><strong>Fallar per menys de 10</strong>: l'habilitat puja un nivell.</li>
+          <li><strong>Encertar per menys de 5</strong>: l'habilitat puja un nivell.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Objectes i equipament</h2>
+        <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana de dany), <strong>bonificacions d'habilitat</strong> i <strong>penalització de velocitat</strong> (les armadures pesades alenteixen totes les accions). Només un objecte per ranura.</p>
       </section>
 
       <section>
         <h2>Descans</h2>
-        <p>Entre combats, els jugadors poden descansar per recuperar vides:</p>
         <ul>
-          <li><strong>Descans curt</strong>: cada jugador recupera 1 vida.</li>
-          <li><strong>Descans llarg</strong>: cada jugador recupera totes les vides.</li>
+          <li><strong>Descans curt</strong>: cada jugador recupera 1 PV.</li>
+          <li><strong>Descans llarg</strong>: cada jugador recupera tots els PV.</li>
         </ul>
-        <p>El DM decideix quan els jugadors poden fer un descans curt o llarg.</p>
-      </section>
-
-      <section>
-        <h2>Fora de combat</h2>
-        <p>Fora de combat, els jugadors es poden canviar les cartes actives i intercanviar objectes entre ells. Es poden canviar les habilitats actives per habilitats apreses anteriorment, però no es poden intercanviar habilitats entre jugadors.</p>
       </section>
     </div>
+
+    <h2 class="cards-heading no-print">Cartes de regles</h2>
+    <CardGrid>
+      <RulesCard />
+      <RulesCard />
+      <RulesCard />
+    </CardGrid>
   </div>
 </template>
 
@@ -132,5 +137,16 @@
   border-radius: 6px;
   padding: 0.5rem 1rem;
   text-align: center;
+}
+
+.cards-heading {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.2rem;
+  color: var(--parchment);
+  margin: 2.5rem 0 1rem;
+}
+
+@media print {
+  .no-print { display: none !important; }
 }
 </style>

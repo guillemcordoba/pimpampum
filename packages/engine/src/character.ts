@@ -1,270 +1,199 @@
-import { DiceRoll } from './dice.js';
-import { Equipment } from './equipment.js';
-import { Card } from './card.js';
 import { CombatModifier } from './modifier.js';
 import { AIStrategy } from './strategy.js';
+import { ActionInstance } from './action.js';
+import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
 
-/** Defense bonus: [defenderTeam, defenderIdx, defenderName, flatDefense, dice] */
-export type DefenseBonus = [number, number, string, number, DiceRoll];
+/** A temporary status flag/stack on a character. */
+export interface StatusEntry {
+  /** Magnitude or stack count; 1 for plain flags. */
+  value: number;
+  /** Turns remaining; -1 means rest of combat. Decremented each turn. */
+  remaining: number;
+  /** Arbitrary effect-specific payload. */
+  data?: Record<string, unknown>;
+}
 
-/** Per-player-count stat overrides for enemy scaling */
-export type ScalingOverrides = Record<number, Partial<{ lives: number; strength: number; magic: number; defense: number; speed: number }>>;
+/** A guard linking a defender to the ally (or self) they are protecting this round. */
+export interface Guard {
+  defender: Character;
+  /** The defense action providing the guard (for skill/rollBonus/effects). */
+  action: ActionDefinition;
+}
 
-export interface CharacterTemplate {
-  id: string;
-  displayName: string;
-  classCss: string;
-  iconPath: string;
-  category: 'player' | 'enemy';
-  baseStrength: number;
-  baseMagic: number;
-  baseDefense: number;
-  baseSpeed: number;
-  baseLives: number;
-  cardIcons: Record<string, string>;
-  createCards: () => Card[];
-  /** Optional stat scaling by player count (enemies only) */
-  scaling?: ScalingOverrides;
+/**
+ * Sum of modifiers whose `stat` is in `kinds`. Pending modifiers (those that only
+ * take effect next turn) are skipped.
+ */
+function sumModifiers(mods: CombatModifier[], kinds: Set<string>): number {
+  let total = 0;
+  for (const m of mods) {
+    if (typeof m.duration === 'object' && m.duration.pending) continue;
+    if (kinds.has(m.stat)) total += m.getValue();
+  }
+  return total;
 }
 
 export class Character {
-  public team = 0;
-  public equipment: Equipment[] = [];
-  public aiStrategy: AIStrategy | null = null;
+  team = 0;
+  aiStrategy: AIStrategy | null = null;
+
+  // Base definition
+  maxPV: number;
+  currentPV: number;
+  /** skillId -> base level (1-100). */
+  skills: Map<string, number>;
+  equipment: EquipmentDefinition[] = [];
+  /** Active hand. */
+  actions: ActionInstance[];
 
   // Combat state
-  public currentLives: number;
-  public modifiers: CombatModifier[] = [];
-  public defenseBonuses: DefenseBonus[] = [];
-  public skipTurns = 0;
-  public stunned = false;
-  public dodging = false;
-  public focusInterrupted = false;
-  public playedCardIdx: number | null = null;
-  public hitThisCombat = false;
-  public hasAbsorbPain = false;
-  public hasPoisonWeapon = false;
-  public hasCounterThrow = false;
-  public hasShroudDebuff = false;
-  public hasDeathWard = false;
-  public hasBerserkerEndurance = false;
-  public berserkerStrengthBoost = 0;
-  public berserkerSpeedBoost = 0;
-  public pendingVenomDamage = 0;
-  public silencedTurns = 0;
-  public hasDeflection = false;
-  public deflectionCounterDice: DiceRoll | null = null;
-  public hasMagicDeflection = false;
-  public magicDeflectionCounterDice: DiceRoll | null = null;
-  public pendingLingeringFireDamage = 0;
-  public doomMarked = false;
-  public impaledTurns = 0;
-  public bloodContractTeam = 0;
-  public bloodContractSource = '';
-  public hasInfernalRetaliation = false;
-  public hasCursedWard = false;
-  public hasDivineBulwark = false;
-  public counterspelled = false;
-  public wildShapeLivesBonus = 0;
-  public arcaneMarkCount = 0;
-  public hasSpellAbsorption = false;
-  public charmedConfusion = false;
-  public forceRandomCardTurns = 0;
-  public setAsideCards: Map<number, number> = new Map(); // cardIdx → remaining turns (-1 = permanent)
+  modifiers: CombatModifier[] = [];
+  statuses = new Map<string, StatusEntry>();
+  /** Defenders protecting this character this round (incl. self-guard). */
+  guards: Guard[] = [];
+  skipTurns = 0;
+  /** Took an undefended hit this round (interrupts a not-yet-resolved focus). */
+  hitThisTurn = false;
+  hitThisCombat = false;
+  playedActionIdx: number | null = null;
+  /** actionIdx -> turns set aside (-1 = permanent). */
+  setAsideActions = new Map<number, number>();
 
   constructor(
     public name: string,
-    public maxLives: number,
-    public strength: number,
-    public magic: number,
-    public defense: number,
-    public speed: number,
-    public cards: Card[],
+    pv: number,
+    skills: Map<string, number>,
+    actions: ActionInstance[],
     public characterClass: string,
+    public category: 'player' | 'enemy' = 'player',
+    public iconPath = '',
   ) {
-    this.currentLives = maxLives;
+    this.maxPV = pv;
+    this.currentPV = pv;
+    this.skills = skills;
+    this.actions = actions;
   }
 
   isAlive(): boolean {
-    return this.currentLives > 0;
+    return this.currentPV > 0;
   }
 
-  isCardSetAside(cardIdx: number): boolean {
-    return this.setAsideCards.has(cardIdx);
+  // --- Skills ---------------------------------------------------------------
+
+  /** Base skill level plus permanent equipment bonuses (no temporary modifiers). */
+  getSkillLevel(skillId: string): number {
+    let level = this.skills.get(skillId) ?? 0;
+    for (const eq of this.equipment) {
+      for (const b of eq.skillBonuses) {
+        if (b.skillId === skillId || b.skillId === '*') level += b.bonus;
+      }
+    }
+    return level;
   }
 
-  /** Returns true if the character died */
-  loseLife(): boolean {
-    this.currentLives--;
+  /** Effective skill for a roll of the given kind, including temporary modifiers. */
+  getRollSkill(skillId: string, kind: 'attack' | 'defense'): number {
+    const kinds = new Set<string>(['skill', kind, skillId]);
+    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds);
+  }
+
+  raiseSkill(skillId: string, by = 1): void {
+    const cur = this.skills.get(skillId);
+    if (cur === undefined) return;
+    this.skills.set(skillId, Math.min(100, cur + by));
+  }
+
+  // --- Equipment / derived stats -------------------------------------------
+
+  getPassiveArmor(): number {
+    let armor = this.equipment.reduce((s, e) => s + e.passiveArmor, 0);
+    armor += sumModifiers(this.modifiers, new Set(['armor']));
+    return Math.max(0, armor);
+  }
+
+  getEquipmentSpeedPenalty(): number {
+    return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
+  }
+
+  /** Resolved speed of an action: base - armour penalty + speed modifiers. */
+  getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
+    const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
+    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed']));
+  }
+
+  equip(item: EquipmentDefinition): void {
+    this.equipment = this.equipment.filter(e => e.slot !== item.slot);
+    this.equipment.push(item);
+  }
+
+  // --- Statuses -------------------------------------------------------------
+
+  setStatus(key: string, value = 1, remaining = 1, data?: Record<string, unknown>): void {
+    this.statuses.set(key, { value, remaining, data });
+  }
+
+  hasStatus(key: string): boolean {
+    return this.statuses.has(key);
+  }
+
+  getStatus(key: string): StatusEntry | undefined {
+    return this.statuses.get(key);
+  }
+
+  getStatusValue(key: string, fallback = 0): number {
+    return this.statuses.get(key)?.value ?? fallback;
+  }
+
+  clearStatus(key: string): void {
+    this.statuses.delete(key);
+  }
+
+  // --- Modifiers ------------------------------------------------------------
+
+  addModifier(mod: CombatModifier): void {
+    this.modifiers.push(mod);
+  }
+
+  // --- Damage / healing -----------------------------------------------------
+
+  /** Returns true if the character died from this loss. */
+  loseLife(amount = 1): boolean {
+    this.currentPV = Math.max(0, this.currentPV - amount);
     this.hitThisCombat = true;
+    this.hitThisTurn = true;
     return !this.isAlive();
   }
 
-  getStatModifier(stat: string, condition?: string): number {
-    let total = 0;
-    for (const m of this.modifiers) {
-      // Skip pending modifiers — they become active after advanceTurnModifiers()
-      if (typeof m.duration === 'object' && m.duration.pending) continue;
-      if (m.stat === stat) {
-        if (m.condition !== null) {
-          if (condition !== undefined) {
-            if (!m.condition.includes(condition)) continue;
-          } else {
-            continue;
-          }
-        }
-        total += m.getValue();
-      }
-    }
-    return total;
+  heal(amount: number): void {
+    this.currentPV = Math.min(this.maxPV, this.currentPV + amount);
   }
 
-  getEquipmentSpeed(): number {
-    return this.equipment.reduce((sum, e) => sum + e.speedMod, 0);
+  // --- Action availability --------------------------------------------------
+
+  isActionSetAside(idx: number): boolean {
+    return this.setAsideActions.has(idx);
   }
 
-  getEquipmentDefense(): number {
-    return this.equipment.reduce((sum, e) => sum + e.getDefense(), 0);
-  }
-
-  getEquipmentDefenseAvg(): number {
-    return this.equipment.reduce((sum, e) => sum + e.getDefenseAvg(), 0);
-  }
-
-  getEffectiveSpeed(card?: Card): number {
-    let base = this.speed + this.getStatModifier('speed');
-    base += this.getEquipmentSpeed();
-    if (card) base += card.speedMod;
-    return base;
-  }
-
-  getEffectiveStrength(): number {
-    return this.strength + this.getStatModifier('strength');
-  }
-
-  getEffectiveMagic(): number {
-    return this.magic + this.getStatModifier('magic');
-  }
-
-  getEffectiveDefense(): number {
-    const base = this.defense + this.getStatModifier('defense');
-    return base + this.getEquipmentDefense();
-  }
-
-  hasDefenseBonus(): boolean {
-    return this.defenseBonuses.length > 0;
-  }
-
-  /** Get active defense bonus and return [defenderTeam, defenderIdx, defenderName, totalDefense].
-   *  Defense cards redirect ALL attacks to the defended player for the round.
-   *  Bonuses from dead defenders are removed. */
-  popDefenseBonus(getTeam?: (team: number) => Character[]): [number, number, string, number] | null {
-    if (getTeam) {
-      for (let i = this.defenseBonuses.length - 1; i >= 0; i--) {
-        const [team, idx] = this.defenseBonuses[i];
-        if (!getTeam(team)[idx].isAlive()) {
-          this.defenseBonuses.splice(i, 1);
-        }
-      }
-    }
-    const bonus = this.defenseBonuses[this.defenseBonuses.length - 1];
-    if (!bonus) return null;
-    const [team, idx, name, flatDefense, dice] = bonus;
-    const total = flatDefense + dice.roll();
-    return [team, idx, name, total];
-  }
-
-  getAttackBonus(targetName: string): number {
-    let bonus = 0;
-    for (const m of this.modifiers) {
-      if (m.stat === 'attack_bonus') {
-        if (m.condition !== null) {
-          if (m.condition.includes(targetName)) {
-            bonus += m.getValue();
-          }
-        } else {
-          bonus += m.getValue();
-        }
-      }
-    }
-    return bonus;
-  }
-
-  equip(item: Equipment): void {
-    const oldItem = this.equipment.find(e => e.slot === item.slot);
-    if (oldItem?.consumableCard) {
-      this.cards = this.cards.filter(c => c !== oldItem.consumableCard);
-    }
-    this.equipment = this.equipment.filter(e => e.slot !== item.slot);
-    this.equipment.push(item);
-    if (item.consumableCard) {
-      this.cards.push(item.consumableCard);
-    }
-  }
+  // --- Lifecycle ------------------------------------------------------------
 
   resetForNewCombat(): void {
-    this.maxLives -= this.wildShapeLivesBonus;
-    this.wildShapeLivesBonus = 0;
-    this.currentLives = this.maxLives;
+    this.currentPV = this.maxPV;
     this.modifiers = [];
-    this.defenseBonuses = [];
+    this.statuses.clear();
+    this.guards = [];
     this.skipTurns = 0;
-    this.stunned = false;
-    this.dodging = false;
-    this.focusInterrupted = false;
-    this.playedCardIdx = null;
+    this.hitThisTurn = false;
     this.hitThisCombat = false;
-    this.hasAbsorbPain = false;
-    this.hasPoisonWeapon = false;
-    this.hasCounterThrow = false;
-    this.hasShroudDebuff = false;
-    this.hasDeathWard = false;
-    this.hasBerserkerEndurance = false;
-    this.berserkerStrengthBoost = 0;
-    this.berserkerSpeedBoost = 0;
-    this.pendingVenomDamage = 0;
-    this.silencedTurns = 0;
-    this.hasDeflection = false;
-    this.deflectionCounterDice = null;
-    this.hasMagicDeflection = false;
-    this.magicDeflectionCounterDice = null;
-    this.pendingLingeringFireDamage = 0;
-    this.doomMarked = false;
-    this.impaledTurns = 0;
-    this.bloodContractTeam = 0;
-    this.bloodContractSource = '';
-    this.hasInfernalRetaliation = false;
-    this.hasCursedWard = false;
-    this.hasDivineBulwark = false;
-    this.counterspelled = false;
-    this.arcaneMarkCount = 0;
-    this.hasSpellAbsorption = false;
-    this.charmedConfusion = false;
-    this.forceRandomCardTurns = 0;
-    this.setAsideCards.clear();
-    for (const card of this.cards) {
-      if (card.isConsumable) card.consumed = false;
-    }
+    this.playedActionIdx = null;
+    this.setAsideActions.clear();
+    for (const a of this.actions) a.consumed = false;
   }
 
-  /** Returns true if the character is skipping this turn */
+  /** Returns true if the character is skipping this turn (stun/skip). */
   resetForNewRound(): boolean {
-    this.dodging = false;
-    this.focusInterrupted = false;
-    this.playedCardIdx = null;
-    this.defenseBonuses = [];
-    this.hasBerserkerEndurance = false;
-    this.berserkerStrengthBoost = 0;
-    this.berserkerSpeedBoost = 0;
-    this.hasDeflection = false;
-    this.deflectionCounterDice = null;
-    this.hasMagicDeflection = false;
-    this.magicDeflectionCounterDice = null;
-    this.hasInfernalRetaliation = false;
-    this.hasCursedWard = false;
-    this.hasDivineBulwark = false;
-    this.counterspelled = false;
-    this.hasSpellAbsorption = false;
+    this.guards = [];
+    this.hitThisTurn = false;
+    this.playedActionIdx = null;
     if (this.skipTurns > 0) {
       this.skipTurns--;
       return true;
@@ -272,66 +201,61 @@ export class Character {
     return false;
   }
 
-  advanceTurnModifiers(): void {
+  /** Advance turn-scoped modifiers, statuses and set-aside counters. */
+  advanceTurn(): void {
     this.modifiers = this.modifiers.filter(m => {
       if (m.duration === 'ThisTurn') return false;
       if (m.duration === 'RestOfCombat') return true;
       const d = m.duration;
-      if (d.pending) d.pending = false;
+      if (d.pending) { d.pending = false; return true; }
       d.remaining--;
-      return d.remaining >= 0;
+      return d.remaining > 0;
     });
 
-    // Decrement set-aside counters; remove expired ones (-1 = permanent, never expires)
-    for (const [cardIdx, remaining] of this.setAsideCards) {
+    for (const [key, entry] of this.statuses) {
+      if (entry.remaining === -1) continue;
+      entry.remaining--;
+      if (entry.remaining <= 0) this.statuses.delete(key);
+    }
+
+    for (const [idx, remaining] of this.setAsideActions) {
       if (remaining === -1) continue;
       const next = remaining - 1;
-      if (next <= 0) {
-        this.setAsideCards.delete(cardIdx);
-      } else {
-        this.setAsideCards.set(cardIdx, next);
-      }
+      if (next <= 0) this.setAsideActions.delete(idx);
+      else this.setAsideActions.set(idx, next);
     }
   }
 }
 
-/** Create a Character from a CharacterTemplate */
-export function createCharacter(template: CharacterTemplate, name: string): Character {
-  return new Character(
-    name,
-    template.baseLives,
-    template.baseStrength,
-    template.baseMagic,
-    template.baseDefense,
-    template.baseSpeed,
-    template.createCards(),
-    template.id,
-  );
+/** Options for building a character from resolved definitions. */
+export interface CreateCharacterOptions {
+  name: string;
+  classCss: string;
+  pv: number;
+  skills: Record<string, number> | SkillInstance[];
+  /** Resolved action definitions forming the hand. */
+  actions: ActionDefinition[];
+  equipment?: EquipmentDefinition[];
+  category?: 'player' | 'enemy';
+  iconPath?: string;
 }
 
-/** Get stats for a template scaled to a given player count. Falls back to base stats. */
-export function getScaledStats(template: CharacterTemplate, playerCount: number): { lives: number; strength: number; magic: number; defense: number; speed: number } {
-  const overrides = template.scaling?.[playerCount];
-  return {
-    lives: overrides?.lives ?? template.baseLives,
-    strength: overrides?.strength ?? template.baseStrength,
-    magic: overrides?.magic ?? template.baseMagic,
-    defense: overrides?.defense ?? template.baseDefense,
-    speed: overrides?.speed ?? template.baseSpeed,
-  };
+export function createCharacter(opts: CreateCharacterOptions): Character {
+  const skills = new Map<string, number>();
+  if (Array.isArray(opts.skills)) {
+    for (const s of opts.skills) skills.set(s.skillId, s.level);
+  } else {
+    for (const [id, lvl] of Object.entries(opts.skills)) skills.set(id, lvl);
+  }
+  const actions = opts.actions.map(def => new ActionInstance(def));
+  const c = new Character(opts.name, opts.pv, skills, actions, opts.classCss, opts.category ?? 'player', opts.iconPath ?? '');
+  if (opts.equipment) for (const e of opts.equipment) c.equip(e);
+  return c;
 }
 
-/** Create a Character from a template with stats scaled for a player count */
-export function createCharacterForPlayerCount(template: CharacterTemplate, name: string, playerCount: number): Character {
-  const stats = getScaledStats(template, playerCount);
-  return new Character(
-    name,
-    stats.lives,
-    stats.strength,
-    stats.magic,
-    stats.defense,
-    stats.speed,
-    template.createCards(),
-    template.id,
-  );
+/** Total skill levels across a character — used for skill-sum balancing. */
+export function characterSkillSum(c: Character): number {
+  let total = 0;
+  for (const level of c.skills.values()) total += level;
+  return total;
 }
