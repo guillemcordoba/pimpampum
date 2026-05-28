@@ -25,7 +25,7 @@ export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
   if (def.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: def.damageDice.toString() });
   stats.push({ iconPath: STAT_ICONS.speed, value: String(def.speed) });
-  if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.skill, value: `+${def.rollBonus}` });
+  if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.armor, value: `+${def.rollBonus}` });
   return stats;
 }
 
@@ -60,7 +60,22 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
   };
 }
 
-/** Render **bold** markup in a description to inline HTML. */
+/** Inline-icon tokens used in skill / action descriptions. */
+const TOKEN_ICON_MAP: Record<string, string> = {
+  '{A}': 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
+  '{D}': STAT_ICONS.armor,
+  '{V}': STAT_ICONS.speed,
+};
+
+/** Render **bold** markup and {A}/{D}/{V} icon tokens to inline HTML. */
 export function renderDescription(text: string): string {
-  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const base = import.meta.env.BASE_URL;
+  return text
+    .replace(/\{[ADV]\}/g, token => {
+      const icon = TOKEN_ICON_MAP[token];
+      return icon
+        ? `<img src="${base}${icon}" class="rules-icon" alt="${token[1]}">`
+        : token;
+    })
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }

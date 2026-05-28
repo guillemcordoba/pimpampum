@@ -18,9 +18,8 @@ export const ACTION_TYPE_CSS: Record<ActionType, string> = {
 export const STAT_ICONS = {
   pv: 'icons/000000/transparent/1x1/lorc/heart-drop.svg',
   speed: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
-  damage: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
+  damage: 'icons/000000/transparent/1x1/lorc/broken-heart.svg',
   armor: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
-  skill: 'icons/000000/transparent/1x1/lorc/skills.svg',
 } as const;
 
 export const STAT_DISPLAY_NAMES = {
@@ -28,7 +27,6 @@ export const STAT_DISPLAY_NAMES = {
   speed: 'Velocitat',
   damage: 'Dany',
   armor: 'Armadura',
-  skill: 'Habilitat',
 } as const;
 
 /** Equipment slot Catalan labels. */

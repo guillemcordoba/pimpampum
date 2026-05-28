@@ -110,6 +110,8 @@ export interface EffectHandler {
   onAttackMiss?(ctx: EffectContext): void;
   /** A defense action successfully blocked an incoming attack (counter/retaliate). */
   onDefend?(ctx: EffectContext): void;
+  /** A defense action failed to block — the defender takes damage (berserker rage). */
+  onBlockFail?(ctx: EffectContext): void;
   /** Coordinated end-of-round step (e.g. Nimble Escape group bonus). */
   postRound?(ctx: EffectContext): void;
   /** Targeting requirement for an action carrying this effect. */

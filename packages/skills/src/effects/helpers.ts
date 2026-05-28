@@ -76,3 +76,15 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
   if (dice) m.withDice(dice);
   c.addModifier(m);
 }
+
+// --- Misc helpers -----------------------------------------------------------
+
+/** Effective "save" bonus: the target's strongest skill, with kind=defense modifiers. */
+export function bestSaveBonus(c: Character): number {
+  let best = 0;
+  for (const id of c.skills.keys()) {
+    const v = c.getRollSkill(id, 'defense');
+    if (v > best) best = v;
+  }
+  return best;
+}

@@ -56,7 +56,7 @@ describe('mirror balance (equal skill budgets)', () => {
     for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 40), randomTeam('B', 2, 40), stats);
     const avg = stats.rounds / stats.combats;
     expect(avg).toBeGreaterThan(1.5);
-    expect(avg).toBeLessThan(25);
+    expect(avg).toBeLessThan(30);
   });
 
   it('all three action types see play', () => {

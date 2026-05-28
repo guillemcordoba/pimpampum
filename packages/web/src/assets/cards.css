@@ -15,8 +15,12 @@
   margin: 0 auto;
 }
 
+/* 5 mm margin: clears the typical printer "unprintable area" (~3–5 mm) so the
+   top row isn't clipped, while still leaving 200 mm × 287 mm of usable area —
+   enough for the 189 mm × 264 mm (3×3) card grid without browser scale-to-fit. */
 @page {
-  size: portrait;
+  size: A4 portrait;
+  margin: 5mm;
 }
 
 @media print {
@@ -457,8 +461,9 @@
   font-family: 'Cinzel Decorative', serif;
   font-size: 5.5pt;
   color: var(--text-dark);
-  padding-left: 4mm;
-  list-style-position: outside;
+  padding-left: 0;
+  margin: 0;
+  list-style-position: inside;
   line-height: 1.25;
 }
 
@@ -473,6 +478,15 @@
   line-height: 1.25;
 }
 
+/* Inline {A}/{D}/{V} icon — sized in em so it scales with whatever
+   font-size the surrounding text uses (card-effect, mini-card-effect,
+   rules text, …). */
+.rules-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  margin: 0 0.05em;
+}
 .print-card .rules-icon {
   width: 3mm;
   height: 3mm;
@@ -680,6 +694,17 @@
   flex: none;
 }
 
+/* -- Fillable skill rows (blank name line + level box) -------------------- */
+
+.sheet-skill-row {
+  align-items: flex-end;
+}
+
+.sheet-skill-name {
+  flex: 1;
+  min-height: 7mm;
+}
+
 
 /* -- Bottom blocks (Història + Notes) ------------------------------------- */
 
@@ -719,6 +744,7 @@
   .character-sheet {
     box-shadow: none;
     page-break-inside: avoid;
+    page-break-before: always;
     margin: 0 auto;
   }
 }

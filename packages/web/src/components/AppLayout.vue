@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+import PrintDialog from './PrintDialog.vue';
+import { openPrintDialog, printingAll } from '../composables/usePrintDialog';
 
 const route = useRoute();
 </script>
@@ -14,10 +16,12 @@ const route = useRoute();
       <router-link to="/enemies" :class="{ active: route.path === '/enemies' }">Enemics</router-link>
       <router-link to="/combat" :class="{ active: route.path === '/combat' }">Combat</router-link>
     </div>
+    <button class="print-all-btn" type="button" @click="openPrintDialog">Imprimir-ho tot</button>
   </nav>
-  <main>
+  <main :class="{ 'no-print': printingAll }">
     <slot />
   </main>
+  <PrintDialog />
 </template>
 
 <style scoped>
@@ -66,6 +70,23 @@ const route = useRoute();
 .nav-links a.router-link-exact-active {
   color: var(--parchment);
   border-bottom-color: var(--parchment-dark);
+}
+
+.print-all-btn {
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  font-family: 'MedievalSharp', serif;
+  font-size: 0.95rem;
+  color: var(--parchment);
+  background: rgba(232, 220, 196, 0.08);
+  border: 1px solid var(--parchment-dark);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.print-all-btn:hover {
+  background: rgba(232, 220, 196, 0.18);
 }
 
 main {

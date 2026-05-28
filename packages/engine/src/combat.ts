@@ -100,7 +100,7 @@ export interface CombatEngineOptions {
   maxRounds?: number;
 }
 
-const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'modifyAttack', 'postRound'] as const;
+const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound'] as const;
 type HookName = typeof HOOKS[number];
 
 export class CombatEngine implements EngineApi, AIView {
@@ -196,6 +196,7 @@ export class CombatEngine implements EngineApi, AIView {
   // --- Helpers --------------------------------------------------------------
 
   private activeGuard(target: Character): Character['guards'][number] | null {
+    if (target.hasStatus('indefensable')) return null;
     for (let i = target.guards.length - 1; i >= 0; i--) {
       const g = target.guards[i];
       if (g.defender.isAlive()) return g;
@@ -422,7 +423,7 @@ export class CombatEngine implements EngineApi, AIView {
 
     if (guard) {
       const atkRoll = rollD20();
-      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus;
+      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.getStatusValue('marca-objectiu', 0);
       const attackerTotal = atkRoll + atkBonus;
       const defender = guard.defender;
       const defRoll = rollD20();
@@ -441,20 +442,28 @@ export class CombatEngine implements EngineApi, AIView {
     if (!hit && guard) {
       this.log('defense', `${guard.defender.name} «${guard.action.name}» bloqueja l'atac de ${source.name} «${def.name}».`, guard.defender.team);
       this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin });
-      this.dispatch('onDefend', guard.defender, guard.action, { targets: [source], target: source });
+      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source });
       return;
     }
 
     let dmgRoll = def.damageDice ? def.damageDice.roll() : 0;
     for (const d of mods.extraDamageDice) dmgRoll += d.roll();
     dmgRoll += mods.bonusDamage;
+    dmgRoll += source.getStatusValue('arma-enverinada', 0);
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    const dmg = Math.max(0, dmgRoll - armor);
+    let dmg = Math.max(0, dmgRoll - armor);
+    if (recipient.hasStatus('condemnat') && dmg > 0) {
+      dmg += recipient.getStatusValue('condemnat', 0);
+      recipient.clearStatus('condemnat');
+    }
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin });
+    if (guard && recipient === guard.defender && dmg > 0) {
+      this.dispatch('onBlockFail', guard.defender, guard.action, { targets: [target], target: source, damageDealt: dmg });
+    }
   }
 
   /** End-of-round: coordinated hooks, damage-over-time / regen, and turn advance. */

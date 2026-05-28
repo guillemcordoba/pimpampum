@@ -1,4 +1,4 @@
-import { EffectHandler } from '@pimpampum/engine';
+import { EffectHandler, EffectContext, Character, DiceRoll } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
 
 /** Attack-rider effects: modifyAttack adjusts the roll/damage; onAttackHit triggers on a landed hit. */
@@ -51,12 +51,20 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // Stronger the more wounded the attacker is: +`amount` per `per` missing PV.
+  // Stronger the more wounded the attacker is: +`amount` (or +dice) per `per` missing PV.
   frenzy: {
     modifyAttack(ctx) {
       const missing = ctx.source.maxPV - ctx.source.currentPV;
       const steps = Math.floor(missing / num(ctx.params, 'per', 4));
-      if (steps > 0) ctx.attackMods!.rollBonus += steps * num(ctx.params, 'amount', 3);
+      if (steps <= 0) return;
+      const dice = diceParam(ctx.params, 'dice');
+      if (dice) {
+        let total = 0;
+        for (let i = 0; i < steps; i++) total += dice.roll();
+        ctx.attackMods!.rollBonus += total;
+      } else {
+        ctx.attackMods!.rollBonus += steps * num(ctx.params, 'amount', 3);
+      }
     },
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.5 ? 1 : 0.3; },
   },
@@ -70,11 +78,16 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.8; },
   },
 
-  // Lower a skill of the struck target.
+  // Lower a skill of the struck target — or all enemies if target=='enemies'.
   debuff_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target) return;
-      applyMod(ctx.target, (str(ctx.params, 'kind', 'skill') as ModKind), -num(ctx.params, 'amount', 8), durParam(ctx.params, 'duration', 'nextTurn'), 'Debilitació');
+      const kind = str(ctx.params, 'kind', 'skill') as ModKind;
+      const amount = -num(ctx.params, 'amount', 8);
+      const dur = durParam(ctx.params, 'duration', 'nextTurn');
+      const tgt = str(ctx.params, 'target', '');
+      const recipients: Character[] = tgt === 'enemies' ? ctx.engine.enemiesOf(ctx.source) : [ctx.target];
+      for (const r of recipients) applyMod(r, kind, amount, dur, 'Debilitació');
     },
     aiWeight() { return 0.6; },
   },
@@ -110,4 +123,103 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     onAttackHit(ctx) { if (ctx.target) ctx.target.setStatus('silenced', 1, num(ctx.params, 'turns', 2)); },
     aiWeight() { return 0.5; },
   },
+
+  // After resolving the attack, perform an additional attack against the same target
+  // (target='same') or a random enemy (default 'random'). Always fires (hit or miss).
+  second_attack: {
+    onAttackHit(ctx) { performSecondAttack(ctx); },
+    onAttackMiss(ctx) { performSecondAttack(ctx); },
+    aiWeight() { return 0.9; },
+  },
+
+  // After resolving the attack, the attacker skips their next N turns.
+  self_stun: {
+    onAttackHit(ctx) { ctx.source.skipTurns += num(ctx.params, 'turns', 1); },
+    onAttackMiss(ctx) { ctx.source.skipTurns += num(ctx.params, 'turns', 1); },
+    aiWeight() { return 0.4; },
+  },
+
+  // On hit, mark the target as undefendable: no guard can be used against them.
+  undefendable_on_hit: {
+    onAttackHit(ctx) {
+      if (!ctx.target) return;
+      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2));
+    },
+    aiWeight() { return 0.6; },
+  },
+
+  // On hit, buff the attacker (a Swift Strike's bonus next turn).
+  buff_on_hit: {
+    onAttackHit(ctx) {
+      const amt = num(ctx.params, 'amount', 2);
+      const kind = str(ctx.params, 'kind', 'attack') as ModKind;
+      const dur = durParam(ctx.params, 'duration', 'nextTurn');
+      applyMod(ctx.source, kind, amt, dur, ctx.action.name);
+    },
+    aiWeight() { return 0.6; },
+  },
+
+  // Add the actor's level in another skill to the attack roll (Càstig diví "+M").
+  skill_bonus_from: {
+    modifyAttack(ctx) {
+      const sid = str(ctx.params, 'skillId', '');
+      if (!sid) return;
+      ctx.attackMods!.rollBonus += ctx.source.getSkillLevel(sid);
+    },
+    aiWeight() { return 0.6; },
+  },
+
+  // On hit, steal a positive (non-armour) modifier from the target.
+  spell_leech_on_hit: {
+    onAttackHit(ctx) {
+      if (!ctx.target) return;
+      const positives = ctx.target.modifiers.filter(m => m.value > 0 && m.stat !== 'armor');
+      if (!positives.length) return;
+      const stolen = positives[0];
+      ctx.target.modifiers = ctx.target.modifiers.filter(m => m !== stolen);
+      ctx.source.addModifier(stolen);
+      ctx.engine.log('focus', `${ctx.source.name} roba "${stolen.source || stolen.stat}" de ${ctx.target.name}.`, ctx.source.team);
+    },
+    aiWeight() { return 0.5; },
+  },
+
+  // Deal flat PV damage to self after resolving the action (warlock Explosió).
+  self_damage: {
+    onAttackHit(ctx) { ctx.engine.applyPvLoss(ctx.source, num(ctx.params, 'amount', 1), ctx.source); },
+    onAttackMiss(ctx) { ctx.engine.applyPvLoss(ctx.source, num(ctx.params, 'amount', 1), ctx.source); },
+    aiWeight() { return 0.4; },
+  },
+
+  // After attacking, the attacker is treated as evading (sets up a self-guard
+  // using this same attack action — its rollBonus drives the dodge roll).
+  evasion_after_attack: {
+    onAttackHit(ctx) { ctx.source.guards.push({ defender: ctx.source, action: ctx.action }); },
+    onAttackMiss(ctx) { ctx.source.guards.push({ defender: ctx.source, action: ctx.action }); },
+    aiWeight() { return 0.7; },
+  },
+
+  // On hit, add a flat extra wound (Sentència infernal, "DoubleWound").
+  double_wound: {
+    onAttackHit(ctx) {
+      if (!ctx.target) return;
+      ctx.engine.applyPvLoss(ctx.target, num(ctx.params, 'amount', 2), ctx.source);
+    },
+    aiWeight() { return 1; },
+  },
 };
+
+function performSecondAttack(ctx: EffectContext): void {
+  const dice: DiceRoll | undefined = diceParam(ctx.params, 'dice') ?? ctx.action.damageDice;
+  if (!dice) return;
+  const mode = str(ctx.params, 'target', 'random');
+  let t: Character | undefined;
+  if (mode === 'same') {
+    t = ctx.target && ctx.target.isAlive() ? ctx.target : undefined;
+  } else {
+    const pool = ctx.engine.enemiesOf(ctx.source);
+    if (!pool.length) return;
+    t = pool[Math.floor(Math.random() * pool.length)];
+  }
+  if (!t) return;
+  ctx.engine.performExtraAttack(ctx.source, t, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} segon atac` });
+}
