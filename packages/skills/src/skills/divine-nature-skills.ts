@@ -32,7 +32,7 @@ export const MAGIA_NATURA: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/oak.svg',
   actions: [
     action({ id: 'fuet-espines', name: "Fuet d'espines", skillId: 'magia-natura', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 6), desc: 'Atac màgic ràpid amb espines de natura.', icon: 'lorc/vine-whip.svg' }),
-    action({ id: 'pell-escorca', name: "Pell d'escorça", skillId: 'magia-natura', unlock: 10, type: ActionType.Defensa, speed: 1, rollBonus: 3, desc: "La pell s'endureix com l'escorça d'un arbre. Defensa un aliat.", icon: 'lorc/tree-branch.svg' }),
+    action({ id: 'pell-escorca', name: "Pell d'escorça", skillId: 'magia-natura', unlock: 10, type: ActionType.Defensa, speed: 1, rollBonus: 3, desc: '', icon: 'lorc/tree-branch.svg' }),
     action({ id: 'raig-de-lluna', name: 'Raig de lluna', skillId: 'magia-natura', unlock: 25, type: ActionType.Atac, speed: -2, damage: d(1, 10), desc: 'Raig de llum lunar lent però potent.', icon: 'lorc/moon.svg' }),
     action({ id: 'lligams-natura', name: 'Lligams de natura', skillId: 'magia-natura', unlock: 35, type: ActionType.Focus, speed: -2, effects: [
       { type: 'skill_mod', params: { kind: 'speed', amount: -3, target: 'enemy', duration: 2 } },

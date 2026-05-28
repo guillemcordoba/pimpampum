@@ -24,7 +24,7 @@ export interface CardDisplayProps {
 export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
   if (def.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: def.damageDice.toString() });
-  stats.push({ iconPath: STAT_ICONS.speed, value: String(def.speed) });
+  stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
   if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.armor, value: `+${def.rollBonus}` });
   return stats;
 }
@@ -61,20 +61,21 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
 }
 
 /** Inline-icon tokens used in skill / action descriptions. */
-const TOKEN_ICON_MAP: Record<string, string> = {
-  '{A}': 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
-  '{D}': STAT_ICONS.armor,
-  '{V}': STAT_ICONS.speed,
+const TOKEN_ICON_MAP: Record<string, { icon: string; alt: string }> = {
+  '{A}': { icon: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg', alt: 'A' },
+  '{D}': { icon: STAT_ICONS.armor, alt: 'D' },
+  '{V}': { icon: STAT_ICONS.speed, alt: 'V' },
+  '{DAMAGE}': { icon: STAT_ICONS.damage, alt: 'Dany' },
 };
 
-/** Render **bold** markup and {A}/{D}/{V} icon tokens to inline HTML. */
+/** Render **bold** markup and {A}/{D}/{V}/{DAMAGE} icon tokens to inline HTML. */
 export function renderDescription(text: string): string {
   const base = import.meta.env.BASE_URL;
   return text
-    .replace(/\{[ADV]\}/g, token => {
-      const icon = TOKEN_ICON_MAP[token];
-      return icon
-        ? `<img src="${base}${icon}" class="rules-icon" alt="${token[1]}">`
+    .replace(/\{(?:A|D|V|DAMAGE)\}/g, token => {
+      const entry = TOKEN_ICON_MAP[token];
+      return entry
+        ? `<img src="${base}${entry.icon}" class="rules-icon" alt="${entry.alt}">`
         : token;
     })
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');

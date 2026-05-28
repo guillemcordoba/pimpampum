@@ -10,10 +10,10 @@ export const TACTIQUES_GOBLIN: SkillDefinition = {
   description: 'Lluita en horda: febles sols, perillosos en grup.',
   iconPath: 'icons/000000/transparent/1x1/delapouite/goblin-head.svg',
   actions: [
-    action({ id: 'atac-horda', name: 'Atac de la horda', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(0, 0), effects: [{ type: 'crossfire', params: { max: 10 } }], desc: '{A}+1 per cada altre aliat que també ataca aquest torn.', icon: 'delapouite/goblin-head.svg' }),
+    action({ id: 'atac-horda', name: 'Atac de la horda', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(0, 0), effects: [{ type: 'crossfire', params: { kind: 'damage', max: 10 } }], desc: '{DAMAGE}+1 per cada aliat que també ataqui aquest torn.', icon: 'delapouite/goblin-head.svg' }),
     action({ id: 'punyalada-rapida', name: 'Punyalada ràpida', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Atac, speed: 3, damage: d(1, 4, -2), desc: 'Una ganivetada ràpida.', icon: 'lorc/plain-dagger.svg' }),
-    action({ id: 'protegir-clan', name: 'Protegir el clan', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: 'Protegeix un altre goblin.', icon: 'willdabeast/round-shield.svg' }),
-    action({ id: 'amagar-se', name: 'Amagar-se', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Focus, speed: 2, rollBonus: 5, effects: [{ type: 'nimble_escape', params: { amount: 1 } }], desc: "Esquives tots els atacs aquest torn. El següent torn, {A}+1 per cada goblin que s'hagi amagat.", icon: 'lorc/hidden.svg' }),
+    action({ id: 'protegir-clan', name: 'Protegir el clan', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: '', icon: 'willdabeast/round-shield.svg' }),
+    action({ id: 'amagar-se', name: 'Amagar-se', skillId: 'tactiques-goblin', unlock: 1, type: ActionType.Focus, speed: 2, effects: [{ type: 'nimble_escape', params: { amount: 1 } }], desc: "Esquives tots els atacs aquest torn. El següent torn, {A}+1 per cada goblin que s'hagi amagat.", icon: 'lorc/hidden.svg' }),
   ],
 };
 
@@ -47,7 +47,7 @@ export const VERI: SkillDefinition = {
   actions: [
     action({ id: 'mossegada-verinosa', name: 'Mossegada verinosa', skillId: 'veri', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 8), effects: [{ type: 'poison_on_hit', params: { damage: 1, turns: 1, name: 'verí' } }], desc: "Si fa ferida, l'enemic perd una vida addicional al final del següent torn.", icon: 'lorc/snake-bite.svg' }),
     action({ id: 'cop-de-cua', name: 'Cop de cua', skillId: 'veri', unlock: 1, type: ActionType.Atac, speed: 2, damage: d(1, 8), targetCount: 3, desc: 'Colpeja fins a 3 enemics amb la cua.', icon: 'lorc/spiked-tail.svg' }),
-    action({ id: 'escames-impenetrables', name: 'Escames impenetrables', skillId: 'veri', unlock: 1, type: ActionType.Defensa, speed: 4, rollBonus: 4, desc: 'Les escames desvien els atacs.', icon: 'lorc/lizardman.svg' }),
+    action({ id: 'escames-impenetrables', name: 'Escames impenetrables', skillId: 'veri', unlock: 1, type: ActionType.Defensa, speed: 4, rollBonus: 4, desc: '', icon: 'lorc/lizardman.svg' }),
     action({ id: 'regeneracio', name: 'Regeneració', skillId: 'veri', unlock: 1, type: ActionType.Focus, speed: -4, effects: [{ type: 'heal', params: { amount: 2, target: 'self' } }], desc: 'Cura 2 vides.', icon: 'lorc/snake.svg' }),
   ],
 };
@@ -59,7 +59,7 @@ export const FOC_INFERNAL: SkillDefinition = {
   actions: [
     action({ id: 'espina-de-foc', name: 'Espina de foc', skillId: 'foc-infernal', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), effects: [{ type: 'crossfire', params: { max: 3 } }], desc: "Guanyes +1 a l'atac per cada aliat que també ataqui (màx +3).", icon: 'lorc/fire-ray.svg' }),
     action({ id: 'mossegada-en-vol', name: 'Mossegada en vol', skillId: 'foc-infernal', unlock: 1, type: ActionType.Atac, speed: 4, damage: d(1, 4, -1), rollBonus: 4, effects: [{ type: 'evasion_after_attack', params: {} }], desc: "Després d'atacar, esquives tots els atacs aquest torn.", icon: 'lorc/bat-wing.svg' }),
-    action({ id: 'cortina-de-foc', name: 'Cortina de foc', skillId: 'foc-infernal', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: 'Una cortina de flames protectora.', icon: 'lorc/fire-shield.svg' }),
+    action({ id: 'cortina-de-foc', name: 'Cortina de foc', skillId: 'foc-infernal', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: '', icon: 'lorc/fire-shield.svg' }),
     action({ id: 'foc-persistent', name: 'Foc persistent', skillId: 'foc-infernal', unlock: 1, type: ActionType.Focus, speed: 0, effects: [{ type: 'dot', params: { damage: 1, turns: 1, target: 'enemy', name: 'foc persistent' } }], desc: "L'enemic seleccionat perd una vida al començament del pròxim torn.", icon: 'lorc/flame-spin.svg' }),
   ],
 };
@@ -71,7 +71,7 @@ export const MALDAT_OSSIA: SkillDefinition = {
   actions: [
     action({ id: 'fiblo-verinos', name: 'Fibló verinós', skillId: 'maldat-ossia', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 6), effects: [{ type: 'debuff_on_hit', params: { kind: 'defense', amount: 2, duration: 'restOfCombat' } }], desc: "Si fa ferida, l'enemic perd {D}-2 permanentment.", icon: 'lorc/poison-gas.svg' }),
     action({ id: 'esgarrapada', name: 'Esgarrapada', skillId: 'maldat-ossia', unlock: 1, type: ActionType.Atac, speed: 3, damage: d(1, 4), desc: 'Una esgarrapada ràpida.', icon: 'lorc/claw-slashes.svg' }),
-    action({ id: 'defensa-esqueletica', name: 'Defensa esquelètica', skillId: 'maldat-ossia', unlock: 1, type: ActionType.Defensa, speed: 3, rollBonus: 4, desc: 'Els ossos desvien els atacs.', icon: 'lorc/ribcage.svg' }),
+    action({ id: 'defensa-esqueletica', name: 'Defensa esquelètica', skillId: 'maldat-ossia', unlock: 1, type: ActionType.Defensa, speed: 3, rollBonus: 4, desc: '', icon: 'lorc/ribcage.svg' }),
   ],
 };
 
@@ -134,7 +134,7 @@ export const INSTINT_MANADA: SkillDefinition = {
   actions: [
     action({ id: 'mossegada-manada', name: 'Mossegada de la manada', skillId: 'instint-manada', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), effects: [{ type: 'pack', params: { per: 4, max: 5 } }], desc: "Guanyes +1 a l'atac per cada 4 aliats vius.", icon: 'delapouite/neck-bite.svg' }),
     action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'instint-manada', unlock: 1, type: ActionType.Atac, speed: 3, damage: d(1, 4, -1), desc: 'Un cop ràpid amb les urpes.', icon: 'delapouite/claws.svg' }),
-    action({ id: 'protegir-manada', name: 'Protegir la manada', skillId: 'instint-manada', unlock: 1, type: ActionType.Defensa, speed: 1, rollBonus: 2, desc: 'Protegeix un altre llop.', icon: 'lorc/paw-front.svg' }),
+    action({ id: 'protegir-manada', name: 'Protegir la manada', skillId: 'instint-manada', unlock: 1, type: ActionType.Defensa, speed: 1, rollBonus: 2, desc: '', icon: 'lorc/paw-front.svg' }),
     action({ id: 'udol', name: 'Udol', skillId: 'instint-manada', unlock: 1, type: ActionType.Focus, speed: -2, effects: [{ type: 'summon', params: { factory: makeWolf } }], desc: 'Crida un llop nou al combat. S\'interromp si rep un atac.', icon: 'lorc/wolf-howl.svg' }),
   ],
 };

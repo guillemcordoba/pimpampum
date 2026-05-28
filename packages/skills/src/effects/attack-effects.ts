@@ -32,11 +32,14 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length >= 2 ? 1.5 : 0; },
   },
 
-  // +1 roll per other living ally, capped at `max` (crossfire / coordinated strike).
+  // +1 per other living ally, capped at `max`. `kind` selects roll bonus (default)
+  // or bonus damage (crossfire / coordinated strike / horde damage).
   crossfire: {
     modifyAttack(ctx) {
       const max = num(ctx.params, 'max', 3);
-      ctx.attackMods!.rollBonus += Math.min(max, ctx.engine.alliesOf(ctx.source, false).length);
+      const bonus = Math.min(max, ctx.engine.alliesOf(ctx.source, false).length);
+      if (str(ctx.params, 'kind', 'roll') === 'damage') ctx.attackMods!.bonusDamage += bonus;
+      else ctx.attackMods!.rollBonus += bonus;
     },
     aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.2 : 0; },
   },

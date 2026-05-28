@@ -7,7 +7,7 @@ export const ESGRIMA: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
   actions: [
     action({ id: 'tall-espasa', name: "Tall d'espasa", skillId: 'esgrima', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 6), desc: "Un cop precís i potent amb l'espasa.", icon: 'lorc/broadsword.svg' }),
-    action({ id: 'posicio-defensiva', name: 'Posició defensiva', skillId: 'esgrima', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: 'Defensa un aliat.', icon: 'lorc/bordered-shield.svg' }),
+    action({ id: 'posicio-defensiva', name: 'Posició defensiva', skillId: 'esgrima', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: '', icon: 'lorc/bordered-shield.svg' }),
     action({ id: 'atac-ampli', name: 'Atac ampli', skillId: 'esgrima', unlock: 20, type: ActionType.Atac, speed: -1, damage: d(1, 4), targetCount: 2, desc: "Ataca fins a 2 enemics amb un gran arc d'espasa.", icon: 'lorc/sword-spin.svg' }),
     action({ id: 'escomesa-furiosa', name: 'Escomesa furiosa', skillId: 'esgrima', unlock: 35, type: ActionType.Atac, speed: 2, damage: d(1, 4), effects: [{ type: 'second_attack', params: { dice: d(1, 4), target: 'random' } }], desc: 'Ataca i realitza immediatament un segon atac contra un enemic aleatori.', icon: 'lorc/spinning-sword.svg' }),
   ],
