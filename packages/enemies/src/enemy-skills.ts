@@ -23,9 +23,9 @@ export const XAMANISME_GOBLIN: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/delapouite/skull-staff.svg',
   actions: [
     action({ id: 'llamp', name: 'Llamp', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(2, 4, -2), desc: 'Un llamp cru.', icon: 'lorc/lightning-arc.svg' }),
-    action({ id: 'possessio-demoniaca', name: 'Possessió demoníaca', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Focus, speed: -3, effects: [{ type: 'skill_mod', params: { kind: 'attack', amount: 3, dice: d(1, 6), target: 'self', duration: 'restOfCombat' } }], desc: '{A}+1d6+3 per la resta del combat.', icon: 'lorc/daemon-skull.svg' }),
-    action({ id: 'set-de-sang', name: 'Set de sang', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Focus, speed: -4, effects: [{ type: 'wound_wounded', params: { damage: 1 } }], desc: 'Cada enemic que hagi perdut una vida durant aquest combat perd una altra vida.', icon: 'skoll/blood.svg' }),
-    action({ id: 'pluja-de-flames', name: 'Pluja de flames', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Atac, speed: -4, damage: d(1, 4, -2), targetCount: 3, desc: 'Afecta a 3 enemics que triïs.', icon: 'lorc/flame-spin.svg' }),
+    action({ id: 'possessio-demoniaca', name: 'Possessió demoníaca', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Focus, speed: -3, fatigueCost: 2, effects: [{ type: 'skill_mod', params: { kind: 'attack', amount: 3, dice: d(1, 6), target: 'self', duration: 'restOfCombat' } }], desc: '{A}+1d6+3 per la resta del combat.', icon: 'lorc/daemon-skull.svg' }),
+    action({ id: 'set-de-sang', name: 'Set de sang', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Focus, speed: -4, fatigueCost: 2, effects: [{ type: 'wound_wounded', params: { damage: 1 } }], desc: 'Cada enemic que hagi perdut una vida durant aquest combat perd una altra vida.', icon: 'skoll/blood.svg' }),
+    action({ id: 'pluja-de-flames', name: 'Pluja de flames', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Atac, speed: -4, damage: d(1, 4, -2), targetCount: 3, fatigueCost: 2, desc: 'Afecta a 3 enemics que triïs.', icon: 'lorc/flame-spin.svg' }),
     action({ id: 'absorvir-dolor', name: 'Absorvir dolor', skillId: 'xamanisme-goblin', unlock: 1, type: ActionType.Defensa, speed: 3, rollBonus: 4, effects: [{ type: 'buff_on_block', params: { kind: 'defense', amount: 1, duration: 'restOfCombat', target: 'self' } }], desc: 'Si absorveix un atac, {D}+1 per la resta del combat.', icon: 'lorc/back-pain.svg' }),
   ],
 };
@@ -35,8 +35,8 @@ export const PETRIFICACIO: SkillDefinition = {
   description: 'La mirada que converteix en pedra.',
   iconPath: 'icons/000000/transparent/1x1/lorc/gaze.svg',
   actions: [
-    action({ id: 'esclafament', name: 'Esclafament', skillId: 'petrificacio', unlock: 1, type: ActionType.Atac, speed: -3, damage: d(2, 6), effects: [{ type: 'self_stun', params: { turns: 1 } }], desc: "L'atac més brutal. Saltes el proper torn.", icon: 'lorc/stoned-skull.svg' }),
-    action({ id: 'mirada-petrificant', name: 'Mirada petrificant', skillId: 'petrificacio', unlock: 1, type: ActionType.Focus, speed: -2, effects: [{ type: 'contested_stun', params: { turns: 3, target: 'enemies' } }], desc: 'Per cada enemic: **d20+{A} teva > d20+habilitat enemiga**: queda petrificat (salta els 3 propers torns).', icon: 'lorc/gaze.svg' }),
+    action({ id: 'esclafament', name: 'Esclafament', skillId: 'petrificacio', unlock: 1, type: ActionType.Atac, speed: -3, damage: d(2, 6), fatigueCost: 2, effects: [{ type: 'self_stun', params: { turns: 1 } }], desc: "L'atac més brutal. Saltes el proper torn.", icon: 'lorc/stoned-skull.svg' }),
+    action({ id: 'mirada-petrificant', name: 'Mirada petrificant', skillId: 'petrificacio', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 3, effects: [{ type: 'contested_stun', params: { turns: 3, target: 'enemies' } }], desc: 'Per cada enemic: **d20+{A} teva > d20+habilitat enemiga**: queda petrificat (salta els 3 propers torns).', icon: 'lorc/gaze.svg' }),
   ],
 };
 
@@ -46,7 +46,7 @@ export const VERI: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/snake-bite.svg',
   actions: [
     action({ id: 'mossegada-verinosa', name: 'Mossegada verinosa', skillId: 'veri', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 8), effects: [{ type: 'poison_on_hit', params: { damage: 1, turns: 1, name: 'verí' } }], desc: "Si fa ferida, l'enemic perd una vida addicional al final del següent torn.", icon: 'lorc/snake-bite.svg' }),
-    action({ id: 'cop-de-cua', name: 'Cop de cua', skillId: 'veri', unlock: 1, type: ActionType.Atac, speed: 2, damage: d(1, 8), targetCount: 3, desc: 'Colpeja fins a 3 enemics amb la cua.', icon: 'lorc/spiked-tail.svg' }),
+    action({ id: 'cop-de-cua', name: 'Cop de cua', skillId: 'veri', unlock: 1, type: ActionType.Atac, speed: 2, damage: d(1, 8), targetCount: 3, fatigueCost: 2, desc: 'Colpeja fins a 3 enemics amb la cua.', icon: 'lorc/spiked-tail.svg' }),
     action({ id: 'escames-impenetrables', name: 'Escames impenetrables', skillId: 'veri', unlock: 1, type: ActionType.Defensa, speed: 4, rollBonus: 4, desc: '', icon: 'lorc/lizardman.svg' }),
     action({ id: 'regeneracio', name: 'Regeneració', skillId: 'veri', unlock: 1, type: ActionType.Focus, speed: -4, effects: [{ type: 'heal', params: { amount: 2, target: 'self' } }], desc: 'Cura 2 vides.', icon: 'lorc/snake.svg' }),
   ],
@@ -58,7 +58,7 @@ export const FOC_INFERNAL: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/fire-ray.svg',
   actions: [
     action({ id: 'espina-de-foc', name: 'Espina de foc', skillId: 'foc-infernal', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), effects: [{ type: 'crossfire', params: { max: 3 } }], desc: "Guanyes +1 a l'atac per cada aliat que també ataqui (màx +3).", icon: 'lorc/fire-ray.svg' }),
-    action({ id: 'mossegada-en-vol', name: 'Mossegada en vol', skillId: 'foc-infernal', unlock: 1, type: ActionType.Atac, speed: 4, damage: d(1, 4, -1), rollBonus: 4, effects: [{ type: 'evasion_after_attack', params: {} }], desc: "Després d'atacar, esquives tots els atacs aquest torn.", icon: 'lorc/bat-wing.svg' }),
+    action({ id: 'mossegada-en-vol', name: 'Mossegada en vol', skillId: 'foc-infernal', unlock: 1, type: ActionType.Atac, speed: 4, damage: d(1, 4, -1), rollBonus: 4, fatigueCost: 2, effects: [{ type: 'evasion_after_attack', params: {} }], desc: "Després d'atacar, esquives tots els atacs aquest torn.", icon: 'lorc/bat-wing.svg' }),
     action({ id: 'cortina-de-foc', name: 'Cortina de foc', skillId: 'foc-infernal', unlock: 1, type: ActionType.Defensa, speed: 2, rollBonus: 3, desc: '', icon: 'lorc/fire-shield.svg' }),
     action({ id: 'foc-persistent', name: 'Foc persistent', skillId: 'foc-infernal', unlock: 1, type: ActionType.Focus, speed: 0, effects: [{ type: 'dot', params: { damage: 1, turns: 1, target: 'enemy', name: 'foc persistent' } }], desc: "L'enemic seleccionat perd una vida al començament del pròxim torn.", icon: 'lorc/flame-spin.svg' }),
   ],
@@ -80,12 +80,12 @@ export const TERROR: SkillDefinition = {
   description: 'Por sobrenatural que debilita els enemics.',
   iconPath: 'icons/000000/transparent/1x1/lorc/screaming.svg',
   actions: [
-    action({ id: 'udol-de-terror', name: 'Udol de terror', skillId: 'terror', unlock: 1, type: ActionType.Focus, speed: -2, effects: [
+    action({ id: 'udol-de-terror', name: 'Udol de terror', skillId: 'terror', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 2, effects: [
       { type: 'skill_mod', params: { kind: 'attack', amount: -2, target: 'enemies', duration: 2 } },
       { type: 'skill_mod', params: { kind: 'defense', amount: -2, target: 'enemies', duration: 2 } },
       { type: 'skill_mod', params: { kind: 'speed', amount: -2, target: 'enemies', duration: 2 } },
     ], desc: 'Tots els enemics reben {A}-2, {A}-2, {D}-2, {V}-2 durant 2 torns.', icon: 'lorc/screaming.svg' }),
-    action({ id: 'marca-de-la-mort', name: 'Marca de la mort', skillId: 'terror', unlock: 1, type: ActionType.Focus, speed: -1, effects: [{ type: 'doom_mark', params: { amount: 1, turns: -1 } }], desc: 'Marca un enemic. La pròxima ferida que rebi li costa una vida addicional.', icon: 'lorc/death-zone.svg' }),
+    action({ id: 'marca-de-la-mort', name: 'Marca de la mort', skillId: 'terror', unlock: 1, type: ActionType.Focus, speed: -1, fatigueCost: 2, effects: [{ type: 'doom_mark', params: { amount: 1, turns: -1 } }], desc: 'Marca un enemic. La pròxima ferida que rebi li costa una vida addicional.', icon: 'lorc/death-zone.svg' }),
   ],
 };
 
@@ -95,7 +95,7 @@ export const COMBAT_DIABOLIC: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/trident.svg',
   actions: [
     action({ id: 'forquilla-del-diable', name: 'Forquilla del diable', skillId: 'combat-diabolic', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 8), effects: [{ type: 'undefendable_on_hit', params: { turns: 2 } }], desc: "Si fa ferida, l'enemic no pot ser defensat durant 2 torns.", icon: 'lorc/trident.svg' }),
-    action({ id: 'sentencia-infernal', name: 'Sentència infernal', skillId: 'combat-diabolic', unlock: 1, type: ActionType.Atac, speed: -4, damage: d(2, 6), effects: [{ type: 'double_wound', params: { amount: 4 } }], desc: "Si fa ferida, l'enemic perd 2 vides en total.", icon: 'lorc/flaming-trident.svg' }),
+    action({ id: 'sentencia-infernal', name: 'Sentència infernal', skillId: 'combat-diabolic', unlock: 1, type: ActionType.Atac, speed: -4, damage: d(2, 6), fatigueCost: 2, effects: [{ type: 'double_wound', params: { amount: 4 } }], desc: "Si fa ferida, l'enemic perd 2 vides en total.", icon: 'lorc/flaming-trident.svg' }),
     action({ id: 'defensa-diabolica', name: 'Defensa diabòlica', skillId: 'combat-diabolic', unlock: 1, type: ActionType.Defensa, speed: 1, rollBonus: 4, effects: [{ type: 'retaliate_wound', params: { amount: 1 } }], desc: "Si bloqueges un atac, l'atacant perd una vida.", icon: 'lorc/spiked-armor.svg' }),
   ],
 };
@@ -105,9 +105,9 @@ export const FOC_AVERN: SkillDefinition = {
   description: "Flames de l'avern que abasten i debiliten.",
   iconPath: 'icons/000000/transparent/1x1/lorc/fire-breath.svg',
   actions: [
-    action({ id: 'ale-de-l-infern', name: "Alè de l'infern", skillId: 'foc-avern', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 4), targetCount: 3, desc: 'Crema tres enemics amb un alè de foc infernal.', icon: 'lorc/fire-breath.svg' }),
+    action({ id: 'ale-de-l-infern', name: "Alè de l'infern", skillId: 'foc-avern', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 4), targetCount: 3, fatigueCost: 2, desc: 'Crema tres enemics amb un alè de foc infernal.', icon: 'lorc/fire-breath.svg' }),
     action({ id: 'pilar-de-foc', name: 'Pilar de foc', skillId: 'foc-avern', unlock: 1, type: ActionType.Atac, speed: -2, damage: d(1, 6), effects: [{ type: 'debuff_on_hit', params: { kind: 'attack', amount: 3, duration: 2 } }], desc: "Si fa ferida, l'enemic perd {A}-3 durant 2 torns.", icon: 'lorc/fire-zone.svg' }),
-    action({ id: 'flames-de-l-avern', name: "Flames de l'avern", skillId: 'foc-avern', unlock: 1, type: ActionType.Focus, speed: -3, effects: [{ type: 'skill_mod', params: { kind: 'defense', amount: -2, target: 'enemies', duration: 'restOfCombat' } }], desc: "Invoca les flames de l'avern. Tots els enemics perden {D}-2 permanentment.", icon: 'lorc/flame-tunnel.svg' }),
+    action({ id: 'flames-de-l-avern', name: "Flames de l'avern", skillId: 'foc-avern', unlock: 1, type: ActionType.Focus, speed: -3, fatigueCost: 2, effects: [{ type: 'skill_mod', params: { kind: 'defense', amount: -2, target: 'enemies', duration: 'restOfCombat' } }], desc: "Invoca les flames de l'avern. Tots els enemics perden {D}-2 permanentment.", icon: 'lorc/flame-tunnel.svg' }),
   ],
 };
 
@@ -117,10 +117,10 @@ export const FORCA_PEDRA: SkillDefinition = {
   iconPath: 'icons/000000/transparent/1x1/lorc/fist.svg',
   actions: [
     action({ id: 'cop-de-pedra', name: 'Cop de pedra', skillId: 'forca-pedra', unlock: 1, type: ActionType.Atac, speed: -1, damage: d(1, 6), desc: 'Un cop contundent de pedra.', icon: 'lorc/fist.svg' }),
-    action({ id: 'destrossa', name: 'Destrossa', skillId: 'forca-pedra', unlock: 1, type: ActionType.Atac, speed: -3, damage: d(1, 8), effects: [{ type: 'double_wound', params: { amount: 3 } }], desc: 'Cop devastador que causa 2 ferides si fa mal.', icon: 'lorc/thor-fist.svg' }),
-    action({ id: 'terratremol', name: 'Terratrèmol', skillId: 'forca-pedra', unlock: 1, type: ActionType.Atac, speed: -2, damage: d(1, 4), targetCount: 3, desc: 'Colpeja el terra amb força, afectant fins a 3 enemics.', icon: 'lorc/quake-stomp.svg' }),
+    action({ id: 'destrossa', name: 'Destrossa', skillId: 'forca-pedra', unlock: 1, type: ActionType.Atac, speed: -3, damage: d(1, 8), fatigueCost: 2, effects: [{ type: 'double_wound', params: { amount: 3 } }], desc: 'Cop devastador que causa 2 ferides si fa mal.', icon: 'lorc/thor-fist.svg' }),
+    action({ id: 'terratremol', name: 'Terratrèmol', skillId: 'forca-pedra', unlock: 1, type: ActionType.Atac, speed: -2, damage: d(1, 4), targetCount: 3, fatigueCost: 2, desc: 'Colpeja el terra amb força, afectant fins a 3 enemics.', icon: 'lorc/quake-stomp.svg' }),
     action({ id: 'mur-de-pedra', name: 'Mur de pedra', skillId: 'forca-pedra', unlock: 1, type: ActionType.Defensa, speed: -1, rollBonus: 2, effects: [{ type: 'retaliate_wound', params: { amount: 1 } }], desc: 'El cos de pedra fa mal als atacants que colpegen el gòlem.', icon: 'delapouite/stone-wall.svg' }),
-    action({ id: 'enduriment', name: 'Enduriment', skillId: 'forca-pedra', unlock: 1, type: ActionType.Focus, speed: -2, effects: [
+    action({ id: 'enduriment', name: 'Enduriment', skillId: 'forca-pedra', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 2, effects: [
       { type: 'skill_mod', params: { kind: 'defense', amount: 2, target: 'self', duration: 'restOfCombat' } },
       { type: 'skill_mod', params: { kind: 'attack', amount: 1, target: 'self', duration: 'restOfCombat' } },
     ], desc: 'Endureix el cos de pedra permanentment: {D}+2, {A}+1.', icon: 'lorc/stone-sphere.svg' }),
@@ -135,7 +135,7 @@ export const INSTINT_MANADA: SkillDefinition = {
     action({ id: 'mossegada-manada', name: 'Mossegada de la manada', skillId: 'instint-manada', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), effects: [{ type: 'pack', params: { per: 4, max: 5 } }], desc: "Guanyes +1 a l'atac per cada 4 aliats vius.", icon: 'delapouite/neck-bite.svg' }),
     action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'instint-manada', unlock: 1, type: ActionType.Atac, speed: 3, damage: d(1, 4, -1), desc: 'Un cop ràpid amb les urpes.', icon: 'delapouite/claws.svg' }),
     action({ id: 'protegir-manada', name: 'Protegir la manada', skillId: 'instint-manada', unlock: 1, type: ActionType.Defensa, speed: 1, rollBonus: 2, desc: '', icon: 'lorc/paw-front.svg' }),
-    action({ id: 'udol', name: 'Udol', skillId: 'instint-manada', unlock: 1, type: ActionType.Focus, speed: -2, effects: [{ type: 'summon', params: { factory: makeWolf } }], desc: 'Crida un llop nou al combat. S\'interromp si rep un atac.', icon: 'lorc/wolf-howl.svg' }),
+    action({ id: 'udol', name: 'Udol', skillId: 'instint-manada', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 2, effects: [{ type: 'summon', params: { factory: makeWolf } }], desc: 'Crida un llop nou al combat. S\'interromp si rep un atac.', icon: 'lorc/wolf-howl.svg' }),
   ],
 };
 

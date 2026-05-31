@@ -31,6 +31,8 @@ interface ActionOpts {
   /** Icon path tail after ICON_PREFIX, e.g. "lorc/broadsword.svg". */
   icon: string;
   consumable?: boolean;
+  /** Override the default fatigue cost (1). 2 = Esgotador, 3 = Devastador. */
+  fatigueCost?: number;
 }
 
 /** Build an ActionDefinition with sensible defaults. */
@@ -53,6 +55,7 @@ export function action(o: ActionOpts): ActionDefinition {
     iconPath: ICON_PREFIX + o.icon,
     isConsumable: o.consumable,
     canReviveTarget,
+    fatigueCost: o.fatigueCost,
   };
 }
 

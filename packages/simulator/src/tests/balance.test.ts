@@ -6,8 +6,8 @@ import { randomTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './
 
 describe('resolution math', () => {
   it('levels a skill only in the learning zone', () => {
-    expect(checkSkillUp(true, 3)).toBe(true);    // success by < 5
-    expect(checkSkillUp(true, 7)).toBe(false);   // success by >= 5 (too easy)
+    expect(checkSkillUp(true, 3)).toBe(false);   // success never levels (you already know it)
+    expect(checkSkillUp(true, 7)).toBe(false);   // success never levels
     expect(checkSkillUp(false, 6)).toBe(true);   // failure by < 10
     expect(checkSkillUp(false, 12)).toBe(false); // failure by >= 10 (too hard)
     expect(checkSkillUp(true, Infinity)).toBe(false); // undefended auto-hit

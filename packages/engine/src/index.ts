@@ -44,3 +44,11 @@ export type { StrategyStats } from './strategy.js';
 // Display constants
 export { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, SLOT_LABELS, RULES_SUMMARY } from './display.js';
 export type { RulesSection } from './display.js';
+
+// Fatigue
+export {
+  FATIGUE_TABLE, HEAL_DIVISOR, DEFAULT_FATIGUE_COST,
+  fatigueTier, fatiguePenalty, fatigueStateName,
+  shortRestFatigue, longRestFatigue,
+} from './fatigue.js';
+export type { FatigueTier } from './fatigue.js';

@@ -20,12 +20,16 @@ export interface CardDisplayProps {
 // All icon paths returned here are RAW (no BASE_URL prefix); rendering components
 // prepend import.meta.env.BASE_URL themselves.
 
-/** Stat row for an action card: damage dice, speed, and any flat roll bonus. */
+/** Stat row for an action card: damage dice, speed, any flat roll bonus, and
+ *  fatigue cost (only shown when it deviates from the default of 1). */
 export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
   if (def.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: def.damageDice.toString() });
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
   if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.armor, value: `+${def.rollBonus}` });
+  if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {
+    stats.push({ iconPath: STAT_ICONS.fatigue, value: String(def.fatigueCost) });
+  }
   return stats;
 }
 
@@ -66,13 +70,14 @@ const TOKEN_ICON_MAP: Record<string, { icon: string; alt: string }> = {
   '{D}': { icon: STAT_ICONS.armor, alt: 'D' },
   '{V}': { icon: STAT_ICONS.speed, alt: 'V' },
   '{DAMAGE}': { icon: STAT_ICONS.damage, alt: 'Dany' },
+  '{FATIGA}': { icon: STAT_ICONS.fatigue, alt: 'Fatiga' },
 };
 
-/** Render **bold** markup and {A}/{D}/{V}/{DAMAGE} icon tokens to inline HTML. */
+/** Render **bold** markup and {A}/{D}/{V}/{DAMAGE}/{FATIGA} icon tokens to inline HTML. */
 export function renderDescription(text: string): string {
   const base = import.meta.env.BASE_URL;
   return text
-    .replace(/\{(?:A|D|V|DAMAGE)\}/g, token => {
+    .replace(/\{(?:A|D|V|DAMAGE|FATIGA)\}/g, token => {
       const entry = TOKEN_ICON_MAP[token];
       return entry
         ? `<img src="${base}${entry.icon}" class="rules-icon" alt="${entry.alt}">`

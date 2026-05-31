@@ -70,6 +70,12 @@ export interface ActionDefinition {
   isConsumable?: boolean;
   /** Healing/support actions may target (and revive) downed allies. */
   canReviveTarget?: boolean;
+  /**
+   * Fatigue added to the actor each time this action is played. Defaults to
+   * `DEFAULT_FATIGUE_COST` (1). Larger-impact actions (multi-target, lasting
+   * buffs, transformations) declare higher costs; trivial actions declare 0.
+   */
+  fatigueCost?: number;
 }
 
 export interface SkillBonus {

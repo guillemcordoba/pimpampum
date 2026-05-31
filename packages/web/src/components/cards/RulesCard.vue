@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { RULES_SUMMARY } from '@pimpampum/engine';
 import { renderDescription } from '../../composables/useActionDisplay';
+
+const base = import.meta.env.BASE_URL;
 </script>
 
 <template>
@@ -12,7 +14,9 @@ import { renderDescription } from '../../composables/useActionDisplay';
       </div>
       <div class="rules-content">
         <div v-for="(section, i) in RULES_SUMMARY" :key="i" class="rules-section">
-          <div class="rules-title">{{ section.title }}</div>
+          <div class="rules-title">
+            <img v-if="section.icon" :src="base + section.icon" class="rules-title-icon" :alt="section.title">{{ section.title }}
+          </div>
           <ol v-if="section.type === 'ordered-list'" class="rules-list">
             <li v-for="(item, j) in section.items" :key="j" v-html="renderDescription(item)"></li>
           </ol>

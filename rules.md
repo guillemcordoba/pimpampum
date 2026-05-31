@@ -61,9 +61,8 @@ El combat consisteix en una sèrie de rondes:
 Després de cada tirada d'habilitat (atac, defensa, o fora de combat), es comprova el marge:
 
 - **Fallar per menys de 10**: l'habilitat puja un nivell (+1).
-- **Encertar per menys de 5**: l'habilitat puja un nivell (+1).
 
-Això crea una zona ideal on fer servir habilitats contra reptes al teu nivell és el que més t'ensenya. Les tasques massa fàcils (encertar per 5 o més) no ensenyen res. Els fracassos catastròfics (fallar per 10 o més) són massa aclaparadors per aprendre'n.
+Només s'aprèn dels fracassos ajustats: quedar-te a prop de superar el repte és el que més t'ensenya. Encertar no ensenya res (ja en saps prou), i els fracassos catastròfics (fallar per 10 o més) són massa aclaparadors per aprendre'n.
 
 ## Objectes i equipament
 

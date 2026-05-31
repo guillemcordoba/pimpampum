@@ -7,6 +7,7 @@ import {
 } from './effects.js';
 import { rollD20, resolveAttack, checkSkillUp } from './resolution.js';
 import { selectAction, AIView } from './ai.js';
+import { DEFAULT_FATIGUE_COST } from './fatigue.js';
 
 export interface LogEntry {
   kind: string;
@@ -470,10 +471,22 @@ export class CombatEngine implements EngineApi, AIView {
   finishRound(): void {
     for (const p of this.pending) this.dispatch('postRound', p.actor, p.action.def, { targets: p.targets ?? [] });
     this.applyStatusTicks();
+    this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
     this.pending = [];
     this.pendingIndex = 0;
     this.tierSpeed = null;
+  }
+
+  /** Each actor who took an action this round gains its fatigue cost. Skipping
+   *  / stunned characters did not act, so they don't tire. Dead actors are
+   *  past caring. Interrupted focus actions still tire — you exerted the will
+   *  to start them. */
+  private accumulateFatigue(): void {
+    for (const p of this.pending) {
+      if (!p.actor.isAlive()) continue;
+      p.actor.fatigue += p.action.def.fatigueCost ?? DEFAULT_FATIGUE_COST;
+    }
   }
 
   private applyStatusTicks(): void {

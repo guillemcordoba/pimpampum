@@ -43,6 +43,10 @@ const statusBadges = computed(() => {
       <span class="pv-text">
         <img :src="base + STAT_ICONS.pv" alt="PV">{{ character.currentPV }}/{{ character.maxPV }}
       </span>
+      <span class="fatigue-text" :class="{ tired: character.getFatiguePenalty() > 0 }">
+        <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.fatigue }} · {{ character.getFatigueStateName() }}
+        <span v-if="character.getFatiguePenalty() > 0" class="fatigue-penalty">−{{ character.getFatiguePenalty() }}</span>
+      </span>
     </div>
     <div class="portrait-stats">
       <span v-for="s in skills" :key="s.id" class="skill-chip">{{ s.id }} {{ s.level }}</span>
@@ -87,6 +91,26 @@ const statusBadges = computed(() => {
 .pv-text img {
   width: 14px;
   height: 14px;
+}
+.fatigue-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+.fatigue-text img {
+  width: 12px;
+  height: 12px;
+}
+.fatigue-text.tired {
+  opacity: 1;
+  color: #c64;
+  font-weight: bold;
+}
+.fatigue-penalty {
+  font-weight: bold;
+  margin-left: 2px;
 }
 .skill-chip {
   font-size: 0.65rem;

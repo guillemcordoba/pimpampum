@@ -456,6 +456,12 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
+.print-card .rules-title-icon {
+  width: 3mm;
+  height: 3mm;
+  vertical-align: -0.5mm;
+  margin-right: 0.6mm;
+}
 
 .print-card .rules-list {
   font-family: 'Cinzel Decorative', serif;
@@ -492,6 +498,14 @@
   height: 3mm;
   vertical-align: middle;
   margin-right: 0.3mm;
+}
+/* Inline icons inside the rules running text (e.g. {FATIGA}) stay font-sized so
+   they sit within the existing line box and don't make that line taller. */
+.print-card .rules-text .rules-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  margin: 0 0.05em;
 }
 
 /* =============================================================================

@@ -1,13 +1,29 @@
-import { EffectHandler, Character } from '@pimpampum/engine';
+import { EffectHandler, Character, HEAL_DIVISOR } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, bestSaveBonus, ModKind } from './helpers.js';
 
 /** Focus effects: resolved in speed order via onResolve. */
 export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
-  // Restore PV to the chosen / implied targets.
+  /**
+   * Restore PV to the chosen / implied targets.
+   *  - `mode: 'flat'` (default): heals a fixed `amount`. Used for side-effect heals.
+   *  - `mode: 'roll'`: rolls d20 + (skill - fatigue) and heals floor(total / HEAL_DIVISOR).
+   *    The action's own skillId drives the roll. Capped at the target's missing PV
+   *    naturally (engine.heal already clamps to maxPV).
+   */
   heal: {
     onResolve(ctx) {
-      const amt = num(ctx.params, 'amount', 2);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'ally'))) ctx.engine.heal(t, amt);
+      const mode = str(ctx.params, 'mode', 'flat');
+      const targets = resolveTargets(ctx, tspec(ctx.params, 'ally'));
+      if (mode === 'roll') {
+        const skill = ctx.source.getHealRollSkill(ctx.action.skillId);
+        const roll = ctx.engine.rollD20();
+        const amt = Math.max(0, Math.floor((roll + skill) / HEAL_DIVISOR));
+        ctx.engine.log('focus', `🎲 ${ctx.source.name} «${ctx.action.name}»: d20=${roll} + habilitat ${skill} = ${roll + skill} → ${amt} PV.`, ctx.source.team);
+        for (const t of targets) ctx.engine.heal(t, amt);
+      } else {
+        const amt = num(ctx.params, 'amount', 2);
+        for (const t of targets) ctx.engine.heal(t, amt);
+      }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'ally')); },
     aiWeight(ctx) {
@@ -177,13 +193,21 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.round <= 2 ? 1.8 : 0.6; },
   },
 
-  // Summon a combatant from a factory carried in params.
+  // Summon a combatant from a factory carried in params. The aiWeight strongly
+  // dampens itself once the team is large (the focus base weight is ~2-4, so we
+  // need to negate that to actually stop the AI from picking it). This avoids
+  // exponential population blow-ups in fatigued late-round play.
   summon: {
     onResolve(ctx) {
       const f = ctx.params['factory'] as (() => Character) | undefined;
       if (f) ctx.engine.addCombatant(ctx.source.team, f());
     },
-    aiWeight(ctx) { return ctx.allies.length < 3 ? 1.5 : 0.3; },
+    aiWeight(ctx) {
+      const n = ctx.allies.length;
+      if (n >= 6) return -10;
+      if (n >= 3) return -1.5;
+      return 1.5;
+    },
   },
 
   // Sacrifice PV for a rest-of-combat skill buff.

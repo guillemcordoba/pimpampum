@@ -20,6 +20,8 @@ export const STAT_ICONS = {
   speed: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
   damage: 'icons/000000/transparent/1x1/lorc/broken-heart.svg',
   armor: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
+  focus:'icons/000000/transparent/1x1/lorc/concentration-orb.svg',
+  fatigue: 'icons/000000/transparent/1x1/lorc/sleepy.svg',
 } as const;
 
 export const STAT_DISPLAY_NAMES = {
@@ -27,6 +29,7 @@ export const STAT_DISPLAY_NAMES = {
   speed: 'Velocitat',
   damage: 'Dany',
   armor: 'Armadura',
+  fatigue: 'Fatiga',
 } as const;
 
 /** Equipment slot Catalan labels. */
@@ -41,6 +44,8 @@ export const SLOT_LABELS: Record<string, string> = {
 
 export interface RulesSection {
   title: string;
+  /** Optional icon shown next to the title (raw path, no BASE_URL prefix). */
+  icon?: string;
   type: 'ordered-list' | 'text';
   items?: string[];
   text?: string;
@@ -53,27 +58,36 @@ export const RULES_SUMMARY: RulesSection[] = [
     items: [
       'Tria una acció i posa-la bocaterrosa',
       'Revela totes les accions alhora',
-      'Resol per ordre de velocitat (més alta primer)',
+      'Resol per ordre de velocitat',
     ],
   },
   {
     title: 'Atac',
+    icon: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
     type: 'text',
-    text: "Tira d20 + nivell d'habilitat. Si supera la defensa de l'objectiu (o si no en té), impactes: tira els daus de dany, resta l'armadura passiva i el resultat es resta dels PV.",
+    text: "Ataca un enemic. Si impacta, tira els daus de dany, resta-li l'armadura del defensor, i resta el resultat dels seus PV.",
   },
   {
     title: 'Defensa',
+    icon: STAT_ICONS.armor,
     type: 'text',
-    text: 'Tria un aliat a protegir. Cada atac que rebi ell o tu es resol contra la teva tirada de defensa. Si un atac penetra, el dany el reps tu.',
+    text: "Protegeix un aliat. Tots els atacs contra ell o contra tu han de superar una tirada de l'habilitat atacant contra la defensora per a què l'atac impacti.",
   },
   {
     title: 'Focus',
+    icon: STAT_ICONS.focus,
     type: 'text',
-    text: "Efecte especial, normalment lent. Es cancel·la si reps un atac sense defensa abans que es resolgui.",
+    text: "Efecte especial. Es cancel·la si reps un atac abans.",
   },
   {
     title: 'Pujar de nivell',
     type: 'text',
-    text: "Després de cada tirada: si falles per menys de 10 o encertes per menys de 5, l'habilitat puja un nivell.",
+    text: "Cada tirada d'habilitat que falli per menys de 10 fa pujar l'habilitat un nivell.",
+  },
+  {
+    title: 'Fatiga',
+    icon: STAT_ICONS.fatigue,
+    type: 'text',
+    text: "Cada acció afegeix la seva {FATIGA} a la teva {FATIGA} actual (per defecte 1). Descansar permet recuperar {FATIGA}. Resta a les tirades d'habilitat: <br>0-5 {FATIGA}: 0 | 6{FATIGA}: -5 | 7{FATIGA}: -10 | 8{FATIGA}: -20 | 9{FATIGA}: -40 | 10{FATIGA}: -80",
   },
 ];

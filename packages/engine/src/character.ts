@@ -2,6 +2,7 @@ import { CombatModifier } from './modifier.js';
 import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
+import { fatiguePenalty, fatigueStateName, shortRestFatigue, longRestFatigue } from './fatigue.js';
 
 /** A temporary status flag/stack on a character. */
 export interface StatusEntry {
@@ -58,6 +59,9 @@ export class Character {
   playedActionIdx: number | null = null;
   /** actionIdx -> turns set aside (-1 = permanent). */
   setAsideActions = new Map<number, number>();
+  /** Persistent fatigue counter — drives the all-skill-roll penalty. Carries
+   *  between combats; cleared only by rest helpers. */
+  fatigue = 0;
 
   constructor(
     public name: string,
@@ -91,10 +95,39 @@ export class Character {
     return level;
   }
 
-  /** Effective skill for a roll of the given kind, including temporary modifiers. */
+  /** Effective skill for a roll of the given kind, including temporary modifiers
+   *  and the current fatigue penalty. */
   getRollSkill(skillId: string, kind: 'attack' | 'defense'): number {
     const kinds = new Set<string>(['skill', kind, skillId]);
-    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds);
+    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds) - this.getFatiguePenalty();
+  }
+
+  /** Effective skill for a non-combat roll (e.g. healing): general skill mods
+   *  + the per-skill bonus, minus fatigue. Skips attack/defense-specific mods. */
+  getHealRollSkill(skillId: string): number {
+    const kinds = new Set<string>(['skill', skillId]);
+    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds) - this.getFatiguePenalty();
+  }
+
+  /** Current penalty subtracted from every d20+skill roll (≥0). */
+  getFatiguePenalty(): number {
+    return fatiguePenalty(this.fatigue);
+  }
+
+  /** Catalan label for the current fatigue tier. */
+  getFatigueStateName(): string {
+    return fatigueStateName(this.fatigue);
+  }
+
+  /** Short rest: clamps fatigue back to the Fresc cap. Doesn't restore PV. */
+  shortRest(): void {
+    this.fatigue = shortRestFatigue(this.fatigue);
+  }
+
+  /** Long rest: full reset of fatigue. Also restores PV to max. */
+  longRest(): void {
+    this.fatigue = longRestFatigue();
+    this.currentPV = this.maxPV;
   }
 
   raiseSkill(skillId: string, by = 1): void {

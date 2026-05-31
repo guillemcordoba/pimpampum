@@ -33,17 +33,15 @@ export function resolveDamage(rolledDamage: number, passiveArmor: number): numbe
 }
 
 /**
- * Skill levelling rule. After a contested skill roll the skill gains a level when
- * the roll lands in the learning zone:
- *  - a success by less than 5, or
- *  - a failure by less than 10.
- * `margin` is the absolute distance from the threshold. Undefended auto-hits
- * (margin === Infinity) never level a skill — there was no contest to learn from.
+ * Skill levelling rule. After a contested skill roll the skill gains a level only
+ * when the roll falls short of the threshold by less than 10 (a near miss). A
+ * success never levels the skill. `margin` is the absolute distance from the
+ * threshold. Undefended auto-hits (margin === Infinity) never level a skill —
+ * there was no contest to learn from.
  */
 export function checkSkillUp(succeeded: boolean, margin: number): boolean {
   if (!isFinite(margin)) return false;
-  const m = Math.abs(margin);
-  return succeeded ? m < 5 : m < 10;
+  return !succeeded && Math.abs(margin) < 10;
 }
 
 /** Roll an attack's damage dice (returns raw dice total before armour). */
