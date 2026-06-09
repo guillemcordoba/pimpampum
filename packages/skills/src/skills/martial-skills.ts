@@ -86,6 +86,21 @@ export const KI: SkillDefinition = {
   ],
 };
 
+export const EARTHBENDER: SkillDefinition = {
+  id: 'earthbender', displayName: 'Earthbender', classCss: 'monjo', category: 'player',
+  description: "L'art de doblegar la terra: roques, murs i terratrèmols.",
+  iconPath: 'icons/000000/transparent/1x1/lorc/mountains.svg',
+  actions: [
+    action({ id: 'llancament-de-roca', name: 'Llançament de roca', skillId: 'earthbender', unlock: 1, type: ActionType.Atac, speed: 0, damage: d(1, 6), desc: "Arrenques una roca del terra i la llances contra l'enemic.", icon: 'lorc/rock.svg' }),
+    action({ id: 'muralla-de-pedra', name: 'Muralla de pedra', skillId: 'earthbender', unlock: 10, type: ActionType.Defensa, speed: 1, rollBonus: 3, effects: [{ type: 'self_armor', params: { amount: 1 } }], desc: "Alces un mur de pedra davant d'un aliat. Guanyes 1 d'armadura aquest torn.", icon: 'delapouite/stone-wall.svg' }),
+    action({ id: 'sentit-sismic', name: 'Sentit sísmic', skillId: 'earthbender', unlock: 20, type: ActionType.Focus, speed: 2, effects: [{ type: 'skill_mod', params: { kind: 'defense', amount: 2, target: 'self', duration: 3 } }], desc: 'Notes les vibracions del terra amb els peus descalços. {D}+2 durant 3 torns.', icon: 'lorc/barefoot.svg' }),
+    action({ id: 'punxes-de-roca', name: 'Punxes de roca', skillId: 'earthbender', unlock: 30, type: ActionType.Atac, speed: -1, damage: d(1, 4), targetCount: 2, fatigueCost: 2, desc: 'Fas brollar punxes de pedra del terra sota 2 enemics que triïs.', icon: 'lorc/crags.svg' }),
+    action({ id: 'allau-de-roques', name: 'Allau de roques', skillId: 'earthbender', unlock: 35, type: ActionType.Atac, speed: -2, damage: d(1, 10), desc: "Fas caure una allau de roques sobre l'enemic. Lenta però devastadora.", icon: 'delapouite/falling-rocks.svg' }),
+    action({ id: 'armadura-de-roca', name: 'Armadura de roca', skillId: 'earthbender', unlock: 40, type: ActionType.Focus, speed: -3, fatigueCost: 2, effects: [{ type: 'skill_mod', params: { kind: 'armor', amount: 1, target: 'self', duration: 'restOfCombat' } }], desc: "Et cobreixes el cos amb plaques de pedra: +1 d'armadura per la resta del combat.", icon: 'delapouite/rock-golem.svg' }),
+    action({ id: 'terratremol', name: 'Terratrèmol', skillId: 'earthbender', unlock: 50, type: ActionType.Focus, speed: -4, fatigueCost: 3, effects: [{ type: 'contested_stun', params: { turns: 1, target: 'enemies' } }], desc: 'Colpeges el terra amb el peu. Per cada enemic: **d20+{A} teva > d20+habilitat enemiga**: queda atordit aquest torn.', icon: 'lorc/quake-stomp.svg' }),
+  ],
+};
+
 export const TIR_AMB_ARC: SkillDefinition = {
   id: 'tir-amb-arc', displayName: 'Tir amb Arc', classCss: 'murri', category: 'player',
   description: 'Atacs a distància, ràpids i múltiples.',
@@ -107,5 +122,5 @@ export const ALQUIMIA: SkillDefinition = {
 };
 
 export const MARTIAL_SKILLS: SkillDefinition[] = [
-  ESGRIMA, TACTICA_MILITAR, COMBAT_SALVATGE, FURIA, ARTS_MARCIALS, KI, TIR_AMB_ARC, ALQUIMIA,
+  ESGRIMA, TACTICA_MILITAR, COMBAT_SALVATGE, FURIA, ARTS_MARCIALS, KI, EARTHBENDER, TIR_AMB_ARC, ALQUIMIA,
 ];
