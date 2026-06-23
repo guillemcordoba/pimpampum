@@ -22,13 +22,24 @@ function pvFraction(c: Character): number {
   return c.maxPV > 0 ? c.currentPV / c.maxPV : 0;
 }
 
-/** Indices of actions a character may legally play this round. */
-export function availableActionIndices(actor: Character): number[] {
+/** Whether every effect on an action permits playing it now (resource gates). */
+export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
+  for (const eff of action.def.effects) {
+    const fn = registry.getHandler(eff.type)?.canPlay;
+    if (fn && !fn(actor, eff.params ?? {})) return false;
+  }
+  return true;
+}
+
+/** Indices of actions a character may legally play this round. Pass the registry
+ *  to also enforce per-effect availability gates (e.g. resource costs). */
+export function availableActionIndices(actor: Character, registry?: EffectRegistry): number[] {
   const out: number[] = [];
   actor.actions.forEach((a, i) => {
     if (!a.isAvailable()) return;
     if (actor.isActionSetAside(i)) return;
     if ((actor.skills.get(a.def.skillId) ?? 0) < a.def.unlockLevel) return;
+    if (registry && !canPlayAction(a, actor, registry)) return;
     out.push(i);
   });
   return out;
@@ -114,7 +125,7 @@ function pickTargets(view: AIView, actor: Character, action: ActionInstance): Ch
 /** Weighted-random action selection for one character. */
 export function selectAction(view: AIView, actor: Character): PlannedAction {
   const strategy = actor.aiStrategy ?? AIStrategy.Power;
-  const indices = availableActionIndices(actor);
+  const indices = availableActionIndices(actor, view.registry);
   if (indices.length === 0) return { actionIdx: 0, targets: [] };
 
   const weights = indices.map(i => actionWeight(view, actor, actor.actions[i], strategy));

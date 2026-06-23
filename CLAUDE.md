@@ -98,6 +98,8 @@ Players are human-controlled when `aiStrategy === null`; enemies get a strategy 
 
 ## Adding or changing content
 
+**Design principle (lore first, mechanics second).** When *designing* new actions, disregard the current mechanics entirely. Do not let the existing effect handlers, what is easy to implement, or "what already exists" shape the design. The goal is **originality** and staying **as close as possible to the lore/fantasy of the character or skill**. Design the action the character *should* have, then build whatever new effect handlers, engine support, or mechanics that requires — implementation effort is never a reason to compromise the design. (This applies to design; the registry pattern still governs *how* it's eventually coded.)
+
 - **New skill / actions**: add a `SkillDefinition` (use the `action()` helper) in the appropriate `packages/skills/src/skills/*.ts` file and include it in that file's exported array (which `skills/index.ts` aggregates into `ALL_SKILLS`). Reference existing effect `type` keys; only add a new handler in `packages/skills/src/effects/` if no parameterised one fits, and register it in `effects/index.ts`.
 - **New enemy**: add an `EnemyTemplate` to `ENEMY_TEMPLATES` referencing skill ids; add encounters to `ALL_ENCOUNTERS`.
 - **New equipment**: add an `EquipmentDefinition` to `ALL_EQUIPMENT`.
@@ -131,7 +133,7 @@ Routes: `/` (home), `/combat` (create characters + play), `/cards[/:section]` (p
 
 ### Card design / theming
 
-Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
+Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`, `enginyer`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
 
 ## Development environment
 

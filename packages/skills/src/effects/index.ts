@@ -2,12 +2,14 @@ import { EffectRegistry, EffectHandler } from '@pimpampum/engine';
 import { ATTACK_EFFECTS } from './attack-effects.js';
 import { FOCUS_EFFECTS } from './focus-effects.js';
 import { DEFENSE_EFFECTS } from './defense-effects.js';
+import { EXPLOSIVE_EFFECTS } from './explosive-effects.js';
 
 /** Every effect handler, keyed by the effect `type` referenced from action definitions. */
 export const ALL_EFFECTS: Record<string, EffectHandler> = {
   ...ATTACK_EFFECTS,
   ...FOCUS_EFFECTS,
   ...DEFENSE_EFFECTS,
+  ...EXPLOSIVE_EFFECTS,
 };
 
 /** Register all skill effect handlers on an EffectRegistry. */

@@ -118,6 +118,14 @@ export interface EffectHandler {
   getTargetRequirement?(params: Record<string, unknown>): TargetRequirement;
   /** Additive contribution to the AI's weight for selecting this action. */
   aiWeight?(ctx: AIContext): number;
+  /** Run once per combatant at the start of combat (initialise resources/pools). */
+  onCombatStart?(ctx: EffectContext): void;
+  /** Availability gate: return false to make the action unplayable this round
+   *  (e.g. an exhausted resource). Lightweight — no engine mutation. */
+  canPlay?(actor: Character, params: Record<string, unknown>): boolean;
+  /** Run once when the action actually goes off, before it resolves (spend
+   *  resources). Not called for an interrupted focus. */
+  onPlay?(ctx: EffectContext): void;
 }
 
 /** Registry mapping effect type keys to their handlers. */

@@ -132,6 +132,8 @@
 .print-card.golem-de-pedra .card-frame { border-color: var(--class-golem-de-pedra); }
 .print-card.llop { border-color: var(--class-llop); }
 .print-card.llop .card-frame { border-color: var(--class-llop); }
+.print-card.enginyer { border-color: var(--class-enginyer); }
+.print-card.enginyer .card-frame { border-color: var(--class-enginyer); }
 
 /* -- Card type header colors ----------------------------------------------- */
 

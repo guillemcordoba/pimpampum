@@ -30,6 +30,13 @@ export function actionStats(def: ActionDefinition): CardStat[] {
   if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {
     stats.push({ iconPath: STAT_ICONS.fatigue, value: String(def.fatigueCost) });
   }
+  // Bandolier cost: fixed càrregues for ordnance, or the whole pool (Traca final).
+  const chargeEff = def.effects.find(e => e.type === 'charge_cost');
+  if (chargeEff) {
+    stats.push({ iconPath: STAT_ICONS.charge, value: String(chargeEff.params?.amount ?? 1) });
+  } else if (def.effects.some(e => e.type === 'empty_bandolier')) {
+    stats.push({ iconPath: STAT_ICONS.charge, value: 'tot' });
+  }
   return stats;
 }
 

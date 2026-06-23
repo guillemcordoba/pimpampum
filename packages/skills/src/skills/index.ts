@@ -4,6 +4,7 @@ import { MARTIAL_SKILLS } from './martial-skills.js';
 import { ARCANE_SKILLS } from './arcane-skills.js';
 import { DIVINE_NATURE_SKILLS } from './divine-nature-skills.js';
 import { SOCIAL_SKILLS } from './social-skills.js';
+import { EXPLOSIVE_SKILLS } from './explosive-skills.js';
 
 export * from './skill-types.js';
 
@@ -13,6 +14,7 @@ export const ALL_SKILLS: SkillDefinition[] = [
   ...ARCANE_SKILLS,
   ...DIVINE_NATURE_SKILLS,
   ...SOCIAL_SKILLS,
+  ...EXPLOSIVE_SKILLS,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;

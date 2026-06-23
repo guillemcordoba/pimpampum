@@ -22,6 +22,7 @@ export const STAT_ICONS = {
   armor: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
   focus:'icons/000000/transparent/1x1/lorc/concentration-orb.svg',
   fatigue: 'icons/000000/transparent/1x1/lorc/sleepy.svg',
+  charge: 'icons/000000/transparent/1x1/lorc/unlit-bomb.svg',
 } as const;
 
 export const STAT_DISPLAY_NAMES = {

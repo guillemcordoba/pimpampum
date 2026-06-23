@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
 import { STAT_ICONS } from '@pimpampum/engine';
+import { maxCharges } from '@pimpampum/skills';
 
 const base = import.meta.env.BASE_URL;
 
@@ -25,9 +26,16 @@ const statusBadges = computed(() => {
     out.push({ text: `${m.stat} ${val}`, positive: m.value >= 0, pending });
   }
   for (const [key, entry] of props.character.statuses) {
+    if (key === 'carregues') continue; // shown as its own bandolier counter
     out.push({ text: entry.value > 1 ? `${key} ×${entry.value}` : key, positive: false, pending: false });
   }
   return out;
+});
+
+// The explosive engineer's finite bandolier, shown as current/max càrregues.
+const bandolier = computed(() => {
+  if (!props.character.hasStatus('carregues')) return null;
+  return { current: props.character.getStatusValue('carregues', 0), max: maxCharges(props.character) };
 });
 </script>
 
@@ -46,6 +54,9 @@ const statusBadges = computed(() => {
       <span class="fatigue-text" :class="{ tired: character.getFatiguePenalty() > 0 }">
         <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.fatigue }} · {{ character.getFatigueStateName() }}
         <span v-if="character.getFatiguePenalty() > 0" class="fatigue-penalty">−{{ character.getFatiguePenalty() }}</span>
+      </span>
+      <span v-if="bandolier" class="bandolier-text" :class="{ empty: bandolier.current === 0 }">
+        <img :src="base + STAT_ICONS.charge" alt="Càrregues">{{ bandolier.current }}/{{ bandolier.max }} càrregues
       </span>
     </div>
     <div class="portrait-stats">
@@ -111,6 +122,22 @@ const statusBadges = computed(() => {
 .fatigue-penalty {
   font-weight: bold;
   margin-left: 2px;
+}
+.bandolier-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--class-enginyer, #9c5a1f);
+  font-weight: bold;
+}
+.bandolier-text img {
+  width: 12px;
+  height: 12px;
+}
+.bandolier-text.empty {
+  opacity: 0.55;
+  font-weight: normal;
 }
 .skill-chip {
   font-size: 0.65rem;

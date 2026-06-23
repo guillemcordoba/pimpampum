@@ -131,6 +131,7 @@ export function useGame() {
     if (!c?.isAlive() || skippingPlayers.value.has(charIdx)) return;
     const action = c.actions[actionIdx];
     if (!action?.isAvailable() || c.isActionSetAside(actionIdx)) return;
+    if (!eng.canPlayActionIdx(c, actionIdx)) return;
     if (playerSelections.value.get(charIdx) === actionIdx) playerSelections.value.delete(charIdx);
     else playerSelections.value.set(charIdx, actionIdx);
     playerSelections.value = new Map(playerSelections.value);

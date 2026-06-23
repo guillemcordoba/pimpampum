@@ -36,6 +36,7 @@
   --class-diable-banyut: #5c1a1a;
   --class-golem-de-pedra: #5a5a5a;
   --class-llop: #5a4a3a;
+  --class-enginyer: #9c5a1f;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -452,6 +453,7 @@ body {
 .portrait.diable-banyut { border-color: var(--class-diable-banyut); }
 .portrait.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
 .portrait.llop { border-color: var(--class-llop); }
+.portrait.enginyer { border-color: var(--class-enginyer); }
 
 .portrait-icon {
   width: 64px;

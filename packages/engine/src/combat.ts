@@ -128,6 +128,18 @@ export class CombatEngine implements EngineApi, AIView {
     teamA.forEach(c => { c.team = 0; });
     teamB.forEach(c => { c.team = 1; });
     for (const c of [...teamA, ...teamB]) c.resetForNewCombat();
+    this.dispatchCombatStart();
+  }
+
+  /** Run every effect's onCombatStart hook once per combatant (resource init). */
+  private dispatchCombatStart(): void {
+    for (const c of this.allCombatants()) {
+      for (const action of c.actions) {
+        for (const eff of action.def.effects) {
+          this.registry.getHandler(eff.type)?.onCombatStart?.(this.ctx(c, action.def, eff.params ?? {}));
+        }
+      }
+    }
   }
 
   // --- EngineApi / AIView ---------------------------------------------------
@@ -215,6 +227,25 @@ export class CombatEngine implements EngineApi, AIView {
       const fn = handler?.[hook] as ((ctx: EffectContext) => void) | undefined;
       if (fn) fn(this.ctx(source, action, eff.params ?? {}, base));
     }
+  }
+
+  /** Spend-on-play hook: run when an action actually goes off (resource costs). */
+  private dispatchPlay(source: Character, action: ActionDefinition): void {
+    for (const eff of action.effects) {
+      this.registry.getHandler(eff.type)?.onPlay?.(this.ctx(source, action, eff.params ?? {}));
+    }
+  }
+
+  /** Whether a character may play the action at `actionIdx` now (resource gates).
+   *  Used by the web UI to disable unaffordable cards. */
+  canPlayActionIdx(c: Character, actionIdx: number): boolean {
+    const action = c.actions[actionIdx];
+    if (!action) return false;
+    for (const eff of action.def.effects) {
+      const fn = this.registry.getHandler(eff.type)?.canPlay;
+      if (fn && !fn(c, eff.params ?? {})) return false;
+    }
+    return true;
   }
 
   allCombatants(): Character[] { return [...this.teams[0], ...this.teams[1]]; }
@@ -385,6 +416,7 @@ export class CombatEngine implements EngineApi, AIView {
     const targets = cur.targets ?? [];
     switch (action.def.actionType) {
       case ActionType.Defensa: {
+        this.dispatchPlay(actor, action.def);
         const guarded = targets.length ? targets : [actor];
         for (const ally of guarded) ally.guards.push({ defender: actor, action: action.def });
         if (!guarded.includes(actor)) actor.guards.push({ defender: actor, action: action.def });
@@ -393,8 +425,13 @@ export class CombatEngine implements EngineApi, AIView {
         break;
       }
       case ActionType.Atac: {
+        // Stepping forward to attack may trip an enemy minefield — possibly fatally.
+        this.triggerMinefield(actor);
+        if (!actor.isAlive()) break;
+        this.dispatchPlay(actor, action.def);
         const valid = targets.filter(t => this.tierAlive.has(t));
-        const list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
+        let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
+        if (actor.hasStatus('encegat')) list = list.map(t => this.blindRedirect(actor, t));
         for (const t of list) this.resolveAttackOnTarget(actor, action, t);
         if (action.def.isConsumable) action.consumed = true;
         break;
@@ -403,12 +440,43 @@ export class CombatEngine implements EngineApi, AIView {
         if (this.tierInterrupted.has(actor)) {
           this.log('interrupt', `El focus «${action.def.name}» de ${actor.name} s'interromp!`, actor.team);
         } else {
+          this.dispatchPlay(actor, action.def);
           this.log('focus', `${actor.name} usa «${action.def.name}».`, actor.team);
           this.dispatch('onResolve', actor, action.def, { targets });
           if (action.def.isConsumable) action.consumed = true;
         }
         break;
       }
+    }
+  }
+
+  /** Smoke (encegat): the blinded attacker fires through the haze — on a d20 ≤ 10
+   *  the shot lands on a random living combatant instead of its intended target. */
+  private blindRedirect(actor: Character, intended: Character): Character {
+    if (rollD20() > 10) return intended;
+    const pool = this.allLiving().filter(c => c !== actor);
+    if (pool.length === 0) return intended;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (pick !== intended) this.log('info', `${actor.name} dispara a cegues dins el fum i apunta cap a ${pick.name}!`, actor.team);
+    return pick;
+  }
+
+  /** An attacking character may trip a mine laid by the opposing team (Camp minat).
+   *  Each live minefield gives a d20 ≤ 10 chance to deal its blast (ignoring armour)
+   *  and consume one mine. Minefields persist even if their layer has fallen. */
+  private triggerMinefield(actor: Character): void {
+    for (const layer of this.teams[1 - actor.team]) {
+      const mf = layer.getStatus('camp-minat');
+      if (!mf || mf.value <= 0) continue;
+      if (rollD20() <= 10) {
+        const dice = mf.data?.damage as DiceRoll | undefined;
+        const dmg = dice ? dice.roll() : 1;
+        this.log('trap', `${actor.name} trepitja una mina! (${dmg} dany)`, actor.team);
+        this.applyPvLoss(actor, dmg, undefined);
+        mf.value--;
+        if (mf.value <= 0) { layer.clearStatus('camp-minat'); this.log('info', 'El camp de mines s’esgota.', layer.team); }
+      }
+      return; // one minefield check per attack
     }
   }
 
