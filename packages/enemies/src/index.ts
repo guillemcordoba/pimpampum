@@ -1,14 +1,16 @@
 import { Character } from '@pimpampum/engine';
-import { getEnemyTemplate, createEnemyFromTemplate } from './templates.js';
+import { getEnemyTemplate } from './catalog.js';
+import { createEnemyFromTemplate } from './factory.js';
 import { EncounterDefinition } from './encounters/index.js';
 
-export { ENEMY_TEMPLATES, getEnemyTemplate, createEnemyFromTemplate, createEnemy } from './templates.js';
-export type { EnemyTemplate } from './templates.js';
+export {
+  ENEMY_TEMPLATES, getEnemyTemplate,
+  ENEMY_SKILLS, getEnemySkill, ENEMY_ACTIONS, getEnemyAction, unlockedEnemyActions,
+} from './catalog.js';
+export { createEnemyFromTemplate, createEnemy } from './factory.js';
+export type { EnemyTemplate, EnemyModule } from './types.js';
 export { ALL_ENCOUNTERS, getEncounter } from './encounters/index.js';
 export type { EncounterDefinition, EncounterEnemyGroup } from './encounters/index.js';
-export {
-  ENEMY_SKILLS, getEnemySkill, ENEMY_ACTIONS, getEnemyAction, unlockedEnemyActions,
-} from './enemy-skills.js';
 
 /** Instantiate every enemy in an encounter's composition for a player count. */
 export function buildEncounter(encounter: EncounterDefinition, playerCount: number, levels: Record<string, number> = {}): Character[] {

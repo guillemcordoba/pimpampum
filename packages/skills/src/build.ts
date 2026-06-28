@@ -1,5 +1,5 @@
 import { createCharacter, Character, ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
-import { getAction, unlockedActions } from './skills/index.js';
+import { getAction, unlockedActions } from './catalog.js';
 import { getEquipment } from './equipment/index.js';
 
 /** Spec for building a character on the fly from skill ids and levels. */

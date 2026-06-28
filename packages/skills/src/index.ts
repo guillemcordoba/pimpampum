@@ -2,9 +2,9 @@
 export {
   ALL_SKILLS, PLAYER_SKILLS, getSkill,
   ALL_ACTIONS, getAction, unlockedActions,
-} from './skills/index.js';
-export type { SkillDefinition } from './skills/skill-types.js';
-export { action, d, ICON_PREFIX } from './skills/skill-types.js';
+} from './catalog.js';
+export type { SkillDefinition } from './types.js';
+export { action, d, ICON_PREFIX } from './types.js';
 
 // Effects
 export { registerAllEffects, ALL_EFFECTS, EFFECT_TYPES } from './effects/index.js';

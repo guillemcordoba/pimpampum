@@ -1,5 +1,5 @@
 import { ActionType } from '@pimpampum/engine';
-import { SkillDefinition, action, d, ICON_PREFIX } from './skill-types.js';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 
 /**
  * Enginyer d'Explosius — a military demolitions engineer who fights from a finite
@@ -52,5 +52,3 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
   ],
 };
-
-export const EXPLOSIVE_SKILLS: SkillDefinition[] = [ENGINYER_EXPLOSIUS];

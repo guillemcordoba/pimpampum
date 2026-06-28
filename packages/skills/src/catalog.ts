@@ -1,20 +1,10 @@
 import { ActionDefinition } from '@pimpampum/engine';
-import { SkillDefinition } from './skill-types.js';
-import { MARTIAL_SKILLS } from './martial-skills.js';
-import { ARCANE_SKILLS } from './arcane-skills.js';
-import { DIVINE_NATURE_SKILLS } from './divine-nature-skills.js';
-import { SOCIAL_SKILLS } from './social-skills.js';
-import { EXPLOSIVE_SKILLS } from './explosive-skills.js';
-
-export * from './skill-types.js';
+import { SkillDefinition } from './types.js';
+import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
-  ...MARTIAL_SKILLS,
-  ...ARCANE_SKILLS,
-  ...DIVINE_NATURE_SKILLS,
-  ...SOCIAL_SKILLS,
-  ...EXPLOSIVE_SKILLS,
+  ENGINYER_EXPLOSIUS,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;
