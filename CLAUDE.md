@@ -56,6 +56,8 @@ pimpampum/
 
 **Card/action descriptions are authoritative.** Each action's `description` (Catalan) defines what it does; if the effect implementation disagrees, the description wins and the handler must be fixed.
 
+**Description style: brief, mechanical, non-standard effects only — no lore.** A `description` states *only* what deviates from a vanilla action (AoE, dots, debuffs, drains, armour-ignore, etc.) — e.g. "Afecta tots els enemics.", "Ignora l'armadura.". Do **not** restate things already shown on the card: the standard d20+skill roll, damage dice, speed, or a resource/charge cost (the cost is rendered in the card's corner). Drop all flavour prose ("Llença una granada a la línia enemiga…").
+
 ## Core Mechanics (see rules.md)
 
 - **PV** is the only base stat. **Skills** are 1-100; a skill unlocks **actions** at given levels.
@@ -133,7 +135,7 @@ Routes: `/` (home), `/combat` (create characters + play), `/cards[/:section]` (p
 
 ### Card design / theming
 
-Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`, `enginyer`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
+Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`, `enginyer`, `mestre-armes`, `nigromant`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
 
 ## Development environment
 

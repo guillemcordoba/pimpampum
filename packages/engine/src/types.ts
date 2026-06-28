@@ -94,6 +94,12 @@ export interface EquipmentDefinition {
   /** Subtracted from the speed of every action the wearer plays (>= 0). */
   speedPenalty: number;
   skillBonuses: SkillBonus[];
+  /**
+   * Weapon damage dice. Only matters for actions carrying the `weapon_damage`
+   * effect — those deal the wielded main-hand weapon's dice instead of their own.
+   * Generic: any weapon-using skill (Weapon Master, Berserk…) reads it.
+   */
+  damageDice?: DiceRoll;
   iconPath: string;
   description: string;
   /** Catalan label for the slot, for display. */

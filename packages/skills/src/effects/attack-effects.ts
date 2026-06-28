@@ -44,12 +44,14 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.2 : 0; },
   },
 
-  // Bonus attack roll now, but lowered defense this and next turn.
+  // Bonus attack roll now, but lowered defense. By default the defense penalty
+  // applies this turn AND next turn; pass thisTurn:false to penalise only next turn.
   reckless: {
     modifyAttack(ctx) {
       ctx.attackMods!.rollBonus += num(ctx.params, 'attack', 5);
-      applyMod(ctx.source, 'defense', -num(ctx.params, 'defense', 5), 1, 'Atac temerari');
-      applyMod(ctx.source, 'defense', -num(ctx.params, 'defense', 5), 'thisTurn', 'Atac temerari');
+      const def = num(ctx.params, 'defense', 5);
+      applyMod(ctx.source, 'defense', -def, 1, ctx.action.name);
+      if (ctx.params.thisTurn !== false) applyMod(ctx.source, 'defense', -def, 'thisTurn', ctx.action.name);
     },
     aiWeight() { return 0.6; },
   },

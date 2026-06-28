@@ -65,7 +65,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       const atkSkill = ctx.source.getRollSkill(ctx.action.skillId, 'attack') + (ctx.action.rollBonus ?? 0);
       for (const t of targets) {
         const atkRoll = ctx.engine.rollD20();
-        const defRoll = ctx.engine.rollD20();
+        const defRoll = ctx.engine.rollD20For(t);
         const defBonus = bestSaveBonus(t);
         const attacker = atkRoll + atkSkill;
         const defender = defRoll + defBonus;
@@ -131,7 +131,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('condemnat', amt, num(ctx.params, 'turns', -1));
+        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1));
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },

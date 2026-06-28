@@ -37,6 +37,8 @@
   --class-golem-de-pedra: #5a5a5a;
   --class-llop: #5a4a3a;
   --class-enginyer: #9c5a1f;
+  --class-mestre-armes: #4a5a3a;
+  --class-nigromant: #3a1f5c;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -454,6 +456,8 @@ body {
 .portrait.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
 .portrait.llop { border-color: var(--class-llop); }
 .portrait.enginyer { border-color: var(--class-enginyer); }
+.portrait.mestre-armes { border-color: var(--class-mestre-armes); }
+.portrait.nigromant { border-color: var(--class-nigromant); }
 
 .portrait-icon {
   width: 64px;

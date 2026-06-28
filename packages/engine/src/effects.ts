@@ -42,6 +42,12 @@ export interface EngineApi {
 
   /** Roll a d20 (exposed so handlers stay deterministic with engine RNG hooks). */
   rollD20(): number;
+  /** Roll a d20 for a specific character, applying disadvantage when they are
+   *  doomed (`condemnat`): rolls twice and takes the lower. */
+  rollD20For(c: Character): number;
+  /** Cancel a still-pending (not yet resolved) action by `target` this round.
+   *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
+  cancelPendingAction(target: Character): boolean;
 }
 
 /** Mutable bundle gathered before an attack resolves; effects tweak it in place. */
@@ -50,6 +56,11 @@ export interface AttackModifiers {
   rollBonus: number;
   /** Skip the target's passive armour entirely. */
   ignoreArmor: boolean;
+  /** Treat the target as undefended — ignore any active guard (feints). */
+  ignoreDefense: boolean;
+  /** Skip this target entirely — no roll, no damage (e.g. a reap that only
+   *  strikes the doomed passes over everyone else). */
+  skip: boolean;
   /** Flat extra PV damage on a hit (after armour). */
   bonusDamage: number;
   /** Extra damage dice rolled and added to the base damage on a hit. */
@@ -57,7 +68,7 @@ export interface AttackModifiers {
 }
 
 export function newAttackModifiers(): AttackModifiers {
-  return { rollBonus: 0, ignoreArmor: false, bonusDamage: 0, extraDamageDice: [] };
+  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, skip: false, bonusDamage: 0, extraDamageDice: [] };
 }
 
 /** Context handed to an effect handler hook. Fields are populated per-hook. */

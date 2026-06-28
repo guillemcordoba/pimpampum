@@ -46,6 +46,8 @@ export function useGame() {
   const multiTargetSelections = ref<TargetRef[]>([]);
   const highlightedTarget = ref<{ team: number; idx: number } | null>(null);
   const roundComplete = ref(false);
+  // Char indices (team 0) who may still swap their revealed card via Estat de flux.
+  const flowSwappers = ref<number[]>([]);
 
   const playerTeam = computed<Character[]>(() => (engine.value?.teams[0] ?? []) as Character[]);
   const enemyTeam = computed<Character[]>(() => (engine.value?.teams[1] ?? []) as Character[]);
@@ -121,6 +123,7 @@ export function useGame() {
     multiTargetSelections.value = [];
     highlightedTarget.value = null;
     roundComplete.value = false;
+    flowSwappers.value = [];
     gamePhase.value = 'card-selection';
   }
 
@@ -151,9 +154,18 @@ export function useGame() {
       team: 0, idx, actionIdx,
     }));
     revealed.value = eng.planActions(selections);
+    flowSwappers.value = eng.flowSwapRefs().filter(r => r.team === 0).map(r => r.idx);
     currentStepIndex.value = -1;
     roundComplete.value = false;
     gamePhase.value = 'reveal';
+  }
+
+  /** Estat de flux: replace a revealed card with another, after seeing the table. */
+  function flowSwapCard(charIdx: number, actionIdx: number) {
+    const eng = engine.value;
+    if (!eng) return;
+    revealed.value = eng.flowSwap({ team: 0, idx: charIdx }, actionIdx);
+    flowSwappers.value = eng.flowSwapRefs().filter(r => r.team === 0).map(r => r.idx);
   }
 
   function startResolving() {
@@ -259,10 +271,10 @@ export function useGame() {
     playerSpecs, enemySpecs,
     combatLog, playerSelections, skippingPlayers, winner,
     revealed, currentStepIndex, currentTargetPrompt, multiTargetSelections,
-    highlightedTarget, roundComplete,
+    highlightedTarget, roundComplete, flowSwappers,
     addPlayer, removePlayer, addEnemy, removeEnemy, canStart, startCombat,
     selectCard, canConfirmCards, confirmCards, startResolving, advanceResolution,
-    selectTarget, confirmTargets, nextRound, playAgain,
+    selectTarget, confirmTargets, nextRound, playAgain, flowSwapCard,
   };
 }
 

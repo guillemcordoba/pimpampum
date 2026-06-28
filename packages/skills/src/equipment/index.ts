@@ -1,4 +1,4 @@
-import { EquipmentDefinition, EquipmentSlot } from '@pimpampum/engine';
+import { EquipmentDefinition, EquipmentSlot, DiceRoll } from '@pimpampum/engine';
 
 const ICON = 'icons/000000/transparent/1x1/';
 
@@ -49,8 +49,23 @@ export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   {
     id: 'arma-esmolada', name: 'Arma esmolada', slot: EquipmentSlot.MainHand,
     passiveArmor: 0, speedPenalty: 0, skillBonuses: [{ skillId: '*', bonus: 2 }],
+    damageDice: new DiceRoll(1, 6),
     iconPath: ICON + 'delapouite/sharp-axe.svg', slotLabel: 'Mà principal',
     description: 'Una arma de qualitat: +2 a totes les habilitats.',
+  },
+  {
+    id: 'basto', name: 'Bastó', slot: EquipmentSlot.MainHand,
+    passiveArmor: 0, speedPenalty: 0, skillBonuses: [],
+    damageDice: new DiceRoll(1, 4),
+    iconPath: ICON + 'delapouite/wood-stick.svg', slotLabel: 'Mà principal',
+    description: 'Una arma humil. El dany de les accions d\'arma surt d\'aquí (1d4).',
+  },
+  {
+    id: 'gran-destral', name: 'Gran destral', slot: EquipmentSlot.MainHand,
+    passiveArmor: 0, speedPenalty: 1, skillBonuses: [],
+    damageDice: new DiceRoll(1, 12),
+    iconPath: ICON + 'delapouite/war-axe.svg', slotLabel: 'Mà principal',
+    description: 'Una destral a dues mans, brutal i feixuga (1d12, −1 velocitat).',
   },
 ];
 

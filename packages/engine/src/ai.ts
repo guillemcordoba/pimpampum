@@ -64,6 +64,10 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
   const woundedAllies = allies.filter(a => pvFraction(a) < 0.5).length;
   const woundedEnemies = enemies.filter(e => pvFraction(e) < 0.4).length;
   const selfHurt = pvFraction(actor) < 0.5;
+  // An armed attack chain (Atac encadenat) compounds only while the actor keeps
+  // attacking — so once chained, attacks are king and any non-attack throws it away.
+  const chainMult = actor.getStatusValue('cadena', 0);
+  const chained = chainMult > 0;
 
   let w = 1;
   switch (def.actionType) {
@@ -73,6 +77,7 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       w = 3 + Math.max(-2, Math.min(3, gap / 10));
       w += woundedEnemies * 1.5; // finish wounded foes
       if (strategy === AIStrategy.Aggro) w += 2;
+      if (chained) w += 4 + chainMult; // sustain & cash in the compounding chain
       break;
     }
     case ActionType.Defensa: {
@@ -81,12 +86,14 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       if (selfHurt) w += 1.5;
       if (strategy === AIStrategy.Protect) w += 2.5;
       if (enemies.length === 0) w = 0.1;
+      if (chained) w = 0.05; // never break an armed chain to defend
       break;
     }
     case ActionType.Focus: {
       w = 2;
       if (strategy === AIStrategy.Power) w += 2;
       if (selfHurt && def.speed < 5) w -= 1; // don't telegraph a slow focus while dying
+      if (chained) w = 0.05; // a focus would break the chain
       break;
     }
   }

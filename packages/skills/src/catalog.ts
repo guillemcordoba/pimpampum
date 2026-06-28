@@ -1,10 +1,16 @@
 import { ActionDefinition } from '@pimpampum/engine';
 import { SkillDefinition } from './types.js';
 import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
+import { MESTRE_ARMES } from './skills/weapon-master.js';
+import { NIGROMANT } from './skills/nigromant.js';
+import { FURIA } from './skills/furia.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
   ENGINYER_EXPLOSIUS,
+  MESTRE_ARMES,
+  NIGROMANT,
+  FURIA,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;

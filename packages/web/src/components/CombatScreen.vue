@@ -20,6 +20,15 @@ const highlighted = g.highlightedTarget;
 const livingPlayers = computed(() =>
   playerTeam.value.map((c, idx) => ({ c, idx })).filter(p => p.c.isAlive() && !g.skippingPlayers.value.has(p.idx)));
 
+/** Players who may still swap their revealed card via Estat de flux, with the
+ *  currently-revealed action id (to mark it) and their remaining flow charges. */
+const flowSwapHands = computed(() =>
+  g.flowSwappers.value.map((idx) => {
+    const c = playerTeam.value[idx];
+    const currentActionId = revealed.value.find(r => r.actorTeam === 0 && r.actorIdx === idx)?.actionId;
+    return { idx, c, currentActionId, flux: c.getStatusValue('flux', 0) };
+  }));
+
 /**
  * Each revealed action paired with its card instance, in speed order. Kept
  * index-aligned with the engine's pending queue (no filtering) so the current /
@@ -90,6 +99,25 @@ function isHighlighted(team: number, idx: number): boolean {
                   <span class="reveal-speed">vel {{ r.speed }}</span>
                 </div>
                 <MiniCard v-if="action" :action="action" :class-css="r.classCss" readonly />
+              </div>
+            </div>
+
+            <div v-if="phase === 'reveal' && flowSwapHands.length" class="flow-swap">
+              <div class="flow-swap-title">Estat de flux — canvia una carta després de veure les revelades</div>
+              <div v-for="sw in flowSwapHands" :key="sw.idx" class="hand">
+                <div class="hand-name">{{ sw.c.name }} · flux {{ sw.flux }}</div>
+                <div class="hand-cards">
+                  <MiniCard
+                    v-for="(action, ai) in sw.c.actions"
+                    :key="ai"
+                    :action="action"
+                    :class-css="sw.c.characterClass"
+                    :selected="action.def.id === sw.currentActionId"
+                    :set-aside="sw.c.isActionSetAside(ai)"
+                    :consumed="!action.isAvailable()"
+                    @select="g.flowSwapCard(sw.idx, ai)"
+                  />
+                </div>
               </div>
             </div>
 
@@ -179,6 +207,12 @@ function isHighlighted(team: number, idx: number): boolean {
   border-color: gold;
   box-shadow: 0 0 14px rgba(255, 215, 0, 0.7);
 }
+.flow-swap {
+  display: flex; flex-direction: column; gap: 0.5rem; align-items: center;
+  padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;
+  border: 1px dashed var(--class-mestre-armes, #4a5a3a); border-radius: 6px;
+}
+.flow-swap-title { font-family: 'MedievalSharp', serif; color: var(--parchment); font-size: 0.9rem; text-align: center; }
 .hands { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
 .hand { display: flex; flex-direction: column; gap: 0.25rem; }
 .hand-name { font-family: 'MedievalSharp', serif; color: var(--parchment); text-align: center; }

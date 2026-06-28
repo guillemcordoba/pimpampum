@@ -94,6 +94,8 @@ interface PendingAction {
   speed: number;
   /** null until targeted (human prompt) or auto-filled (AI / trivial). */
   targets: Character[] | null;
+  /** Set by Profecia de la fi: a foreseen action that never resolves. */
+  cancelled?: boolean;
 }
 
 export interface CombatEngineOptions {
@@ -152,12 +154,33 @@ export class CombatEngine implements EngineApi, AIView {
   enemiesOf(c: Character): Character[] { return this.teams[1 - c.team].filter(e => e.isAlive()); }
   rollD20(): number { return rollD20(); }
 
+  /** Roll a d20 for `c`, with disadvantage (take the lower of two) while doomed. */
+  rollD20For(c: Character): number {
+    const r1 = rollD20();
+    if (!c.hasStatus('condemnat')) return r1;
+    const r2 = rollD20();
+    return Math.min(r1, r2);
+  }
+
+  /** Cancel `target`'s still-pending action this round (Profecia de la fi). An
+   *  action that already resolved (a faster one) can't be cancelled — that is
+   *  what makes Profecia speed-gated. Returns true if something was cancelled. */
+  cancelPendingAction(target: Character): boolean {
+    for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
+      const p = this.pending[i];
+      if (p.actor === target && !p.cancelled) { p.cancelled = true; return true; }
+    }
+    return false;
+  }
+
   log(kind: string, message: string, team?: number): void {
     this.logEntries.push({ kind, message, team, round: this.round });
   }
 
   applyPvLoss(target: Character, amount: number, _source?: Character): boolean {
     if (amount <= 0) return !target.isAlive();
+    // Fúria implacable: while indestructible, no blow can drop you below 1 PV.
+    if (target.hasStatus('indestructible')) amount = Math.min(amount, Math.max(0, target.currentPV - 1));
     const died = target.loseLife(amount);
     if (died) this.log('death', `${target.name} cau derrotat!`, target.team);
     return died;
@@ -180,10 +203,10 @@ export class CombatEngine implements EngineApi, AIView {
     let recipient = target;
     let hit = true;
     if (guard) {
-      const atkRoll = rollD20();
+      const atkRoll = this.rollD20For(source);
       const atkBonus = skill + (opts.rollBonus ?? 0);
       const attackerTotal = atkRoll + atkBonus;
-      const defRoll = rollD20();
+      const defRoll = this.rollD20For(guard.defender);
       const defBonus = guard.defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
       const defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${guard.defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
@@ -191,9 +214,10 @@ export class CombatEngine implements EngineApi, AIView {
       recipient = guard.defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
-    const dmgRoll = damageDice.roll();
+    const dmgRoll = damageDice.roll() + source.getStatusValue('furia', 0);
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    const dmg = Math.max(0, dmgRoll - armor);
+    // Fúria: raging defenders shrug off part of every blow ("neither fire nor iron").
+    const dmg = Math.max(0, dmgRoll - armor - recipient.getStatusValue('furia', 0));
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
@@ -336,6 +360,48 @@ export class CombatEngine implements EngineApi, AIView {
   get pendingCount(): number { return this.pending.length; }
   get currentPendingIndex(): number { return this.pendingIndex; }
 
+  // --- Estat de flux: post-reveal card swap ---------------------------------
+
+  /** Refs of queued actors who still hold a flow (Estat de flux) charge and may
+   *  swap their revealed card before resolution begins. */
+  flowSwapRefs(): TargetRef[] {
+    return this.pending
+      .filter(p => p.actor.isAlive() && p.actor.getStatusValue('flux', 0) > 0)
+      .map(p => this.refOf(p.actor));
+  }
+
+  /**
+   * Replace a queued actor's chosen action with another from their hand (Estat de
+   * flux). Spends one flow charge, re-targets, re-sorts the queue by speed, and
+   * returns the updated reveal list. No-op (no charge spent) if the swap is
+   * illegal or the same action. Must be called after planActions, before resolving.
+   */
+  flowSwap(ref: TargetRef, newActionIdx: number): RevealedAction[] {
+    const reveal = () => this.pending.map(p => this.reveal(p));
+    const actor = this.resolveRef(ref);
+    const p = this.pending.find(pp => pp.actor === actor);
+    if (!p || actor.getStatusValue('flux', 0) <= 0) return reveal();
+    const newAction = actor.actions[newActionIdx];
+    if (!newAction || newAction === p.action) return reveal();
+    if (!newAction.isAvailable() || actor.isActionSetAside(newActionIdx)) return reveal();
+    if ((actor.skills.get(newAction.def.skillId) ?? 0) < newAction.def.unlockLevel) return reveal();
+    if (!this.canPlayActionIdx(actor, newActionIdx)) return reveal();
+
+    const charges = actor.getStatusValue('flux', 0) - 1;
+    if (charges <= 0) actor.clearStatus('flux'); else actor.setStatus('flux', charges, -1);
+
+    p.action = newAction;
+    p.speed = actor.getEffectiveSpeed(newAction);
+    p.targets = null;
+    actor.playedActionIdx = newActionIdx;
+    this.plays.push({ team: actor.team, actionId: newAction.def.id, actionType: newAction.def.actionType });
+
+    this.pending.sort((a, b) => b.speed - a.speed);
+    this.pendingIndex = 0;
+    this.tierSpeed = null;
+    return reveal();
+  }
+
   /** Set targets for the action currently awaiting resolution (after a 'target' prompt). */
   setResolveTarget(targets: TargetRef[]): void {
     const cur = this.pending[this.pendingIndex];
@@ -363,6 +429,14 @@ export class CombatEngine implements EngineApi, AIView {
     if (!this.tierAlive.has(cur.actor)) {
       this.pendingIndex++;
       return { kind: 'resolved', logs: [], action: this.reveal(cur), done: this.pendingIndex >= this.pending.length };
+    }
+
+    // Foreseen and cancelled by Profecia de la fi — the action never happens.
+    if (cur.cancelled) {
+      const before = this.logEntries.length;
+      this.log('interrupt', `L'acció «${cur.action.def.name}» de ${cur.actor.name} es cancel·la.`, cur.actor.team);
+      this.pendingIndex++;
+      return { kind: 'resolved', logs: this.logEntries.slice(before), action: this.reveal(cur), done: this.pendingIndex >= this.pending.length };
     }
 
     // Targeting.
@@ -429,10 +503,18 @@ export class CombatEngine implements EngineApi, AIView {
         this.triggerMinefield(actor);
         if (!actor.isAlive()) break;
         this.dispatchPlay(actor, action.def);
+        // Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
+        // applied to {ATK} and damage of every target struck this turn.
+        let chainMult = 1;
+        if (actor.hasStatus('cadena')) {
+          const entry = actor.getStatus('cadena')!;
+          chainMult = entry.value * 2;
+          actor.setStatus('cadena', chainMult, -1, entry.data);
+        }
         const valid = targets.filter(t => this.tierAlive.has(t));
         let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         if (actor.hasStatus('encegat')) list = list.map(t => this.blindRedirect(actor, t));
-        for (const t of list) this.resolveAttackOnTarget(actor, action, t);
+        for (const t of list) this.resolveAttackOnTarget(actor, action, t, chainMult);
         if (action.def.isConsumable) action.consumed = true;
         break;
       }
@@ -480,22 +562,31 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character): void {
+  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, chainMult = 1): void {
     const def = action.def;
     const mods: AttackModifiers = newAttackModifiers();
     this.dispatch('modifyAttack', source, def, { targets: [target], target, attackMods: mods });
 
-    const guard = this.activeGuard(target);
+    // A reap (Mà de la tomba) passes over any target that isn't doomed.
+    if (mods.skip) return;
+
+    // Finta and similar feints bypass the guard entirely (treated as undefended).
+    const guard = mods.ignoreDefense ? null : this.activeGuard(target);
     let recipient = target;
     let hit: boolean;
     let margin: number;
 
-    if (guard) {
-      const atkRoll = rollD20();
+    if (guard && guard.defender.hasStatus('aguantant')) {
+      // Aguantar el cop: zero defence — the blow always lands in full, fuelling wrath.
+      hit = true; margin = Infinity; recipient = guard.defender;
+      this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
+    } else if (guard) {
+      const atkRoll = this.rollD20For(source);
       const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.getStatusValue('marca-objectiu', 0);
-      const attackerTotal = atkRoll + atkBonus;
+      // Chain (Atac encadenat) doubles {ATK} each compounding turn.
+      const attackerTotal = (atkRoll + atkBonus) * chainMult;
       const defender = guard.defender;
-      const defRoll = rollD20();
+      const defRoll = this.rollD20For(defender);
       const defBonus = defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
       const defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
@@ -519,12 +610,18 @@ export class CombatEngine implements EngineApi, AIView {
     for (const d of mods.extraDamageDice) dmgRoll += d.roll();
     dmgRoll += mods.bonusDamage;
     dmgRoll += source.getStatusValue('arma-enverinada', 0);
+    // Fúria: a raging attacker's blows hit harder.
+    dmgRoll += source.getStatusValue('furia', 0);
+    // Chain (Atac encadenat) doubles damage each compounding turn.
+    dmgRoll *= chainMult;
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
     let dmg = Math.max(0, dmgRoll - armor);
-    if (recipient.hasStatus('condemnat') && dmg > 0) {
-      dmg += recipient.getStatusValue('condemnat', 0);
-      recipient.clearStatus('condemnat');
+    if (recipient.hasStatus('marca-mortal') && dmg > 0) {
+      dmg += recipient.getStatusValue('marca-mortal', 0);
+      recipient.clearStatus('marca-mortal');
     }
+    // Fúria: a raging defender shrugs off part of every blow ("neither fire nor iron").
+    dmg = Math.max(0, dmg - recipient.getStatusValue('furia', 0));
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
@@ -538,7 +635,9 @@ export class CombatEngine implements EngineApi, AIView {
   /** End-of-round: coordinated hooks, damage-over-time / regen, and turn advance. */
   finishRound(): void {
     for (const p of this.pending) this.dispatch('postRound', p.actor, p.action.def, { targets: p.targets ?? [] });
+    this.applyChainBreaks();
     this.applyStatusTicks();
+    this.spreadPlague();
     this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
     this.pending = [];
@@ -554,6 +653,39 @@ export class CombatEngine implements EngineApi, AIView {
     for (const p of this.pending) {
       if (!p.actor.isAlive()) continue;
       p.actor.fatigue += p.action.def.fatigueCost ?? DEFAULT_FATIGUE_COST;
+    }
+  }
+
+  /** Atac encadenat lifecycle: the chain breaks unless its holder played an attack
+   *  this round (the arming round, marked by data.armedRound, is exempt). */
+  private applyChainBreaks(): void {
+    for (const c of this.allCombatants()) {
+      const chain = c.getStatus('cadena');
+      if (!chain) continue;
+      if (chain.data?.armedRound === this.round) continue;
+      const played = this.pending.find(p => p.actor === c);
+      const attacked = played?.action.def.actionType === ActionType.Atac;
+      if (!attacked) c.clearStatus('cadena');
+    }
+  }
+
+  /** Contagious decay (Putrefacció): each round the plague may jump to one more
+   *  uninfected member of any team that already carries it — on a d20 ≤ 10. */
+  private spreadPlague(): void {
+    for (const team of this.teams) {
+      const living = team.filter(c => c.isAlive());
+      const infected = living.filter(c => c.hasStatus('putrefaccio'));
+      if (infected.length === 0) continue;
+      const clean = living.filter(c => !c.hasStatus('putrefaccio'));
+      if (clean.length === 0) continue;
+      if (rollD20() >= 10) continue; // contagion spreads on a d20 < 10
+
+      const src = infected[0].getStatus('putrefaccio')!;
+      const dot = (src.data?.dot as number) ?? src.value;
+      const turns = (src.data?.turns as number) ?? src.remaining;
+      const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
+      victim.setStatus('putrefaccio', dot, turns, { dot, turns });
+      this.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
     }
   }
 

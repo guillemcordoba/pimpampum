@@ -134,6 +134,10 @@
 .print-card.llop .card-frame { border-color: var(--class-llop); }
 .print-card.enginyer { border-color: var(--class-enginyer); }
 .print-card.enginyer .card-frame { border-color: var(--class-enginyer); }
+.print-card.mestre-armes { border-color: var(--class-mestre-armes); }
+.print-card.mestre-armes .card-frame { border-color: var(--class-mestre-armes); }
+.print-card.nigromant { border-color: var(--class-nigromant); }
+.print-card.nigromant .card-frame { border-color: var(--class-nigromant); }
 
 /* -- Card type header colors ----------------------------------------------- */
 

@@ -1,4 +1,4 @@
-import { CombatModifier, ModifierDuration, DiceRoll, Character, EffectContext } from '@pimpampum/engine';
+import { CombatModifier, ModifierDuration, DiceRoll, Character, EffectContext, EquipmentSlot } from '@pimpampum/engine';
 
 // --- Param readers ----------------------------------------------------------
 
@@ -75,6 +75,17 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
   const m = new CombatModifier(kind, amount, toDuration(d)).withSource(source);
   if (dice) m.withDice(dice);
   c.addModifier(m);
+}
+
+// --- Weapons ----------------------------------------------------------------
+
+/** Damage dice of the wielded main-hand weapon, or undefined if none. Used by the
+ *  generic weapon mechanic (any weapon-using skill: Weapon Master, Berserk…). */
+export function wieldedWeaponDice(c: Character): DiceRoll | undefined {
+  for (const e of c.equipment) {
+    if (e.slot === EquipmentSlot.MainHand && e.damageDice) return e.damageDice;
+  }
+  return undefined;
 }
 
 // --- Misc helpers -----------------------------------------------------------

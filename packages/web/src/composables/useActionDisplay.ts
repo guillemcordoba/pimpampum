@@ -25,6 +25,12 @@ export interface CardDisplayProps {
 export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
   if (def.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: def.damageDice.toString() });
+  // Weapon actions deal the wielded weapon's dice (×times) instead of fixed damage.
+  const weaponEff = def.effects.find(e => e.type === 'weapon_damage');
+  if (weaponEff) {
+    const times = (weaponEff.params?.times as number) ?? 1;
+    stats.push({ iconPath: STAT_ICONS.damage, value: times > 1 ? `arma×${times}` : 'arma' });
+  }
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
   if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.armor, value: `+${def.rollBonus}` });
   if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {

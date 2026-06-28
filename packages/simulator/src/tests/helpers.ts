@@ -57,13 +57,20 @@ export function randomPlayer(name: string, budget: number, equip = true): Charac
     skills[s.id] = Math.max(5, Math.min(90, lvl));
     remaining -= skills[s.id];
   });
+  const equipment = equip ? randomEquipment() : [];
+  // Weapon-based skills (e.g. Mestre d'Armes) deal 0 without a wielded weapon, so
+  // guarantee one — otherwise their attacks would be dead and skew the balance.
+  const usesWeapon = chosen.some(s => s.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
+  if (usesWeapon && !equipment.includes('basto') && !equipment.includes('arma-esmolada')) {
+    equipment.push('basto');
+  }
   return buildCharacter({
     name,
     classCss: chosen[0].classCss,
     iconPath: chosen[0].iconPath,
     pv: PLAYER_PV,
     skills,
-    equipment: equip ? randomEquipment() : [],
+    equipment,
   });
 }
 

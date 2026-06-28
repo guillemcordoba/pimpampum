@@ -148,10 +148,12 @@ export class Character {
     return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
   }
 
-  /** Resolved speed of an action: base - armour penalty + speed modifiers. */
+  /** Resolved speed of an action: base - armour penalty + speed modifiers.
+   *  A doomed (`condemnat`) character acts 3 slower. */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
-    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed']));
+    const doom = this.hasStatus('condemnat') ? 3 : 0;
+    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) - doom;
   }
 
   equip(item: EquipmentDefinition): void {
