@@ -26,7 +26,7 @@ pimpampum/
 │   │       ├── modifier.ts        # CombatModifier, ModifierDuration
 │   │       ├── character.ts       # Character (PV + skills Map + statuses Map + guards), createCharacter
 │   │       ├── combat.ts          # CombatEngine — step-by-step state machine + AI driver
-│   │       ├── ai.ts              # selectAction (action-based weighted selection), AIView
+│   │       ├── ai.ts              # selectAction (weighted action pick) + pickResolveTargets (resolution-time targeting), AIView
 │   │       ├── strategy.ts        # AIStrategy enum
 │   │       └── display.ts         # ACTION_TYPE_* , STAT_ICONS, SLOT_LABELS, RULES_SUMMARY
 │   ├── skills/                    # @pimpampum/skills — ALL game content (player + enemy skills)
@@ -61,7 +61,7 @@ pimpampum/
 
 ## Core Mechanics (see rules.md)
 
-- **PV** is the only base stat. **Skills** are 1-100; a skill unlocks **actions** at given levels.
+- **PV** is the only base stat (players default to **20**; enemy PV is derived from fielded level: `pvForLevel(level, role)` = level²/42, ×1.5 for `solitari` bosses — see `packages/enemies/src/generator.ts`, which also holds the parametric encounter generator behind the web's `/encounters` creator). **Skills** are 1-100; a skill unlocks **actions** at given levels.
 - **Mida (size)**: free creation choice, engine-owned (`engine/src/size.ts`) — Gran +3 PV / −1 speed, Petit −3 PV / +1 speed, Mitjà baseline (default). Enemies are always Mitjà (templates bake durability into basePV).
 - **Action**: belongs to a skill; has a **speed** and a **type** (Atac / Defensa / Focus). Attacks also have **damage dice**.
 - **Attack**: `d20 + skill + modifiers` vs the defender's `d20 + defense skill + modifiers` (or auto-hit if undefended). On a hit, roll damage dice, subtract passive armour (min 0), subtract from PV.
@@ -94,11 +94,11 @@ const hero = buildCharacter({                       // players: pick skills + le
   skills: { esgrima: 38, 'tactica-militar': 22 },
   equipment: ['armadura-de-cuir'],
 });                                                 // actions default to those unlocked by the skill levels
-const goblin = createEnemyFromTemplate(getEnemyTemplate('goblin')!, { 'tactiques-goblin': 25 });
+const goblin = createEnemyFromTemplate(getEnemyTemplate('goblin')!, { goblin: 25 });
 const engine = new CombatEngine([hero], [goblin], { registry });
 ```
 
-Players are human-controlled when `aiStrategy === null`; enemies get a strategy via `assignStrategies`.
+Players are human-controlled when `aiStrategy === null`. Enemies get their strategy from `EnemyTemplate.aiStrategy` (stamped by `createEnemyFromTemplate`; default Aggro) — pick it to match how a GM would play the kit, since calibration runs with it. `assignStrategies` is only for simulated *player* teams. AI actors choose their **action** at plan time but their **targets** at resolution time (`pickResolveTargets`), seeing what a human sees after the reveal: it boosts hitting enemies whose slower focus is still pending (interrupt), lethal kills, and wounded targets, and avoids active guards.
 
 ## Adding or changing content
 

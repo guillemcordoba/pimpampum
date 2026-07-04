@@ -7,7 +7,7 @@ import {
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { rollD20, resolveAttack, checkSkillUp } from './resolution.js';
-import { selectAction, AIView } from './ai.js';
+import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
 import { DEFAULT_FATIGUE_COST } from './fatigue.js';
 
 export interface LogEntry {
@@ -351,7 +351,7 @@ export class CombatEngine implements EngineApi, AIView {
       } else {
         const planned = selectAction(this, c);
         action = c.actions[planned.actionIdx];
-        targets = planned.targets;
+        targets = null; // AI targets at resolution time, with reveal-level info
       }
       if (!action) continue;
       c.playedActionIdx = c.actions.indexOf(action);
@@ -383,6 +383,18 @@ export class CombatEngine implements EngineApi, AIView {
 
   get pendingCount(): number { return this.pending.length; }
   get currentPendingIndex(): number { return this.pendingIndex; }
+
+  /** Reveal-level view of this round's queue (AIView) — what everyone at the
+   *  table knows once cards are flipped. */
+  pendingSummary(): readonly PendingSummary[] {
+    return this.pending.map((p, i) => ({
+      actor: p.actor,
+      actionType: p.action.def.actionType,
+      speed: p.speed,
+      resolved: i < this.pendingIndex,
+      cancelled: !!p.cancelled,
+    }));
+  }
 
   // --- Post-reveal card swap -------------------------------------------------
 
@@ -494,7 +506,7 @@ export class CombatEngine implements EngineApi, AIView {
         if (count >= pool.length) {
           cur.targets = pool;
         } else if (cur.actor.aiStrategy !== null) {
-          cur.targets = this.autoTargets(cur.actor, cur.action.def, req, count);
+          cur.targets = this.autoTargets(cur.actor, cur.action.def, req, count, cur.speed);
         } else {
           return {
             kind: 'target',
@@ -523,10 +535,9 @@ export class CombatEngine implements EngineApi, AIView {
     };
   }
 
-  private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number): Character[] {
+  private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, speed: number): Character[] {
     const pool = this.eligibleTargets(actor, def, req);
-    if (req === 'enemy') return [...pool].sort((a, b) => a.currentPV - b.currentPV).slice(0, count);
-    return [...pool].sort((a, b) => (a.currentPV / a.maxPV) - (b.currentPV / b.maxPV)).slice(0, count);
+    return pickResolveTargets(this, def, req, count, pool, speed);
   }
 
   private resolveOne(cur: PendingAction): void {
@@ -814,7 +825,7 @@ export class CombatEngine implements EngineApi, AIView {
     const cur = this.pending[this.pendingIndex];
     if (!cur) return;
     const req = getActionTargetRequirement(cur.action.def, this.registry);
-    cur.targets = this.autoTargets(cur.actor, cur.action.def, req, getActionTargetCount(cur.action.def));
+    cur.targets = this.autoTargets(cur.actor, cur.action.def, req, getActionTargetCount(cur.action.def), cur.speed);
   }
 
   runCombat(stats?: CombatStats): CombatResult {

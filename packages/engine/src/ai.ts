@@ -1,8 +1,17 @@
 import { Character } from './character.js';
-import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
-import { ActionType } from './types.js';
+import { ActionInstance } from './action.js';
+import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import { EffectRegistry, AIContext } from './effects.js';
 import { AIStrategy } from './strategy.js';
+
+/** Reveal-level summary of one queued action this round. */
+export interface PendingSummary {
+  actor: Character;
+  actionType: ActionType;
+  speed: number;
+  resolved: boolean;
+  cancelled: boolean;
+}
 
 /** Minimal engine view the AI needs. CombatEngine implements this. */
 export interface AIView {
@@ -10,11 +19,12 @@ export interface AIView {
   readonly round: number;
   alliesOf(c: Character, includeSelf?: boolean): Character[];
   enemiesOf(c: Character): Character[];
+  /** This round's queue as revealed to everyone (empty before planActions). */
+  pendingSummary(): readonly PendingSummary[];
 }
 
 export interface PlannedAction {
   actionIdx: number;
-  targets: Character[];
 }
 
 /** Fraction of a character's PV remaining (0..1). */
@@ -110,30 +120,52 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
   return Math.max(0.05, w);
 }
 
-/** Pick targets for a chosen action. */
-function pickTargets(view: AIView, actor: Character, action: ActionInstance): Character[] {
-  const req = getActionTargetRequirement(action.def, view.registry);
-  const count = getActionTargetCount(action.def);
+/**
+ * Resolution-time target choice for an AI actor. Runs when the action actually
+ * resolves, so it sees everything a human at the table sees at that moment:
+ * who already died, which guards are up, and which slower focuses are still
+ * pending (and can therefore be interrupted by landing a hit).
+ */
+export function pickResolveTargets(
+  view: AIView,
+  def: ActionDefinition,
+  req: TargetRequirement,
+  count: number,
+  pool: Character[],
+  speed: number,
+): Character[] {
   if (req === 'none') return [];
-
-  if (req === 'enemy') {
-    const enemies = [...view.enemiesOf(actor)].sort((a, b) => a.currentPV - b.currentPV);
-    return enemies.slice(0, count);
+  if (req !== 'enemy') {
+    return [...pool].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
   }
-  let pool: Character[];
-  if (req === 'self') pool = [actor];
-  else if (req === 'ally_other') pool = view.alliesOf(actor, false);
-  else pool = view.alliesOf(actor, true);
-  pool = [...pool].sort((a, b) => pvFraction(a) - pvFraction(b));
-  if (pool.length === 0) pool = [actor];
-  return pool.slice(0, count);
+
+  const pending = view.pendingSummary();
+  const expectedDamage = def.damageDice?.average() ?? 0;
+  const score = (e: Character): number => {
+    let s = 2 * (1 - pvFraction(e)); // focus fire the wounded
+    if (def.actionType === ActionType.Atac) {
+      if (expectedDamage > 0 && Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {
+        s += 4; // take the kill
+      }
+      const focusing = pending.some(p =>
+        p.actor === e && !p.resolved && !p.cancelled
+        && p.actionType === ActionType.Focus && p.speed < speed);
+      if (focusing && !e.hitThisTurn) s += 3; // a hit now cancels their focus
+    }
+    if (e.guards.some(g => g.defender.isAlive())) s -= 2; // don't feed active guards
+    return s;
+  };
+  return [...pool]
+    .sort((a, b) => score(b) - score(a) || a.currentPV - b.currentPV)
+    .slice(0, count);
 }
 
-/** Weighted-random action selection for one character. */
+/** Weighted-random action selection for one character. Targets are chosen
+ *  later, at resolution time (pickResolveTargets), with reveal-level info. */
 export function selectAction(view: AIView, actor: Character): PlannedAction {
   const strategy = actor.aiStrategy ?? AIStrategy.Power;
   const indices = availableActionIndices(actor, view.registry);
-  if (indices.length === 0) return { actionIdx: 0, targets: [] };
+  if (indices.length === 0) return { actionIdx: 0 };
 
   const weights = indices.map(i => actionWeight(view, actor, actor.actions[i], strategy));
   const total = weights.reduce((s, w) => s + w, 0);
@@ -144,7 +176,7 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
     if (roll <= 0) { chosen = indices[k]; break; }
   }
 
-  return { actionIdx: chosen, targets: pickTargets(view, actor, actor.actions[chosen]) };
+  return { actionIdx: chosen };
 }
 
 /** Assign rotating strategies across a team (used by the simulator). */

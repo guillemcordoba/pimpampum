@@ -29,6 +29,11 @@ const router = createRouter({
       component: () => import('../views/EnemiesView.vue'),
     },
     {
+      path: '/encounters',
+      name: 'encounters',
+      component: () => import('../views/EncounterCreatorView.vue'),
+    },
+    {
       path: '/rules',
       name: 'rules',
       component: () => import('../views/RulesView.vue'),

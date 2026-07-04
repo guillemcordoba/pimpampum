@@ -74,7 +74,7 @@ export const RULES_SUMMARY: RulesSection[] = [
     title: 'Defensa',
     icon: STAT_ICONS.armor,
     type: 'text',
-    text: "Protegeix un aliat. Tots els atacs contra ell o contra tu han de superar una tirada de l'habilitat atacant contra la defensora per a què l'atac impacti.",
+    text: "Protegeix un aliat. Cada atac contra ell o contra tu tira d20 + nivell contra el teu d20 + nivell; si guanya, el dany el reps tu.",
   },
   {
     title: 'Focus',
@@ -92,11 +92,5 @@ export const RULES_SUMMARY: RulesSection[] = [
     icon: STAT_ICONS.fatigue,
     type: 'text',
     text: "Cada acció afegeix la seva {FATIGA} a la teva {FATIGA} actual (per defecte 1). Descansar permet recuperar {FATIGA}. Resta a les tirades d'habilitat: <br>0-5 {FATIGA}: 0 | 6{FATIGA}: -5 | 7{FATIGA}: -10 | 8{FATIGA}: -20 | 9{FATIGA}: -40 | 10{FATIGA}: -80",
-  },
-  {
-    title: 'Mida',
-    icon: STAT_ICONS.size,
-    type: 'text',
-    text: "Tria la mida al crear el personatge (per defecte Mitjà). Gran: +3 PV, -1 velocitat a totes les accions. Petit: -3 PV, +1 velocitat.",
   },
 ];

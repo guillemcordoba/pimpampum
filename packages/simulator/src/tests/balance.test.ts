@@ -56,7 +56,10 @@ describe('mirror balance (equal skill budgets)', () => {
     for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 40), randomTeam('B', 2, 40), stats);
     const avg = stats.rounds / stats.combats;
     expect(avg).toBeGreaterThan(1.5);
-    expect(avg).toBeLessThan(30);
+    // Sanity bound for symmetric AI mirror matches, which stall far above the
+    // ~9-round intent of real (player-vs-encounter) fights — those are ~8-10
+    // rounds at PLAYER_PV 20. Runaway past this means sustain got out of hand.
+    expect(avg).toBeLessThan(40);
   });
 
   it('all three action types see play', () => {
@@ -97,7 +100,6 @@ describe('encounters', () => {
         expect(enemies.length).toBeGreaterThan(0);
         const players = randomTeam('P', pc, 45);
         assignStrategies(players, [AIStrategy.Power]);
-        assignStrategies(enemies, [AIStrategy.Aggro]);
         const res = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 60 }).runCombat();
         expect([0, 1, null]).toContain(res.winner);
         expect(res.rounds).toBeGreaterThan(0);

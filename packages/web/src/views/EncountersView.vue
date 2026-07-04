@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { ENEMY_TEMPLATES, unlockedEnemyActions } from '@pimpampum/enemies';
+import { ENEMY_TEMPLATES, unlockedEnemyActions, pvForLevel } from '@pimpampum/enemies';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';
@@ -31,7 +31,7 @@ const enemies = computed(() => ENEMY_TEMPLATES.map(t => ({
         <img :src="base + e.template.iconPath" :alt="e.template.displayName">
         <div>
           <div class="enemy-name">{{ e.template.displayName }}</div>
-          <div class="enemy-meta">PV {{ e.template.basePV }}</div>
+          <div class="enemy-meta">PV {{ pvForLevel(level) }}</div>
         </div>
       </div>
       <CardGrid v-if="e.actions.length">

@@ -3,7 +3,7 @@ import { ref, computed, nextTick } from 'vue';
 import { ALL_SIZES, sizeName, sizePvModifier } from '@pimpampum/engine';
 import type { CharacterSize } from '@pimpampum/engine';
 import { PLAYER_SKILLS, ALL_EQUIPMENT, getSkill } from '@pimpampum/skills';
-import { ENEMY_TEMPLATES } from '@pimpampum/enemies';
+import { ENEMY_TEMPLATES, pvForLevel } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
 
 const props = defineProps<{ game: Game }>();
@@ -14,7 +14,7 @@ const DEFAULT_SKILL_LEVEL = 25;
 
 // --- Player draft ---------------------------------------------------------
 const draftName = ref('');
-const draftPv = ref(12);
+const draftPv = ref(20);
 const draftSize = ref<CharacterSize>('mitja');
 const draftSkills = ref<Record<string, number>>({});
 const draftEquip = ref<string[]>([]);
@@ -103,7 +103,7 @@ function addPlayer() {
     equipment: [...draftEquip.value],
   });
   draftName.value = '';
-  draftPv.value = 12;
+  draftPv.value = 20;
   draftSize.value = 'mitja';
   draftSkills.value = {};
   draftEquip.value = [];
@@ -296,9 +296,9 @@ function skillName(id: string): string {
       <section class="setup-panel">
         <div class="builder">
           <select v-model="enemyTemplateId" class="txt">
-            <option v-for="t in ENEMY_TEMPLATES" :key="t.id" :value="t.id">{{ t.displayName }} (PV {{ t.basePV }})</option>
+            <option v-for="t in ENEMY_TEMPLATES" :key="t.id" :value="t.id">{{ t.displayName }}</option>
           </select>
-          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" max="100" class="num"></label>
+          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" max="100" class="num"> <span class="pv-derived">PV {{ pvForLevel(enemyLevel) }}</span></label>
 
           <div class="subhead">Equipament</div>
           <input v-model="enemyEquipSearch" type="search" placeholder="Cerca…" class="txt search-input">
@@ -431,6 +431,8 @@ function skillName(id: string): string {
 .catalog-row.objecte { --class-color: var(--class-objecte); }
 
 .txt, .num, select.txt { background: rgba(0,0,0,0.4); border: 1px solid rgba(232,220,196,0.3); border-radius: 4px; color: var(--parchment); padding: 0.3rem; }
+select.txt { color-scheme: dark; }
+select.txt option { background: #241c12; color: var(--parchment); }
 .num { width: 4rem; }
 .lvl { width: 3.2rem; }
 .pv-row { color: var(--parchment); display: inline-flex; gap: 0.4rem; align-items: center; }

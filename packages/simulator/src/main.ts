@@ -1,6 +1,9 @@
 import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
 import { getAction } from '@pimpampum/skills';
-import { ALL_ENCOUNTERS } from '@pimpampum/enemies';
+import {
+  ALL_ENCOUNTERS, ENEMY_TEMPLATES, generateEncounter, createEnemyFromTemplate,
+  EncounterDifficulty,
+} from '@pimpampum/enemies';
 import {
   REGISTRY, randomTeam, randomSizedTeam, runMatch, buildEncounter,
 } from './tests/helpers.js';
@@ -90,7 +93,6 @@ function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: 
       const players = randomTeam('P', playerCount, perPlayerBudget);
       const enemies = buildEncounter(enc, playerCount);
       assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
-      assignStrategies(enemies, [AIStrategy.Aggro]);
       const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
       const res = engine.runCombat();
       if (res.winner === 0) wins++; else if (res.winner === null) draws++;
@@ -100,8 +102,38 @@ function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: 
   }
 }
 
+// --- Parametric encounter calibration: generated fights per difficulty ------
+function parametricAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
+  // evenTarget takes each player's HIGHEST skill; random budget-45 players
+  // split over 1-2 skills land at a top skill of ~40.
+  const partyLevels = Array.from({ length: playerCount }, () => 40);
+  console.log(`\n=== Parametric encounters (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
+  const difficulties: EncounterDifficulty[] = ['easy', 'medium', 'hard', 'boss'];
+  for (const diff of difficulties) {
+    const cells: string[] = [];
+    let totWins = 0, totGames = 0;
+    for (const template of ENEMY_TEMPLATES) {
+      const gen = generateEncounter(template, partyLevels, diff);
+      let wins = 0;
+      for (let i = 0; i < games; i++) {
+        const players = randomTeam('P', playerCount, perPlayerBudget);
+        const enemies = Array.from({ length: gen.count }, (_, k) =>
+          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, gen.level])), `${template.displayName} ${k + 1}`));
+        assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+        const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
+        if (engine.runCombat().winner === 0) wins++;
+      }
+      totWins += wins; totGames += games;
+      cells.push(`${template.id.slice(0, 12)} ${gen.count}x${gen.level} ${(100 * wins / games).toFixed(0)}%`);
+    }
+    console.log(`   [${diff.padEnd(6)}] players win avg ${(100 * totWins / totGames).toFixed(0)}%`);
+    console.log(`     ${cells.join(' | ')}`);
+  }
+}
+
 console.log('Pim Pam Pum — skill-based balance simulation');
 mirrorBalance(2, 40, 3000);
 mirrorBalance(3, 40, 2000);
 sizeBalance(3, 40, 2000);
 encounterAnalysis(4, 45, 600);
+parametricAnalysis(4, 45, 150);

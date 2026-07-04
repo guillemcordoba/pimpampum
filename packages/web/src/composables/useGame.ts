@@ -1,7 +1,5 @@
 import { ref, computed } from 'vue';
-import {
-  Character, CombatEngine, assignStrategies, AIStrategy,
-} from '@pimpampum/engine';
+import { Character, CombatEngine } from '@pimpampum/engine';
 import type { CharacterSize, LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemyFromTemplate, getEnemyTemplate } from '@pimpampum/enemies';
@@ -100,8 +98,8 @@ export function useGame() {
     if (!canStart()) return;
     const players = buildPlayers();
     const enemies = buildEnemies();
-    // Players are human-controlled (aiStrategy null); enemies are AI.
-    assignStrategies(enemies, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+    // Players are human-controlled (aiStrategy null); enemies come from
+    // templates with their kit strategy already set by the factory.
     engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50 });
     combatLog.value = [];
     winner.value = null;

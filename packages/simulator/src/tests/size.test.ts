@@ -4,6 +4,7 @@ import {
   ALL_SIZES, CharacterSize, SIZE_TABLE, sizePvModifier, sizeSpeedModifier,
 } from '@pimpampum/engine';
 import { createEnemyFromTemplate, getEnemyTemplate } from './helpers.js';
+import { pvForLevel } from '@pimpampum/enemies';
 
 const ACTION: ActionDefinition = {
   id: 'test-atac', name: 'Test Atac', skillId: 'test', unlockLevel: 1,
@@ -64,10 +65,10 @@ describe('character size', () => {
     expect(c.getEffectiveSpeed(c.actions[0])).toBe(ACTION.speed + SIZE_TABLE.petit.speedModifier);
   });
 
-  it('enemies default to Mitjà with unchanged PV', () => {
+  it('enemies default to Mitjà with formula-derived PV', () => {
     const template = getEnemyTemplate('goblin')!;
     const enemy = createEnemyFromTemplate(template);
     expect(enemy.size).toBe('mitja');
-    expect(enemy.maxPV).toBe(template.basePV);
+    expect(enemy.maxPV).toBe(pvForLevel(template.suggestedLevel));
   });
 });

@@ -8,7 +8,16 @@ export {
   ENEMY_SKILLS, getEnemySkill, ENEMY_ACTIONS, getEnemyAction, unlockedEnemyActions,
 } from './catalog.js';
 export { createEnemyFromTemplate, createEnemy } from './factory.js';
-export type { EnemyTemplate, EnemyModule } from './types.js';
+export type { EnemyTemplate, EnemyModule, EnemyRole } from './types.js';
+export {
+  pvForLevel, bodyScore, evenTarget, solveEncounter, generateEncounter,
+  classifyScore, multiplierForWinrate, winrateForRatio,
+  DIFFICULTY_MULT, DIFFICULTY_WINRATE, ROLE_COUNT, SCORE_BANDS,
+  PV_DIVISOR, SCORE_PER_PLAYER, MAX_ENEMY_LEVEL, WINRATE_K,
+} from './generator.js';
+export type {
+  EncounterDifficulty, GeneratedEncounter, PoolSpec, SolvedGroup, SolvedEncounter, ScoreBand,
+} from './generator.js';
 export { ALL_ENCOUNTERS, getEncounter } from './encounters/index.js';
 export type { EncounterDefinition, EncounterEnemyGroup } from './encounters/index.js';
 

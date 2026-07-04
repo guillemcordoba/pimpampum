@@ -63,11 +63,14 @@ export function actionToDisplayProps(def: ActionDefinition, classCss: string, sk
 
 export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayProps {
   const stats: CardStat[] = [];
+  if (eq.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: eq.damageDice.toString() });
   if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.armor, value: `+${eq.passiveArmor}` });
   if (eq.speedPenalty) stats.push({ iconPath: STAT_ICONS.speed, value: `-${eq.speedPenalty}` });
+  // Weapons (anything with damage dice) are labelled "Arma", armour "Armadura".
+  const kind = eq.damageDice ? 'Arma' : eq.passiveArmor > 0 ? 'Armadura' : 'Objecte';
   return {
     name: eq.name,
-    subtitle: `Objecte · ${eq.slotLabel ?? eq.slot}`,
+    subtitle: `${kind} · ${eq.slotLabel ?? eq.slot}`,
     classCss: 'objecte',
     typeCss: 'objecte',
     iconPath: eq.iconPath,

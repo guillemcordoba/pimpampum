@@ -61,7 +61,7 @@ const actions = computed(() => {
 
       <section class="skill-content" v-if="selected">
         <h2 class="skill-heading no-print">
-          {{ selected.displayName }} — PV {{ selected.basePV }}
+          {{ selected.displayName }}<span v-if="selected.naturalArmor"> — armadura natural {{ selected.naturalArmor }}</span>
         </h2>
         <CardGrid>
           <PrintableCard

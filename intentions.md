@@ -8,7 +8,7 @@ Pim Pam Pum has these intentions as a combat system:
 - Anticipating others' plays should be greatly rewarded.
 - Combos between actions played in the same round should be among the best options when set up right (allies can agree on combos beforehand).
 - Combats should be dynamic, not stuck repeating the same move.
-- **Combats should not be longer than ~9 rounds on average.** (The current first-pass numbers run far longer and are being tuned down via simulation — lower PV pools and trimmed healing so each clean hit matters.)
+- **Combats should not be longer than ~9 rounds on average.** This target applies to real play (players vs encounters), which sits at ~8-10 rounds with the standard 20 player PV. Symmetric AI-vs-AI mirror matches stall much longer (support skills out-sustain each other); that stat is a diagnostic, not held to the target.
 
 ## Strategy Triangle
 

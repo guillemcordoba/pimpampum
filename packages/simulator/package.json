@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
+    "calibrate": "tsx src/calibrate-difficulty.ts",
     "test": "vitest run"
   },
   "dependencies": {

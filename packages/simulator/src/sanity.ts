@@ -1,4 +1,4 @@
-import { CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
+import { CombatEngine } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemy } from '@pimpampum/enemies';
 
@@ -10,7 +10,6 @@ for (let i = 0; i < 200; i++) {
     buildCharacter({ name: 'B', classCss: 'enginyer', pv: 18, skills: { 'enginyer-explosius': 55 } }),
   ];
   const enemies = [createEnemy('goblin', {}, 'G1')!, createEnemy('goblin', {}, 'G2')!, createEnemy('goblin-shaman')!];
-  assignStrategies(enemies, [AIStrategy.Aggro]);
   const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40 });
   const r = eng.runCombat();
   rounds += r.rounds;
@@ -21,7 +20,6 @@ console.log(`players ${p} enemies ${e} draws ${d} avgRounds ${(rounds / 200).toF
 // Step-API smoke: drive one round manually like the web would.
 const players = [buildCharacter({ name: 'Hero', classCss: 'enginyer', pv: 22, skills: { 'enginyer-explosius': 50 } })];
 const enemies = [createEnemy('goblin', {}, 'Gob')!];
-assignStrategies(enemies, [AIStrategy.Aggro]);
 const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40 });
 eng.prepareRound();
 const revealed = eng.planActions([{ team: 0, idx: 0, actionIdx: 0 }]);

@@ -37,8 +37,8 @@ export type {
 } from './combat.js';
 
 // AI
-export { selectAction, assignStrategies, availableActionIndices } from './ai.js';
-export type { AIView, PlannedAction } from './ai.js';
+export { selectAction, pickResolveTargets, assignStrategies, availableActionIndices } from './ai.js';
+export type { AIView, PlannedAction, PendingSummary } from './ai.js';
 
 // Strategy
 export { AIStrategy } from './strategy.js';

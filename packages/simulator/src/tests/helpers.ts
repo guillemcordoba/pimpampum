@@ -9,8 +9,8 @@ import { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter
 /** Shared registry for all simulations. */
 export const REGISTRY: EffectRegistry = createRegistry();
 
-/** Default PV pool for a generated player character. */
-export const PLAYER_PV = 10;
+/** Default PV pool for a generated player character (rules.md: players default to 20 PV). */
+export const PLAYER_PV = 20;
 
 export function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
@@ -66,7 +66,7 @@ export function randomPlayer(name: string, budget: number, equip = true, size?: 
   // Weapon-based skills (e.g. Mestre d'Armes) deal 0 without a wielded weapon, so
   // guarantee one — otherwise their attacks would be dead and skew the balance.
   const usesWeapon = chosen.some(s => s.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
-  if (usesWeapon && !equipment.includes('basto') && !equipment.includes('arma-esmolada')) {
+  if (usesWeapon && !equipment.includes('basto') && !equipment.includes('destral')) {
     equipment.push('basto');
   }
   return buildCharacter({

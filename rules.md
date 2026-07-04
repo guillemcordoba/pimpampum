@@ -6,7 +6,7 @@ Pim Pam Pum és un sistema de joc de rol de taula amb combat tàctic per equips.
 
 Cada personatge té una sola característica base:
 
-- **PV** (Punts de vida): els punts de vida que té el personatge abans de morir.
+- **PV** (Punts de vida): els punts de vida que té el personatge abans de morir. Els personatges de jugador comencen amb **20 PV** per defecte (la mida ho modifica).
 
 ## Mida
 

@@ -149,6 +149,18 @@
 
 /* -- Card type header colors ----------------------------------------------- */
 
+/* objecte is both a class theme and the default equipment type; it must come
+   FIRST so a real type class (atac-fisic on weapons, defensa on shields) wins. */
+.print-card.objecte .card-header {
+  background: var(--type-objecte);
+  margin: -2.5mm -2.5mm 0 -2.5mm;
+  padding: 2.5mm 3mm 1.5mm;
+  border-radius: 0;
+}
+.print-card.objecte .card-name,
+.print-card.objecte .card-subtitle { color: #f0e6d6; }
+.print-card.objecte .card-subtitle { color: rgba(240,230,214,0.8); }
+
 .print-card.atac-fisic .card-header {
   background: var(--type-atac-fisic);
   margin: -2.5mm -2.5mm 0 -2.5mm;
@@ -188,16 +200,6 @@
 .print-card.focus .card-name,
 .print-card.focus .card-subtitle { color: #f0e6d6; }
 .print-card.focus .card-subtitle { color: rgba(240,230,214,0.8); }
-
-.print-card.objecte .card-header {
-  background: var(--type-objecte);
-  margin: -2.5mm -2.5mm 0 -2.5mm;
-  padding: 2.5mm 3mm 1.5mm;
-  border-radius: 0;
-}
-.print-card.objecte .card-name,
-.print-card.objecte .card-subtitle { color: #f0e6d6; }
-.print-card.objecte .card-subtitle { color: rgba(240,230,214,0.8); }
 
 /* Character card type header */
 .print-card.character .card-header {

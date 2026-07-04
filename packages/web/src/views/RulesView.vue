@@ -13,7 +13,7 @@ import RulesCard from '../components/cards/RulesCard.vue';
         <h2>Característica base</h2>
         <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de morir.</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de morir. Els jugadors comencen amb 20 PV per defecte.</li>
         </ul>
       </section>
 
