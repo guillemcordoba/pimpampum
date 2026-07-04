@@ -17,7 +17,7 @@ export { EffectRegistry, newAttackModifiers } from './effects.js';
 export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext } from './effects.js';
 
 // Status behaviours
-export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods } from './status.js';
+export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 
 // Actions
 export { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
@@ -55,3 +55,10 @@ export {
   shortRestFatigue, longRestFatigue,
 } from './fatigue.js';
 export type { FatigueTier } from './fatigue.js';
+
+// Size
+export {
+  SIZE_TABLE, DEFAULT_SIZE, ALL_SIZES,
+  sizePvModifier, sizeSpeedModifier, sizeName,
+} from './size.js';
+export type { CharacterSize, SizeSpec } from './size.js';

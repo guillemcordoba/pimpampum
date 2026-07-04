@@ -5,7 +5,7 @@ import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers,
 } from './effects.js';
-import { StatusBehavior, StatusHookContext, AttackStatusMods } from './status.js';
+import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { rollD20, resolveAttack, checkSkillUp } from './resolution.js';
 import { selectAction, AIView } from './ai.js';
 import { DEFAULT_FATIGUE_COST } from './fatigue.js';
@@ -152,7 +152,16 @@ export class CombatEngine implements EngineApi, AIView {
   alliesOf(c: Character, includeSelf = false): Character[] {
     return this.teams[c.team].filter(a => a.isAlive() && (includeSelf || a !== c));
   }
-  enemiesOf(c: Character): Character[] { return this.teams[1 - c.team].filter(e => e.isAlive()); }
+  enemiesOf(c: Character): Character[] {
+    // Untargetable characters (hidden in shadow etc.) don't exist for their
+    // enemies: excluded from targeting pools, area sweeps and AI sight.
+    return this.teams[1 - c.team].filter(e => e.isAlive() && !this.isUntargetable(e));
+  }
+
+  /** Whether any status on `c` makes it unreachable by its enemies. */
+  private isUntargetable(c: Character): boolean {
+    return c.statusRefs().some(ref => ref.entry.behavior?.untargetable?.(ref));
+  }
   rollD20(): number { return rollD20(); }
 
   /** Roll a d20 for `c`, honouring any status-imposed roll mode
@@ -207,7 +216,7 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   performExtraAttack(source: Character, target: Character, damageDice: DiceRoll, opts: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string } = {}): void {
-    if (!target.isAlive()) return;
+    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target))) return;
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
     const skill = skillId ? source.getRollSkill(skillId, 'attack') : 0;
@@ -220,9 +229,11 @@ export class CombatEngine implements EngineApi, AIView {
       const attackerTotal = atkRoll + atkBonus;
       const defRoll = this.rollD20For(guard.defender);
       const defBonus = guard.defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
-      const defenderTotal = defRoll + defBonus;
+      let defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${guard.defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
-      hit = resolveAttack(attackerTotal, defenderTotal).hit;
+      const adjustedAttacker = this.adjustContestTotal(source, attackerTotal, defenderTotal, 'attack');
+      defenderTotal = this.adjustContestTotal(guard.defender, defenderTotal, adjustedAttacker, 'defense');
+      hit = resolveAttack(adjustedAttacker, defenderTotal).hit;
       recipient = guard.defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
@@ -538,7 +549,7 @@ export class CombatEngine implements EngineApi, AIView {
         this.dispatchPlay(actor, action.def);
         // Generic attack-action status hooks (ladders, multipliers).
         const mods = this.collectAttackStatusMods(actor);
-        const valid = targets.filter(t => this.tierAlive.has(t));
+        const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t)));
         let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         list = this.applyTargetRedirects(actor, list);
         for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods);
@@ -586,20 +597,31 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Chain modifyOutgoingDamage across the attacker's statuses. */
   private applyOutgoingDamage(source: Character, dmg: number): number {
-    for (const ref of source.statusRefs()) {
-      const f = ref.entry.behavior?.modifyOutgoingDamage;
-      if (f) dmg = f(ref, dmg);
+    for (const { key, entry, behavior } of this.behaviorStatuses(source)) {
+      const f = behavior.modifyOutgoingDamage;
+      if (f) dmg = f(this.statusCtx(source, key, entry), dmg);
     }
     return dmg;
   }
 
   /** Chain modifyIncomingDamage across the recipient's statuses. */
   private applyIncomingDamage(recipient: Character, dmg: number): number {
-    for (const ref of recipient.statusRefs()) {
-      const f = ref.entry.behavior?.modifyIncomingDamage;
-      if (f) dmg = f(ref, dmg);
+    for (const { key, entry, behavior } of this.behaviorStatuses(recipient)) {
+      const f = behavior.modifyIncomingDamage;
+      if (f) dmg = f(this.statusCtx(recipient, key, entry), dmg);
     }
     return dmg;
+  }
+
+  /** Chain modifyContestTotal across the holder's statuses: a contested d20
+   *  total, adjusted while seeing the opposing total (clutch modifiers).
+   *  Exposed on EngineApi so content-side save contests can route through it. */
+  adjustContestTotal(holder: Character, own: number, opposing: number, kind: ContestKind): number {
+    for (const { key, entry, behavior } of this.behaviorStatuses(holder)) {
+      const f = behavior.modifyContestTotal;
+      if (f) own = f(this.statusCtx(holder, key, entry), own, opposing, kind);
+    }
+    return own;
   }
 
   /** Sum of attackRollAgainstHolder across the target's statuses. */
@@ -698,9 +720,12 @@ export class CombatEngine implements EngineApi, AIView {
       const defender = guard.defender;
       const defRoll = this.rollD20For(defender);
       const defBonus = defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
-      const defenderTotal = defRoll + defBonus;
+      let defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
-      const res = resolveAttack(attackerTotal, defenderTotal);
+      // Clutch status adjustments, seeing both totals (rune flares & co.).
+      const adjustedAttacker = this.adjustContestTotal(source, attackerTotal, defenderTotal, 'attack');
+      defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
+      const res = resolveAttack(adjustedAttacker, defenderTotal);
       hit = res.hit; margin = res.margin;
       if (checkSkillUp(hit, margin)) source.raiseSkill(def.skillId);
       if (checkSkillUp(!hit, margin)) defender.raiseSkill(guard.action.skillId);

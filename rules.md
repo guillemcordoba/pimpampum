@@ -8,6 +8,16 @@ Cada personatge té una sola característica base:
 
 - **PV** (Punts de vida): els punts de vida que té el personatge abans de morir.
 
+## Mida
+
+Cada personatge tria una mida en crear-se (per defecte, Mitjà). La mida és una elecció lliure: no compta per a l'equilibri de sumes de nivells d'habilitat.
+
+- **Gran**: +3 PV, −1 de velocitat a totes les accions.
+- **Mitjà**: sense modificadors.
+- **Petit**: −3 PV, +1 de velocitat a totes les accions.
+
+El modificador de velocitat s'acumula amb les penalitzacions de velocitat de l'armadura.
+
 ## Habilitats
 
 Cada personatge té un conjunt d'habilitats, cadascuna amb un nivell entre 1 i 100. Exemples d'habilitats: Esgrima, Piromància, Furtivitat, Geomància, Ninjutsu de Foc, Tir amb Arc...
@@ -51,7 +61,7 @@ Les accions de focus tenen efectes especials. Normalment són lentes (velocitat 
 El combat consisteix en una sèrie de rondes:
 
 1. Tots els jugadors trien una acció de la seva mà, la posen de cap per avall, i es revelen alhora.
-2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada s'apliquen.
+2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada i el modificador de mida s'apliquen.
 3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
 4. Cada acció de defensa es resol reactivament quan un atac arriba al defensor o al seu aliat defensat.
 5. Les accions de focus es cancel·len si el jugador rep un impacte abans que l'acció es resolgui.

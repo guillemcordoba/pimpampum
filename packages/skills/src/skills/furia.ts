@@ -51,8 +51,11 @@ const FURIA_EFFECTS: Record<string, EffectHandler> = {
         const atkRoll = ctx.engine.rollD20();
         const defRoll = ctx.engine.rollD20For(t);
         const defBonus = bestSaveBonus(t);
-        const ok = atkRoll + atkSkill > defRoll + defBonus;
-        ctx.engine.log('focus', `🎲 Rugit de guerra contra ${t.name}: ${atkRoll}+${atkSkill} vs ${defRoll}+${defBonus} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
+        const attacker = atkRoll + atkSkill;
+        // Clutch statuses may adjust the save, seeing both totals.
+        const defender = ctx.engine.adjustContestTotal(t, defRoll + defBonus, attacker, 'save');
+        const ok = attacker > defender;
+        ctx.engine.log('focus', `🎲 Rugit de guerra contra ${t.name}: ${atkRoll}+${atkSkill} vs ${defender} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
         if (!ok) continue;
         const cancelled = ctx.engine.cancelPendingAction(t);
         ctx.engine.log('focus', cancelled

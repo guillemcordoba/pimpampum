@@ -23,6 +23,7 @@ export const STAT_ICONS = {
   focus:'icons/000000/transparent/1x1/lorc/concentration-orb.svg',
   fatigue: 'icons/000000/transparent/1x1/lorc/sleepy.svg',
   charge: 'icons/000000/transparent/1x1/lorc/unlit-bomb.svg',
+  size: 'icons/000000/transparent/1x1/delapouite/body-height.svg',
 } as const;
 
 export const STAT_DISPLAY_NAMES = {
@@ -31,6 +32,7 @@ export const STAT_DISPLAY_NAMES = {
   damage: 'Dany',
   armor: 'Armadura',
   fatigue: 'Fatiga',
+  size: 'Mida',
 } as const;
 
 /** Equipment slot Catalan labels. */
@@ -90,5 +92,11 @@ export const RULES_SUMMARY: RulesSection[] = [
     icon: STAT_ICONS.fatigue,
     type: 'text',
     text: "Cada acció afegeix la seva {FATIGA} a la teva {FATIGA} actual (per defecte 1). Descansar permet recuperar {FATIGA}. Resta a les tirades d'habilitat: <br>0-5 {FATIGA}: 0 | 6{FATIGA}: -5 | 7{FATIGA}: -10 | 8{FATIGA}: -20 | 9{FATIGA}: -40 | 10{FATIGA}: -80",
+  },
+  {
+    title: 'Mida',
+    icon: STAT_ICONS.size,
+    type: 'text',
+    text: "Tria la mida al crear el personatge (per defecte Mitjà). Gran: +3 PV, -1 velocitat a totes les accions. Petit: -3 PV, +1 velocitat.",
   },
 ];

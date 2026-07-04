@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
+import { ALL_SIZES, sizeName, sizePvModifier } from '@pimpampum/engine';
+import type { CharacterSize } from '@pimpampum/engine';
 import { PLAYER_SKILLS, ALL_EQUIPMENT, getSkill } from '@pimpampum/skills';
 import { ENEMY_TEMPLATES } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
@@ -13,6 +15,7 @@ const DEFAULT_SKILL_LEVEL = 25;
 // --- Player draft ---------------------------------------------------------
 const draftName = ref('');
 const draftPv = ref(12);
+const draftSize = ref<CharacterSize>('mitja');
 const draftSkills = ref<Record<string, number>>({});
 const draftEquip = ref<string[]>([]);
 const skillSearch = ref('');
@@ -95,11 +98,13 @@ function addPlayer() {
     classCss: firstSkill.classCss,
     iconPath: firstSkill.iconPath,
     pv: draftPv.value,
+    size: draftSize.value,
     skills: { ...draftSkills.value },
     equipment: [...draftEquip.value],
   });
   draftName.value = '';
   draftPv.value = 12;
+  draftSize.value = 'mitja';
   draftSkills.value = {};
   draftEquip.value = [];
   skillSearch.value = '';
@@ -170,6 +175,19 @@ function skillName(id: string): string {
         <div class="builder">
           <input v-model="draftName" placeholder="Nom de l'heroi" class="txt">
           <label class="pv-row">PV <input v-model.number="draftPv" type="number" min="5" max="60" class="num"></label>
+          <div class="size-row">
+            <span class="size-label">Mida</span>
+            <button
+              v-for="s in ALL_SIZES" :key="s"
+              type="button"
+              class="size-opt"
+              :class="{ active: draftSize === s }"
+              @click="draftSize = s"
+            >{{ sizeName(s) }}</button>
+            <span v-if="sizePvModifier(draftSize) !== 0" class="size-hint">
+              PV efectius {{ draftPv + sizePvModifier(draftSize) }}
+            </span>
+          </div>
 
           <div class="subhead">Habilitats</div>
           <input v-model="skillSearch" type="search" placeholder="Cerca…" class="txt search-input">
@@ -245,7 +263,7 @@ function skillName(id: string): string {
             <div class="roster">
               <div v-for="(p, i) in g.playerSpecs.value" :key="i" class="roster-tile" :class="p.classCss">
                 <strong>{{ p.name }}</strong>
-                <div class="roster-detail">PV {{ p.pv }} · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
+                <div class="roster-detail">PV {{ p.pv + sizePvModifier(p.size) }}<template v-if="p.size !== 'mitja'"> · {{ sizeName(p.size) }}</template> · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
                 <div v-if="p.equipment.length" class="roster-detail">⚙ {{ p.equipment.join(', ') }}</div>
                 <button class="x" @click="g.removePlayer(i)">✕</button>
               </div>
@@ -416,6 +434,14 @@ function skillName(id: string): string {
 .num { width: 4rem; }
 .lvl { width: 3.2rem; }
 .pv-row { color: var(--parchment); display: inline-flex; gap: 0.4rem; align-items: center; }
+.size-row { color: var(--parchment); display: inline-flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; }
+.size-label { margin-right: 0.1rem; }
+.size-opt {
+  background: rgba(0,0,0,0.4); border: 1px solid rgba(232,220,196,0.3); border-radius: 4px;
+  color: var(--parchment-dark); padding: 0.25rem 0.55rem; cursor: pointer; font-size: 0.85rem;
+}
+.size-opt.active { color: var(--parchment); border-color: var(--parchment); background: rgba(232,220,196,0.15); }
+.size-hint { font-size: 0.8rem; opacity: 0.8; }
 .start-row { text-align: center; }
 .btn-big { font-size: 1.2rem; padding: 0.6rem 1.5rem; }
 

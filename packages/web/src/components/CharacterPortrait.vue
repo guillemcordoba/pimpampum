@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
-import { STAT_ICONS } from '@pimpampum/engine';
+import { STAT_ICONS, sizeName } from '@pimpampum/engine';
 import { maxCharges } from '@pimpampum/skills';
 
 const base = import.meta.env.BASE_URL;
@@ -45,7 +45,12 @@ const bandolier = computed(() => {
     :class="[character.characterClass, { dead: !character.isAlive(), highlighted: isHighlighted, compact }]"
   >
     <img class="portrait-icon" :src="base + character.iconPath" :alt="character.name">
-    <div class="portrait-name">{{ character.name }}</div>
+    <div class="portrait-name">
+      {{ character.name }}
+      <span v-if="character.size !== 'mitja'" class="size-badge">
+        <img :src="base + STAT_ICONS.size" alt="Mida">{{ sizeName(character.size) }}
+      </span>
+    </div>
     <div class="portrait-pv">
       <div class="pv-bar"><div class="pv-fill" :style="{ width: pvPct + '%' }"></div></div>
       <span class="pv-text">
@@ -143,5 +148,17 @@ const bandolier = computed(() => {
   font-size: 0.65rem;
   opacity: 0.85;
   white-space: nowrap;
+}
+.size-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.65rem;
+  opacity: 0.8;
+  font-weight: normal;
+}
+.size-badge img {
+  width: 11px;
+  height: 11px;
 }
 </style>

@@ -88,9 +88,12 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
         const defRoll = ctx.engine.rollD20For(t);
         const defBonus = bestSaveBonus(t);
         const attacker = atkRoll + atkSkill;
-        const defender = defRoll + defBonus;
+        let defender = defRoll + defBonus;
+        ctx.engine.log('focus', `🎲 ${ctx.action.name} contra ${t.name}: ${atkRoll}+${atkSkill}=${attacker} vs ${defRoll}+${defBonus}=${defender}.`, ctx.source.team);
+        // Clutch statuses may adjust the save, seeing both totals.
+        defender = ctx.engine.adjustContestTotal(t, defender, attacker, 'save');
         const ok = attacker > defender;
-        ctx.engine.log('focus', `🎲 ${ctx.action.name} contra ${t.name}: ${atkRoll}+${atkSkill}=${attacker} vs ${defRoll}+${defBonus}=${defender} → ${ok ? 'no esquiva' : 'esquiva'}.`, ctx.source.team);
+        ctx.engine.log('focus', `${t.name} ${ok ? 'no esquiva' : 'esquiva'}.`, ctx.source.team);
         if (ok) t.skipTurns += turns;
       }
     },

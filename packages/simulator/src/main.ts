@@ -2,7 +2,7 @@ import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy }
 import { getAction } from '@pimpampum/skills';
 import { ALL_ENCOUNTERS } from '@pimpampum/enemies';
 import {
-  REGISTRY, randomTeam, runMatch, buildEncounter,
+  REGISTRY, randomTeam, randomSizedTeam, runMatch, buildEncounter,
 } from './tests/helpers.js';
 
 function recordSkills(map: Map<string, { games: number; wins: number }>, team: Character[], won: boolean): void {
@@ -57,6 +57,30 @@ function mirrorBalance(size: number, budget: number, games: number): void {
     .forEach(a => console.log(`   ${(getAction(a.id)?.name ?? a.id).padEnd(24)} plays ${String(a.plays).padStart(5)}  win ${a.pct.toFixed(1)}%`));
 }
 
+// --- Size balance: random sizes on both teams should each win ~50% ----------
+function sizeBalance(size: number, budget: number, games: number): void {
+  const stats = newCombatStats();
+  const bySize = new Map<string, { games: number; wins: number }>();
+  let draws = 0;
+
+  for (let i = 0; i < games; i++) {
+    const a = randomSizedTeam('A', size, budget);
+    const b = randomSizedTeam('B', size, budget);
+    const winner = runMatch(a, b, stats);
+    if (winner === null) { draws++; continue; }
+    for (const c of a) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (winner === 0) e.wins++; bySize.set(c.size, e); }
+    for (const c of b) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (winner === 1) e.wins++; bySize.set(c.size, e); }
+  }
+
+  console.log(`\n=== Sizes ${size}v${size} @ budget ${budget} (${games} games, random sizes) ===`);
+  console.log(`Avg rounds: ${(stats.rounds / stats.combats).toFixed(2)}  draws: ${(100 * draws / games).toFixed(1)}%`);
+  console.log(`\n  Size win correlation:`);
+  [...bySize.entries()]
+    .map(([id, e]) => ({ id, pct: 100 * e.wins / e.games, games: e.games }))
+    .sort((x, y) => y.pct - x.pct)
+    .forEach(s => console.log(`   ${s.id.padEnd(22)} ${bar(s.pct)} ${s.pct.toFixed(1)}% (${s.games})`));
+}
+
 // --- Encounter analysis: a generic player party vs each encounter -----------
 function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
   console.log(`\n=== Encounters (${playerCount} players @ budget ${perPlayerBudget}, ${games} games each) ===`);
@@ -79,4 +103,5 @@ function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: 
 console.log('Pim Pam Pum — skill-based balance simulation');
 mirrorBalance(2, 40, 3000);
 mirrorBalance(3, 40, 2000);
+sizeBalance(3, 40, 2000);
 encounterAnalysis(4, 45, 600);

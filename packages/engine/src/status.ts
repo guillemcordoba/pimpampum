@@ -36,6 +36,9 @@ export interface AttackStatusMods {
   damageMult?: number;
 }
 
+/** Which contested d20 total is being adjusted (see modifyContestTotal). */
+export type ContestKind = 'attack' | 'defense' | 'save';
+
 export interface StatusBehavior {
   // --- Query hooks: pure reads of the combat pipeline (they may still mutate
   // --- the holder, e.g. a one-shot bonus consuming itself). ------------------
@@ -45,17 +48,26 @@ export interface StatusBehavior {
   /** Roll mode for every d20 the holder rolls: roll twice, keep worst / best.
    *  Disadvantage wins if several statuses disagree. */
   rollMode?(ref: StatusRef): 'advantage' | 'disadvantage' | void;
-  /** Transform the holder's rolled damage on every attack (before armour). */
-  modifyOutgoingDamage?(ref: StatusRef, damage: number): number;
+  /** Transform the holder's rolled damage on every attack (before armour).
+   *  Receives the full hook context (engine available for flare logs). */
+  modifyOutgoingDamage?(ctx: StatusHookContext, damage: number): number;
   /** Transform damage the holder is about to receive (after armour; the
    *  engine floors the final result at 0). May consume the status. */
-  modifyIncomingDamage?(ref: StatusRef, damage: number): number;
+  modifyIncomingDamage?(ctx: StatusHookContext, damage: number): number;
+  /** Adjust a contested d20 total the holder just rolled, SEEING both final
+   *  totals (clutch curses/blessings that fire only when they flip an
+   *  outcome). Runs after the raw totals are logged; may consume the status.
+   *  `kind`: whether the holder's total is an attack, a defense or a save. */
+  modifyContestTotal?(ctx: StatusHookContext, own: number, opposing: number, kind: ContestKind): number;
   /** Clamp a PV loss the holder is about to suffer (last stands, wards). */
   clampPvLoss?(ref: StatusRef, amount: number): number;
   /** Added to attack rolls made AGAINST the holder (marks, exposures). */
   attackRollAgainstHolder?(ref: StatusRef): number;
   /** The holder cannot benefit from any guard. */
   preventsGuard?(ref: StatusRef): boolean;
+  /** The holder is unreachable by their ENEMIES: excluded from enemy target
+   *  pools, area sweeps and extra attacks (allies still reach them). */
+  untargetable?(ref: StatusRef): boolean;
   /** Guarding with this status takes the full blow — no contest is rolled. */
   absorbsGuard?(ref: StatusRef): boolean;
   /** Post-reveal card-swap charges this status grants the holder. */

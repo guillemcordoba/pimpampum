@@ -5,6 +5,9 @@ import { MESTRE_ARMES } from './skills/weapon-master.js';
 import { NIGROMANT } from './skills/nigromant.js';
 import { FURIA } from './skills/furia.js';
 import { METGE } from './skills/metge.js';
+import { RUNES } from './skills/runes.js';
+import { OMBRES } from './skills/ombres.js';
+import { GEL } from './skills/gel.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
@@ -13,6 +16,9 @@ export const ALL_SKILLS: SkillDefinition[] = [
   NIGROMANT,
   FURIA,
   METGE,
+  RUNES,
+  OMBRES,
+  GEL,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;

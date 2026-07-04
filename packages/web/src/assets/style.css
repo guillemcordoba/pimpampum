@@ -40,6 +40,9 @@
   --class-mestre-armes: #4a5a3a;
   --class-nigromant: #3a1f5c;
   --class-metge: #a34040;
+  --class-runes: #4a6b8b;
+  --class-ombres: #3d3d54;
+  --class-gel: #5b8fa8;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -460,6 +463,9 @@ body {
 .portrait.mestre-armes { border-color: var(--class-mestre-armes); }
 .portrait.nigromant { border-color: var(--class-nigromant); }
 .portrait.metge { border-color: var(--class-metge); }
+.portrait.runes { border-color: var(--class-runes); }
+.portrait.ombres { border-color: var(--class-ombres); }
+.portrait.gel { border-color: var(--class-gel); }
 
 .portrait-icon {
   width: 64px;
@@ -752,6 +758,9 @@ body {
 .mini-card.mestre-armes { border-color: var(--class-mestre-armes); }
 .mini-card.nigromant { border-color: var(--class-nigromant); }
 .mini-card.metge { border-color: var(--class-metge); }
+.mini-card.runes { border-color: var(--class-runes); }
+.mini-card.ombres { border-color: var(--class-ombres); }
+.mini-card.gel { border-color: var(--class-gel); }
 
 .mini-card-header {
   padding: 6px 8px 5px;

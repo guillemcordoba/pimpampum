@@ -1,4 +1,5 @@
 import { DiceRoll } from './dice.js';
+import type { CharacterSize } from './size.js';
 
 /** The three kinds of action a character can play in a round. */
 export enum ActionType {
@@ -118,6 +119,8 @@ export interface CharacterDefinition {
   iconPath: string;
   category: 'player' | 'enemy';
   basePV: number;
+  /** Defaults to Mitjà; modifies PV and action speed (see size.ts). */
+  size?: CharacterSize;
   skills: SkillInstance[];
   /** ActionDefinition ids forming the active "hand". */
   actions: string[];

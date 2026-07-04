@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import {
   Character, CombatEngine, assignStrategies, AIStrategy,
 } from '@pimpampum/engine';
-import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
+import type { CharacterSize, LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemyFromTemplate, getEnemyTemplate } from '@pimpampum/enemies';
 
@@ -14,6 +14,7 @@ export interface PlayerSpec {
   classCss: string;
   iconPath: string;
   pv: number;
+  size: CharacterSize;
   skills: Record<string, number>;
   equipment: string[];
 }
@@ -75,6 +76,7 @@ export function useGame() {
       classCss: s.classCss,
       iconPath: s.iconPath,
       pv: s.pv,
+      size: s.size,
       skills: s.skills,
       equipment: s.equipment,
       category: 'player',

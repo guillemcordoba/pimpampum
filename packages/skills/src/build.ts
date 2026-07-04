@@ -1,4 +1,4 @@
-import { createCharacter, Character, ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
+import { createCharacter, Character, ActionDefinition, CharacterSize, EquipmentDefinition } from '@pimpampum/engine';
 import { getAction, unlockedActions } from './catalog.js';
 import { getEquipment } from './equipment/index.js';
 
@@ -8,6 +8,8 @@ export interface CharacterBuildSpec {
   classCss?: string;
   iconPath?: string;
   pv: number;
+  /** Defaults to Mitjà; modifies PV and action speed. */
+  size?: CharacterSize;
   /** skillId -> level. */
   skills: Record<string, number>;
   /** Explicit action ids; if omitted, all actions unlocked by the skill levels. */
@@ -37,6 +39,7 @@ export function buildCharacter(spec: CharacterBuildSpec): Character {
     classCss: spec.classCss ?? 'objecte',
     iconPath: spec.iconPath ?? '',
     pv: spec.pv,
+    size: spec.size,
     skills: spec.skills,
     actions: actionDefs,
     equipment,

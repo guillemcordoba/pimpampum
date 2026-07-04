@@ -3,6 +3,7 @@ import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
 import { fatiguePenalty, fatigueStateName, shortRestFatigue, longRestFatigue } from './fatigue.js';
+import { CharacterSize, DEFAULT_SIZE, sizePvModifier, sizeSpeedModifier } from './size.js';
 import type { StatusBehavior, StatusRef } from './status.js';
 
 /**
@@ -71,6 +72,9 @@ export class Character {
   /** Persistent fatigue counter — drives the all-skill-roll penalty. Carries
    *  between combats; cleared only by rest helpers. */
   fatigue = 0;
+  /** Permanent size chosen at creation. PV modifier is baked into maxPV;
+   *  the speed modifier is applied in getEffectiveSpeed. */
+  size: CharacterSize = DEFAULT_SIZE;
 
   constructor(
     public name: string,
@@ -157,15 +161,16 @@ export class Character {
     return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
   }
 
-  /** Resolved speed of an action: base - armour penalty + speed modifiers
-   *  + status speed contributions (StatusBehavior.modifySpeed). */
+  /** Resolved speed of an action: base - armour penalty + size modifier
+   *  + speed modifiers + status speed contributions (StatusBehavior.modifySpeed). */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
     let statusSpeed = 0;
     for (const ref of this.statusRefs()) {
       if (ref.entry.behavior?.modifySpeed) statusSpeed += ref.entry.behavior.modifySpeed(ref);
     }
-    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + statusSpeed;
+    return base - this.getEquipmentSpeedPenalty() + sizeSpeedModifier(this.size)
+      + sumModifiers(this.modifiers, new Set(['speed'])) + statusSpeed;
   }
 
   equip(item: EquipmentDefinition): void {
@@ -293,6 +298,8 @@ export interface CreateCharacterOptions {
   equipment?: EquipmentDefinition[];
   category?: 'player' | 'enemy';
   iconPath?: string;
+  /** Defaults to Mitjà. The size PV modifier is applied on top of `pv`. */
+  size?: CharacterSize;
 }
 
 export function createCharacter(opts: CreateCharacterOptions): Character {
@@ -303,7 +310,10 @@ export function createCharacter(opts: CreateCharacterOptions): Character {
     for (const [id, lvl] of Object.entries(opts.skills)) skills.set(id, lvl);
   }
   const actions = opts.actions.map(def => new ActionInstance(def));
-  const c = new Character(opts.name, opts.pv, skills, actions, opts.classCss, opts.category ?? 'player', opts.iconPath ?? '');
+  const size = opts.size ?? DEFAULT_SIZE;
+  const pv = Math.max(1, opts.pv + sizePvModifier(size));
+  const c = new Character(opts.name, pv, skills, actions, opts.classCss, opts.category ?? 'player', opts.iconPath ?? '');
+  c.size = size;
   if (opts.equipment) for (const e of opts.equipment) c.equip(e);
   return c;
 }

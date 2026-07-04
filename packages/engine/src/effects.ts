@@ -48,6 +48,10 @@ export interface EngineApi {
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
   cancelPendingAction(target: Character): boolean;
+  /** Run the holder's modifyContestTotal status hooks over a contested d20
+   *  total, seeing the opposing total. Content-side contests (saves) should
+   *  route their totals through this so clutch statuses can fire there too. */
+  adjustContestTotal(holder: Character, own: number, opposing: number, kind: import('./status.js').ContestKind): number;
 }
 
 /** Mutable bundle gathered before an attack resolves; effects tweak it in place. */

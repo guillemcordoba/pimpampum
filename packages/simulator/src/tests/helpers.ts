@@ -1,6 +1,7 @@
 import {
   Character, CombatEngine, CombatStats, newCombatStats,
   assignStrategies, AIStrategy, EffectRegistry,
+  ALL_SIZES, CharacterSize,
 } from '@pimpampum/engine';
 import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, createRegistry } from '@pimpampum/skills';
 import { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter } from '@pimpampum/enemies';
@@ -46,7 +47,11 @@ function randomEquipment(): string[] {
  * Build a random player character with total skill levels summing to ~budget,
  * spread over 1-2 skills, plus random equipment.
  */
-export function randomPlayer(name: string, budget: number, equip = true): Character {
+export function randomSize(): CharacterSize {
+  return ALL_SIZES[Math.floor(Math.random() * ALL_SIZES.length)];
+}
+
+export function randomPlayer(name: string, budget: number, equip = true, size?: CharacterSize): Character {
   const nSkills = randInt(1, 2);
   const chosen = shuffle(PLAYER_SKILLS).slice(0, nSkills);
   const skills: Record<string, number> = {};
@@ -69,6 +74,7 @@ export function randomPlayer(name: string, budget: number, equip = true): Charac
     classCss: chosen[0].classCss,
     iconPath: chosen[0].iconPath,
     pv: PLAYER_PV,
+    size,
     skills,
     equipment,
   });
@@ -77,6 +83,11 @@ export function randomPlayer(name: string, budget: number, equip = true): Charac
 /** A team of `size` random players, each with the given per-player budget. */
 export function randomTeam(prefix: string, size: number, perPlayerBudget: number, equip = true): Character[] {
   return Array.from({ length: size }, (_, i) => randomPlayer(`${prefix}${i + 1}`, perPlayerBudget, equip));
+}
+
+/** Like randomTeam but each player gets a uniformly random character size. */
+export function randomSizedTeam(prefix: string, size: number, perPlayerBudget: number, equip = true): Character[] {
+  return Array.from({ length: size }, (_, i) => randomPlayer(`${prefix}${i + 1}`, perPlayerBudget, equip, randomSize()));
 }
 
 const STRATS = [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect];

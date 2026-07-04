@@ -140,6 +140,12 @@
 .print-card.nigromant .card-frame { border-color: var(--class-nigromant); }
 .print-card.metge { border-color: var(--class-metge); }
 .print-card.metge .card-frame { border-color: var(--class-metge); }
+.print-card.runes { border-color: var(--class-runes); }
+.print-card.runes .card-frame { border-color: var(--class-runes); }
+.print-card.ombres { border-color: var(--class-ombres); }
+.print-card.ombres .card-frame { border-color: var(--class-ombres); }
+.print-card.gel { border-color: var(--class-gel); }
+.print-card.gel .card-frame { border-color: var(--class-gel); }
 
 /* -- Card type header colors ----------------------------------------------- */
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   checkSkillUp, resolveDamage, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
 } from '@pimpampum/engine';
-import { randomTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './helpers.js';
+import { randomTeam, randomSizedTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './helpers.js';
 
 describe('resolution math', () => {
   it('levels a skill only in the learning zone', () => {
@@ -65,6 +65,24 @@ describe('mirror balance (equal skill budgets)', () => {
     expect(stats.actionTypePlays['Atac'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Defensa'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Focus'] ?? 0).toBeGreaterThan(0);
+  });
+
+  it('no character size is a consistently better or worse choice', () => {
+    const bySize = new Map<string, { games: number; wins: number }>();
+    const N = 1000;
+    for (let i = 0; i < N; i++) {
+      const a = randomSizedTeam('A', 2, 40);
+      const b = randomSizedTeam('B', 2, 40);
+      const w = runMatch(a, b);
+      if (w === null) continue;
+      for (const c of a) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (w === 0) e.wins++; bySize.set(c.size, e); }
+      for (const c of b) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (w === 1) e.wins++; bySize.set(c.size, e); }
+    }
+    for (const [size, e] of bySize) {
+      const rate = e.wins / e.games;
+      expect(rate, `size ${size} win rate ${(100 * rate).toFixed(1)}% over ${e.games} character-games`).toBeGreaterThan(0.42);
+      expect(rate, `size ${size} win rate ${(100 * rate).toFixed(1)}% over ${e.games} character-games`).toBeLessThan(0.58);
+    }
   });
 });
 
