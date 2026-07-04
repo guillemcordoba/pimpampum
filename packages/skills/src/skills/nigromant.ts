@@ -11,6 +11,36 @@ import { num, tspec, resolveTargets, targetReq } from '../effects/helpers.js';
  * to self-heal; Invocar l'ombra de l'infern condemns the whole enemy party.
  * No pets, no defense — a Power-corner attrition controller.
  */
+// The doom mark: every d20 at disadvantage, 3 slower.
+const CONDEMNAT: StatusBehavior = {
+  rollMode() { return 'disadvantage'; },
+  modifySpeed() { return -3; },
+};
+
+// Contagious decay: ticks `value` PV each round and may jump to one more
+// uninfected member of the holder's team — on a d20 < 10, once per infected
+// team per round (only the first living infected member runs the check).
+const PUTREFACCIO: StatusBehavior = {
+  onRoundEnd(ctx) {
+    const { engine, holder, entry } = ctx;
+    if (holder.isAlive() && entry.value > 0) {
+      engine.log('poison', `${holder.name} pateix ${entry.value} de dany (putrefacció).`, holder.team);
+      engine.applyPvLoss(holder, entry.value, undefined);
+    }
+    const living = engine.livingTeam(engine.teamOf(holder));
+    const infected = living.filter(c => c.hasStatus('putrefaccio'));
+    if (infected.length === 0 || infected[0] !== holder) return;
+    const clean = living.filter(c => !c.hasStatus('putrefaccio'));
+    if (clean.length === 0) return;
+    if (engine.rollD20() >= 10) return; // contagion spreads on a d20 < 10
+
+    const turns = (entry.data?.['turns'] as number) ?? entry.remaining;
+    const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
+    victim.setStatus('putrefaccio', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
+    engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
+  },
+};
+
 const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
   // Apply the doom mark to the targets (Marca de la perdició: 1 / Invocar
   // l'ombra de l'infern: all enemies). `turns` defaults to 3.
@@ -18,7 +48,7 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 3);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('condemnat', 1, turns, { rollMode: 'disadvantage', speedMod: -3 });
+        t.setStatus('condemnat', 1, turns, undefined, CONDEMNAT);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
@@ -59,44 +89,20 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1.4; },
   },
 
-  // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored, via
-  // the generic status dot) and spreads +1 enemy/round (status behaviour below).
+  // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored) and
+  // spreads +1 enemy/round — see the PUTREFACCIO behaviour above.
   plague: {
     onResolve(ctx) {
       const dmg = num(ctx.params, 'damage', 3);
       const turns = num(ctx.params, 'turns', 3);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('putrefaccio', dmg, turns, { dot: dmg, turns });
+        t.setStatus('putrefaccio', dmg, turns, { dot: dmg, turns }, PUTREFACCIO);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight(ctx) {
       const clean = ctx.enemies.filter(e => !e.hasStatus('putrefaccio')).length;
       return clean > 0 ? 1.3 : 0.2;
-    },
-  },
-};
-
-const NIGROMANT_STATUSES: Record<string, StatusBehavior> = {
-  // Contagious decay: each round the plague may jump to one more uninfected
-  // member of any team that already carries it — on a d20 < 10. Exactly one
-  // spread check per infected team per round (only the first living infected
-  // member runs it).
-  putrefaccio: {
-    onRoundEnd(ctx) {
-      const engine = ctx.engine;
-      const living = engine.livingTeam(engine.teamOf(ctx.holder));
-      const infected = living.filter(c => c.hasStatus('putrefaccio'));
-      if (infected.length === 0 || infected[0] !== ctx.holder) return;
-      const clean = living.filter(c => !c.hasStatus('putrefaccio'));
-      if (clean.length === 0) return;
-      if (engine.rollD20() >= 10) return; // contagion spreads on a d20 < 10
-
-      const dot = (ctx.entry.data?.['dot'] as number) ?? ctx.entry.value;
-      const turns = (ctx.entry.data?.['turns'] as number) ?? ctx.entry.remaining;
-      const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
-      victim.setStatus('putrefaccio', dot, turns, { dot, turns });
-      engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
     },
   },
 };
@@ -150,5 +156,4 @@ export const NIGROMANT: SkillDefinition = {
     }),
   ],
   effects: NIGROMANT_EFFECTS,
-  statusBehaviors: NIGROMANT_STATUSES,
 };

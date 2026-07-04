@@ -11,57 +11,63 @@ import { num } from '../effects/helpers.js';
  * the `cadena` compounding-chain status behaviour and the `flux` card-swap
  * charges (generic `cardSwap` status data, spent by the engine's flowSwap).
  */
+// Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
+// applied to the whole attack total and damage of every target struck. The
+// chain breaks at round end unless the holder attacked (arming round exempt).
+const CADENA: StatusBehavior = {
+  onAttackAction(ctx) {
+    const mult = ctx.entry.value * 2;
+    ctx.entry.value = mult; // advance the ladder in place
+    return { attackTotalMult: mult, damageMult: mult };
+  },
+  onRoundEnd(ctx) {
+    if (ctx.entry.data?.['armedRound'] === ctx.engine.round) return;
+    if (ctx.playedAction?.actionType !== ActionType.Atac) ctx.holder.clearStatus('cadena');
+  },
+  // Once chained, attacks are king and any non-attack throws the chain away.
+  adjustActionWeight(_view, ref, actionDef, w) {
+    switch (actionDef.actionType) {
+      case ActionType.Atac: return w + 4 + ref.entry.value;
+      case ActionType.Defensa: return 0.05;
+      case ActionType.Focus: return 0.05;
+      default: return w;
+    }
+  },
+};
+
+// Estat de flux: post-reveal card-swap charges, spent by the engine's flowSwap.
+const FLUX: StatusBehavior = {
+  cardSwapCharges(ref) { return ref.entry.value; },
+  spendCardSwapCharge(ref) {
+    ref.entry.value--;
+    if (ref.entry.value <= 0) ref.holder.clearStatus(ref.key);
+  },
+};
+
 const MESTRE_ARMES_EFFECTS: Record<string, EffectHandler> = {
-  // Atac encadenat: arm the compounding attack chain (the `cadena` status
-  // behaviour below does the doubling and the breaking).
+  // Atac encadenat: arm the compounding attack chain (the CADENA behaviour
+  // above does the doubling and the breaking).
   chain_attack: {
     getTargetRequirement() { return 'none'; },
     canPlay(actor) { return !actor.hasStatus('cadena'); },
     onResolve(ctx) {
-      ctx.source.setStatus('cadena', 1, -1, { armedRound: ctx.engine.round });
+      ctx.source.setStatus('cadena', 1, -1, { armedRound: ctx.engine.round }, CADENA);
       ctx.engine.log('focus', `${ctx.source.name} encadena els seus atacs!`, ctx.source.team);
     },
     // Worth arming when there are foes to grind down; nothing once already chained.
     aiWeight(ctx) { return ctx.actor.hasStatus('cadena') ? 0 : (ctx.enemies.length >= 1 ? 2.5 : 0); },
   },
 
-  // Estat de flux: enter the flow state. The engine spends the `cardSwap`
-  // charges on post-reveal swaps (flowSwapRefs / flowSwap).
+  // Estat de flux: enter the flow state (FLUX behaviour above).
   flow_state: {
     getTargetRequirement() { return 'none'; },
     canPlay(actor) { return !actor.hasStatus('flux'); },
     onResolve(ctx) {
-      ctx.source.setStatus('flux', num(ctx.params, 'charges', 3), -1, { cardSwap: true });
+      ctx.source.setStatus('flux', num(ctx.params, 'charges', 3), -1, undefined, FLUX);
       ctx.engine.log('focus', `${ctx.source.name} entra en estat de flux.`, ctx.source.team);
     },
     // The AI can't exploit post-reveal swaps, so keep it from picking this often.
     aiWeight() { return 0.2; },
-  },
-};
-
-const MESTRE_ARMES_STATUSES: Record<string, StatusBehavior> = {
-  // Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
-  // applied to the whole attack total and damage of every target struck. The
-  // chain breaks at round end unless the holder attacked (arming round exempt).
-  cadena: {
-    onAttackAction(ctx) {
-      const mult = ctx.entry.value * 2;
-      ctx.holder.setStatus('cadena', mult, -1, ctx.entry.data);
-      return { attackTotalMult: mult, damageMult: mult };
-    },
-    onRoundEnd(ctx) {
-      if (ctx.entry.data?.['armedRound'] === ctx.engine.round) return;
-      if (ctx.playedAction?.actionType !== ActionType.Atac) ctx.holder.clearStatus('cadena');
-    },
-    // Once chained, attacks are king and any non-attack throws the chain away.
-    adjustActionWeight(_view, _holder, entry, actionDef, w) {
-      switch (actionDef.actionType) {
-        case ActionType.Atac: return w + 4 + entry.value;
-        case ActionType.Defensa: return 0.05;
-        case ActionType.Focus: return 0.05;
-        default: return w;
-      }
-    },
   },
 };
 
@@ -125,7 +131,6 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
   ],
   effects: MESTRE_ARMES_EFFECTS,
-  statusBehaviors: MESTRE_ARMES_STATUSES,
 };
 
 export const WEAPON_MASTER_SKILLS: SkillDefinition[] = [MESTRE_ARMES];

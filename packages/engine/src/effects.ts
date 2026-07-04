@@ -1,7 +1,6 @@
 import { DiceRoll } from './dice.js';
 import { Character } from './character.js';
 import { ActionDefinition, TargetRequirement } from './types.js';
-import type { StatusBehavior } from './status.js';
 
 /**
  * The slice of the combat engine that effect handlers are allowed to touch.
@@ -141,11 +140,11 @@ export interface EffectHandler {
   onPlay?(ctx: EffectContext): void;
 }
 
-/** Registry mapping effect type keys to their handlers, and status keys to
- *  their behaviours. Both halves are filled by the content package. */
+/** Registry mapping effect type keys to their handlers. (Status behaviours
+ *  need no registry — they are attached to the status instance by whoever
+ *  sets it; see StatusBehavior.) */
 export class EffectRegistry {
   private handlers = new Map<string, EffectHandler>();
-  private statusBehaviors = new Map<string, StatusBehavior>();
 
   register(effectType: string, handler: EffectHandler): void {
     if (this.handlers.has(effectType)) {
@@ -160,16 +159,5 @@ export class EffectRegistry {
 
   has(effectType: string): boolean {
     return this.handlers.has(effectType);
-  }
-
-  registerStatus(statusKey: string, behavior: StatusBehavior): void {
-    if (this.statusBehaviors.has(statusKey)) {
-      throw new Error(`Status behaviour already registered: ${statusKey}`);
-    }
-    this.statusBehaviors.set(statusKey, behavior);
-  }
-
-  getStatusBehavior(statusKey: string): StatusBehavior | undefined {
-    return this.statusBehaviors.get(statusKey);
   }
 }

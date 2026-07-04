@@ -161,8 +161,8 @@ export class CombatEngine implements EngineApi, AIView {
   rollD20For(c: Character): number {
     const r1 = rollD20();
     let mode: 'advantage' | 'disadvantage' | null = null;
-    for (const entry of c.statuses.values()) {
-      const m = entry.data?.['rollMode'];
+    for (const ref of c.statusRefs()) {
+      const m = ref.entry.behavior?.rollMode?.(ref);
       if (m === 'disadvantage') { mode = m; break; }
       if (m === 'advantage') mode = m;
     }
@@ -188,9 +188,11 @@ export class CombatEngine implements EngineApi, AIView {
 
   applyPvLoss(target: Character, amount: number, _source?: Character): boolean {
     if (amount <= 0) return !target.isAlive();
-    // Generic PV floor (`data.pvFloor`): no blow can drop the holder below it.
-    const floor = target.maxStatusData('pvFloor');
-    if (floor > 0) amount = Math.min(amount, Math.max(0, target.currentPV - floor));
+    // Statuses may clamp the loss (last stands, wards).
+    for (const ref of target.statusRefs()) {
+      const f = ref.entry.behavior?.clampPvLoss;
+      if (f) amount = f(ref, amount);
+    }
     const died = target.loseLife(amount);
     if (died) this.log('death', `${target.name} cau derrotat!`, target.team);
     return died;
@@ -224,9 +226,9 @@ export class CombatEngine implements EngineApi, AIView {
       recipient = guard.defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
-    const dmgRoll = damageDice.roll() + source.sumStatusData('outgoingDamage');
+    const dmgRoll = this.applyOutgoingDamage(source, damageDice.roll());
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    const dmg = Math.max(0, dmgRoll - armor + recipient.sumStatusData('incomingDamage'));
+    const dmg = Math.max(0, this.applyIncomingDamage(recipient, dmgRoll - armor));
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
@@ -242,7 +244,9 @@ export class CombatEngine implements EngineApi, AIView {
   // --- Helpers --------------------------------------------------------------
 
   private activeGuard(target: Character): Character['guards'][number] | null {
-    if (target.hasStatusData('noGuard')) return null;
+    for (const ref of target.statusRefs()) {
+      if (ref.entry.behavior?.preventsGuard?.(ref)) return null;
+    }
     for (let i = target.guards.length - 1; i >= 0; i--) {
       const g = target.guards[i];
       if (g.defender.isAlive()) return g;
@@ -371,19 +375,25 @@ export class CombatEngine implements EngineApi, AIView {
 
   // --- Post-reveal card swap -------------------------------------------------
 
-  /** Charges left on the holder's card-swap status (`data.cardSwap`). */
+  /** Charges left on the holder's card-swap statuses (StatusBehavior.cardSwapCharges). */
   cardSwapCharges(c: Character): number {
-    const found = c.findStatusWithData('cardSwap');
-    return found ? found[1].value : 0;
+    let charges = 0;
+    for (const ref of c.statusRefs()) {
+      const f = ref.entry.behavior?.cardSwapCharges;
+      if (f) charges += f(ref);
+    }
+    return charges;
   }
 
-  /** Spend one card-swap charge; clears the status when exhausted. */
+  /** Spend one card-swap charge from the first status offering one. */
   private spendCardSwapCharge(c: Character): void {
-    const found = c.findStatusWithData('cardSwap');
-    if (!found) return;
-    const [key, entry] = found;
-    entry.value--;
-    if (entry.value <= 0) c.clearStatus(key);
+    for (const ref of c.statusRefs()) {
+      const b = ref.entry.behavior;
+      if (b?.cardSwapCharges && b.spendCardSwapCharge && b.cardSwapCharges(ref) > 0) {
+        b.spendCardSwapCharge(ref);
+        return;
+      }
+    }
   }
 
   /** Refs of queued actors who still hold a card-swap charge and may swap
@@ -564,15 +574,42 @@ export class CombatEngine implements EngineApi, AIView {
     return { engine: this, holder, key, entry, ...extra };
   }
 
-  /** Snapshot of a character's statuses with a registered behaviour (safe to
+  /** Snapshot of a character's statuses that carry a behaviour (safe to
    *  mutate/clear statuses while iterating). */
   private behaviorStatuses(c: Character): { key: string; entry: StatusEntry; behavior: StatusBehavior }[] {
     const out: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
     for (const [key, entry] of c.statuses) {
-      const behavior = this.registry.getStatusBehavior(key);
-      if (behavior) out.push({ key, entry, behavior });
+      if (entry.behavior) out.push({ key, entry, behavior: entry.behavior });
     }
     return out;
+  }
+
+  /** Chain modifyOutgoingDamage across the attacker's statuses. */
+  private applyOutgoingDamage(source: Character, dmg: number): number {
+    for (const ref of source.statusRefs()) {
+      const f = ref.entry.behavior?.modifyOutgoingDamage;
+      if (f) dmg = f(ref, dmg);
+    }
+    return dmg;
+  }
+
+  /** Chain modifyIncomingDamage across the recipient's statuses. */
+  private applyIncomingDamage(recipient: Character, dmg: number): number {
+    for (const ref of recipient.statusRefs()) {
+      const f = ref.entry.behavior?.modifyIncomingDamage;
+      if (f) dmg = f(ref, dmg);
+    }
+    return dmg;
+  }
+
+  /** Sum of attackRollAgainstHolder across the target's statuses. */
+  private attackRollBonusAgainst(target: Character): number {
+    let bonus = 0;
+    for (const ref of target.statusRefs()) {
+      const f = ref.entry.behavior?.attackRollAgainstHolder;
+      if (f) bonus += f(ref);
+    }
+    return bonus;
   }
 
   /** onAttackAction over the attacker's statuses; multipliers combine. */
@@ -645,13 +682,17 @@ export class CombatEngine implements EngineApi, AIView {
     let hit: boolean;
     let margin: number;
 
-    if (guard && guard.defender.hasStatusData('guardAbsorb')) {
+    const guardAbsorbs = guard
+      ? guard.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref))
+      : false;
+
+    if (guard && guardAbsorbs) {
       // Absorbing guard: zero defence — the blow always lands in full on the guard.
       hit = true; margin = Infinity; recipient = guard.defender;
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const atkRoll = this.rollD20For(source);
-      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.sumStatusData('rollBonusAgainstHolder');
+      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + this.attackRollBonusAgainst(target);
       // Status multipliers (attack chains) scale the whole attack total.
       const attackerTotal = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
       const defender = guard.defender;
@@ -678,22 +719,13 @@ export class CombatEngine implements EngineApi, AIView {
     let dmgRoll = def.damageDice ? def.damageDice.roll() : 0;
     for (const d of mods.extraDamageDice) dmgRoll += d.roll();
     dmgRoll += mods.bonusDamage;
-    // Generic status damage bonus (`data.outgoingDamage`).
-    dmgRoll += source.sumStatusData('outgoingDamage');
+    // Attacker statuses transform the outgoing damage.
+    dmgRoll = this.applyOutgoingDamage(source, dmgRoll);
     // Status multipliers (attack chains) scale the damage too.
     dmgRoll *= statusMods.damageMult ?? 1;
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    let dmg = Math.max(0, dmgRoll - armor);
-    // Generic one-shot wound bonus (`data.woundBonus`), consumed on the wound.
-    if (dmg > 0) {
-      for (const [key, entry] of recipient.statuses) {
-        const wb = entry.data?.['woundBonus'];
-        if (typeof wb === 'number' && wb > 0) { dmg += wb; recipient.statuses.delete(key); }
-      }
-    }
-    // Generic status damage adjustment on the receiving end
-    // (`data.incomingDamage`, negative = reduction).
-    dmg = Math.max(0, dmg + recipient.sumStatusData('incomingDamage'));
+    // Recipient statuses transform the incoming damage (marks, rages…).
+    const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgRoll - armor)));
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
@@ -707,7 +739,6 @@ export class CombatEngine implements EngineApi, AIView {
   /** End-of-round: coordinated hooks, damage-over-time / regen, and turn advance. */
   finishRound(): void {
     for (const p of this.pending) this.dispatch('postRound', p.actor, p.action.def, { targets: p.targets ?? [] });
-    this.applyStatusTicks();
     this.dispatchStatusRoundEnd();
     this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
@@ -724,20 +755,6 @@ export class CombatEngine implements EngineApi, AIView {
     for (const p of this.pending) {
       if (!p.actor.isAlive()) continue;
       p.actor.fatigue += p.action.def.fatigueCost ?? DEFAULT_FATIGUE_COST;
-    }
-  }
-
-  private applyStatusTicks(): void {
-    for (const c of this.allLiving()) {
-      for (const [key, entry] of c.statuses) {
-        const dot = entry.data?.dot;
-        if (typeof dot === 'number' && dot > 0) {
-          this.log('poison', `${c.name} pateix ${dot} de dany (${key}).`, c.team);
-          this.applyPvLoss(c, dot, undefined);
-        }
-        const regen = entry.data?.regen;
-        if (typeof regen === 'number' && regen > 0 && c.isAlive()) this.heal(c, regen);
-      }
     }
   }
 

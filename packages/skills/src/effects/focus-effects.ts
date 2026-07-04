@@ -1,5 +1,25 @@
-import { EffectHandler, Character, HEAL_DIVISOR } from '@pimpampum/engine';
+import { EffectHandler, Character, HEAL_DIVISOR, StatusBehavior } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, bestSaveBonus, ModKind } from './helpers.js';
+import { DOT, REGEN } from './status-behaviors.js';
+
+// Attack rolls against the marked holder get +value (mark_target).
+const MARCA_OBJECTIU: StatusBehavior = {
+  attackRollAgainstHolder(ref) { return ref.entry.value; },
+};
+
+// The holder's next wound costs an extra `value` PV, once (doom_mark).
+const MARCA_MORTAL: StatusBehavior = {
+  modifyIncomingDamage(ref, dmg) {
+    if (dmg <= 0) return dmg;
+    ref.holder.clearStatus(ref.key);
+    return dmg + ref.entry.value;
+  },
+};
+
+// The holder's blows deal +value extra damage (weapon_buff).
+const ARMA_ENVERINADA: StatusBehavior = {
+  modifyOutgoingDamage(ref, dmg) { return dmg + ref.entry.value; },
+};
 
 /** Focus effects: resolved in speed order via onResolve. */
 export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
@@ -100,40 +120,38 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.5 ? 1.6 : 0.7; },
   },
 
-  // Mark an enemy: attack rolls against them get +amount (generic
-  // `rollBonusAgainstHolder` status data).
+  // Mark an enemy: attack rolls against them get +amount.
   mark_target: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 4);
       const turns = num(ctx.params, 'turns', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-objectiu', amt, turns, { rollBonusAgainstHolder: amt });
+        t.setStatus('marca-objectiu', amt, turns, undefined, MARCA_OBJECTIU);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight() { return 1; },
   },
 
-  // Distribute a "poisoned weapon" status (extra damage per hit, generic
-  // `outgoingDamage` status data) to up to `count` allies.
+  // Distribute a "poisoned weapon" status (extra damage per hit) to up to
+  // `count` allies.
   weapon_buff: {
     onResolve(ctx) {
       const amount = num(ctx.params, 'amount', 1);
       const count = num(ctx.params, 'count', 3);
       const turns = num(ctx.params, 'turns', -1);
       const allies = ctx.engine.alliesOf(ctx.source, true).slice(0, count);
-      for (const a of allies) a.setStatus('arma-enverinada', amount, turns, { outgoingDamage: amount });
+      for (const a of allies) a.setStatus('arma-enverinada', amount, turns, undefined, ARMA_ENVERINADA);
     },
     aiWeight() { return 0.9; },
   },
 
-  // Mark an enemy: their next received wound costs an extra `amount` PV
-  // (generic one-shot `woundBonus` status data).
+  // Mark an enemy: their next received wound costs an extra `amount` PV, once.
   doom_mark: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1), { woundBonus: amt });
+        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1), undefined, MARCA_MORTAL);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
@@ -161,7 +179,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   regen: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 1);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) t.setStatus('regeneració', amt, num(ctx.params, 'turns', 3), { regen: amt });
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) t.setStatus('regeneració', amt, num(ctx.params, 'turns', 3), { regen: amt }, REGEN);
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'self')); },
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV ? 1.2 : 0.4; },
@@ -171,7 +189,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   dot: {
     onResolve(ctx) {
       const dmg = num(ctx.params, 'damage', 2);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) t.setStatus(str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg });
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) t.setStatus(str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg }, DOT);
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight() { return 1; },

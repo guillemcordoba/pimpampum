@@ -1,5 +1,11 @@
-import { EffectHandler, EffectContext, Character, DiceRoll } from '@pimpampum/engine';
+import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
+import { DOT } from './status-behaviors.js';
+
+// The holder cannot benefit from any guard (undefendable_on_hit).
+const INDEFENSABLE: StatusBehavior = {
+  preventsGuard() { return true; },
+};
 
 /** Attack-rider effects: modifyAttack adjusts the roll/damage; onAttackHit triggers on a landed hit. */
 export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
@@ -102,7 +108,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     onAttackHit(ctx) {
       if (!ctx.target) return;
       const dmg = num(ctx.params, 'damage', 2);
-      ctx.target.setStatus(str(ctx.params, 'name', 'verí'), dmg, num(ctx.params, 'turns', 3), { dot: dmg });
+      ctx.target.setStatus(str(ctx.params, 'name', 'verí'), dmg, num(ctx.params, 'turns', 3), { dot: dmg }, DOT);
     },
     aiWeight() { return 0.8; },
   },
@@ -148,7 +154,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
   undefendable_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target) return;
-      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2), { noGuard: true });
+      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2), undefined, INDEFENSABLE);
     },
     aiWeight() { return 0.6; },
   },

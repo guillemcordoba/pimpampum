@@ -3,35 +3,24 @@ import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
 import { fatiguePenalty, fatigueStateName, shortRestFatigue, longRestFatigue } from './fatigue.js';
+import type { StatusBehavior, StatusRef } from './status.js';
 
 /**
- * A temporary status flag/stack on a character.
- *
- * `data` may carry generic fields the engine interprets at fixed pipeline
- * points — this is how content gives a status mechanical teeth without the
- * engine knowing the status by name:
- *  - `dot` / `regen`: PV lost / recovered at the end of each round.
- *  - `speedMod`: added to the holder's effective action speed.
- *  - `rollMode`: 'disadvantage' | 'advantage' — the holder's d20s roll twice,
- *    keeping the worst / best.
- *  - `outgoingDamage`: added to the holder's rolled damage on every attack.
- *  - `incomingDamage`: added to damage the holder receives (negative = reduction).
- *  - `woundBonus`: one-shot extra damage on the holder's next wound; consumed.
- *  - `rollBonusAgainstHolder`: bonus to attack rolls made against the holder.
- *  - `pvFloor`: the holder's PV cannot drop below this value.
- *  - `noGuard`: the holder cannot benefit from any guard.
- *  - `guardAbsorb`: guarding with this status takes the full blow, no contest.
- *  - `cardSwap`: the holder may swap a revealed card, spending `value` charges.
- * Anything else is effect-private payload (see StatusBehavior for logic-level
- * status hooks).
+ * A temporary status flag/stack on a character. Mechanics come exclusively
+ * from the attached `behavior` (see StatusBehavior): the engine invokes its
+ * hooks at fixed pipeline seams and never interprets `data` or knows a status
+ * by name. A status without a behaviour is inert bookkeeping (resource pools,
+ * markers read back by effect handlers).
  */
 export interface StatusEntry {
   /** Magnitude or stack count; 1 for plain flags. */
   value: number;
   /** Turns remaining; -1 means rest of combat. Decremented each turn. */
   remaining: number;
-  /** Arbitrary effect-specific payload plus generic engine-read fields. */
+  /** Effect-private payload (never interpreted by the engine). */
   data?: Record<string, unknown>;
+  /** The code that animates this status, attached by whoever set it. */
+  behavior?: StatusBehavior;
 }
 
 /** A guard linking a defender to the ally (or self) they are protecting this round. */
@@ -169,10 +158,14 @@ export class Character {
   }
 
   /** Resolved speed of an action: base - armour penalty + speed modifiers
-   *  + status speed contributions (`data.speedMod`). */
+   *  + status speed contributions (StatusBehavior.modifySpeed). */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
-    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + this.sumStatusData('speedMod');
+    let statusSpeed = 0;
+    for (const ref of this.statusRefs()) {
+      if (ref.entry.behavior?.modifySpeed) statusSpeed += ref.entry.behavior.modifySpeed(ref);
+    }
+    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + statusSpeed;
   }
 
   equip(item: EquipmentDefinition): void {
@@ -182,8 +175,8 @@ export class Character {
 
   // --- Statuses -------------------------------------------------------------
 
-  setStatus(key: string, value = 1, remaining = 1, data?: Record<string, unknown>): void {
-    this.statuses.set(key, { value, remaining, data });
+  setStatus(key: string, value = 1, remaining = 1, data?: Record<string, unknown>, behavior?: StatusBehavior): void {
+    this.statuses.set(key, { value, remaining, data, behavior });
   }
 
   hasStatus(key: string): boolean {
@@ -202,40 +195,12 @@ export class Character {
     this.statuses.delete(key);
   }
 
-  /** Sum of a numeric generic data field across all statuses (0 if none). */
-  sumStatusData(field: string): number {
-    let total = 0;
-    for (const entry of this.statuses.values()) {
-      const v = entry.data?.[field];
-      if (typeof v === 'number') total += v;
-    }
-    return total;
-  }
-
-  /** Maximum of a numeric generic data field across all statuses (0 if none). */
-  maxStatusData(field: string): number {
-    let best = 0;
-    for (const entry of this.statuses.values()) {
-      const v = entry.data?.[field];
-      if (typeof v === 'number' && v > best) best = v;
-    }
-    return best;
-  }
-
-  /** Whether any status carries the generic data field. */
-  hasStatusData(field: string): boolean {
-    for (const entry of this.statuses.values()) {
-      if (entry.data?.[field] !== undefined) return true;
-    }
-    return false;
-  }
-
-  /** First status carrying the generic data field, as [key, entry]. */
-  findStatusWithData(field: string): [string, StatusEntry] | undefined {
-    for (const [key, entry] of this.statuses) {
-      if (entry.data?.[field] !== undefined) return [key, entry];
-    }
-    return undefined;
+  /** Snapshot of this character's statuses as behaviour refs (safe to mutate
+   *  or clear statuses while iterating the result). */
+  statusRefs(): StatusRef[] {
+    const out: StatusRef[] = [];
+    for (const [key, entry] of this.statuses) out.push({ holder: this, key, entry });
+    return out;
   }
 
   // --- Modifiers ------------------------------------------------------------

@@ -49,7 +49,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 1);
-      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns);
+      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns, undefined, ENCEGAT);
       ctx.engine.log('focus', 'Una cortina de fum encega els enemics!', ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 2 ? 1.5 : 0.4; },
@@ -63,7 +63,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const mines = num(ctx.params, 'mines', 3);
       const sides = num(ctx.params, 'damageSides', 6);
-      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(1, sides) });
+      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(1, sides) }, CAMP_MINAT);
       ctx.engine.log('focus', `${ctx.source.name} sembra ${mines} mines al terreny.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.4 : 0; },
@@ -92,39 +92,37 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
   },
 };
 
-const ENGINYER_STATUSES: Record<string, StatusBehavior> = {
-  // Smoke: the blinded holder fires through the haze — on a d20 ≤ 10 the shot
-  // lands on a random living combatant instead of its intended target.
-  encegat: {
-    redirectAttackTarget(ctx, intended) {
-      if (ctx.engine.rollD20() > 10) return intended;
-      const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
-      if (pool.length === 0) return intended;
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      if (pick !== intended) ctx.engine.log('info', `${ctx.holder.name} dispara a cegues dins el fum i apunta cap a ${pick.name}!`, ctx.holder.team);
-      return pick;
-    },
+// Smoke: the blinded holder fires through the haze — on a d20 ≤ 10 the shot
+// lands on a random living combatant instead of its intended target.
+const ENCEGAT: StatusBehavior = {
+  redirectAttackTarget(ctx, intended) {
+    if (ctx.engine.rollD20() > 10) return intended;
+    const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
+    if (pool.length === 0) return intended;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (pick !== intended) ctx.engine.log('info', `${ctx.holder.name} dispara a cegues dins el fum i apunta cap a ${pick.name}!`, ctx.holder.team);
+    return pick;
   },
+};
 
-  // Minefield pool on the layer (persists even if the layer has fallen): the
-  // first live minefield gives each attacking enemy a d20 ≤ 10 chance to trip a
-  // mine, take its blast (armour-ignored) and spend it. One check per attack.
-  'camp-minat': {
-    onEnemyAttackAction(ctx, attacker) {
-      if (ctx.entry.value <= 0) return false;
-      if (ctx.engine.rollD20() <= 10) {
-        const dice = ctx.entry.data?.['damage'] as DiceRoll | undefined;
-        const dmg = dice ? dice.roll() : 1;
-        ctx.engine.log('trap', `${attacker.name} trepitja una mina! (${dmg} dany)`, attacker.team);
-        ctx.engine.applyPvLoss(attacker, dmg, undefined);
-        ctx.entry.value--;
-        if (ctx.entry.value <= 0) {
-          ctx.holder.clearStatus('camp-minat');
-          ctx.engine.log('info', 'El camp de mines s’esgota.', ctx.holder.team);
-        }
+// Minefield pool on the layer (persists even if the layer has fallen): the
+// first live minefield gives each attacking enemy a d20 ≤ 10 chance to trip a
+// mine, take its blast (armour-ignored) and spend it. One check per attack.
+const CAMP_MINAT: StatusBehavior = {
+  onEnemyAttackAction(ctx, attacker) {
+    if (ctx.entry.value <= 0) return false;
+    if (ctx.engine.rollD20() <= 10) {
+      const dice = ctx.entry.data?.['damage'] as DiceRoll | undefined;
+      const dmg = dice ? dice.roll() : 1;
+      ctx.engine.log('trap', `${attacker.name} trepitja una mina! (${dmg} dany)`, attacker.team);
+      ctx.engine.applyPvLoss(attacker, dmg, undefined);
+      ctx.entry.value--;
+      if (ctx.entry.value <= 0) {
+        ctx.holder.clearStatus('camp-minat');
+        ctx.engine.log('info', 'El camp de mines s’esgota.', ctx.holder.team);
       }
-      return true; // one minefield check per attack
-    },
+    }
+    return true; // one minefield check per attack
   },
 };
 
@@ -173,5 +171,4 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
   ],
   effects: ENGINYER_EFFECTS,
-  statusBehaviors: ENGINYER_STATUSES,
 };

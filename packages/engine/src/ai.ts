@@ -91,11 +91,11 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
     }
   }
 
-  // Content-registered status behaviours may transform the base weight
-  // (e.g. an attack chain that must not be broken).
-  for (const [key, entry] of actor.statuses) {
-    const adjust = view.registry.getStatusBehavior(key)?.adjustActionWeight;
-    if (adjust) w = adjust(view, actor, entry, def, w);
+  // Status behaviours may transform the base weight (e.g. an attack chain
+  // that must not be broken).
+  for (const ref of actor.statusRefs()) {
+    const adjust = ref.entry.behavior?.adjustActionWeight;
+    if (adjust) w = adjust(view, ref, def, w);
   }
 
   // Content-registered hints per effect.

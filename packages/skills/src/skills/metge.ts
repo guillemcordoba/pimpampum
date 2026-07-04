@@ -11,9 +11,19 @@ import { num } from '../effects/helpers.js';
  * attackRepeats seam) at the price of +4 fatigue on the receiver — the crash
  * is the fatigue cliff itself: adrenaline borrows energy, it doesn't create it.
  */
+// The stimmed ally's attack action runs one extra full pass over its
+// still-living targets. Consumed on use; expires at round end otherwise.
+const ADRENALINA: StatusBehavior = {
+  attackRepeats(ctx) {
+    ctx.holder.clearStatus('adrenalina');
+    ctx.engine.log('info', `L'adrenalina dispara ${ctx.holder.name}: ataca una segona vegada!`, ctx.holder.team);
+    return 1;
+  },
+};
+
 const METGE_EFFECTS: Record<string, EffectHandler> = {
   // Injecció d'adrenalina: stim another ally. This turn their Atac action
-  // executes twice (see the status behaviour below); the +`fatigue` is charged
+  // executes twice (ADRENALINA behaviour above); the +`fatigue` is charged
   // on the spot. Only Atac doubles — adrenaline makes you hit things, not
   // concentrate better. Unused, the surge fizzles at end of round.
   adrenaline: {
@@ -22,23 +32,11 @@ const METGE_EFFECTS: Record<string, EffectHandler> = {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
       const fatigue = num(ctx.params, 'fatigue', 4);
-      target.setStatus('adrenalina', 1, 1);
+      target.setStatus('adrenalina', 1, 1, undefined, ADRENALINA);
       target.fatigue += fatigue;
       ctx.engine.log('focus', `${target.name} rep una injecció d'adrenalina: atacarà dues vegades aquest torn (+${fatigue} fatiga, ${target.getFatigueStateName()}).`, target.team);
     },
     aiWeight(ctx) { return ctx.allies.length > 0 ? 1.2 : 0; },
-  },
-};
-
-const METGE_STATUSES: Record<string, StatusBehavior> = {
-  // The stimmed ally's attack action runs one extra full pass over its
-  // still-living targets. Consumed on use; expires at round end otherwise.
-  adrenalina: {
-    attackRepeats(ctx) {
-      ctx.holder.clearStatus('adrenalina');
-      ctx.engine.log('info', `L'adrenalina dispara ${ctx.holder.name}: ataca una segona vegada!`, ctx.holder.team);
-      return 1;
-    },
   },
 };
 
@@ -63,7 +61,6 @@ export const METGE: SkillDefinition = {
     }),
   ],
   effects: METGE_EFFECTS,
-  statusBehaviors: METGE_STATUSES,
 };
 
 export const METGE_SKILLS: SkillDefinition[] = [METGE];

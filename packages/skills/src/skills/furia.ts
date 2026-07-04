@@ -1,4 +1,4 @@
-import { ActionType, EffectHandler } from '@pimpampum/engine';
+import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, ICON_PREFIX } from '../types.js';
 import { num, applyMod, bestSaveBonus } from '../effects/helpers.js';
 
@@ -7,12 +7,24 @@ import { num, applyMod, bestSaveBonus } from '../effects/helpers.js';
  * Weapon-agnostic like the Mestre d'Armes: every attack deals the WIELDED weapon's
  * dice (`weapon_damage`), but here the fury is what lands and amplifies it — reckless
  * swings, the rage STATE (+5 dealt / −5 taken), wound-scaling, and a last-stand
- * capstone. The fury-specific handlers live below, on this SkillDefinition, and
- * work through generic status data:
- *   - `furia`          — outgoingDamage +value / incomingDamage −value while raging.
- *   - `aguantant`      — guardAbsorb: the defender takes the full blow, no contest.
- *   - `indestructible` — pvFloor 1: PV cannot drop below 1.
+ * capstone. Handlers and status behaviours live below, on this SkillDefinition.
  */
+
+// The rage state: blows dealt hit `value` harder, blows taken hurt `value` less.
+const FURIA_ESTAT: StatusBehavior = {
+  modifyOutgoingDamage(ref, dmg) { return dmg + ref.entry.value; },
+  modifyIncomingDamage(ref, dmg) { return dmg - ref.entry.value; },
+};
+
+// Aguantar el cop: the guard absorbs every blow in full — no contest is rolled.
+const AGUANTANT: StatusBehavior = {
+  absorbsGuard() { return true; },
+};
+
+// Fúria implacable: no blow can drop the holder below 1 PV.
+const INDESTRUCTIBLE: StatusBehavior = {
+  clampPvLoss(ref, amount) { return Math.min(amount, Math.max(0, ref.holder.currentPV - 1)); },
+};
 const FURIA_EFFECTS: Record<string, EffectHandler> = {
   // Entrar en Fúria: enter the battle-trance. While the `furia` status is up,
   // every blow you land deals +value and every hit you take deals −value. The
@@ -22,7 +34,7 @@ const FURIA_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const value = num(ctx.params, 'value', 5);
       const turns = num(ctx.params, 'turns', 3);
-      ctx.source.setStatus('furia', value, turns, { outgoingDamage: value, incomingDamage: -value });
+      ctx.source.setStatus('furia', value, turns, undefined, FURIA_ESTAT);
       ctx.engine.log('focus', `${ctx.source.name} entra en fúria! (+${value} dany, −${value} dany rebut)`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.actor.hasStatus('furia') ? 0 : 1.4; },
@@ -57,7 +69,7 @@ const FURIA_EFFECTS: Record<string, EffectHandler> = {
   rage_from_pain: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      ctx.source.setStatus('aguantant', 1, 1, { guardAbsorb: true });
+      ctx.source.setStatus('aguantant', 1, 1, undefined, AGUANTANT);
     },
     onBlockFail(ctx) {
       const dmg = ctx.damageDealt ?? 0;
@@ -76,7 +88,7 @@ const FURIA_EFFECTS: Record<string, EffectHandler> = {
       const turns = num(ctx.params, 'turns', 3);
       if (!ctx.source.hasStatus('indestructible')) {
         ctx.source.currentPV = 1;
-        ctx.source.setStatus('indestructible', 1, turns, { pvFloor: 1 });
+        ctx.source.setStatus('indestructible', 1, turns, undefined, INDESTRUCTIBLE);
         ctx.engine.log('attack', `${ctx.source.name} ho aposta tot: 1 PV i indestructible ${turns} torns!`, ctx.source.team);
       }
     },
