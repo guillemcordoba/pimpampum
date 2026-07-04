@@ -20,7 +20,8 @@ pimpampum/
 │   │       ├── dice.ts            # DiceRoll
 │   │       ├── types.ts           # ActionType, ActionDefinition, SkillInstance, EquipmentDefinition, CharacterDefinition, EquipmentSlot
 │   │       ├── resolution.ts      # rollD20, resolveAttack, resolveDamage, checkSkillUp
-│   │       ├── effects.ts         # EffectRegistry, EffectHandler, EffectContext, EngineApi, AttackModifiers, AIContext
+│   │       ├── effects.ts         # EffectRegistry (handlers + status behaviours), EffectHandler, EffectContext, EngineApi, AttackModifiers, AIContext
+│   │       ├── status.ts          # StatusBehavior, StatusHookContext, AttackStatusMods (generic status seams)
 │   │       ├── action.ts          # ActionInstance, getActionTargetRequirement/Count
 │   │       ├── modifier.ts        # CombatModifier, ModifierDuration
 │   │       ├── character.ts       # Character (PV + skills Map + statuses Map + guards), createCharacter
@@ -33,8 +34,8 @@ pimpampum/
 │   │       ├── index.ts           # Public API
 │   │       ├── setup.ts           # registerSkills(registry), createRegistry()
 │   │       ├── build.ts           # buildCharacter(spec) — resolve skill/action/equipment ids → Character
-│   │       ├── effects/           # Effect handlers (attack/focus/defense) + registerAllEffects
-│   │       ├── skills/            # SkillDefinitions grouped by theme (martial/arcane/divine-nature/social/enemy)
+│   │       ├── effects/           # GENERIC parameterised handlers only (attack/focus/defense/weapon) + registerAllEffects
+│   │       ├── skills/            # One file per skill: SkillDefinition + its own effects/statusBehaviors
 │   │       └── equipment/         # ALL_EQUIPMENT
 │   ├── enemies/                   # @pimpampum/enemies — enemy templates + encounters
 │   │   └── src/
@@ -49,8 +50,8 @@ pimpampum/
 ## Architecture & Source of Truth
 
 - **`rules.md`** is the prose source of truth for game mechanics (read it before changing combat logic).
-- **`packages/engine`** is content-agnostic: it knows about actions, skills, effects, damage and armour, but nothing about "Esgrima" or "Bola de foc". Effects are dispatched through an **`EffectRegistry`** (registry pattern), not a discriminated union.
-- **`packages/skills`** defines ALL skills (player and enemy), their actions, the effect handlers, and equipment. This is the game-content source of truth.
+- **`packages/engine`** is content-agnostic — STRICTLY: it never names a card, skill or status key. Effects dispatch through an **`EffectRegistry`** (registry pattern); statuses get mechanical teeth through (a) generic `StatusEntry.data` fields the engine interprets (`dot`, `regen`, `speedMod`, `rollMode`, `outgoingDamage`, `incomingDamage`, `woundBonus`, `rollBonusAgainstHolder`, `pvFloor`, `noGuard`, `guardAbsorb`, `cardSwap`) and (b) registered **`StatusBehavior`** hooks (`onAttackAction`, `redirectAttackTarget`, `onEnemyAttackAction`, `attackRepeats`, `onRoundEnd`, `adjustActionWeight`). A new card must NEVER require an engine edit — if no seam fits, add a new *generic parameterised* seam, then implement the content in skills.
+- **`packages/skills`** defines ALL skills (player and enemy), their actions, the effect handlers, and equipment. This is the game-content source of truth. **Co-location rule**: handlers/behaviours that pertain to a single skill live IN that skill's file (`skills/*.ts`, on the `SkillDefinition.effects` / `.statusBehaviors` maps, registered by `registerSkills`); `effects/` holds only generic parameterised handlers shared across skills.
 - **`packages/enemies`** only references skill ids from `@pimpampum/skills`; it sets PV and skill levels at runtime (`createEnemyFromTemplate`).
 - The simulator and web app derive everything from these three packages.
 
@@ -77,7 +78,7 @@ pimpampum/
 4. `finishRound()` — postRound effect hooks, damage-over-time / regen (generic via status `data.dot` / `data.regen`), `advanceTurn`.
 5. Simulator drives all of this automatically via `runRound()` / `runCombat(stats)`.
 
-**Effect handlers** (`packages/skills/src/effects`) implement hooks: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`, `onResolve`, `postRound`, `getTargetRequirement`, `aiWeight`. They only touch the engine through the `EngineApi` interface. Generic parameterised handlers cover most effects: `piercing`, `bonus_damage`, `extra_dice`, `pack`, `crossfire`, `reckless`, `frenzy`, `lifedrain`, `debuff_on_hit`, `poison_on_hit`, `stun_on_hit`, `mark_on_hit`, `silence_on_hit`, `heal`, `skill_mod`, `stun`, `evasion`, `regen`, `dot`, `wild_shape`, `summon`, `sacrifice`, `detonate`, `cleanse`, `counter`, `retaliate_wound`, `debuff_on_block`, `self_armor`.
+**Effect handlers** implement hooks: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`, `onBlockFail`, `onResolve`, `postRound`, `getTargetRequirement`, `aiWeight`, `onCombatStart`, `canPlay`, `onPlay`. They only touch the engine through the `EngineApi` interface. Generic parameterised handlers (`packages/skills/src/effects`) cover most effects: `piercing`, `bonus_damage`, `extra_dice`, `pack`, `crossfire`, `reckless`, `frenzy`, `lifedrain`, `debuff_on_hit`, `poison_on_hit`, `stun_on_hit`, `mark_on_hit`, `silence_on_hit`, `heal`, `skill_mod`, `stun`, `evasion`, `regen`, `dot`, `wild_shape`, `summon`, `sacrifice`, `detonate`, `cleanse`, `counter`, `retaliate_wound`, `debuff_on_block`, `self_armor`, `weapon_damage`, `precision`, `ignore_defense`. Skill-specific handlers (e.g. `condemn`, `enter_rage`, `chain_attack`, `charge_cost`, `adrenaline`) live on their skill's `SkillDefinition.effects`; skill-specific **status behaviours** (`cadena`, `encegat`, `camp-minat`, `putrefaccio`, `adrenalina`) on `.statusBehaviors`.
 
 ## Building characters
 
@@ -102,10 +103,10 @@ Players are human-controlled when `aiStrategy === null`; enemies get a strategy 
 
 **Design principle (lore first, mechanics second).** When *designing* new actions, disregard the current mechanics entirely. Do not let the existing effect handlers, what is easy to implement, or "what already exists" shape the design. The goal is **originality** and staying **as close as possible to the lore/fantasy of the character or skill**. Design the action the character *should* have, then build whatever new effect handlers, engine support, or mechanics that requires — implementation effort is never a reason to compromise the design. (This applies to design; the registry pattern still governs *how* it's eventually coded.)
 
-- **New skill / actions**: add a `SkillDefinition` (use the `action()` helper) in the appropriate `packages/skills/src/skills/*.ts` file and include it in that file's exported array (which `skills/index.ts` aggregates into `ALL_SKILLS`). Reference existing effect `type` keys; only add a new handler in `packages/skills/src/effects/` if no parameterised one fits, and register it in `effects/index.ts`.
+- **New skill / actions**: create `packages/skills/src/skills/<skill>.ts` with the `SkillDefinition` (use the `action()` helper) and add it to `ALL_SKILLS` in `catalog.ts`. Reference existing generic effect `type` keys where they fit; anything skill-specific goes on the definition's own `effects` / `statusBehaviors` maps in the same file. Only add to `packages/skills/src/effects/` when a handler is genuinely generic (parameterised, reusable by several skills).
 - **New enemy**: add an `EnemyTemplate` to `ENEMY_TEMPLATES` referencing skill ids; add encounters to `ALL_ENCOUNTERS`.
 - **New equipment**: add an `EquipmentDefinition` to `ALL_EQUIPMENT`.
-- The engine almost never needs changes for new content — that's the point of the registry.
+- The engine NEVER needs changes for new content — that's the point of the two registries (effects + status behaviours). If a design truly needs a new engine capability, add it as a generic parameterised seam (a `StatusEntry.data` field or a `StatusBehavior` hook), never as a named status/card check.
 
 ## Building & running
 
@@ -135,7 +136,7 @@ Routes: `/` (home), `/combat` (create characters + play), `/cards[/:section]` (p
 
 ### Card design / theming
 
-Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`, `enginyer`, `mestre-armes`, `nigromant`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
+Printable cards are 63×88mm (`components/cards/PrintableCard.vue`, parchment style in `assets/cards.css`). Each card has a class CSS theme (`guerrer`, `mag`, `murri`, `barbar`, `clergue`, `monjo`, `trobador`, `fetiller`, `paladi`, `druida`, `bruixot`, `objecte`, `goblin`, `goblin-shaman`, `basilisc`, `diable-espinos`, `diable-dos`, `diable-banyut`, `golem-de-pedra`, `llop`, `enginyer`, `mestre-armes`, `nigromant`, `metge`) used as a colour theme on `SkillDefinition.classCss`, and an action-type header colour (`atac-fisic`, `defensa`, `focus`). Icons come from `packages/web/public/icons/` (game-icons.net, CC BY 3.0), served at `/icons/`.
 
 ## Development environment
 

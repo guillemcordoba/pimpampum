@@ -138,6 +138,8 @@
 .print-card.mestre-armes .card-frame { border-color: var(--class-mestre-armes); }
 .print-card.nigromant { border-color: var(--class-nigromant); }
 .print-card.nigromant .card-frame { border-color: var(--class-nigromant); }
+.print-card.metge { border-color: var(--class-metge); }
+.print-card.metge .card-frame { border-color: var(--class-metge); }
 
 /* -- Card type header colors ----------------------------------------------- */
 

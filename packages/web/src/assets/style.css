@@ -39,6 +39,7 @@
   --class-enginyer: #9c5a1f;
   --class-mestre-armes: #4a5a3a;
   --class-nigromant: #3a1f5c;
+  --class-metge: #a34040;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -458,6 +459,7 @@ body {
 .portrait.enginyer { border-color: var(--class-enginyer); }
 .portrait.mestre-armes { border-color: var(--class-mestre-armes); }
 .portrait.nigromant { border-color: var(--class-nigromant); }
+.portrait.metge { border-color: var(--class-metge); }
 
 .portrait-icon {
   width: 64px;
@@ -746,6 +748,10 @@ body {
 .mini-card.diable-banyut { border-color: var(--class-diable-banyut); }
 .mini-card.golem-de-pedra { border-color: var(--class-golem-de-pedra); }
 .mini-card.llop { border-color: var(--class-llop); }
+.mini-card.enginyer { border-color: var(--class-enginyer); }
+.mini-card.mestre-armes { border-color: var(--class-mestre-armes); }
+.mini-card.nigromant { border-color: var(--class-nigromant); }
+.mini-card.metge { border-color: var(--class-metge); }
 
 .mini-card-header {
   padding: 6px 8px 5px;
