@@ -160,13 +160,11 @@ export class CombatEngine implements EngineApi, AIView {
    *  the higher. Disadvantage wins if both are present. */
   rollD20For(c: Character): number {
     const r1 = rollD20();
-    let mode: 'advantage' | 'disadvantage' | null = c.hasStatus('condemnat') ? 'disadvantage' : null;
-    if (mode === null) {
-      for (const entry of c.statuses.values()) {
-        const m = entry.data?.['rollMode'];
-        if (m === 'disadvantage') { mode = m; break; }
-        if (m === 'advantage') mode = m;
-      }
+    let mode: 'advantage' | 'disadvantage' | null = null;
+    for (const entry of c.statuses.values()) {
+      const m = entry.data?.['rollMode'];
+      if (m === 'disadvantage') { mode = m; break; }
+      if (m === 'advantage') mode = m;
     }
     if (mode === null) return r1;
     const r2 = rollD20();

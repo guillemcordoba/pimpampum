@@ -172,8 +172,7 @@ export class Character {
    *  + status speed contributions (`data.speedMod`). */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
-    const doom = this.hasStatus('condemnat') ? 3 : 0;
-    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + this.sumStatusData('speedMod') - doom;
+    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + this.sumStatusData('speedMod');
   }
 
   equip(item: EquipmentDefinition): void {

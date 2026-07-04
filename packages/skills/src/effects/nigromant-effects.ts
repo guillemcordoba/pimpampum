@@ -3,10 +3,9 @@ import { num, tspec, resolveTargets, targetReq } from './helpers.js';
 
 /**
  * Nigromant — a doom-mark curse-caster. The spine is the `condemnat` status
- * (applied by `condemn`): the doomed roll every d20 at disadvantage, act 3
- * slower, cannot take Focus actions, and are reapable by `reap`. Those three
- * penalties live in the engine (rollD20For / getEffectiveSpeed / focus-lockout);
- * the handlers here only apply the status and the attack riders.
+ * (applied by `condemn`): the doomed roll every d20 at disadvantage and act 3
+ * slower (generic `rollMode` / `speedMod` status data), and are reapable by
+ * `reap`. The handlers here apply the status and the attack riders.
  */
 export const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
   // Apply the doom mark to the targets (Marca de la perdició: 1 / Invocar
@@ -14,7 +13,9 @@ export const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
   condemn: {
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 3);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) t.setStatus('condemnat', 1, turns);
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        t.setStatus('condemnat', 1, turns, { rollMode: 'disadvantage', speedMod: -3 });
+      }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight(ctx) {
