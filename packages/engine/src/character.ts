@@ -4,13 +4,33 @@ import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
 import { fatiguePenalty, fatigueStateName, shortRestFatigue, longRestFatigue } from './fatigue.js';
 
-/** A temporary status flag/stack on a character. */
+/**
+ * A temporary status flag/stack on a character.
+ *
+ * `data` may carry generic fields the engine interprets at fixed pipeline
+ * points — this is how content gives a status mechanical teeth without the
+ * engine knowing the status by name:
+ *  - `dot` / `regen`: PV lost / recovered at the end of each round.
+ *  - `speedMod`: added to the holder's effective action speed.
+ *  - `rollMode`: 'disadvantage' | 'advantage' — the holder's d20s roll twice,
+ *    keeping the worst / best.
+ *  - `outgoingDamage`: added to the holder's rolled damage on every attack.
+ *  - `incomingDamage`: added to damage the holder receives (negative = reduction).
+ *  - `woundBonus`: one-shot extra damage on the holder's next wound; consumed.
+ *  - `rollBonusAgainstHolder`: bonus to attack rolls made against the holder.
+ *  - `pvFloor`: the holder's PV cannot drop below this value.
+ *  - `noGuard`: the holder cannot benefit from any guard.
+ *  - `guardAbsorb`: guarding with this status takes the full blow, no contest.
+ *  - `cardSwap`: the holder may swap a revealed card, spending `value` charges.
+ * Anything else is effect-private payload (see StatusBehavior for logic-level
+ * status hooks).
+ */
 export interface StatusEntry {
   /** Magnitude or stack count; 1 for plain flags. */
   value: number;
   /** Turns remaining; -1 means rest of combat. Decremented each turn. */
   remaining: number;
-  /** Arbitrary effect-specific payload. */
+  /** Arbitrary effect-specific payload plus generic engine-read fields. */
   data?: Record<string, unknown>;
 }
 
@@ -148,12 +168,12 @@ export class Character {
     return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
   }
 
-  /** Resolved speed of an action: base - armour penalty + speed modifiers.
-   *  A doomed (`condemnat`) character acts 3 slower. */
+  /** Resolved speed of an action: base - armour penalty + speed modifiers
+   *  + status speed contributions (`data.speedMod`). */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
     const doom = this.hasStatus('condemnat') ? 3 : 0;
-    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) - doom;
+    return base - this.getEquipmentSpeedPenalty() + sumModifiers(this.modifiers, new Set(['speed'])) + this.sumStatusData('speedMod') - doom;
   }
 
   equip(item: EquipmentDefinition): void {
@@ -181,6 +201,42 @@ export class Character {
 
   clearStatus(key: string): void {
     this.statuses.delete(key);
+  }
+
+  /** Sum of a numeric generic data field across all statuses (0 if none). */
+  sumStatusData(field: string): number {
+    let total = 0;
+    for (const entry of this.statuses.values()) {
+      const v = entry.data?.[field];
+      if (typeof v === 'number') total += v;
+    }
+    return total;
+  }
+
+  /** Maximum of a numeric generic data field across all statuses (0 if none). */
+  maxStatusData(field: string): number {
+    let best = 0;
+    for (const entry of this.statuses.values()) {
+      const v = entry.data?.[field];
+      if (typeof v === 'number' && v > best) best = v;
+    }
+    return best;
+  }
+
+  /** Whether any status carries the generic data field. */
+  hasStatusData(field: string): boolean {
+    for (const entry of this.statuses.values()) {
+      if (entry.data?.[field] !== undefined) return true;
+    }
+    return false;
+  }
+
+  /** First status carrying the generic data field, as [key, entry]. */
+  findStatusWithData(field: string): [string, StatusEntry] | undefined {
+    for (const [key, entry] of this.statuses) {
+      if (entry.data?.[field] !== undefined) return [key, entry];
+    }
+    return undefined;
   }
 
   // --- Modifiers ------------------------------------------------------------

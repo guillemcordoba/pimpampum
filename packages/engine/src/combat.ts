@@ -1,10 +1,11 @@
 import { DiceRoll } from './dice.js';
-import { Character } from './character.js';
+import { Character, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers,
 } from './effects.js';
+import { StatusBehavior, StatusHookContext, AttackStatusMods } from './status.js';
 import { rollD20, resolveAttack, checkSkillUp } from './resolution.js';
 import { selectAction, AIView } from './ai.js';
 import { DEFAULT_FATIGUE_COST } from './fatigue.js';
@@ -154,12 +155,22 @@ export class CombatEngine implements EngineApi, AIView {
   enemiesOf(c: Character): Character[] { return this.teams[1 - c.team].filter(e => e.isAlive()); }
   rollD20(): number { return rollD20(); }
 
-  /** Roll a d20 for `c`, with disadvantage (take the lower of two) while doomed. */
+  /** Roll a d20 for `c`, honouring any status-imposed roll mode
+   *  (`data.rollMode`): disadvantage keeps the lower of two rolls, advantage
+   *  the higher. Disadvantage wins if both are present. */
   rollD20For(c: Character): number {
     const r1 = rollD20();
-    if (!c.hasStatus('condemnat')) return r1;
+    let mode: 'advantage' | 'disadvantage' | null = c.hasStatus('condemnat') ? 'disadvantage' : null;
+    if (mode === null) {
+      for (const entry of c.statuses.values()) {
+        const m = entry.data?.['rollMode'];
+        if (m === 'disadvantage') { mode = m; break; }
+        if (m === 'advantage') mode = m;
+      }
+    }
+    if (mode === null) return r1;
     const r2 = rollD20();
-    return Math.min(r1, r2);
+    return mode === 'disadvantage' ? Math.min(r1, r2) : Math.max(r1, r2);
   }
 
   /** Cancel `target`'s still-pending action this round (Profecia de la fi). An
@@ -181,6 +192,9 @@ export class CombatEngine implements EngineApi, AIView {
     if (amount <= 0) return !target.isAlive();
     // Fúria implacable: while indestructible, no blow can drop you below 1 PV.
     if (target.hasStatus('indestructible')) amount = Math.min(amount, Math.max(0, target.currentPV - 1));
+    // Generic PV floor (`data.pvFloor`): no blow can drop the holder below it.
+    const floor = target.maxStatusData('pvFloor');
+    if (floor > 0) amount = Math.min(amount, Math.max(0, target.currentPV - floor));
     const died = target.loseLife(amount);
     if (died) this.log('death', `${target.name} cau derrotat!`, target.team);
     return died;
@@ -214,10 +228,10 @@ export class CombatEngine implements EngineApi, AIView {
       recipient = guard.defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
-    const dmgRoll = damageDice.roll() + source.getStatusValue('furia', 0);
+    const dmgRoll = damageDice.roll() + source.getStatusValue('furia', 0) + source.sumStatusData('outgoingDamage');
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
     // Fúria: raging defenders shrug off part of every blow ("neither fire nor iron").
-    const dmg = Math.max(0, dmgRoll - armor - recipient.getStatusValue('furia', 0));
+    const dmg = Math.max(0, dmgRoll - armor - recipient.getStatusValue('furia', 0) + recipient.sumStatusData('incomingDamage'));
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
@@ -233,7 +247,7 @@ export class CombatEngine implements EngineApi, AIView {
   // --- Helpers --------------------------------------------------------------
 
   private activeGuard(target: Character): Character['guards'][number] | null {
-    if (target.hasStatus('indefensable')) return null;
+    if (target.hasStatus('indefensable') || target.hasStatusData('noGuard')) return null;
     for (let i = target.guards.length - 1; i >= 0; i--) {
       const g = target.guards[i];
       if (g.defender.isAlive()) return g;
@@ -360,13 +374,35 @@ export class CombatEngine implements EngineApi, AIView {
   get pendingCount(): number { return this.pending.length; }
   get currentPendingIndex(): number { return this.pendingIndex; }
 
-  // --- Estat de flux: post-reveal card swap ---------------------------------
+  // --- Post-reveal card swap -------------------------------------------------
 
-  /** Refs of queued actors who still hold a flow (Estat de flux) charge and may
-   *  swap their revealed card before resolution begins. */
+  /** Charges left on the holder's card-swap status (`data.cardSwap`). */
+  cardSwapCharges(c: Character): number {
+    const legacy = c.getStatusValue('flux', 0);
+    if (legacy > 0) return legacy;
+    const found = c.findStatusWithData('cardSwap');
+    return found ? found[1].value : 0;
+  }
+
+  /** Spend one card-swap charge; clears the status when exhausted. */
+  private spendCardSwapCharge(c: Character): void {
+    if (c.getStatusValue('flux', 0) > 0) {
+      const charges = c.getStatusValue('flux', 0) - 1;
+      if (charges <= 0) c.clearStatus('flux'); else c.setStatus('flux', charges, -1);
+      return;
+    }
+    const found = c.findStatusWithData('cardSwap');
+    if (!found) return;
+    const [key, entry] = found;
+    entry.value--;
+    if (entry.value <= 0) c.clearStatus(key);
+  }
+
+  /** Refs of queued actors who still hold a card-swap charge and may swap
+   *  their revealed card before resolution begins. */
   flowSwapRefs(): TargetRef[] {
     return this.pending
-      .filter(p => p.actor.isAlive() && p.actor.getStatusValue('flux', 0) > 0)
+      .filter(p => p.actor.isAlive() && this.cardSwapCharges(p.actor) > 0)
       .map(p => this.refOf(p.actor));
   }
 
@@ -380,15 +416,14 @@ export class CombatEngine implements EngineApi, AIView {
     const reveal = () => this.pending.map(p => this.reveal(p));
     const actor = this.resolveRef(ref);
     const p = this.pending.find(pp => pp.actor === actor);
-    if (!p || actor.getStatusValue('flux', 0) <= 0) return reveal();
+    if (!p || this.cardSwapCharges(actor) <= 0) return reveal();
     const newAction = actor.actions[newActionIdx];
     if (!newAction || newAction === p.action) return reveal();
     if (!newAction.isAvailable() || actor.isActionSetAside(newActionIdx)) return reveal();
     if ((actor.skills.get(newAction.def.skillId) ?? 0) < newAction.def.unlockLevel) return reveal();
     if (!this.canPlayActionIdx(actor, newActionIdx)) return reveal();
 
-    const charges = actor.getStatusValue('flux', 0) - 1;
-    if (charges <= 0) actor.clearStatus('flux'); else actor.setStatus('flux', charges, -1);
+    this.spendCardSwapCharge(actor);
 
     p.action = newAction;
     p.speed = actor.getEffectiveSpeed(newAction);
@@ -501,6 +536,8 @@ export class CombatEngine implements EngineApi, AIView {
       case ActionType.Atac: {
         // Stepping forward to attack may trip an enemy minefield — possibly fatally.
         this.triggerMinefield(actor);
+        // Generic hazards: enemy statuses may intercept the attacker's advance.
+        this.triggerHazards(actor);
         if (!actor.isAlive()) break;
         this.dispatchPlay(actor, action.def);
         // Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
@@ -511,10 +548,24 @@ export class CombatEngine implements EngineApi, AIView {
           chainMult = entry.value * 2;
           actor.setStatus('cadena', chainMult, -1, entry.data);
         }
+        // Generic attack-action status hooks (ladders, multipliers).
+        const mods = this.collectAttackStatusMods(actor);
+        mods.attackTotalMult = (mods.attackTotalMult ?? 1) * chainMult;
+        mods.damageMult = (mods.damageMult ?? 1) * chainMult;
         const valid = targets.filter(t => this.tierAlive.has(t));
         let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         if (actor.hasStatus('encegat')) list = list.map(t => this.blindRedirect(actor, t));
-        for (const t of list) this.resolveAttackOnTarget(actor, action, t, chainMult);
+        list = this.applyTargetRedirects(actor, list);
+        for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods);
+        // Generic repeat seam: statuses may grant extra full passes over the
+        // still-living targets (stimulants, flurries).
+        const repeats = this.collectAttackRepeats(actor);
+        for (let r = 0; r < repeats; r++) {
+          if (!actor.isAlive()) break;
+          const alive = list.filter(t => t.isAlive());
+          if (alive.length === 0) break;
+          for (const t of alive) this.resolveAttackOnTarget(actor, action, t, mods);
+        }
         if (action.def.isConsumable) action.consumed = true;
         break;
       }
@@ -529,6 +580,79 @@ export class CombatEngine implements EngineApi, AIView {
         }
         break;
       }
+    }
+  }
+
+  // --- Status behaviour dispatch ---------------------------------------------
+
+  private statusCtx(holder: Character, key: string, entry: StatusEntry, extra: Partial<StatusHookContext> = {}): StatusHookContext {
+    return { engine: this, holder, key, entry, ...extra };
+  }
+
+  /** Snapshot of a character's statuses with a registered behaviour (safe to
+   *  mutate/clear statuses while iterating). */
+  private behaviorStatuses(c: Character): { key: string; entry: StatusEntry; behavior: StatusBehavior }[] {
+    const out: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
+    for (const [key, entry] of c.statuses) {
+      const behavior = this.registry.getStatusBehavior(key);
+      if (behavior) out.push({ key, entry, behavior });
+    }
+    return out;
+  }
+
+  /** onAttackAction over the attacker's statuses; multipliers combine. */
+  private collectAttackStatusMods(actor: Character): AttackStatusMods {
+    const mods: AttackStatusMods = {};
+    for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
+      const m = behavior.onAttackAction?.(this.statusCtx(actor, key, entry));
+      if (!m) continue;
+      if (m.attackTotalMult !== undefined) mods.attackTotalMult = (mods.attackTotalMult ?? 1) * m.attackTotalMult;
+      if (m.damageMult !== undefined) mods.damageMult = (mods.damageMult ?? 1) * m.damageMult;
+    }
+    return mods;
+  }
+
+  /** redirectAttackTarget over the attacker's statuses, applied per target. */
+  private applyTargetRedirects(actor: Character, list: Character[]): Character[] {
+    let out = list;
+    for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
+      if (!behavior.redirectAttackTarget) continue;
+      out = out.map(t => behavior.redirectAttackTarget!(this.statusCtx(actor, key, entry), t));
+    }
+    return out;
+  }
+
+  /** onEnemyAttackAction over the opposing team's statuses (dead holders
+   *  included — hazards outlive their layer). Stops at the first handled. */
+  private triggerHazards(attacker: Character): void {
+    for (const holder of this.teams[1 - attacker.team]) {
+      for (const { key, entry, behavior } of this.behaviorStatuses(holder)) {
+        if (!behavior.onEnemyAttackAction) continue;
+        if (behavior.onEnemyAttackAction(this.statusCtx(holder, key, entry), attacker)) return;
+      }
+    }
+  }
+
+  /** attackRepeats summed over the attacker's statuses. */
+  private collectAttackRepeats(actor: Character): number {
+    let repeats = 0;
+    for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
+      repeats += behavior.attackRepeats?.(this.statusCtx(actor, key, entry)) ?? 0;
+    }
+    return repeats;
+  }
+
+  /** onRoundEnd for every combatant's registered statuses (snapshot first —
+   *  behaviours may set statuses on others without re-triggering this round). */
+  private dispatchStatusRoundEnd(): void {
+    const snapshot: { holder: Character; key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
+    for (const holder of this.allCombatants()) {
+      for (const s of this.behaviorStatuses(holder)) snapshot.push({ holder, ...s });
+    }
+    for (const { holder, key, entry, behavior } of snapshot) {
+      if (!holder.statuses.has(key)) continue; // cleared by an earlier hook
+      const played = this.pending.find(p => p.actor === holder);
+      behavior.onRoundEnd?.(this.statusCtx(holder, key, entry, { playedAction: played ? played.action.def : null }));
     }
   }
 
@@ -562,29 +686,29 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, chainMult = 1): void {
+  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods = {}): void {
     const def = action.def;
     const mods: AttackModifiers = newAttackModifiers();
     this.dispatch('modifyAttack', source, def, { targets: [target], target, attackMods: mods });
 
-    // A reap (Mà de la tomba) passes over any target that isn't doomed.
+    // An effect may pass over this target entirely — no roll, no damage.
     if (mods.skip) return;
 
-    // Finta and similar feints bypass the guard entirely (treated as undefended).
+    // Feints bypass the guard entirely (treated as undefended).
     const guard = mods.ignoreDefense ? null : this.activeGuard(target);
     let recipient = target;
     let hit: boolean;
     let margin: number;
 
-    if (guard && guard.defender.hasStatus('aguantant')) {
-      // Aguantar el cop: zero defence — the blow always lands in full, fuelling wrath.
+    if (guard && (guard.defender.hasStatus('aguantant') || guard.defender.hasStatusData('guardAbsorb'))) {
+      // Absorbing guard: zero defence — the blow always lands in full on the guard.
       hit = true; margin = Infinity; recipient = guard.defender;
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const atkRoll = this.rollD20For(source);
-      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.getStatusValue('marca-objectiu', 0);
-      // Chain (Atac encadenat) doubles {ATK} each compounding turn.
-      const attackerTotal = (atkRoll + atkBonus) * chainMult;
+      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.getStatusValue('marca-objectiu', 0) + target.sumStatusData('rollBonusAgainstHolder');
+      // Status multipliers (attack chains) scale the whole attack total.
+      const attackerTotal = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
       const defender = guard.defender;
       const defRoll = this.rollD20For(defender);
       const defBonus = defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
@@ -612,16 +736,26 @@ export class CombatEngine implements EngineApi, AIView {
     dmgRoll += source.getStatusValue('arma-enverinada', 0);
     // Fúria: a raging attacker's blows hit harder.
     dmgRoll += source.getStatusValue('furia', 0);
-    // Chain (Atac encadenat) doubles damage each compounding turn.
-    dmgRoll *= chainMult;
+    // Generic status damage bonus (`data.outgoingDamage`).
+    dmgRoll += source.sumStatusData('outgoingDamage');
+    // Status multipliers (attack chains) scale the damage too.
+    dmgRoll *= statusMods.damageMult ?? 1;
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
     let dmg = Math.max(0, dmgRoll - armor);
     if (recipient.hasStatus('marca-mortal') && dmg > 0) {
       dmg += recipient.getStatusValue('marca-mortal', 0);
       recipient.clearStatus('marca-mortal');
     }
+    // Generic one-shot wound bonus (`data.woundBonus`), consumed on the wound.
+    if (dmg > 0) {
+      for (const [key, entry] of recipient.statuses) {
+        const wb = entry.data?.['woundBonus'];
+        if (typeof wb === 'number' && wb > 0) { dmg += wb; recipient.statuses.delete(key); }
+      }
+    }
     // Fúria: a raging defender shrugs off part of every blow ("neither fire nor iron").
-    dmg = Math.max(0, dmg - recipient.getStatusValue('furia', 0));
+    // Generic form: `data.incomingDamage` (negative = reduction).
+    dmg = Math.max(0, dmg - recipient.getStatusValue('furia', 0) + recipient.sumStatusData('incomingDamage'));
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
@@ -638,6 +772,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.applyChainBreaks();
     this.applyStatusTicks();
     this.spreadPlague();
+    this.dispatchStatusRoundEnd();
     this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
     this.pending = [];
