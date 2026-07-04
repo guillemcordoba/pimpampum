@@ -15,6 +15,6 @@ const GOBLIN_SKILL: SkillDefinition = {
 };
 
 export const GOBLIN: EnemyModule = {
-  template: { id: 'goblin', displayName: 'Goblin', classCss: 'goblin', iconPath: ICON + 'delapouite/goblin-head.svg', role: 'horda', difficulty: 0.77, skills: ['goblin'], suggestedLevel: 20 },
+  template: { id: 'goblin', displayName: 'Goblin', classCss: 'goblin', iconPath: ICON + 'delapouite/goblin-head.svg', role: 'horda', difficulty: 0.80, skills: ['goblin'], suggestedLevel: 20 },
   skills: [GOBLIN_SKILL],
 };
