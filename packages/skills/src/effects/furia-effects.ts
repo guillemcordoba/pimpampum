@@ -3,11 +3,11 @@ import { num, applyMod, bestSaveBonus } from './helpers.js';
 
 /**
  * Fúria (Rage / barbarian) effect handlers. The skill is weapon-agnostic (attacks
- * use the generic `weapon_damage`); these handlers cover its fury-specific mechanics.
- * Three engine statuses are read inline by the combat engine (like condemnat/encegat):
- *   - `furia`        — +value damage dealt and −value damage taken while raging.
- *   - `aguantant`    — the guard's defender always takes the full blow (no contest).
- *   - `indestructible` — PV cannot drop below 1.
+ * use the generic `weapon_damage`); these handlers cover its fury-specific
+ * mechanics through generic status data:
+ *   - `furia`          — outgoingDamage +value / incomingDamage −value while raging.
+ *   - `aguantant`      — guardAbsorb: the defender takes the full blow, no contest.
+ *   - `indestructible` — pvFloor 1: PV cannot drop below 1.
  */
 export const FURIA_EFFECTS: Record<string, EffectHandler> = {
   // Entrar en Fúria: enter the battle-trance. While the `furia` status is up, the
@@ -18,7 +18,7 @@ export const FURIA_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const value = num(ctx.params, 'value', 5);
       const turns = num(ctx.params, 'turns', 3);
-      ctx.source.setStatus('furia', value, turns);
+      ctx.source.setStatus('furia', value, turns, { outgoingDamage: value, incomingDamage: -value });
       ctx.engine.log('focus', `${ctx.source.name} entra en fúria! (+${value} dany, −${value} dany rebut)`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.actor.hasStatus('furia') ? 0 : 1.4; },

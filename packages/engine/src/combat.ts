@@ -224,10 +224,9 @@ export class CombatEngine implements EngineApi, AIView {
       recipient = guard.defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
-    const dmgRoll = damageDice.roll() + source.getStatusValue('furia', 0) + source.sumStatusData('outgoingDamage');
+    const dmgRoll = damageDice.roll() + source.sumStatusData('outgoingDamage');
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    // Fúria: raging defenders shrug off part of every blow ("neither fire nor iron").
-    const dmg = Math.max(0, dmgRoll - armor - recipient.getStatusValue('furia', 0) + recipient.sumStatusData('incomingDamage'));
+    const dmg = Math.max(0, dmgRoll - armor + recipient.sumStatusData('incomingDamage'));
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
@@ -702,7 +701,7 @@ export class CombatEngine implements EngineApi, AIView {
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const atkRoll = this.rollD20For(source);
-      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.getStatusValue('marca-objectiu', 0) + target.sumStatusData('rollBonusAgainstHolder');
+      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + target.sumStatusData('rollBonusAgainstHolder');
       // Status multipliers (attack chains) scale the whole attack total.
       const attackerTotal = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
       const defender = guard.defender;
@@ -729,19 +728,12 @@ export class CombatEngine implements EngineApi, AIView {
     let dmgRoll = def.damageDice ? def.damageDice.roll() : 0;
     for (const d of mods.extraDamageDice) dmgRoll += d.roll();
     dmgRoll += mods.bonusDamage;
-    dmgRoll += source.getStatusValue('arma-enverinada', 0);
-    // Fúria: a raging attacker's blows hit harder.
-    dmgRoll += source.getStatusValue('furia', 0);
     // Generic status damage bonus (`data.outgoingDamage`).
     dmgRoll += source.sumStatusData('outgoingDamage');
     // Status multipliers (attack chains) scale the damage too.
     dmgRoll *= statusMods.damageMult ?? 1;
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
     let dmg = Math.max(0, dmgRoll - armor);
-    if (recipient.hasStatus('marca-mortal') && dmg > 0) {
-      dmg += recipient.getStatusValue('marca-mortal', 0);
-      recipient.clearStatus('marca-mortal');
-    }
     // Generic one-shot wound bonus (`data.woundBonus`), consumed on the wound.
     if (dmg > 0) {
       for (const [key, entry] of recipient.statuses) {
@@ -749,9 +741,9 @@ export class CombatEngine implements EngineApi, AIView {
         if (typeof wb === 'number' && wb > 0) { dmg += wb; recipient.statuses.delete(key); }
       }
     }
-    // Fúria: a raging defender shrugs off part of every blow ("neither fire nor iron").
-    // Generic form: `data.incomingDamage` (negative = reduction).
-    dmg = Math.max(0, dmg - recipient.getStatusValue('furia', 0) + recipient.sumStatusData('incomingDamage'));
+    // Generic status damage adjustment on the receiving end
+    // (`data.incomingDamage`, negative = reduction).
+    dmg = Math.max(0, dmg + recipient.sumStatusData('incomingDamage'));
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);

@@ -100,38 +100,40 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.5 ? 1.6 : 0.7; },
   },
 
-  // Mark an enemy: future attacks against them by the attacker's team get +amount roll.
-  // The bonus is read by the engine from the 'marca-objectiu' status on the target.
+  // Mark an enemy: attack rolls against them get +amount (generic
+  // `rollBonusAgainstHolder` status data).
   mark_target: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 4);
       const turns = num(ctx.params, 'turns', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-objectiu', amt, turns);
+        t.setStatus('marca-objectiu', amt, turns, { rollBonusAgainstHolder: amt });
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight() { return 1; },
   },
 
-  // Distribute a "poisoned weapon" status (extra damage per hit) to up to `count` allies.
+  // Distribute a "poisoned weapon" status (extra damage per hit, generic
+  // `outgoingDamage` status data) to up to `count` allies.
   weapon_buff: {
     onResolve(ctx) {
       const amount = num(ctx.params, 'amount', 1);
       const count = num(ctx.params, 'count', 3);
       const turns = num(ctx.params, 'turns', -1);
       const allies = ctx.engine.alliesOf(ctx.source, true).slice(0, count);
-      for (const a of allies) a.setStatus('arma-enverinada', amount, turns);
+      for (const a of allies) a.setStatus('arma-enverinada', amount, turns, { outgoingDamage: amount });
     },
     aiWeight() { return 0.9; },
   },
 
-  // Mark an enemy: their next received wound costs an extra `amount` PV.
+  // Mark an enemy: their next received wound costs an extra `amount` PV
+  // (generic one-shot `woundBonus` status data).
   doom_mark: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1));
+        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1), { woundBonus: amt });
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
