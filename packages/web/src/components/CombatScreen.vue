@@ -26,7 +26,7 @@ const flowSwapHands = computed(() =>
   g.flowSwappers.value.map((idx) => {
     const c = playerTeam.value[idx];
     const currentActionId = revealed.value.find(r => r.actorTeam === 0 && r.actorIdx === idx)?.actionId;
-    return { idx, c, currentActionId, flux: c.getStatusValue('flux', 0) };
+    return { idx, c, currentActionId, flux: g.cardSwapCharges(idx) };
   }));
 
 /**

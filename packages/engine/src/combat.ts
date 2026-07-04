@@ -373,19 +373,12 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Charges left on the holder's card-swap status (`data.cardSwap`). */
   cardSwapCharges(c: Character): number {
-    const legacy = c.getStatusValue('flux', 0);
-    if (legacy > 0) return legacy;
     const found = c.findStatusWithData('cardSwap');
     return found ? found[1].value : 0;
   }
 
   /** Spend one card-swap charge; clears the status when exhausted. */
   private spendCardSwapCharge(c: Character): void {
-    if (c.getStatusValue('flux', 0) > 0) {
-      const charges = c.getStatusValue('flux', 0) - 1;
-      if (charges <= 0) c.clearStatus('flux'); else c.setStatus('flux', charges, -1);
-      return;
-    }
     const found = c.findStatusWithData('cardSwap');
     if (!found) return;
     const [key, entry] = found;
@@ -529,27 +522,14 @@ export class CombatEngine implements EngineApi, AIView {
         break;
       }
       case ActionType.Atac: {
-        // Stepping forward to attack may trip an enemy minefield — possibly fatally.
-        this.triggerMinefield(actor);
-        // Generic hazards: enemy statuses may intercept the attacker's advance.
+        // Stepping forward to attack may trip enemy hazards — possibly fatally.
         this.triggerHazards(actor);
         if (!actor.isAlive()) break;
         this.dispatchPlay(actor, action.def);
-        // Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
-        // applied to {ATK} and damage of every target struck this turn.
-        let chainMult = 1;
-        if (actor.hasStatus('cadena')) {
-          const entry = actor.getStatus('cadena')!;
-          chainMult = entry.value * 2;
-          actor.setStatus('cadena', chainMult, -1, entry.data);
-        }
         // Generic attack-action status hooks (ladders, multipliers).
         const mods = this.collectAttackStatusMods(actor);
-        mods.attackTotalMult = (mods.attackTotalMult ?? 1) * chainMult;
-        mods.damageMult = (mods.damageMult ?? 1) * chainMult;
         const valid = targets.filter(t => this.tierAlive.has(t));
         let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
-        if (actor.hasStatus('encegat')) list = list.map(t => this.blindRedirect(actor, t));
         list = this.applyTargetRedirects(actor, list);
         for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods);
         // Generic repeat seam: statuses may grant extra full passes over the
@@ -651,36 +631,6 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  /** Smoke (encegat): the blinded attacker fires through the haze — on a d20 ≤ 10
-   *  the shot lands on a random living combatant instead of its intended target. */
-  private blindRedirect(actor: Character, intended: Character): Character {
-    if (rollD20() > 10) return intended;
-    const pool = this.allLiving().filter(c => c !== actor);
-    if (pool.length === 0) return intended;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    if (pick !== intended) this.log('info', `${actor.name} dispara a cegues dins el fum i apunta cap a ${pick.name}!`, actor.team);
-    return pick;
-  }
-
-  /** An attacking character may trip a mine laid by the opposing team (Camp minat).
-   *  Each live minefield gives a d20 ≤ 10 chance to deal its blast (ignoring armour)
-   *  and consume one mine. Minefields persist even if their layer has fallen. */
-  private triggerMinefield(actor: Character): void {
-    for (const layer of this.teams[1 - actor.team]) {
-      const mf = layer.getStatus('camp-minat');
-      if (!mf || mf.value <= 0) continue;
-      if (rollD20() <= 10) {
-        const dice = mf.data?.damage as DiceRoll | undefined;
-        const dmg = dice ? dice.roll() : 1;
-        this.log('trap', `${actor.name} trepitja una mina! (${dmg} dany)`, actor.team);
-        this.applyPvLoss(actor, dmg, undefined);
-        mf.value--;
-        if (mf.value <= 0) { layer.clearStatus('camp-minat'); this.log('info', 'El camp de mines s’esgota.', layer.team); }
-      }
-      return; // one minefield check per attack
-    }
-  }
-
   private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods = {}): void {
     const def = action.def;
     const mods: AttackModifiers = newAttackModifiers();
@@ -757,9 +707,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** End-of-round: coordinated hooks, damage-over-time / regen, and turn advance. */
   finishRound(): void {
     for (const p of this.pending) this.dispatch('postRound', p.actor, p.action.def, { targets: p.targets ?? [] });
-    this.applyChainBreaks();
     this.applyStatusTicks();
-    this.spreadPlague();
     this.dispatchStatusRoundEnd();
     this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
@@ -776,39 +724,6 @@ export class CombatEngine implements EngineApi, AIView {
     for (const p of this.pending) {
       if (!p.actor.isAlive()) continue;
       p.actor.fatigue += p.action.def.fatigueCost ?? DEFAULT_FATIGUE_COST;
-    }
-  }
-
-  /** Atac encadenat lifecycle: the chain breaks unless its holder played an attack
-   *  this round (the arming round, marked by data.armedRound, is exempt). */
-  private applyChainBreaks(): void {
-    for (const c of this.allCombatants()) {
-      const chain = c.getStatus('cadena');
-      if (!chain) continue;
-      if (chain.data?.armedRound === this.round) continue;
-      const played = this.pending.find(p => p.actor === c);
-      const attacked = played?.action.def.actionType === ActionType.Atac;
-      if (!attacked) c.clearStatus('cadena');
-    }
-  }
-
-  /** Contagious decay (Putrefacció): each round the plague may jump to one more
-   *  uninfected member of any team that already carries it — on a d20 ≤ 10. */
-  private spreadPlague(): void {
-    for (const team of this.teams) {
-      const living = team.filter(c => c.isAlive());
-      const infected = living.filter(c => c.hasStatus('putrefaccio'));
-      if (infected.length === 0) continue;
-      const clean = living.filter(c => !c.hasStatus('putrefaccio'));
-      if (clean.length === 0) continue;
-      if (rollD20() >= 10) continue; // contagion spreads on a d20 < 10
-
-      const src = infected[0].getStatus('putrefaccio')!;
-      const dot = (src.data?.dot as number) ?? src.value;
-      const turns = (src.data?.turns as number) ?? src.remaining;
-      const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
-      victim.setStatus('putrefaccio', dot, turns, { dot, turns });
-      this.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
     }
   }
 

@@ -1,8 +1,13 @@
-import { ActionDefinition, ActionType, ActionEffect, DiceRoll } from '@pimpampum/engine';
+import { ActionDefinition, ActionType, ActionEffect, DiceRoll, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 
 export const ICON_PREFIX = 'icons/000000/transparent/1x1/';
 
-/** A skill groups a set of actions unlocked at increasing levels. */
+/** A skill groups a set of actions unlocked at increasing levels.
+ *
+ *  A skill file is self-contained: effect handlers and status behaviours that
+ *  pertain to a single skill are defined HERE, on the SkillDefinition
+ *  (`effects` / `statusBehaviors`), and registered by `registerSkills`. Only
+ *  generic parameterised handlers shared across skills live in `effects/`. */
 export interface SkillDefinition {
   id: string;
   displayName: string;
@@ -14,6 +19,10 @@ export interface SkillDefinition {
   /** Whether this skill is typical for players or enemies (UI filtering only). */
   category: 'player' | 'enemy';
   actions: ActionDefinition[];
+  /** Effect handlers specific to this skill (keyed by effect `type`). */
+  effects?: Record<string, EffectHandler>;
+  /** Status behaviours specific to this skill (keyed by status key). */
+  statusBehaviors?: Record<string, StatusBehavior>;
 }
 
 interface ActionOpts {

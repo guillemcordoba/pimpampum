@@ -168,6 +168,13 @@ export function useGame() {
     flowSwappers.value = eng.flowSwapRefs().filter(r => r.team === 0).map(r => r.idx);
   }
 
+  /** Remaining card-swap charges of a team-0 character. */
+  function cardSwapCharges(charIdx: number): number {
+    const eng = engine.value;
+    const c = eng?.teams[0][charIdx];
+    return eng && c ? eng.cardSwapCharges(c as Character) : 0;
+  }
+
   function startResolving() {
     gamePhase.value = 'resolving';
     advanceResolution();
@@ -274,7 +281,7 @@ export function useGame() {
     highlightedTarget, roundComplete, flowSwappers,
     addPlayer, removePlayer, addEnemy, removeEnemy, canStart, startCombat,
     selectCard, canConfirmCards, confirmCards, startResolving, advanceResolution,
-    selectTarget, confirmTargets, nextRound, playAgain, flowSwapCard,
+    selectTarget, confirmTargets, nextRound, playAgain, flowSwapCard, cardSwapCharges,
   };
 }
 

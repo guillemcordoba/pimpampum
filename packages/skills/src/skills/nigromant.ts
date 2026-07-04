@@ -1,15 +1,106 @@
-import { ActionType } from '@pimpampum/engine';
+import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { num, tspec, resolveTargets, targetReq } from '../effects/helpers.js';
 
 /**
  * Nigromant — a doom-mark curse-caster. Marca de la perdició condemns a foe
- * (`condemnat`: disadvantage on all rolls, −3 speed, no Focus, reapable);
- * Mà de la tomba reaps every doomed enemy through armour and defenses;
- * Putrefacció is a contagious decay; Xuclar la vida drains to self-heal;
- * Invocar l'ombra de l'infern condemns the whole enemy party. No pets, no
- * defense — a Power-corner attrition controller. See `nigromant-effects.ts`
- * and the engine's condemnat hooks (rollD20For / getEffectiveSpeed / focus-lockout).
+ * (`condemnat`: disadvantage on all rolls, −3 speed, reapable — via generic
+ * `rollMode` / `speedMod` status data); Mà de la tomba reaps every doomed
+ * enemy through armour and defenses; Putrefacció is a contagious decay (its
+ * spread is the `putrefaccio` status behaviour below); Xuclar la vida drains
+ * to self-heal; Invocar l'ombra de l'infern condemns the whole enemy party.
+ * No pets, no defense — a Power-corner attrition controller.
  */
+const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
+  // Apply the doom mark to the targets (Marca de la perdició: 1 / Invocar
+  // l'ombra de l'infern: all enemies). `turns` defaults to 3.
+  condemn: {
+    onResolve(ctx) {
+      const turns = num(ctx.params, 'turns', 3);
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        t.setStatus('condemnat', 1, turns, { rollMode: 'disadvantage', speedMod: -3 });
+      }
+    },
+    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
+    aiWeight(ctx) {
+      // Worth more when there are undoomed enemies left to mark.
+      const undoomed = ctx.enemies.filter(e => !e.hasStatus('condemnat')).length;
+      return undoomed > 0 ? 1.5 : 0.1;
+    },
+  },
+
+  // Mà de la tomba: a reap that only strikes the doomed, ignoring armour and
+  // defenses. Non-doomed targets are skipped entirely.
+  reap: {
+    modifyAttack(ctx) {
+      if (!ctx.attackMods || !ctx.target) return;
+      if (!ctx.target.hasStatus('condemnat')) { ctx.attackMods.skip = true; return; }
+      ctx.attackMods.ignoreArmor = true;
+      ctx.attackMods.ignoreDefense = true;
+    },
+    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
+    aiWeight(ctx) {
+      const doomed = ctx.enemies.filter(e => e.hasStatus('condemnat')).length;
+      return doomed > 0 ? 2 + doomed * 1.5 : -10; // useless without doomed foes
+    },
+  },
+
+  // Profecia de la fi: cancel one enemy's still-pending (slower) action.
+  cancel_action: {
+    onResolve(ctx) {
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        const ok = ctx.engine.cancelPendingAction(t);
+        ctx.engine.log('focus', ok
+          ? `${ctx.source.name} preveu i cancel·la l'acció de ${t.name}.`
+          : `${ctx.source.name} no arriba a temps de cancel·lar ${t.name}.`, ctx.source.team);
+      }
+    },
+    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
+    aiWeight() { return 1.4; },
+  },
+
+  // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored, via
+  // the generic status dot) and spreads +1 enemy/round (status behaviour below).
+  plague: {
+    onResolve(ctx) {
+      const dmg = num(ctx.params, 'damage', 3);
+      const turns = num(ctx.params, 'turns', 3);
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        t.setStatus('putrefaccio', dmg, turns, { dot: dmg, turns });
+      }
+    },
+    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
+    aiWeight(ctx) {
+      const clean = ctx.enemies.filter(e => !e.hasStatus('putrefaccio')).length;
+      return clean > 0 ? 1.3 : 0.2;
+    },
+  },
+};
+
+const NIGROMANT_STATUSES: Record<string, StatusBehavior> = {
+  // Contagious decay: each round the plague may jump to one more uninfected
+  // member of any team that already carries it — on a d20 < 10. Exactly one
+  // spread check per infected team per round (only the first living infected
+  // member runs it).
+  putrefaccio: {
+    onRoundEnd(ctx) {
+      const engine = ctx.engine;
+      const living = engine.livingTeam(engine.teamOf(ctx.holder));
+      const infected = living.filter(c => c.hasStatus('putrefaccio'));
+      if (infected.length === 0 || infected[0] !== ctx.holder) return;
+      const clean = living.filter(c => !c.hasStatus('putrefaccio'));
+      if (clean.length === 0) return;
+      if (engine.rollD20() >= 10) return; // contagion spreads on a d20 < 10
+
+      const dot = (ctx.entry.data?.['dot'] as number) ?? ctx.entry.value;
+      const turns = (ctx.entry.data?.['turns'] as number) ?? ctx.entry.remaining;
+      const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
+      victim.setStatus('putrefaccio', dot, turns, { dot, turns });
+      engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
+    },
+  },
+};
+
 export const NIGROMANT: SkillDefinition = {
   id: 'nigromant', displayName: 'Nigromant', classCss: 'nigromant', category: 'player',
   description: 'Llançador de malediccions: condemna els enemics, els podreix i els xucla la vida.',
@@ -58,4 +149,6 @@ export const NIGROMANT: SkillDefinition = {
       icon: 'lorc/tentacles-skull.svg',
     }),
   ],
+  effects: NIGROMANT_EFFECTS,
+  statusBehaviors: NIGROMANT_STATUSES,
 };
