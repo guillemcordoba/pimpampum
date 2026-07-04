@@ -97,7 +97,7 @@ export interface EquipmentDefinition {
   /**
    * Weapon damage dice. Only matters for actions carrying the `weapon_damage`
    * effect — those deal the wielded main-hand weapon's dice instead of their own.
-   * Generic: any weapon-using skill (Weapon Master, Berserk…) reads it.
+   * Generic: any weapon-using skill's effects may read it.
    */
   damageDice?: DiceRoll;
   iconPath: string;

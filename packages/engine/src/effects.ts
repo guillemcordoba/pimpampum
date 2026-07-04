@@ -43,8 +43,8 @@ export interface EngineApi {
 
   /** Roll a d20 (exposed so handlers stay deterministic with engine RNG hooks). */
   rollD20(): number;
-  /** Roll a d20 for a specific character, applying disadvantage when they are
-   *  doomed (`condemnat`): rolls twice and takes the lower. */
+  /** Roll a d20 for a specific character, honouring any status-imposed roll
+   *  mode (`data.rollMode`: disadvantage/advantage rolls twice, worst/best). */
   rollD20For(c: Character): number;
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
@@ -59,8 +59,8 @@ export interface AttackModifiers {
   ignoreArmor: boolean;
   /** Treat the target as undefended — ignore any active guard (feints). */
   ignoreDefense: boolean;
-  /** Skip this target entirely — no roll, no damage (e.g. a reap that only
-   *  strikes the doomed passes over everyone else). */
+  /** Skip this target entirely — no roll, no damage (e.g. an attack that only
+   *  strikes marked targets passes over everyone else). */
   skip: boolean;
   /** Flat extra PV damage on a hit (after armour). */
   bonusDamage: number;
@@ -122,9 +122,10 @@ export interface EffectHandler {
   onAttackMiss?(ctx: EffectContext): void;
   /** A defense action successfully blocked an incoming attack (counter/retaliate). */
   onDefend?(ctx: EffectContext): void;
-  /** A defense action failed to block — the defender takes damage (berserker rage). */
+  /** A defense action failed to block — the defender takes damage. */
   onBlockFail?(ctx: EffectContext): void;
-  /** Coordinated end-of-round step (e.g. Nimble Escape group bonus). */
+  /** Coordinated end-of-round step for actions played this round (see
+   *  StatusBehavior.onRoundEnd for hooks that run regardless of the action). */
   postRound?(ctx: EffectContext): void;
   /** Targeting requirement for an action carrying this effect. */
   getTargetRequirement?(params: Record<string, unknown>): TargetRequirement;

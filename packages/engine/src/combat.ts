@@ -95,7 +95,7 @@ interface PendingAction {
   speed: number;
   /** null until targeted (human prompt) or auto-filled (AI / trivial). */
   targets: Character[] | null;
-  /** Set by Profecia de la fi: a foreseen action that never resolves. */
+  /** Set by cancelPendingAction: a cancelled action that never resolves. */
   cancelled?: boolean;
 }
 
@@ -171,9 +171,9 @@ export class CombatEngine implements EngineApi, AIView {
     return mode === 'disadvantage' ? Math.min(r1, r2) : Math.max(r1, r2);
   }
 
-  /** Cancel `target`'s still-pending action this round (Profecia de la fi). An
-   *  action that already resolved (a faster one) can't be cancelled — that is
-   *  what makes Profecia speed-gated. Returns true if something was cancelled. */
+  /** Cancel `target`'s still-pending action this round. An action that already
+   *  resolved (a faster one) can't be cancelled — cancellation is speed-gated.
+   *  Returns true if something was cancelled. */
   cancelPendingAction(target: Character): boolean {
     for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
       const p = this.pending[i];
@@ -454,7 +454,7 @@ export class CombatEngine implements EngineApi, AIView {
       return { kind: 'resolved', logs: [], action: this.reveal(cur), done: this.pendingIndex >= this.pending.length };
     }
 
-    // Foreseen and cancelled by Profecia de la fi — the action never happens.
+    // Cancelled while still pending — the action never happens.
     if (cur.cancelled) {
       const before = this.logEntries.length;
       this.log('interrupt', `L'acció «${cur.action.def.name}» de ${cur.actor.name} es cancel·la.`, cur.actor.team);
