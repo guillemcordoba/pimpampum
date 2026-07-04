@@ -4,6 +4,7 @@ import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
 import { MESTRE_ARMES } from './skills/weapon-master.js';
 import { NIGROMANT } from './skills/nigromant.js';
 import { FURIA } from './skills/furia.js';
+import { METGE } from './skills/metge.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
@@ -11,6 +12,7 @@ export const ALL_SKILLS: SkillDefinition[] = [
   MESTRE_ARMES,
   NIGROMANT,
   FURIA,
+  METGE,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;
