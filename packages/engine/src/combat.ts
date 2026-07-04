@@ -188,8 +188,6 @@ export class CombatEngine implements EngineApi, AIView {
 
   applyPvLoss(target: Character, amount: number, _source?: Character): boolean {
     if (amount <= 0) return !target.isAlive();
-    // Fúria implacable: while indestructible, no blow can drop you below 1 PV.
-    if (target.hasStatus('indestructible')) amount = Math.min(amount, Math.max(0, target.currentPV - 1));
     // Generic PV floor (`data.pvFloor`): no blow can drop the holder below it.
     const floor = target.maxStatusData('pvFloor');
     if (floor > 0) amount = Math.min(amount, Math.max(0, target.currentPV - floor));
@@ -245,7 +243,7 @@ export class CombatEngine implements EngineApi, AIView {
   // --- Helpers --------------------------------------------------------------
 
   private activeGuard(target: Character): Character['guards'][number] | null {
-    if (target.hasStatus('indefensable') || target.hasStatusData('noGuard')) return null;
+    if (target.hasStatusData('noGuard')) return null;
     for (let i = target.guards.length - 1; i >= 0; i--) {
       const g = target.guards[i];
       if (g.defender.isAlive()) return g;
@@ -698,7 +696,7 @@ export class CombatEngine implements EngineApi, AIView {
     let hit: boolean;
     let margin: number;
 
-    if (guard && (guard.defender.hasStatus('aguantant') || guard.defender.hasStatusData('guardAbsorb'))) {
+    if (guard && guard.defender.hasStatusData('guardAbsorb')) {
       // Absorbing guard: zero defence — the blow always lands in full on the guard.
       hit = true; margin = Infinity; recipient = guard.defender;
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);

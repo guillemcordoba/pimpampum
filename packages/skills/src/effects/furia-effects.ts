@@ -53,7 +53,7 @@ export const FURIA_EFFECTS: Record<string, EffectHandler> = {
   rage_from_pain: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      ctx.source.setStatus('aguantant', 1, 1);
+      ctx.source.setStatus('aguantant', 1, 1, { guardAbsorb: true });
     },
     onBlockFail(ctx) {
       const dmg = ctx.damageDealt ?? 0;
@@ -72,7 +72,7 @@ export const FURIA_EFFECTS: Record<string, EffectHandler> = {
       const turns = num(ctx.params, 'turns', 3);
       if (!ctx.source.hasStatus('indestructible')) {
         ctx.source.currentPV = 1;
-        ctx.source.setStatus('indestructible', 1, turns);
+        ctx.source.setStatus('indestructible', 1, turns, { pvFloor: 1 });
         ctx.engine.log('attack', `${ctx.source.name} ho aposta tot: 1 PV i indestructible ${turns} torns!`, ctx.source.team);
       }
     },

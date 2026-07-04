@@ -148,7 +148,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
   undefendable_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target) return;
-      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2));
+      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2), { noGuard: true });
     },
     aiWeight() { return 0.6; },
   },
