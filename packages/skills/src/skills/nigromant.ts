@@ -17,9 +17,14 @@ const CONDEMNAT: StatusBehavior = {
   modifySpeed() { return -3; },
 };
 
-// Contagious decay: ticks `value` PV each round and may jump to one more
-// uninfected member of the holder's team — on a d20 < 10, once per infected
-// team per round (only the first living infected member runs the check).
+// Contagious decay: ticks `value` PV each round. Each round, every living
+// member of the holder's team who has never been infected rolls a d20 and
+// catches a fresh infection on < 5 — once infected, a character can never
+// catch it again (tracked per combat in `everInfected`). Only the first
+// living infected member runs the contagion phase, so it happens once per
+// team per round.
+const everInfected = new WeakSet<object>();
+
 const PUTREFACCIO: StatusBehavior = {
   onRoundEnd(ctx) {
     const { engine, holder, entry } = ctx;
@@ -30,14 +35,15 @@ const PUTREFACCIO: StatusBehavior = {
     const living = engine.livingTeam(engine.teamOf(holder));
     const infected = living.filter(c => c.hasStatus('putrefaccio'));
     if (infected.length === 0 || infected[0] !== holder) return;
-    const clean = living.filter(c => !c.hasStatus('putrefaccio'));
-    if (clean.length === 0) return;
-    if (engine.rollD20() >= 10) return; // contagion spreads on a d20 < 10
 
     const turns = (entry.data?.['turns'] as number) ?? entry.remaining;
-    const victim = clean.sort((a, b) => a.currentPV - b.currentPV)[0];
-    victim.setStatus('putrefaccio', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
-    engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
+    for (const victim of living) {
+      if (everInfected.has(victim) || victim.hasStatus('putrefaccio')) continue;
+      if (engine.rollD20() >= 5) continue; // catches it on a d20 < 5
+      everInfected.add(victim);
+      victim.setStatus('putrefaccio', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
+      engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
+    }
   },
 };
 
@@ -89,13 +95,14 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1.4; },
   },
 
-  // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored) and
-  // spreads +1 enemy/round — see the PUTREFACCIO behaviour above.
+  // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored);
+  // spread to never-infected teammates — see the PUTREFACCIO behaviour above.
   plague: {
     onResolve(ctx) {
       const dmg = num(ctx.params, 'damage', 3);
       const turns = num(ctx.params, 'turns', 3);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        everInfected.add(t);
         t.setStatus('putrefaccio', dmg, turns, { dot: dmg, turns }, PUTREFACCIO);
       }
     },
@@ -128,7 +135,7 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'profecia-de-la-fi', name: 'Profecia de la fi', skillId: 'nigromant',
-      unlock: 25, type: ActionType.Focus, speed: 2,
+      unlock: 25, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'cancel_action', params: {} }],
       desc: "Cancel·la l'acció d'un enemic.",
       icon: 'lorc/dead-eye.svg',
@@ -137,12 +144,12 @@ export const NIGROMANT: SkillDefinition = {
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
       unlock: 40, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'plague', params: { damage: 2, turns: 3 } }],
-      desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, d20 < 10: s'estén a un nou enemic.",
+      desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 5: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 55, type: ActionType.Atac, speed: 0, damage: d(1, 8),
+      unlock: 55, type: ActionType.Atac, speed: 0, damage: d(1, 4),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',

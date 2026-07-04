@@ -30,10 +30,4 @@ export const WEAPON_EFFECTS: Record<string, EffectHandler> = {
     },
     aiWeight() { return 0.8; },
   },
-
-  // Feint: ignore the target's guard entirely (the attack is undefendable).
-  ignore_defense: {
-    modifyAttack(ctx) { ctx.attackMods!.ignoreDefense = true; },
-    aiWeight() { return 0.9; },
-  },
 };

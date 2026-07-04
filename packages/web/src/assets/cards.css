@@ -146,6 +146,8 @@
 .print-card.ombres .card-frame { border-color: var(--class-ombres); }
 .print-card.gel { border-color: var(--class-gel); }
 .print-card.gel .card-frame { border-color: var(--class-gel); }
+.print-card.terra { border-color: var(--class-terra); }
+.print-card.terra .card-frame { border-color: var(--class-terra); }
 
 /* -- Card type header colors ----------------------------------------------- */
 
@@ -736,7 +738,7 @@
 }
 
 
-/* -- Bottom blocks (Història + Notes) ------------------------------------- */
+/* -- Bottom blocks (Fatiga token area + untitled resource tracking) -------- */
 
 .sheet-bottom-blocks {
   display: flex;
@@ -766,6 +768,10 @@
   font-size: 11pt;
   font-weight: 700;
   color: var(--text-dark, #2c1810);
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  min-height: 7mm; /* icon height — keeps titled and untitled blocks aligned */
 }
 
 /* -- Print styles for character sheet ------------------------------------- */

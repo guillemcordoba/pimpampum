@@ -27,13 +27,16 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1; },
   },
 
-  // +1 roll per `per` living allies (incl. self), capped at `max` (horde / pack tactics).
+  // +1 per `per` living allies (incl. self), capped at `max` (horde / pack
+  // tactics). `kind` selects roll bonus (default) or bonus damage.
   pack: {
     modifyAttack(ctx) {
       const per = num(ctx.params, 'per', 3);
       const max = num(ctx.params, 'max', 5);
       const allies = ctx.engine.alliesOf(ctx.source, true).length;
-      ctx.attackMods!.rollBonus += Math.min(max, Math.floor(allies / per));
+      const bonus = Math.min(max, Math.floor(allies / per));
+      if (str(ctx.params, 'kind', 'roll') === 'damage') ctx.attackMods!.bonusDamage += bonus;
+      else ctx.attackMods!.rollBonus += bonus;
     },
     aiWeight(ctx) { return ctx.allies.length >= 2 ? 1.5 : 0; },
   },
@@ -201,13 +204,6 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // After attacking, the attacker is treated as evading (sets up a self-guard
-  // using this same attack action — its rollBonus drives the dodge roll).
-  evasion_after_attack: {
-    onAttackHit(ctx) { ctx.source.guards.push({ defender: ctx.source, action: ctx.action }); },
-    onAttackMiss(ctx) { ctx.source.guards.push({ defender: ctx.source, action: ctx.action }); },
-    aiWeight() { return 0.7; },
-  },
 
   // On hit, add a flat extra wound (Sentència infernal, "DoubleWound").
   double_wound: {

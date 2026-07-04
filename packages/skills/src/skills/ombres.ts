@@ -62,7 +62,7 @@ const LLIGAT: StatusBehavior = {
 };
 
 const OMBRES_EFFECTS: Record<string, EffectHandler> = {
-  // Fondre's en l'ombra: hide self or an ally until end of next round.
+  // Desaparèixer en l'ombra: hide self or an ally until end of next round.
   shadow_melt: {
     getTargetRequirement() { return 'ally'; },
     onResolve(ctx) {
@@ -116,17 +116,17 @@ export const OMBRES: SkillDefinition = {
   iconPath: ICON_PREFIX + 'lorc/two-shadows.svg',
   actions: [
     action({
-      id: 'fondres-en-lombra', name: "Fondre's en l'ombra", skillId: 'ombres',
+      id: 'desapareixer-en-lombra', name: "Desaparèixer en l'ombra", skillId: 'ombres',
       unlock: 1, type: ActionType.Focus, speed: 3,
       effects: [{ type: 'shadow_melt', params: { bonus: 4 } }],
-      desc: "Fon-te tu o un aliat dins l'ombra fins al final del torn següent: res enemic no el pot tocar. Atacar el revela; el primer atac des de l'ombra té +4.",
+      desc: "Tria un aliat: desapareix dins l'ombra fins al final del torn següent i res enemic no el pot tocar. Atacar el revela; el primer atac des de l'ombra té {A}+4.",
       icon: 'lorc/hidden.svg',
     }),
     action({
       id: 'lligam-dombres', name: "Lligam d'ombres", skillId: 'ombres',
       unlock: 20, type: ActionType.Focus, speed: 1, fatigueCost: 2,
       effects: [{ type: 'shadow_bind' }],
-      desc: "Tirada enfrontada. Si guanyes, cap dels dos no pot actuar ni defensar-se. Al final de cada torn, la víctima fa un salvament per alliberar-se amb +10 acumulatiu per torn retingut.",
+      desc: "Tira d20 + nivell contra el d20 + la millor habilitat d'un enemic. Si guanyes, ni tu ni ell no podeu actuar. Al final de cada torn es repeteix la tirada, i ell hi suma +10 per cada torn retingut: si et supera, queda lliure.",
       icon: 'lorc/shadow-grasp.svg',
     }),
   ],

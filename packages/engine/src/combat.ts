@@ -102,6 +102,9 @@ interface PendingAction {
 export interface CombatEngineOptions {
   registry: EffectRegistry;
   maxRounds?: number;
+  /** AI decisiveness: exponent on action weights (1 = soft sampling, higher =
+   *  greedier, human-like play). Default 2. */
+  aiSharpness?: number;
 }
 
 const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound'] as const;
@@ -111,6 +114,7 @@ export class CombatEngine implements EngineApi, AIView {
   readonly registry: EffectRegistry;
   readonly teams: [Character[], Character[]];
   readonly maxRounds: number;
+  readonly aiSharpness: number;
   round = 0;
   logEntries: LogEntry[] = [];
 
@@ -127,6 +131,7 @@ export class CombatEngine implements EngineApi, AIView {
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
+    this.aiSharpness = opts.aiSharpness ?? 2;
     this.teams = [teamA, teamB];
     teamA.forEach(c => { c.team = 0; });
     teamB.forEach(c => { c.team = 1; });
@@ -154,24 +159,31 @@ export class CombatEngine implements EngineApi, AIView {
   }
   enemiesOf(c: Character): Character[] {
     // Untargetable characters (hidden in shadow etc.) don't exist for their
-    // enemies: excluded from targeting pools, area sweeps and AI sight.
-    return this.teams[1 - c.team].filter(e => e.isAlive() && !this.isUntargetable(e));
+    // enemies — unless the perceiver's own statuses see through concealment.
+    const senses = this.sensesConcealed(c);
+    return this.teams[1 - c.team].filter(e => e.isAlive() && (senses || !this.isUntargetable(e)));
   }
 
   /** Whether any status on `c` makes it unreachable by its enemies. */
   private isUntargetable(c: Character): boolean {
     return c.statusRefs().some(ref => ref.entry.behavior?.untargetable?.(ref));
   }
+
+  /** Whether `c` perceives concealed/untargetable enemies (seismic senses…). */
+  private sensesConcealed(c: Character): boolean {
+    return c.statusRefs().some(ref => ref.entry.behavior?.ignoresConcealment?.(ref));
+  }
   rollD20(): number { return rollD20(); }
 
   /** Roll a d20 for `c`, honouring any status-imposed roll mode
    *  (`data.rollMode`): disadvantage keeps the lower of two rolls, advantage
-   *  the higher. Disadvantage wins if both are present. */
-  rollD20For(c: Character): number {
+   *  the higher. Disadvantage wins if both are present. `kind` gives stances
+   *  contest context (advantage only on defense, say). */
+  rollD20For(c: Character, kind?: ContestKind): number {
     const r1 = rollD20();
     let mode: 'advantage' | 'disadvantage' | null = null;
     for (const ref of c.statusRefs()) {
-      const m = ref.entry.behavior?.rollMode?.(ref);
+      const m = ref.entry.behavior?.rollMode?.(ref, kind);
       if (m === 'disadvantage') { mode = m; break; }
       if (m === 'advantage') mode = m;
     }
@@ -216,7 +228,7 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   performExtraAttack(source: Character, target: Character, damageDice: DiceRoll, opts: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string } = {}): void {
-    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target))) return;
+    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return;
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
     const skill = skillId ? source.getRollSkill(skillId, 'attack') : 0;
@@ -224,10 +236,10 @@ export class CombatEngine implements EngineApi, AIView {
     let recipient = target;
     let hit = true;
     if (guard) {
-      const atkRoll = this.rollD20For(source);
+      const atkRoll = this.rollD20For(source, 'attack');
       const atkBonus = skill + (opts.rollBonus ?? 0);
       const attackerTotal = atkRoll + atkBonus;
-      const defRoll = this.rollD20For(guard.defender);
+      const defRoll = this.rollD20For(guard.defender, 'defense');
       const defBonus = guard.defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
       let defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${guard.defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
@@ -289,6 +301,9 @@ export class CombatEngine implements EngineApi, AIView {
   canPlayActionIdx(c: Character, actionIdx: number): boolean {
     const action = c.actions[actionIdx];
     if (!action) return false;
+    for (const ref of c.statusRefs()) {
+      if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
+    }
     for (const eff of action.def.effects) {
       const fn = this.registry.getHandler(eff.type)?.canPlay;
       if (fn && !fn(c, eff.params ?? {})) return false;
@@ -537,7 +552,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, speed: number): Character[] {
     const pool = this.eligibleTargets(actor, def, req);
-    return pickResolveTargets(this, def, req, count, pool, speed);
+    return pickResolveTargets(this, actor, def, req, count, pool, speed);
   }
 
   private resolveOne(cur: PendingAction): void {
@@ -560,7 +575,7 @@ export class CombatEngine implements EngineApi, AIView {
         this.dispatchPlay(actor, action.def);
         // Generic attack-action status hooks (ladders, multipliers).
         const mods = this.collectAttackStatusMods(actor);
-        const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t)));
+        const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
         let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         list = this.applyTargetRedirects(actor, list);
         for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods);
@@ -678,6 +693,19 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
+  /** Best standing-guard defense (walls, wards) among the target's statuses:
+   *  each behavior rolls/returns its defense total; the highest one contests. */
+  private bestStandingGuard(target: Character): { key: string; entry: StatusEntry; behavior: StatusBehavior; total: number } | null {
+    let best: { key: string; entry: StatusEntry; behavior: StatusBehavior; total: number } | null = null;
+    for (const { key, entry, behavior } of this.behaviorStatuses(target)) {
+      const total = behavior.standingGuard?.(this.statusCtx(target, key, entry));
+      if (typeof total === 'number' && (best === null || total > best.total)) {
+        best = { key, entry, behavior, total };
+      }
+    }
+    return best;
+  }
+
   /** attackRepeats summed over the attacker's statuses. */
   private collectAttackRepeats(actor: Character): number {
     let repeats = 0;
@@ -709,8 +737,12 @@ export class CombatEngine implements EngineApi, AIView {
     // An effect may pass over this target entirely — no roll, no damage.
     if (mods.skip) return;
 
-    // Feints bypass the guard entirely (treated as undefended).
-    const guard = mods.ignoreDefense ? null : this.activeGuard(target);
+    // Feints bypass the guard entirely (treated as undefended) — unless a
+    // status on the target vetoes the bypass (seismic awareness & co.).
+    const feintBlocked = mods.ignoreDefense
+      && target.statusRefs().some(ref => ref.entry.behavior?.preventsGuardBypass?.(ref));
+    const bypass = mods.ignoreDefense && !feintBlocked;
+    const guard = bypass ? null : this.activeGuard(target);
     let recipient = target;
     let hit: boolean;
     let margin: number;
@@ -724,12 +756,12 @@ export class CombatEngine implements EngineApi, AIView {
       hit = true; margin = Infinity; recipient = guard.defender;
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
-      const atkRoll = this.rollD20For(source);
+      const atkRoll = this.rollD20For(source, 'attack');
       const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + this.attackRollBonusAgainst(target);
       // Status multipliers (attack chains) scale the whole attack total.
       const attackerTotal = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
       const defender = guard.defender;
-      const defRoll = this.rollD20For(defender);
+      const defRoll = this.rollD20For(defender, 'defense');
       const defBonus = defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
       let defenderTotal = defRoll + defBonus;
       this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
@@ -742,7 +774,27 @@ export class CombatEngine implements EngineApi, AIView {
       if (checkSkillUp(!hit, margin)) defender.raiseSkill(guard.action.skillId);
       recipient = defender;
     } else {
-      hit = true; margin = Infinity;
+      // Standing defenses (walls, wards) contest attacks on the unguarded —
+      // bypassed by the same legitimate feints that bypass live guards.
+      const standing = bypass ? null : this.bestStandingGuard(target);
+      if (standing) {
+        const atkRoll = this.rollD20For(source, 'attack');
+        const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + this.attackRollBonusAgainst(target);
+        const attackerRaw = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
+        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerRaw} vs «${standing.key}» de ${target.name}: defensa ${standing.total}`, source.team);
+        const attackerTotal = this.adjustContestTotal(source, attackerRaw, standing.total, 'attack');
+        const res = resolveAttack(attackerTotal, standing.total);
+        if (checkSkillUp(res.hit, res.margin)) source.raiseSkill(def.skillId);
+        if (!res.hit) {
+          this.log('defense', `«${standing.key}» atura l'atac de ${source.name} «${def.name}».`, target.team);
+          this.dispatch('onAttackMiss', source, def, { targets: [target], target, hit: false, margin: res.margin });
+          return;
+        }
+        standing.behavior.onStandingGuardBroken?.(this.statusCtx(target, standing.key, standing.entry));
+        hit = true; margin = res.margin;
+      } else {
+        hit = true; margin = Infinity;
+      }
     }
 
     if (!hit && guard) {

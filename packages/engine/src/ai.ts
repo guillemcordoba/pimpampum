@@ -17,6 +17,9 @@ export interface PendingSummary {
 export interface AIView {
   readonly registry: EffectRegistry;
   readonly round: number;
+  /** Decisiveness exponent applied to action weights (1 = old soft sampling,
+   *  higher = greedier, human-like play). */
+  readonly aiSharpness: number;
   alliesOf(c: Character, includeSelf?: boolean): Character[];
   enemiesOf(c: Character): Character[];
   /** This round's queue as revealed to everyone (empty before planActions). */
@@ -32,8 +35,12 @@ function pvFraction(c: Character): number {
   return c.maxPV > 0 ? c.currentPV / c.maxPV : 0;
 }
 
-/** Whether every effect on an action permits playing it now (resource gates). */
+/** Whether every effect on an action permits playing it now (resource gates),
+ *  and no status on the actor blocks the action's type. */
 export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
+  for (const ref of actor.statusRefs()) {
+    if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
+  }
   for (const eff of action.def.effects) {
     const fn = registry.getHandler(eff.type)?.canPlay;
     if (fn && !fn(actor, eff.params ?? {})) return false;
@@ -55,16 +62,43 @@ export function availableActionIndices(actor: Character, registry?: EffectRegist
   return out;
 }
 
-/** Highest skill level among living enemies (rough difficulty proxy). */
-function avgEnemySkill(enemies: Character[]): number {
-  if (enemies.length === 0) return 0;
-  let sum = 0;
-  for (const e of enemies) {
-    let best = 0;
-    for (const lvl of e.skills.values()) best = Math.max(best, lvl);
-    sum += best;
+/** Highest skill level a character holds (threat / build-strength proxy). */
+function topSkill(c: Character): number {
+  let best = 0;
+  for (const lvl of c.skills.values()) best = Math.max(best, lvl);
+  return best;
+}
+
+/** Average damage an attack is likely to roll: its own dice, else the best
+ *  equipped weapon dice (weapon-carried actions), else a modest default. */
+function expectedAttackDice(actor: Character, def: ActionDefinition): number {
+  if (def.damageDice) return def.damageDice.average();
+  let best = 0;
+  for (const e of actor.equipment) {
+    if (e.damageDice) best = Math.max(best, e.damageDice.average());
   }
-  return sum / enemies.length;
+  return best > 0 ? best : 3;
+}
+
+/** Rough chance the attack connects, averaged over the living enemies: hits
+ *  are automatic unless the target plays a defense, in which case the
+ *  contested d20 shifts ≈5pp per point of skill gap. */
+function estimateHitChance(actor: Character, def: ActionDefinition, enemies: Character[]): number {
+  if (enemies.length === 0) return 1;
+  const P_DEFEND = 0.3; // how often a capable enemy actually picks a defense
+  const atk = actor.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0);
+  let acc = 0;
+  for (const e of enemies) {
+    let best = -1;
+    for (const a of e.actions) {
+      if (a.def.actionType !== ActionType.Defensa) continue;
+      best = Math.max(best, e.getRollSkill(a.def.skillId, 'defense') + (a.def.rollBonus ?? 0));
+    }
+    if (best < 0) { acc += 1; continue; } // no defense action: always auto-hit
+    const pWin = Math.min(0.95, Math.max(0.05, 0.5 + 0.05 * (atk - best)));
+    acc += (1 - P_DEFEND) + P_DEFEND * pWin;
+  }
+  return acc / enemies.length;
 }
 
 function actionWeight(view: AIView, actor: Character, action: ActionInstance, strategy: AIStrategy): number {
@@ -78,9 +112,13 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
   let w = 1;
   switch (def.actionType) {
     case ActionType.Atac: {
-      const skill = actor.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0);
-      const gap = skill - avgEnemySkill(enemies);
-      w = 3 + Math.max(-2, Math.min(3, gap / 10));
+      // An attack is worth the PV it expects to remove: dice minus their
+      // armour, discounted by the odds of connecting.
+      const armor = enemies.length
+        ? enemies.reduce((s, e) => s + e.getPassiveArmor(), 0) / enemies.length
+        : 0;
+      const expected = Math.max(0, expectedAttackDice(actor, def) - armor);
+      w = 0.5 + estimateHitChance(actor, def, enemies) * expected;
       w += woundedEnemies * 1.5; // finish wounded foes
       if (strategy === AIStrategy.Aggro) w += 2;
       break;
@@ -128,6 +166,7 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
  */
 export function pickResolveTargets(
   view: AIView,
+  actor: Character,
   def: ActionDefinition,
   req: TargetRequirement,
   count: number,
@@ -140,11 +179,12 @@ export function pickResolveTargets(
   }
 
   const pending = view.pendingSummary();
-  const expectedDamage = def.damageDice?.average() ?? 0;
+  const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackDice(actor, def) : 0;
   const score = (e: Character): number => {
     let s = 2 * (1 - pvFraction(e)); // focus fire the wounded
+    s += Math.min(2, topSkill(e) / 40); // dangerous targets (casters, elites) first
     if (def.actionType === ActionType.Atac) {
-      if (expectedDamage > 0 && Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {
+      if (Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {
         s += 4; // take the kill
       }
       const focusing = pending.some(p =>
@@ -161,13 +201,15 @@ export function pickResolveTargets(
 }
 
 /** Weighted-random action selection for one character. Targets are chosen
- *  later, at resolution time (pickResolveTargets), with reveal-level info. */
+ *  later, at resolution time (pickResolveTargets), with reveal-level info.
+ *  Returns actionIdx -1 (an explicit pass) when nothing is playable. */
 export function selectAction(view: AIView, actor: Character): PlannedAction {
   const strategy = actor.aiStrategy ?? AIStrategy.Power;
   const indices = availableActionIndices(actor, view.registry);
-  if (indices.length === 0) return { actionIdx: 0 };
+  if (indices.length === 0) return { actionIdx: -1 };
 
-  const weights = indices.map(i => actionWeight(view, actor, actor.actions[i], strategy));
+  const weights = indices.map(i =>
+    Math.pow(actionWeight(view, actor, actor.actions[i], strategy), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = Math.random() * total;
   let chosen = indices[0];
@@ -179,7 +221,15 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   return { actionIdx: chosen };
 }
 
-/** Assign rotating strategies across a team (used by the simulator). */
+/** Assign rotating strategies across a simulated player team. A strategy the
+ *  character cannot cash in (Protect without a defense, Power without a
+ *  focus) falls back to Aggro instead of landing on nothing. */
 export function assignStrategies(team: Character[], strategies: AIStrategy[]): void {
-  team.forEach((c, i) => { c.aiStrategy = strategies[i % strategies.length]; });
+  team.forEach((c, i) => {
+    let s = strategies[i % strategies.length];
+    const has = (t: ActionType) => c.actions.some(a => a.def.actionType === t);
+    if (s === AIStrategy.Protect && !has(ActionType.Defensa)) s = AIStrategy.Aggro;
+    if (s === AIStrategy.Power && !has(ActionType.Focus)) s = AIStrategy.Aggro;
+    c.aiStrategy = s;
+  });
 }

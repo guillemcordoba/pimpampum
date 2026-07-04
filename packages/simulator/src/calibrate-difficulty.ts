@@ -33,5 +33,6 @@ for (const t of templates) {
   console.log(
     `${verdict} ${t.id.padEnd(14)} difficulty ${r.difficulty.toFixed(2)}  ` +
     `claim ${(100 * r.claim).toFixed(1)}%  real ${(100 * r.real).toFixed(1)}%  ` +
-    `(drift ${(100 * drift).toFixed(1)}pp, ${r.games} games)  → suggested ${r.suggested.toFixed(2)}${excluded}`);
+    `(drift ${(100 * drift).toFixed(1)}pp, draws ${(100 * r.drawRate).toFixed(0)}%, ${r.games} games)  ` +
+    `→ suggested ${r.suggested.toFixed(2)}${excluded}`);
 }

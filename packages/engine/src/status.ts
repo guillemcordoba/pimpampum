@@ -1,5 +1,5 @@
 import type { Character, StatusEntry } from './character.js';
-import type { ActionDefinition } from './types.js';
+import type { ActionDefinition, ActionType } from './types.js';
 import type { EngineApi } from './effects.js';
 import type { AIView } from './ai.js';
 
@@ -45,9 +45,11 @@ export interface StatusBehavior {
 
   /** Added to the holder's effective action speed. */
   modifySpeed?(ref: StatusRef): number;
-  /** Roll mode for every d20 the holder rolls: roll twice, keep worst / best.
-   *  Disadvantage wins if several statuses disagree. */
-  rollMode?(ref: StatusRef): 'advantage' | 'disadvantage' | void;
+  /** Roll mode for a d20 the holder rolls: roll twice, keep worst / best.
+   *  Disadvantage wins if several statuses disagree. `kind` is provided at
+   *  contest sites ('attack'/'defense'/'save') so a stance can sharpen only
+   *  one side of the holder's game; undefined for uncontexted rolls. */
+  rollMode?(ref: StatusRef, kind?: ContestKind): 'advantage' | 'disadvantage' | void;
   /** Transform the holder's rolled damage on every attack (before armour).
    *  Receives the full hook context (engine available for flare logs). */
   modifyOutgoingDamage?(ctx: StatusHookContext, damage: number): number;
@@ -65,9 +67,19 @@ export interface StatusBehavior {
   attackRollAgainstHolder?(ref: StatusRef): number;
   /** The holder cannot benefit from any guard. */
   preventsGuard?(ref: StatusRef): boolean;
+  /** The holder cannot play actions of this type right now (burials,
+   *  silences…). Checked at every action-availability gate (AI and UI). */
+  blocksActionType?(ref: StatusRef, type: ActionType): boolean;
   /** The holder is unreachable by their ENEMIES: excluded from enemy target
    *  pools, area sweeps and extra attacks (allies still reach them). */
   untargetable?(ref: StatusRef): boolean;
+  /** The holder perceives the imperceptible: enemy `untargetable` statuses
+   *  don't hide from them, and concealment-scatter behaviours should check
+   *  this capability (via statusRefs) before redirecting their aim. */
+  ignoresConcealment?(ref: StatusRef): boolean;
+  /** Attacks against the holder cannot bypass their guard (feint immunity):
+   *  vetoes an attacker's ignore-defense modifier. */
+  preventsGuardBypass?(ref: StatusRef): boolean;
   /** Guarding with this status takes the full blow — no contest is rolled. */
   absorbsGuard?(ref: StatusRef): boolean;
   /** Post-reveal card-swap charges this status grants the holder. */
@@ -97,4 +109,12 @@ export interface StatusBehavior {
    *  EffectHandler's postRound, which only runs for actions played this round.
    *  Runs before modifiers/statuses advance. Damage-over-time ticks live here. */
   onRoundEnd?(ctx: StatusHookContext): void;
+  /** A standing defense (wall, ward…) that contests attacks on the holder
+   *  when nobody is actively guarding them: return the defense TOTAL to beat
+   *  (roll it inside, with the engine on ctx). The best total among such
+   *  statuses is used. Bypassed by ignore-defense attacks (unless vetoed). */
+  standingGuard?(ctx: StatusHookContext): number | void;
+  /** An attack penetrated this status's standing guard — typically clear the
+   *  status (the wall shatters). Called before the damage lands. */
+  onStandingGuardBroken?(ctx: StatusHookContext): void;
 }

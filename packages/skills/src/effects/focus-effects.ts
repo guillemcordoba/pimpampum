@@ -7,15 +7,6 @@ const MARCA_OBJECTIU: StatusBehavior = {
   attackRollAgainstHolder(ref) { return ref.entry.value; },
 };
 
-// The holder's next wound costs an extra `value` PV, once (doom_mark).
-const MARCA_MORTAL: StatusBehavior = {
-  modifyIncomingDamage(ref, dmg) {
-    if (dmg <= 0) return dmg;
-    ref.holder.clearStatus(ref.key);
-    return dmg + ref.entry.value;
-  },
-};
-
 // The holder's blows deal +value extra damage (weapon_buff).
 const ARMA_ENVERINADA: StatusBehavior = {
   modifyOutgoingDamage(ref, dmg) { return dmg + ref.entry.value; },
@@ -136,30 +127,23 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1; },
   },
 
-  // Distribute a "poisoned weapon" status (extra damage per hit) to up to
-  // `count` allies.
+  // Grant a lasting "+`amount` damage dealt" status. Default: up to `count`
+  // allies (poisoned weapons); pass `target` (e.g. 'self') for other shapes,
+  // and `name` to label the status (possession, blessing…).
   weapon_buff: {
     onResolve(ctx) {
       const amount = num(ctx.params, 'amount', 1);
       const count = num(ctx.params, 'count', 3);
       const turns = num(ctx.params, 'turns', -1);
-      const allies = ctx.engine.alliesOf(ctx.source, true).slice(0, count);
-      for (const a of allies) a.setStatus('arma-enverinada', amount, turns, undefined, ARMA_ENVERINADA);
+      const name = str(ctx.params, 'name', 'arma-enverinada');
+      const targets = ctx.params.target !== undefined
+        ? resolveTargets(ctx, tspec(ctx.params, 'allies'))
+        : ctx.engine.alliesOf(ctx.source, true).slice(0, count);
+      for (const a of targets) a.setStatus(name, amount, turns, undefined, ARMA_ENVERINADA);
     },
     aiWeight() { return 0.9; },
   },
 
-  // Mark an enemy: their next received wound costs an extra `amount` PV, once.
-  doom_mark: {
-    onResolve(ctx) {
-      const amt = num(ctx.params, 'amount', 1);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-mortal', amt, num(ctx.params, 'turns', -1), undefined, MARCA_MORTAL);
-      }
-    },
-    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
-    aiWeight() { return 0.8; },
-  },
 
   // Every enemy that has lost PV this combat loses an extra `damage` PV (Rèquiem / Set de sang).
   wound_wounded: {

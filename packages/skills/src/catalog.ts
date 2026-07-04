@@ -3,22 +3,24 @@ import { SkillDefinition } from './types.js';
 import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
 import { MESTRE_ARMES } from './skills/weapon-master.js';
 import { NIGROMANT } from './skills/nigromant.js';
-import { FURIA } from './skills/furia.js';
+import { BERSERK } from './skills/berserk.js';
 import { METGE } from './skills/metge.js';
 import { RUNES } from './skills/runes.js';
 import { OMBRES } from './skills/ombres.js';
 import { GEL } from './skills/gel.js';
+import { EARTHBENDER } from './skills/earthbender.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
   ENGINYER_EXPLOSIUS,
   MESTRE_ARMES,
   NIGROMANT,
-  FURIA,
+  BERSERK,
   METGE,
   RUNES,
   OMBRES,
   GEL,
+  EARTHBENDER,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;

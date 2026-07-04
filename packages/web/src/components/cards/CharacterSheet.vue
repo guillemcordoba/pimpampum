@@ -5,7 +5,7 @@ const base = import.meta.env.BASE_URL;
 
 // Number of blank skill rows. The skill-based system has no fixed stats —
 // players write the skills they actually picked on the fly.
-const SKILL_ROWS = 6;
+const SKILL_ROWS = 3;
 </script>
 
 <template>
@@ -55,14 +55,18 @@ const SKILL_ROWS = 6;
         </div>
       </div>
 
-      <!-- Bottom: blocks -->
+      <!-- Bottom: fatigue token track + untitled resource-tracking area -->
       <div class="sheet-bottom-blocks">
         <div class="sheet-block-wrapper">
-          <span class="sheet-block-title">Història</span>
+          <span class="sheet-block-title">
+            <img class="sheet-stat-icon" :src="base + STAT_ICONS.fatigue" alt="fatiga">
+            Fatiga
+          </span>
           <div class="sheet-block"></div>
         </div>
         <div class="sheet-block-wrapper">
-          <span class="sheet-block-title">Notes</span>
+          <!-- Empty title spacer keeps this block the same height as Fatiga's. -->
+          <span class="sheet-block-title"></span>
           <div class="sheet-block"></div>
         </div>
       </div>

@@ -82,6 +82,20 @@ describe('StatusBehavior query seams', () => {
     expect(a.getEffectiveSpeed(a.actions[0])).toBe(-2);
   });
 
+  it('blocksActionType: the holder can only play the types the status allows', () => {
+    const NOMES_FOCUS: StatusBehavior = {
+      blocksActionType(_ref, type) { return type !== ActionType.Focus; },
+    };
+    const a = makeChar('A', 20, [atkDef(), focusDef(), defenseDef()]);
+    const engine = new CombatEngine([a], [sac()], { registry: REGISTRY });
+    a.setStatus('enterrat', 1, -1, undefined, NOMES_FOCUS);
+    expect(engine.canPlayActionIdx(a, 0)).toBe(false);
+    expect(engine.canPlayActionIdx(a, 1)).toBe(true);
+    expect(engine.canPlayActionIdx(a, 2)).toBe(false);
+    a.clearStatus('enterrat');
+    expect(engine.canPlayActionIdx(a, 0)).toBe(true);
+  });
+
   it('modifyOutgoingDamage / modifyIncomingDamage transform attack damage', () => {
     const OUT_3: StatusBehavior = { modifyOutgoingDamage(_ref, dmg) { return dmg + 3; } };
     const IN_MINUS_2: StatusBehavior = { modifyIncomingDamage(_ref, dmg) { return dmg - 2; } };

@@ -31,8 +31,11 @@ export interface CalibrationResult {
   difficulty: number;
   /** Average winrate the model promised across all battles (post-clamp). */
   claim: number;
-  /** Winrate actually measured. */
+  /** Winrate actually measured (draws count as half a win for each side). */
   real: number;
+  /** Fraction of games that ended in a draw/timeout — high values mean the
+   *  kit stalls and the scalar model is suspect regardless of the factor. */
+  drawRate: number;
   /** Difficulty value that would reconcile claim and reality. */
   suggested: number;
   games: number;
@@ -57,7 +60,7 @@ export function calibrateSpecies(template: EnemyTemplate, opts: CalibrationOptio
   const configs = opts.configs ?? 30;
   const games = opts.games ?? 14;
 
-  let claimAcc = 0, winAcc = 0, n = 0;
+  let claimAcc = 0, winAcc = 0, drawAcc = 0, n = 0;
   for (const target of targets) {
     for (let cfg = 0; cfg < configs; cfg++) {
       const playerCount = randInt(3, 5);
@@ -75,7 +78,10 @@ export function calibrateSpecies(template: EnemyTemplate, opts: CalibrationOptio
         assignStrategies(players, shuffle(STRATS));
         const w = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 }).runCombat().winner;
         claimAcc += claim;
-        winAcc += w === 0 ? 1 : 0;
+        // A draw is not a player loss — score it half for each side so
+        // stall-prone kits aren't silently rated as strong.
+        winAcc += w === 0 ? 1 : w === null ? 0.5 : 0;
+        if (w === null) drawAcc++;
         n++;
       }
     }
@@ -88,10 +94,10 @@ export function calibrateSpecies(template: EnemyTemplate, opts: CalibrationOptio
   const rIntended = 1 - logit(clampP(claim)) / WINRATE_K;
   const rImplied = 1 - logit(real) / WINRATE_K;
   const suggested = template.difficulty * (rImplied / rIntended);
-  return { templateId: template.id, difficulty: template.difficulty, claim, real, suggested, games: n };
+  return { templateId: template.id, difficulty: template.difficulty, claim, real, drawRate: drawAcc / n, suggested, games: n };
 }
 
-/** Species whose kit currently breaks the scalar model (documented, skipped by
- *  the guard test). The wolf's Udol summon-stall turns every fight into a
- *  draw-grind regardless of level — fix the kit, then calibrate it. */
-export const CALIBRATION_EXCLUDED = new Set(['wolf']);
+/** Species whose kit currently breaks the scalar model (documented, skipped
+ *  by the guard test). Empty since the wolf's Udol became once-per-wolf with
+ *  howl-less summons (2026-07) — the pack is bounded and calibrates cleanly. */
+export const CALIBRATION_EXCLUDED = new Set<string>([]);

@@ -15,6 +15,7 @@ const route = useRoute();
       <router-link to="/objects" :class="{ active: route.path === '/objects' }">Objectes</router-link>
       <router-link to="/enemies" :class="{ active: route.path === '/enemies' }">Enemics</router-link>
       <router-link to="/encounters" :class="{ active: route.path === '/encounters' }">Creador d'encontres</router-link>
+      <router-link to="/fitxa" :class="{ active: route.path === '/fitxa' }">Fitxa</router-link>
       <router-link to="/combat" :class="{ active: route.path === '/combat' }">Combat</router-link>
     </div>
     <button class="print-all-btn" type="button" @click="openPrintDialog">Imprimir-ho tot</button>

@@ -93,9 +93,11 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
 };
 
 // Smoke: the blinded holder fires through the haze — on a d20 ≤ 10 the shot
-// lands on a random living combatant instead of its intended target.
+// lands on a random living combatant instead of its intended target. Holders
+// who perceive without sight (any ignoresConcealment status) aim true.
 const ENCEGAT: StatusBehavior = {
   redirectAttackTarget(ctx, intended) {
+    if (ctx.holder.statusRefs().some(r => r.entry.behavior?.ignoresConcealment?.(r))) return intended;
     if (ctx.engine.rollD20() > 10) return intended;
     const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
     if (pool.length === 0) return intended;
@@ -144,13 +146,6 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
       effects: [{ type: 'smoke', params: { turns: 1 } }],
       desc: 'Cada enemic que ataca aquest torn tira un d20: amb 10 o menys, l’atac impacta un personatge a l’atzar.',
       icon: 'darkzaitzev/smoke-bomb.svg',
-    }),
-    action({
-      id: 'explosiu-perforant', name: 'Explosiu perforant', skillId: 'enginyer-explosius',
-      unlock: 30, type: ActionType.Atac, speed: 0, damage: d(1, 8),
-      effects: [{ type: 'piercing', params: {} }, { type: 'charge_cost', params: { amount: 1 } }],
-      desc: 'Ignora l’armadura.',
-      icon: 'delapouite/dynamite.svg',
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',

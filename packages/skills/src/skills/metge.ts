@@ -56,7 +56,7 @@ export const METGE: SkillDefinition = {
       id: 'injeccio-adrenalina', name: "Injecció d'adrenalina", skillId: 'metge',
       unlock: 20, type: ActionType.Focus, speed: 5,
       effects: [{ type: 'adrenaline', params: { fatigue: 4 } }],
-      desc: "Un aliat executa la seva acció d'atac dues vegades aquest torn. Rep +4 de fatiga.",
+      desc: "Un aliat executa la seva acció d'atac dues vegades aquest torn, i és ell qui rep els +4 de fatiga.",
       icon: 'lorc/syringe.svg',
     }),
   ],

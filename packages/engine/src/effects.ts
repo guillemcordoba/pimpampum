@@ -43,8 +43,10 @@ export interface EngineApi {
   /** Roll a d20 (exposed so handlers stay deterministic with engine RNG hooks). */
   rollD20(): number;
   /** Roll a d20 for a specific character, honouring any status-imposed roll
-   *  mode (`data.rollMode`: disadvantage/advantage rolls twice, worst/best). */
-  rollD20For(c: Character): number;
+   *  mode (`data.rollMode`: disadvantage/advantage rolls twice, worst/best).
+   *  Pass the contest kind ('attack'/'defense'/'save') so kind-scoped stances
+   *  apply; omit for uncontexted rolls. */
+  rollD20For(c: Character, kind?: import('./status.js').ContestKind): number;
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
   cancelPendingAction(target: Character): boolean;

@@ -22,7 +22,7 @@ export const GEL: SkillDefinition = {
     }),
     action({
       id: 'paisatge-congelat', name: 'Paisatge congelat', skillId: 'gel',
-      unlock: 20, type: ActionType.Focus, speed: 2, fatigueCost: 2,
+      unlock: 20, type: ActionType.Focus, speed: -2, fatigueCost: 3,
       effects: [{ type: 'skill_mod', params: { kind: 'speed', amount: -3, duration: 2, target: 'enemies' } }],
       desc: 'Tots els enemics tenen −3 de velocitat durant 2 torns.',
       icon: 'lorc/icebergs.svg',

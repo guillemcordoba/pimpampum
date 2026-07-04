@@ -43,6 +43,7 @@
   --class-runes: #4a6b8b;
   --class-ombres: #3d3d54;
   --class-gel: #5b8fa8;
+  --class-terra: #4a7a3a;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -466,6 +467,7 @@ body {
 .portrait.runes { border-color: var(--class-runes); }
 .portrait.ombres { border-color: var(--class-ombres); }
 .portrait.gel { border-color: var(--class-gel); }
+.portrait.terra { border-color: var(--class-terra); }
 
 .portrait-icon {
   width: 64px;
@@ -761,6 +763,7 @@ body {
 .mini-card.runes { border-color: var(--class-runes); }
 .mini-card.ombres { border-color: var(--class-ombres); }
 .mini-card.gel { border-color: var(--class-gel); }
+.mini-card.terra { border-color: var(--class-terra); }
 
 .mini-card-header {
   padding: 6px 8px 5px;

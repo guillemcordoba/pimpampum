@@ -26,7 +26,7 @@ function spendUse(ctx: StatusHookContext): number {
 const RUNA_FULLA: StatusBehavior = {
   modifyOutgoingDamage(ctx, damage) {
     if (damage <= 0 || ctx.entry.value <= 0) return damage;
-    const amount = num(ctx.entry.data ?? {}, 'amount', 5);
+    const amount = num(ctx.entry.data ?? {}, 'amount', 4);
     const left = spendUse(ctx);
     ctx.engine.log('info', `ᛏ La runa de la fulla esmolada crida: +${amount} de dany (${left} usos restants).`, ctx.holder.team);
     return damage + amount;
@@ -57,7 +57,7 @@ const RUNA_ESCUT: StatusBehavior = {
   modifyIncomingDamage(ctx, damage) {
     if (damage <= 0 || ctx.entry.value <= 0) return damage;
     if (damage < 3 && damage < ctx.holder.currentPV) return damage;
-    const amount = num(ctx.entry.data ?? {}, 'amount', 6);
+    const amount = num(ctx.entry.data ?? {}, 'amount', 5);
     const left = spendUse(ctx);
     const prevented = Math.min(amount, damage);
     ctx.engine.log('info', `ᛉ La runa de l'escut invisible crida: evita ${prevented} punts de dany (${left} usos restants).`, ctx.holder.team);
@@ -74,9 +74,9 @@ interface RuneSpec {
 }
 
 const RUNE_SPECS: Record<string, RuneSpec> = {
-  fulla: { key: 'runa-fulla', label: 'la runa de la fulla esmolada', behavior: RUNA_FULLA, target: 'ally', amount: 5 },
+  fulla: { key: 'runa-fulla', label: 'la runa de la fulla esmolada', behavior: RUNA_FULLA, target: 'ally', amount: 4 },
   confusio: { key: 'runa-confusio', label: 'la runa de la confusió', behavior: RUNA_CONFUSIO, target: 'enemy', amount: 10 },
-  escut: { key: 'runa-escut', label: "la runa de l'escut invisible", behavior: RUNA_ESCUT, target: 'ally', amount: 6 },
+  escut: { key: 'runa-escut', label: "la runa de l'escut invisible", behavior: RUNA_ESCUT, target: 'ally', amount: 5 },
 };
 
 const RUNES_EFFECTS: Record<string, EffectHandler> = {
@@ -111,8 +111,8 @@ export const RUNES: SkillDefinition = {
     action({
       id: 'runa-fulla-esmolada', name: 'Runa de la fulla esmolada', skillId: 'runes',
       unlock: 1, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'carve_rune', params: { rune: 'fulla', uses: 3, amount: 5 } }],
-      desc: "Grava-la a l'arma d'un aliat: 3 usos. Quan el portador encerta un cop, pots activar-la a l'instant: +5 de dany.",
+      effects: [{ type: 'carve_rune', params: { rune: 'fulla', uses: 3, amount: 4 } }],
+      desc: "Grava-la a l'arma d'un aliat: 3 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {DAMAGE}+4.",
       icon: 'lorc/rune-sword.svg',
     }),
     action({
@@ -125,8 +125,8 @@ export const RUNES: SkillDefinition = {
     action({
       id: 'runa-escut-invisible', name: "Runa de l'escut invisible", skillId: 'runes',
       unlock: 20, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'carve_rune', params: { rune: 'escut', uses: 3, amount: 6 } }],
-      desc: "Grava-la sobre un aliat: 3 usos. Quan el portador rep un atac, pots activar-la a l'instant: evita 6 punts de dany.",
+      effects: [{ type: 'carve_rune', params: { rune: 'escut', uses: 3, amount: 5 } }],
+      desc: "Grava-la sobre un aliat: 3 usos. Quan el portador rep un atac, pots activar-la a l'instant: evita 5 {DAMAGE}.",
       icon: 'lorc/shield-echoes.svg',
     }),
   ],
