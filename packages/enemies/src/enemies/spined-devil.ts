@@ -14,6 +14,6 @@ const SPINED_DEVIL_SKILL: SkillDefinition = {
 };
 
 export const SPINED_DEVIL: EnemyModule = {
-  template: { id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', iconPath: ICON + 'lorc/imp.svg', role: 'elit', difficulty: 1.05, skills: ['spined-devil'], suggestedLevel: 22 },
+  template: { id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', iconPath: ICON + 'lorc/imp.svg', role: 'elit', difficulty: 1.26, skills: ['spined-devil'], suggestedLevel: 22 },
   skills: [SPINED_DEVIL_SKILL],
 };

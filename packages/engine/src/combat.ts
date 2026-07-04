@@ -157,6 +157,9 @@ export class CombatEngine implements EngineApi, AIView {
   alliesOf(c: Character, includeSelf = false): Character[] {
     return this.teams[c.team].filter(a => a.isAlive() && (includeSelf || a !== c));
   }
+  rosterOf(c: Character): Character[] {
+    return [...this.teams[c.team]];
+  }
   enemiesOf(c: Character): Character[] {
     // Untargetable characters (hidden in shadow etc.) don't exist for their
     // enemies — unless the perceiver's own statuses see through concealment.
@@ -254,6 +257,8 @@ export class CombatEngine implements EngineApi, AIView {
     const dmg = Math.max(0, this.applyIncomingDamage(recipient, dmgRoll - armor));
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
+    // An impact interrupts a pending focus even at 0 damage (see resolveAttackOnTarget).
+    recipient.hitThisTurn = true;
     this.applyPvLoss(recipient, dmg, source);
   }
 
@@ -817,6 +822,9 @@ export class CombatEngine implements EngineApi, AIView {
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
+    // An impact interrupts a pending focus even when armour absorbs all the
+    // damage (rules.md: "es cancel·len si el jugador rep un impacte").
+    recipient.hitThisTurn = true;
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin });
     if (guard && recipient === guard.defender && dmg > 0) {

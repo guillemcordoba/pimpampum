@@ -206,12 +206,19 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   // exponential population blow-ups in fatigued late-round play.
   summon: {
     onResolve(ctx) {
+      // `maxTeam` hard-caps how many combatants the summoner's side may EVER
+      // field (dead included): at the cap the call fizzles.
+      const cap = num(ctx.params, 'maxTeam', Infinity);
+      if (ctx.engine.rosterOf(ctx.source).length >= cap) {
+        ctx.engine.log('focus', `La crida de ${ctx.source.name} es perd: la manada ja ha respost sencera.`, ctx.source.team);
+        return;
+      }
       const f = ctx.params['factory'] as (() => Character) | undefined;
       if (f) ctx.engine.addCombatant(ctx.source.team, f());
     },
     aiWeight(ctx) {
-      const n = ctx.allies.length;
-      if (n >= 6) return -10;
+      const n = ctx.allies.length + 1;
+      if (n >= num(ctx.params, 'maxTeam', 6)) return -10;
       if (n >= 3) return -1.5;
       return 1.5;
     },

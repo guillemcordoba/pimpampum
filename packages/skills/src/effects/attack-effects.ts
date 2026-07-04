@@ -27,13 +27,14 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1; },
   },
 
-  // +1 per `per` living allies (incl. self), capped at `max` (horde / pack
-  // tactics). `kind` selects roll bonus (default) or bonus damage.
+  // +1 per `per` living allies (incl. self unless includeSelf:false), capped
+  // at `max` (horde / pack tactics). `kind` selects roll bonus (default) or
+  // bonus damage.
   pack: {
     modifyAttack(ctx) {
       const per = num(ctx.params, 'per', 3);
       const max = num(ctx.params, 'max', 5);
-      const allies = ctx.engine.alliesOf(ctx.source, true).length;
+      const allies = ctx.engine.alliesOf(ctx.source, ctx.params.includeSelf !== false).length;
       const bonus = Math.min(max, Math.floor(allies / per));
       if (str(ctx.params, 'kind', 'roll') === 'damage') ctx.attackMods!.bonusDamage += bonus;
       else ctx.attackMods!.rollBonus += bonus;

@@ -57,7 +57,7 @@ export const ALL_EQUIPMENT: EquipmentDefinition[] = [
     id: 'basto', name: 'Bastó', slot: EquipmentSlot.MainHand,
     passiveArmor: 0, speedPenalty: 0, skillBonuses: [],
     damageDice: new DiceRoll(1, 4),
-    iconPath: ICON + 'delapouite/wood-stick.svg', slotLabel: 'Mà principal',
+    iconPath: ICON + 'delapouite/bo.svg', slotLabel: 'Mà principal',
     description: '',
   },
   {

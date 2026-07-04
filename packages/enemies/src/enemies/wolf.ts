@@ -8,9 +8,9 @@ const WOLF_SKILL: SkillDefinition = {
   description: 'Caça coordinada en manada.',
   iconPath: ICON + 'lorc/wolf-head.svg',
   actions: [
-    action({ id: 'mossegada-manada', name: 'Mossegada de la manada', skillId: 'wolf', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), effects: [{ type: 'pack', params: { per: 1, max: 99, kind: 'damage' } }], desc: '{DAMAGE}+1 per cada llop viu.', icon: 'delapouite/neck-bite.svg' }),
+    action({ id: 'mossegada-manada', name: 'Mossegada de la manada', skillId: 'wolf', unlock: 1, type: ActionType.Atac, speed: 1, damage: d(0, 0), effects: [{ type: 'pack', params: { per: 1, max: 99, kind: 'damage', includeSelf: false } }], desc: '{DAMAGE}+1 per cada altre llop viu.', icon: 'delapouite/neck-bite.svg' }),
     action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'wolf', unlock: 1, type: ActionType.Atac, speed: 3, damage: d(1, 4), desc: '', icon: 'delapouite/claws.svg' }),
-    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 2, consumable: true, effects: [{ type: 'summon', params: { factory: makeWolf } }], desc: 'Un sol ús. Crida un llop nou al combat. S\'interromp si rep un atac.', icon: 'lorc/wolf-howl.svg' }),
+    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 1, type: ActionType.Focus, speed: -2, fatigueCost: 2, consumable: true, effects: [{ type: 'summon', params: { factory: makeWolf, maxTeam: 6 } }], desc: 'Crida un llop nou al combat, fins a un màxim de 6 llops que hagin participat en la batalla.', icon: 'lorc/wolf-howl.svg' }),
   ],
 };
 
@@ -28,6 +28,6 @@ function makeWolf(): Character {
 }
 
 export const WOLF: EnemyModule = {
-  template: { id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg', role: 'horda', difficulty: 2.81, skills: ['wolf'], suggestedLevel: 18 },
+  template: { id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg', role: 'horda', difficulty: 0.92, skills: ['wolf'], suggestedLevel: 18 },
   skills: [WOLF_SKILL],
 };

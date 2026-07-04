@@ -20,6 +20,9 @@ export interface EngineApi {
   livingTeam(team: number): Character[];
   /** Living allies of `c` (excludes self unless includeSelf). */
   alliesOf(c: Character, includeSelf?: boolean): Character[];
+  /** EVERY combatant ever fielded on `c`'s side, dead or alive (participation
+   *  caps, memorials). Includes mid-combat additions. */
+  rosterOf(c: Character): Character[];
   /** Living enemies of `c`. */
   enemiesOf(c: Character): Character[];
 
