@@ -150,9 +150,19 @@ async function handlePrint() {
       ),
     );
   }
+  // Reset only once printing is really done: mobile browsers return from
+  // window.print() immediately and snapshot the page afterwards, so a
+  // setTimeout(0) reset would put the normal page back into the printout.
+  // Desktop fires `afterprint`; on mobile the window regains focus when the
+  // print sheet closes.
+  const reset = () => {
+    printingAll.value = false;
+    window.removeEventListener('afterprint', reset);
+    window.removeEventListener('focus', reset);
+  };
+  window.addEventListener('afterprint', reset);
+  window.addEventListener('focus', reset);
   window.print();
-  // Reset after print so the page returns to normal.
-  setTimeout(() => { printingAll.value = false; }, 0);
 }
 </script>
 

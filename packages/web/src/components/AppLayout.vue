@@ -20,7 +20,10 @@ const route = useRoute();
     </div>
     <button class="print-all-btn" type="button" @click="openPrintDialog">Imprimir-ho tot</button>
   </nav>
-  <main :class="{ 'no-print': printingAll }">
+  <!-- v-show (not just a print-media class): mobile print snapshots don't
+       reliably honour @media print on the live DOM, so hide the app outright
+       while the print-all grid is up. -->
+  <main v-show="!printingAll" :class="{ 'no-print': printingAll }">
     <slot />
   </main>
   <PrintDialog />
