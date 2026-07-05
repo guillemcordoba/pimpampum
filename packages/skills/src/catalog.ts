@@ -9,6 +9,7 @@ import { RUNES } from './skills/runes.js';
 import { OMBRES } from './skills/ombres.js';
 import { GEL } from './skills/gel.js';
 import { EARTHBENDER } from './skills/earthbender.js';
+import { VOLCANIC } from './skills/volcanic.js';
 
 /** Every player skill. Enemy skills live in @pimpampum/enemies. */
 export const ALL_SKILLS: SkillDefinition[] = [
@@ -21,6 +22,7 @@ export const ALL_SKILLS: SkillDefinition[] = [
   OMBRES,
   GEL,
   EARTHBENDER,
+  VOLCANIC,
 ];
 
 export const PLAYER_SKILLS = ALL_SKILLS;

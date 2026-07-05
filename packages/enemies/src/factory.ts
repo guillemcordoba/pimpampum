@@ -7,13 +7,16 @@ import { pvForLevel } from './generator.js';
 /**
  * Instantiate an enemy from a template. `levels` overrides the level of specific
  * skills; any unset skill uses the template's suggestedLevel. `equipmentIds`
- * adds passive items (same slots/effects as player equipment).
+ * adds passive items (same slots/effects as player equipment). `pv` overrides
+ * the level-derived durability — pass SolvedGroup.pv when fielding a solved
+ * encounter, since the solver discounts PV by the h-curve (level ≠ pv there).
  */
 export function createEnemyFromTemplate(
   template: EnemyTemplate,
   levels: Record<string, number> = {},
   name = template.displayName,
   equipmentIds: string[] = [],
+  pv?: number,
 ): Character {
   const skills: Record<string, number> = {};
   const actions: ActionDefinition[] = [];
@@ -44,8 +47,9 @@ export function createEnemyFromTemplate(
     classCss: template.classCss,
     iconPath: template.iconPath,
     // Durability derives from the fielded level (pv = level²/42, solitaris
-    // get the boss mass multiplier), not from the template.
-    pv: pvForLevel(topLevel, template.role),
+    // get the boss mass multiplier), not from the template — unless the caller
+    // fields a solver-priced PV.
+    pv: pv ?? pvForLevel(topLevel, template.role),
     skills,
     actions,
     equipment,
@@ -56,7 +60,7 @@ export function createEnemyFromTemplate(
 }
 
 /** Convenience: build an enemy by template id. */
-export function createEnemy(id: string, levels: Record<string, number> = {}, name?: string, equipmentIds: string[] = []): Character | undefined {
+export function createEnemy(id: string, levels: Record<string, number> = {}, name?: string, equipmentIds: string[] = [], pv?: number): Character | undefined {
   const t = getEnemyTemplate(id);
-  return t ? createEnemyFromTemplate(t, levels, name, equipmentIds) : undefined;
+  return t ? createEnemyFromTemplate(t, levels, name, equipmentIds, pv) : undefined;
 }

@@ -19,10 +19,12 @@ export const STAT_ICONS = {
   pv: 'icons/000000/transparent/1x1/lorc/heart-drop.svg',
   speed: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
   damage: 'icons/000000/transparent/1x1/lorc/broken-heart.svg',
-  armor: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
+  armor: 'icons/000000/transparent/1x1/delapouite/abdominal-armor.svg',
+  defense: 'icons/000000/transparent/1x1/willdabeast/round-shield.svg',
   focus:'icons/000000/transparent/1x1/lorc/concentration-orb.svg',
   fatigue: 'icons/000000/transparent/1x1/lorc/sleepy.svg',
   charge: 'icons/000000/transparent/1x1/lorc/unlit-bomb.svg',
+  pressure: 'icons/000000/transparent/1x1/delapouite/smoking-volcano.svg',
   size: 'icons/000000/transparent/1x1/delapouite/body-height.svg',
 } as const;
 
@@ -31,6 +33,7 @@ export const STAT_DISPLAY_NAMES = {
   speed: 'Velocitat',
   damage: 'Dany',
   armor: 'Armadura',
+  defense: 'Defensa',
   fatigue: 'Fatiga',
   size: 'Mida',
 } as const;
@@ -72,7 +75,7 @@ export const RULES_SUMMARY: RulesSection[] = [
   },
   {
     title: 'Defensa',
-    icon: STAT_ICONS.armor,
+    icon: STAT_ICONS.defense,
     type: 'text',
     text: "Protegeix un aliat. Cada atac contra ell o contra tu tira d20 + nivell contra el teu d20 + nivell; si guanya, el dany el reps tu.",
   },

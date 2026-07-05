@@ -148,6 +148,8 @@
 .print-card.gel .card-frame { border-color: var(--class-gel); }
 .print-card.terra { border-color: var(--class-terra); }
 .print-card.terra .card-frame { border-color: var(--class-terra); }
+.print-card.volcanic { border-color: var(--class-volcanic); }
+.print-card.volcanic .card-frame { border-color: var(--class-volcanic); }
 
 /* -- Card type header colors ----------------------------------------------- */
 
@@ -777,10 +779,13 @@
 /* -- Print styles for character sheet ------------------------------------- */
 
 @media print {
+  /* Shrink slightly from A5 so two sheets fit in the A4 printable area
+     (200mm x 287mm after the 5mm @page margins). */
   .character-sheet {
     box-shadow: none;
     page-break-inside: avoid;
-    page-break-before: always;
+    width: 200mm;
+    height: 142mm;
     margin: 0 auto;
   }
 }

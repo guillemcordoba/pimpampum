@@ -118,7 +118,7 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
       for (let i = 0; i < games; i++) {
         const players = randomTeam('P', playerCount, perPlayerBudget);
         const enemies = Array.from({ length: gen.count }, (_, k) =>
-          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, gen.level])), `${template.displayName} ${k + 1}`));
+          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, gen.level])), `${template.displayName} ${k + 1}`, [], gen.pv));
         assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
         const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
         if (engine.runCombat().winner === 0) wins++;

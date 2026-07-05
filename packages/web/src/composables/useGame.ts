@@ -17,11 +17,14 @@ export interface PlayerSpec {
   equipment: string[];
 }
 
-/** An enemy entry in the setup screen (template + level + equipment). */
+/** An enemy entry in the setup screen (template + level + equipment).
+ *  `pv` overrides the level-derived durability — the encounter creator's
+ *  solved groups carry an h-curve-discounted PV that must be fielded as-is. */
 export interface EnemySpec {
   templateId: string;
   level: number;
   equipment: string[];
+  pv?: number;
 }
 
 const registry = createRegistry();
@@ -86,7 +89,7 @@ export function useGame() {
       const t = getEnemyTemplate(s.templateId);
       if (!t) throw new Error(`Unknown enemy ${s.templateId}`);
       const levels = Object.fromEntries(t.skills.map(sk => [sk, s.level]));
-      return createEnemyFromTemplate(t, levels, `${t.displayName} ${i + 1}`, s.equipment);
+      return createEnemyFromTemplate(t, levels, `${t.displayName} ${i + 1}`, s.equipment, s.pv);
     });
   }
 

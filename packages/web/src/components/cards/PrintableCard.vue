@@ -37,6 +37,7 @@ const renderedEffect = computed(() =>
         <div v-for="(stat, i) in stats" :key="i" class="stat">
           <span class="stat-icon"><img :src="base + stat.iconPath" :alt="stat.value"></span>
           <span class="stat-value">{{ stat.value }}</span>
+          <span v-if="stat.suffixIconPath" class="stat-icon"><img :src="base + stat.suffixIconPath" alt=""></span>
         </div>
       </div>
     </div>

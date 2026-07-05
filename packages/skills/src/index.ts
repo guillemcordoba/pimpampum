@@ -9,6 +9,7 @@ export { action, d, ICON_PREFIX } from './types.js';
 // Effects
 export { registerAllEffects, ALL_EFFECTS, EFFECT_TYPES } from './effects/index.js';
 export { maxCharges, EXPLOSIVE_SKILL_ID } from './skills/explosives-engineer.js';
+export { getPressure, PRESSURE_STATUS, VOLCANIC_SKILL_ID } from './skills/volcanic.js';
 
 // Equipment
 export { ALL_EQUIPMENT, getEquipment } from './equipment/index.js';

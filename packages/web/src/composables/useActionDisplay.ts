@@ -4,6 +4,8 @@ import type { ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
 export interface CardStat {
   iconPath: string;
   value: string;
+  /** Optional icon rendered right after the value (e.g. "1d6 × <pressió>"). */
+  suffixIconPath?: string;
 }
 
 export interface CardDisplayProps {
@@ -31,8 +33,13 @@ export function actionStats(def: ActionDefinition): CardStat[] {
     const times = (weaponEff.params?.times as number) ?? 1;
     stats.push({ iconPath: STAT_ICONS.damage, value: times > 1 ? `arma×${times}` : 'arma' });
   }
+  // Erupció's damage formula: 1d6 × pressió (the pressure icon closes the
+  // expression). Leads the row like any other damage stat.
+  if (def.effects.some(e => e.type === 'eruption')) {
+    stats.push({ iconPath: STAT_ICONS.damage, value: '1d6 ×', suffixIconPath: STAT_ICONS.pressure });
+  }
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
-  if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.armor, value: `+${def.rollBonus}` });
+  if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.defense, value: `+${def.rollBonus}` });
   if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {
     stats.push({ iconPath: STAT_ICONS.fatigue, value: String(def.fatigueCost) });
   }
@@ -42,6 +49,18 @@ export function actionStats(def: ActionDefinition): CardStat[] {
     stats.push({ iconPath: STAT_ICONS.charge, value: String(chargeEff.params?.amount ?? 1) });
   } else if (def.effects.some(e => e.type === 'empty_bandolier')) {
     stats.push({ iconPath: STAT_ICONS.charge, value: 'tot' });
+  }
+  // Pressió cost: fixed for the geyser, the whole pool for Erupció.
+  const pressureEff = def.effects.find(e => e.type === 'pressure_cost');
+  if (pressureEff) {
+    stats.push({ iconPath: STAT_ICONS.pressure, value: String(pressureEff.params?.amount ?? 1) });
+  }
+  // Pressió gain: stoking actions show it as a corner stat instead of desc text.
+  const pressureGain = def.effects.find(e => e.type === 'pressure_gain');
+  if (pressureGain) {
+    stats.push({ iconPath: STAT_ICONS.pressure, value: `+${pressureGain.params?.amount ?? 1}` });
+  } else if (def.effects.some(e => e.type === 'obsidian_skin')) {
+    stats.push({ iconPath: STAT_ICONS.pressure, value: '+1' });
   }
   return stats;
 }
@@ -83,7 +102,7 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
 /** Inline-icon tokens used in skill / action descriptions. */
 const TOKEN_ICON_MAP: Record<string, { icon: string; alt: string }> = {
   '{A}': { icon: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg', alt: 'A' },
-  '{D}': { icon: STAT_ICONS.armor, alt: 'D' },
+  '{D}': { icon: STAT_ICONS.defense, alt: 'D' },
   '{V}': { icon: STAT_ICONS.speed, alt: 'V' },
   '{DAMAGE}': { icon: STAT_ICONS.damage, alt: 'Dany' },
   '{FATIGA}': { icon: STAT_ICONS.fatigue, alt: 'Fatiga' },

@@ -16,6 +16,6 @@ const BASILISK_SKILL: SkillDefinition = {
 };
 
 export const BASILISK: EnemyModule = {
-  template: { id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg', role: 'solitari', difficulty: 2.10, skills: ['basilisk'], suggestedLevel: 45, naturalArmor: 4, aiStrategy: AIStrategy.Power },
+  template: { id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg', role: 'solitari', difficulty: 1.75, skills: ['basilisk'], suggestedLevel: 45, naturalArmor: 4, aiStrategy: AIStrategy.Power },
   skills: [BASILISK_SKILL],
 };

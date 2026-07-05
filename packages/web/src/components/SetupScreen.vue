@@ -114,6 +114,8 @@ function addPlayer() {
 // --- Enemy draft ----------------------------------------------------------
 const enemyTemplateId = ref(ENEMY_TEMPLATES[0]?.id ?? '');
 const enemyLevel = ref(20);
+/** Empty = derive from level; the encounter creator's solved PV goes here. */
+const enemyPv = ref<number | ''>('');
 const enemyEquip = ref<string[]>([]);
 const enemyEquipSearch = ref('');
 
@@ -148,6 +150,7 @@ function addEnemy() {
     templateId: enemyTemplateId.value,
     level: enemyLevel.value,
     equipment: [...enemyEquip.value],
+    pv: enemyPv.value === '' ? undefined : enemyPv.value,
   });
   enemyEquip.value = [];
   enemyEquipSearch.value = '';
@@ -276,7 +279,7 @@ function skillName(id: string): string {
             <div class="roster">
               <div v-for="(e, i) in g.enemySpecs.value" :key="i" class="roster-tile">
                 <strong>{{ templateName(e.templateId) }}</strong>
-                <div class="roster-detail">nivell {{ e.level }}</div>
+                <div class="roster-detail">nivell {{ e.level }}<template v-if="e.pv"> · PV {{ e.pv }}</template></div>
                 <div v-if="e.equipment.length" class="roster-detail">⚙ {{ e.equipment.join(', ') }}</div>
                 <button class="x" @click="g.removeEnemy(i)">✕</button>
               </div>
@@ -298,7 +301,7 @@ function skillName(id: string): string {
           <select v-model="enemyTemplateId" class="txt">
             <option v-for="t in ENEMY_TEMPLATES" :key="t.id" :value="t.id">{{ t.displayName }}</option>
           </select>
-          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" max="100" class="num"> <span class="pv-derived">PV {{ pvForLevel(enemyLevel) }}</span></label>
+          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" max="100" class="num"> PV <input v-model.number="enemyPv" type="number" min="1" class="num" :placeholder="String(pvForLevel(enemyLevel))"></label>
 
           <div class="subhead">Equipament</div>
           <input v-model="enemyEquipSearch" type="search" placeholder="Cerca…" class="txt search-input">

@@ -27,6 +27,8 @@ const statusBadges = computed(() => {
   }
   for (const [key, entry] of props.character.statuses) {
     if (key === 'carregues') continue; // shown as its own bandolier counter
+    if (key === 'pressio') continue; // shown as its own pressure counter
+    if (key === 'erupcio') continue; // transient eruption bookkeeping
     out.push({ text: entry.value > 1 ? `${key} ×${entry.value}` : key, positive: false, pending: false });
   }
   return out;
@@ -36,6 +38,12 @@ const statusBadges = computed(() => {
 const bandolier = computed(() => {
   if (!props.character.hasStatus('carregues')) return null;
   return { current: props.character.getStatusValue('carregues', 0), max: maxCharges(props.character) };
+});
+
+// The volcanic caster's building pressure (uncapped — it only grows).
+const pressure = computed(() => {
+  if (!props.character.hasStatus('pressio')) return null;
+  return props.character.getStatusValue('pressio', 0);
 });
 </script>
 
@@ -62,6 +70,9 @@ const bandolier = computed(() => {
       </span>
       <span v-if="bandolier" class="bandolier-text" :class="{ empty: bandolier.current === 0 }">
         <img :src="base + STAT_ICONS.charge" alt="Càrregues">{{ bandolier.current }}/{{ bandolier.max }} càrregues
+      </span>
+      <span v-if="pressure !== null" class="pressure-text" :class="{ empty: pressure === 0 }">
+        <img :src="base + STAT_ICONS.pressure" alt="Pressió">{{ pressure }} pressió
       </span>
     </div>
     <div class="portrait-stats">
@@ -141,6 +152,22 @@ const bandolier = computed(() => {
   height: 12px;
 }
 .bandolier-text.empty {
+  opacity: 0.55;
+  font-weight: normal;
+}
+.pressure-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--class-volcanic, #b0421f);
+  font-weight: bold;
+}
+.pressure-text img {
+  width: 12px;
+  height: 12px;
+}
+.pressure-text.empty {
   opacity: 0.55;
   font-weight: normal;
 }

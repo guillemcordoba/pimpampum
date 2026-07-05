@@ -18,6 +18,34 @@ export const SOLITARI_PV_MULT = 1.5;
 export const MAX_ENEMY_LEVEL = 60;
 export const MIN_ENEMY_LEVEL = 5;
 
+/**
+ * Two-factor threat pricing (h-curve research, 2026-07, see
+ * simulator/src/h-curve.ts): threat = pv × difficulty × h(Δ), where
+ * Δ = fielded level − party avg top skill. Measured on decoupled-PV 50%-crossing
+ * sweeps: h is nearly flat, ≈ +0.7% threat per level, roughly linear over
+ * Δ ∈ [−20, +20] (goblin 0.85→1.17, spined devil 0.91→1.15). Outside the
+ * measured range h is clamped — no extrapolated discount.
+ *
+ * This lets the solver decouple fielded PV from level: levels are pushed up
+ * toward the party's band (enemies read as peers, not PV bags) and the PV that
+ * delivers the budgeted threat shrinks by h(Δ). The band target scales with
+ * the intended nastiness — avgTop + H_DELTA_MAX × (1 − targetWinrate) — so an
+ * 85%-winrate fight aims ≈ +3 above the party, an even fight +10, a boss
+ * fight +14: the winrate knob moves levels, not just PV. Fielded levels then
+ * BLEND the pricing level with that band target (LEVEL_BAND_BLEND), so body
+ * count pulls levels too: a 12-goblin horde fields scrubs, 3 hunters field
+ * sharp — at the same budget.
+ */
+export const H_SLOPE = 0.007;
+export const H_DELTA_MAX = 20;
+/** Weight of the party-band target vs the pricing level in fielded levels. */
+export const LEVEL_BAND_BLEND = 0.5;
+
+/** Threat multiplier per PV point for an enemy fielded Δ levels above the party avg top. */
+export function hFactor(delta: number): number {
+  return 1 + H_SLOPE * Math.max(-H_DELTA_MAX, Math.min(H_DELTA_MAX, delta));
+}
+
 /** Even-fight score contributed per player (measured: goblin PV50 ≈ 40/player). */
 export const SCORE_PER_PLAYER = 40;
 
@@ -111,9 +139,12 @@ export interface SolvedGroup {
   templateId: string;
   displayName: string;
   count: number;
+  /** Fielded level (pricing level + pool push toward the party band). */
   level: number;
+  /** Fielded PV: on-curve pricing PV discounted by h(level − party avg top).
+   *  Instantiate with createEnemyFromTemplate(..., pv) — NOT pvForLevel(level). */
   pv: number;
-  /** count × bodyScore at the solved level. */
+  /** count × bodyScore at the PRICING level (pre-push, on-curve PV). */
   score: number;
 }
 
@@ -135,11 +166,19 @@ function clamp(v: number, lo: number, hi: number): number {
 
 /**
  * Given a composition (species + counts), a party and a difficulty, solve each
- * group's LEVEL (and PV) so the pool's total score hits the budget.
+ * group's LEVEL and PV so the pool's total score hits the budget.
  *
- * Levels keep the species' natural hierarchy: every suggestedLevel is scaled
- * by a common factor λ. Since pv is quadratic in level, the pool score scales
- * with λ², giving the closed form λ = √(budget / scoreAtSuggested).
+ * Pricing levels keep the species' natural hierarchy: every suggestedLevel is
+ * scaled by a common factor λ. Since pv is quadratic in level, the pool score
+ * scales with λ², giving the closed form λ = √(budget / scoreAtSuggested).
+ *
+ * The FIELDED numbers then decouple via the h-curve: levels get a pool-wide
+ * additive push toward the band target avg top + H_DELTA_MAX × (1 − winrate)
+ * (blended by LEVEL_BAND_BLEND, capped at avg top + H_DELTA_MAX and
+ * MAX_ENEMY_LEVEL, never lowered), and fielded PV = pricedPV / h(Δ) — the
+ * level's threat contribution is charged in PV. The achieved score (and thus
+ * ratio, bands and winrate promises) is identical to pricing at the λ-level
+ * with on-curve PV.
  */
 export function solveEncounter(
   pool: PoolSpec[],
@@ -154,15 +193,30 @@ export function solveEncounter(
   if (filled.length === 0 || atSuggested <= 0 || budget <= 0) {
     return { groups: [], target, budget: Math.round(budget), score: 0, ratio: 0 };
   }
+  const avgTop = playerTopLevels.reduce((s, v) => s + v, 0) / playerTopLevels.length;
   const lambda = Math.sqrt(budget / atSuggested);
-  const groups: SolvedGroup[] = filled.map(p => {
-    const level = clamp(Math.round(lambda * p.template.suggestedLevel), MIN_ENEMY_LEVEL, MAX_ENEMY_LEVEL);
+  const priced = filled.map(p => ({
+    spec: p,
+    level: clamp(Math.round(lambda * p.template.suggestedLevel), MIN_ENEMY_LEVEL, MAX_ENEMY_LEVEL),
+  }));
+  // Pool-wide level push: same additive offset for every group (preserves the
+  // species hierarchy), sized so the count-weighted average fielded level
+  // lands LEVEL_BAND_BLEND of the way from the pricing average to the band
+  // target avgTop + H_DELTA_MAX × (1 − winrate). Deadlier fights sit higher;
+  // bigger hordes price lower and so field lower.
+  const bodies = priced.reduce((s, g) => s + g.spec.count, 0);
+  const avgPriced = priced.reduce((s, g) => s + g.spec.count * g.level, 0) / bodies;
+  const bandTarget = avgTop + H_DELTA_MAX * (1 - clamp(targetWinrate, 0.05, 0.95));
+  const push = Math.max(0, Math.round(LEVEL_BAND_BLEND * (bandTarget - avgPriced)));
+  const fieldCap = Math.min(MAX_ENEMY_LEVEL, Math.round(avgTop) + H_DELTA_MAX);
+  const groups: SolvedGroup[] = priced.map(({ spec: p, level }) => {
+    const fielded = Math.max(level, Math.min(level + push, fieldCap));
     return {
       templateId: p.template.id,
       displayName: p.template.displayName,
       count: p.count,
-      level,
-      pv: pvForLevel(level, p.template.role),
+      level: fielded,
+      pv: Math.max(2, Math.round(pvForLevel(level, p.template.role) / hFactor(fielded - avgTop))),
       score: Math.round(p.count * bodyScore(p.template, level)),
     };
   });

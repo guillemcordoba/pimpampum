@@ -44,6 +44,7 @@
   --class-ombres: #3d3d54;
   --class-gel: #5b8fa8;
   --class-terra: #4a7a3a;
+  --class-volcanic: #b0421f;
 
   /* Card type header colors */
   --type-atac-fisic: #a63d2f;
@@ -468,6 +469,7 @@ body {
 .portrait.ombres { border-color: var(--class-ombres); }
 .portrait.gel { border-color: var(--class-gel); }
 .portrait.terra { border-color: var(--class-terra); }
+.portrait.volcanic { border-color: var(--class-volcanic); }
 
 .portrait-icon {
   width: 64px;
@@ -764,6 +766,7 @@ body {
 .mini-card.ombres { border-color: var(--class-ombres); }
 .mini-card.gel { border-color: var(--class-gel); }
 .mini-card.terra { border-color: var(--class-terra); }
+.mini-card.volcanic { border-color: var(--class-volcanic); }
 
 .mini-card-header {
   padding: 6px 8px 5px;

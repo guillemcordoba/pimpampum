@@ -74,7 +74,7 @@ export function calibrateSpecies(template: EnemyTemplate, opts: CalibrationOptio
       for (let i = 0; i < games; i++) {
         const players = randomTeam('P', playerCount, budget);
         const enemies = Array.from({ length: g.count }, (_, k) =>
-          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, g.level])), `${template.displayName} ${k}`));
+          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, g.level])), `${template.displayName} ${k}`, [], g.pv));
         assignStrategies(players, shuffle(STRATS));
         const w = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 }).runCombat().winner;
         claimAcc += claim;

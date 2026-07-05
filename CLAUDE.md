@@ -61,7 +61,7 @@ pimpampum/
 
 ## Core Mechanics (see rules.md)
 
-- **PV** is the only base stat (players default to **20**; enemy PV is derived from fielded level: `pvForLevel(level, role)` = level²/42, ×1.5 for `solitari` bosses — see `packages/enemies/src/generator.ts`, which also holds the parametric encounter generator behind the web's `/encounters` creator). **Skills** are 1-100; a skill unlocks **actions** at given levels.
+- **PV** is the only base stat (players default to **20**; enemy durability comes from `pvForLevel(level, role)` = level²/42, ×1.5 for `solitari` bosses — see `packages/enemies/src/generator.ts`, which also holds the parametric encounter generator behind the web's `/encounters` creator). The solver prices threat two-factor (measured h-curve, `simulator/src/h-curve.ts`): fielded levels are pushed toward the party band (`avgTop + 20×(1−winrate)`, blended 50/50 with the pricing level so bigger hordes field lower) and fielded PV = pricedPV / `hFactor(Δ)` — solved encounters carry a PV decoupled from level, so instantiate them with `createEnemyFromTemplate(..., pv)` / `EnemySpec.pv`, never `pvForLevel(level)`. **Skills** are 1-100; a skill unlocks **actions** at given levels.
 - **Mida (size)**: free creation choice, engine-owned (`engine/src/size.ts`) — Gran +3 PV / −1 speed, Petit −3 PV / +1 speed, Mitjà baseline (default). Enemies are always Mitjà (templates bake durability into basePV).
 - **Action**: belongs to a skill; has a **speed** and a **type** (Atac / Defensa / Focus). Attacks also have **damage dice**.
 - **Attack**: `d20 + skill + modifiers` vs the defender's `d20 + defense skill + modifiers` (or auto-hit if undefended). On a hit, roll damage dice, subtract passive armour (min 0), subtract from PV.

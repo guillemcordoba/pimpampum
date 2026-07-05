@@ -18,6 +18,6 @@ const GOBLIN_SHAMAN_SKILL: SkillDefinition = {
 };
 
 export const GOBLIN_SHAMAN: EnemyModule = {
-  template: { id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', iconPath: ICON + 'delapouite/skull-staff.svg', role: 'elit', difficulty: 0.70, skills: ['goblin-shaman'], suggestedLevel: 25, aiStrategy: AIStrategy.Power },
+  template: { id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', iconPath: ICON + 'delapouite/skull-staff.svg', role: 'elit', difficulty: 0.52, skills: ['goblin-shaman'], suggestedLevel: 25, aiStrategy: AIStrategy.Power },
   skills: [GOBLIN_SHAMAN_SKILL],
 };

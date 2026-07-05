@@ -19,6 +19,6 @@ const BONE_DEVIL_SKILL: SkillDefinition = {
 };
 
 export const BONE_DEVIL: EnemyModule = {
-  template: { id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', iconPath: ICON + 'lorc/daemon-skull.svg', role: 'elit', difficulty: 0.44, skills: ['bone-devil'], suggestedLevel: 30, aiStrategy: AIStrategy.Power },
+  template: { id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', iconPath: ICON + 'lorc/daemon-skull.svg', role: 'elit', difficulty: 0.36, skills: ['bone-devil'], suggestedLevel: 30, aiStrategy: AIStrategy.Power },
   skills: [BONE_DEVIL_SKILL],
 };
