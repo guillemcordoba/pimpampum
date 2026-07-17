@@ -1,5 +1,5 @@
-import { EffectHandler, Character, HEAL_DIVISOR, StatusBehavior } from '@pimpampum/engine';
-import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, bestSaveBonus, ModKind } from './helpers.js';
+import { EffectHandler, Character, StatusBehavior } from '@pimpampum/engine';
+import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, ModKind } from './helpers.js';
 import { DOT, REGEN } from './status-behaviors.js';
 
 // Attack rolls against the marked holder get +value (mark_target).
@@ -17,19 +17,18 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   /**
    * Restore PV to the chosen / implied targets.
    *  - `mode: 'flat'` (default): heals a fixed `amount`. Used for side-effect heals.
-   *  - `mode: 'roll'`: rolls d20 + (skill - fatigue) and heals floor(total / HEAL_DIVISOR).
-   *    The action's own skillId drives the roll. Capped at the target's missing PV
-   *    naturally (engine.heal already clamps to maxPV).
+   *  - `mode: 'roll'`: rolls the action's own dice (+ the healer's roll bonuses,
+   *    which include the fatigue penalty) and heals the total. Capped at the
+   *    target's missing PV naturally (engine.heal already clamps to maxPV).
    */
   heal: {
     onResolve(ctx) {
       const mode = str(ctx.params, 'mode', 'flat');
       const targets = resolveTargets(ctx, tspec(ctx.params, 'ally'));
       if (mode === 'roll') {
-        const skill = ctx.source.getHealRollSkill(ctx.action.skillId);
-        const roll = ctx.engine.rollD20();
-        const amt = Math.max(0, Math.floor((roll + skill) / HEAL_DIVISOR));
-        ctx.engine.log('focus', `🎲 ${ctx.source.name} «${ctx.action.name}»: d20=${roll} + habilitat ${skill} = ${roll + skill} → ${amt} PV.`, ctx.source.team);
+        const roll = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, undefined);
+        const amt = Math.max(0, roll + ctx.source.getRollBonus(ctx.action.skillId));
+        ctx.engine.log('focus', `🎲 ${ctx.source.name} «${ctx.action.name}»: ${amt} PV.`, ctx.source.team);
         for (const t of targets) ctx.engine.heal(t, amt);
       } else {
         const amt = num(ctx.params, 'amount', 2);
@@ -47,7 +46,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   // If a `dice` param is supplied, it is rolled once at apply and added to `amount`.
   skill_mod: {
     onResolve(ctx) {
-      let amt = num(ctx.params, 'amount', 8);
+      let amt = num(ctx.params, 'amount', 3); // TODO(balance)
       const dice = diceParam(ctx.params, 'dice');
       if (dice) amt += dice.roll();
       const kind = str(ctx.params, 'kind', 'skill') as ModKind;
@@ -64,31 +63,6 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) t.skipTurns += num(ctx.params, 'turns', 1);
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
-    aiWeight() { return 1; },
-  },
-
-  // Contested d20+skill vs target's d20+best-skill save: on success, stun.
-  // Default target: 'enemies' (group save). aiWeight tuned moderately.
-  contested_stun: {
-    onResolve(ctx) {
-      const turns = num(ctx.params, 'turns', 1);
-      const targets = resolveTargets(ctx, tspec(ctx.params, 'enemies'));
-      const atkSkill = ctx.source.getRollSkill(ctx.action.skillId, 'attack') + (ctx.action.rollBonus ?? 0);
-      for (const t of targets) {
-        const atkRoll = ctx.engine.rollD20();
-        const defRoll = ctx.engine.rollD20For(t);
-        const defBonus = bestSaveBonus(t);
-        const attacker = atkRoll + atkSkill;
-        let defender = defRoll + defBonus;
-        ctx.engine.log('focus', `🎲 ${ctx.action.name} contra ${t.name}: ${atkRoll}+${atkSkill}=${attacker} vs ${defRoll}+${defBonus}=${defender}.`, ctx.source.team);
-        // Clutch statuses may adjust the save, seeing both totals.
-        defender = ctx.engine.adjustContestTotal(t, defender, attacker, 'save');
-        const ok = attacker > defender;
-        ctx.engine.log('focus', `${t.name} ${ok ? 'no esquiva' : 'esquiva'}.`, ctx.source.team);
-        if (ok) t.skipTurns += turns;
-      }
-    },
-    getTargetRequirement(p) { return targetReq(tspec(p, 'enemies')); },
     aiWeight() { return 1; },
   },
 
@@ -117,7 +91,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   // Mark an enemy: attack rolls against them get +amount.
   mark_target: {
     onResolve(ctx) {
-      const amt = num(ctx.params, 'amount', 4);
+      const amt = num(ctx.params, 'amount', 2); // TODO(balance)
       const turns = num(ctx.params, 'turns', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
         t.setStatus('marca-objectiu', amt, turns, undefined, MARCA_OBJECTIU);

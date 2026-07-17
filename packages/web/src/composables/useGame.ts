@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
-import type { CharacterSize, LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
+import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemyFromTemplate, getEnemyTemplate } from '@pimpampum/enemies';
 
@@ -12,14 +12,12 @@ export interface PlayerSpec {
   classCss: string;
   iconPath: string;
   pv: number;
-  size: CharacterSize;
   skills: Record<string, number>;
   equipment: string[];
 }
 
 /** An enemy entry in the setup screen (template + level + equipment).
- *  `pv` overrides the level-derived durability — the encounter creator's
- *  solved groups carry an h-curve-discounted PV that must be fielded as-is. */
+ *  `pv` overrides the template's hand-set `basePV`. */
 export interface EnemySpec {
   templateId: string;
   level: number;
@@ -77,7 +75,6 @@ export function useGame() {
       classCss: s.classCss,
       iconPath: s.iconPath,
       pv: s.pv,
-      size: s.size,
       skills: s.skills,
       equipment: s.equipment,
       category: 'player',
@@ -209,9 +206,15 @@ export function useGame() {
     const eng = engine.value;
     if (!eng) return null;
     for (const log of logs) {
-      const m = log.message.match(/colpeja ([^:(]+)|protegeix ([^.]+)|bloqueja l'atac de/);
+      const msg = log.message;
+      let m = msg.match(/colpeja ([^:(]+)/);          // hit target
+      if (!m) m = msg.match(/protegeix ([^.]+)\./);   // guard declaration → protected ally
+      // Block declaration: `X «acció» bloqueja Y.` — but NOT `bloqueja l'atac de …`
+      // (deflected attack, no useful single target) nor `Y bloqueja X «acció».`.
+      if (!m) m = msg.match(/» bloqueja ([^.«]+)\./); // blocked enemy
+      if (!m) m = msg.match(/^([^«]+) «[^»]*» es posa en guàrdia/); // self-guard → defender
       if (m) {
-        const name = (m[1] ?? m[2] ?? '').trim().split(',')[0].trim();
+        const name = (m[1] ?? '').trim().split(',')[0].trim();
         for (let t = 0; t < 2; t++) {
           const idx = eng.teams[t].findIndex(c => c.name === name);
           if (idx >= 0) return { team: t, idx };

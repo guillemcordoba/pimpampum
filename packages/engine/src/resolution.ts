@@ -1,50 +1,29 @@
-import { DiceRoll } from './dice.js';
-
-/** Roll a single d20 (1-20). */
-export function rollD20(): number {
-  return Math.floor(Math.random() * 20) + 1;
-}
-
-/** Result of a contested attack roll. */
-export interface AttackOutcome {
-  attackerRoll: number;
-  attackerTotal: number;
-  /** null when the attack was undefended (auto-hit). */
-  defenderRoll: number | null;
-  defenderTotal: number | null;
-  hit: boolean;
-  /** attackerTotal - defenderTotal. +Infinity for an undefended auto-hit. */
-  margin: number;
-}
+/** Margin an eventual loser may lose by and still learn from the contest. */
+export const SKILL_UP_MARGIN = 2;
 
 /**
- * Resolve a contested attack. The attacker hits if their total strictly exceeds
- * the defender's. An undefended attack (defenderTotal === null) always hits.
+ * Resolve an attack contest. `defenseTotal === null` means undefended: the
+ * attack auto-hits and the damage margin is the full attack total. Defended:
+ * the defense holds on a tie or better — the attack hits only when its total
+ * strictly exceeds the defense, and the damage is the margin between them.
  */
-export function resolveAttack(attackerTotal: number, defenderTotal: number | null): { hit: boolean; margin: number } {
-  if (defenderTotal === null) return { hit: true, margin: Infinity };
-  const margin = attackerTotal - defenderTotal;
+export function resolveAttack(attackTotal: number, defenseTotal: number | null): { hit: boolean; margin: number } {
+  if (defenseTotal === null) return { hit: true, margin: attackTotal };
+  const margin = attackTotal - defenseTotal;
   return { hit: margin > 0, margin };
 }
 
-/** Damage actually dealt to PV: rolled damage minus passive armour, floored at 0. */
-export function resolveDamage(rolledDamage: number, passiveArmor: number): number {
-  return Math.max(0, rolledDamage - passiveArmor);
+/** Damage actually dealt to PV: the margin minus passive armour, floored at 0. */
+export function resolveDamage(margin: number, passiveArmor: number): number {
+  return Math.max(0, margin - passiveArmor);
 }
 
 /**
- * Skill levelling rule. After a contested skill roll the skill gains a level only
- * when the roll falls short of the threshold by less than 10 (a near miss). A
- * success never levels the skill. `margin` is the absolute distance from the
- * threshold. Undefended auto-hits (margin === Infinity) never level a skill —
- * there was no contest to learn from.
+ * Learning rule: after a CONTESTED roll only, the LOSER levels up when they
+ * lost by `SKILL_UP_MARGIN` or less. `lostBy` is winner total − loser total
+ * (≥ 0; a tie counts as the attacker losing by 0). Callers decide who lost,
+ * and never call this for undefended auto-hits — no contest, no learning.
  */
-export function checkSkillUp(succeeded: boolean, margin: number): boolean {
-  if (!isFinite(margin)) return false;
-  return !succeeded && Math.abs(margin) < 10;
-}
-
-/** Roll an attack's damage dice (returns raw dice total before armour). */
-export function rollAttackDamage(dice: DiceRoll | undefined): number {
-  return dice ? dice.roll() : 0;
+export function checkSkillUp(lostBy: number): boolean {
+  return lostBy >= 0 && lostBy <= SKILL_UP_MARGIN;
 }

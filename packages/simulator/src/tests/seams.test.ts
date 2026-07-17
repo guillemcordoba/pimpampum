@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ActionDefinition, ActionType, AIStrategy, Character, CombatEngine,
-  createCharacter, DiceRoll, StatusBehavior,
+  createCharacter, DiceRoll, StatusBehavior, FATIGUE_CONFIG,
 } from '@pimpampum/engine';
 import { buildCharacter } from '@pimpampum/skills';
 import { REGISTRY } from './helpers.js';
@@ -10,7 +10,7 @@ import { REGISTRY } from './helpers.js';
  * Deterministic tests for the engine's generic StatusBehavior seams. Statuses
  * get their mechanics from behaviours attached to the instance, so each test
  * wires a minimal inline behaviour against the seam under test. Unguarded
- * attacks auto-hit with no d20 and 1d1 dice always roll 1, so exact-PV
+ * attacks auto-hit for their full roll and 1d1 dice always roll 1, so exact-PV
  * assertions are possible. (Content behaviours are exercised end-to-end by the
  * Metge tests below and statistically by the balance suite.)
  */
@@ -18,7 +18,7 @@ import { REGISTRY } from './helpers.js';
 function atkDef(id = 'hit', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
     id, name: id, skillId: 'test', unlockLevel: 1, actionType: ActionType.Atac,
-    speed: 1, damageDice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
+    speed: 1, dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
     ...opts,
   };
 }
@@ -211,7 +211,8 @@ describe('StatusBehavior engine seams', () => {
       onAttackAction(ctx) {
         const mult = ctx.entry.value * 2;
         ctx.entry.value = mult;
-        return { attackTotalMult: mult, damageMult: mult };
+        // attackTotalMult alone: the attack total IS the damage margin now.
+        return { attackTotalMult: mult };
       },
       onRoundEnd(ctx) {
         if (ctx.entry.data?.['armedRound'] === ctx.engine.round) return;
@@ -246,7 +247,7 @@ describe('StatusBehavior engine seams', () => {
     const MINES: StatusBehavior = {
       onEnemyAttackAction(ctx, attacker) {
         if (ctx.entry.value <= 0) return false;
-        if (ctx.engine.rollD20() <= 10) {
+        if (ctx.engine.rollDie(20) <= 10) {
           ctx.engine.applyPvLoss(attacker, 1, undefined);
           ctx.entry.value--;
           if (ctx.entry.value <= 0) ctx.holder.clearStatus(ctx.key);
@@ -312,9 +313,30 @@ describe('StatusBehavior engine seams', () => {
   });
 });
 
+describe('fatigue budget', () => {
+  it('exhaustion ends the combat: the team with the higher PV fraction wins', () => {
+    const prevMax = FATIGUE_CONFIG.max;
+    FATIGUE_CONFIG.max = 2;
+    try {
+      const a = makeChar('A', 20, [atkDef()]);
+      const b = sac(50);
+      b.aiStrategy = AIStrategy.Power;
+      const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+      const res = engine.runCombat();
+      // Both spend their 2 fatigue in 2 rounds, then nobody can act; A dealt
+      // 2 damage and took none → A keeps the higher PV fraction and wins.
+      expect(res.winner).toBe(0);
+      expect(res.rounds).toBe(3);
+      expect(a.fatigue).toBe(2);
+    } finally {
+      FATIGUE_CONFIG.max = prevMax;
+    }
+  });
+});
+
 describe('Metge de campanya (full path, zero engine edits)', () => {
   it("injecció d'adrenalina doubles the ally's attack and charges +4 fatigue", () => {
-    const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 20 } });
+    const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
     const lluitador = makeChar('Lluitador', 20, [atkDef()]);
     const enemy = sac(50);
     const engine = new CombatEngine([metge, lluitador], [enemy], { registry: REGISTRY });
@@ -329,8 +351,8 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
     expect(lluitador.hasStatus('adrenalina')).toBe(false);
   });
 
-  it('cures de camp heals (d20 + skill − fatigue) ÷ 4 PV', () => {
-    const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 20 } });
+  it('cures de camp heals the roll of its own dice (2d4) in PV', () => {
+    const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
     const ferit = makeChar('Ferit', 20, [focusDef()]);
     const enemy = sac(50);
     const engine = new CombatEngine([metge, ferit], [enemy], { registry: REGISTRY });
@@ -341,8 +363,8 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
       { idx: 0, actionIdx: curesIdx, targets: [{ team: 0, idx: 1 }] },
       { idx: 1, actionIdx: 0 },
     ]);
-    // (d20 + 20) / 4 → between (1+20)/4=5 and (20+20)/4=10 PV healed.
-    expect(ferit.currentPV).toBeGreaterThanOrEqual(10);
-    expect(ferit.currentPV).toBeLessThanOrEqual(15);
+    // 2d4 → between 2 and 8 PV healed.
+    expect(ferit.currentPV).toBeGreaterThanOrEqual(7);
+    expect(ferit.currentPV).toBeLessThanOrEqual(13);
   });
 });

@@ -6,7 +6,7 @@ Pim Pam Pum és un sistema de joc de rol de taula amb combat tàctic per equips.
 
 Cada personatge té una sola característica base:
 
-- **PV** (Punts de vida): els punts de vida que té el personatge abans de caure fora de combat. El valor inicial per defecte és provisionalment **20**, pendent d'ajustar quan es calibri la durada desitjada dels combats.
+- **PV** (Punts de vida): els punts de vida que té el personatge abans de caure fora de combat. El valor inicial per defecte és provisionalment **12**, pendent d'ajustar quan es calibri la durada desitjada dels combats.
 
 ## Habilitats
 
@@ -67,6 +67,16 @@ Després de cada tirada enfrontada (atac contra defensa, o una tirada fora de co
 - **Perdre per 2 o menys**: l'habilitat puja un nivell (+1), i el personatge aprèn la següent acció de l'habilitat.
 
 Només s'aprèn dels fracassos ajustats: quedar-te a un pèl de superar el repte és el que més t'ensenya. Guanyar no ensenya res (ja en saps prou), i perdre per molt vol dir que el repte et queda massa gran per treure'n res.
+
+## Fatiga
+
+Cada acció té un cost de fatiga: **1 per defecte**; les accions esgotadores en costen més (indicat a la carta). Cada cop que jugues una acció, dins o fora de combat, sumes el seu cost al teu comptador de fatiga.
+
+La fatiga màxima és **15** (provisional, pendent d'ajustar perquè un dia aguanti 2-3 combats): no pots jugar una acció que te la faria superar. **Dormir una nit neteja tota la fatiga.**
+
+La fatiga no afecta mai les tirades: és el pressupost d'energia del dia.
+
+Si en començar una ronda ningú no pot jugar cap acció, el combat s'acaba per esgotament: guanya l'equip que conserva una fracció més gran dels seus PV totals (en cas d'empat exacte, taules).
 
 ## Objectes i equipament
 

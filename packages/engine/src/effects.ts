@@ -36,24 +36,28 @@ export interface EngineApi {
 
   /**
    * Perform an extra attack outside the normal turn order (action surge, summons,
-   * counter-attacks). Resolves against the target's active defense if any.
+   * counter-attacks) with the given attack dice. Resolves against the target's
+   * active defense if any; the damage is the margin (minus armour). A blocked
+   * source is NOT re-forced here — the scripted target stands.
    */
-  performExtraAttack(source: Character, target: Character, damageDice: DiceRoll, opts?: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string }): void;
+  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts?: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string }): void;
 
   /** Add a freshly created combatant to a team mid-combat (summons). */
   addCombatant(team: number, c: Character): void;
 
-  /** Roll a d20 (exposed so handlers stay deterministic with engine RNG hooks). */
-  rollD20(): number;
-  /** Roll a d20 for a specific character, honouring any status-imposed roll
-   *  mode (`data.rollMode`: disadvantage/advantage rolls twice, worst/best).
-   *  Pass the contest kind ('attack'/'defense'/'save') so kind-scoped stances
-   *  apply; omit for uncontexted rolls. */
-  rollD20For(c: Character, kind?: import('./status.js').ContestKind): number;
+  /** Roll one die (1..sides) — generic chance checks for content. */
+  rollDie(sides: number): number;
+  /** Roll contest dice for `c`, honouring any status-imposed roll mode
+   *  (advantage/disadvantage roll the whole pool twice, keep best/worst;
+   *  disadvantage wins conflicts). `dice` undefined rolls 0. Pass the contest
+   *  kind ('attack'/'defense'/'save') so kind-scoped stances apply; omit for
+   *  uncontexted rolls. Route content-side contests (saves, heals) through
+   *  this. */
+  rollContestDice(c: Character, dice: DiceRoll | undefined, kind?: import('./status.js').ContestKind): number;
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
   cancelPendingAction(target: Character): boolean;
-  /** Run the holder's modifyContestTotal status hooks over a contested d20
+  /** Run the holder's modifyContestTotal status hooks over a contested dice
    *  total, seeing the opposing total. Content-side contests (saves) should
    *  route their totals through this so clutch statuses can fire there too. */
   adjustContestTotal(holder: Character, own: number, opposing: number, kind: import('./status.js').ContestKind): number;
@@ -61,7 +65,7 @@ export interface EngineApi {
 
 /** Mutable bundle gathered before an attack resolves; effects tweak it in place. */
 export interface AttackModifiers {
-  /** Added to the attacker's d20 + skill roll. */
+  /** Added to the attacker's dice total. */
   rollBonus: number;
   /** Skip the target's passive armour entirely. */
   ignoreArmor: boolean;
@@ -70,9 +74,11 @@ export interface AttackModifiers {
   /** Skip this target entirely — no roll, no damage (e.g. an attack that only
    *  strikes marked targets passes over everyone else). */
   skip: boolean;
-  /** Flat extra PV damage on a hit (after armour). */
+  /** Flat extra PV damage on a hit, added AFTER armour (not part of the
+   *  contest total). */
   bonusDamage: number;
-  /** Extra damage dice rolled and added to the base damage on a hit. */
+  /** Extra dice rolled (once, flat) into the ATTACK TOTAL — they raise both
+   *  the hit chance and the margin damage. */
   extraDamageDice: DiceRoll[];
 }
 
@@ -96,7 +102,8 @@ export interface EffectContext {
   hit?: boolean;
   /** Post-armour PV damage the triggering attack dealt. */
   damageDealt?: number;
-  /** Attacker-perspective margin of the triggering roll. */
+  /** Attacker-perspective margin (attack total − defense total; equals the
+   *  full attack total when undefended). */
   margin?: number;
   /** Mutable attack modifiers, present only during the modifyAttack hook. */
   attackMods?: AttackModifiers;

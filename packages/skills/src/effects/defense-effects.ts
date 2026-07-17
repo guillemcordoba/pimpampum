@@ -32,7 +32,7 @@ export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
   debuff_on_block: {
     onDefend(ctx) {
       if (!ctx.target) return;
-      applyMod(ctx.target, str(ctx.params, 'kind', 'skill') as ModKind, -num(ctx.params, 'amount', 6), durParam(ctx.params, 'duration', 'nextTurn'), 'Repèl');
+      applyMod(ctx.target, str(ctx.params, 'kind', 'skill') as ModKind, -num(ctx.params, 'amount', 3), durParam(ctx.params, 'duration', 'nextTurn'), 'Repèl'); // TODO(balance)
     },
     aiWeight() { return 0.3; },
   },
@@ -52,7 +52,7 @@ export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
   // When the guard fails and damage gets through, buff the defender (berserker rage).
   buff_on_block_fail: {
     onBlockFail(ctx) {
-      const amt = num(ctx.params, 'amount', 4);
+      const amt = num(ctx.params, 'amount', 2); // TODO(balance)
       const kind = str(ctx.params, 'kind', 'attack') as ModKind;
       const dur = durParam(ctx.params, 'duration', 'restOfCombat');
       applyMod(ctx.source, kind, amt, dur, ctx.action.name);

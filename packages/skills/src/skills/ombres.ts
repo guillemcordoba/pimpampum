@@ -1,6 +1,6 @@
-import { ActionType, Character, EffectHandler, StatusBehavior } from '@pimpampum/engine';
-import { SkillDefinition, action, ICON_PREFIX } from '../types.js';
-import { num, applyMod, bestSaveBonus } from '../effects/helpers.js';
+import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior } from '@pimpampum/engine';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { num, diceParam, applyMod } from '../effects/helpers.js';
 
 /**
  * Ombres — the shadow-master: melts people into darkness and fuses enemy
@@ -8,15 +8,16 @@ import { num, applyMod, bestSaveBonus } from '../effects/helpers.js';
  * `untargetable` seam — hidden characters vanish from enemiesOf, so enemy
  * targeting, AoE sweeps, AI sight and extra attacks all pass over them) and
  * a channelled bind where binder and victim freeze together, the victim
- * saving out with a +10-per-turn escalating contested roll at round end.
+ * saving out with an escalating contested roll at round end (this card's own
+ * contest — dice and escalation are its custom logic).
  */
 
 // Fos en l'ombra: unreachable by enemies while it lasts; attacking bursts out
-// of the dark (reveal + one-time +4 on that turn's attack).
+// of the dark (reveal + one-time bonus on that turn's attack).
 const FOS: StatusBehavior = {
   untargetable() { return true; },
   onAttackAction(ctx) {
-    const bonus = num(ctx.entry.data ?? {}, 'bonus', 4);
+    const bonus = num(ctx.entry.data ?? {}, 'bonus', 2);
     ctx.holder.clearStatus(ctx.key);
     applyMod(ctx.holder, 'attack', bonus, 'thisTurn', "Atac des de l'ombra");
     ctx.engine.log('info', `${ctx.holder.name} sorgeix de l'ombra per atacar (+${bonus}).`, ctx.holder.team);
@@ -24,8 +25,9 @@ const FOS: StatusBehavior = {
 };
 
 // Lligat: the victim's side of the fused shadows. Each round end, an escape
-// save (contested, +10 cumulative per held turn); while the bind holds, both
-// victim AND binder skip the next round. Death on either side releases.
+// contest (the bind card's dice on both sides, +3 cumulative per held turn
+// for the victim); while the bind holds, both victim AND binder skip the next
+// round. Death on either side releases. TODO(balance): escalation step.
 const LLIGAT: StatusBehavior = {
   onRoundEnd(ctx) {
     const data = ctx.entry.data ?? {};
@@ -43,11 +45,11 @@ const LLIGAT: StatusBehavior = {
     }
     const attempts = (num(data, 'attempts', 0) + 1);
     data.attempts = attempts;
-    const bonus = 10 * attempts;
-    const escapeRoll = ctx.engine.rollD20For(ctx.holder);
-    const holdRoll = ctx.engine.rollD20For(binder);
-    let escape = escapeRoll + bestSaveBonus(ctx.holder) + bonus;
-    const hold = holdRoll + binder.getRollSkill('ombres', 'attack');
+    const bonus = 3 * attempts;
+    const escapeDice = data.escapeDice as DiceRoll | undefined;
+    const holdDice = data.holdDice as DiceRoll | undefined;
+    let escape = ctx.engine.rollContestDice(ctx.holder, escapeDice, 'save') + bonus;
+    const hold = ctx.engine.rollContestDice(binder, holdDice, 'save') + binder.getRollBonus('ombres');
     ctx.engine.log('focus', `🎲 ${ctx.holder.name} lluita contra el lligam: ${escape} (amb +${bonus}) vs ${hold}.`, ctx.holder.team);
     escape = ctx.engine.adjustContestTotal(ctx.holder, escape, hold, 'save');
     if (escape > hold) {
@@ -80,24 +82,29 @@ const OMBRES_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Lligam d'ombres: contested catch; on success both stand frozen, the
-  // LLIGAT behaviour above runs the escalating escape saves.
+  // Lligam d'ombres: contested catch (this card's own dice on both sides);
+  // on success both stand frozen, the LLIGAT behaviour above runs the
+  // escalating escape contests.
   shadow_bind: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
-      const atkRoll = ctx.engine.rollD20For(ctx.source);
-      const atk = atkRoll + ctx.source.getRollSkill(ctx.action.skillId, 'attack') + (ctx.action.rollBonus ?? 0);
-      const defRoll = ctx.engine.rollD20For(target);
-      let def = defRoll + bestSaveBonus(target);
-      ctx.engine.log('focus', `🎲 Lligam d'ombres contra ${target.name}: ${atk} vs ${def}.`, ctx.source.team);
-      def = ctx.engine.adjustContestTotal(target, def, atk, 'save');
+      const resist = diceParam(ctx.params, 'resist');
+      const atkRaw = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save')
+        + (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
+      const defRaw = ctx.engine.rollContestDice(target, resist, 'save');
+      ctx.engine.log('focus', `🎲 Lligam d'ombres contra ${target.name}: ${atkRaw} vs ${defRaw}.`, ctx.source.team);
+      const atk = ctx.engine.adjustContestTotal(ctx.source, atkRaw, defRaw, 'save');
+      const def = ctx.engine.adjustContestTotal(target, defRaw, atk, 'save');
       if (atk <= def) {
         ctx.engine.log('focus', `${target.name} aparta la seva ombra a temps.`, target.team);
         return;
       }
-      target.setStatus('lligat-ombra', 1, -1, { binder: ctx.source, attempts: 0, armedRound: ctx.engine.round }, LLIGAT);
+      target.setStatus('lligat-ombra', 1, -1, {
+        binder: ctx.source, attempts: 0, armedRound: ctx.engine.round,
+        escapeDice: diceParam(ctx.params, 'escape') ?? resist, holdDice: ctx.action.dice,
+      }, LLIGAT);
       ctx.source.setStatus('lligant-ombra', 1, -1);
       ctx.engine.log('focus', `Les ombres de ${ctx.source.name} i ${target.name} es fusionen: cap dels dos no pot moure's!`, ctx.source.team);
     },
@@ -118,15 +125,15 @@ export const OMBRES: SkillDefinition = {
     action({
       id: 'desapareixer-en-lombra', name: "Desaparèixer en l'ombra", skillId: 'ombres',
       unlock: 1, type: ActionType.Focus, speed: 3,
-      effects: [{ type: 'shadow_melt', params: { bonus: 4 } }],
-      desc: "Tria un aliat: desapareix dins l'ombra fins al final del torn següent i res enemic no el pot tocar. Atacar el revela; el primer atac des de l'ombra té {A}+4.",
+      effects: [{ type: 'shadow_melt', params: { bonus: 2 } }],
+      desc: "Tria un aliat: desapareix dins l'ombra fins al final del torn següent i res enemic no el pot tocar. Atacar el revela; el primer atac des de l'ombra té {A}+2.",
       icon: 'lorc/hidden.svg',
     }),
     action({
       id: 'lligam-dombres', name: "Lligam d'ombres", skillId: 'ombres',
-      unlock: 20, type: ActionType.Focus, speed: 1, fatigueCost: 2,
-      effects: [{ type: 'shadow_bind' }],
-      desc: "Tira d20 + nivell contra el d20 + la millor habilitat d'un enemic. Si guanyes, ni tu ni ell no podeu actuar. Al final de cada torn es repeteix la tirada, i ell hi suma +10 per cada torn retingut: si et supera, queda lliure.",
+      unlock: 2, type: ActionType.Focus, speed: 1, fatigueCost: 2, dice: d(2, 6),
+      effects: [{ type: 'shadow_bind', params: { resist: d(2, 6) } }],
+      desc: "Tira 2d6 contra 2d6 d'un enemic. Si guanyes, ni tu ni ell no podeu actuar. Al final de cada torn es repeteix la tirada, i ell hi suma +3 per cada torn retingut: si et supera, queda lliure.",
       icon: 'lorc/shadow-grasp.svg',
     }),
   ],

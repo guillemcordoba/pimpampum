@@ -1,12 +1,12 @@
-import { ActionType, Character, EffectHandler, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
-import { num, bestSaveBonus } from '../effects/helpers.js';
+import { num, diceParam } from '../effects/helpers.js';
 
 /**
  * Dominador de la terra — Toph-style earthbending: the immovable counter-
  * striker. Waits, listens through the ground, answers head-on. The most
  * defensa-weighted skill in the game: a stance that reads attacks before
- * they land (advantage on defense d20s, feint- and concealment-proof), a
+ * they land (advantage on defense rolls, feint- and concealment-proof), a
  * wall that keeps standing until something smashes through it (the generic
  * standingGuard seam), a counter that drops attackers into a fissure, and a
  * capstone that swallows an enemy whole.
@@ -24,10 +24,11 @@ const SENTIT: StatusBehavior = {
 // shatters it (onStandingGuardBroken) and lands on the holder.
 const MUR: StatusBehavior = {
   standingGuard(ctx) {
-    const caster = (ctx.entry.data ?? {}).caster as Character | undefined;
+    const data = ctx.entry.data ?? {};
+    const caster = data.caster as Character | undefined;
     if (!caster || !caster.isAlive()) { ctx.holder.clearStatus(ctx.key); return; }
-    const roll = ctx.engine.rollD20For(caster, 'defense');
-    return roll + caster.getRollSkill('terra', 'defense') + num(ctx.entry.data ?? {}, 'bonus', 3);
+    const roll = ctx.engine.rollContestDice(caster, data.dice as DiceRoll | undefined, 'defense');
+    return roll + caster.getRollBonus('earthbender', 'defense') + num(data, 'bonus', 2);
   },
   onStandingGuardBroken(ctx) {
     ctx.holder.clearStatus(ctx.key);
@@ -58,7 +59,8 @@ const TERRA_EFFECTS: Record<string, EffectHandler> = {
   earth_wall: {
     onResolve(ctx) {
       for (const t of ctx.targets) {
-        t.setStatus('mur-de-terra', 1, -1, { caster: ctx.source, bonus: ctx.action.rollBonus ?? 3 }, MUR);
+        if (t.team !== ctx.source.team) continue; // walls rise for allies, not blocked enemies
+        t.setStatus('mur-de-terra', 1, -1, { caster: ctx.source, bonus: ctx.action.rollBonus ?? 2, dice: ctx.action.dice }, MUR);
         ctx.engine.log('defense', `Un mur de pedra s'alça davant ${t.name} — i s'hi queda.`, t.team);
       }
     },
@@ -83,19 +85,20 @@ const TERRA_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1.3; },
   },
 
-  // Presó de terra: contested burial — the earth swallows them whole.
+  // Presó de terra: contested burial (this card's own dice on both sides) —
+  // the earth swallows them whole.
   bury: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
       const turns = num(ctx.params, 'turns', 2);
-      const atkRoll = ctx.engine.rollD20For(ctx.source, 'attack');
-      const atk = atkRoll + ctx.source.getRollSkill(ctx.action.skillId, 'attack') + (ctx.action.rollBonus ?? 0);
-      const defRoll = ctx.engine.rollD20For(target, 'save');
-      let def = defRoll + bestSaveBonus(target);
-      ctx.engine.log('focus', `🎲 Presó de terra contra ${target.name}: ${atk} vs ${def}.`, ctx.source.team);
-      def = ctx.engine.adjustContestTotal(target, def, atk, 'save');
+      const atkRaw = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save')
+        + (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
+      const defRaw = ctx.engine.rollContestDice(target, diceParam(ctx.params, 'resist'), 'save');
+      ctx.engine.log('focus', `🎲 Presó de terra contra ${target.name}: ${atkRaw} vs ${defRaw}.`, ctx.source.team);
+      const atk = ctx.engine.adjustContestTotal(ctx.source, atkRaw, defRaw, 'save');
+      const def = ctx.engine.adjustContestTotal(target, defRaw, atk, 'save');
       if (atk <= def) {
         ctx.engine.log('focus', `${target.name} salta fora de la terra que s'obre.`, target.team);
         return;
@@ -117,20 +120,20 @@ export const EARTHBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'cop-de-roca', name: 'Cop de roca', skillId: 'earthbender',
-      unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 6),
+      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 4),
       desc: '',
       icon: 'delapouite/throwing-ball.svg',
     }),
     action({
       id: 'sentit-sismic', name: 'Sentit sísmic', skillId: 'earthbender',
-      unlock: 12, type: ActionType.Focus, speed: 2, fatigueCost: 2,
+      unlock: 2, type: ActionType.Focus, speed: 2, fatigueCost: 2,
       effects: [{ type: 'seismic_sense' }],
       desc: 'Per la resta del combat: tires les defenses amb avantatge, les fintes no ignoren la teva defensa i veus (i pots atacar) els enemics amagats.',
       icon: 'lorc/barefoot.svg',
     }),
     action({
       id: 'columna-de-terra', name: 'Columna de terra', skillId: 'earthbender',
-      unlock: 25, type: ActionType.Atac, speed: 0, damage: d(1, 6), fatigueCost: 2,
+      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
       effects: [
         { type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } },
       ],
@@ -139,23 +142,23 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'mur-de-terra', name: 'Mur de terra', skillId: 'earthbender',
-      unlock: 40, type: ActionType.Defensa, speed: 2, rollBonus: 7,
+      unlock: 4, type: ActionType.Defensa, speed: 2, dice: d(2, 8), rollBonus: 2,
       effects: [{ type: 'earth_wall' }],
       desc: 'El mur persisteix: mentre és dret, els atacs contra el protegit es resolen contra la teva defensa. El primer atac que el travessa el destrueix.',
       icon: 'heavenly-dog/defensive-wall.svg',
     }),
     action({
       id: 'la-falla', name: 'La falla', skillId: 'earthbender',
-      unlock: 55, type: ActionType.Defensa, speed: -2,
+      unlock: 5, type: ActionType.Defensa, speed: -2, dice: d(2, 8),
       effects: [{ type: 'fissure_counter' }],
       desc: "Si bloqueges, l'atac queda cancel·lat i l'atacant cau a la falla: perd el seu proper torn.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
-      unlock: 85, type: ActionType.Focus, speed: -1, fatigueCost: 3,
-      effects: [{ type: 'bury', params: { turns: 2 } }],
-      desc: "Tira d20 + nivell contra el d20 + la millor habilitat d'un enemic. Si guanyes, la terra se l'empassa durant 2 torns: no pot ser atacat i només pot jugar cartes de Focus.",
+      unlock: 6, type: ActionType.Focus, speed: -1, dice: d(2, 8), fatigueCost: 3,
+      effects: [{ type: 'bury', params: { turns: 2, resist: d(2, 6) } }],
+      desc: "Tira 2d8 contra 2d6 d'un enemic. Si guanyes, la terra se l'empassa durant 2 torns: no pot ser atacat i només pot jugar cartes de Focus.",
       icon: 'lorc/sinking-trap.svg',
     }),
   ],

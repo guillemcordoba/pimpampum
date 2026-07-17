@@ -2,8 +2,7 @@ import { CombatModifier } from './modifier.js';
 import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
-import { fatiguePenalty, fatigueStateName, shortRestFatigue, longRestFatigue } from './fatigue.js';
-import { CharacterSize, DEFAULT_SIZE, sizePvModifier, sizeSpeedModifier } from './size.js';
+import { fatigueStateName } from './fatigue.js';
 import type { StatusBehavior, StatusRef } from './status.js';
 
 /**
@@ -51,7 +50,7 @@ export class Character {
   // Base definition
   maxPV: number;
   currentPV: number;
-  /** skillId -> base level (1-100). */
+  /** skillId -> level (= number of actions of the skill the character knows). */
   skills: Map<string, number>;
   equipment: EquipmentDefinition[] = [];
   /** Active hand. */
@@ -69,12 +68,13 @@ export class Character {
   playedActionIdx: number | null = null;
   /** actionIdx -> turns set aside (-1 = permanent). */
   setAsideActions = new Map<number, number>();
-  /** Persistent fatigue counter — drives the all-skill-roll penalty. Carries
-   *  between combats; cleared only by rest helpers. */
+  /** Persistent fatigue counter — drives the all-roll penalty. Every action
+   *  played adds 1. Carries between combats. */
   fatigue = 0;
-  /** Permanent size chosen at creation. PV modifier is baked into maxPV;
-   *  the speed modifier is applied in getEffectiveSpeed. */
-  size: CharacterSize = DEFAULT_SIZE;
+  /** Enemy defender currently blocking this character: forces every attack
+   *  target this character would choose onto the blocker. Round-scoped (the
+   *  last block resolved wins), cleared like guards. */
+  blockedBy: Character | null = null;
 
   constructor(
     public name: string,
@@ -97,56 +97,49 @@ export class Character {
 
   // --- Skills ---------------------------------------------------------------
 
-  /** Base skill level plus permanent equipment bonuses (no temporary modifiers). */
+  /** Skill level: the number of actions of the skill the character knows.
+   *  Levels NEVER enter a roll — rolls are the action's dice plus bonuses. */
   getSkillLevel(skillId: string): number {
-    let level = this.skills.get(skillId) ?? 0;
+    return this.skills.get(skillId) ?? 0;
+  }
+
+  /**
+   * Flat bonus added to a dice roll for an action of `skillId`: equipment
+   * rollBonuses (skillId match or '*', kind match or unscoped) + combat
+   * modifiers (stat ∈ {'skill', skillId, kind}). `kind` omitted for
+   * non-contest rolls (heals). May be negative. Fatigue never touches rolls.
+   */
+  getRollBonus(skillId: string, kind?: 'attack' | 'defense'): number {
+    let bonus = 0;
     for (const eq of this.equipment) {
-      for (const b of eq.skillBonuses) {
-        if (b.skillId === skillId || b.skillId === '*') level += b.bonus;
+      for (const b of eq.rollBonuses) {
+        if (b.skillId !== skillId && b.skillId !== '*') continue;
+        if (b.kind !== undefined && b.kind !== kind) continue;
+        bonus += b.value;
       }
     }
-    return level;
-  }
-
-  /** Effective skill for a roll of the given kind, including temporary modifiers
-   *  and the current fatigue penalty. */
-  getRollSkill(skillId: string, kind: 'attack' | 'defense'): number {
-    const kinds = new Set<string>(['skill', kind, skillId]);
-    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds) - this.getFatiguePenalty();
-  }
-
-  /** Effective skill for a non-combat roll (e.g. healing): general skill mods
-   *  + the per-skill bonus, minus fatigue. Skips attack/defense-specific mods. */
-  getHealRollSkill(skillId: string): number {
     const kinds = new Set<string>(['skill', skillId]);
-    return this.getSkillLevel(skillId) + sumModifiers(this.modifiers, kinds) - this.getFatiguePenalty();
+    if (kind) kinds.add(kind);
+    return bonus + sumModifiers(this.modifiers, kinds);
   }
 
-  /** Current penalty subtracted from every d20+skill roll (≥0). */
-  getFatiguePenalty(): number {
-    return fatiguePenalty(this.fatigue);
-  }
-
-  /** Catalan label for the current fatigue tier. */
+  /** Catalan label for the current fatigue state. */
   getFatigueStateName(): string {
     return fatigueStateName(this.fatigue);
   }
 
-  /** Short rest: clamps fatigue back to the Fresc cap. Doesn't restore PV. */
-  shortRest(): void {
-    this.fatigue = shortRestFatigue(this.fatigue);
+  /** A night's sleep: clears the whole daily fatigue budget. */
+  sleep(): void {
+    this.fatigue = 0;
   }
 
-  /** Long rest: full reset of fatigue. Also restores PV to max. */
-  longRest(): void {
-    this.fatigue = longRestFatigue();
-    this.currentPV = this.maxPV;
-  }
-
+  /** Level up: the character learns the next action of the skill (the action
+   *  availability filter unlocks it automatically). No cap — overleveling past
+   *  the skill's last action is harmless. */
   raiseSkill(skillId: string, by = 1): void {
     const cur = this.skills.get(skillId);
     if (cur === undefined) return;
-    this.skills.set(skillId, Math.min(100, cur + by));
+    this.skills.set(skillId, cur + by);
   }
 
   // --- Equipment / derived stats -------------------------------------------
@@ -161,15 +154,15 @@ export class Character {
     return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
   }
 
-  /** Resolved speed of an action: base - armour penalty + size modifier
-   *  + speed modifiers + status speed contributions (StatusBehavior.modifySpeed). */
+  /** Resolved speed of an action: base - armour penalty + speed modifiers
+   *  + status speed contributions (StatusBehavior.modifySpeed). */
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
     let statusSpeed = 0;
     for (const ref of this.statusRefs()) {
       if (ref.entry.behavior?.modifySpeed) statusSpeed += ref.entry.behavior.modifySpeed(ref);
     }
-    return base - this.getEquipmentSpeedPenalty() + sizeSpeedModifier(this.size)
+    return base - this.getEquipmentSpeedPenalty()
       + sumModifiers(this.modifiers, new Set(['speed'])) + statusSpeed;
   }
 
@@ -241,6 +234,7 @@ export class Character {
     this.modifiers = [];
     this.statuses.clear();
     this.guards = [];
+    this.blockedBy = null;
     this.skipTurns = 0;
     this.hitThisTurn = false;
     this.hitThisCombat = false;
@@ -252,6 +246,7 @@ export class Character {
   /** Returns true if the character is skipping this turn (stun/skip). */
   resetForNewRound(): boolean {
     this.guards = [];
+    this.blockedBy = null;
     this.hitThisTurn = false;
     this.playedActionIdx = null;
     if (this.skipTurns > 0) {
@@ -298,8 +293,6 @@ export interface CreateCharacterOptions {
   equipment?: EquipmentDefinition[];
   category?: 'player' | 'enemy';
   iconPath?: string;
-  /** Defaults to Mitjà. The size PV modifier is applied on top of `pv`. */
-  size?: CharacterSize;
 }
 
 export function createCharacter(opts: CreateCharacterOptions): Character {
@@ -310,10 +303,8 @@ export function createCharacter(opts: CreateCharacterOptions): Character {
     for (const [id, lvl] of Object.entries(opts.skills)) skills.set(id, lvl);
   }
   const actions = opts.actions.map(def => new ActionInstance(def));
-  const size = opts.size ?? DEFAULT_SIZE;
-  const pv = Math.max(1, opts.pv + sizePvModifier(size));
+  const pv = Math.max(1, opts.pv);
   const c = new Character(opts.name, pv, skills, actions, opts.classCss, opts.category ?? 'player', opts.iconPath ?? '');
-  c.size = size;
   if (opts.equipment) for (const e of opts.equipment) c.equip(e);
   return c;
 }

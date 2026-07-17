@@ -2,6 +2,7 @@ import { Character } from './character.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import { EffectRegistry, AIContext } from './effects.js';
+import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
 import { AIStrategy } from './strategy.js';
 
 /** Reveal-level summary of one queued action this round. */
@@ -36,8 +37,10 @@ function pvFraction(c: Character): number {
 }
 
 /** Whether every effect on an action permits playing it now (resource gates),
- *  and no status on the actor blocks the action's type. */
+ *  the actor can afford its fatigue cost, and no status on the actor blocks
+ *  the action's type. */
 export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
+  if (FATIGUE_ENABLED && actor.fatigue + (action.def.fatigueCost ?? 1) > FATIGUE_CONFIG.max) return false;
   for (const ref of actor.statusRefs()) {
     if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
   }
@@ -62,41 +65,66 @@ export function availableActionIndices(actor: Character, registry?: EffectRegist
   return out;
 }
 
-/** Highest skill level a character holds (threat / build-strength proxy). */
-function topSkill(c: Character): number {
-  let best = 0;
-  for (const lvl of c.skills.values()) best = Math.max(best, lvl);
-  return best;
-}
-
-/** Average damage an attack is likely to roll: its own dice, else the best
+/** Average dice total of an attack action: its own dice, else the best
  *  equipped weapon dice (weapon-carried actions), else a modest default. */
-function expectedAttackDice(actor: Character, def: ActionDefinition): number {
-  if (def.damageDice) return def.damageDice.average();
+function attackDiceAverage(actor: Character, def: ActionDefinition): number {
+  if (def.dice) return def.dice.average();
   let best = 0;
   for (const e of actor.equipment) {
-    if (e.damageDice) best = Math.max(best, e.damageDice.average());
+    if (e.dice) best = Math.max(best, e.dice.average());
   }
   return best > 0 ? best : 3;
 }
 
-/** Rough chance the attack connects, averaged over the living enemies: hits
- *  are automatic unless the target plays a defense, in which case the
- *  contested d20 shifts ≈5pp per point of skill gap. */
-function estimateHitChance(actor: Character, def: ActionDefinition, enemies: Character[]): number {
-  if (enemies.length === 0) return 1;
+/** Expected attack total for an action: dice average + the action's roll
+ *  bonus + the actor's roll bonuses. The attack total IS the damage basis. */
+function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
+  return Math.max(0, attackDiceAverage(actor, def) + (def.rollBonus ?? 0)
+    + actor.getRollBonus(def.skillId, 'attack'));
+}
+
+/** Best attack total a character can be expected to throw (threat proxy). */
+function bestAttackAverage(c: Character): number {
+  let best = 0;
+  for (const a of c.actions) {
+    if (a.def.actionType !== ActionType.Atac) continue;
+    best = Math.max(best, expectedAttackTotal(c, a.def));
+  }
+  return best;
+}
+
+/** Best expected defense total among a character's defense actions, or -1 if
+ *  they have none. */
+function bestDefenseTotal(e: Character): number {
+  let best = -1;
+  for (const a of e.actions) {
+    if (a.def.actionType !== ActionType.Defensa) continue;
+    const d = (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0)
+      + e.getRollBonus(a.def.skillId, 'defense');
+    best = Math.max(best, d);
+  }
+  return best;
+}
+
+/**
+ * Expected PV an attack removes, averaged over the living enemies. Undefended
+ * the damage is the full attack total minus armour; defended it's the margin
+ * (attack − defense) when the attack wins the contest. `pWin` is a linear
+ * average-gap stand-in for P(attack > defense) — slope pending recalibration.
+ */
+function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies: Character[]): number {
+  if (enemies.length === 0) return 0;
   const P_DEFEND = 0.3; // how often a capable enemy actually picks a defense
-  const atk = actor.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0);
+  const A = expectedAttackTotal(actor, def);
   let acc = 0;
   for (const e of enemies) {
-    let best = -1;
-    for (const a of e.actions) {
-      if (a.def.actionType !== ActionType.Defensa) continue;
-      best = Math.max(best, e.getRollSkill(a.def.skillId, 'defense') + (a.def.rollBonus ?? 0));
-    }
-    if (best < 0) { acc += 1; continue; } // no defense action: always auto-hit
-    const pWin = Math.min(0.95, Math.max(0.05, 0.5 + 0.05 * (atk - best)));
-    acc += (1 - P_DEFEND) + P_DEFEND * pWin;
+    const armor = e.getPassiveArmor();
+    const undefended = Math.max(0, A - armor);
+    const bestDef = bestDefenseTotal(e);
+    if (bestDef < 0) { acc += undefended; continue; } // no defense action ever
+    const pWin = Math.min(0.95, Math.max(0.05, 0.5 + 0.08 * (A - bestDef)));
+    const defended = pWin * Math.max(0, A - bestDef - armor);
+    acc += (1 - P_DEFEND) * undefended + P_DEFEND * defended;
   }
   return acc / enemies.length;
 }
@@ -112,13 +140,11 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
   let w = 1;
   switch (def.actionType) {
     case ActionType.Atac: {
-      // An attack is worth the PV it expects to remove: dice minus their
-      // armour, discounted by the odds of connecting.
-      const armor = enemies.length
-        ? enemies.reduce((s, e) => s + e.getPassiveArmor(), 0) / enemies.length
-        : 0;
-      const expected = Math.max(0, expectedAttackDice(actor, def) - armor);
-      w = 0.5 + estimateHitChance(actor, def, enemies) * expected;
+      // An attack is worth the PV it expects to remove: the margin damage it
+      // projects, blended over defended/undefended outcomes and armour.
+      // TODO(balance): constants recalibrated for the dice era — attacks must
+      // stay the default plan or fights stall into draws.
+      w = 1 + 1.5 * estimateExpectedDamage(actor, def, enemies);
       w += woundedEnemies * 1.5; // finish wounded foes
       if (strategy === AIStrategy.Aggro) w += 2;
       break;
@@ -132,8 +158,8 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       break;
     }
     case ActionType.Focus: {
-      w = 2;
-      if (strategy === AIStrategy.Power) w += 2;
+      w = 1.2;
+      if (strategy === AIStrategy.Power) w += 1.5;
       if (selfHurt && def.speed < 5) w -= 1; // don't telegraph a slow focus while dying
       break;
     }
@@ -174,15 +200,35 @@ export function pickResolveTargets(
   speed: number,
 ): Character[] {
   if (req === 'none') return [];
+
+  // Defense dual choice: guard a wounded ally, or block the scariest enemy
+  // whose attack is still pending; self-guard when neither applies.
+  if (req === 'defense') {
+    const allies = pool.filter(t => t.team === actor.team);
+    const enemies = pool.filter(t => t.team !== actor.team);
+    const wounded = allies.filter(a => a !== actor && pvFraction(a) < 0.5);
+    const preferGuard = actor.aiStrategy === AIStrategy.Protect || wounded.length > 0;
+    if ((preferGuard || enemies.length === 0) && allies.length > 0) {
+      return [...allies].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
+    }
+    const pending = view.pendingSummary();
+    const attackers = enemies.filter(e => pending.some(p =>
+      p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac));
+    if (attackers.length > 0) {
+      return [...attackers].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
+    }
+    return [actor]; // nothing to block, nobody hurt: guard yourself
+  }
+
   if (req !== 'enemy') {
     return [...pool].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
   }
 
   const pending = view.pendingSummary();
-  const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackDice(actor, def) : 0;
+  const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackTotal(actor, def) : 0;
   const score = (e: Character): number => {
     let s = 2 * (1 - pvFraction(e)); // focus fire the wounded
-    s += Math.min(2, topSkill(e) / 40); // dangerous targets (casters, elites) first
+    s += Math.min(2, bestAttackAverage(e) / 6); // dangerous targets (heavy hitters) first
     if (def.actionType === ActionType.Atac) {
       if (Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {
         s += 4; // take the kill

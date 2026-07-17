@@ -1,24 +1,23 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
-import { SkillDefinition, action, ICON_PREFIX } from '../types.js';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num } from '../effects/helpers.js';
 
 /**
- * Mestre d'Armes — a weapon-agnostic master-at-arms. Every attack deals the
- * damage of the WIELDED main-hand weapon (the generic `weapon_damage` effect, for
- * us the humble Bastó); the action's own {ATK} (skill ×2 precision) decides
- * whether it lands. The only skill elite at both attack and defense. No weapon →
- * no damage; there is no unarmed fallback. The signature mechanics live below:
- * the `cadena` compounding-chain status behaviour and the `flux` card-swap
- * charges (generic `cardSwap` status data, spent by the engine's flowSwap).
+ * Mestre d'Armes — a weapon-agnostic master-at-arms. Every attack rolls the
+ * WIELDED main-hand weapon's dice (the generic `weapon_damage` effect); each
+ * card reads as "arma + modificador". The only skill elite at both attack and
+ * defense. No weapon → no roll; there is no unarmed fallback. The signature
+ * mechanics live below: the `cadena` compounding-chain status behaviour and
+ * the `flux` card-swap charges (spent by the engine's flowSwap).
  */
-// Atac encadenat: each attacking turn the chain multiplier doubles (×2, ×4…),
-// applied to the whole attack total and damage of every target struck. The
-// chain breaks at round end unless the holder attacked (arming round exempt).
+// Atac encadenat: each attacking turn the chain multiplier climbs (×1.5, ×2,
+// ×2.5…), applied to the whole attack total (which is also the damage margin).
+// The chain breaks at round end unless the holder attacked (arming round
+// exempt). TODO(balance): step size.
 const CADENA: StatusBehavior = {
   onAttackAction(ctx) {
-    const mult = ctx.entry.value * 2;
-    ctx.entry.value = mult; // advance the ladder in place
-    return { attackTotalMult: mult, damageMult: mult };
+    ctx.entry.value += 1; // advance the ladder in place (steps)
+    return { attackTotalMult: 1 + 0.5 * ctx.entry.value };
   },
   onRoundEnd(ctx) {
     if (ctx.entry.data?.['armedRound'] === ctx.engine.round) return;
@@ -51,7 +50,7 @@ const MESTRE_ARMES_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     canPlay(actor) { return !actor.hasStatus('cadena'); },
     onResolve(ctx) {
-      ctx.source.setStatus('cadena', 1, -1, { armedRound: ctx.engine.round }, CADENA);
+      ctx.source.setStatus('cadena', 0, -1, { armedRound: ctx.engine.round }, CADENA);
       ctx.engine.log('focus', `${ctx.source.name} encadena els seus atacs!`, ctx.source.team);
     },
     // Worth arming when there are foes to grind down; nothing once already chained.
@@ -78,44 +77,44 @@ export const MESTRE_ARMES: SkillDefinition = {
   actions: [
     action({
       id: 'tall-precis', name: 'Tall precís', skillId: 'mestre-armes',
-      unlock: 1, type: ActionType.Atac, speed: -1,
-      effects: [{ type: 'weapon_damage' }, { type: 'precision', params: { levelMultiplier: 2 } }],
-      desc: 'Suma el teu nivell a {A}.',
+      unlock: 1, type: ActionType.Atac, speed: -1, rollBonus: 2,
+      effects: [{ type: 'weapon_damage' }],
+      desc: '',
       icon: 'lorc/sword-wound.svg',
     }),
     action({
       id: 'contraatac', name: 'Contraatac', skillId: 'mestre-armes',
-      unlock: 12, type: ActionType.Defensa, speed: 2, rollBonus: 2,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 1,
       effects: [{ type: 'counter', params: { weapon: true } }],
-      desc: "Si bloqueges, contraataques amb el dany de la teva arma.",
+      desc: "Si bloqueges, contraataques amb la teva arma.",
       icon: 'lorc/sword-clash.svg',
     }),
     action({
       id: 'estat-de-flux', name: 'Estat de flux', skillId: 'mestre-armes',
-      unlock: 38, type: ActionType.Focus, speed: 2,
+      unlock: 3, type: ActionType.Focus, speed: 2,
       effects: [{ type: 'flow_state', params: { charges: 3 } }],
       desc: "3 cops aquest combat, després de revelar les cartes, pots canviar la teva carta per una altra.",
       icon: 'lorc/meditation.svg',
     }),
     action({
       id: 'desequilibri', name: 'Desequilibri', skillId: 'mestre-armes',
-      unlock: 40, type: ActionType.Defensa, speed: 1, rollBonus: 4,
+      unlock: 4, type: ActionType.Defensa, speed: 1, dice: d(2, 8), rollBonus: 2,
       effects: [{ type: 'debuff_on_block', params: { kind: 'speed', amount: 6, duration: 'nextTurn' } }],
       desc: "Si bloqueges, l'atacant té {V}−6 el torn següent.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({
       id: 'atac-llampec', name: 'Atac llampec', skillId: 'mestre-armes',
-      unlock: 48, type: ActionType.Atac, speed: 2,
+      unlock: 5, type: ActionType.Atac, speed: 2, rollBonus: 1,
       effects: [{ type: 'weapon_damage' }],
       desc: '',
       icon: 'lorc/quick-slash.svg',
     }),
     action({
       id: 'atac-encadenat', name: 'Atac encadenat', skillId: 'mestre-armes',
-      unlock: 70, type: ActionType.Focus, speed: -2, fatigueCost: 2,
+      unlock: 6, type: ActionType.Focus, speed: -2, fatigueCost: 2,
       effects: [{ type: 'chain_attack' }],
-      desc: "Cada torn que ataquis, l'atac dobla {A} i el dany (×2, ×4, ×8…). Es trenca si no ataques.",
+      desc: "Cada torn que ataquis, l'atac es multiplica (×1,5, ×2, ×2,5…). Es trenca si no ataques.",
       icon: 'lorc/sword-spin.svg',
     }),
   ],

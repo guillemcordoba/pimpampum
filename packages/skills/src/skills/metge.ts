@@ -1,5 +1,5 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
-import { SkillDefinition, action, ICON_PREFIX } from '../types.js';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num } from '../effects/helpers.js';
 
 /**
@@ -47,14 +47,14 @@ export const METGE: SkillDefinition = {
   actions: [
     action({
       id: 'cures-de-camp', name: 'Cures de camp', skillId: 'metge',
-      unlock: 1, type: ActionType.Focus, speed: 0,
+      unlock: 1, type: ActionType.Focus, speed: 0, dice: d(2, 4),
       effects: [{ type: 'heal', params: { mode: 'roll' } }],
-      desc: 'Cura un aliat o tu mateix: (d20 + habilitat) ÷ 4 PV.',
+      desc: 'Cura un aliat o tu mateix: recupera la tirada en PV.',
       icon: 'lorc/bandage-roll.svg',
     }),
     action({
       id: 'injeccio-adrenalina', name: "Injecció d'adrenalina", skillId: 'metge',
-      unlock: 20, type: ActionType.Focus, speed: 5,
+      unlock: 2, type: ActionType.Focus, speed: 5,
       effects: [{ type: 'adrenaline', params: { fatigue: 4 } }],
       desc: "Un aliat executa la seva acció d'atac dues vegades aquest torn, i és ell qui rep els +4 de fatiga.",
       icon: 'lorc/syringe.svg',

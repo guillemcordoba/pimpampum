@@ -20,12 +20,12 @@ export class ActionInstance {
 
 /**
  * What the player must target for an action. Attacks target an enemy; defenses
- * target the ally to protect (self allowed); focus actions delegate to their
- * effect handlers' getTargetRequirement.
+ * make the dual choice (an ally to guard — self allowed — or an enemy to
+ * block); focus actions delegate to their effect handlers' getTargetRequirement.
  */
 export function getActionTargetRequirement(def: ActionDefinition, registry: EffectRegistry): TargetRequirement {
   if (isAttack(def.actionType)) return 'enemy';
-  if (isDefenseAction(def.actionType)) return 'ally';
+  if (isDefenseAction(def.actionType)) return 'defense';
   for (const eff of def.effects) {
     const req = registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {});
     if (req && req !== 'none') return req;

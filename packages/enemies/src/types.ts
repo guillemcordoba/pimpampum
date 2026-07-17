@@ -13,16 +13,19 @@ export interface EnemyTemplate {
   displayName: string;
   classCss: string;
   iconPath: string;
-  /** Fielding role: horda swarms, elit squads, solitari bosses. PV comes from
-   *  the level via `pvForLevel`, never from the template. */
+  /** Fielding role: horda swarms, elit squads, solitari bosses. */
   role: EnemyRole;
-  /** Enemy difficulty: threat per PV point relative to a goblin (1.0),
-   *  MEASURED by simulation (PV50 sweeps, 2026-07) — not designed. Re-measure
-   *  after kit changes. */
-  difficulty: number;
+  /** MEASURED threat per body at printed basePV, normalized so a standard
+   *  4-player party's strength is 1 (simulator/src/measure-threat.ts,
+   *  2026-07 dice-contest system). Re-measure after kit changes. */
+  threat: number;
   /** Skill ids defined by this enemy's module. */
   skills: string[];
-  /** Default skill level when none is supplied. */
+  /** Hand-set durability. TODO(balance): seeded from the old d20-era PV;
+   *  retune globally once combat-duration tuning lands. */
+  basePV: number;
+  /** Default skill level (ordinal: number of actions known) when none is
+   *  supplied. Usually the full kit. */
   suggestedLevel: number;
   /** Innate passive armour (scales, stone hide…). Equipped by the factory as
    *  a synthetic Torso item so it flows through the normal armour pipeline. */

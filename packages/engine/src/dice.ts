@@ -1,3 +1,8 @@
+/** Roll a single die with the given number of sides (1..sides). */
+export function rollDie(sides: number): number {
+  return Math.floor(Math.random() * sides) + 1;
+}
+
 /** Represents a dice roll like 1d6, 2d4, or 1d4-1 */
 export class DiceRoll {
   constructor(

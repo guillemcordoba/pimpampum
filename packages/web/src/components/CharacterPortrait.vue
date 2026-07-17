@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
-import { STAT_ICONS, sizeName } from '@pimpampum/engine';
+import { STAT_ICONS, maxFatigue } from '@pimpampum/engine';
 import { maxCharges } from '@pimpampum/skills';
 
 const base = import.meta.env.BASE_URL;
@@ -55,18 +55,14 @@ const pressure = computed(() => {
     <img class="portrait-icon" :src="base + character.iconPath" :alt="character.name">
     <div class="portrait-name">
       {{ character.name }}
-      <span v-if="character.size !== 'mitja'" class="size-badge">
-        <img :src="base + STAT_ICONS.size" alt="Mida">{{ sizeName(character.size) }}
-      </span>
     </div>
     <div class="portrait-pv">
       <div class="pv-bar"><div class="pv-fill" :style="{ width: pvPct + '%' }"></div></div>
       <span class="pv-text">
         <img :src="base + STAT_ICONS.pv" alt="PV">{{ character.currentPV }}/{{ character.maxPV }}
       </span>
-      <span class="fatigue-text" :class="{ tired: character.getFatiguePenalty() > 0 }">
-        <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.fatigue }} · {{ character.getFatigueStateName() }}
-        <span v-if="character.getFatiguePenalty() > 0" class="fatigue-penalty">−{{ character.getFatiguePenalty() }}</span>
+      <span class="fatigue-text" :class="{ tired: character.fatigue >= maxFatigue() }">
+        <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.fatigue }}/{{ maxFatigue() }} · {{ character.getFatigueStateName() }}
       </span>
       <span v-if="bandolier" class="bandolier-text" :class="{ empty: bandolier.current === 0 }">
         <img :src="base + STAT_ICONS.charge" alt="Càrregues">{{ bandolier.current }}/{{ bandolier.max }} càrregues
@@ -175,17 +171,5 @@ const pressure = computed(() => {
   font-size: 0.65rem;
   opacity: 0.85;
   white-space: nowrap;
-}
-.size-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 0.65rem;
-  opacity: 0.8;
-  font-weight: normal;
-}
-.size-badge img {
-  width: 11px;
-  height: 11px;
 }
 </style>

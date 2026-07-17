@@ -58,8 +58,8 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
   // applies this turn AND next turn; pass thisTurn:false to penalise only next turn.
   reckless: {
     modifyAttack(ctx) {
-      ctx.attackMods!.rollBonus += num(ctx.params, 'attack', 5);
-      const def = num(ctx.params, 'defense', 5);
+      ctx.attackMods!.rollBonus += num(ctx.params, 'attack', 3); // TODO(balance)
+      const def = num(ctx.params, 'defense', 4);
       applyMod(ctx.source, 'defense', -def, 1, ctx.action.name);
       if (ctx.params.thisTurn !== false) applyMod(ctx.source, 'defense', -def, 'thisTurn', ctx.action.name);
     },
@@ -217,7 +217,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
 };
 
 function performSecondAttack(ctx: EffectContext): void {
-  const dice: DiceRoll | undefined = diceParam(ctx.params, 'dice') ?? ctx.action.damageDice;
+  const dice: DiceRoll | undefined = diceParam(ctx.params, 'dice') ?? ctx.action.dice;
   if (!dice) return;
   const mode = str(ctx.params, 'target', 'random');
   let t: Character | undefined;

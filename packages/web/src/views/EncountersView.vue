@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { ENEMY_TEMPLATES, unlockedEnemyActions, pvForLevel } from '@pimpampum/enemies';
+import { ENEMY_TEMPLATES, unlockedEnemyActions } from '@pimpampum/enemies';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';
 
 const base = import.meta.env.BASE_URL;
-const level = ref(30);
+const level = ref(3);
 
 const enemies = computed(() => ENEMY_TEMPLATES.map(t => ({
   template: t,
@@ -22,7 +22,7 @@ const enemies = computed(() => ENEMY_TEMPLATES.map(t => ({
 
     <div class="level-control no-print">
       <label>Nivell de l'enemic</label>
-      <input v-model.number="level" type="range" min="1" max="100">
+      <input v-model.number="level" type="range" min="1" max="7">
       <span class="level-value">{{ level }}</span>
     </div>
 
@@ -31,7 +31,7 @@ const enemies = computed(() => ENEMY_TEMPLATES.map(t => ({
         <img :src="base + e.template.iconPath" :alt="e.template.displayName">
         <div>
           <div class="enemy-name">{{ e.template.displayName }}</div>
-          <div class="enemy-meta">PV {{ pvForLevel(level) }}</div>
+          <div class="enemy-meta">PV {{ e.template.basePV }}</div>
         </div>
       </div>
       <CardGrid v-if="e.actions.length">

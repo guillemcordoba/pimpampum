@@ -1,4 +1,4 @@
-import { ActionDefinition } from '@pimpampum/engine';
+import { ActionDefinition, EffectRegistry } from '@pimpampum/engine';
 import { SkillDefinition } from '@pimpampum/skills';
 import { EnemyTemplate, EnemyModule } from './types.js';
 import { GOBLIN } from './enemies/goblin.js';
@@ -46,4 +46,15 @@ export function getEnemyAction(id: string): ActionDefinition | undefined {
 export function unlockedEnemyActions(skillId: string, level: number): ActionDefinition[] {
   const s = enemySkillIndex.get(skillId);
   return s ? s.actions.filter(a => a.unlockLevel <= level) : [];
+}
+
+/** Register enemy-skill-specific effect handlers (co-located on each enemy's
+ *  SkillDefinition, like player skills) onto a registry. Call after
+ *  `createRegistry()` when enemies will fight. */
+export function registerEnemySkills(registry: EffectRegistry): void {
+  for (const skill of ENEMY_SKILLS) {
+    for (const [type, handler] of Object.entries(skill.effects ?? {})) {
+      registry.register(type, handler);
+    }
+  }
 }

@@ -27,12 +27,6 @@ const SKILL_ROWS = 3;
               <div class="sheet-blank-line"></div>
             </div>
           </div>
-          <div class="sheet-field">
-            <span class="sheet-label">Mida</span>
-            <div class="sheet-field-lines">
-              <div class="sheet-blank-line"></div>
-            </div>
-          </div>
         </div>
 
         <!-- Right column: PV + fillable skill rows -->

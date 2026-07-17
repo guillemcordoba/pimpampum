@@ -1,4 +1,4 @@
-import { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS } from '@pimpampum/engine';
+import { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, ActionType, STAT_ICONS } from '@pimpampum/engine';
 import type { ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
 
 export interface CardStat {
@@ -22,24 +22,37 @@ export interface CardDisplayProps {
 // All icon paths returned here are RAW (no BASE_URL prefix); rendering components
 // prepend import.meta.env.BASE_URL themselves.
 
-/** Stat row for an action card: damage dice, speed, any flat roll bonus, and
- *  fatigue cost (only shown when it deviates from the default of 1). */
+/** Stat row for an action card: contest dice (attack dice for Atac, defense
+ *  dice under the shield icon for Defensa, plus any flat roll bonus) and speed. */
 export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
-  if (def.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: def.damageDice.toString() });
-  // Weapon actions deal the wielded weapon's dice (×times) instead of fixed damage.
+  // Flat roll bonus rendered inline with the dice (e.g. "2d6+1", "arma +2").
+  const bonusStr = def.rollBonus
+    ? `${def.rollBonus > 0 ? '+' : ''}${def.rollBonus}`
+    : '';
+  let bonusShown = false;
+  if (def.dice) {
+    const diceIcon = def.actionType === ActionType.Defensa ? STAT_ICONS.defense : STAT_ICONS.attack;
+    stats.push({ iconPath: diceIcon, value: def.dice.toString() + bonusStr });
+    bonusShown = true;
+  }
+  // Weapon actions roll the wielded weapon's dice (×times) instead of their own.
   const weaponEff = def.effects.find(e => e.type === 'weapon_damage');
   if (weaponEff) {
     const times = (weaponEff.params?.times as number) ?? 1;
-    stats.push({ iconPath: STAT_ICONS.damage, value: times > 1 ? `arma×${times}` : 'arma' });
+    const label = times > 1 ? `arma×${times}` : 'arma';
+    stats.push({ iconPath: STAT_ICONS.attack, value: bonusStr ? `${label} ${bonusStr}` : label });
+    bonusShown = true;
   }
   // Erupció's damage formula: 1d6 × pressió (the pressure icon closes the
   // expression). Leads the row like any other damage stat.
   if (def.effects.some(e => e.type === 'eruption')) {
-    stats.push({ iconPath: STAT_ICONS.damage, value: '1d6 ×', suffixIconPath: STAT_ICONS.pressure });
+    stats.push({ iconPath: STAT_ICONS.attack, value: '1d6 ×', suffixIconPath: STAT_ICONS.pressure });
   }
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
-  if (def.rollBonus) stats.push({ iconPath: STAT_ICONS.defense, value: `+${def.rollBonus}` });
+  // Diceless actions (some focus cards) still show a bare roll bonus.
+  if (bonusStr && !bonusShown) stats.push({ iconPath: STAT_ICONS.defense, value: bonusStr });
+  // Esgotadora cards show their above-default fatigue cost in the corner.
   if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {
     stats.push({ iconPath: STAT_ICONS.fatigue, value: String(def.fatigueCost) });
   }
@@ -82,11 +95,19 @@ export function actionToDisplayProps(def: ActionDefinition, classCss: string, sk
 
 export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayProps {
   const stats: CardStat[] = [];
-  if (eq.damageDice) stats.push({ iconPath: STAT_ICONS.damage, value: eq.damageDice.toString() });
+  if (eq.dice) stats.push({ iconPath: STAT_ICONS.attack, value: eq.dice.toString() });
   if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.armor, value: `+${eq.passiveArmor}` });
   if (eq.speedPenalty) stats.push({ iconPath: STAT_ICONS.speed, value: `-${eq.speedPenalty}` });
-  // Weapons (anything with damage dice) are labelled "Arma", armour "Armadura".
-  const kind = eq.damageDice ? 'Arma' : eq.passiveArmor > 0 ? 'Armadura' : 'Objecte';
+  // Roll bonuses: attack bonuses under the damage icon, defense (or any-roll)
+  // bonuses under the shield icon.
+  for (const b of eq.rollBonuses ?? []) {
+    stats.push({
+      iconPath: b.kind === 'attack' ? STAT_ICONS.attack : STAT_ICONS.defense,
+      value: `${b.value > 0 ? '+' : ''}${b.value}`,
+    });
+  }
+  // Weapons (anything with weapon dice) are labelled "Arma", armour "Armadura".
+  const kind = eq.dice ? 'Arma' : eq.passiveArmor > 0 ? 'Armadura' : 'Objecte';
   return {
     name: eq.name,
     subtitle: `${kind} · ${eq.slotLabel ?? eq.slot}`,

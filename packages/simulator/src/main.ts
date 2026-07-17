@@ -1,11 +1,11 @@
 import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
 import { getAction } from '@pimpampum/skills';
 import {
-  ALL_ENCOUNTERS, ENEMY_TEMPLATES, generateEncounter, createEnemyFromTemplate,
-  EncounterDifficulty,
+  ALL_ENCOUNTERS, ENEMY_TEMPLATES, TARGET_WINRATES, generateEncounter,
+  createEnemyFromTemplate, getEnemyTemplate,
 } from '@pimpampum/enemies';
 import {
-  REGISTRY, randomTeam, randomSizedTeam, runMatch, buildEncounter,
+  REGISTRY, randomTeam, runMatch, buildEncounter,
 } from './tests/helpers.js';
 
 function recordSkills(map: Map<string, { games: number; wins: number }>, team: Character[], won: boolean): void {
@@ -60,30 +60,6 @@ function mirrorBalance(size: number, budget: number, games: number): void {
     .forEach(a => console.log(`   ${(getAction(a.id)?.name ?? a.id).padEnd(24)} plays ${String(a.plays).padStart(5)}  win ${a.pct.toFixed(1)}%`));
 }
 
-// --- Size balance: random sizes on both teams should each win ~50% ----------
-function sizeBalance(size: number, budget: number, games: number): void {
-  const stats = newCombatStats();
-  const bySize = new Map<string, { games: number; wins: number }>();
-  let draws = 0;
-
-  for (let i = 0; i < games; i++) {
-    const a = randomSizedTeam('A', size, budget);
-    const b = randomSizedTeam('B', size, budget);
-    const winner = runMatch(a, b, stats);
-    if (winner === null) { draws++; continue; }
-    for (const c of a) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (winner === 0) e.wins++; bySize.set(c.size, e); }
-    for (const c of b) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (winner === 1) e.wins++; bySize.set(c.size, e); }
-  }
-
-  console.log(`\n=== Sizes ${size}v${size} @ budget ${budget} (${games} games, random sizes) ===`);
-  console.log(`Avg rounds: ${(stats.rounds / stats.combats).toFixed(2)}  draws: ${(100 * draws / games).toFixed(1)}%`);
-  console.log(`\n  Size win correlation:`);
-  [...bySize.entries()]
-    .map(([id, e]) => ({ id, pct: 100 * e.wins / e.games, games: e.games }))
-    .sort((x, y) => y.pct - x.pct)
-    .forEach(s => console.log(`   ${s.id.padEnd(22)} ${bar(s.pct)} ${s.pct.toFixed(1)}% (${s.games})`));
-}
-
 // --- Encounter analysis: a generic player party vs each encounter -----------
 function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
   console.log(`\n=== Encounters (${playerCount} players @ budget ${perPlayerBudget}, ${games} games each) ===`);
@@ -98,42 +74,39 @@ function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: 
       if (res.winner === 0) wins++; else if (res.winner === null) draws++;
       rounds += res.rounds;
     }
-    console.log(`   ${enc.name.padEnd(22)} [${enc.difficulty.padEnd(6)}] players win ${bar(100 * wins / games)} ${(100 * wins / games).toFixed(0)}%  avg ${(rounds / games).toFixed(1)} rounds  draws ${(100 * draws / games).toFixed(0)}%`);
+    console.log(`   ${enc.name.padEnd(22)} players win ${bar(100 * wins / games)} ${(100 * wins / games).toFixed(0)}%  avg ${(rounds / games).toFixed(1)} rounds  draws ${(100 * draws / games).toFixed(0)}%`);
   }
 }
 
-// --- Parametric encounter calibration: generated fights per difficulty ------
+// --- Parametric balancer check: solved encounters vs their promised winrate --
 function parametricAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
-  // evenTarget takes each player's HIGHEST skill; random budget-45 players
-  // split over 1-2 skills land at a top skill of ~40.
-  const partyLevels = Array.from({ length: playerCount }, () => 40);
-  console.log(`\n=== Parametric encounters (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
-  const difficulties: EncounterDifficulty[] = ['easy', 'medium', 'hard', 'boss'];
-  for (const diff of difficulties) {
+  console.log(`\n=== Balancer v2 (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
+  for (const [label, target] of Object.entries(TARGET_WINRATES)) {
     const cells: string[] = [];
-    let totWins = 0, totGames = 0;
     for (const template of ENEMY_TEMPLATES) {
-      const gen = generateEncounter(template, partyLevels, diff);
+      const gen = generateEncounter(template, playerCount, target);
+      if (!gen) continue;
+      const g = gen.groups[0];
       let wins = 0;
       for (let i = 0; i < games; i++) {
         const players = randomTeam('P', playerCount, perPlayerBudget);
-        const enemies = Array.from({ length: gen.count }, (_, k) =>
-          createEnemyFromTemplate(template, Object.fromEntries(template.skills.map(s => [s, gen.level])), `${template.displayName} ${k + 1}`, [], gen.pv));
+        const enemies = Array.from({ length: g.count }, (_, k) =>
+          createEnemyFromTemplate(getEnemyTemplate(g.templateId)!,
+            Object.fromEntries(getEnemyTemplate(g.templateId)!.skills.map(s => [s, g.level])),
+            `${template.displayName} ${k + 1}`, [], g.pv));
         assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
         const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
-        if (engine.runCombat().winner === 0) wins++;
+        const w = engine.runCombat().winner;
+        if (w === 0) wins++; else if (w === null) wins += 0.5;
       }
-      totWins += wins; totGames += games;
-      cells.push(`${template.id.slice(0, 12)} ${gen.count}x${gen.level} ${(100 * wins / games).toFixed(0)}%`);
+      cells.push(`${template.id.slice(0, 10)} ${g.count}×pv${g.pv} ${(100 * wins / games).toFixed(0)}%`);
     }
-    console.log(`   [${diff.padEnd(6)}] players win avg ${(100 * totWins / totGames).toFixed(0)}%`);
-    console.log(`     ${cells.join(' | ')}`);
+    console.log(`   [${label.padEnd(6)} → ${(100 * target).toFixed(0)}%] ${cells.join(' | ')}`);
   }
 }
 
-console.log('Pim Pam Pum — skill-based balance simulation');
-mirrorBalance(2, 40, 3000);
-mirrorBalance(3, 40, 2000);
-sizeBalance(3, 40, 2000);
-encounterAnalysis(4, 45, 600);
-parametricAnalysis(4, 45, 150);
+console.log('Pim Pam Pum — skill-based balance simulation (dice-contest system)');
+mirrorBalance(2, 6, 3000);
+mirrorBalance(3, 6, 2000);
+encounterAnalysis(4, 7, 600);
+parametricAnalysis(4, 7, 120);

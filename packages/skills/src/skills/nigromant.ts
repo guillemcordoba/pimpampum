@@ -11,7 +11,7 @@ import { num, tspec, resolveTargets, targetReq } from '../effects/helpers.js';
  * to self-heal; Invocar l'ombra de l'infern condemns the whole enemy party.
  * No pets, no defense — a Power-corner attrition controller.
  */
-// The doom mark: every d20 at disadvantage, 3 slower.
+// The doom mark: every roll at disadvantage, 3 slower.
 const CONDEMNAT: StatusBehavior = {
   rollMode() { return 'disadvantage'; },
   modifySpeed() { return -3; },
@@ -39,7 +39,7 @@ const PUTREFACCIO: StatusBehavior = {
     const turns = (entry.data?.['turns'] as number) ?? entry.remaining;
     for (const victim of living) {
       if (everInfected.has(victim) || victim.hasStatus('putrefaccio')) continue;
-      if (engine.rollD20() >= 5) continue; // catches it on a d20 < 5
+      if (engine.rollDie(20) >= 5) continue; // catches it on a d20 < 5
       everInfected.add(victim);
       victim.setStatus('putrefaccio', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
       engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
@@ -128,35 +128,35 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 12, type: ActionType.Atac, speed: 1, damage: d(1, 4), targetCount: 99,
+      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(1, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',
     }),
     action({
       id: 'profecia-de-la-fi', name: 'Profecia de la fi', skillId: 'nigromant',
-      unlock: 25, type: ActionType.Focus, speed: -1,
+      unlock: 3, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'cancel_action', params: {} }],
       desc: "Cancel·la l'acció d'un enemic.",
       icon: 'lorc/dead-eye.svg',
     }),
     action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 40, type: ActionType.Focus, speed: -1,
+      unlock: 4, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'plague', params: { damage: 2, turns: 3 } }],
       desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 5: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 55, type: ActionType.Atac, speed: 0, damage: d(1, 4),
+      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(2, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 72, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
+      unlock: 6, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 2 } }],
       desc: 'Condemna tots els enemics (2 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

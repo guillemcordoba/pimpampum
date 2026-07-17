@@ -28,10 +28,12 @@ interface ActionOpts {
   id: string;
   name: string;
   skillId: string;
+  /** Ordinal position within the skill: level N = knows the first N actions. */
   unlock: number;
   type: ActionType;
   speed: number;
-  damage?: DiceRoll;
+  /** Contest dice: attack dice (Atac) or defense dice (Defensa). */
+  dice?: DiceRoll;
   rollBonus?: number;
   targetCount?: number;
   effects?: ActionEffect[];
@@ -39,7 +41,7 @@ interface ActionOpts {
   /** Icon path tail after ICON_PREFIX, e.g. "lorc/broadsword.svg". */
   icon: string;
   consumable?: boolean;
-  /** Override the default fatigue cost (1). 2 = Esgotador, 3 = Devastador. */
+  /** Fatigue cost when played (default 1). Esgotadora cards declare 2-4. */
   fatigueCost?: number;
 }
 
@@ -55,7 +57,7 @@ export function action(o: ActionOpts): ActionDefinition {
     unlockLevel: o.unlock,
     actionType: o.type,
     speed: o.speed,
-    damageDice: o.damage,
+    dice: o.dice,
     rollBonus: o.rollBonus,
     targetCount: o.targetCount,
     effects,
@@ -67,7 +69,7 @@ export function action(o: ActionOpts): ActionDefinition {
   };
 }
 
-/** Convenience for a damage DiceRoll. */
+/** Convenience for a DiceRoll. */
 export function d(numDice: number, sides: number, modifier = 0): DiceRoll {
   return new DiceRoll(numDice, sides, modifier);
 }

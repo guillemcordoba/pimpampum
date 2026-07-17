@@ -30,13 +30,14 @@ export interface StatusHookContext extends StatusRef {
 
 /** Multipliers a status applies to the holder's attack action. */
 export interface AttackStatusMods {
-  /** Multiplies the attacker's d20 + skill total in guarded contests. */
+  /** Multiplies the attacker's dice total — which is also the damage basis
+   *  (pre-armour), since damage is the margin. */
   attackTotalMult?: number;
-  /** Multiplies the rolled damage before armour. */
+  /** Multiplies the margin damage before armour. */
   damageMult?: number;
 }
 
-/** Which contested d20 total is being adjusted (see modifyContestTotal). */
+/** Which contested dice total is being adjusted (see modifyContestTotal). */
 export type ContestKind = 'attack' | 'defense' | 'save';
 
 export interface StatusBehavior {
@@ -45,25 +46,26 @@ export interface StatusBehavior {
 
   /** Added to the holder's effective action speed. */
   modifySpeed?(ref: StatusRef): number;
-  /** Roll mode for a d20 the holder rolls: roll twice, keep worst / best.
-   *  Disadvantage wins if several statuses disagree. `kind` is provided at
-   *  contest sites ('attack'/'defense'/'save') so a stance can sharpen only
-   *  one side of the holder's game; undefined for uncontexted rolls. */
+  /** Roll mode for the holder's contest dice: roll the whole pool twice, keep
+   *  worst / best. Disadvantage wins if several statuses disagree. `kind` is
+   *  provided at contest sites ('attack'/'defense'/'save') so a stance can
+   *  sharpen only one side of the holder's game; undefined for uncontexted
+   *  rolls. */
   rollMode?(ref: StatusRef, kind?: ContestKind): 'advantage' | 'disadvantage' | void;
-  /** Transform the holder's rolled damage on every attack (before armour).
+  /** Transform the holder's margin damage on every attack (before armour).
    *  Receives the full hook context (engine available for flare logs). */
   modifyOutgoingDamage?(ctx: StatusHookContext, damage: number): number;
   /** Transform damage the holder is about to receive (after armour; the
    *  engine floors the final result at 0). May consume the status. */
   modifyIncomingDamage?(ctx: StatusHookContext, damage: number): number;
-  /** Adjust a contested d20 total the holder just rolled, SEEING both final
+  /** Adjust a contested dice total the holder just rolled, SEEING both final
    *  totals (clutch curses/blessings that fire only when they flip an
    *  outcome). Runs after the raw totals are logged; may consume the status.
    *  `kind`: whether the holder's total is an attack, a defense or a save. */
   modifyContestTotal?(ctx: StatusHookContext, own: number, opposing: number, kind: ContestKind): number;
   /** Clamp a PV loss the holder is about to suffer (last stands, wards). */
   clampPvLoss?(ref: StatusRef, amount: number): number;
-  /** Added to attack rolls made AGAINST the holder (marks, exposures). */
+  /** Added to attack dice totals AGAINST the holder (marks, exposures). */
   attackRollAgainstHolder?(ref: StatusRef): number;
   /** The holder cannot benefit from any guard. */
   preventsGuard?(ref: StatusRef): boolean;

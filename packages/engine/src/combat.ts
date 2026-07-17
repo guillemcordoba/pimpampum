@@ -1,4 +1,4 @@
-import { DiceRoll } from './dice.js';
+import { DiceRoll, rollDie } from './dice.js';
 import { Character, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
@@ -6,9 +6,9 @@ import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers,
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
-import { rollD20, resolveAttack, checkSkillUp } from './resolution.js';
+import { resolveAttack, checkSkillUp } from './resolution.js';
+import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
 import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
-import { DEFAULT_FATIGUE_COST } from './fatigue.js';
 
 export interface LogEntry {
   kind: string;
@@ -127,6 +127,10 @@ export class CombatEngine implements EngineApi, AIView {
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
+  /** Set when the combat ended by mutual exhaustion (nobody could play a
+   *  card): the winning team index, or null for an exact-PV-fraction tie.
+   *  Undefined while the combat is still live. */
+  private exhaustionResult: number | null | undefined = undefined;
 
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
@@ -176,14 +180,15 @@ export class CombatEngine implements EngineApi, AIView {
   private sensesConcealed(c: Character): boolean {
     return c.statusRefs().some(ref => ref.entry.behavior?.ignoresConcealment?.(ref));
   }
-  rollD20(): number { return rollD20(); }
+  rollDie(sides: number): number { return rollDie(sides); }
 
-  /** Roll a d20 for `c`, honouring any status-imposed roll mode
-   *  (`data.rollMode`): disadvantage keeps the lower of two rolls, advantage
-   *  the higher. Disadvantage wins if both are present. `kind` gives stances
-   *  contest context (advantage only on defense, say). */
-  rollD20For(c: Character, kind?: ContestKind): number {
-    const r1 = rollD20();
+  /** Roll contest dice for `c`, honouring any status-imposed roll mode:
+   *  disadvantage rolls the whole pool twice and keeps the lower total,
+   *  advantage the higher. Disadvantage wins if both are present. `kind` gives
+   *  stances contest context (advantage only on defense, say). */
+  rollContestDice(c: Character, dice: DiceRoll | undefined, kind?: ContestKind): number {
+    if (!dice) return 0;
+    const r1 = dice.roll();
     let mode: 'advantage' | 'disadvantage' | null = null;
     for (const ref of c.statusRefs()) {
       const m = ref.entry.behavior?.rollMode?.(ref, kind);
@@ -191,7 +196,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (m === 'advantage') mode = m;
     }
     if (mode === null) return r1;
-    const r2 = rollD20();
+    const r2 = dice.roll();
     return mode === 'disadvantage' ? Math.min(r1, r2) : Math.max(r1, r2);
   }
 
@@ -230,32 +235,36 @@ export class CombatEngine implements EngineApi, AIView {
     if (gained > 0) this.log('heal', `${target.name} recupera ${gained} PV.`, target.team);
   }
 
-  performExtraAttack(source: Character, target: Character, damageDice: DiceRoll, opts: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string } = {}): void {
+  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string } = {}): void {
     if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return;
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
-    const skill = skillId ? source.getRollSkill(skillId, 'attack') : 0;
+    const atkRoll = this.rollContestDice(source, dice, 'attack');
+    const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
+    const attackTotal = Math.max(0, atkRoll + atkBonus);
     const guard = this.activeGuard(target);
     let recipient = target;
     let hit = true;
+    let margin = attackTotal;
     if (guard) {
-      const atkRoll = this.rollD20For(source, 'attack');
-      const atkBonus = skill + (opts.rollBonus ?? 0);
-      const attackerTotal = atkRoll + atkBonus;
-      const defRoll = this.rollD20For(guard.defender, 'defense');
-      const defBonus = guard.defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
-      let defenderTotal = defRoll + defBonus;
-      this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${guard.defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
-      const adjustedAttacker = this.adjustContestTotal(source, attackerTotal, defenderTotal, 'attack');
-      defenderTotal = this.adjustContestTotal(guard.defender, defenderTotal, adjustedAttacker, 'defense');
-      hit = resolveAttack(adjustedAttacker, defenderTotal).hit;
-      recipient = guard.defender;
+      const defender = guard.defender;
+      const defRoll = this.rollContestDice(defender, guard.action.dice, 'defense');
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
+      let defenderTotal = Math.max(0, defRoll + defBonus);
+      this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
+      const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
+      defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
+      ({ hit, margin } = resolveAttack(adjustedAttacker, defenderTotal));
+      // Learning: the loser of the contest levels on a close loss.
+      if (hit) { if (checkSkillUp(margin)) defender.raiseSkill(guard.action.skillId); }
+      else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
+      recipient = defender;
     }
     if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
-    const dmgRoll = this.applyOutgoingDamage(source, damageDice.roll());
+    const dmgBase = this.applyOutgoingDamage(source, margin);
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    const dmg = Math.max(0, this.applyIncomingDamage(recipient, dmgRoll - armor));
-    const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
+    const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgBase - armor)));
+    const dmgDetail = armor > 0 ? ` (marge ${dmgBase} − ${armor} armadura)` : ` (marge ${dmgBase})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
     // An impact interrupts a pending focus even at 0 damage (see resolveAttackOnTarget).
     recipient.hitThisTurn = true;
@@ -282,6 +291,16 @@ export class CombatEngine implements EngineApi, AIView {
     return null;
   }
 
+  /** The target every chosen attack slot is forced onto when `actor` is
+   *  blocked. Null when unblocked, the blocker is dead, or the attack doesn't
+   *  choose targets (its count covers every living enemy — AoE is unaffected). */
+  private blockForcedTarget(actor: Character, count: number): Character | null {
+    const b = actor.blockedBy;
+    if (!b || !b.isAlive()) return null;
+    if (count >= this.livingTeam(1 - actor.team).length) return null;
+    return b;
+  }
+
   private ctx(source: Character, action: ActionDefinition, params: Record<string, unknown>, extra: Partial<EffectContext> = {}): EffectContext {
     return { engine: this, source, action, params, targets: extra.targets ?? [], ...extra };
   }
@@ -306,6 +325,7 @@ export class CombatEngine implements EngineApi, AIView {
   canPlayActionIdx(c: Character, actionIdx: number): boolean {
     const action = c.actions[actionIdx];
     if (!action) return false;
+    if (FATIGUE_ENABLED && c.fatigue + (action.def.fatigueCost ?? 1) > FATIGUE_CONFIG.max) return false;
     for (const ref of c.statusRefs()) {
       if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
     }
@@ -326,6 +346,8 @@ export class CombatEngine implements EngineApi, AIView {
   private eligibleTargets(actor: Character, def: ActionDefinition, req: TargetRequirement): Character[] {
     if (req === 'enemy') return this.enemiesOf(actor);
     if (req === 'self') return [actor];
+    // Defense dual choice: an ally to guard (self included) or an enemy to block.
+    if (req === 'defense') return [...this.alliesOf(actor, true), ...this.enemiesOf(actor)];
     const team = this.teams[actor.team];
     return team.filter(c => {
       if (req === 'ally_other' && c === actor) return false;
@@ -379,10 +401,35 @@ export class CombatEngine implements EngineApi, AIView {
       built.push({ actor: c, action, speed: c.getEffectiveSpeed(action), targets });
     }
 
+    // Speed ties are simultaneous at the table — nobody holds priority. The
+    // queue is built team A first, so a stable sort alone would hand team A
+    // every tie (defenses up before same-speed enemy attacks, etc. — a
+    // measured ~52/48 seat bias). Shuffle before sorting so tie order is fair.
+    for (let i = built.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [built[i], built[j]] = [built[j], built[i]];
+    }
     built.sort((a, b) => b.speed - a.speed);
     this.pending = built;
     this.pendingIndex = 0;
     this.tierSpeed = null;
+
+    // Exhaustion ending: a round where NOBODY can play a card (and nobody is
+    // merely stunned) means both sides are spent — the fight is over, and the
+    // team keeping the higher fraction of its total PV takes it (rules.md).
+    if (built.length === 0 && this.skippingThisRound.size === 0 && this.exhaustionResult === undefined) {
+      const frac = (team: Character[]): number => {
+        const max = team.reduce((s, c) => s + c.maxPV, 0);
+        return max > 0 ? team.reduce((s, c) => s + c.currentPV, 0) / max : 0;
+      };
+      const fa = frac(this.teams[0]);
+      const fb = frac(this.teams[1]);
+      this.exhaustionResult = fa > fb ? 0 : fb > fa ? 1 : null;
+      this.log('info', 'Tots dos bàndols cauen esgotats: ningú no pot seguir lluitant.', undefined);
+      if (this.exhaustionResult !== null) {
+        this.log('info', `L'equip ${this.exhaustionResult === 0 ? 'A' : 'B'} queda més sencer i s'imposa.`, this.exhaustionResult);
+      }
+    }
 
     return built.map(p => this.reveal(p));
   }
@@ -518,8 +565,14 @@ export class CombatEngine implements EngineApi, AIView {
     // Targeting.
     if (cur.targets === null) {
       const req = getActionTargetRequirement(cur.action.def, this.registry);
+      const forced = req === 'enemy'
+        ? this.blockForcedTarget(cur.actor, getActionTargetCount(cur.action.def))
+        : null;
       if (req === 'none') {
         cur.targets = [];
+      } else if (forced) {
+        // Blocked: no choice to make — every slot goes to the blocker.
+        cur.targets = Array(getActionTargetCount(cur.action.def)).fill(forced);
       } else {
         const pool = this.eligibleTargets(cur.actor, cur.action.def, req);
         const count = getActionTargetCount(cur.action.def);
@@ -566,11 +619,26 @@ export class CombatEngine implements EngineApi, AIView {
     switch (action.def.actionType) {
       case ActionType.Defensa: {
         this.dispatchPlay(actor, action.def);
-        const guarded = targets.length ? targets : [actor];
-        for (const ally of guarded) ally.guards.push({ defender: actor, action: action.def });
-        if (!guarded.includes(actor)) actor.guards.push({ defender: actor, action: action.def });
-        this.log('defense', `${actor.name} «${action.def.name}» protegeix ${guarded.map(a => a.name).join(', ')}.`, actor.team);
-        this.dispatch('onResolve', actor, action.def, { targets: guarded });
+        const allies = targets.filter(t => t.team === actor.team && t.isAlive());
+        const blocked = targets.filter(t => t.team !== actor.team && t.isAlive());
+        // A defense always covers its own player against every incoming attack.
+        actor.guards.push({ defender: actor, action: action.def });
+        for (const ally of allies) {
+          if (ally !== actor) ally.guards.push({ defender: actor, action: action.def });
+        }
+        // Block: the enemy loses target choice — every attack roll they make
+        // from now on is made against this defender. Last block resolved wins.
+        for (const e of blocked) e.blockedBy = actor;
+        const guardedOthers = allies.filter(a => a !== actor);
+        if (blocked.length) {
+          this.log('defense', `${actor.name} «${action.def.name}» bloqueja ${blocked.map(e => e.name).join(', ')}.`, actor.team);
+        }
+        if (guardedOthers.length) {
+          this.log('defense', `${actor.name} «${action.def.name}» protegeix ${guardedOthers.map(a => a.name).join(', ')}.`, actor.team);
+        } else if (!blocked.length) {
+          this.log('defense', `${actor.name} «${action.def.name}» es posa en guàrdia.`, actor.team);
+        }
+        this.dispatch('onResolve', actor, action.def, { targets: targets.length ? targets : [actor] });
         break;
       }
       case ActionType.Atac: {
@@ -580,18 +648,29 @@ export class CombatEngine implements EngineApi, AIView {
         this.dispatchPlay(actor, action.def);
         // Generic attack-action status hooks (ladders, multipliers).
         const mods = this.collectAttackStatusMods(actor);
-        const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
-        let list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
+        const forced = this.blockForcedTarget(actor, getActionTargetCount(action.def));
+        let list: Character[];
+        if (forced) {
+          // Blocked: every chosen slot is forced onto the blocker (the block
+          // steps in front of untargetability filters).
+          list = (targets.length ? targets : [forced]).map(() => forced);
+        } else {
+          const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
+          list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
+        }
         list = this.applyTargetRedirects(actor, list);
-        for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods);
+        // ONE attack roll per pass: every target defends against the same roll.
+        let baseRoll = this.rollContestDice(actor, action.def.dice, 'attack');
+        for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
         // Generic repeat seam: statuses may grant extra full passes over the
-        // still-living targets (stimulants, flurries).
+        // still-living targets (stimulants, flurries). Each pass re-rolls.
         const repeats = this.collectAttackRepeats(actor);
         for (let r = 0; r < repeats; r++) {
           if (!actor.isAlive()) break;
           const alive = list.filter(t => t.isAlive());
           if (alive.length === 0) break;
-          for (const t of alive) this.resolveAttackOnTarget(actor, action, t, mods);
+          baseRoll = this.rollContestDice(actor, action.def.dice, 'attack');
+          for (const t of alive) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
         }
         if (action.def.isConsumable) action.consumed = true;
         break;
@@ -734,13 +813,25 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods = {}): void {
+  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods, baseRoll: number): void {
     const def = action.def;
     const mods: AttackModifiers = newAttackModifiers();
     this.dispatch('modifyAttack', source, def, { targets: [target], target, attackMods: mods });
 
     // An effect may pass over this target entirely — no roll, no damage.
     if (mods.skip) return;
+
+    // Extra dice (per target) roll flat into the attack total: they raise both
+    // the hit chance and the margin damage. The action's own dice were rolled
+    // once for the whole pass (`baseRoll`) — every target defends against it.
+    let extraDice = 0;
+    for (const d of mods.extraDamageDice) extraDice += d.roll();
+    const atkBonus = (def.rollBonus ?? 0) + mods.rollBonus
+      + source.getRollBonus(def.skillId, 'attack')
+      + this.attackRollBonusAgainst(target);
+    // Status multipliers (attack chains) scale the whole attack total — which
+    // is also the damage basis.
+    const attackTotal = Math.max(0, (baseRoll + extraDice + atkBonus) * (statusMods.attackTotalMult ?? 1));
 
     // Feints bypass the guard entirely (treated as undefended) — unless a
     // status on the target vetoes the bypass (seismic awareness & co.).
@@ -757,40 +848,36 @@ export class CombatEngine implements EngineApi, AIView {
       : false;
 
     if (guard && guardAbsorbs) {
-      // Absorbing guard: zero defence — the blow always lands in full on the guard.
-      hit = true; margin = Infinity; recipient = guard.defender;
+      // Absorbing guard: no contest — the blow lands in full on the guard.
+      hit = true; margin = attackTotal; recipient = guard.defender;
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
-      const atkRoll = this.rollD20For(source, 'attack');
-      const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + this.attackRollBonusAgainst(target);
-      // Status multipliers (attack chains) scale the whole attack total.
-      const attackerTotal = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
       const defender = guard.defender;
-      const defRoll = this.rollD20For(defender, 'defense');
-      const defBonus = defender.getRollSkill(guard.action.skillId, 'defense') + (guard.action.rollBonus ?? 0);
-      let defenderTotal = defRoll + defBonus;
-      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
+      const defRoll = this.rollContestDice(defender, guard.action.dice, 'defense');
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
+      let defenderTotal = Math.max(0, defRoll + defBonus);
+      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
-      const adjustedAttacker = this.adjustContestTotal(source, attackerTotal, defenderTotal, 'attack');
+      const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
       const res = resolveAttack(adjustedAttacker, defenderTotal);
       hit = res.hit; margin = res.margin;
-      if (checkSkillUp(hit, margin)) source.raiseSkill(def.skillId);
-      if (checkSkillUp(!hit, margin)) defender.raiseSkill(guard.action.skillId);
+      // Learning: the loser of the contest levels on a close loss (tie = the
+      // attacker losing by 0).
+      if (hit) { if (checkSkillUp(margin)) defender.raiseSkill(guard.action.skillId); }
+      else if (checkSkillUp(-margin)) source.raiseSkill(def.skillId);
       recipient = defender;
     } else {
       // Standing defenses (walls, wards) contest attacks on the unguarded —
       // bypassed by the same legitimate feints that bypass live guards.
       const standing = bypass ? null : this.bestStandingGuard(target);
       if (standing) {
-        const atkRoll = this.rollD20For(source, 'attack');
-        const atkBonus = source.getRollSkill(def.skillId, 'attack') + (def.rollBonus ?? 0) + mods.rollBonus + this.attackRollBonusAgainst(target);
-        const attackerRaw = (atkRoll + atkBonus) * (statusMods.attackTotalMult ?? 1);
-        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${atkRoll}+${atkBonus}=${attackerRaw} vs «${standing.key}» de ${target.name}: defensa ${standing.total}`, source.team);
-        const attackerTotal = this.adjustContestTotal(source, attackerRaw, standing.total, 'attack');
-        const res = resolveAttack(attackerTotal, standing.total);
-        if (checkSkillUp(res.hit, res.margin)) source.raiseSkill(def.skillId);
+        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${attackTotal} vs «${standing.key}» de ${target.name}: defensa ${standing.total}`, source.team);
+        const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standing.total, 'attack');
+        const res = resolveAttack(adjustedAttacker, standing.total);
         if (!res.hit) {
+          // Only the attacker can learn from a wall — it has no skill to raise.
+          if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
           this.log('defense', `«${standing.key}» atura l'atac de ${source.name} «${def.name}».`, target.team);
           this.dispatch('onAttackMiss', source, def, { targets: [target], target, hit: false, margin: res.margin });
           return;
@@ -798,7 +885,9 @@ export class CombatEngine implements EngineApi, AIView {
         standing.behavior.onStandingGuardBroken?.(this.statusCtx(target, standing.key, standing.entry));
         hit = true; margin = res.margin;
       } else {
-        hit = true; margin = Infinity;
+        // Undefended: auto-hit, the damage is the full attack total. No
+        // contest, no learning.
+        hit = true; margin = attackTotal;
       }
     }
 
@@ -809,21 +898,20 @@ export class CombatEngine implements EngineApi, AIView {
       return;
     }
 
-    let dmgRoll = def.damageDice ? def.damageDice.roll() : 0;
-    for (const d of mods.extraDamageDice) dmgRoll += d.roll();
-    dmgRoll += mods.bonusDamage;
-    // Attacker statuses transform the outgoing damage.
-    dmgRoll = this.applyOutgoingDamage(source, dmgRoll);
-    // Status multipliers (attack chains) scale the damage too.
-    dmgRoll *= statusMods.damageMult ?? 1;
+    // Margin-damage pipeline: the contest margin IS the damage.
+    let dmg = this.applyOutgoingDamage(source, margin);
+    dmg *= statusMods.damageMult ?? 1;
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
+    dmg = Math.max(0, dmg - armor);
+    // Flat bonus damage lands after armour (not part of the contest).
+    dmg += mods.bonusDamage;
     // Recipient statuses transform the incoming damage (marks, rages…).
-    const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgRoll - armor)));
+    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
-    const dmgDetail = armor > 0 ? ` (dau ${dmgRoll} − ${armor} armadura)` : ` (dau ${dmgRoll})`;
+    const dmgDetail = armor > 0 ? ` (marge ${margin} − ${armor} armadura)` : ` (marge ${margin})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
     // An impact interrupts a pending focus even when armour absorbs all the
-    // damage (rules.md: "es cancel·len si el jugador rep un impacte").
+    // damage (rules.md: focus is cancelled by an undefended hit).
     recipient.hitThisTurn = true;
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin });
@@ -843,14 +931,15 @@ export class CombatEngine implements EngineApi, AIView {
     this.tierSpeed = null;
   }
 
-  /** Each actor who took an action this round gains its fatigue cost. Skipping
-   *  / stunned characters did not act, so they don't tire. Dead actors are
-   *  past caring. Interrupted focus actions still tire — you exerted the will
-   *  to start them. */
+  /** Each actor who took an action this round pays its fatigue cost (1 by
+   *  default; esgotadora cards more). Skipping / stunned characters did not
+   *  act, so they don't tire. Dead actors are past caring. Interrupted focus
+   *  actions still tire — you exerted the will to start them. */
   private accumulateFatigue(): void {
+    if (!FATIGUE_ENABLED) return;
     for (const p of this.pending) {
       if (!p.actor.isAlive()) continue;
-      p.actor.fatigue += p.action.def.fatigueCost ?? DEFAULT_FATIGUE_COST;
+      p.actor.fatigue += p.action.def.fatigueCost ?? 1;
     }
   }
 
@@ -861,11 +950,13 @@ export class CombatEngine implements EngineApi, AIView {
     const bAlive = this.livingTeam(1).length > 0;
     if (aAlive && !bAlive) return 0;
     if (bAlive && !aAlive) return 1;
+    if (this.exhaustionResult !== undefined) return this.exhaustionResult;
     return null;
   }
 
   isOver(): boolean {
-    return this.livingTeam(0).length === 0 || this.livingTeam(1).length === 0;
+    return this.livingTeam(0).length === 0 || this.livingTeam(1).length === 0
+      || this.exhaustionResult !== undefined;
   }
 
   /** One fully-AI round (simulator). */

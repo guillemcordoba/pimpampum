@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
-import { ALL_SIZES, sizeName, sizePvModifier } from '@pimpampum/engine';
-import type { CharacterSize } from '@pimpampum/engine';
 import { PLAYER_SKILLS, ALL_EQUIPMENT, getSkill } from '@pimpampum/skills';
-import { ENEMY_TEMPLATES, pvForLevel } from '@pimpampum/enemies';
+import { ENEMY_TEMPLATES, getEnemySkill } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
 
 const props = defineProps<{ game: Game }>();
 const g = props.game;
 const base = import.meta.env.BASE_URL;
 
-const DEFAULT_SKILL_LEVEL = 25;
+const DEFAULT_SKILL_LEVEL = 1;
 
 // --- Player draft ---------------------------------------------------------
 const draftName = ref('');
-const draftPv = ref(20);
-const draftSize = ref<CharacterSize>('mitja');
+const draftPv = ref(12);
 const draftSkills = ref<Record<string, number>>({});
 const draftEquip = ref<string[]>([]);
 const skillSearch = ref('');
@@ -75,8 +72,14 @@ function removeSkill(id: string) {
   delete next[id];
   draftSkills.value = next;
 }
+/** Max level of a skill = the number of actions it defines (level N = knows
+ *  the first N actions). */
+function skillMaxLevel(id: string): number {
+  return getSkill(id)?.actions.length ?? 7;
+}
 function setSkillLevel(id: string, level: number) {
-  draftSkills.value = { ...draftSkills.value, [id]: level };
+  const clamped = Math.max(1, Math.min(skillMaxLevel(id), Math.round(level) || 1));
+  draftSkills.value = { ...draftSkills.value, [id]: clamped };
 }
 function addEquip(id: string) {
   if (draftEquip.value.includes(id)) return;
@@ -98,13 +101,11 @@ function addPlayer() {
     classCss: firstSkill.classCss,
     iconPath: firstSkill.iconPath,
     pv: draftPv.value,
-    size: draftSize.value,
     skills: { ...draftSkills.value },
     equipment: [...draftEquip.value],
   });
   draftName.value = '';
-  draftPv.value = 20;
-  draftSize.value = 'mitja';
+  draftPv.value = 12;
   draftSkills.value = {};
   draftEquip.value = [];
   skillSearch.value = '';
@@ -113,9 +114,18 @@ function addPlayer() {
 
 // --- Enemy draft ----------------------------------------------------------
 const enemyTemplateId = ref(ENEMY_TEMPLATES[0]?.id ?? '');
-const enemyLevel = ref(20);
-/** Empty = derive from level; the encounter creator's solved PV goes here. */
+const enemyLevel = ref(3);
+/** Empty = the template's hand-set basePV. */
 const enemyPv = ref<number | ''>('');
+
+const enemyTemplate = computed(() => ENEMY_TEMPLATES.find(t => t.id === enemyTemplateId.value));
+/** Max enemy level = the size of the template's kit (actions across its skills). */
+const enemyMaxLevel = computed(() => {
+  const t = enemyTemplate.value;
+  if (!t) return 7;
+  const counts = t.skills.map(id => getEnemySkill(id)?.actions.length ?? 0).filter(n => n > 0);
+  return counts.length ? Math.max(...counts) : 7;
+});
 const enemyEquip = ref<string[]>([]);
 const enemyEquipSearch = ref('');
 
@@ -148,7 +158,7 @@ function addEnemy() {
   if (!enemyTemplateId.value) return;
   g.addEnemy({
     templateId: enemyTemplateId.value,
-    level: enemyLevel.value,
+    level: Math.max(1, Math.min(enemyMaxLevel.value, enemyLevel.value)),
     equipment: [...enemyEquip.value],
     pv: enemyPv.value === '' ? undefined : enemyPv.value,
   });
@@ -178,19 +188,6 @@ function skillName(id: string): string {
         <div class="builder">
           <input v-model="draftName" placeholder="Nom de l'heroi" class="txt">
           <label class="pv-row">PV <input v-model.number="draftPv" type="number" min="5" max="60" class="num"></label>
-          <div class="size-row">
-            <span class="size-label">Mida</span>
-            <button
-              v-for="s in ALL_SIZES" :key="s"
-              type="button"
-              class="size-opt"
-              :class="{ active: draftSize === s }"
-              @click="draftSize = s"
-            >{{ sizeName(s) }}</button>
-            <span v-if="sizePvModifier(draftSize) !== 0" class="size-hint">
-              PV efectius {{ draftPv + sizePvModifier(draftSize) }}
-            </span>
-          </div>
 
           <div class="subhead">Habilitats</div>
           <input v-model="skillSearch" type="search" placeholder="Cerca…" class="txt search-input">
@@ -205,7 +202,7 @@ function skillName(id: string): string {
                 <img :src="base + row.skill.iconPath" :alt="''" class="catalog-icon">
                 <span class="catalog-name">{{ row.skill.displayName }}</span>
                 <input
-                  type="number" min="1" max="100"
+                  type="number" min="1" :max="skillMaxLevel(row.skill.id)"
                   :value="draftSkills[row.skill.id]"
                   class="num lvl"
                   @input="setSkillLevel(row.skill.id, Number(($event.target as HTMLInputElement).value))"
@@ -266,7 +263,7 @@ function skillName(id: string): string {
             <div class="roster">
               <div v-for="(p, i) in g.playerSpecs.value" :key="i" class="roster-tile" :class="p.classCss">
                 <strong>{{ p.name }}</strong>
-                <div class="roster-detail">PV {{ p.pv + sizePvModifier(p.size) }}<template v-if="p.size !== 'mitja'"> · {{ sizeName(p.size) }}</template> · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
+                <div class="roster-detail">PV {{ p.pv }} · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
                 <div v-if="p.equipment.length" class="roster-detail">⚙ {{ p.equipment.join(', ') }}</div>
                 <button class="x" @click="g.removePlayer(i)">✕</button>
               </div>
@@ -301,7 +298,7 @@ function skillName(id: string): string {
           <select v-model="enemyTemplateId" class="txt">
             <option v-for="t in ENEMY_TEMPLATES" :key="t.id" :value="t.id">{{ t.displayName }}</option>
           </select>
-          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" max="100" class="num"> PV <input v-model.number="enemyPv" type="number" min="1" class="num" :placeholder="String(pvForLevel(enemyLevel))"></label>
+          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" :max="enemyMaxLevel" class="num"> PV <input v-model.number="enemyPv" type="number" min="1" class="num" :placeholder="String(enemyTemplate?.basePV ?? '')"></label>
 
           <div class="subhead">Equipament</div>
           <input v-model="enemyEquipSearch" type="search" placeholder="Cerca…" class="txt search-input">
@@ -439,14 +436,6 @@ select.txt option { background: #241c12; color: var(--parchment); }
 .num { width: 4rem; }
 .lvl { width: 3.2rem; }
 .pv-row { color: var(--parchment); display: inline-flex; gap: 0.4rem; align-items: center; }
-.size-row { color: var(--parchment); display: inline-flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; }
-.size-label { margin-right: 0.1rem; }
-.size-opt {
-  background: rgba(0,0,0,0.4); border: 1px solid rgba(232,220,196,0.3); border-radius: 4px;
-  color: var(--parchment-dark); padding: 0.25rem 0.55rem; cursor: pointer; font-size: 0.85rem;
-}
-.size-opt.active { color: var(--parchment); border-color: var(--parchment); background: rgba(232,220,196,0.15); }
-.size-hint { font-size: 0.8rem; opacity: 0.8; }
 .start-row { text-align: center; }
 .btn-big { font-size: 1.2rem; padding: 0.6rem 1.5rem; }
 

@@ -1,5 +1,4 @@
 import { DiceRoll } from './dice.js';
-import type { CharacterSize } from './size.js';
 
 /** The three kinds of action a character can play in a round. */
 export enum ActionType {
@@ -28,10 +27,15 @@ export enum EquipmentSlot {
   OffHand = 'OffHand',
 }
 
-/** What kind of target the player must pick for an action. */
-export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other' | 'self';
+/**
+ * What kind of target the player must pick for an action. `'defense'` is the
+ * defense-action dual choice: one living ally (including self) to guard, OR
+ * one living enemy to block.
+ */
+export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other' | 'self' | 'defense';
 
-/** A skill the character knows and its current level (1-100). */
+/** A skill the character knows and its current level — the number of actions
+ *  of the skill the character knows (level N = the first N actions). */
 export interface SkillInstance {
   skillId: string;
   level: number;
@@ -51,16 +55,21 @@ export interface ActionEffect {
 export interface ActionDefinition {
   id: string;
   name: string;
-  /** Skill this action belongs to; the attack/defense roll uses this skill's level. */
+  /** Skill this action belongs to. */
   skillId: string;
-  /** Skill level at which this action unlocks. */
+  /** Ordinal position within the skill: the level at which this action is
+   *  learnt (level N = knows the first N actions). */
   unlockLevel: number;
   actionType: ActionType;
   /** Higher resolves first. Heavy-armour speed penalty is subtracted at runtime. */
   speed: number;
-  /** Damage dice rolled on a hit (Atac only). */
-  damageDice?: DiceRoll;
-  /** Flat bonus added to the d20 + skill roll for this action. */
+  /**
+   * Contest dice: attack dice (Atac) or defense dice (Defensa). Rolled when
+   * the action contests — the attack total IS the damage margin. Focus actions
+   * usually carry none (effects may still read them, e.g. heal amounts).
+   */
+  dice?: DiceRoll;
+  /** Flat bonus added to this action's dice roll. */
   rollBonus?: number;
   /** How many targets are selected (multi-attack / multi-defend). Defaults to 1. */
   targetCount?: number;
@@ -72,20 +81,24 @@ export interface ActionDefinition {
   /** Healing/support actions may target (and revive) downed allies. */
   canReviveTarget?: boolean;
   /**
-   * Fatigue added to the actor each time this action is played. Defaults to
-   * `DEFAULT_FATIGUE_COST` (1). Larger-impact actions (multi-target, lasting
-   * buffs, transformations) declare higher costs; trivial actions declare 0.
+   * Fatigue added to the actor when this action is played (in or out of
+   * combat). Defaults to 1; heavy "esgotadora" cards declare more. An action
+   * is unplayable if it would push the actor past the daily maximum
+   * (FATIGUE_CONFIG.max).
    */
   fatigueCost?: number;
 }
 
-export interface SkillBonus {
-  /** Bonus applies to rolls made with this skill. Use '*' to bonus every skill. */
+/** Equipment bonus added to the wearer's contest rolls. */
+export interface RollBonus {
+  /** Applies to rolls of this skill; '*' applies to every skill. */
   skillId: string;
-  bonus: number;
+  /** Restrict to attack or defense rolls; omit to apply to any roll. */
+  kind?: 'attack' | 'defense';
+  value: number;
 }
 
-/** Passive equipment definition: flat armour, speed penalty and skill bonuses. */
+/** Passive equipment definition: flat armour, speed penalty and roll bonuses. */
 export interface EquipmentDefinition {
   id: string;
   name: string;
@@ -94,13 +107,13 @@ export interface EquipmentDefinition {
   passiveArmor: number;
   /** Subtracted from the speed of every action the wearer plays (>= 0). */
   speedPenalty: number;
-  skillBonuses: SkillBonus[];
+  rollBonuses: RollBonus[];
   /**
-   * Weapon damage dice. Only matters for actions carrying the `weapon_damage`
-   * effect — those deal the wielded main-hand weapon's dice instead of their own.
-   * Generic: any weapon-using skill's effects may read it.
+   * Weapon dice. Only matters for actions carrying the `weapon_damage`
+   * effect — those attack with the wielded main-hand weapon's dice instead of
+   * their own. Generic: any weapon-using skill's effects may read it.
    */
-  damageDice?: DiceRoll;
+  dice?: DiceRoll;
   iconPath: string;
   description: string;
   /** Catalan label for the slot, for display. */
@@ -119,8 +132,6 @@ export interface CharacterDefinition {
   iconPath: string;
   category: 'player' | 'enemy';
   basePV: number;
-  /** Defaults to Mitjà; modifies PV and action speed (see size.ts). */
-  size?: CharacterSize;
   skills: SkillInstance[];
   /** ActionDefinition ids forming the active "hand". */
   actions: string[];

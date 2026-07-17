@@ -11,7 +11,10 @@ Pim Pam Pum has these intentions as a combat system:
 - **Combats should not go on for more than ~5 rounds.** This applies to all combats, including symmetric AI-vs-AI mirror matches — they may not stall longer either. The starting PV (provisionally 20) and the dice on the cards are the main levers; tune them via simulation.
 - **Speed ordering: most defenses are faster than most attacks, and most focuses are slow.** Exceptions are allowed and interesting (a lightning-fast strike, a heavy slow guard), but the bulk of cards should follow the ordering.
 - **At the same skill level, a defense card should be stronger than an attack card.** Attacks always threaten (an undefended target takes the full roll); a defense only pays off when it intercepts, so the card itself gets a premium.
-- **Prefer many smaller dice over fewer bigger dice** (e.g. 2d4 over 1d8): tighter distributions make contests less swingy.
+- **Prefer many smaller dice over fewer bigger dice** (e.g. 2d4 over 1d8): tighter distributions make contests less swingy. Big single dice (1d12) are reserved as deliberate swingy flavour for wild skills.
+- **Dice are the felt power curve.** The weakest attacks roll 1d4; the strongest roll ~3d8. Players should experience progression as lower dice → higher dice. PV is never a design anchor for dice — it's the free knob tuned afterwards so combats hit the duration target.
+- **Simplicity over mathematical complexity.** Whenever possible prefer flat modifiers and plain dice over formulas — lower the players' cognitive load at the table. A card should read as "arma +2" or "2d6", not as a computation.
+- **Fatigue is the day's budget, never a dice modifier.** Its jobs: price heroic cards (rage, adrenalina) in a shared currency, and cap daily action spam (no healing the whole party to full for free). The maximum (provisionally 12) is the pacing knob: a day should sustain ~2-3 combats. Roll penalties from fatigue are permanently rejected — they freeze fights instead of ending them (measured).
 
 ## Strategy Triangle
 

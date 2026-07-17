@@ -26,20 +26,20 @@ function spendUse(ctx: StatusHookContext): number {
 const RUNA_FULLA: StatusBehavior = {
   modifyOutgoingDamage(ctx, damage) {
     if (damage <= 0 || ctx.entry.value <= 0) return damage;
-    const amount = num(ctx.entry.data ?? {}, 'amount', 4);
+    const amount = num(ctx.entry.data ?? {}, 'amount', 2);
     const left = spendUse(ctx);
     ctx.engine.log('info', `ᛏ La runa de la fulla esmolada crida: +${amount} de dany (${left} usos restants).`, ctx.holder.team);
     return damage + amount;
   },
 };
 
-// Runa de la confusió: flares on a contested d20 total the cursed enemy just
+// Runa de la confusió: flares on a contested dice total the cursed enemy just
 // rolled, AFTER both totals are seen — and only when −amount flips an outcome
 // the holder was about to win. Never wastes a use.
 const RUNA_CONFUSIO: StatusBehavior = {
   modifyContestTotal(ctx, own, opposing, kind) {
     if (ctx.entry.value <= 0) return own;
-    const amount = num(ctx.entry.data ?? {}, 'amount', 10);
+    const amount = num(ctx.entry.data ?? {}, 'amount', 4);
     // Attacks win on strictly-greater; defenses and saves hold on ties.
     const winning = kind === 'attack' ? own > opposing : own >= opposing;
     const stillWinning = kind === 'attack' ? own - amount > opposing : own - amount >= opposing;
@@ -57,7 +57,7 @@ const RUNA_ESCUT: StatusBehavior = {
   modifyIncomingDamage(ctx, damage) {
     if (damage <= 0 || ctx.entry.value <= 0) return damage;
     if (damage < 3 && damage < ctx.holder.currentPV) return damage;
-    const amount = num(ctx.entry.data ?? {}, 'amount', 5);
+    const amount = num(ctx.entry.data ?? {}, 'amount', 4);
     const left = spendUse(ctx);
     const prevented = Math.min(amount, damage);
     ctx.engine.log('info', `ᛉ La runa de l'escut invisible crida: evita ${prevented} punts de dany (${left} usos restants).`, ctx.holder.team);
@@ -73,10 +73,11 @@ interface RuneSpec {
   amount: number;
 }
 
+// TODO(balance): rune amounts rescaled from the d20 era (were 4/10/5).
 const RUNE_SPECS: Record<string, RuneSpec> = {
-  fulla: { key: 'runa-fulla', label: 'la runa de la fulla esmolada', behavior: RUNA_FULLA, target: 'ally', amount: 4 },
-  confusio: { key: 'runa-confusio', label: 'la runa de la confusió', behavior: RUNA_CONFUSIO, target: 'enemy', amount: 10 },
-  escut: { key: 'runa-escut', label: "la runa de l'escut invisible", behavior: RUNA_ESCUT, target: 'ally', amount: 5 },
+  fulla: { key: 'runa-fulla', label: 'la runa de la fulla esmolada', behavior: RUNA_FULLA, target: 'ally', amount: 2 },
+  confusio: { key: 'runa-confusio', label: 'la runa de la confusió', behavior: RUNA_CONFUSIO, target: 'enemy', amount: 4 },
+  escut: { key: 'runa-escut', label: "la runa de l'escut invisible", behavior: RUNA_ESCUT, target: 'ally', amount: 4 },
 };
 
 const RUNES_EFFECTS: Record<string, EffectHandler> = {
@@ -111,22 +112,22 @@ export const RUNES: SkillDefinition = {
     action({
       id: 'runa-fulla-esmolada', name: 'Runa de la fulla esmolada', skillId: 'runes',
       unlock: 1, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'carve_rune', params: { rune: 'fulla', uses: 3, amount: 4 } }],
-      desc: "Grava-la a l'arma d'un aliat: 3 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {DAMAGE}+4.",
+      effects: [{ type: 'carve_rune', params: { rune: 'fulla', uses: 3, amount: 2 } }],
+      desc: "Grava-la a l'arma d'un aliat: 3 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {DAMAGE}+2.",
       icon: 'lorc/rune-sword.svg',
     }),
     action({
       id: 'runa-confusio', name: 'Runa de la confusió', skillId: 'runes',
-      unlock: 10, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'carve_rune', params: { rune: 'confusio', uses: 3, amount: 10 } }],
-      desc: 'Grava-la contra un enemic: 3 usos. Quan aquell enemic fa una tirada de d20, pots activar-la després de veure-la: −10 a la tirada.',
+      unlock: 2, type: ActionType.Focus, speed: 1,
+      effects: [{ type: 'carve_rune', params: { rune: 'confusio', uses: 3, amount: 4 } }],
+      desc: 'Grava-la contra un enemic: 3 usos. Quan aquell enemic fa una tirada, pots activar-la després de veure-la: −4 a la tirada.',
       icon: 'lorc/oily-spiral.svg',
     }),
     action({
       id: 'runa-escut-invisible', name: "Runa de l'escut invisible", skillId: 'runes',
-      unlock: 20, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'carve_rune', params: { rune: 'escut', uses: 3, amount: 5 } }],
-      desc: "Grava-la sobre un aliat: 3 usos. Quan el portador rep un atac, pots activar-la a l'instant: evita 5 {DAMAGE}.",
+      unlock: 3, type: ActionType.Focus, speed: 1,
+      effects: [{ type: 'carve_rune', params: { rune: 'escut', uses: 3, amount: 4 } }],
+      desc: "Grava-la sobre un aliat: 3 usos. Quan el portador rep un atac, pots activar-la a l'instant: evita 4 {DAMAGE}.",
       icon: 'lorc/shield-echoes.svg',
     }),
   ],

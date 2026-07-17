@@ -1,16 +1,15 @@
 // Dice
-export { DiceRoll } from './dice.js';
+export { DiceRoll, rollDie } from './dice.js';
 
 // Core types
 export { ActionType, EquipmentSlot, isAttack, isDefenseAction, isFocusAction } from './types.js';
 export type {
-  SkillInstance, ActionEffect, ActionDefinition, SkillBonus,
+  SkillInstance, ActionEffect, ActionDefinition, RollBonus,
   EquipmentDefinition, CharacterDefinition, TargetRequirement,
 } from './types.js';
 
 // Resolution math
-export { rollD20, resolveAttack, resolveDamage, checkSkillUp, rollAttackDamage } from './resolution.js';
-export type { AttackOutcome } from './resolution.js';
+export { resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_MARGIN } from './resolution.js';
 
 // Effects registry
 export { EffectRegistry, newAttackModifiers } from './effects.js';
@@ -48,17 +47,5 @@ export type { StrategyStats } from './strategy.js';
 export { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, SLOT_LABELS, RULES_SUMMARY } from './display.js';
 export type { RulesSection } from './display.js';
 
-// Fatigue
-export {
-  FATIGUE_TABLE, HEAL_DIVISOR, DEFAULT_FATIGUE_COST,
-  fatigueTier, fatiguePenalty, fatigueStateName,
-  shortRestFatigue, longRestFatigue,
-} from './fatigue.js';
-export type { FatigueTier } from './fatigue.js';
-
-// Size
-export {
-  SIZE_TABLE, DEFAULT_SIZE, ALL_SIZES,
-  sizePvModifier, sizeSpeedModifier, sizeName,
-} from './size.js';
-export type { CharacterSize, SizeSpec } from './size.js';
+// Fatigue (daily stamina budget)
+export { FATIGUE_ENABLED, FATIGUE_CONFIG, maxFatigue, fatigueStateName } from './fatigue.js';

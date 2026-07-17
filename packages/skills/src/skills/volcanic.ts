@@ -138,7 +138,7 @@ export const VOLCANIC: SkillDefinition = {
   actions: [
     action({
       id: 'roca-fosa', name: 'Roca fosa', skillId: VOLCANIC_SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 6),
+      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 4),
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
         { type: 'debuff_on_hit', params: { kind: 'armor', amount: 3, duration: 'thisTurn' } },
@@ -148,7 +148,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'gueiser', name: 'Guèiser', skillId: VOLCANIC_SKILL_ID,
-      unlock: 15, type: ActionType.Atac, speed: -1, damage: d(1, 6),
+      unlock: 2, type: ActionType.Atac, speed: -1, dice: d(1, 12),
       effects: [
         { type: 'pressure_cost', params: { amount: 1 } },
         { type: 'from_below' },
@@ -158,14 +158,14 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 30, type: ActionType.Defensa, speed: 2, rollBonus: 3,
+      unlock: 3, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
       effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
       desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
       icon: 'lorc/crystalize.svg',
     }),
     action({
       id: 'riu-de-lava', name: 'Riu de lava', skillId: VOLCANIC_SKILL_ID,
-      unlock: 50, type: ActionType.Focus, speed: -3, fatigueCost: 2,
+      unlock: 4, type: ActionType.Focus, speed: -3, fatigueCost: 2,
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
         { type: 'lava_flow', params: { sides: 8 } },
@@ -175,7 +175,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'erupcio', name: 'Erupció', skillId: VOLCANIC_SKILL_ID,
-      unlock: 75, type: ActionType.Atac, speed: -2, targetCount: 99, fatigueCost: 2,
+      unlock: 5, type: ActionType.Atac, speed: -2, fatigueCost: 2, targetCount: 99,
       effects: [{ type: 'eruption', params: { min: 2 } }],
       desc: 'Gasta tota la pressió, afecta a tots els aliats i enemics.',
       icon: 'lorc/eruption.svg',

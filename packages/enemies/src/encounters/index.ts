@@ -10,7 +10,6 @@ export interface EncounterEnemyGroup {
 export interface EncounterDefinition {
   id: string;
   name: string;
-  difficulty: 'easy' | 'medium' | 'hard' | 'boss';
   description: string;
   /** Compositions keyed by number of players (3..6). */
   compositions: Record<number, EncounterEnemyGroup[]>;
@@ -25,12 +24,12 @@ function scaled(templateId: string, base: number, perPlayer: number, level?: num
 
 export const ALL_ENCOUNTERS: EncounterDefinition[] = [
   {
-    id: 'horda-de-goblins', name: 'Horda de goblins', difficulty: 'easy',
+    id: 'horda-de-goblins', name: 'Horda de goblins',
     description: 'Una colla nombrosa de goblins febles.',
     compositions: scaled('goblin', 5, 2),
   },
   {
-    id: 'patrulla-goblin', name: 'Patrulla goblin', difficulty: 'medium',
+    id: 'patrulla-goblin', name: 'Patrulla goblin',
     description: 'Goblins liderats per un xaman.',
     compositions: {
       3: [{ templateId: 'goblin', count: 3 }, { templateId: 'goblin-shaman', count: 1 }],
@@ -40,12 +39,12 @@ export const ALL_ENCOUNTERS: EncounterDefinition[] = [
     },
   },
   {
-    id: 'manada-de-llops', name: 'Manada de llops', difficulty: 'easy',
+    id: 'manada-de-llops', name: 'Manada de llops',
     description: 'Una manada de llops que caça en grup.',
     compositions: scaled('wolf', 4, 1.5),
   },
   {
-    id: 'incursio-diabolica', name: 'Incursió diabòlica', difficulty: 'hard',
+    id: 'incursio-diabolica', name: 'Incursió diabòlica',
     description: "Diables espinosos i un diable d'os al capdavant.",
     compositions: {
       3: [{ templateId: 'spined-devil', count: 2 }, { templateId: 'bone-devil', count: 1 }],
@@ -55,12 +54,12 @@ export const ALL_ENCOUNTERS: EncounterDefinition[] = [
     },
   },
   {
-    id: 'guardia-de-pedra', name: 'Guàrdia de pedra', difficulty: 'hard',
+    id: 'guardia-de-pedra', name: 'Guàrdia de pedra',
     description: 'Gòlems de pedra implacables.',
     compositions: scaled('stone-golem', 1, 0.7),
   },
   {
-    id: 'senyor-banyut', name: 'El senyor banyut', difficulty: 'boss',
+    id: 'senyor-banyut', name: 'El senyor banyut',
     description: 'Un diable banyut amb els seus servents.',
     compositions: {
       3: [{ templateId: 'horned-devil', count: 1 }, { templateId: 'spined-devil', count: 1 }],
@@ -70,7 +69,7 @@ export const ALL_ENCOUNTERS: EncounterDefinition[] = [
     },
   },
   {
-    id: 'el-basilisc', name: 'El basilisc', difficulty: 'boss',
+    id: 'el-basilisc', name: 'El basilisc',
     description: 'Una bèstia colossal amb mirada petrificant.',
     compositions: scaled('basilisk', 1, 0),
   },

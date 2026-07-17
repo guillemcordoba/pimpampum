@@ -2,14 +2,12 @@ import { AIStrategy, Character, ActionDefinition, EquipmentDefinition, Equipment
 import { getEquipment } from '@pimpampum/skills';
 import { EnemyTemplate } from './types.js';
 import { getEnemyTemplate, unlockedEnemyActions } from './catalog.js';
-import { pvForLevel } from './generator.js';
 
 /**
- * Instantiate an enemy from a template. `levels` overrides the level of specific
- * skills; any unset skill uses the template's suggestedLevel. `equipmentIds`
- * adds passive items (same slots/effects as player equipment). `pv` overrides
- * the level-derived durability — pass SolvedGroup.pv when fielding a solved
- * encounter, since the solver discounts PV by the h-curve (level ≠ pv there).
+ * Instantiate an enemy from a template. `levels` overrides the level (ordinal:
+ * actions known) of specific skills; any unset skill uses the template's
+ * suggestedLevel. `equipmentIds` adds passive items (same slots/effects as
+ * player equipment). `pv` overrides the template's basePV.
  */
 export function createEnemyFromTemplate(
   template: EnemyTemplate,
@@ -20,11 +18,9 @@ export function createEnemyFromTemplate(
 ): Character {
   const skills: Record<string, number> = {};
   const actions: ActionDefinition[] = [];
-  let topLevel = 1;
   for (const skillId of template.skills) {
     const level = levels[skillId] ?? template.suggestedLevel;
     skills[skillId] = level;
-    topLevel = Math.max(topLevel, level);
     actions.push(...unlockedEnemyActions(skillId, level));
   }
   const equipment = equipmentIds
@@ -37,7 +33,7 @@ export function createEnemyFromTemplate(
       slot: EquipmentSlot.Torso,
       passiveArmor: template.naturalArmor,
       speedPenalty: 0,
-      skillBonuses: [],
+      rollBonuses: [],
       iconPath: '',
       description: `Armadura natural ${template.naturalArmor}.`,
     });
@@ -46,10 +42,7 @@ export function createEnemyFromTemplate(
     name,
     classCss: template.classCss,
     iconPath: template.iconPath,
-    // Durability derives from the fielded level (pv = level²/42, solitaris
-    // get the boss mass multiplier), not from the template — unless the caller
-    // fields a solver-priced PV.
-    pv: pv ?? pvForLevel(topLevel, template.role),
+    pv: pv ?? template.basePV,
     skills,
     actions,
     equipment,

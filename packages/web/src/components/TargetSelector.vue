@@ -11,6 +11,9 @@ const prompt = computed(() => props.game.currentTargetPrompt.value);
 const promptText = computed(() => {
   const p = prompt.value;
   if (!p) return '';
+  if (p.requirement === 'defense') {
+    return `${p.actorName}: tria un aliat a protegir o un enemic a bloquejar per ${p.actionName}`;
+  }
   const what = p.requirement === 'enemy' ? 'enemic' : 'aliat';
   if (p.count > 1) {
     return `${p.actorName}: tria ${p.count} ${what}s per ${p.actionName} (${props.game.multiTargetSelections.value.length}/${p.count})`;
@@ -27,6 +30,16 @@ const options = computed<Option[]>(() => {
   if (p.requirement === 'enemy') {
     return eng.teams[1].map((c, idx) => ({ team: 1, idx, character: c as Character }))
       .filter(o => o.character.isAlive());
+  }
+  if (p.requirement === 'defense') {
+    // Defense dual choice: a living ally to guard (including self) OR a living
+    // enemy to block.
+    const allyTeam = p.actorTeam;
+    const foeTeam = 1 - p.actorTeam;
+    return [
+      ...eng.teams[allyTeam].map((c, idx) => ({ team: allyTeam, idx, character: c as Character })),
+      ...eng.teams[foeTeam].map((c, idx) => ({ team: foeTeam, idx, character: c as Character })),
+    ].filter(o => o.character.isAlive());
   }
   return eng.teams[0].map((c, idx) => ({ team: 0, idx, character: c as Character }))
     .filter(o => {

@@ -13,14 +13,14 @@ import RulesCard from '../components/cards/RulesCard.vue';
         <h2>Característica base</h2>
         <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de morir. Els jugadors comencen amb 20 PV per defecte.</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Els jugadors comencen amb 20 PV per defecte.</li>
         </ul>
       </section>
 
       <section>
         <h2>Habilitats i accions</h2>
-        <p>Cada personatge té un conjunt d'<strong>habilitats</strong>, cadascuna amb un nivell d'1 a 100. En pujar de nivell, una habilitat desbloqueja noves <strong>accions</strong>.</p>
-        <p>Cada acció pertany a una habilitat i té una <strong>velocitat</strong> (determina quan es resol) i un <strong>tipus</strong>: Atac, Defensa o Focus. Les accions d'atac tenen també <strong>daus de dany</strong>.</p>
+        <p>Cada personatge té un conjunt d'<strong>habilitats</strong>. Cada nivell d'una habilitat dona una <strong>acció</strong> nova: el nivell és el nombre d'accions que el personatge coneix d'aquesta habilitat (Esgrima 3 = les 3 primeres accions d'Esgrima).</p>
+        <p>Cada acció pertany a una habilitat i té una <strong>velocitat</strong> (determina quan es resol), un <strong>tipus</strong> (Atac, Defensa o Focus) i uns <strong>daus</strong>: daus d'atac per a les accions d'atac, daus de defensa per a les de defensa.</p>
       </section>
 
       <section>
@@ -34,14 +34,20 @@ import RulesCard from '../components/cards/RulesCard.vue';
 
       <section>
         <h2>Accions d'atac</h2>
-        <p>L'atacant tria un objectiu i fa una tirada d'habilitat:</p>
-        <p class="formula">d20 + nivell d'habilitat + modificadors</p>
-        <p>Si supera la tirada de defensa de l'objectiu (o si no en té defensa, impacta automàticament), es tiren els daus de dany, es resta l'<strong>armadura passiva</strong> i el resultat (mínim 0) es resta dels PV.</p>
+        <p>L'atacant tria un objectiu i tira els daus d'atac de l'acció (més els modificadors). <strong>El dany és el marge</strong>:</p>
+        <p class="formula">dany = tirada d'atac − tirada de defensa</p>
+        <p>Si l'objectiu està defensat, el defensor tira els seus daus de defensa: si iguala o supera l'atac, la defensa aguanta i no passa res; si l'atac supera la defensa, la diferència és el dany. Si l'objectiu <strong>no</strong> està defensat, l'atac impacta automàticament i el dany és la tirada d'atac sencera.</p>
+        <p>Del dany se'n resta l'<strong>armadura passiva</strong> de qui el rep (mínim 0), i el resultat es resta dels seus PV. No hi ha tirada de dany separada: els daus de la carta són alhora la precisió i la potència de l'atac.</p>
       </section>
 
       <section>
         <h2>Accions de defensa</h2>
-        <p>El defensor tria un aliat a protegir. Cada atac dirigit a l'aliat defensat o al defensor es resol contra la tirada de defensa del defensor. Si un atac penetra, el dany el rep el defensor, no l'aliat.</p>
+        <p>El defensor tria un objectiu: un <strong>aliat</strong> (defensar) o un <strong>enemic</strong> (bloquejar). En tots dos casos es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.</p>
+        <ul>
+          <li><strong>Defensar un aliat</strong>: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra, el dany el rep el <strong>defensor</strong>, no l'aliat.</li>
+          <li><strong>Bloquejar un enemic</strong>: els enemics bloquejats fan totes les seves tirades d'atac contra el defensor. Els atacs que no trien objectiu (com els que afecten tots els enemics) no en són afectats.</li>
+        </ul>
+        <p>Com que els objectius es trien quan cada acció es resol, una defensa no afecta les accions que ja s'han resolt abans (per ser més ràpides).</p>
       </section>
 
       <section>
@@ -51,24 +57,16 @@ import RulesCard from '../components/cards/RulesCard.vue';
 
       <section>
         <h2>Pujar de nivell</h2>
-        <p>Després de cada tirada d'habilitat es comprova el marge:</p>
+        <p>Després de cada tirada enfrontada, el perdedor comprova el seu marge:</p>
         <ul>
-          <li><strong>Fallar per menys de 10</strong>: l'habilitat puja un nivell.</li>
-          <li><strong>Encertar per menys de 5</strong>: l'habilitat puja un nivell.</li>
+          <li><strong>Perdre per 2 o menys</strong>: l'habilitat puja un nivell (+1) i el personatge aprèn la següent acció de l'habilitat.</li>
         </ul>
+        <p>Només s'aprèn dels fracassos ajustats: guanyar no ensenya res, i perdre per molt vol dir que el repte et queda massa gran.</p>
       </section>
 
       <section>
         <h2>Objectes i equipament</h2>
-        <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana de dany), <strong>bonificacions d'habilitat</strong> i <strong>penalització de velocitat</strong> (les armadures pesades alenteixen totes les accions). Només un objecte per ranura.</p>
-      </section>
-
-      <section>
-        <h2>Descans</h2>
-        <ul>
-          <li><strong>Descans curt</strong>: cada jugador recupera 1 PV.</li>
-          <li><strong>Descans llarg</strong>: cada jugador recupera tots els PV.</li>
-        </ul>
+        <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana del dany a cada impacte), <strong>bonificacions de tirada</strong> (modificadors a les tirades d'atac o de defensa de certes accions) i <strong>penalització de velocitat</strong> (les armadures pesades alenteixen totes les accions). Només un objecte per ranura.</p>
       </section>
     </div>
 

@@ -79,23 +79,17 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
 
 // --- Weapons ----------------------------------------------------------------
 
-/** Damage dice of the wielded main-hand weapon, or undefined if none. Used by the
+/** Attack dice of the wielded main-hand weapon, or undefined if none. Used by the
  *  generic weapon mechanic (any weapon-using skill: Weapon Master, Berserk…). */
 export function wieldedWeaponDice(c: Character): DiceRoll | undefined {
   for (const e of c.equipment) {
-    if (e.slot === EquipmentSlot.MainHand && e.damageDice) return e.damageDice;
+    if (e.slot === EquipmentSlot.MainHand && e.dice) return e.dice;
   }
   return undefined;
 }
 
-// --- Misc helpers -----------------------------------------------------------
-
-/** Effective "save" bonus: the target's strongest skill, with kind=defense modifiers. */
-export function bestSaveBonus(c: Character): number {
-  let best = 0;
-  for (const id of c.skills.keys()) {
-    const v = c.getRollSkill(id, 'defense');
-    if (v > best) best = v;
-  }
-  return best;
-}
+// NOTE: there is deliberately NO shared "save contest" helper here. Cards that
+// pit a roll against a target (petrifying gazes, fear roars, burials, binds)
+// implement their own contest as custom logic in their skill's file, with
+// their own dice and their own rules — contests are card design, not engine
+// machinery.

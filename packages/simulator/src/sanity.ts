@@ -1,13 +1,14 @@
 import { CombatEngine } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
-import { createEnemy } from '@pimpampum/enemies';
+import { createEnemy, registerEnemySkills } from '@pimpampum/enemies';
 
 const reg = createRegistry();
+registerEnemySkills(reg);
 let p = 0, e = 0, d = 0, rounds = 0;
 for (let i = 0; i < 200; i++) {
   const players = [
-    buildCharacter({ name: 'A', classCss: 'enginyer', pv: 22, skills: { 'enginyer-explosius': 60 } }),
-    buildCharacter({ name: 'B', classCss: 'enginyer', pv: 18, skills: { 'enginyer-explosius': 55 } }),
+    buildCharacter({ name: 'A', classCss: 'enginyer', pv: 22, skills: { 'enginyer-explosius': 4 } }),
+    buildCharacter({ name: 'B', classCss: 'enginyer', pv: 18, skills: { 'enginyer-explosius': 3 } }),
   ];
   const enemies = [createEnemy('goblin', {}, 'G1')!, createEnemy('goblin', {}, 'G2')!, createEnemy('goblin-shaman')!];
   const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40 });
@@ -18,7 +19,7 @@ for (let i = 0; i < 200; i++) {
 console.log(`players ${p} enemies ${e} draws ${d} avgRounds ${(rounds / 200).toFixed(1)}`);
 
 // Step-API smoke: drive one round manually like the web would.
-const players = [buildCharacter({ name: 'Hero', classCss: 'enginyer', pv: 22, skills: { 'enginyer-explosius': 50 } })];
+const players = [buildCharacter({ name: 'Hero', classCss: 'enginyer', pv: 22, skills: { 'enginyer-explosius': 4 } })];
 const enemies = [createEnemy('goblin', {}, 'Gob')!];
 const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40 });
 eng.prepareRound();

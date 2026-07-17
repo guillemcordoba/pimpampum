@@ -1,6 +1,6 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
-import { SkillDefinition, action, ICON_PREFIX } from '../types.js';
-import { num, applyMod, bestSaveBonus } from '../effects/helpers.js';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { num, diceParam, applyMod } from '../effects/helpers.js';
 
 /**
  * Berserk — a D&D-style barbarian whose power is raw, escalating wrath, not technique.
@@ -32,30 +32,35 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   enter_rage: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const value = num(ctx.params, 'value', 5);
+      const value = num(ctx.params, 'value', 3);
       const turns = num(ctx.params, 'turns', 3);
+      // The blood price: rage borrows power from the body itself.
+      const pvCost = num(ctx.params, 'pvCost', 0);
+      if (pvCost > 0) ctx.engine.applyPvLoss(ctx.source, pvCost, ctx.source);
+      if (!ctx.source.isAlive()) return;
       ctx.source.setStatus('furia', value, turns, undefined, FURIA_ESTAT);
       ctx.engine.log('focus', `${ctx.source.name} entra en fúria! (+${value} dany, −${value} dany rebut)`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.actor.hasStatus('furia') ? 0 : 1.4; },
   },
 
-  // Rugit de guerra: a terrifying war cry. Contested save vs each enemy; those who
-  // fail lose their still-pending action THIS round (engine `cancelPendingAction`,
-  // speed-gated — only slower actions can be eaten, so the roar wants high speed).
+  // Rugit de guerra: a terrifying war cry. The roar's own contest, card logic:
+  // the berserker rolls the card's dice against each enemy's resist dice (both
+  // printed on/for this card); losers with a still-pending action lose it
+  // (engine `cancelPendingAction`, speed-gated — the roar wants high speed).
   fear_roar: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const atkSkill = ctx.source.getRollSkill(ctx.action.skillId, 'attack') + (ctx.action.rollBonus ?? 0);
+      const resist = diceParam(ctx.params, 'resist');
+      const bonus = (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
       for (const t of ctx.engine.enemiesOf(ctx.source)) {
-        const atkRoll = ctx.engine.rollD20();
-        const defRoll = ctx.engine.rollD20For(t);
-        const defBonus = bestSaveBonus(t);
-        const attacker = atkRoll + atkSkill;
-        // Clutch statuses may adjust the save, seeing both totals.
-        const defender = ctx.engine.adjustContestTotal(t, defRoll + defBonus, attacker, 'save');
+        const roarTotal = Math.max(0, ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save') + bonus);
+        const resistRoll = Math.max(0, ctx.engine.rollContestDice(t, resist, 'save'));
+        // Clutch statuses may adjust either side, seeing both totals.
+        const attacker = ctx.engine.adjustContestTotal(ctx.source, roarTotal, resistRoll, 'save');
+        const defender = ctx.engine.adjustContestTotal(t, resistRoll, attacker, 'save');
         const ok = attacker > defender;
-        ctx.engine.log('focus', `🎲 Rugit de guerra contra ${t.name}: ${atkRoll}+${atkSkill} vs ${defender} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
+        ctx.engine.log('focus', `🎲 Rugit de guerra contra ${t.name}: ${attacker} vs ${defender} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
         if (!ok) continue;
         const cancelled = ctx.engine.cancelPendingAction(t);
         ctx.engine.log('focus', cancelled
@@ -107,44 +112,43 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'atac-temerari', name: 'Atac temerari', skillId: 'berserk',
       unlock: 1, type: ActionType.Atac, speed: 2,
-      effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 10, defense: 20, thisTurn: false } }],
-      desc: '{A}+10. El torn següent, {D}−20.',
+      effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 3, defense: 5, thisTurn: false } }],
+      desc: '{A}+3. El torn següent, {D}−5.',
       icon: 'lorc/axe-swing.svg',
     }),
     action({
       id: 'entrar-en-furia', name: 'Entrar en Fúria', skillId: 'berserk',
-      unlock: 12, type: ActionType.Focus, speed: 2, fatigueCost: 3,
-      effects: [{ type: 'enter_rage', params: { value: 5, turns: 3 } }],
-      desc: 'Durant 3 torns: {DAMAGE}+5 als teus atacs i {DAMAGE}−5 als cops que reps.',
+      unlock: 2, type: ActionType.Focus, speed: 2, fatigueCost: 3,
+      effects: [{ type: 'enter_rage', params: { value: 3, turns: 3 } }],
+      desc: 'Durant 3 torns: {DAMAGE}+3 als teus atacs i {DAMAGE}−3 als cops que reps.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
       id: 'embat-sagnant', name: 'Embat sagnant', skillId: 'berserk',
-      unlock: 28, type: ActionType.Atac, speed: 1,
-      effects: [{ type: 'weapon_damage' }, { type: 'frenzy', params: { per: 1, amount: 1 } }],
-      desc: '{A}+1 per cada PV perdut.',
+      unlock: 3, type: ActionType.Atac, speed: 1,
+      effects: [{ type: 'weapon_damage' }, { type: 'frenzy', params: { per: 4, amount: 1 } }],
+      desc: '{A}+1 per cada 4 PV perduts.',
       icon: 'skoll/blood.svg',
     }),
     action({
       id: 'rugit-de-guerra', name: 'Rugit de guerra', skillId: 'berserk',
-      unlock: 42, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'fear_roar' }],
-      desc: "Cada enemic tira d20 + la seva millor habilitat contra el teu d20 + nivell; si perd i encara no ha actuat, perd l'acció d'aquest torn.",
+      unlock: 4, type: ActionType.Focus, speed: 2, dice: d(2, 6),
+      effects: [{ type: 'fear_roar', params: { resist: d(2, 6) } }],
+      desc: "Tira 2d6 contra 2d6 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
       icon: 'lorc/screaming.svg',
     }),
     action({
       id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
-      unlock: 58, type: ActionType.Defensa, speed: 2,
+      unlock: 5, type: ActionType.Defensa, speed: 2,
       effects: [{ type: 'rage_from_pain' }],
       desc: 'Reps tot el dany i guanyes +{A} permanent igual al dany rebut.',
       icon: 'lorc/muscle-up.svg',
     }),
     action({
       id: 'furia-implacable', name: 'Fúria implacable', skillId: 'berserk',
-      unlock: 75, type: ActionType.Atac, speed: 1, fatigueCost: 4,
+      unlock: 6, type: ActionType.Atac, speed: 1, rollBonus: 2, fatigueCost: 4,
       effects: [
         { type: 'weapon_damage', params: { times: 2 } },
-        { type: 'precision', params: { levelMultiplier: 2 } },
         { type: 'last_stand', params: { turns: 3 } },
       ],
       desc: 'Baixes a 1 PV i et tornes indestructible durant 3 torns.',

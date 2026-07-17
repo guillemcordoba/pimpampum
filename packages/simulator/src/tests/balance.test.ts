@@ -1,19 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import {
-  checkSkillUp, resolveDamage, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
+  checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
 } from '@pimpampum/engine';
-import { randomTeam, randomSizedTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './helpers.js';
+import { randomTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './helpers.js';
 
 describe('resolution math', () => {
-  it('levels a skill only in the learning zone', () => {
-    expect(checkSkillUp(true, 3)).toBe(false);   // success never levels (you already know it)
-    expect(checkSkillUp(true, 7)).toBe(false);   // success never levels
-    expect(checkSkillUp(false, 6)).toBe(true);   // failure by < 10
-    expect(checkSkillUp(false, 12)).toBe(false); // failure by >= 10 (too hard)
-    expect(checkSkillUp(true, Infinity)).toBe(false); // undefended auto-hit
+  it('the loser levels a skill only on a close loss (≤2)', () => {
+    expect(checkSkillUp(0)).toBe(true);   // tie: the attacker lost by 0
+    expect(checkSkillUp(1)).toBe(true);
+    expect(checkSkillUp(2)).toBe(true);
+    expect(checkSkillUp(3)).toBe(false);  // lost by too much to learn
+    expect(checkSkillUp(-1)).toBe(false); // winners never level
   });
 
-  it('subtracts armour from damage, floored at zero', () => {
+  it('damage is the margin: defended hits deal attack − defense, undefended the full roll', () => {
+    expect(resolveAttack(10, 7)).toEqual({ hit: true, margin: 3 });
+    expect(resolveAttack(7, 7)).toEqual({ hit: false, margin: 0 });  // tie: defense holds
+    expect(resolveAttack(5, 9)).toEqual({ hit: false, margin: -4 });
+    expect(resolveAttack(6, null)).toEqual({ hit: true, margin: 6 }); // undefended: full roll
+  });
+
+  it('subtracts armour from the margin, floored at zero', () => {
     expect(resolveDamage(7, 3)).toBe(4);
     expect(resolveDamage(2, 5)).toBe(0);
     expect(resolveDamage(5, 0)).toBe(5);
@@ -23,8 +30,8 @@ describe('resolution math', () => {
 describe('engine sanity', () => {
   it('every combat terminates with a valid winner and PV stays in range', () => {
     for (let i = 0; i < 60; i++) {
-      const a = randomTeam('A', 2, 40);
-      const b = randomTeam('B', 2, 40);
+      const a = randomTeam('A', 2, 6);
+      const b = randomTeam('B', 2, 6);
       assignStrategies(a, [AIStrategy.Power]);
       assignStrategies(b, [AIStrategy.Aggro]);
       const res = new CombatEngine(a, b, { registry: REGISTRY, maxRounds: 50 }).runCombat();
@@ -43,7 +50,7 @@ describe('mirror balance (equal skill budgets)', () => {
     let aWins = 0, bWins = 0;
     const N = 600;
     for (let i = 0; i < N; i++) {
-      const w = runMatch(randomTeam('A', 2, 40), randomTeam('B', 2, 40));
+      const w = runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6));
       if (w === 0) aWins++; else if (w === 1) bWins++;
     }
     const rate = aWins / (aWins + bWins);
@@ -53,39 +60,20 @@ describe('mirror balance (equal skill budgets)', () => {
 
   it('average combat length is reasonable', () => {
     const stats = newCombatStats();
-    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 40), randomTeam('B', 2, 40), stats);
+    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6), stats);
     const avg = stats.rounds / stats.combats;
     expect(avg).toBeGreaterThan(1.5);
-    // Sanity bound for symmetric AI mirror matches, which stall far above the
-    // ~9-round intent of real (player-vs-encounter) fights — those are ~8-10
-    // rounds at PLAYER_PV 20. Runaway past this means sustain got out of hand.
+    // intentions.md targets ≤~5 rounds INCLUDING mirrors; keep the ceiling
+    // loose until the PV/duration tuning pass, then tighten. TODO(balance)
     expect(avg).toBeLessThan(40);
   });
 
   it('all three action types see play', () => {
     const stats = newCombatStats();
-    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 3, 45), randomTeam('B', 3, 45), stats);
+    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 3, 7), randomTeam('B', 3, 7), stats);
     expect(stats.actionTypePlays['Atac'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Defensa'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Focus'] ?? 0).toBeGreaterThan(0);
-  });
-
-  it('no character size is a consistently better or worse choice', () => {
-    const bySize = new Map<string, { games: number; wins: number }>();
-    const N = 1000;
-    for (let i = 0; i < N; i++) {
-      const a = randomSizedTeam('A', 2, 40);
-      const b = randomSizedTeam('B', 2, 40);
-      const w = runMatch(a, b);
-      if (w === null) continue;
-      for (const c of a) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (w === 0) e.wins++; bySize.set(c.size, e); }
-      for (const c of b) { const e = bySize.get(c.size) ?? { games: 0, wins: 0 }; e.games++; if (w === 1) e.wins++; bySize.set(c.size, e); }
-    }
-    for (const [size, e] of bySize) {
-      const rate = e.wins / e.games;
-      expect(rate, `size ${size} win rate ${(100 * rate).toFixed(1)}% over ${e.games} character-games`).toBeGreaterThan(0.42);
-      expect(rate, `size ${size} win rate ${(100 * rate).toFixed(1)}% over ${e.games} character-games`).toBeLessThan(0.58);
-    }
   });
 });
 
@@ -98,7 +86,7 @@ describe('encounters', () => {
       for (const pc of [3, 4, 5, 6]) {
         const enemies = buildEncounter(enc!, pc);
         expect(enemies.length).toBeGreaterThan(0);
-        const players = randomTeam('P', pc, 45);
+        const players = randomTeam('P', pc, 7);
         assignStrategies(players, [AIStrategy.Power]);
         const res = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 60 }).runCombat();
         expect([0, 1, null]).toContain(res.winner);

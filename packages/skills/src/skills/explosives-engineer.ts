@@ -6,10 +6,10 @@ import { num } from '../effects/helpers.js';
 export const EXPLOSIVE_SKILL_ID = 'enginyer-explosius';
 const CHARGE_STATUS = 'carregues';
 
-/** Bandolier size: a finite per-combat pool, min(6, 3 + floor(skill/30)). */
+/** Bandolier size: a finite per-combat pool, min(6, 2 + level). TODO(balance) */
 export function maxCharges(actor: Character): number {
   const lvl = actor.getSkillLevel(EXPLOSIVE_SKILL_ID);
-  return Math.min(6, 3 + Math.floor(lvl / 30));
+  return Math.min(6, 2 + lvl);
 }
 
 /** Current càrregues; falls back to the full bandolier if not yet initialised. */
@@ -98,7 +98,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
 const ENCEGAT: StatusBehavior = {
   redirectAttackTarget(ctx, intended) {
     if (ctx.holder.statusRefs().some(r => r.entry.behavior?.ignoresConcealment?.(r))) return intended;
-    if (ctx.engine.rollD20() > 10) return intended;
+    if (ctx.engine.rollDie(20) > 10) return intended;
     const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
     if (pool.length === 0) return intended;
     const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -113,7 +113,7 @@ const ENCEGAT: StatusBehavior = {
 const CAMP_MINAT: StatusBehavior = {
   onEnemyAttackAction(ctx, attacker) {
     if (ctx.entry.value <= 0) return false;
-    if (ctx.engine.rollD20() <= 10) {
+    if (ctx.engine.rollDie(20) <= 10) {
       const dice = ctx.entry.data?.['damage'] as DiceRoll | undefined;
       const dmg = dice ? dice.roll() : 1;
       ctx.engine.log('trap', `${attacker.name} trepitja una mina! (${dmg} dany)`, attacker.team);
@@ -135,21 +135,21 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
   actions: [
     action({
       id: 'granada-de-fragmentacio', name: 'Granada de fragmentació', skillId: 'enginyer-explosius',
-      unlock: 1, type: ActionType.Atac, speed: 1, damage: d(1, 4), targetCount: 99,
+      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(1, 4), targetCount: 99,
       effects: [{ type: 'charge_cost', params: { amount: 1 } }],
       desc: 'Afecta tots els enemics.',
       icon: 'lorc/grenade.svg',
     }),
     action({
       id: 'bomba-de-fum', name: 'Bomba de fum', skillId: 'enginyer-explosius',
-      unlock: 10, type: ActionType.Focus, speed: 2,
+      unlock: 2, type: ActionType.Focus, speed: 2,
       effects: [{ type: 'smoke', params: { turns: 1 } }],
       desc: 'Cada enemic que ataca aquest torn tira un d20: amb 10 o menys, l’atac impacta un personatge a l’atzar.',
       icon: 'darkzaitzev/smoke-bomb.svg',
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',
-      unlock: 50, type: ActionType.Focus, speed: -2, fatigueCost: 2,
+      unlock: 3, type: ActionType.Focus, speed: -2, fatigueCost: 2,
       effects: [
         { type: 'charge_cost', params: { amount: 3 } },
         { type: 'lay_minefield', params: { mines: 3, damageSides: 6 } },
@@ -159,7 +159,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
-      unlock: 65, type: ActionType.Focus, speed: -4, fatigueCost: 2,
+      unlock: 4, type: ActionType.Focus, speed: -4, fatigueCost: 2,
       effects: [{ type: 'empty_bandolier', params: { sides: 6 } }],
       desc: 'Cada enemic rep Nd6, on N és el nombre de càrregues que et queden. Gasta totes les càrregues que et quedin.',
       icon: 'skoll/carpet-bombing.svg',
