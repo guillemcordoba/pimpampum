@@ -6,7 +6,8 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-day.ts
  */
 import { CombatEngine, FATIGUE_CONFIG, newCombatStats, assignStrategies, AIStrategy } from '@pimpampum/engine';
-import { REGISTRY, randomTeam, runMatch, buildEncounter, getEncounter } from './tests/helpers.js';
+import { solveEncounter } from '@pimpampum/enemies';
+import { REGISTRY, randomTeam, runMatch, buildSolvedEncounter } from './tests/helpers.js';
 
 const MIRROR_GAMES = 1500;
 const DAYS = 400;
@@ -23,14 +24,14 @@ function mirrors(): void {
 }
 
 function day(): void {
-  const enc = getEncounter('patrulla-goblin')!;
+  const enc = solveEncounter([{ templateId: 'goblin' }, { templateId: 'goblin-shaman' }], 4, 0.65)!;
   const winsByCombat = [0, 0, 0];
   const reached = [0, 0, 0];
   for (let dayI = 0; dayI < DAYS; dayI++) {
     const players = randomTeam('P', 4, 7);
     for (let c = 0; c < COMBATS_PER_DAY; c++) {
       reached[c]++;
-      const enemies = buildEncounter(enc, 4);
+      const enemies = buildSolvedEncounter(enc);
       assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
       const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
       const res = engine.runCombat();

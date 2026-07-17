@@ -38,7 +38,7 @@ export interface EnemyTemplate {
 
 /**
  * A single enemy: its template plus the skill definition(s) it fights with.
- * Each enemy lives in its own file under `bestiary/` and exports one of these.
+ * Each enemy lives in its own file under `enemies/` and exports one of these.
  */
 export interface EnemyModule {
   template: EnemyTemplate;

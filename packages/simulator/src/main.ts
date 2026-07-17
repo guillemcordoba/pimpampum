@@ -1,11 +1,11 @@
 import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
 import { getAction } from '@pimpampum/skills';
 import {
-  ALL_ENCOUNTERS, ENEMY_TEMPLATES, TARGET_WINRATES, generateEncounter,
+  ENEMY_TEMPLATES, TARGET_WINRATES, generateEncounter,
   createEnemyFromTemplate, getEnemyTemplate,
 } from '@pimpampum/enemies';
 import {
-  REGISTRY, randomTeam, runMatch, buildEncounter,
+  REGISTRY, randomTeam, runMatch,
 } from './tests/helpers.js';
 
 function recordSkills(map: Map<string, { games: number; wins: number }>, team: Character[], won: boolean): void {
@@ -60,24 +60,6 @@ function mirrorBalance(size: number, budget: number, games: number): void {
     .forEach(a => console.log(`   ${(getAction(a.id)?.name ?? a.id).padEnd(24)} plays ${String(a.plays).padStart(5)}  win ${a.pct.toFixed(1)}%`));
 }
 
-// --- Encounter analysis: a generic player party vs each encounter -----------
-function encounterAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
-  console.log(`\n=== Encounters (${playerCount} players @ budget ${perPlayerBudget}, ${games} games each) ===`);
-  for (const enc of ALL_ENCOUNTERS) {
-    let wins = 0, rounds = 0, draws = 0;
-    for (let i = 0; i < games; i++) {
-      const players = randomTeam('P', playerCount, perPlayerBudget);
-      const enemies = buildEncounter(enc, playerCount);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
-      const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
-      const res = engine.runCombat();
-      if (res.winner === 0) wins++; else if (res.winner === null) draws++;
-      rounds += res.rounds;
-    }
-    console.log(`   ${enc.name.padEnd(22)} players win ${bar(100 * wins / games)} ${(100 * wins / games).toFixed(0)}%  avg ${(rounds / games).toFixed(1)} rounds  draws ${(100 * draws / games).toFixed(0)}%`);
-  }
-}
-
 // --- Parametric balancer check: solved encounters vs their promised winrate --
 function parametricAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
   console.log(`\n=== Balancer v2 (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
@@ -108,5 +90,4 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
 console.log('Pim Pam Pum — skill-based balance simulation (dice-contest system)');
 mirrorBalance(2, 6, 3000);
 mirrorBalance(3, 6, 2000);
-encounterAnalysis(4, 7, 600);
 parametricAnalysis(4, 7, 120);

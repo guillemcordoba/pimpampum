@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
 } from '@pimpampum/engine';
-import { randomTeam, runMatch, REGISTRY, getEncounter, buildEncounter } from './helpers.js';
+import { generateEncounter, getEnemyTemplate, buildSolvedEncounter } from '@pimpampum/enemies';
+import { randomTeam, runMatch, REGISTRY } from './helpers.js';
 
 describe('resolution math', () => {
   it('the loser levels a skill only on a close loss (≤2)', () => {
@@ -77,14 +78,16 @@ describe('mirror balance (equal skill budgets)', () => {
   });
 });
 
-describe('encounters', () => {
-  const ids = ['horda-de-goblins', 'patrulla-goblin', 'manada-de-llops', 'incursio-diabolica', 'el-basilisc'];
+describe('solved encounters', () => {
+  const ids = ['goblin', 'wolf', 'stone-golem', 'basilisk'];
   for (const id of ids) {
-    it(`${id} resolves for every player count`, () => {
-      const enc = getEncounter(id);
-      expect(enc).toBeTruthy();
+    it(`${id} encounters solve and resolve for every player count`, () => {
+      const template = getEnemyTemplate(id);
+      expect(template).toBeTruthy();
       for (const pc of [3, 4, 5, 6]) {
-        const enemies = buildEncounter(enc!, pc);
+        const solved = generateEncounter(template!, pc, 0.65);
+        expect(solved).toBeTruthy();
+        const enemies = buildSolvedEncounter(solved!);
         expect(enemies.length).toBeGreaterThan(0);
         const players = randomTeam('P', pc, 7);
         assignStrategies(players, [AIStrategy.Power]);

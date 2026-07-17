@@ -112,8 +112,8 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'atac-temerari', name: 'Atac temerari', skillId: 'berserk',
       unlock: 1, type: ActionType.Atac, speed: 2,
-      effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 3, defense: 5, thisTurn: false } }],
-      desc: '{A}+3. El torn següent, {D}−5.',
+      effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 2, defense: 5, thisTurn: false } }],
+      desc: '{A}+2. El torn següent, {D}−5.',
       icon: 'lorc/axe-swing.svg',
     }),
     action({
@@ -146,7 +146,7 @@ export const BERSERK: SkillDefinition = {
     }),
     action({
       id: 'furia-implacable', name: 'Fúria implacable', skillId: 'berserk',
-      unlock: 6, type: ActionType.Atac, speed: 1, rollBonus: 2, fatigueCost: 4,
+      unlock: 6, type: ActionType.Atac, speed: 1, fatigueCost: 4,
       effects: [
         { type: 'weapon_damage', params: { times: 2 } },
         { type: 'last_stand', params: { turns: 3 } },

@@ -1,7 +1,7 @@
 import { Character } from '@pimpampum/engine';
 import { getEnemyTemplate } from './catalog.js';
 import { createEnemyFromTemplate } from './factory.js';
-import { EncounterDefinition } from './encounters/index.js';
+import { SolvedEncounter } from './generator.js';
 
 export {
   ENEMY_TEMPLATES, getEnemyTemplate,
@@ -16,22 +16,17 @@ export {
   WINRATE_K, PARTY_ALPHA, ROLE_COUNT, TARGET_WINRATES, PV_MULT_MIN, PV_MULT_MAX,
 } from './generator.js';
 export type { PoolSpec, SolvedGroup, SolvedEncounter, EncounterDifficulty, FieldedGroup } from './generator.js';
-export { ALL_ENCOUNTERS, getEncounter } from './encounters/index.js';
-export type { EncounterDefinition, EncounterEnemyGroup } from './encounters/index.js';
 
-/** Instantiate every enemy in an encounter's composition for a player count. */
-export function buildEncounter(encounter: EncounterDefinition, playerCount: number, levels: Record<string, number> = {}): Character[] {
-  const comp = encounter.compositions[playerCount] ?? encounter.compositions[3];
+/** Instantiate every enemy of a balancer-solved encounter. */
+export function buildSolvedEncounter(solved: SolvedEncounter): Character[] {
   const enemies: Character[] = [];
-  for (const group of comp) {
-    const template = getEnemyTemplate(group.templateId);
+  for (const g of solved.groups) {
+    const template = getEnemyTemplate(g.templateId);
     if (!template) continue;
-    const groupLevels = group.level !== undefined
-      ? Object.fromEntries(template.skills.map(s => [s, group.level as number]))
-      : levels;
-    for (let i = 0; i < group.count; i++) {
-      const name = group.count > 1 ? `${template.displayName} ${i + 1}` : template.displayName;
-      enemies.push(createEnemyFromTemplate(template, groupLevels, name));
+    const levels = Object.fromEntries(template.skills.map(s => [s, g.level]));
+    for (let i = 0; i < g.count; i++) {
+      const name = g.count > 1 ? `${template.displayName} ${i + 1}` : template.displayName;
+      enemies.push(createEnemyFromTemplate(template, levels, name, [], g.pv));
     }
   }
   return enemies;

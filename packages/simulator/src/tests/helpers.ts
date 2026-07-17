@@ -3,7 +3,7 @@ import {
   assignStrategies, AIStrategy, EffectRegistry,
 } from '@pimpampum/engine';
 import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, createRegistry } from '@pimpampum/skills';
-import { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter, registerEnemySkills } from '@pimpampum/enemies';
+import { getEnemyTemplate, createEnemyFromTemplate, buildSolvedEncounter, registerEnemySkills } from '@pimpampum/enemies';
 
 /** Shared registry for all simulations (player + enemy skill handlers). */
 export const REGISTRY: EffectRegistry = createRegistry();
@@ -137,4 +137,4 @@ export function runMatchup(makeA: () => Character[], makeB: () => Character[], g
   return res;
 }
 
-export { getEnemyTemplate, createEnemyFromTemplate, buildEncounter, getEncounter };
+export { getEnemyTemplate, createEnemyFromTemplate, buildSolvedEncounter };

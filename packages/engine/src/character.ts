@@ -68,8 +68,9 @@ export class Character {
   playedActionIdx: number | null = null;
   /** actionIdx -> turns set aside (-1 = permanent). */
   setAsideActions = new Map<number, number>();
-  /** Persistent fatigue counter — drives the all-roll penalty. Every action
-   *  played adds 1. Carries between combats. */
+  /** Persistent daily fatigue counter — the stamina budget actions spend
+   *  (fatigueCost, default 1). Carries between combats; sleep() clears it.
+   *  Never touches dice rolls. */
   fatigue = 0;
   /** Enemy defender currently blocking this character: forces every attack
    *  target this character would choose onto the blocker. Round-scoped (the
