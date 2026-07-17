@@ -6,51 +6,45 @@ Pim Pam Pum és un sistema de joc de rol de taula amb combat tàctic per equips.
 
 Cada personatge té una sola característica base:
 
-- **PV** (Punts de vida): els punts de vida que té el personatge abans de morir. Els personatges de jugador comencen amb **20 PV** per defecte (la mida ho modifica).
-
-## Mida
-
-Cada personatge tria una mida en crear-se (per defecte, Mitjà). La mida és una elecció lliure: no compta per a l'equilibri de sumes de nivells d'habilitat.
-
-- **Gran**: +3 PV, −1 de velocitat a totes les accions.
-- **Mitjà**: sense modificadors.
-- **Petit**: −3 PV, +1 de velocitat a totes les accions.
-
-El modificador de velocitat s'acumula amb les penalitzacions de velocitat de l'armadura.
+- **PV** (Punts de vida): els punts de vida que té el personatge abans de caure fora de combat. El valor inicial per defecte és provisionalment **20**, pendent d'ajustar quan es calibri la durada desitjada dels combats.
 
 ## Habilitats
 
-Cada personatge té un conjunt d'habilitats, cadascuna amb un nivell entre 1 i 100. Exemples d'habilitats: Esgrima, Piromància, Furtivitat, Geomància, Ninjutsu de Foc, Tir amb Arc...
+Cada personatge té un conjunt d'habilitats, cadascuna amb un nivell. Exemples d'habilitats: Esgrima, Piromància, Furtivitat, Geomància, Ninjutsu de Foc, Tir amb Arc...
 
-Quan una habilitat puja de nivell, pot desbloquejar noves accions.
+**Cada nivell d'una habilitat dona una acció nova.** El nivell d'una habilitat és, per tant, el nombre d'accions que el personatge coneix d'aquesta habilitat: un personatge amb Esgrima 3 coneix les 3 primeres accions d'Esgrima.
 
 ## Accions
 
-Les accions són les capacitats que un personatge pot fer servir, tant en combat com fora de combat. Cada acció pertany a una habilitat i es desbloqueja quan l'habilitat arriba a un cert nivell.
+Les accions són les capacitats que un personatge pot fer servir, tant en combat com fora de combat. Cada acció pertany a una habilitat i s'aprèn quan l'habilitat arriba al seu nivell.
 
 Cada acció té:
 - **Habilitat**: l'habilitat associada.
 - **Velocitat**: un valor que determina quan es resol l'acció (més alt = es resol primer).
 - **Tipus**: Atac, Defensa o Focus.
+- **Daus**: els daus que es tiren quan l'acció es resol (per exemple, 1d8, 2d6). Les accions d'atac tenen daus d'atac; les accions de defensa tenen daus de defensa.
 
 ### Accions d'atac
 
-Les accions d'atac tenen, a més:
-- **Daus de dany**: els daus que es tiren quan l'atac impacta (per exemple, 1d8, 2d6).
+Quan es resol una acció d'atac, l'atacant tria un objectiu i tira els **daus d'atac** de l'acció (més els modificadors que tingui).
 
-Quan es resol una acció d'atac, l'atacant tria un objectiu. Es fa una tirada d'habilitat:
+**El dany és el marge**: la tirada d'atac menys la tirada de defensa.
 
-- **Atacant**: d20 + nivell d'habilitat + modificadors de l'acció
-- **Defensor** (si té una acció de defensa activa): d20 + nivell d'habilitat de defensa + modificadors de defensa
-- **Sense defensa**: l'atac impacta automàticament.
+- Si l'objectiu està defensat, el defensor tira els **daus de defensa** de la seva acció. Si la defensa iguala o supera l'atac, la defensa aguanta i no passa res. Si l'atac supera la defensa, la diferència és el dany.
+- Si l'objectiu no està defensat, l'atac impacta automàticament i el dany és la tirada d'atac sencera.
 
-Si el total de l'atacant supera el del defensor (o si no hi ha defensa), l'atac impacta. Es tiren els daus de dany de l'acció, es resta l'armadura passiva de l'objectiu, i el resultat (mínim 0) es resta dels PV.
+Del dany se'n resta l'**armadura passiva** de qui el rep (mínim 0), i el resultat es resta dels seus PV.
+
+No hi ha cap tirada de dany separada: els daus de la carta són alhora la precisió i la potència de l'atac.
 
 ### Accions de defensa
 
-Quan un jugador juga una acció de defensa, tria un aliat a defensar. Tots els atacs dirigits a l'aliat defensat o al defensor es resolen contra la tirada de defensa del defensor (d20 + habilitat de defensa + modificadors).
+Quan una acció de defensa es resol, el defensor tria un objectiu: un **aliat** (defensar) o un **enemic** (bloquejar). En tots dos casos, el defensor es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.
 
-El defensor tira per separat contra cada atac que rebi ell o l'aliat defensat durant el torn. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el defensor, no l'aliat.
+- **Defensar un aliat**: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el **defensor**, no l'aliat.
+- **Bloquejar un enemic**: els enemics bloquejats fan totes les seves tirades d'atac contra el defensor. Els atacs que no trien objectiu (com els que afecten tots els enemics) no en són afectats.
+
+Com que els objectius es trien quan cada acció es resol, una defensa no afecta les accions que ja s'han resolt abans (per ser més ràpides).
 
 ### Accions de focus
 
@@ -61,18 +55,18 @@ Les accions de focus tenen efectes especials. Normalment són lentes (velocitat 
 El combat consisteix en una sèrie de rondes:
 
 1. Tots els jugadors trien una acció de la seva mà, la posen de cap per avall, i es revelen alhora.
-2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada i el modificador de mida s'apliquen.
+2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada s'apliquen.
 3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
-4. Cada acció de defensa es resol reactivament quan un atac arriba al defensor o al seu aliat defensat.
-5. Les accions de focus es cancel·len si el jugador rep un impacte abans que l'acció es resolgui.
+4. Cada acció de defensa tria el seu objectiu (aliat a defensar o enemic a bloquejar) quan es resol, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
+5. Les accions de focus es cancel·len si el jugador rep un atac sense defensa abans que l'acció es resolgui.
 
 ## Pujar de nivell
 
-Després de cada tirada d'habilitat (atac, defensa, o fora de combat), es comprova el marge:
+Després de cada tirada enfrontada (atac contra defensa, o una tirada fora de combat), el perdedor comprova el seu marge:
 
-- **Fallar per menys de 10**: l'habilitat puja un nivell (+1).
+- **Perdre per 2 o menys**: l'habilitat puja un nivell (+1), i el personatge aprèn la següent acció de l'habilitat.
 
-Només s'aprèn dels fracassos ajustats: quedar-te a prop de superar el repte és el que més t'ensenya. Encertar no ensenya res (ja en saps prou), i els fracassos catastròfics (fallar per 10 o més) són massa aclaparadors per aprendre'n.
+Només s'aprèn dels fracassos ajustats: quedar-te a un pèl de superar el repte és el que més t'ensenya. Guanyar no ensenya res (ja en saps prou), i perdre per molt vol dir que el repte et queda massa gran per treure'n res.
 
 ## Objectes i equipament
 
@@ -85,8 +79,8 @@ Els personatges poden portar objectes passius que modifiquen les seves capacitat
 - **Mà secundària**: escut, arma secundària
 
 Només es pot portar un objecte per espai. Els objectes poden donar:
-- **Armadura passiva**: reducció plana de dany a cada impacte rebut.
-- **Bonificacions d'habilitat**: millores al nivell d'habilitat en certes accions.
+- **Armadura passiva**: reducció plana del dany a cada impacte rebut.
+- **Bonificacions de tirada**: modificadors que se sumen a les tirades d'atac o de defensa de certes accions.
 - **Penalització de velocitat**: les armadures pesades redueixen la velocitat de totes les accions del portador.
 
 La decisió entre armadura pesada (més protecció, més lent) i armadura lleugera (menys protecció, sense penalització) és una elecció tàctica important.
@@ -97,13 +91,4 @@ Fora de combat, els jugadors es poden intercanviar objectes entre ells i canviar
 
 ## Fora de combat
 
-Les accions es poden fer servir fora de combat per fer tirades d'habilitat. El director de joc (DM) estableix un nivell de dificultat per a la tasca. Es tira d20 + nivell d'habilitat + modificadors contra la dificultat. Les regles de pujar de nivell s'apliquen igualment.
-
-## Descans
-
-Entre combats, els jugadors poden descansar per recuperar vides:
-
-- **Descans curt**: cada jugador recupera 1 PV.
-- **Descans llarg**: cada jugador recupera tots els PV.
-
-El DM decideix quan els jugadors poden fer un descans curt o llarg.
+Les accions es poden fer servir fora de combat per fer tirades d'habilitat. El director de joc (DM) estableix un nivell de dificultat per a la tasca. Es tiren els daus de l'acció (més modificadors) contra la dificultat. Les regles de pujar de nivell s'apliquen igualment.
