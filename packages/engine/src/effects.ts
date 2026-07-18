@@ -53,7 +53,7 @@ export interface EngineApi {
    *  kind ('attack'/'defense'/'save') so kind-scoped stances apply; omit for
    *  uncontexted rolls. Route content-side contests (saves, heals) through
    *  this. */
-  rollContestDice(c: Character, dice: DiceRoll | undefined, kind?: import('./status.js').ContestKind): number;
+  rollDiceFor(c: Character, dice: DiceRoll | undefined, kind?: import('./status.js').ContestKind): number;
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
   cancelPendingAction(target: Character): boolean;

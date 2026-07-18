@@ -16,8 +16,8 @@
 import { EnemyTemplate } from './types.js';
 import { getEnemyTemplate } from './catalog.js';
 
-/** Winrate steepness (median of per-template logit fits; range 1.7-2.7). */
-export const WINRATE_K = 2.65;
+/** Winrate steepness (median of per-template logit fits, 2026-07 re-measure). */
+export const WINRATE_K = 2.8;
 /** Party-strength scaling exponent: S(n) = (n/4)^α. Recomputed β-consistently
  *  from the goblin party probes (S3 .69, S5 1.23, S6 2.05 → α ≈ 1.5). */
 export const PARTY_ALPHA = 1.5;
@@ -59,14 +59,16 @@ export function partyStrength(playerCount: number): number {
 }
 
 /**
- * Threat multiplier of a reduced kit (level < kit size). Rough global fit of
- * kit-specific measurements (goblin ×0.78 at 1/2 kit, golem ×0.58 at 3/5,
- * basilisc ×1.0 — attack-first kits lose little): level is a coarse flavour
- * lever; use the PV multiplier for precision.
+ * Threat multiplier of a reduced kit (level < kit size). Enemy kits RAMP
+ * (weakest attack at level 1, signature power late — intentions.md), and the
+ * measured factors track the level fraction almost exactly (2026-07 ramped
+ * kits: goblin ×0.49 at 2/4, golem ×0.53 at 3/5): half the kit ≈ half the
+ * threat. Kits whose attacks all sit early (basilisc ×1.11 at 3/5) overshoot
+ * — known per-kit variance.
  */
 export function levelFactor(level: number, kitSize: number): number {
   if (level >= kitSize) return 1;
-  return 0.3 + 0.7 * Math.max(0, level / kitSize);
+  return Math.max(0.3, level / kitSize);
 }
 
 /** Threat of one body of `t` at `level` with its PV scaled by `pvMult`. */
@@ -182,7 +184,7 @@ export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinr
     const probe = PROBE_COUNT[template.role];
     const base = unitThreat(template, spec.level ?? template.suggestedLevel) * probe;
     const lambdaAtProbe = freeShare / Math.max(0.001, base);
-    if (lambdaAtProbe >= PV_MULT_MIN && lambdaAtProbe <= PV_MULT_MAX * 0.95) {
+    if (lambdaAtProbe >= PV_MULT_MIN && lambdaAtProbe <= PV_MULT_MAX) {
       return Math.min(hi, Math.max(lo, probe));
     }
     const ideal = probe * Math.pow(lambdaAtProbe, 1 / COUNT_BETA);

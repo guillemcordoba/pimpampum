@@ -26,7 +26,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       const mode = str(ctx.params, 'mode', 'flat');
       const targets = resolveTargets(ctx, tspec(ctx.params, 'ally'));
       if (mode === 'roll') {
-        const roll = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, undefined);
+        const roll = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, undefined);
         const amt = Math.max(0, roll + ctx.source.getRollBonus(ctx.action.skillId));
         ctx.engine.log('focus', `🎲 ${ctx.source.name} «${ctx.action.name}»: ${amt} PV.`, ctx.source.team);
         for (const t of targets) ctx.engine.heal(t, amt);

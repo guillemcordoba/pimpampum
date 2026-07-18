@@ -186,7 +186,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  disadvantage rolls the whole pool twice and keeps the lower total,
    *  advantage the higher. Disadvantage wins if both are present. `kind` gives
    *  stances contest context (advantage only on defense, say). */
-  rollContestDice(c: Character, dice: DiceRoll | undefined, kind?: ContestKind): number {
+  rollDiceFor(c: Character, dice: DiceRoll | undefined, kind?: ContestKind): number {
     if (!dice) return 0;
     const r1 = dice.roll();
     let mode: 'advantage' | 'disadvantage' | null = null;
@@ -239,7 +239,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return;
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
-    const atkRoll = this.rollContestDice(source, dice, 'attack');
+    const atkRoll = this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
     const guard = this.activeGuard(target);
@@ -248,7 +248,7 @@ export class CombatEngine implements EngineApi, AIView {
     let margin = attackTotal;
     if (guard) {
       const defender = guard.defender;
-      const defRoll = this.rollContestDice(defender, guard.action.dice, 'defense');
+      const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
       const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
       let defenderTotal = Math.max(0, defRoll + defBonus);
       this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
@@ -660,7 +660,7 @@ export class CombatEngine implements EngineApi, AIView {
         }
         list = this.applyTargetRedirects(actor, list);
         // ONE attack roll per pass: every target defends against the same roll.
-        let baseRoll = this.rollContestDice(actor, action.def.dice, 'attack');
+        let baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
         for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
         // Generic repeat seam: statuses may grant extra full passes over the
         // still-living targets (stimulants, flurries). Each pass re-rolls.
@@ -669,7 +669,7 @@ export class CombatEngine implements EngineApi, AIView {
           if (!actor.isAlive()) break;
           const alive = list.filter(t => t.isAlive());
           if (alive.length === 0) break;
-          baseRoll = this.rollContestDice(actor, action.def.dice, 'attack');
+          baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
           for (const t of alive) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
         }
         if (action.def.isConsumable) action.consumed = true;
@@ -853,7 +853,7 @@ export class CombatEngine implements EngineApi, AIView {
       this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const defender = guard.defender;
-      const defRoll = this.rollContestDice(defender, guard.action.dice, 'defense');
+      const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
       const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
       let defenderTotal = Math.max(0, defRoll + defBonus);
       this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);

@@ -54,8 +54,8 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
       const resist = diceParam(ctx.params, 'resist');
       const bonus = (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
       for (const t of ctx.engine.enemiesOf(ctx.source)) {
-        const roarTotal = Math.max(0, ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save') + bonus);
-        const resistRoll = Math.max(0, ctx.engine.rollContestDice(t, resist, 'save'));
+        const roarTotal = Math.max(0, ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'save') + bonus);
+        const resistRoll = Math.max(0, ctx.engine.rollDiceFor(t, resist, 'save'));
         // Clutch statuses may adjust either side, seeing both totals.
         const attacker = ctx.engine.adjustContestTotal(ctx.source, roarTotal, resistRoll, 'save');
         const defender = ctx.engine.adjustContestTotal(t, resistRoll, attacker, 'save');

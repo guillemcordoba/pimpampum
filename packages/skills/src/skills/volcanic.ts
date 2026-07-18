@@ -148,7 +148,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'gueiser', name: 'Guèiser', skillId: VOLCANIC_SKILL_ID,
-      unlock: 2, type: ActionType.Atac, speed: -1, dice: d(1, 12),
+      unlock: 3, type: ActionType.Atac, speed: -1, dice: d(1, 12),
       effects: [
         { type: 'pressure_cost', params: { amount: 1 } },
         { type: 'from_below' },
@@ -158,7 +158,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 3, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
       effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
       desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
       icon: 'lorc/crystalize.svg',

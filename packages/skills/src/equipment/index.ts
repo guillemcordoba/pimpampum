@@ -6,7 +6,7 @@ const ICON = 'icons/000000/transparent/1x1/';
 export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   {
     id: 'armadura-de-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Torso,
-    passiveArmor: 2, speedPenalty: 4, rollBonuses: [],
+    passiveArmor: 3, speedPenalty: 4, rollBonuses: [],
     iconPath: ICON + 'lorc/armor-vest.svg', slotLabel: 'Tors',
     description: '',
   },

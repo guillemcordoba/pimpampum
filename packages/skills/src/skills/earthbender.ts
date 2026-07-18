@@ -27,7 +27,7 @@ const MUR: StatusBehavior = {
     const data = ctx.entry.data ?? {};
     const caster = data.caster as Character | undefined;
     if (!caster || !caster.isAlive()) { ctx.holder.clearStatus(ctx.key); return; }
-    const roll = ctx.engine.rollContestDice(caster, data.dice as DiceRoll | undefined, 'defense');
+    const roll = ctx.engine.rollDiceFor(caster, data.dice as DiceRoll | undefined, 'defense');
     return roll + caster.getRollBonus('earthbender', 'defense') + num(data, 'bonus', 2);
   },
   onStandingGuardBroken(ctx) {
@@ -93,9 +93,9 @@ const TERRA_EFFECTS: Record<string, EffectHandler> = {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
       const turns = num(ctx.params, 'turns', 2);
-      const atkRaw = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save')
+      const atkRaw = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'save')
         + (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
-      const defRaw = ctx.engine.rollContestDice(target, diceParam(ctx.params, 'resist'), 'save');
+      const defRaw = ctx.engine.rollDiceFor(target, diceParam(ctx.params, 'resist'), 'save');
       ctx.engine.log('focus', `🎲 Presó de terra contra ${target.name}: ${atkRaw} vs ${defRaw}.`, ctx.source.team);
       const atk = ctx.engine.adjustContestTotal(ctx.source, atkRaw, defRaw, 'save');
       const def = ctx.engine.adjustContestTotal(target, defRaw, atk, 'save');
@@ -126,14 +126,14 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'sentit-sismic', name: 'Sentit sísmic', skillId: 'earthbender',
-      unlock: 2, type: ActionType.Focus, speed: 2, fatigueCost: 2,
+      unlock: 3, type: ActionType.Focus, speed: 2, fatigueCost: 2,
       effects: [{ type: 'seismic_sense' }],
       desc: 'Per la resta del combat: tires les defenses amb avantatge, les fintes no ignoren la teva defensa i veus (i pots atacar) els enemics amagats.',
       icon: 'lorc/barefoot.svg',
     }),
     action({
       id: 'columna-de-terra', name: 'Columna de terra', skillId: 'earthbender',
-      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
+      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
       effects: [
         { type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } },
       ],
@@ -142,7 +142,7 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'mur-de-terra', name: 'Mur de terra', skillId: 'earthbender',
-      unlock: 4, type: ActionType.Defensa, speed: 2, dice: d(2, 8), rollBonus: 2,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 8), rollBonus: 2,
       effects: [{ type: 'earth_wall' }],
       desc: 'El mur persisteix: mentre és dret, els atacs contra el protegit es resolen contra la teva defensa. El primer atac que el travessa el destrueix.',
       icon: 'heavenly-dog/defensive-wall.svg',

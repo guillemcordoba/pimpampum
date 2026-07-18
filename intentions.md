@@ -4,6 +4,7 @@ Pim Pam Pum has these intentions as a combat system:
 - **Balance is measured by total skill-sum parity.** A fight is fair when both teams have a similar sum of skill levels. The simulator's mirror matches (equal-budget random teams) should land near 50/50, and the web setup surfaces the team skill sum so a DM can balance encounters.
 - All three action types (Atac, Defensa, Focus) should be good enough to see balanced play.
 - No action should be so good that it's the best choice every time, nor so bad it never sees play.
+- **Deliberate power tiers are fine, especially for objects.** Some cards and items are simply worse than others (a bastó is worse than a destral — and stays that way). Humble options are part of the fiction and the loot economy; parity is required between *skills* at equal level-sum, not between individual cards or items.
 - Making good decisions should matter more than winning because of powerful actions.
 - Anticipating others' plays should be greatly rewarded.
 - Combos between actions played in the same round should be among the best options when set up right (allies can agree on combos beforehand).
@@ -37,7 +38,8 @@ Balance levers that maintain the triangle (being tuned via simulation):
 
 - Each skill should have a clear identity, lore, and a unique combination of strengths and weaknesses; actions should feel great and make sense for the skill's theme.
 - Each skill should have at least one **signature action** with a distinctive, high-impact effect that breaks the normal action mold.
-- Actions unlock at increasing skill levels, so a high-level skill rewards investment with stronger/rarer actions.
+- Actions unlock at increasing skill levels, so a high-level skill rewards investment with stronger/rarer actions. **The ordinal IS a power ramp: within any skill — player or enemy — later actions should be stronger, and a higher-level character should definitely be stronger than a lower-level one.** Enemy kits order weakest attack at level 1 and signature power late, so a fielded enemy's level is a genuine difficulty lever.
+- **Low levels must already offer diverse options.** By level 2-3 a player should be choosing between action TYPES the skill owns (an attack AND a defense/focus), not locked into one move because they aren't "high enough". The ramp orders power *within* each type; it never front-loads one type exclusively. (Kits that deliberately lack a type — the all-attack Berserk, support kits with no attacks — are exempt for the types they don't have.)
 - Draw inspiration from D&D and other RPG skills/abilities; design actions around memorable moments.
 - New actions should be original (not reskins of existing ones) and balanced against the existing set.
 

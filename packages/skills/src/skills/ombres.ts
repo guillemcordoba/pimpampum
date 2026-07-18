@@ -48,8 +48,8 @@ const LLIGAT: StatusBehavior = {
     const bonus = 3 * attempts;
     const escapeDice = data.escapeDice as DiceRoll | undefined;
     const holdDice = data.holdDice as DiceRoll | undefined;
-    let escape = ctx.engine.rollContestDice(ctx.holder, escapeDice, 'save') + bonus;
-    const hold = ctx.engine.rollContestDice(binder, holdDice, 'save') + binder.getRollBonus('ombres');
+    let escape = ctx.engine.rollDiceFor(ctx.holder, escapeDice, 'save') + bonus;
+    const hold = ctx.engine.rollDiceFor(binder, holdDice, 'save') + binder.getRollBonus('ombres');
     ctx.engine.log('focus', `🎲 ${ctx.holder.name} lluita contra el lligam: ${escape} (amb +${bonus}) vs ${hold}.`, ctx.holder.team);
     escape = ctx.engine.adjustContestTotal(ctx.holder, escape, hold, 'save');
     if (escape > hold) {
@@ -91,9 +91,9 @@ const OMBRES_EFFECTS: Record<string, EffectHandler> = {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
       const resist = diceParam(ctx.params, 'resist');
-      const atkRaw = ctx.engine.rollContestDice(ctx.source, ctx.action.dice, 'save')
+      const atkRaw = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'save')
         + (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId);
-      const defRaw = ctx.engine.rollContestDice(target, resist, 'save');
+      const defRaw = ctx.engine.rollDiceFor(target, resist, 'save');
       ctx.engine.log('focus', `🎲 Lligam d'ombres contra ${target.name}: ${atkRaw} vs ${defRaw}.`, ctx.source.team);
       const atk = ctx.engine.adjustContestTotal(ctx.source, atkRaw, defRaw, 'save');
       const def = ctx.engine.adjustContestTotal(target, defRaw, atk, 'save');

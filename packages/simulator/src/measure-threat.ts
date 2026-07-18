@@ -109,9 +109,11 @@ for (const [id, r] of Object.entries(results)) {
   console.log(`  ${id.padEnd(14)} T = ${(1 / (r.count * r.l50)).toFixed(3)}  (probe ×${r.count}, λ50 ${r.l50.toFixed(2)})`);
 }
 const Tg = 1 / (results['goblin'].count * results['goblin'].l50);
-console.log('party strength S(n) (S4 = 1):');
+const BETA = 2.0; // keep in sync with generator COUNT_BETA
+console.log('party strength S(n) (S4 = 1, β-consistent):');
 for (const [n, p] of Object.entries(partyProbe)) {
-  console.log(`  S(${n}) = ${(Tg * p.count * p.l50).toFixed(2)}`);
+  const s = Tg * results['goblin'].count * Math.pow(p.count / results['goblin'].count, BETA) * p.l50;
+  console.log(`  S(${n}) = ${s.toFixed(2)}`);
 }
 const ks = Object.values(results).map(r => r.k).sort((a, b) => a - b);
 console.log(`k (winrate steepness): [${ks.map(k => k.toFixed(1)).join(', ')}], median ${ks[Math.floor(ks.length / 2)].toFixed(2)}`);
