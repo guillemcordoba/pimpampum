@@ -345,7 +345,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 2.5mm;
+  gap: 2mm;
   padding: 1mm 3mm 2mm;
   position: relative;
   z-index: 1;
@@ -354,12 +354,12 @@
 .print-card .stat {
   display: flex;
   align-items: center;
-  gap: 0.5mm;
+  gap: 0.7mm;
 }
 
 .print-card .stat-icon {
-  width: 4.5mm;
-  height: 4.5mm;
+  width: 6.5mm;
+  height: 6.5mm;
   opacity: 0.85;
 }
 
@@ -371,7 +371,7 @@
 
 .print-card .stat-value {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 9pt;
+  font-size: 13pt;
   font-weight: 700;
   color: var(--text-dark);
 }
@@ -469,7 +469,7 @@
 
 .print-card .rules-title {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 7pt;
+  font-size: 7.5pt;
   font-weight: 700;
   color: var(--text-dark);
   margin-bottom: 0.4mm;
@@ -485,7 +485,7 @@
 
 .print-card .rules-list {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   color: var(--text-dark);
   padding-left: 0;
   margin: 0;
@@ -499,7 +499,7 @@
 
 .print-card .rules-text {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   color: var(--text-dark);
   line-height: 1.25;
 }

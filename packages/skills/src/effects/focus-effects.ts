@@ -7,10 +7,10 @@ const MARCA_OBJECTIU: StatusBehavior = {
   attackRollAgainstHolder(ref) { return ref.entry.value; },
 };
 
-// The holder's blows deal +value extra damage (weapon_buff).
-const ARMA_ENVERINADA: StatusBehavior = {
-  modifyOutgoingDamage(ref, dmg) { return dmg + ref.entry.value; },
-};
+// Marker status for weapon_buff — the mechanical +value lives on an 'attack'
+// CombatModifier (roll space, never damage space); the status is the visible
+// chip that names the buff.
+const ARMA_ENVERINADA: StatusBehavior = {};
 
 /** Focus effects: resolved in speed order via onResolve. */
 export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
@@ -113,7 +113,10 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       const targets = ctx.params.target !== undefined
         ? resolveTargets(ctx, tspec(ctx.params, 'allies'))
         : ctx.engine.alliesOf(ctx.source, true).slice(0, count);
-      for (const a of targets) a.setStatus(name, amount, turns, undefined, ARMA_ENVERINADA);
+      for (const a of targets) {
+        applyMod(a, 'attack', amount, turns === -1 ? 'restOfCombat' : turns, name);
+        a.setStatus(name, amount, turns, undefined, ARMA_ENVERINADA);
+      }
     },
     aiWeight() { return 0.9; },
   },
@@ -225,6 +228,18 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       }
     },
     aiWeight() { return 1; },
+  },
+
+  // Recover fatigue (stamina potions): subtracts `amount` from the drinker's
+  // daily fatigue counter, floored at 0.
+  fatigue_relief: {
+    onResolve(ctx) {
+      const amount = num(ctx.params, 'amount', 5);
+      const before = ctx.source.fatigue;
+      ctx.source.fatigue = Math.max(0, ctx.source.fatigue - amount);
+      ctx.engine.log('focus', `${ctx.source.name} recupera l'alè (${before - ctx.source.fatigue} punts de fatiga).`, ctx.source.team);
+    },
+    aiWeight(ctx) { return ctx.actor.fatigue >= 6 ? 1.2 : 0.05; },
   },
 
   // Remove negative modifiers and damage-over-time statuses from the target(s).

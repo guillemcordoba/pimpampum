@@ -54,17 +54,29 @@
   --type-objecte: #5e5e5e;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 16px;
   background: var(--bg-dark);
   color: var(--parchment);
-  min-height: 100vh;
 }
 
+/* Viewport-height shell: the nav keeps its natural height and <main> absorbs
+   the rest (scrolling internally), so full-height views can size exactly. */
 #app {
   max-width: 1800px;
   margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+@media print {
+  html, body, #app { height: auto; display: block; }
 }
 
 /* =============================================================================
@@ -938,6 +950,16 @@ body {
   justify-content: center;
   flex-wrap: wrap;
 }
+
+/* Defense dual prompt: "Bloquejar un enemic" / "Defensar un aliat" row labels */
+.target-group-label {
+  font-family: 'MedievalSharp', serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  color: var(--parchment-dark);
+  margin: 1.1rem 0 0.5rem;
+}
+.target-prompt .target-group-label:first-of-type { margin-top: 0; }
 
 .target-option {
   cursor: pointer;

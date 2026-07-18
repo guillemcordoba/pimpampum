@@ -87,6 +87,11 @@ export interface ActionDefinition {
    * (FATIGUE_CONFIG.max).
    */
   fatigueCost?: number;
+  /**
+   * A desperation fallback: only playable when NO other (non-last-resort)
+   * action is playable — e.g. once the fatigue budget is spent.
+   */
+  lastResort?: boolean;
 }
 
 /** Equipment bonus added to the wearer's contest rolls. */

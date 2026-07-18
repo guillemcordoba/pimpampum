@@ -210,11 +210,15 @@ export class Character {
 
   // --- Damage / healing -----------------------------------------------------
 
-  /** Returns true if the character died from this loss. */
+  /** Returns true if the character died from this loss. Only actual damage
+   *  (amount > 0) marks the character as hit — a 0-damage impact does not
+   *  interrupt a pending focus (rules.md). */
   loseLife(amount = 1): boolean {
     this.currentPV = Math.max(0, this.currentPV - amount);
-    this.hitThisCombat = true;
-    this.hitThisTurn = true;
+    if (amount > 0) {
+      this.hitThisCombat = true;
+      this.hitThisTurn = true;
+    }
     return !this.isAlive();
   }
 

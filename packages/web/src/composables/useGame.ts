@@ -1,8 +1,9 @@
 import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
 import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
-import { createRegistry, buildCharacter } from '@pimpampum/skills';
-import { createEnemyFromTemplate, getEnemyTemplate } from '@pimpampum/enemies';
+import { createRegistry, buildCharacter, PLAYER_SKILLS } from '@pimpampum/skills';
+import { createEnemyFromTemplate, getEnemyTemplate, registerEnemySkills } from '@pimpampum/enemies';
+import { takePendingEncounter } from './pendingEncounter';
 
 export type GamePhase = 'setup' | 'card-selection' | 'reveal' | 'resolving' | 'victory';
 
@@ -14,6 +15,7 @@ export interface PlayerSpec {
   pv: number;
   skills: Record<string, number>;
   equipment: string[];
+  potions: string[];
 }
 
 /** An enemy entry in the setup screen (template + level + equipment).
@@ -26,6 +28,7 @@ export interface EnemySpec {
 }
 
 const registry = createRegistry();
+registerEnemySkills(registry);
 
 export function useGame() {
   const gamePhase = ref<GamePhase>('setup');
@@ -33,6 +36,43 @@ export function useGame() {
 
   const playerSpecs = ref<PlayerSpec[]>([]);
   const enemySpecs = ref<EnemySpec[]>([]);
+
+  // An encounter handed over by the creator (/encounters) pre-fills the
+  // enemy roster AND auto-builds one hero per player: a random skill that
+  // actually has action cards at that player's selected level (kit size ≥
+  // level), played whole — no splitting across skills.
+  const handoff = takePendingEncounter();
+  if (handoff) {
+    enemySpecs.value = handoff.encounter.groups.flatMap(g =>
+      Array.from({ length: g.count }, () =>
+        ({ templateId: g.templateId, level: g.level, equipment: [], pv: g.pv })));
+
+    const shuffled = [...PLAYER_SKILLS];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    playerSpecs.value = handoff.playerLevels.map((level, i) => {
+      const candidates = shuffled.filter(s => s.actions.length >= level);
+      // No kit that big: fall back to the deepest kits, clamped.
+      const pool = candidates.length > 0
+        ? candidates
+        : shuffled.filter(s => s.actions.length === Math.max(...shuffled.map(x => x.actions.length)));
+      const skill = pool[i % pool.length];
+      const equipment: string[] = [];
+      const usesWeapon = skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'));
+      if (usesWeapon) equipment.push('destral');
+      return {
+        name: `Heroi ${i + 1}`,
+        classCss: skill.classCss,
+        iconPath: skill.iconPath,
+        pv: 12,
+        skills: { [skill.id]: Math.min(skill.actions.length, level) },
+        equipment,
+        potions: [],
+      };
+    });
+  }
 
   const combatLog = ref<LogEntry[]>([]);
   const playerSelections = ref<Map<number, number>>(new Map()); // charIdx -> actionIdx
@@ -77,6 +117,7 @@ export function useGame() {
       pv: s.pv,
       skills: s.skills,
       equipment: s.equipment,
+      potions: s.potions,
       category: 'player',
     }));
   }

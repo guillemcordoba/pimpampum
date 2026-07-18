@@ -19,6 +19,6 @@ const STONE_GOLEM_SKILL: SkillDefinition = {
 };
 
 export const STONE_GOLEM: EnemyModule = {
-  template: { id: 'stone-golem', displayName: 'Gòlem de Pedra', classCss: 'golem-de-pedra', iconPath: ICON + 'delapouite/rock-golem.svg', role: 'elit', threat: 0.252, skills: ['stone-golem'], basePV: 17, suggestedLevel: 5, aiStrategy: AIStrategy.Protect },
+  template: { id: 'stone-golem', displayName: 'Gòlem de Pedra', classCss: 'golem-de-pedra', iconPath: ICON + 'delapouite/rock-golem.svg', role: 'elit', threat: 0.186, skills: ['stone-golem'], basePV: 17, suggestedLevel: 5, aiStrategy: AIStrategy.Protect },
   skills: [STONE_GOLEM_SKILL],
 };

@@ -69,19 +69,21 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.4 : 0; },
   },
 
-  // Traca final: spend the ENTIRE bandolier in one chained blast hitting every
-  // enemy for Nd6 (N = càrregues spent). Charges are spent only here on resolve,
-  // so an interrupted focus keeps the bandolier intact.
+  // Traca final: an all-enemies ATTACK whose dice are the ENTIRE bandolier —
+  // Nd6 with N = càrregues left, all spent on play (erupció pattern: the
+  // count is stamped in a round-scoped status and injected at roll time).
   empty_bandolier: {
     canPlay(actor) { return charges(actor) >= 1; },
-    onResolve(ctx) {
+    onPlay(ctx) {
       const n = charges(ctx.source);
-      if (n <= 0) return;
       setCharges(ctx.source, 0);
-      const dice = new DiceRoll(n, num(ctx.params, 'sides', 6));
-      ctx.engine.log('focus', `${ctx.source.name} encén la traca final amb ${n} càrregues!`, ctx.source.team);
-      for (const e of ctx.engine.enemiesOf(ctx.source)) {
-        ctx.engine.performExtraAttack(ctx.source, e, dice, { skillId: EXPLOSIVE_SKILL_ID, label: 'Traca final' });
+      ctx.source.setStatus('traca-encesa', n, 1);
+      ctx.engine.log('attack', `${ctx.source.name} encén la traca final amb ${n} càrregues!`, ctx.source.team);
+    },
+    modifyAttack(ctx) {
+      const n = ctx.source.getStatusValue('traca-encesa', 0);
+      if (n > 0 && ctx.attackMods) {
+        ctx.attackMods.extraDamageDice.push(new DiceRoll(n, num(ctx.params, 'sides', 6)));
       }
     },
     aiWeight(ctx) {
@@ -159,9 +161,9 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
-      unlock: 4, type: ActionType.Focus, speed: -4, fatigueCost: 2,
+      unlock: 4, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
       effects: [{ type: 'empty_bandolier', params: { sides: 6 } }],
-      desc: 'Cada enemic rep Nd6, on N és el nombre de càrregues que et queden. Gasta totes les càrregues que et quedin.',
+      desc: 'Afecta tots els enemics. Els daus d’atac són Nd6, on N és el nombre de càrregues que et queden: les gasta totes.',
       icon: 'skoll/carpet-bombing.svg',
     }),
   ],

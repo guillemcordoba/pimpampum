@@ -21,14 +21,15 @@ function spendUse(ctx: StatusHookContext): number {
   return ctx.entry.value;
 }
 
-// Runa de la fulla esmolada: flares on the bearer's confirmed hit — the edge
-// bites `amount` deeper (pre-armour). One use per blow that lands.
+// Runa de la fulla esmolada: flares on the bearer's confirmed hit — +amount
+// on the ATTACK total (the margin, pre-armour). Modifiers live in roll space,
+// never on the damage. One use per blow that lands.
 const RUNA_FULLA: StatusBehavior = {
   modifyOutgoingDamage(ctx, damage) {
     if (damage <= 0 || ctx.entry.value <= 0) return damage;
     const amount = num(ctx.entry.data ?? {}, 'amount', 2);
     const left = spendUse(ctx);
-    ctx.engine.log('info', `ᛏ La runa de la fulla esmolada crida: +${amount} de dany (${left} usos restants).`, ctx.holder.team);
+    ctx.engine.log('info', `ᛏ La runa de la fulla esmolada crida: +${amount} a l'atac (${left} usos restants).`, ctx.holder.team);
     return damage + amount;
   },
 };
@@ -113,7 +114,7 @@ export const RUNES: SkillDefinition = {
       id: 'runa-fulla-esmolada', name: 'Runa de la fulla esmolada', skillId: 'runes',
       unlock: 1, type: ActionType.Focus, speed: 1,
       effects: [{ type: 'carve_rune', params: { rune: 'fulla', uses: 4, amount: 2 } }],
-      desc: "Grava-la a l'arma d'un aliat: 4 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {DAMAGE}+2.",
+      desc: "Grava-la a l'arma d'un aliat: 4 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {A}+2.",
       icon: 'lorc/rune-sword.svg',
     }),
     action({

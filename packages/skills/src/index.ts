@@ -14,6 +14,12 @@ export { getPressure, PRESSURE_STATUS, VOLCANIC_SKILL_ID } from './skills/volcan
 // Equipment
 export { ALL_EQUIPMENT, getEquipment } from './equipment/index.js';
 
+// Potions (consumable, skill-less action cards)
+export { ALL_POTIONS, getPotion } from './potions/index.js';
+
+// The universal desperation fallback (always in every hand)
+export { COP_DESESPERAT } from './desperation.js';
+
 // Setup
 export { registerSkills, createRegistry } from './setup.js';
 

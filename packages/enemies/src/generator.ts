@@ -16,11 +16,13 @@
 import { EnemyTemplate } from './types.js';
 import { getEnemyTemplate } from './catalog.js';
 
-/** Winrate steepness (median of per-template logit fits, 2026-07 re-measure). */
-export const WINRATE_K = 2.8;
+/** Winrate steepness (median of per-template logit fits, 2026-07-18 re-measure
+ *  after the player-kit re-ordering pass). */
+export const WINRATE_K = 3.2;
 /** Party-strength scaling exponent: S(n) = (n/4)^α. Recomputed β-consistently
- *  from the goblin party probes (S3 .69, S5 1.23, S6 2.05 → α ≈ 1.5). */
-export const PARTY_ALPHA = 1.5;
+ *  from the goblin party probes (2026-07-18: S3 .64, S5 1.96, S6 3.47 →
+ *  least-squares α ≈ 2.6 — party synergy steepened with the re-ordered kits). */
+export const PARTY_ALPHA = 2.6;
 /** PV-multiplier clamp for solved groups (linearity was measured within this). */
 export const PV_MULT_MIN = 0.4;
 export const PV_MULT_MAX = 3;
@@ -33,7 +35,13 @@ export const PV_MULT_MAX = 3;
  * the fine adjustment.
  */
 export const COUNT_BETA = 2.0;
-export const COUNT_DRIFT_MAX = 1.34;
+/** Max count drift from the probe. Tightened 1.34 → 1.1 (2026-07-18): after
+ *  the party re-measure, drifted counts landed 20-30pp off promise in BOTH
+ *  directions (wolf 6→8 too strong — pack synergy steeper than β; shaman
+ *  3→4 too weak — no synergy at all). Counts now stay at the measured
+ *  anchor (hordes may add one body); PV and the honest clamp-adjusted
+ *  prediction do the rest. */
+export const COUNT_DRIFT_MAX = 1.1;
 
 /** Body count each role was MEASURED at (threat anchor). */
 export const PROBE_COUNT: Record<EnemyTemplate['role'], number> = {
@@ -53,9 +61,34 @@ export const ROLE_COUNT: Record<EnemyTemplate['role'], [number, number]> = {
 export const TARGET_WINRATES = { easy: 0.85, medium: 0.65, hard: 0.5, boss: 0.3 } as const;
 export type EncounterDifficulty = keyof typeof TARGET_WINRATES;
 
-/** Party strength for a player count (4 players ≡ 1). */
-export function partyStrength(playerCount: number): number {
-  return Math.pow(Math.max(1, playerCount) / 4, PARTY_ALPHA);
+/** Per-player skill-level sum the whole calibration was measured at (mean
+ *  actual levels of the reference random parties). playerLevelFactor(REF) ≡ 1. */
+export const PLAYER_REF_LEVELS = 6;
+
+/**
+ * Strength factor of ONE player with `levels` total skill levels, relative
+ * to the calibration-reference player (≡ 1 at PLAYER_REF_LEVELS).
+ *
+ * Measured 2026-07-18 AFTER the player-kit re-ordering pass (weakest actions
+ * first, signature late — the ramp intention): budget sweep, λ50 logit fits
+ * vs goblin×6 and bone-devil×3 probes. Implied g ≈ 0.77 at 2 levels, 0.93
+ * at 5, 1.00 at 6.2, 1.10 at 7.5. Affine fit, log-RMSE 0.026.
+ */
+export function playerLevelFactor(levels: number): number {
+  return 0.65 + 0.35 * (Math.max(1, levels) / PLAYER_REF_LEVELS);
+}
+
+/**
+ * Party strength (4 reference players ≡ 1). With `playerLevels` (each
+ * player's total skill-level sum) every player counts as g(levels)
+ * effective reference players; without it all players are assumed at the
+ * reference budget.
+ */
+export function partyStrength(playerCount: number, playerLevels?: number[]): number {
+  const eff = playerLevels?.length
+    ? playerLevels.reduce((s, l) => s + playerLevelFactor(l), 0)
+    : Math.max(1, playerCount);
+  return Math.pow(Math.max(0.25, eff) / 4, PARTY_ALPHA);
 }
 
 /**
@@ -118,8 +151,8 @@ export function compositionThreat(groups: FieldedGroup[]): number {
 }
 
 /** Predicted player winrate against an arbitrary fielded composition. */
-export function predictEncounter(groups: FieldedGroup[], playerCount: number): number {
-  return winrateForRatio(compositionThreat(groups) / partyStrength(playerCount));
+export function predictEncounter(groups: FieldedGroup[], playerCount: number, playerLevels?: number[]): number {
+  return winrateForRatio(compositionThreat(groups) / partyStrength(playerCount, playerLevels));
 }
 
 /** Predicted player winrate for a threat/strength ratio. */
@@ -164,13 +197,14 @@ export interface SolvedEncounter {
  * multiplier so the pool's total threat hits the budget implied by the
  * target winrate. Returns null for an empty/unknown pool.
  */
-export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinrate: number): SolvedEncounter | null {
+export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinrate: number, playerLevels?: number[]): SolvedEncounter | null {
   const entries = pool
     .map(spec => ({ spec, template: getEnemyTemplate(spec.templateId) }))
     .filter((e): e is { spec: PoolSpec; template: EnemyTemplate } => !!e.template);
   if (entries.length === 0) return null;
 
-  const budget = partyStrength(playerCount) * ratioForWinrate(targetWinrate);
+  const strength = partyStrength(playerCount, playerLevels);
+  const budget = strength * ratioForWinrate(targetWinrate);
 
   // Counts: fixed ones are honoured. Free ones SNAP to the measured probe
   // count whenever the PV multiplier alone can reach the budget share — the
@@ -199,7 +233,7 @@ export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinr
   })));
   const pvMult = Math.min(PV_MULT_MAX, Math.max(PV_MULT_MIN, budget / Math.max(0.001, baseThreat)));
 
-  const ratio = (baseThreat * pvMult) / partyStrength(playerCount);
+  const ratio = (baseThreat * pvMult) / strength;
   return {
     groups: entries.map(({ spec, template }, i) => ({
       templateId: template.id,

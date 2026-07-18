@@ -20,6 +20,16 @@ const highlighted = g.highlightedTarget;
 const livingPlayers = computed(() =>
   playerTeam.value.map((c, idx) => ({ c, idx })).filter(p => p.c.isAlive() && !g.skippingPlayers.value.has(p.idx)));
 
+/** A character's hand: last-resort cards (Cop desesperat) only ENTER the hand
+ *  when nothing else is playable (rules.md) — hidden otherwise. */
+function handCards(c: (typeof playerTeam.value)[number]): { action: ActionInstance; ai: number }[] {
+  const eng = g.engine.value;
+  return c.actions
+    .map((action, ai) => ({ action, ai }))
+    .filter(({ action, ai }) =>
+      !action.def.lastResort || (eng ? eng.canPlayActionIdx(c, ai) : false));
+}
+
 /** Players who may still swap their revealed card via Estat de flux, with the
  *  currently-revealed action id (to mark it) and their remaining flow charges. */
 const flowSwapHands = computed(() =>
@@ -108,7 +118,7 @@ function isHighlighted(team: number, idx: number): boolean {
                 <div class="hand-name">{{ sw.c.name }} · flux {{ sw.flux }}</div>
                 <div class="hand-cards">
                   <MiniCard
-                    v-for="(action, ai) in sw.c.actions"
+                    v-for="{ action, ai } in handCards(sw.c)"
                     :key="ai"
                     :action="action"
                     :class-css="sw.c.characterClass"
@@ -149,7 +159,7 @@ function isHighlighted(team: number, idx: number): boolean {
           <div class="hand-name">{{ p.c.name }}</div>
           <div class="hand-cards">
             <MiniCard
-              v-for="(action, ai) in p.c.actions"
+              v-for="{ action, ai } in handCards(p.c)"
               :key="ai"
               :action="action"
               :class-css="p.c.characterClass"

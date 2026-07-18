@@ -23,7 +23,7 @@ export const ALL_EQUIPMENT: EquipmentDefinition[] = [
     description: '',
   },
   {
-    id: 'elm-de-ferro', name: 'Elm de ferro', slot: EquipmentSlot.Head,
+    id: 'casc-de-ferro', name: 'Casc de ferro', slot: EquipmentSlot.Head,
     passiveArmor: 1, speedPenalty: 1, rollBonuses: [],
     iconPath: ICON + 'lorc/visored-helm.svg', slotLabel: 'Cap',
     description: '',

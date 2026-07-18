@@ -48,7 +48,7 @@ Com que els objectius es trien quan cada acció es resol, una defensa no afecta 
 
 ### Accions de focus
 
-Les accions de focus tenen efectes especials. Normalment són lentes (velocitat baixa). Una acció de focus no es resol si, abans que es resolgui, el jugador rep un atac sense defensa durant aquest torn.
+Les accions de focus tenen efectes especials. Normalment són lentes (velocitat baixa). Una acció de focus no es resol si, abans que es resolgui, el jugador rep dany durant aquest torn.
 
 ## Resolució de combat
 
@@ -58,7 +58,7 @@ El combat consisteix en una sèrie de rondes:
 2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada s'apliquen.
 3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
 4. Cada acció de defensa tria el seu objectiu (aliat a defensar o enemic a bloquejar) quan es resol, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
-5. Les accions de focus es cancel·len si el jugador rep un atac sense defensa abans que l'acció es resolgui.
+5. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
 
 ## Pujar de nivell
 
@@ -72,11 +72,11 @@ Només s'aprèn dels fracassos ajustats: quedar-te a un pèl de superar el repte
 
 Cada acció té un cost de fatiga: **1 per defecte**; les accions esgotadores en costen més (indicat a la carta). Cada cop que jugues una acció, dins o fora de combat, sumes el seu cost al teu comptador de fatiga.
 
-La fatiga màxima és **15** (provisional, pendent d'ajustar perquè un dia aguanti 2-3 combats): no pots jugar una acció que te la faria superar. **Dormir una nit neteja tota la fatiga.**
+La fatiga màxima és **20** (provisional, pendent d'ajustar perquè un dia aguanti 2-3 combats): no pots jugar una acció que te la faria superar. **Dormir una nit neteja tota la fatiga.**
 
 La fatiga no afecta mai les tirades: és el pressupost d'energia del dia.
 
-Si en començar una ronda ningú no pot jugar cap acció, el combat s'acaba per esgotament: guanya l'equip que conserva una fracció més gran dels seus PV totals (en cas d'empat exacte, taules).
+L'esgotament no et deixa mai sense opcions: quan no pots jugar cap altra carta, entra a la teva mà el **Cop desesperat**, una carta universal que no costa fatiga — un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.
 
 ## Objectes i equipament
 

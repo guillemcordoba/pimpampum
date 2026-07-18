@@ -1,5 +1,5 @@
 import { AIStrategy, Character, ActionDefinition, EquipmentDefinition, EquipmentSlot, createCharacter } from '@pimpampum/engine';
-import { getEquipment } from '@pimpampum/skills';
+import { getEquipment, COP_DESESPERAT } from '@pimpampum/skills';
 import { EnemyTemplate } from './types.js';
 import { getEnemyTemplate, unlockedEnemyActions } from './catalog.js';
 
@@ -23,6 +23,8 @@ export function createEnemyFromTemplate(
     skills[skillId] = level;
     actions.push(...unlockedEnemyActions(skillId, level));
   }
+  // Every combatant always holds the universal desperation card.
+  actions.push(COP_DESESPERAT);
   const equipment = equipmentIds
     .map(getEquipment)
     .filter((e): e is EquipmentDefinition => !!e);

@@ -127,10 +127,6 @@ export class CombatEngine implements EngineApi, AIView {
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
-  /** Set when the combat ended by mutual exhaustion (nobody could play a
-   *  card): the winning team index, or null for an exact-PV-fraction tie.
-   *  Undefined while the combat is still live. */
-  private exhaustionResult: number | null | undefined = undefined;
 
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
@@ -266,8 +262,8 @@ export class CombatEngine implements EngineApi, AIView {
     const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgBase - armor)));
     const dmgDetail = armor > 0 ? ` (marge ${dmgBase} − ${armor} armadura)` : ` (marge ${dmgBase})`;
     this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
-    // An impact interrupts a pending focus even at 0 damage (see resolveAttackOnTarget).
-    recipient.hitThisTurn = true;
+    // Only real damage interrupts a pending focus (applyPvLoss → loseLife
+    // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
   }
 
@@ -320,11 +316,12 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  /** Whether a character may play the action at `actionIdx` now (resource gates).
-   *  Used by the web UI to disable unaffordable cards. */
-  canPlayActionIdx(c: Character, actionIdx: number): boolean {
+  /** Per-action playability (resource gates), ignoring last-resort exclusivity. */
+  private actionPlayable(c: Character, actionIdx: number): boolean {
     const action = c.actions[actionIdx];
     if (!action) return false;
+    if (!action.isAvailable() || c.isActionSetAside(actionIdx)) return false;
+    if ((c.skills.get(action.def.skillId) ?? 0) < action.def.unlockLevel) return false;
     if (FATIGUE_ENABLED && c.fatigue + (action.def.fatigueCost ?? 1) > FATIGUE_CONFIG.max) return false;
     for (const ref of c.statusRefs()) {
       if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
@@ -332,6 +329,18 @@ export class CombatEngine implements EngineApi, AIView {
     for (const eff of action.def.effects) {
       const fn = this.registry.getHandler(eff.type)?.canPlay;
       if (fn && !fn(c, eff.params ?? {})) return false;
+    }
+    return true;
+  }
+
+  /** Whether a character may play the action at `actionIdx` now (resource gates).
+   *  Used by the web UI to disable unaffordable cards. Last-resort actions
+   *  (desperation fallbacks) are only playable when nothing else is. */
+  canPlayActionIdx(c: Character, actionIdx: number): boolean {
+    if (!this.actionPlayable(c, actionIdx)) return false;
+    const action = c.actions[actionIdx];
+    if (action.def.lastResort) {
+      return !c.actions.some((a, i) => i !== actionIdx && !a.def.lastResort && this.actionPlayable(c, i));
     }
     return true;
   }
@@ -413,23 +422,6 @@ export class CombatEngine implements EngineApi, AIView {
     this.pending = built;
     this.pendingIndex = 0;
     this.tierSpeed = null;
-
-    // Exhaustion ending: a round where NOBODY can play a card (and nobody is
-    // merely stunned) means both sides are spent — the fight is over, and the
-    // team keeping the higher fraction of its total PV takes it (rules.md).
-    if (built.length === 0 && this.skippingThisRound.size === 0 && this.exhaustionResult === undefined) {
-      const frac = (team: Character[]): number => {
-        const max = team.reduce((s, c) => s + c.maxPV, 0);
-        return max > 0 ? team.reduce((s, c) => s + c.currentPV, 0) / max : 0;
-      };
-      const fa = frac(this.teams[0]);
-      const fb = frac(this.teams[1]);
-      this.exhaustionResult = fa > fb ? 0 : fb > fa ? 1 : null;
-      this.log('info', 'Tots dos bàndols cauen esgotats: ningú no pot seguir lluitant.', undefined);
-      if (this.exhaustionResult !== null) {
-        this.log('info', `L'equip ${this.exhaustionResult === 0 ? 'A' : 'B'} queda més sencer i s'imposa.`, this.exhaustionResult);
-      }
-    }
 
     return built.map(p => this.reveal(p));
   }
@@ -910,9 +902,9 @@ export class CombatEngine implements EngineApi, AIView {
     const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
     const dmgDetail = armor > 0 ? ` (marge ${margin} − ${armor} armadura)` : ` (marge ${margin})`;
     this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
-    // An impact interrupts a pending focus even when armour absorbs all the
-    // damage (rules.md: focus is cancelled by an undefended hit).
-    recipient.hitThisTurn = true;
+    // Only real damage interrupts a pending focus (rules.md): a hit that the
+    // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
+    // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin });
     if (guard && recipient === guard.defender && dmg > 0) {
@@ -950,13 +942,11 @@ export class CombatEngine implements EngineApi, AIView {
     const bAlive = this.livingTeam(1).length > 0;
     if (aAlive && !bAlive) return 0;
     if (bAlive && !aAlive) return 1;
-    if (this.exhaustionResult !== undefined) return this.exhaustionResult;
     return null;
   }
 
   isOver(): boolean {
-    return this.livingTeam(0).length === 0 || this.livingTeam(1).length === 0
-      || this.exhaustionResult !== undefined;
+    return this.livingTeam(0).length === 0 || this.livingTeam(1).length === 0;
   }
 
   /** One fully-AI round (simulator). */

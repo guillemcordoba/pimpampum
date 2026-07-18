@@ -34,11 +34,6 @@ const router = createRouter({
       component: () => import('../views/EncounterCreatorView.vue'),
     },
     {
-      path: '/fitxa',
-      name: 'fitxa',
-      component: () => import('../views/FitxaView.vue'),
-    },
-    {
       path: '/rules',
       name: 'rules',
       component: () => import('../views/RulesView.vue'),

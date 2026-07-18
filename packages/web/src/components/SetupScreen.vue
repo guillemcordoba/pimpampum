@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
-import { PLAYER_SKILLS, ALL_EQUIPMENT, getSkill } from '@pimpampum/skills';
+import { PLAYER_SKILLS, ALL_EQUIPMENT, ALL_POTIONS, getSkill, getPotion } from '@pimpampum/skills';
 import { ENEMY_TEMPLATES, getEnemySkill } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
 
@@ -17,6 +17,12 @@ const draftSkills = ref<Record<string, number>>({});
 const draftEquip = ref<string[]>([]);
 const skillSearch = ref('');
 const equipSearch = ref('');
+/** Carried potions — picked like any other equipment, one copy each. */
+const draftPotions = ref<string[]>([]);
+
+function potionSummary(potions: string[]): string {
+  return potions.map(id => getPotion(id)?.name ?? id).join(', ');
+}
 
 // Catalog DOM refs — used to scroll a newly-picked row into view.
 const skillCatalogEl = ref<HTMLElement | null>(null);
@@ -46,21 +52,40 @@ const skillCatalogRows = computed(() => {
   return [...picked, ...available];
 });
 
-/** Player equipment catalog: picked first (pinned), then filtered available. */
-const equipCatalogRows = computed(() => {
-  const picked = draftEquip.value
+/** Player equipment catalog: equipment AND potions in one flat list, all
+ *  rendered identically. Picked rows pinned first, then filtered available. */
+interface EquipCatalogRow { id: string; name: string; picked: boolean; isPotion: boolean; }
+
+const equipCatalogRows = computed<EquipCatalogRow[]>(() => {
+  const q = equipSearch.value.trim().toLowerCase();
+  const pickedEquip = draftEquip.value
     .map(id => ALL_EQUIPMENT.find(e => e.id === id))
     .filter((e): e is (typeof ALL_EQUIPMENT)[number] => !!e)
-    .map(equip => ({ equip, picked: true as const }));
-
-  const q = equipSearch.value.trim().toLowerCase();
-  const available = ALL_EQUIPMENT
+    .map(e => ({ id: e.id, name: e.name, picked: true, isPotion: false }));
+  const pickedPotions = draftPotions.value
+    .map(id => getPotion(id))
+    .filter((p): p is NonNullable<ReturnType<typeof getPotion>> => !!p)
+    .map(p => ({ id: p.id, name: p.name, picked: true, isPotion: true }));
+  const availEquip = ALL_EQUIPMENT
     .filter(e => !draftEquip.value.includes(e.id))
     .filter(e => !q || e.name.toLowerCase().includes(q))
-    .map(equip => ({ equip, picked: false as const }));
+    .map(e => ({ id: e.id, name: e.name, picked: false, isPotion: false }));
+  const availPotions = ALL_POTIONS
+    .filter(p => !draftPotions.value.includes(p.id))
+    .filter(p => !q || p.name.toLowerCase().includes(q))
+    .map(p => ({ id: p.id, name: p.name, picked: false, isPotion: true }));
 
-  return [...picked, ...available];
+  return [...pickedEquip, ...pickedPotions, ...availEquip, ...availPotions];
 });
+
+function addPotion(id: string) {
+  if (draftPotions.value.includes(id)) return;
+  draftPotions.value = [...draftPotions.value, id];
+  scrollRowIntoView(equipCatalogEl.value, id);
+}
+function removePotion(id: string) {
+  draftPotions.value = draftPotions.value.filter(p => p !== id);
+}
 
 function addSkill(id: string) {
   if (id in draftSkills.value) return;
@@ -103,11 +128,13 @@ function addPlayer() {
     pv: draftPv.value,
     skills: { ...draftSkills.value },
     equipment: [...draftEquip.value],
+    potions: [...draftPotions.value],
   });
   draftName.value = '';
   draftPv.value = 12;
   draftSkills.value = {};
   draftEquip.value = [];
+  draftPotions.value = [];
   skillSearch.value = '';
   equipSearch.value = '';
 }
@@ -228,23 +255,27 @@ function skillName(id: string): string {
           <div class="subhead">Equipament</div>
           <input v-model="equipSearch" type="search" placeholder="Cerca…" class="txt search-input">
           <div ref="equipCatalogEl" class="catalog">
-            <template v-for="row in equipCatalogRows" :key="row.equip.id">
+            <template v-for="row in equipCatalogRows" :key="row.id">
               <div
                 v-if="row.picked"
                 class="catalog-row picked"
-                :data-id="row.equip.id"
+                :data-id="row.id"
               >
-                <span class="catalog-name">{{ row.equip.name }}</span>
-                <button class="picked-x" @click="removeEquip(row.equip.id)" title="Treure">✕</button>
+                <span class="catalog-name">{{ row.name }}</span>
+                <button
+                  class="picked-x"
+                  @click="row.isPotion ? removePotion(row.id) : removeEquip(row.id)"
+                  title="Treure"
+                >✕</button>
               </div>
               <button
                 v-else
                 type="button"
                 class="catalog-row"
-                :data-id="row.equip.id"
-                @click="addEquip(row.equip.id)"
+                :data-id="row.id"
+                @click="row.isPotion ? addPotion(row.id) : addEquip(row.id)"
               >
-                <span class="catalog-name">{{ row.equip.name }}</span>
+                <span class="catalog-name">{{ row.name }}</span>
                 <span class="catalog-add">+</span>
               </button>
             </template>
@@ -265,6 +296,7 @@ function skillName(id: string): string {
                 <strong>{{ p.name }}</strong>
                 <div class="roster-detail">PV {{ p.pv }} · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
                 <div v-if="p.equipment.length" class="roster-detail">⚙ {{ p.equipment.join(', ') }}</div>
+                <div v-if="p.potions.length" class="roster-detail">⚗ {{ potionSummary(p.potions) }}</div>
                 <button class="x" @click="g.removePlayer(i)">✕</button>
               </div>
               <div v-if="g.playerSpecs.value.length === 0" class="empty-hint">← Afegeix herois</div>

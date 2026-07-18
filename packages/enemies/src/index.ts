@@ -14,6 +14,7 @@ export {
   solveEncounter, generateEncounter, unitThreat, levelFactor, partyStrength,
   winrateForRatio, ratioForWinrate, compositionThreat, predictEncounter,
   WINRATE_K, PARTY_ALPHA, ROLE_COUNT, TARGET_WINRATES, PV_MULT_MIN, PV_MULT_MAX,
+  PLAYER_REF_LEVELS, playerLevelFactor,
 } from './generator.js';
 export type { PoolSpec, SolvedGroup, SolvedEncounter, EncounterDifficulty, FieldedGroup } from './generator.js';
 

@@ -1,6 +1,8 @@
 import { createCharacter, Character, ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
 import { getAction, unlockedActions } from './catalog.js';
 import { getEquipment } from './equipment/index.js';
+import { getPotion } from './potions/index.js';
+import { COP_DESESPERAT } from './desperation.js';
 
 /** Spec for building a character on the fly from skill ids and levels. */
 export interface CharacterBuildSpec {
@@ -14,6 +16,8 @@ export interface CharacterBuildSpec {
   actions?: string[];
   /** Equipment ids. */
   equipment?: string[];
+  /** Potion ids carried (consumable cards added to the hand; repeats allowed). */
+  potions?: string[];
   category?: 'player' | 'enemy';
 }
 
@@ -28,6 +32,12 @@ export function buildCharacter(spec: CharacterBuildSpec): Character {
       actionDefs.push(...unlockedActions(skillId, level));
     }
   }
+  for (const id of spec.potions ?? []) {
+    const p = getPotion(id);
+    if (p) actionDefs.push(p);
+  }
+  // Every character always holds the universal desperation card.
+  actionDefs.push(COP_DESESPERAT);
   const equipment = (spec.equipment ?? [])
     .map(getEquipment)
     .filter((e): e is EquipmentDefinition => !!e);

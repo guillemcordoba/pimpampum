@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CardGrid from '../components/cards/CardGrid.vue';
 import RulesCard from '../components/cards/RulesCard.vue';
+import CharacterSheet from '../components/cards/CharacterSheet.vue';
 </script>
 
 <template>
@@ -13,7 +14,7 @@ import RulesCard from '../components/cards/RulesCard.vue';
         <h2>Característica base</h2>
         <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Els jugadors comencen amb 20 PV per defecte.</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Els jugadors comencen amb 12 PV per defecte.</li>
         </ul>
       </section>
 
@@ -52,7 +53,7 @@ import RulesCard from '../components/cards/RulesCard.vue';
 
       <section>
         <h2>Accions de focus</h2>
-        <p>Efectes especials, normalment lents. Una acció de focus <strong>es cancel·la</strong> si el jugador rep un atac sense defensa abans que es resolgui.</p>
+        <p>Efectes especials, normalment lents. Una acció de focus <strong>es cancel·la</strong> si el jugador rep dany abans que es resolgui.</p>
       </section>
 
       <section>
@@ -62,6 +63,13 @@ import RulesCard from '../components/cards/RulesCard.vue';
           <li><strong>Perdre per 2 o menys</strong>: l'habilitat puja un nivell (+1) i el personatge aprèn la següent acció de l'habilitat.</li>
         </ul>
         <p>Només s'aprèn dels fracassos ajustats: guanyar no ensenya res, i perdre per molt vol dir que el repte et queda massa gran.</p>
+      </section>
+
+      <section>
+        <h2>Fatiga</h2>
+        <p>Cada acció té un <strong>cost de fatiga</strong>: 1 per defecte; les accions esgotadores en costen més (indicat a la carta). Cada cop que jugues una acció, dins o fora de combat, sumes el seu cost al teu comptador.</p>
+        <p>La fatiga màxima és <strong>20</strong>: no pots jugar una acció que te la faria superar. <strong>Dormir una nit</strong> neteja tota la fatiga. La fatiga no afecta mai les tirades: és el pressupost d'energia del dia.</p>
+        <p>Quan no pots jugar cap altra carta, entra a la teva mà el <strong>Cop desesperat</strong>: un atac feble (1d4, lent) que no costa fatiga i et fa perdre 1 PV després de l'atac, encertis o no.</p>
       </section>
 
       <section>
@@ -76,6 +84,10 @@ import RulesCard from '../components/cards/RulesCard.vue';
       <RulesCard />
       <RulesCard />
     </CardGrid>
+
+    <div class="fitxa-wrap">
+      <CharacterSheet />
+    </div>
   </div>
 </template>
 
@@ -147,4 +159,5 @@ import RulesCard from '../components/cards/RulesCard.vue';
 @media print {
   .no-print { display: none !important; }
 }
+.fitxa-wrap { margin-top: 2rem; overflow-x: auto; }
 </style>

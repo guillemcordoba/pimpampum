@@ -147,6 +147,13 @@ export const VOLCANIC: SkillDefinition = {
       icon: 'lorc/burning-round-shot.svg',
     }),
     action({
+      id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
+      effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
+      desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
+      icon: 'lorc/crystalize.svg',
+    }),
+    action({
       id: 'gueiser', name: 'Guèiser', skillId: VOLCANIC_SKILL_ID,
       unlock: 3, type: ActionType.Atac, speed: -1, dice: d(1, 12),
       effects: [
@@ -155,13 +162,6 @@ export const VOLCANIC: SkillDefinition = {
       ],
       desc: "Cap defensor no el pot interceptar: només l'objectiu es pot defensar a si mateix.",
       icon: 'lorc/fountain.svg',
-    }),
-    action({
-      id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
-      effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
-      desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
-      icon: 'lorc/crystalize.svg',
     }),
     action({
       id: 'riu-de-lava', name: 'Riu de lava', skillId: VOLCANIC_SKILL_ID,

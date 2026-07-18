@@ -43,6 +43,8 @@ interface ActionOpts {
   consumable?: boolean;
   /** Fatigue cost when played (default 1). Esgotadora cards declare 2-4. */
   fatigueCost?: number;
+  /** Desperation fallback: only playable when no other card is. */
+  lastResort?: boolean;
 }
 
 /** Build an ActionDefinition with sensible defaults. */
@@ -66,6 +68,7 @@ export function action(o: ActionOpts): ActionDefinition {
     isConsumable: o.consumable,
     canReviveTarget,
     fatigueCost: o.fatigueCost,
+    lastResort: o.lastResort,
   };
 }
 

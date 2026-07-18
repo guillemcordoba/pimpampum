@@ -18,7 +18,7 @@ export const FATIGUE_ENABLED = true;
  * winnable but clearly degraded). Mutable object so the simulator can sweep
  * candidate values at runtime.
  */
-export const FATIGUE_CONFIG = { max: 15 };
+export const FATIGUE_CONFIG = { max: 20 };
 
 export function maxFatigue(): number {
   return FATIGUE_CONFIG.max;

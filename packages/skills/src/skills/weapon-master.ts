@@ -76,11 +76,11 @@ export const MESTRE_ARMES: SkillDefinition = {
   iconPath: ICON_PREFIX + 'delapouite/fencer.svg',
   actions: [
     action({
-      id: 'tall-precis', name: 'Tall precís', skillId: 'mestre-armes',
-      unlock: 1, type: ActionType.Atac, speed: -1, rollBonus: 2,
+      id: 'atac-llampec', name: 'Atac llampec', skillId: 'mestre-armes',
+      unlock: 1, type: ActionType.Atac, speed: 2, rollBonus: 1,
       effects: [{ type: 'weapon_damage' }],
       desc: '',
-      icon: 'lorc/sword-wound.svg',
+      icon: 'lorc/quick-slash.svg',
     }),
     action({
       id: 'contraatac', name: 'Contraatac', skillId: 'mestre-armes',
@@ -90,11 +90,11 @@ export const MESTRE_ARMES: SkillDefinition = {
       icon: 'lorc/sword-clash.svg',
     }),
     action({
-      id: 'estat-de-flux', name: 'Estat de flux', skillId: 'mestre-armes',
-      unlock: 3, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'flow_state', params: { charges: 3 } }],
-      desc: "3 cops aquest combat, després de revelar les cartes, pots canviar la teva carta per una altra.",
-      icon: 'lorc/meditation.svg',
+      id: 'tall-precis', name: 'Tall precís', skillId: 'mestre-armes',
+      unlock: 3, type: ActionType.Atac, speed: -1, rollBonus: 2,
+      effects: [{ type: 'weapon_damage' }],
+      desc: '',
+      icon: 'lorc/sword-wound.svg',
     }),
     action({
       id: 'desequilibri', name: 'Desequilibri', skillId: 'mestre-armes',
@@ -104,11 +104,11 @@ export const MESTRE_ARMES: SkillDefinition = {
       icon: 'lorc/foot-trip.svg',
     }),
     action({
-      id: 'atac-llampec', name: 'Atac llampec', skillId: 'mestre-armes',
-      unlock: 5, type: ActionType.Atac, speed: 2, rollBonus: 1,
-      effects: [{ type: 'weapon_damage' }],
-      desc: '',
-      icon: 'lorc/quick-slash.svg',
+      id: 'estat-de-flux', name: 'Estat de flux', skillId: 'mestre-armes',
+      unlock: 5, type: ActionType.Focus, speed: 2,
+      effects: [{ type: 'flow_state', params: { charges: 3 } }],
+      desc: "3 cops aquest combat, després de revelar les cartes, pots canviar la teva carta per una altra.",
+      icon: 'lorc/meditation.svg',
     }),
     action({
       id: 'atac-encadenat', name: 'Atac encadenat', skillId: 'mestre-armes',

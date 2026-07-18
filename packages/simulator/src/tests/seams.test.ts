@@ -314,20 +314,15 @@ describe('StatusBehavior engine seams', () => {
 });
 
 describe('fatigue budget', () => {
-  it('exhaustion ends the combat: the team with the higher PV fraction wins', () => {
+  it('unaffordable cards are unplayable once the daily budget is spent', () => {
     const prevMax = FATIGUE_CONFIG.max;
     FATIGUE_CONFIG.max = 2;
     try {
       const a = makeChar('A', 20, [atkDef()]);
-      const b = sac(50);
-      b.aiStrategy = AIStrategy.Power;
-      const engine = new CombatEngine([a], [b], { registry: REGISTRY });
-      const res = engine.runCombat();
-      // Both spend their 2 fatigue in 2 rounds, then nobody can act; A dealt
-      // 2 damage and took none → A keeps the higher PV fraction and wins.
-      expect(res.winner).toBe(0);
-      expect(res.rounds).toBe(3);
-      expect(a.fatigue).toBe(2);
+      const engine = new CombatEngine([a], [sac(50)], { registry: REGISTRY });
+      expect(engine.canPlayActionIdx(a, 0)).toBe(true);
+      a.fatigue = 2; // budget spent: a cost-1 card would exceed the max
+      expect(engine.canPlayActionIdx(a, 0)).toBe(false);
     } finally {
       FATIGUE_CONFIG.max = prevMax;
     }

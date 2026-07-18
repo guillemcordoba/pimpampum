@@ -52,17 +52,20 @@ export function canPlayAction(action: ActionInstance, actor: Character, registry
 }
 
 /** Indices of actions a character may legally play this round. Pass the registry
- *  to also enforce per-effect availability gates (e.g. resource costs). */
+ *  to also enforce per-effect availability gates (e.g. resource costs).
+ *  Last-resort actions (desperation fallbacks) only surface when nothing
+ *  else is playable. */
 export function availableActionIndices(actor: Character, registry?: EffectRegistry): number[] {
   const out: number[] = [];
+  const lastResort: number[] = [];
   actor.actions.forEach((a, i) => {
     if (!a.isAvailable()) return;
     if (actor.isActionSetAside(i)) return;
     if ((actor.skills.get(a.def.skillId) ?? 0) < a.def.unlockLevel) return;
     if (registry && !canPlayAction(a, actor, registry)) return;
-    out.push(i);
+    (a.def.lastResort ? lastResort : out).push(i);
   });
-  return out;
+  return out.length > 0 ? out : lastResort;
 }
 
 /** Average dice total of an attack action: its own dice, else the best
@@ -146,6 +149,15 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       // stay the default plan or fights stall into draws.
       w = 1 + 1.5 * estimateExpectedDamage(actor, def, enemies);
       w += woundedEnemies * 1.5; // finish wounded foes
+      // Interrupt value: an undefended hit cancels a slower pending Focus,
+      // so an attack that outspeeds enemies' focus cards is worth playing
+      // even when its dice are tiny (disruptor jabs).
+      const disruptable = enemies.filter(e => e.actions.some(a =>
+        a.def.actionType === ActionType.Focus
+        && a.isAvailable()
+        && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel
+        && a.def.speed < def.speed)).length;
+      w += Math.min(2.1, 0.7 * disruptable);
       if (strategy === AIStrategy.Aggro) w += 2;
       break;
     }

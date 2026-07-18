@@ -24,6 +24,14 @@ for (let i = 0; i < GAMES; i++) {
         if (won) e.wins++;
         byItem.set(eq.id, e);
       }
+      // Potions are consumable action cards, not equipment.
+      for (const act of c.actions) {
+        if (act.def.skillId !== 'pocio') continue;
+        const e = byItem.get(act.def.id) ?? { games: 0, wins: 0 };
+        e.games++;
+        if (won) e.wins++;
+        byItem.set(act.def.id, e);
+      }
     }
   }
 }

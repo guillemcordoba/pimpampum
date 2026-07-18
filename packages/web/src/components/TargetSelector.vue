@@ -26,26 +26,34 @@ interface Option { team: number; idx: number; character: Character; }
 const options = computed<Option[]>(() => {
   const p = prompt.value;
   const eng = props.game.engine.value;
-  if (!p || !eng) return [];
+  if (!p || !eng || p.requirement === 'defense') return [];
   if (p.requirement === 'enemy') {
     return eng.teams[1].map((c, idx) => ({ team: 1, idx, character: c as Character }))
       .filter(o => o.character.isAlive());
-  }
-  if (p.requirement === 'defense') {
-    // Defense dual choice: a living ally to guard (including self) OR a living
-    // enemy to block.
-    const allyTeam = p.actorTeam;
-    const foeTeam = 1 - p.actorTeam;
-    return [
-      ...eng.teams[allyTeam].map((c, idx) => ({ team: allyTeam, idx, character: c as Character })),
-      ...eng.teams[foeTeam].map((c, idx) => ({ team: foeTeam, idx, character: c as Character })),
-    ].filter(o => o.character.isAlive());
   }
   return eng.teams[0].map((c, idx) => ({ team: 0, idx, character: c as Character }))
     .filter(o => {
       if (p.requirement === 'ally_other' && o.idx === p.actorIdx) return false;
       return o.character.isAlive() || p.canReviveTarget;
     });
+});
+
+/** Defense dual choice, split in two rows: enemies to BLOCK (top) and
+ *  allies to DEFEND, including self (bottom). */
+const blockOptions = computed<Option[]>(() => {
+  const p = prompt.value;
+  const eng = props.game.engine.value;
+  if (!p || !eng || p.requirement !== 'defense') return [];
+  const foeTeam = 1 - p.actorTeam;
+  return eng.teams[foeTeam].map((c, idx) => ({ team: foeTeam, idx, character: c as Character }))
+    .filter(o => o.character.isAlive());
+});
+const defendOptions = computed<Option[]>(() => {
+  const p = prompt.value;
+  const eng = props.game.engine.value;
+  if (!p || !eng || p.requirement !== 'defense') return [];
+  return eng.teams[p.actorTeam].map((c, idx) => ({ team: p.actorTeam, idx, character: c as Character }))
+    .filter(o => o.character.isAlive());
 });
 
 function isSelected(o: Option): boolean {
@@ -57,7 +65,33 @@ function isSelected(o: Option): boolean {
   <div v-if="prompt" class="target-overlay">
     <div class="target-prompt">
       <h3>{{ promptText }}</h3>
-      <div class="target-options">
+      <template v-if="prompt.requirement === 'defense'">
+        <div class="target-group-label">Bloquejar un enemic</div>
+        <div class="target-options">
+          <div
+            v-for="o in blockOptions"
+            :key="`${o.team}-${o.idx}`"
+            class="target-option"
+            :class="{ 'target-selected': isSelected(o) }"
+            @click="game.selectTarget(o.team, o.idx)"
+          >
+            <CharacterPortrait :character="o.character" :is-enemy="true" />
+          </div>
+        </div>
+        <div class="target-group-label">Defensar un aliat</div>
+        <div class="target-options">
+          <div
+            v-for="o in defendOptions"
+            :key="`${o.team}-${o.idx}`"
+            class="target-option"
+            :class="{ 'target-selected': isSelected(o) }"
+            @click="game.selectTarget(o.team, o.idx)"
+          >
+            <CharacterPortrait :character="o.character" :is-enemy="false" />
+          </div>
+        </div>
+      </template>
+      <div v-else class="target-options">
         <div
           v-for="o in options"
           :key="`${o.team}-${o.idx}`"

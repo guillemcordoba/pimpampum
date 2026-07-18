@@ -8,14 +8,18 @@ import { REGISTRY, randomTeam } from './helpers.js';
  * against reality across a FIXED, diverse set of battle setups (single-species
  * anchors, mixed compositions, reduced levels, off-baseline PV, all party
  * sizes). Bounds cover sampling noise (~±9pp at 120 games) plus the model's
- * measured error (shared-economy β2.0: ~15pp MAE on fully random setups;
- * this curated set should do better). Full sweep: measure-model-accuracy.ts.
+ * measured error (2026-07-18 re-measure after the kit re-ordering pass:
+ * shared-economy β2.0 MAE 11.5pp — still the best candidate — but with a
+ * known ~−8pp bias on MIXED comps, i.e. it overprices cross-species threat).
+ * Full sweep: measure-model-accuracy.ts.
  */
 const GAMES = 120;
-const MAX_SETUP_ERROR = 0.30;
+const MAX_SETUP_ERROR = 0.35;
 const MAX_MEAN_ERROR = 0.15;
 
-interface Setup { name: string; players: number; groups: FieldedGroup[] }
+/** `budget` = per-player skill-level budget (default: the calibration
+ *  reference 7). Off-reference budgets exercise playerLevelFactor. */
+interface Setup { name: string; players: number; groups: FieldedGroup[]; budget?: number }
 
 const SETUPS: Setup[] = [
   { name: 'goblin probe anchor', players: 4, groups: [{ templateId: 'goblin', count: 6, pv: 8 }] },
@@ -32,12 +36,14 @@ const SETUPS: Setup[] = [
   { name: 'shaman trio vs 3p', players: 3, groups: [{ templateId: 'goblin-shaman', count: 3, pv: 18 }] },
   { name: 'young goblins (level 2)', players: 4, groups: [{ templateId: 'goblin', count: 6, level: 2, pv: 8 }] },
   { name: 'golems + goblins vs 6p', players: 6, groups: [{ templateId: 'stone-golem', count: 2, pv: 25 }, { templateId: 'goblin', count: 4, pv: 8 }] },
+  { name: 'goblins vs young party (3 lvls/p)', players: 4, budget: 3, groups: [{ templateId: 'goblin', count: 6, pv: 8 }] },
+  { name: 'spined devils vs apprentices (5 lvls/p)', players: 4, budget: 5, groups: [{ templateId: 'spined-devil', count: 3, pv: 24 }] },
 ];
 
 function realWinrate(s: Setup): number {
   let wins = 0;
   for (let i = 0; i < GAMES; i++) {
-    const party = randomTeam('P', s.players, 7);
+    const party = randomTeam('P', s.players, s.budget ?? 7);
     const enemies = s.groups.flatMap(g => {
       const t = getEnemyTemplate(g.templateId)!;
       const levels = Object.fromEntries(t.skills.map(sk => [sk, g.level ?? t.suggestedLevel]));
@@ -57,7 +63,9 @@ describe('balancer model accuracy', () => {
     const errors: string[] = [];
     let totalErr = 0;
     for (const s of SETUPS) {
-      const predicted = predictEncounter(s.groups, s.players);
+      const predicted = predictEncounter(
+        s.groups, s.players,
+        s.budget !== undefined ? Array(s.players).fill(s.budget) : undefined);
       const real = realWinrate(s);
       const err = Math.abs(predicted - real);
       totalErr += err;

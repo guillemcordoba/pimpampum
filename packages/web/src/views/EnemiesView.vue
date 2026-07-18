@@ -60,9 +60,6 @@ const actions = computed(() => {
       </aside>
 
       <section class="skill-content" v-if="selected">
-        <h2 class="skill-heading no-print">
-          {{ selected.displayName }}<span v-if="selected.naturalArmor"> — armadura natural {{ selected.naturalArmor }}</span>
-        </h2>
         <CardGrid>
           <PrintableCard
             v-for="a in actions"
@@ -76,18 +73,19 @@ const actions = computed(() => {
 </template>
 
 <style scoped>
-.cards-page { padding: 1rem; }
-
-.skills-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+/* The page never scrolls: it bleeds over <main>'s padding to fill it edge to
+   edge, the sidebar stays fixed in place, and only the card pane scrolls —
+   its scrollbar spans the full tab height. Insets live INSIDE the panes. */
+.cards-page { height: calc(100% + 3rem); margin: -1.5rem; }
+.skills-layout { display: flex; gap: 1.5rem; align-items: stretch; height: 100%; }
 
 .skill-sidebar {
-  flex: 0 0 16rem;
-  position: sticky;
-  top: 4.5rem;
+  flex: 0 0 17rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: calc(100vh - 6rem);
+  min-height: 0;
+  padding: 1rem 0 1rem 1.5rem;
 }
 
 .skill-search {
@@ -111,6 +109,8 @@ const actions = computed(() => {
   flex-direction: column;
   gap: 0.25rem;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .skill-item {
@@ -153,7 +153,7 @@ const actions = computed(() => {
   opacity: 0.7;
 }
 
-.skill-content { flex: 1; min-width: 0; }
+.skill-content { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 1rem 1.5rem 1rem 0; }
 .skill-heading {
   font-family: 'Cinzel Decorative', serif; color: var(--parchment);
   text-align: center; font-size: 1.1rem; margin: 0 0 1rem;
@@ -170,12 +170,17 @@ const actions = computed(() => {
 .skill-item.llop { --class-color: var(--class-llop); }
 
 @media (max-width: 720px) {
-  .skills-layout { flex-direction: column; }
-  .skill-sidebar { position: static; flex-basis: auto; width: 100%; max-height: none; }
+  .cards-page { height: auto; margin: 0; }
+  .skills-layout { flex-direction: column; height: auto; }
+  .skill-sidebar { flex-basis: auto; width: 100%; padding: 0; }
+  .skill-content { overflow-y: visible; padding: 0; }
 }
 
 @media print {
   .no-print { display: none !important; }
   .skill-sidebar { display: none !important; }
+  .cards-page { height: auto; margin: 0; }
+  .skills-layout { height: auto; }
+  .skill-content { overflow-y: visible; padding: 0; }
 }
 </style>

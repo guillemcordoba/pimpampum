@@ -96,7 +96,7 @@ export function actionToDisplayProps(def: ActionDefinition, classCss: string, sk
 export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayProps {
   const stats: CardStat[] = [];
   if (eq.dice) stats.push({ iconPath: STAT_ICONS.attack, value: eq.dice.toString() });
-  if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.armor, value: `+${eq.passiveArmor}` });
+  if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.defense, value: `+${eq.passiveArmor}` });
   if (eq.speedPenalty) stats.push({ iconPath: STAT_ICONS.speed, value: `-${eq.speedPenalty}` });
   // Roll bonuses: attack bonuses under the damage icon, defense (or any-roll)
   // bonuses under the shield icon.

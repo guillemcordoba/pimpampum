@@ -1,15 +1,29 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   ENEMY_TEMPLATES, getEnemyTemplate, solveEncounter, TARGET_WINRATES,
+  PLAYER_REF_LEVELS,
   type PoolSpec,
 } from '@pimpampum/enemies';
+import { setPendingEncounter } from '../composables/pendingEncounter';
 
 const base = import.meta.env.BASE_URL;
 
 // --- Inputs -----------------------------------------------------------------
 const playerCount = ref(4);
 const PLAYER_COUNTS = [3, 4, 5, 6];
+
+// Per-player total skill levels (an input to the balancer's party strength).
+const playerLevels = ref<number[]>(Array(4).fill(PLAYER_REF_LEVELS));
+watch(playerCount, n => {
+  const prev = playerLevels.value;
+  playerLevels.value = Array.from({ length: n }, (_, i) => prev[i] ?? PLAYER_REF_LEVELS);
+});
+function setPlayerLevel(i: number, value: number) {
+  const clamped = Math.max(1, Math.min(20, Math.round(value) || PLAYER_REF_LEVELS));
+  playerLevels.value = playerLevels.value.map((l, k) => (k === i ? clamped : l));
+}
 
 // Target difficulty is an INPUT to the balancer: the players' win probability.
 const winrate = ref(Math.round(TARGET_WINRATES.medium * 100));
@@ -50,7 +64,7 @@ function levelOptions(templateId: string): number[] {
 const solved = computed(() => {
   const specs: PoolSpec[] = pool.value.map(p =>
     ({ templateId: p.templateId, count: p.count, level: p.level }));
-  return solveEncounter(specs, playerCount.value, winrate.value / 100);
+  return solveEncounter(specs, playerCount.value, winrate.value / 100, playerLevels.value);
 });
 
 const predictedPct = computed(() =>
@@ -60,6 +74,15 @@ const predictedPct = computed(() =>
 const clamped = computed(() =>
   solved.value !== null &&
   Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate) > 0.02);
+
+// Hand the solved encounter to the combat view: its enemy roster arrives
+// pre-filled; the players are created there as usual.
+const router = useRouter();
+function playEncounter(): void {
+  if (!solved.value) return;
+  setPendingEncounter(solved.value, [...playerLevels.value]);
+  router.push('/combat');
+}
 </script>
 
 <template>
@@ -81,6 +104,18 @@ const clamped = computed(() =>
             @click="playerCount = n"
           >{{ n }}</button>
         </div>
+
+        <div class="subhead spaced">Nivells dels jugadors</div>
+        <div class="levels-row">
+          <input
+            v-for="(l, i) in playerLevels" :key="i"
+            type="number" min="1" max="20" class="level-input"
+            :value="l"
+            title="Suma de nivells d'habilitat del jugador"
+            @input="setPlayerLevel(i, Number(($event.target as HTMLInputElement).value))"
+          >
+        </div>
+        <div class="winrate-caption">suma de nivells d'habilitat de cada jugador</div>
 
         <div class="subhead spaced">Dificultat</div>
         <div class="choice-row">
@@ -167,6 +202,10 @@ const clamped = computed(() =>
             </span>
             · Multiplicador de PV: <strong>×{{ solved.pvMult.toFixed(2) }}</strong>
           </div>
+
+          <button type="button" class="play-btn" @click="playEncounter">
+            ⚔ Comença el combat
+          </button>
         </template>
         <div v-else class="result-empty">Afegeix enemics per veure l'encontre.</div>
       </section>
@@ -209,6 +248,16 @@ const clamped = computed(() =>
   color: var(--parchment); background: rgba(232, 220, 196, 0.18);
   border-color: var(--parchment);
 }
+
+.levels-row { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
+.level-input {
+  width: 3.2rem; text-align: center;
+  font-family: 'MedievalSharp', serif; font-size: 0.95rem;
+  color: var(--parchment); background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--parchment-dark); border-radius: 4px;
+  padding: 0.3rem 0.2rem;
+}
+.level-input:focus { outline: none; border-color: var(--parchment); }
 
 .winrate-row { display: flex; align-items: center; gap: 0.7rem; justify-content: center; margin-top: 1rem; }
 .winrate-slider { width: 220px; accent-color: var(--parchment); }
@@ -278,6 +327,15 @@ const clamped = computed(() =>
 }
 .result-meta strong { color: var(--parchment); }
 .result-meta .warn, .result-meta .warn strong { color: #d9924a; }
+
+.play-btn {
+  display: block; margin: 1.2rem auto 0;
+  font-family: 'Cinzel Decorative', serif; font-size: 1.05rem;
+  color: var(--parchment); background: rgba(232, 220, 196, 0.12);
+  border: 1px solid var(--parchment); border-radius: 6px;
+  padding: 0.55rem 1.4rem; cursor: pointer; transition: all 0.15s;
+}
+.play-btn:hover { background: rgba(232, 220, 196, 0.22); }
 
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; gap: 1.2rem; } }
 </style>

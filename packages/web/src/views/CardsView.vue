@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ALL_SKILLS } from '@pimpampum/skills';
+import type { SkillDefinition } from '@pimpampum/skills';
+import { ALL_SKILLS, COP_DESESPERAT } from '@pimpampum/skills';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';
 
 const base = import.meta.env.BASE_URL;
 
+// The universal desperation card, shown as its own sidebar entry.
+const DESESPERACIO: SkillDefinition = {
+  id: 'desesperacio', displayName: 'Altres', classCss: 'objecte', category: 'player',
+  description: 'La carta universal de quan no queda res més.',
+  iconPath: COP_DESESPERAT.iconPath,
+  actions: [COP_DESESPERAT],
+};
+
 // Enemy skills live in the Enemics section, equipment in Objectes.
-const playerSkills = computed(() => ALL_SKILLS);
+const playerSkills = computed(() => [...ALL_SKILLS, DESESPERACIO]);
 
 // --- Skill sidebar ---
 const search = ref('');
@@ -57,15 +66,12 @@ watch(filteredSkills, list => {
       </aside>
 
       <section class="skill-content" v-if="selectedSkill">
-        <h2 class="skill-heading no-print">
-          {{ selectedSkill.displayName }} — {{ selectedSkill.description }}
-        </h2>
         <CardGrid>
           <div v-for="action in selectedSkill.actions" :key="action.id" class="card-slot">
             <PrintableCard
               v-bind="actionToDisplayProps(action, selectedSkill.classCss, selectedSkill.displayName)"
             />
-            <div class="card-level no-print">Nivell {{ action.unlockLevel }}</div>
+            <div v-if="action.unlockLevel > 0" class="card-level no-print">Nivell {{ action.unlockLevel }}</div>
           </div>
         </CardGrid>
       </section>
@@ -74,18 +80,19 @@ watch(filteredSkills, list => {
 </template>
 
 <style scoped>
-.cards-page { padding: 1rem; }
-
-.skills-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+/* The page never scrolls: it bleeds over <main>'s padding to fill it edge to
+   edge, the sidebar stays fixed in place, and only the card pane scrolls —
+   its scrollbar spans the full tab height. Insets live INSIDE the panes. */
+.cards-page { height: calc(100% + 3rem); margin: -1.5rem; }
+.skills-layout { display: flex; gap: 1.5rem; align-items: stretch; height: 100%; }
 
 .skill-sidebar {
-  flex: 0 0 16rem;
-  position: sticky;
-  top: 4.5rem;
+  flex: 0 0 17rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: calc(100vh - 6rem);
+  min-height: 0;
+  padding: 1rem 0 1rem 1.5rem;
 }
 
 .skill-search {
@@ -109,6 +116,8 @@ watch(filteredSkills, list => {
   flex-direction: column;
   gap: 0.25rem;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .skill-item {
@@ -171,7 +180,7 @@ watch(filteredSkills, list => {
   padding: 0.2rem 0.7rem;
 }
 
-.skill-content { flex: 1; min-width: 0; }
+.skill-content { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 1rem 1.5rem 1rem 0; }
 .skill-heading {
   font-family: 'Cinzel Decorative', serif; color: var(--parchment);
   text-align: center; font-size: 1.1rem; margin: 0 0 1rem;
@@ -192,13 +201,18 @@ watch(filteredSkills, list => {
 .skill-item.objecte { --class-color: var(--class-objecte); }
 
 @media (max-width: 720px) {
-  .skills-layout { flex-direction: column; }
-  .skill-sidebar { position: static; flex-basis: auto; width: 100%; max-height: none; }
+  .cards-page { height: auto; margin: 0; }
+  .skills-layout { flex-direction: column; height: auto; }
+  .skill-sidebar { flex-basis: auto; width: 100%; padding: 0; }
+  .skill-content { overflow-y: visible; padding: 0; }
 }
 
 @media print {
   .no-print { display: none !important; }
   .skill-sidebar { display: none !important; }
+  .cards-page { height: auto; margin: 0; }
+  .skills-layout { height: auto; }
+  .skill-content { overflow-y: visible; padding: 0; }
   /* Collapse the wrapper so .print-card flows directly into the print grid. */
   .card-slot { display: contents; }
 }

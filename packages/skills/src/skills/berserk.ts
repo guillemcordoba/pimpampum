@@ -10,10 +10,11 @@ import { num, diceParam, applyMod } from '../effects/helpers.js';
  * capstone. Handlers and status behaviours live below, on this SkillDefinition.
  */
 
-// The rage state: blows dealt hit `value` harder, blows taken hurt `value` less.
+// The rage state, in ROLL space (modifiers live on the attack, never on the
+// damage): the holder's own attack rolls get +value via a CombatModifier set
+// by enter_rage; enemy attack rolls AGAINST the holder get −value here.
 const FURIA_ESTAT: StatusBehavior = {
-  modifyOutgoingDamage(ref, dmg) { return dmg + ref.entry.value; },
-  modifyIncomingDamage(ref, dmg) { return dmg - ref.entry.value; },
+  attackRollAgainstHolder(ref) { return -ref.entry.value; },
 };
 
 // Aguantar el cop: the guard absorbs every blow in full — no contest is rolled.
@@ -27,8 +28,8 @@ const INDESTRUCTIBLE: StatusBehavior = {
 };
 const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   // Entrar en Fúria: enter the battle-trance. While the `furia` status is up,
-  // every blow you land deals +value and every hit you take deals −value. The
-  // cost is the heavy fatigue of the card itself (no separate crash).
+  // the berserker's attack rolls get +value and enemy attack rolls against
+  // them get −value. The cost is the heavy fatigue of the card itself.
   enter_rage: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -38,8 +39,9 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
       const pvCost = num(ctx.params, 'pvCost', 0);
       if (pvCost > 0) ctx.engine.applyPvLoss(ctx.source, pvCost, ctx.source);
       if (!ctx.source.isAlive()) return;
+      applyMod(ctx.source, 'attack', value, turns, 'Fúria');
       ctx.source.setStatus('furia', value, turns, undefined, FURIA_ESTAT);
-      ctx.engine.log('focus', `${ctx.source.name} entra en fúria! (+${value} dany, −${value} dany rebut)`, ctx.source.team);
+      ctx.engine.log('focus', `${ctx.source.name} entra en fúria! (+${value} a l'atac, −${value} als atacs que rep)`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.actor.hasStatus('furia') ? 0 : 1.4; },
   },
@@ -110,39 +112,39 @@ export const BERSERK: SkillDefinition = {
   iconPath: ICON_PREFIX + 'delapouite/barbarian.svg',
   actions: [
     action({
+      id: 'embat-sagnant', name: 'Embat sagnant', skillId: 'berserk',
+      unlock: 1, type: ActionType.Atac, speed: 1,
+      effects: [{ type: 'weapon_damage' }, { type: 'frenzy', params: { per: 4, amount: 1 } }],
+      desc: '{A}+1 per cada 4 PV perduts.',
+      icon: 'skoll/blood.svg',
+    }),
+    action({
+      id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
+      unlock: 2, type: ActionType.Defensa, speed: 2,
+      effects: [{ type: 'rage_from_pain' }],
+      desc: 'Reps tot el dany i guanyes +{A} permanent igual al dany rebut.',
+      icon: 'lorc/muscle-up.svg',
+    }),
+    action({
       id: 'atac-temerari', name: 'Atac temerari', skillId: 'berserk',
-      unlock: 1, type: ActionType.Atac, speed: 2,
+      unlock: 3, type: ActionType.Atac, speed: 2,
       effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 2, defense: 5, thisTurn: false } }],
       desc: '{A}+2. El torn següent, {D}−5.',
       icon: 'lorc/axe-swing.svg',
     }),
     action({
       id: 'entrar-en-furia', name: 'Entrar en Fúria', skillId: 'berserk',
-      unlock: 2, type: ActionType.Focus, speed: 2, fatigueCost: 3,
+      unlock: 4, type: ActionType.Focus, speed: 2, fatigueCost: 3,
       effects: [{ type: 'enter_rage', params: { value: 3, turns: 3 } }],
-      desc: 'Durant 3 torns: {DAMAGE}+3 als teus atacs i {DAMAGE}−3 als cops que reps.',
+      desc: 'Durant 3 torns: {A}+3 als teus atacs i {A}−3 als atacs que reps.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
-      id: 'embat-sagnant', name: 'Embat sagnant', skillId: 'berserk',
-      unlock: 3, type: ActionType.Atac, speed: 1,
-      effects: [{ type: 'weapon_damage' }, { type: 'frenzy', params: { per: 4, amount: 1 } }],
-      desc: '{A}+1 per cada 4 PV perduts.',
-      icon: 'skoll/blood.svg',
-    }),
-    action({
       id: 'rugit-de-guerra', name: 'Rugit de guerra', skillId: 'berserk',
-      unlock: 4, type: ActionType.Focus, speed: 2, dice: d(2, 6),
+      unlock: 5, type: ActionType.Focus, speed: 2, dice: d(2, 6),
       effects: [{ type: 'fear_roar', params: { resist: d(2, 6) } }],
       desc: "Tira 2d6 contra 2d6 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
       icon: 'lorc/screaming.svg',
-    }),
-    action({
-      id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
-      unlock: 5, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain' }],
-      desc: 'Reps tot el dany i guanyes +{A} permanent igual al dany rebut.',
-      icon: 'lorc/muscle-up.svg',
     }),
     action({
       id: 'furia-implacable', name: 'Fúria implacable', skillId: 'berserk',

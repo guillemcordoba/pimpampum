@@ -2,7 +2,7 @@ import {
   Character, CombatEngine, CombatStats, newCombatStats,
   assignStrategies, AIStrategy, EffectRegistry,
 } from '@pimpampum/engine';
-import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, createRegistry } from '@pimpampum/skills';
+import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, ALL_POTIONS, createRegistry } from '@pimpampum/skills';
 import { getEnemyTemplate, createEnemyFromTemplate, buildSolvedEncounter, registerEnemySkills } from '@pimpampum/enemies';
 
 /** Shared registry for all simulations (player + enemy skill handlers). */
@@ -79,6 +79,8 @@ export function randomPlayer(name: string, budget: number, equip = true, pv = PL
   const usesWeapon = chosen.some(s => s.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
   const hasWeapon = equipment.some(id => ['basto', 'destral', 'gran-destral'].includes(id));
   if (usesWeapon && !hasWeapon) equipment.push('destral');
+  // Roughly a third of characters carry one random potion (loot economy).
+  const potions = equip && Math.random() < 0.35 ? [pick(ALL_POTIONS).id] : [];
   return buildCharacter({
     name,
     classCss: chosen[0].classCss,
@@ -86,6 +88,7 @@ export function randomPlayer(name: string, budget: number, equip = true, pv = PL
     pv,
     skills,
     equipment,
+    potions,
   });
 }
 
