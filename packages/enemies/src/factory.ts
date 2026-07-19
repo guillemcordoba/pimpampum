@@ -25,7 +25,7 @@ export function createEnemyFromTemplate(
   }
   // Every combatant always holds the universal desperation card.
   actions.push(COP_DESESPERAT);
-  const equipment = equipmentIds
+  const equipment = [...(template.equipment ?? []), ...equipmentIds]
     .map(getEquipment)
     .filter((e): e is EquipmentDefinition => !!e);
   if (template.naturalArmor) {

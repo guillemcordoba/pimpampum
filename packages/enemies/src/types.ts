@@ -30,6 +30,8 @@ export interface EnemyTemplate {
   /** Innate passive armour (scales, stone hide…). Equipped by the factory as
    *  a synthetic Torso item so it flows through the normal armour pipeline. */
   naturalArmor?: number;
+  /** Equipment ids the creature carries by default (goblin shields…). */
+  equipment?: string[];
   /** How a GM plays this creature: biases the AI's action mix toward the
    *  kit's identity (Power for casters, Protect for walls). Defaults to Aggro.
    *  Calibration runs with this, so it must match intended table play. */

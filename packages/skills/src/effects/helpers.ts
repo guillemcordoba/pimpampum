@@ -79,11 +79,12 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
 
 // --- Weapons ----------------------------------------------------------------
 
-/** Attack dice of the wielded main-hand weapon, or undefined if none. Used by the
- *  generic weapon mechanic (any weapon-using skill: Weapon Master, Berserk…). */
-export function wieldedWeaponDice(c: Character): DiceRoll | undefined {
+/** Attack modifier of the wielded main-hand weapon, or undefined if unarmed
+ *  (a +0 weapon still counts as armed). Used by the generic weapon mechanic
+ *  (any weapon-using skill: Weapon Master, Berserk…). */
+export function wieldedWeaponBonus(c: Character): number | undefined {
   for (const e of c.equipment) {
-    if (e.slot === EquipmentSlot.MainHand && e.dice) return e.dice;
+    if (e.slot === EquipmentSlot.MainHand && e.attackBonus !== undefined) return e.attackBonus;
   }
   return undefined;
 }

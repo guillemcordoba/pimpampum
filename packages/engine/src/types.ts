@@ -73,6 +73,9 @@ export interface ActionDefinition {
   rollBonus?: number;
   /** How many targets are selected (multi-attack / multi-defend). Defaults to 1. */
   targetCount?: number;
+  /** Multi-target attacks roll ONE shared roll per pass by default; set this
+   *  to roll fresh attack dice against each target instead. */
+  rollPerTarget?: boolean;
   effects: ActionEffect[];
   description: string;
   iconPath: string;
@@ -114,11 +117,16 @@ export interface EquipmentDefinition {
   speedPenalty: number;
   rollBonuses: RollBonus[];
   /**
-   * Weapon dice. Only matters for actions carrying the `weapon_damage`
-   * effect — those attack with the wielded main-hand weapon's dice instead of
-   * their own. Generic: any weapon-using skill's effects may read it.
+   * Weapon attack modifier, added to the roll of actions whose effects read
+   * the wielded weapon (`weapon_damage`). Present (even 0) = the item counts
+   * as a weapon. Generic: any weapon-using skill's effects may read it.
    */
-  dice?: DiceRoll;
+  attackBonus?: number;
+  /**
+   * Action cards the item puts in the wearer's hand while equipped (a shield's
+   * raise-shield defense…). Use `unlockLevel: 0` so the card needs no skill.
+   */
+  grantsActions?: ActionDefinition[];
   iconPath: string;
   description: string;
   /** Catalan label for the slot, for display. */

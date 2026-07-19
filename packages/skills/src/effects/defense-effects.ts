@@ -1,17 +1,14 @@
 import { EffectHandler, DiceRoll } from '@pimpampum/engine';
-import { num, str, diceParam, durParam, applyMod, ModKind, wieldedWeaponDice } from './helpers.js';
+import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
 
 /** Defense-rider effects: onDefend runs when a block lands; onBlockFail when it fails. */
 export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
-  // Counter-attack the attacker when an attack is blocked. With params.weapon, the
-  // riposte deals the defender's wielded weapon dice (and does nothing if unarmed).
+  // Counter-attack the attacker when an attack is blocked, rolling `dice`
+  // (default 1d6).
   counter: {
     onDefend(ctx) {
       if (!ctx.target) return;
-      const dice = ctx.params.weapon
-        ? wieldedWeaponDice(ctx.source)
-        : (diceParam(ctx.params, 'dice') ?? new DiceRoll(1, 6));
-      if (!dice) return;
+      const dice = diceParam(ctx.params, 'dice') ?? new DiceRoll(1, 6);
       ctx.engine.performExtraAttack(ctx.source, ctx.target, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} contraataca` });
     },
     aiWeight() { return 0.5; },

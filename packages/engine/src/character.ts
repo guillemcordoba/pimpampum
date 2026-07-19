@@ -72,10 +72,11 @@ export class Character {
    *  (fatigueCost, default 1). Carries between combats; sleep() clears it.
    *  Never touches dice rolls. */
   fatigue = 0;
-  /** Enemy defender currently blocking this character: forces every attack
-   *  target this character would choose onto the blocker. Round-scoped (the
-   *  last block resolved wins), cleared like guards. */
-  blockedBy: Character | null = null;
+  /** Enemy defenders currently blocking this character: force every attack
+   *  target this character would choose onto the wall. Blocks stack — two or
+   *  more blockers contest jointly with the SUM of their defense rolls
+   *  (bloqueig conjunt). Round-scoped, cleared like guards. */
+  blockers: Guard[] = [];
 
   constructor(
     public name: string,
@@ -168,8 +169,16 @@ export class Character {
   }
 
   equip(item: EquipmentDefinition): void {
+    const replaced = this.equipment.filter(e => e.slot === item.slot);
     this.equipment = this.equipment.filter(e => e.slot !== item.slot);
+    for (const old of replaced) {
+      if (old.grantsActions?.length) {
+        const dropped = new Set(old.grantsActions);
+        this.actions = this.actions.filter(a => !dropped.has(a.def));
+      }
+    }
     this.equipment.push(item);
+    for (const def of item.grantsActions ?? []) this.actions.push(new ActionInstance(def));
   }
 
   // --- Statuses -------------------------------------------------------------
@@ -239,7 +248,7 @@ export class Character {
     this.modifiers = [];
     this.statuses.clear();
     this.guards = [];
-    this.blockedBy = null;
+    this.blockers = [];
     this.skipTurns = 0;
     this.hitThisTurn = false;
     this.hitThisCombat = false;
@@ -251,7 +260,7 @@ export class Character {
   /** Returns true if the character is skipping this turn (stun/skip). */
   resetForNewRound(): boolean {
     this.guards = [];
-    this.blockedBy = null;
+    this.blockers = [];
     this.hitThisTurn = false;
     this.playedActionIdx = null;
     if (this.skipTurns > 0) {

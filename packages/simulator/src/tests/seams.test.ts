@@ -313,6 +313,128 @@ describe('StatusBehavior engine seams', () => {
   });
 });
 
+describe('bloqueig conjunt (summed wall)', () => {
+  /** Two human blockers (1d1 defenses) + an AI enemy attacker (1d1 + bonus). */
+  function wallSetup(atkBonus: number, d1Bonus = 0, opts: Partial<ActionDefinition> = {}) {
+    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus })]);
+    const d2 = makeChar('D2', 20, [defenseDef('bloc2', { dice: new DiceRoll(1, 1), rollBonus: 0 }), focusDef()]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus, ...opts })]);
+    e.aiStrategy = AIStrategy.Aggro;
+    const engine = new CombatEngine([d1, d2], [e], { registry: REGISTRY });
+    return { d1, d2, e, engine };
+  }
+  const blockE = [
+    { idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
+    { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
+  ];
+
+  it('the wall contests with the sum; ties hold and the attacker learns', () => {
+    const { d1, d2, e, engine } = wallSetup(1); // attack 2 vs sum 1+1=2 → tie holds
+    runRound(engine, blockE);
+    expect(d1.currentPV).toBe(20);
+    expect(d2.currentPV).toBe(20);
+    expect(e.getSkillLevel('test')).toBe(11); // lost by 0 → learns
+  });
+
+  it('a breach damages the weak link (lowest individual roll) only', () => {
+    const { d1, d2, engine } = wallSetup(9, 2); // attack 10 vs (3 + 1) → margin 6
+    runRound(engine, blockE);
+    expect(d1.currentPV).toBe(20);
+    expect(d2.currentPV).toBe(14); // D2 rolled 1 < D1's 3
+    expect(d1.getSkillLevel('test')).toBe(10); // margin 6 > 2 → nobody learns
+    expect(d2.getSkillLevel('test')).toBe(10);
+  });
+
+  it('a close breach (≤ SKILL_UP_MARGIN) teaches every blocker', () => {
+    const { d1, d2, engine } = wallSetup(5, 2); // attack 6 vs (3 + 1) → margin 2
+    runRound(engine, blockE);
+    expect(d2.currentPV).toBe(18);
+    expect(d1.getSkillLevel('test')).toBe(11); // both learn
+    expect(d2.getSkillLevel('test')).toBe(11);
+  });
+
+  it('full-coverage AoE ignores the wall: each blocker defends alone', () => {
+    const { d1, d2, engine } = wallSetup(9, 0, { targetCount: 99 }); // attack 10 vs 1, twice
+    runRound(engine, blockE);
+    expect(d1.currentPV).toBe(11); // margin 9 each — NOT a summed contest
+    expect(d2.currentPV).toBe(11);
+  });
+
+  /** Round runner that accepts raw selections for BOTH teams. */
+  function runRoundRaw(engine: CombatEngine, selections: { team: number; idx: number; actionIdx: number; targets?: { team: number; idx: number }[] }[]): void {
+    engine.prepareRound();
+    engine.planActions(selections);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') {
+      if (r.kind === 'target') throw new Error('unexpected target prompt in test');
+      r = engine.resolveNextAction();
+    }
+    engine.finishRound();
+  }
+
+  it('guard wall: two defenders guarding the same ally contest with the sum', () => {
+    const a = makeChar('A', 20, [focusDef()]);
+    const d1 = makeChar('D1', 20, [defenseDef('g1', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0 },
+      { team: 0, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D1 guards A
+      { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
+    ]);
+    expect(a.currentPV).toBe(20); // the ally never takes the breach
+    expect(d1.currentPV).toBe(20); // rolled 3
+    expect(d2.currentPV).toBe(14); // weak link: attack 10 vs (3+1) → margin 6
+  });
+
+  it('guard wall: the ally\'s own self-defense joins the sum and can be the weak link', () => {
+    const a = makeChar('A', 20, [defenseDef('ga', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
+    const d1 = makeChar('D1', 20, [focusDef()]);
+    const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }, // A defends (guards D1) → self-guard active
+      { team: 0, idx: 1, actionIdx: 0 },
+      { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
+    ]);
+    expect(a.currentPV).toBe(14); // attack 10 vs (A 1 + D2 3) → margin 6, weak link A
+    expect(d2.currentPV).toBe(20);
+  });
+
+  it('guard wall: a close breach teaches every defender on the wall', () => {
+    const a = makeChar('A', 20, [focusDef()]);
+    const d1 = makeChar('D1', 20, [defenseDef('g1', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 5 })]);
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0 },
+      { team: 0, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+      { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // attack 6 vs (3+1) → margin 2
+    ]);
+    expect(d2.currentPV).toBe(18);
+    expect(d1.getSkillLevel('test')).toBe(11); // both wall members learn
+    expect(d2.getSkillLevel('test')).toBe(11);
+    expect(a.getSkillLevel('test')).toBe(10); // the ally wasn't on the wall
+  });
+
+  it('a single block still resolves as an ordinary one-on-one contest', () => {
+    const { d1, d2, engine } = wallSetup(2); // attack 3 vs D1's 1 → margin 2
+    runRound(engine, [
+      { idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
+      { idx: 1, actionIdx: 1 }, // D2 idles on a focus — no second block
+    ]);
+    expect(d1.currentPV).toBe(18); // no sum with anyone
+    expect(d1.getSkillLevel('test')).toBe(11); // close loss teaches the blocker
+    expect(d2.currentPV).toBe(20);
+  });
+});
+
 describe('fatigue budget', () => {
   it('unaffordable cards are unplayable once the daily budget is spent', () => {
     const prevMax = FATIGUE_CONFIG.max;

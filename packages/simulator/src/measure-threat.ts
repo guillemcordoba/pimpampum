@@ -88,7 +88,7 @@ for (const [n, count] of [[3, 5], [5, 8], [6, 9]] as const) {
 
 console.log('\nLevel discount (reduced kits, threat multiplier vs full):');
 const levelProbes: { id: string; level: number; kit: number }[] = [
-  { id: 'goblin', level: 2, kit: 4 },
+  { id: 'goblin', level: 2, kit: 3 },
   { id: 'stone-golem', level: 3, kit: 5 },
   { id: 'basilisk', level: 3, kit: 5 },
 ];

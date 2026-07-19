@@ -141,14 +141,14 @@ export const VOLCANIC: SkillDefinition = {
       unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 4),
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
-        { type: 'debuff_on_hit', params: { kind: 'armor', amount: 3, duration: 'thisTurn' } },
+        { type: 'debuff_on_hit', params: { kind: 'armor', amount: 1, duration: 'restOfCombat' } },
       ],
-      desc: "Si encertes, l'objectiu té −3 d'armadura fins al final del torn.",
+      desc: "Si encertes, l'objectiu té −1 d'armadura durant la resta del combat.",
       icon: 'lorc/burning-round-shot.svg',
     }),
     action({
       id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6), rollBonus: 2,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6),
       effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
       desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
       icon: 'lorc/crystalize.svg',
@@ -168,9 +168,9 @@ export const VOLCANIC: SkillDefinition = {
       unlock: 4, type: ActionType.Focus, speed: -3, fatigueCost: 2,
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
-        { type: 'lava_flow', params: { sides: 8 } },
+        { type: 'lava_flow', params: { sides: 10 } },
       ],
-      desc: 'Al final del torn següent, tots els enemics reben 1d8, ignorant defenses.',
+      desc: 'Al final del torn següent, tots els enemics reben 1d10, ignorant defenses.',
       icon: 'sbed/lava.svg',
     }),
     action({

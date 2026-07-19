@@ -68,22 +68,17 @@ export function availableActionIndices(actor: Character, registry?: EffectRegist
   return out.length > 0 ? out : lastResort;
 }
 
-/** Average dice total of an attack action: its own dice, else the best
- *  equipped weapon dice (weapon-carried actions), else a modest default. */
-function attackDiceAverage(actor: Character, def: ActionDefinition): number {
-  if (def.dice) return def.dice.average();
-  let best = 0;
-  for (const e of actor.equipment) {
-    if (e.dice) best = Math.max(best, e.dice.average());
-  }
-  return best > 0 ? best : 3;
-}
-
-/** Expected attack total for an action: dice average + the action's roll
- *  bonus + the actor's roll bonuses. The attack total IS the damage basis. */
+/** Expected attack total for an action: dice average (a modest default when
+ *  diceless) + the action's roll bonus + the actor's roll bonuses + the best
+ *  equipped weapon modifier (an estimate — content effects decide whether the
+ *  weapon actually applies). The attack total IS the damage basis. */
 function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
-  return Math.max(0, attackDiceAverage(actor, def) + (def.rollBonus ?? 0)
-    + actor.getRollBonus(def.skillId, 'attack'));
+  let weapon = 0;
+  for (const e of actor.equipment) {
+    if (e.attackBonus !== undefined) weapon = Math.max(weapon, e.attackBonus);
+  }
+  return Math.max(0, (def.dice?.average() ?? 3) + (def.rollBonus ?? 0)
+    + weapon + actor.getRollBonus(def.skillId, 'attack'));
 }
 
 /** Best attack total a character can be expected to throw (threat proxy). */

@@ -908,10 +908,19 @@ body {
 .log-entry.miss { color: #888; font-style: italic; }
 .log-entry.death { color: #8b1a1a; font-weight: 700; }
 .log-entry.effect { color: #8a7a2f; }
-.log-entry.defense { color: #2f6a8a; }
+.log-entry.defense { color: #2f6a8a; padding-left: 1em; }
+.log-entry.heal { color: #3a7d44; padding-left: 1em; }
+.log-entry.focus { color: #6b3fa0; }
+.log-entry.interrupt { color: #999; font-style: italic; }
+.log-entry.info { color: #888; font-style: italic; }
+.log-entry.summon { color: #6b3fa0; font-weight: 600; }
 .log-entry.focus-interrupted { color: #999; font-style: italic; }
 .log-entry.vengeance { color: #6b3fa0; }
 .log-entry.skip { color: #999; }
+
+/* Damage / PV amounts pop out of the prose. */
+.log-entry .log-num { font-weight: 700; color: #a63d2f; white-space: nowrap; }
+.log-entry.heal .log-num { color: #3a7d44; }
 
 /* =============================================================================
    TARGET SELECTOR

@@ -36,6 +36,8 @@ interface ActionOpts {
   dice?: DiceRoll;
   rollBonus?: number;
   targetCount?: number;
+  /** Multi-target attacks: roll fresh dice against each target (default: one shared roll). */
+  rollPerTarget?: boolean;
   effects?: ActionEffect[];
   desc: string;
   /** Icon path tail after ICON_PREFIX, e.g. "lorc/broadsword.svg". */
@@ -62,6 +64,7 @@ export function action(o: ActionOpts): ActionDefinition {
     dice: o.dice,
     rollBonus: o.rollBonus,
     targetCount: o.targetCount,
+    rollPerTarget: o.rollPerTarget,
     effects,
     description: o.desc,
     iconPath: ICON_PREFIX + o.icon,

@@ -1,4 +1,4 @@
-import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior } from '@pimpampum/engine';
+import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior, ActionType } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
@@ -44,10 +44,19 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
 
   // +1 per other living ally, capped at `max`. `kind` selects roll bonus (default)
   // or bonus damage (crossfire / coordinated strike / horde damage).
+  // `count: 'attackers'` counts allies (incl. self) that played an attack this
+  // round instead, uncapped by default (horde attack).
   crossfire: {
     modifyAttack(ctx) {
-      const max = num(ctx.params, 'max', 3);
-      const bonus = Math.min(max, ctx.engine.alliesOf(ctx.source, false).length);
+      const attackers = str(ctx.params, 'count', 'allies') === 'attackers';
+      const max = num(ctx.params, 'max', attackers ? Infinity : 3);
+      const count = attackers
+        ? ctx.engine.alliesOf(ctx.source, true).filter(a => {
+            const i = a.playedActionIdx;
+            return i !== null && a.actions[i].def.actionType === ActionType.Atac;
+          }).length
+        : ctx.engine.alliesOf(ctx.source, false).length;
+      const bonus = Math.min(max, count);
       if (str(ctx.params, 'kind', 'roll') === 'damage') ctx.attackMods!.bonusDamage += bonus;
       else ctx.attackMods!.rollBonus += bonus;
     },

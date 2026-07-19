@@ -12,6 +12,11 @@ const MARCA_OBJECTIU: StatusBehavior = {
 // chip that names the buff.
 const ARMA_ENVERINADA: StatusBehavior = {};
 
+// Hidden (nimble_escape): can't be chosen as a target until the round ends.
+const AMAGAT: StatusBehavior = {
+  untargetable() { return true; },
+};
+
 /** Focus effects: resolved in speed order via onResolve. */
 export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   /**
@@ -72,18 +77,11 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.4 ? 2 : 0.6; },
   },
 
-  // Goblin "Amagar-se": dodge this turn + next turn, gain +1 attack per ally hiding.
-  // Each goblin sets the 'amagant-se' status on itself in onResolve; postRound
-  // counts allies with that status (incl. self) and applies a next-turn attack buff.
+  // Hide: untargetable for the rest of the turn; next turn, +`amount` attack.
   nimble_escape: {
     onResolve(ctx) {
-      ctx.source.guards.push({ defender: ctx.source, action: ctx.action });
-      ctx.source.setStatus('amagant-se', 1, 1);
-    },
-    postRound(ctx) {
-      if (!ctx.source.hasStatus('amagant-se')) return;
-      const hiding = ctx.engine.alliesOf(ctx.source, true).filter(a => a.hasStatus('amagant-se')).length;
-      if (hiding > 0) applyMod(ctx.source, 'attack', hiding * num(ctx.params, 'amount', 1), 'nextTurn', ctx.action.name);
+      ctx.source.setStatus('amagant-se', 1, 1, undefined, AMAGAT);
+      applyMod(ctx.source, 'attack', num(ctx.params, 'amount', 1), 'nextTurn', ctx.action.name);
     },
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.5 ? 1.6 : 0.7; },
   },

@@ -36,14 +36,9 @@ export function actionStats(def: ActionDefinition): CardStat[] {
     stats.push({ iconPath: diceIcon, value: def.dice.toString() + bonusStr });
     bonusShown = true;
   }
-  // Weapon actions roll the wielded weapon's dice (×times) instead of their own.
-  const weaponEff = def.effects.find(e => e.type === 'weapon_damage');
-  if (weaponEff) {
-    const times = (weaponEff.params?.times as number) ?? 1;
-    const label = times > 1 ? `arma×${times}` : 'arma';
-    stats.push({ iconPath: STAT_ICONS.attack, value: bonusStr ? `${label} ${bonusStr}` : label });
-    bonusShown = true;
-  }
+  // Weapon actions (weapon_damage) show only their own dice — the wielded
+  // weapon's modifier is added at the table; the card text carries the
+  // "Necessita arma equipada." requirement instead.
   // Erupció's damage formula: 1d6 × pressió (the pressure icon closes the
   // expression). Leads the row like any other damage stat.
   if (def.effects.some(e => e.type === 'eruption')) {
@@ -79,6 +74,10 @@ export function actionStats(def: ActionDefinition): CardStat[] {
 }
 
 export function actionToDisplayProps(def: ActionDefinition, classCss: string, skillName?: string): CardDisplayProps {
+  // Weapon actions declare their requirement on the card.
+  const needsWeapon = def.effects.some(e => e.type === 'weapon_damage');
+  const effectText = [def.description, needsWeapon ? 'Necessita arma equipada.' : '']
+    .filter(Boolean).join(' ') || undefined;
   return {
     name: def.name,
     subtitle: skillName
@@ -87,15 +86,30 @@ export function actionToDisplayProps(def: ActionDefinition, classCss: string, sk
     classCss,
     typeCss: ACTION_TYPE_CSS[def.actionType],
     iconPath: def.iconPath,
-    effectText: def.description || undefined,
+    effectText,
     stats: actionStats(def),
     smallName: def.name.length > 16,
   };
 }
 
 export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayProps {
+  // An item whose whole identity is one granted card (a shield's raised-shield
+  // defense) renders AS that card: action-type colour, the card's dice + speed.
+  const granted = eq.grantsActions?.length === 1 ? eq.grantsActions[0] : undefined;
+  if (granted && eq.attackBonus === undefined && !eq.passiveArmor && !eq.speedPenalty && !eq.rollBonuses?.length) {
+    return {
+      name: eq.name,
+      subtitle: `${ACTION_TYPE_DISPLAY_NAMES[granted.actionType]} · ${eq.slotLabel ?? eq.slot}`,
+      classCss: 'objecte',
+      typeCss: ACTION_TYPE_CSS[granted.actionType],
+      iconPath: eq.iconPath,
+      effectText: eq.description || granted.description || undefined,
+      stats: actionStats(granted),
+      smallName: eq.name.length > 16,
+    };
+  }
   const stats: CardStat[] = [];
-  if (eq.dice) stats.push({ iconPath: STAT_ICONS.attack, value: eq.dice.toString() });
+  if (eq.attackBonus !== undefined) stats.push({ iconPath: STAT_ICONS.attack, value: `+${eq.attackBonus}` });
   if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.defense, value: `+${eq.passiveArmor}` });
   if (eq.speedPenalty) stats.push({ iconPath: STAT_ICONS.speed, value: `-${eq.speedPenalty}` });
   // Roll bonuses: attack bonuses under the damage icon, defense (or any-roll)
@@ -106,8 +120,8 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
       value: `${b.value > 0 ? '+' : ''}${b.value}`,
     });
   }
-  // Weapons (anything with weapon dice) are labelled "Arma", armour "Armadura".
-  const kind = eq.dice ? 'Arma' : eq.passiveArmor > 0 ? 'Armadura' : 'Objecte';
+  // Weapons (anything with an attack modifier) are labelled "Arma", armour "Armadura".
+  const kind = eq.attackBonus !== undefined ? 'Arma' : eq.passiveArmor > 0 ? 'Armadura' : 'Objecte';
   return {
     name: eq.name,
     subtitle: `${kind} · ${eq.slotLabel ?? eq.slot}`,

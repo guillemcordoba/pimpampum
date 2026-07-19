@@ -4,7 +4,7 @@
 <template>
   <div class="home-page">
     <h1 class="screen-title">Pim Pam Pum</h1>
-    <p class="screen-subtitle">Sistema de combat per jocs de rol de taula</p>
+    <p class="screen-subtitle">Primer la narrativa, després l'agilitat, i per acabar, els mindgames.</p>
 
     <div class="nav-tiles">
       <router-link to="/rules" class="nav-tile">
@@ -17,12 +17,6 @@
         <div class="nav-tile-icon">&#9812;</div>
         <div class="nav-tile-title">Habilitats</div>
         <div class="nav-tile-desc">Habilitats i les seves accions</div>
-      </router-link>
-
-      <router-link to="/objects" class="nav-tile">
-        <div class="nav-tile-icon">&#128737;</div>
-        <div class="nav-tile-title">Objectes</div>
-        <div class="nav-tile-desc">Equipament i objectes</div>
       </router-link>
 
       <router-link to="/enemies" class="nav-tile">

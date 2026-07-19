@@ -137,9 +137,9 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
   actions: [
     action({
       id: 'granada-de-fragmentacio', name: 'Granada de fragmentació', skillId: 'enginyer-explosius',
-      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(1, 4), targetCount: 99,
+      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(1, 4), targetCount: 99, rollPerTarget: true,
       effects: [{ type: 'charge_cost', params: { amount: 1 } }],
-      desc: 'Afecta tots els enemics.',
+      desc: 'Afecta tots els enemics: tira els daus per a cadascun per separat.',
       icon: 'lorc/grenade.svg',
     }),
     action({
@@ -156,14 +156,14 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
         { type: 'charge_cost', params: { amount: 3 } },
         { type: 'lay_minefield', params: { mines: 3, damageSides: 6 } },
       ],
-      desc: 'Sembra 3 mines. Cada enemic que ataca té un 50% (d20 ≤ 10) de trepitjar-ne una i rebre 1d6, ignorant l’armadura. Duren fins que s’esgoten.',
+      desc: "Sembra 3 mines. Quan un enemic ataqui, tira un d20: amb 10 o menys, n'activa una i rep 1d6, ignorant l'armadura.",
       icon: 'skoll/minefield.svg',
     }),
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
       unlock: 4, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
       effects: [{ type: 'empty_bandolier', params: { sides: 6 } }],
-      desc: 'Afecta tots els enemics. Els daus d’atac són Nd6, on N és el nombre de càrregues que et queden: les gasta totes.',
+      desc: 'Gasta totes les càrregues: ataca amb tants d6 com càrregues gastades. Afecta tots els enemics.',
       icon: 'skoll/carpet-bombing.svg',
     }),
   ],

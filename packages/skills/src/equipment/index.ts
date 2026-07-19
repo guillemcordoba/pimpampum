@@ -1,6 +1,14 @@
-import { EquipmentDefinition, EquipmentSlot, DiceRoll } from '@pimpampum/engine';
+import { ActionType, EquipmentDefinition, EquipmentSlot } from '@pimpampum/engine';
+import { action, d } from '../types.js';
 
 const ICON = 'icons/000000/transparent/1x1/';
+
+/** Defense card granted by wearing a shield (unlock 0: needs no skill). */
+const ALCAR_ESCUT = action({
+  id: 'alcar-escut', name: "Alçar l'escut", skillId: 'escut', unlock: 0,
+  type: ActionType.Defensa, speed: 2, dice: d(2, 4),
+  desc: '', icon: 'willdabeast/round-shield.svg',
+});
 
 /** All equipment items. Heavy armour trades speed for protection. */
 export const ALL_EQUIPMENT: EquipmentDefinition[] = [
@@ -42,28 +50,29 @@ export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   },
   {
     id: 'escut', name: 'Escut', slot: EquipmentSlot.OffHand,
-    passiveArmor: 1, speedPenalty: 1, rollBonuses: [],
+    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
+    grantsActions: [ALCAR_ESCUT],
     iconPath: ICON + 'willdabeast/round-shield.svg', slotLabel: 'Mà secundària',
     description: '',
   },
   {
     id: 'destral', name: 'Destral', slot: EquipmentSlot.MainHand,
     passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
-    dice: new DiceRoll(1, 8),
+    attackBonus: 2,
     iconPath: ICON + 'delapouite/sharp-axe.svg', slotLabel: 'Mà principal',
     description: '',
   },
   {
     id: 'basto', name: 'Bastó', slot: EquipmentSlot.MainHand,
     passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
-    dice: new DiceRoll(1, 4),
+    attackBonus: 0,
     iconPath: ICON + 'delapouite/bo.svg', slotLabel: 'Mà principal',
     description: '',
   },
   {
     id: 'gran-destral', name: 'Gran destral', slot: EquipmentSlot.MainHand,
     passiveArmor: 0, speedPenalty: 1, rollBonuses: [],
-    dice: new DiceRoll(1, 12),
+    attackBonus: 4,
     iconPath: ICON + 'delapouite/war-axe.svg', slotLabel: 'Mà principal',
     description: '',
   },

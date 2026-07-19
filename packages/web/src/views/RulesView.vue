@@ -47,6 +47,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <ul>
           <li><strong>Defensar un aliat</strong>: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra, el dany el rep el <strong>defensor</strong>, no l'aliat.</li>
           <li><strong>Bloquejar un enemic</strong>: els enemics bloquejats fan totes les seves tirades d'atac contra el defensor. Els atacs que no trien objectiu (com els que afecten tots els enemics) no en són afectats.</li>
+          <li><strong>Defensa conjunta</strong>: si diverses defenses cobreixen el mateix atac — més d'un defensor defensant el mateix aliat (la defensa pròpia de l'aliat inclosa, si també s'ha defensat), o més d'un bloquejant el mateix enemic — formen un mur: l'atac es resol contra la <strong>suma</strong> de totes les seves tirades de defensa. Si l'atac supera la suma, el dany el rep el defensor amb la tirada individual més baixa. Si el mur perd per 2 o menys, <strong>tots</strong> els defensors del mur poden pujar de nivell.</li>
         </ul>
         <p>Com que els objectius es trien quan cada acció es resol, una defensa no afecta les accions que ja s'han resolt abans (per ser més ràpides).</p>
       </section>

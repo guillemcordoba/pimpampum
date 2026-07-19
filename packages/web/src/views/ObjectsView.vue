@@ -14,13 +14,13 @@ const categories = [
     id: 'armadura',
     displayName: 'Armadura',
     iconPath: ICON + 'lorc/armor-vest.svg',
-    cards: ALL_EQUIPMENT.filter(e => !e.dice).map(e => equipmentToDisplayProps(e)),
+    cards: ALL_EQUIPMENT.filter(e => e.attackBonus === undefined).map(e => equipmentToDisplayProps(e)),
   },
   {
     id: 'armes',
     displayName: 'Armes',
     iconPath: ICON + 'lorc/crossed-swords.svg',
-    cards: ALL_EQUIPMENT.filter(e => e.dice).map(e => equipmentToDisplayProps(e)),
+    cards: ALL_EQUIPMENT.filter(e => e.attackBonus !== undefined).map(e => equipmentToDisplayProps(e)),
   },
   {
     id: 'pocions',

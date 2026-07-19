@@ -1,5 +1,5 @@
 import { DiceRoll, rollDie } from './dice.js';
-import { Character, StatusEntry } from './character.js';
+import { Character, Guard, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
@@ -211,6 +211,35 @@ export class CombatEngine implements EngineApi, AIView {
     this.logEntries.push({ kind, message, team, round: this.round });
   }
 
+  /** One side of a contest for the log: `roll+bonus=total`, with `→total`
+   *  when statuses transformed the total away from the plain sum (attack
+   *  chains, clutch runes). Plain rolls collapse to just the number. */
+  private fmtContestSide(roll: number, bonus: number, total: number): string {
+    const base = bonus > 0 ? `${roll}+${bonus}` : bonus < 0 ? `${roll}−${Math.abs(bonus)}` : `${roll}`;
+    if (total === Math.max(0, roll + bonus)) return bonus !== 0 ? `${base}=${total}` : base;
+    return `${base}→${total}`;
+  }
+
+  /** The defense side of a contest line, with the defender's passive armour
+   *  folded into the displayed total so that atac − defensa = dany reads
+   *  directly off the line (armour is applied to the damage, not the contest). */
+  private fmtDefenseSide(roll: number, bonus: number, total: number, armor: number): string {
+    if (armor <= 0) return this.fmtContestSide(roll, bonus, total);
+    const base = bonus > 0 ? `${roll}+${bonus}` : bonus < 0 ? `${roll}−${Math.abs(bonus)}` : `${roll}`;
+    const adj = total !== Math.max(0, roll + bonus) ? `→${total}` : '';
+    return `${base}${adj}+${armor} armadura=${total + armor}`;
+  }
+
+  /** Damage breakdown for the log: the contest margin (or the full attack
+   *  total when undefended) minus armour, with `→dmg` when effects
+   *  transformed the result away from the plain subtraction. */
+  private fmtDamageDetail(base: number, armor: number, dmg: number, contested: boolean): string {
+    let s = contested ? `marge ${base}` : `impacte ${base}`;
+    if (armor > 0) s += `−${armor} armadura`;
+    if (dmg !== Math.max(0, base - armor)) s += `→${dmg}`;
+    return s;
+  }
+
   applyPvLoss(target: Character, amount: number, _source?: Character): boolean {
     if (amount <= 0) return !target.isAlive();
     // Statuses may clamp the loss (last stands, wards).
@@ -218,8 +247,9 @@ export class CombatEngine implements EngineApi, AIView {
       const f = ref.entry.behavior?.clampPvLoss;
       if (f) amount = f(ref, amount);
     }
+    const wasAlive = target.isAlive();
     const died = target.loseLife(amount);
-    if (died) this.log('death', `${target.name} cau derrotat!`, target.team);
+    if (died && wasAlive) this.log('death', `${target.name} cau derrotat!`, target.team);
     return died;
   }
 
@@ -238,30 +268,43 @@ export class CombatEngine implements EngineApi, AIView {
     const atkRoll = this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
-    const guard = this.activeGuard(target);
+    const guards = this.activeGuards(target);
+    const guard = guards.length === 1 ? guards[0] : null;
     let recipient = target;
     let hit = true;
     let margin = attackTotal;
-    if (guard) {
+    if (guards.length >= 2) {
+      // Defensa conjunta: extra attacks contest the summed wall too.
+      const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, guards, attackTotal);
+      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
+      ({ hit, margin } = resolveAttack(adjustedAttacker, sum));
+      if (hit) { if (checkSkillUp(margin)) for (const g of guards) g.defender.raiseSkill(g.action.skillId); }
+      else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
+      recipient = weak.g.defender;
+      if (!hit) { this.log('defense', `🛡️ El mur atura ${label}.`, recipient.team); return; }
+    } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
       const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
       let defenderTotal = Math.max(0, defRoll + defBonus);
-      this.log('roll', `🎲 ${label}: atac ${atkRoll}+${atkBonus}=${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
+      const defArmor = opts.ignoreArmor ? 0 : defender.getPassiveArmor();
+      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, defArmor)}`, source.team);
       ({ hit, margin } = resolveAttack(adjustedAttacker, defenderTotal));
       // Learning: the loser of the contest levels on a close loss.
       if (hit) { if (checkSkillUp(margin)) defender.raiseSkill(guard.action.skillId); }
       else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
       recipient = defender;
+      if (!hit) { this.log('defense', `🛡️ ${recipient.name} «${guard.action.name}» atura ${label}.`, recipient.team); return; }
+    } else {
+      const tgtArmor = opts.ignoreArmor ? 0 : target.getPassiveArmor();
+      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, attackTotal)} — ${target.name} no es defensa${tgtArmor > 0 ? ` (${tgtArmor} armadura)` : ''}`, source.team);
     }
-    if (!hit) { this.log('defense', `${recipient.name} bloqueja ${label}.`, recipient.team); return; }
     const dmgBase = this.applyOutgoingDamage(source, margin);
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
     const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgBase - armor)));
-    const dmgDetail = armor > 0 ? ` (marge ${dmgBase} − ${armor} armadura)` : ` (marge ${dmgBase})`;
-    this.log('attack', `${label} colpeja ${recipient.name} (${dmg} dany)${dmgDetail}.`, source.team);
+    this.log('attack', `💥 ${label} colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     // Only real damage interrupts a pending focus (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
@@ -287,14 +330,31 @@ export class CombatEngine implements EngineApi, AIView {
     return null;
   }
 
+  /** Every living guard covering `target` (self-guard included), in resolution
+   *  order. Two or more form a defensa conjunta wall that contests with the
+   *  sum of their rolls. Empty when a status prevents being guarded. */
+  private activeGuards(target: Character): Guard[] {
+    for (const ref of target.statusRefs()) {
+      if (ref.entry.behavior?.preventsGuard?.(ref)) return [];
+    }
+    return target.guards.filter(g => g.defender.isAlive());
+  }
+
+  /** Living blockers standing between `actor` and their targets. */
+  private livingBlockers(actor: Character): Guard[] {
+    return actor.blockers.filter(g => g.defender.isAlive());
+  }
+
   /** The target every chosen attack slot is forced onto when `actor` is
-   *  blocked. Null when unblocked, the blocker is dead, or the attack doesn't
-   *  choose targets (its count covers every living enemy — AoE is unaffected). */
+   *  blocked. Null when unblocked, every blocker is dead, or the attack
+   *  doesn't choose targets (its count covers every living enemy — AoE is
+   *  unaffected). With several blockers the nominal target is the first; the
+   *  joint wall contest decides who actually catches the blow. */
   private blockForcedTarget(actor: Character, count: number): Character | null {
-    const b = actor.blockedBy;
-    if (!b || !b.isAlive()) return null;
+    const wall = this.livingBlockers(actor);
+    if (!wall.length) return null;
     if (count >= this.livingTeam(1 - actor.team).length) return null;
-    return b;
+    return wall[0].defender;
   }
 
   private ctx(source: Character, action: ActionDefinition, params: Record<string, unknown>, extra: Partial<EffectContext> = {}): EffectContext {
@@ -369,6 +429,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Begin a round: advance round counter, apply stun/skip. */
   prepareRound(): RoundPrep {
     this.round++;
+    this.log('round', `⚔️ Ronda ${this.round}`);
     const skipping: TargetRef[] = [];
     this.skippingThisRound = new Set();
     for (const c of this.allLiving()) {
@@ -619,8 +680,9 @@ export class CombatEngine implements EngineApi, AIView {
           if (ally !== actor) ally.guards.push({ defender: actor, action: action.def });
         }
         // Block: the enemy loses target choice — every attack roll they make
-        // from now on is made against this defender. Last block resolved wins.
-        for (const e of blocked) e.blockedBy = actor;
+        // from now on is made against the blockers. Blocks stack: two or more
+        // blockers form a wall that contests with the SUM of their defenses.
+        for (const e of blocked) e.blockers.push({ defender: actor, action: action.def });
         const guardedOthers = allies.filter(a => a !== actor);
         if (blocked.length) {
           this.log('defense', `${actor.name} «${action.def.name}» bloqueja ${blocked.map(e => e.name).join(', ')}.`, actor.team);
@@ -651,9 +713,15 @@ export class CombatEngine implements EngineApi, AIView {
           list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         }
         list = this.applyTargetRedirects(actor, list);
-        // ONE attack roll per pass: every target defends against the same roll.
-        let baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
-        for (const t of list) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
+        // ONE attack roll per pass: every target defends against the same
+        // roll — unless the action declares rollPerTarget (fragmentation:
+        // fresh attack dice against each target).
+        const perTarget = !!action.def.rollPerTarget;
+        let baseRoll = perTarget ? 0 : this.rollDiceFor(actor, action.def.dice, 'attack');
+        for (const t of list) {
+          if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
+          this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
+        }
         // Generic repeat seam: statuses may grant extra full passes over the
         // still-living targets (stimulants, flurries). Each pass re-rolls.
         const repeats = this.collectAttackRepeats(actor);
@@ -661,8 +729,11 @@ export class CombatEngine implements EngineApi, AIView {
           if (!actor.isAlive()) break;
           const alive = list.filter(t => t.isAlive());
           if (alive.length === 0) break;
-          baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
-          for (const t of alive) this.resolveAttackOnTarget(actor, action, t, mods, baseRoll);
+          baseRoll = perTarget ? 0 : this.rollDiceFor(actor, action.def.dice, 'attack');
+          for (const t of alive) {
+            if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
+            this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
+          }
         }
         if (action.def.isConsumable) action.consumed = true;
         break;
@@ -805,7 +876,7 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods, baseRoll: number): void {
+  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods, baseRoll: number, forcedByBlock = false): void {
     const def = action.def;
     const mods: AttackModifiers = newAttackModifiers();
     this.dispatch('modifyAttack', source, def, { targets: [target], target, attackMods: mods });
@@ -830,6 +901,21 @@ export class CombatEngine implements EngineApi, AIView {
     const feintBlocked = mods.ignoreDefense
       && target.statusRefs().some(ref => ref.entry.behavior?.preventsGuardBypass?.(ref));
     const bypass = mods.ignoreDefense && !feintBlocked;
+    // Defensa conjunta: when several defenses cover the same attack — a wall
+    // of blockers this attack was forced onto, or 2+ guards on the target
+    // (the target's own self-guard included) — they contest jointly with the
+    // SUM of their defense rolls. A single defense resolves through the
+    // ordinary guard path below.
+    if (!bypass) {
+      const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
+      const wall = blockWall.length >= 2 && blockWall.some(g => g.defender === target)
+        ? blockWall
+        : this.activeGuards(target);
+      if (wall.length >= 2) {
+        this.resolveAttackOnWall(source, action, wall, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus);
+        return;
+      }
+    }
     const guard = bypass ? null : this.activeGuard(target);
     let recipient = target;
     let hit: boolean;
@@ -842,16 +928,19 @@ export class CombatEngine implements EngineApi, AIView {
     if (guard && guardAbsorbs) {
       // Absorbing guard: no contest — the blow lands in full on the guard.
       hit = true; margin = attackTotal; recipient = guard.defender;
-      this.log('defense', `${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
+      const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
+      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)}${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
+      this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
       const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
       let defenderTotal = Math.max(0, defRoll + defBonus);
-      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${attackTotal} vs ${defender.name} «${guard.action.name}»: defensa ${defRoll}+${defBonus}=${defenderTotal}`, source.team);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
+      const armor = mods.ignoreArmor ? 0 : defender.getPassiveArmor();
+      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, armor)}`, source.team);
       const res = resolveAttack(adjustedAttacker, defenderTotal);
       hit = res.hit; margin = res.margin;
       // Learning: the loser of the contest levels on a close loss (tie = the
@@ -864,13 +953,15 @@ export class CombatEngine implements EngineApi, AIView {
       // bypassed by the same legitimate feints that bypass live guards.
       const standing = bypass ? null : this.bestStandingGuard(target);
       if (standing) {
-        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${attackTotal} vs «${standing.key}» de ${target.name}: defensa ${standing.total}`, source.team);
         const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standing.total, 'attack');
+        const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
+        const defStr = armor > 0 ? `${standing.total}+${armor} armadura=${standing.total + armor}` : `${standing.total}`;
+        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs «${standing.key}» de ${target.name}: defensa ${defStr}`, source.team);
         const res = resolveAttack(adjustedAttacker, standing.total);
         if (!res.hit) {
           // Only the attacker can learn from a wall — it has no skill to raise.
           if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
-          this.log('defense', `«${standing.key}» atura l'atac de ${source.name} «${def.name}».`, target.team);
+          this.log('defense', `🛡️ «${standing.key}» atura l'atac de ${source.name} «${def.name}».`, target.team);
           this.dispatch('onAttackMiss', source, def, { targets: [target], target, hit: false, margin: res.margin });
           return;
         }
@@ -880,11 +971,13 @@ export class CombatEngine implements EngineApi, AIView {
         // Undefended: auto-hit, the damage is the full attack total. No
         // contest, no learning.
         hit = true; margin = attackTotal;
+        const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
+        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)} — ${target.name} no es defensa${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
       }
     }
 
     if (!hit && guard) {
-      this.log('defense', `${guard.defender.name} «${guard.action.name}» bloqueja l'atac de ${source.name} «${def.name}».`, guard.defender.team);
+      this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» atura l'atac de ${source.name} «${def.name}».`, guard.defender.team);
       this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin });
       this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source });
       return;
@@ -899,9 +992,7 @@ export class CombatEngine implements EngineApi, AIView {
     dmg += mods.bonusDamage;
     // Recipient statuses transform the incoming damage (marks, rages…).
     dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
-    const note = guard ? ` (penetra la defensa de ${guard.defender.name})` : '';
-    const dmgDetail = armor > 0 ? ` (marge ${margin} − ${armor} armadura)` : ` (marge ${margin})`;
-    this.log('attack', `${source.name} «${def.name}» colpeja ${recipient.name}${note}: ${dmg} dany${dmgDetail}.`, source.team);
+    this.log('attack', `💥 ${source.name} «${def.name}» colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     // Only real damage interrupts a pending focus (rules.md): a hit that the
     // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
@@ -910,6 +1001,59 @@ export class CombatEngine implements EngineApi, AIView {
     if (guard && recipient === guard.defender && dmg > 0) {
       this.dispatch('onBlockFail', guard.defender, guard.action, { targets: [target], target: source, damageDealt: dmg });
     }
+  }
+
+  /** Defensa conjunta (guard walls and block walls alike): the attack
+   *  contests the SUM of every wall member's defense roll. If the wall
+   *  breaks, the member with the lowest individual total (the weak link)
+   *  takes the penetrating damage; on a close breach (≤ SKILL_UP_MARGIN)
+   *  every member learns — they failed together. */
+  private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0): void {
+    const def = action.def;
+    const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal);
+    this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
+    const res = resolveAttack(adjustedAttacker, sum);
+    if (!res.hit) {
+      if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
+      this.log('defense', `🛡️ El mur atura l'atac de ${source.name} «${def.name}».`, wall[0].defender.team);
+      this.dispatch('onAttackMiss', source, def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin });
+      for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source });
+      return;
+    }
+    // The wall breaks: everyone on it learns from a close breach.
+    if (checkSkillUp(res.margin)) for (const g of wall) g.defender.raiseSkill(g.action.skillId);
+    const recipient = weak.g.defender;
+    let dmg = this.applyOutgoingDamage(source, res.margin);
+    dmg *= statusMods.damageMult ?? 1;
+    const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
+    dmg = Math.max(0, dmg - armor);
+    dmg += mods.bonusDamage;
+    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
+    this.log('attack', `💥 ${source.name} «${def.name}» trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
+    this.applyPvLoss(recipient, dmg, source);
+    this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin });
+    if (dmg > 0) {
+      this.dispatch('onBlockFail', recipient, weak.g.action, { targets: [source], target: source, damageDealt: dmg });
+    }
+  }
+
+  /** Roll every wall member's defense for a joint contest: individual totals,
+   *  the clutch-adjusted attacker total and defense sum (the attacker sees
+   *  the whole wall; each member adjusts their own share), the weak link
+   *  (lowest raw individual total, earliest on ties), and a log detail. */
+  private rollWall(source: Character, wall: Guard[], attackTotal: number): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
+    const rolls = wall.map(g => {
+      const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
+      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense');
+      return { g, total: Math.max(0, roll + bonus) };
+    });
+    const rawSum = rolls.reduce((s, r) => s + r.total, 0);
+    const adjustedAttacker = this.adjustContestTotal(source, attackTotal, rawSum, 'attack');
+    const sum = rolls.reduce((s, r) => s + this.adjustContestTotal(r.g.defender, r.total, adjustedAttacker, 'defense'), 0);
+    const weak = rolls.reduce((a, b) => (b.total < a.total ? b : a));
+    const sumStr = sum === rawSum ? `${sum}` : `${rawSum}→${sum}`;
+    const detail = `defensa ${rolls.map(r => `${r.g.defender.name} «${r.g.action.name}» ${r.total}`).join(' + ')} = ${sumStr}`;
+    return { adjustedAttacker, sum, weak, detail };
   }
 
   /** End-of-round: coordinated hooks, damage-over-time / regen, and turn advance. */

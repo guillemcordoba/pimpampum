@@ -81,7 +81,7 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Profecia de la fi: cancel one enemy's still-pending (slower) action.
+  // Negació: cancel one enemy's still-pending (slower) action.
   cancel_action: {
     onResolve(ctx) {
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
@@ -134,7 +134,7 @@ export const NIGROMANT: SkillDefinition = {
       icon: 'lorc/evil-hand.svg',
     }),
     action({
-      id: 'profecia-de-la-fi', name: 'Profecia de la fi', skillId: 'nigromant',
+      id: 'negacio', name: 'Negació', skillId: 'nigromant',
       unlock: 3, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'cancel_action', params: {} }],
       desc: "Cancel·la l'acció d'un enemic.",
@@ -149,7 +149,7 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(2, 6),
+      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(1, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
