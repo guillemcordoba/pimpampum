@@ -17,14 +17,13 @@ export function isFocusAction(t: ActionType): boolean {
   return t === ActionType.Focus;
 }
 
-/** Equipment slots. Keys are stable identifiers; Catalan labels live in EQUIPMENT display data. */
+/** Equipment slots — one item per slot. Deliberately minimal: a character
+ *  carries at most one armour, one weapon and one shield. No body-part
+ *  inventory, no main-hand/off-hand/two-handed bookkeeping. */
 export enum EquipmentSlot {
-  Torso = 'Torso',
-  Head = 'Head',
-  Arms = 'Arms',
-  Legs = 'Legs',
-  MainHand = 'MainHand',
-  OffHand = 'OffHand',
+  Armor = 'Armor',
+  Weapon = 'Weapon',
+  Shield = 'Shield',
 }
 
 /**

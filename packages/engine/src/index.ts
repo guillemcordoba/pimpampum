@@ -13,7 +13,7 @@ export { resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_MARGIN } from './r
 
 // Effects registry
 export { EffectRegistry, newAttackModifiers } from './effects.js';
-export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext } from './effects.js';
+export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext, ActionEvent } from './effects.js';
 
 // Status behaviours
 export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';

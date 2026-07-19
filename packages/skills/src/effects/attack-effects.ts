@@ -42,10 +42,11 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length >= 2 ? 1.5 : 0; },
   },
 
-  // +1 per other living ally, capped at `max`. `kind` selects roll bonus (default)
-  // or bonus damage (crossfire / coordinated strike / horde damage).
-  // `count: 'attackers'` counts allies (incl. self) that played an attack this
-  // round instead, uncapped by default (horde attack).
+  // +`amount` (default 1) per other living ally, capped at `max` allies.
+  // `kind` selects roll bonus (default) or bonus damage (crossfire /
+  // coordinated strike / horde damage). `count: 'attackers'` counts allies
+  // (incl. self) that played an attack this round instead, uncapped by
+  // default (horde attacks, pile-ons).
   crossfire: {
     modifyAttack(ctx) {
       const attackers = str(ctx.params, 'count', 'allies') === 'attackers';
@@ -56,11 +57,26 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
             return i !== null && a.actions[i].def.actionType === ActionType.Atac;
           }).length
         : ctx.engine.alliesOf(ctx.source, false).length;
-      const bonus = Math.min(max, count);
+      const bonus = Math.min(max, count) * num(ctx.params, 'amount', 1);
       if (str(ctx.params, 'kind', 'roll') === 'damage') ctx.attackMods!.bonusDamage += bonus;
       else ctx.attackMods!.rollBonus += bonus;
     },
     aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.2 : 0; },
+  },
+
+  // Flanking: undefendable when a living ally has ALREADY attacked the same
+  // target this round (reads the combat history) — gang-up knives, pack bites.
+  flanking: {
+    modifyAttack(ctx) {
+      if (!ctx.target || !ctx.attackMods) return;
+      const flanked = ctx.engine.history.some(e =>
+        e.round === ctx.engine.round
+        && e.actor !== ctx.source && e.actor.team === ctx.source.team
+        && e.action.actionType === ActionType.Atac
+        && e.targets.includes(ctx.target!));
+      if (flanked) ctx.attackMods.ignoreDefense = true;
+    },
+    aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.3 : 0.5; },
   },
 
   // Bonus attack roll now, but lowered defense. By default the defense penalty

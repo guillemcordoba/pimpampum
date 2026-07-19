@@ -84,7 +84,7 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
  *  (any weapon-using skill: Weapon Master, Berserk…). */
 export function wieldedWeaponBonus(c: Character): number | undefined {
   for (const e of c.equipment) {
-    if (e.slot === EquipmentSlot.MainHand && e.attackBonus !== undefined) return e.attackBonus;
+    if (e.slot === EquipmentSlot.Weapon && e.attackBonus !== undefined) return e.attackBonus;
   }
   return undefined;
 }

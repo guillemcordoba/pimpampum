@@ -12,7 +12,7 @@
 import { CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
 import {
   ENEMY_TEMPLATES, createEnemyFromTemplate, getEnemyTemplate,
-  levelFactor, partyStrength, WINRATE_K, ROLE_COUNT,
+  templateLevelFactor, partyStrength, WINRATE_K, ROLE_COUNT,
 } from '@pimpampum/enemies';
 import { REGISTRY, randomTeam, randInt, shuffle } from './tests/helpers.js';
 
@@ -60,7 +60,7 @@ function predict(s: Setup, beta: number, shared: boolean): number {
     const t = getEnemyTemplate(g.templateId)!;
     const probe = PROBE[t.role];
     const lambda = g.pv / t.basePV;
-    const u = t.threat * levelFactor(g.level, t.suggestedLevel) * Math.pow(probe, 1 - beta);
+    const u = t.threat * templateLevelFactor(t, g.level) * Math.pow(probe, 1 - beta);
     if (shared) eff += g.count * Math.pow(u * lambda, 1 / beta);
     else total += u * lambda * Math.pow(g.count, beta);
   }

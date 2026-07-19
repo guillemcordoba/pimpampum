@@ -3,7 +3,7 @@ import { Character, Guard, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
-  EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers,
+  EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent,
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { resolveAttack, checkSkillUp } from './resolution.js';
@@ -39,6 +39,9 @@ export interface RevealedAction {
   speed: number;
   classCss: string;
   iconPath: string;
+  /** The action never happened: cancelled while pending, its focus was
+   *  interrupted by damage, or the actor died first (UI: darken the card). */
+  cancelled?: boolean;
 }
 
 /** A request for the player to pick target(s) for the current action. */
@@ -117,6 +120,8 @@ export class CombatEngine implements EngineApi, AIView {
   readonly aiSharpness: number;
   round = 0;
   logEntries: LogEntry[] = [];
+  /** Every action that actually resolved this combat, in order (EngineApi.history). */
+  readonly history: ActionEvent[] = [];
 
   private plays: { team: number; actionId: string; actionType: ActionType }[] = [];
 
@@ -498,11 +503,30 @@ export class CombatEngine implements EngineApi, AIView {
       speed: p.speed,
       classCss: p.actor.characterClass,
       iconPath: p.action.def.iconPath,
+      cancelled: !!p.cancelled,
     };
   }
 
   get pendingCount(): number { return this.pending.length; }
   get currentPendingIndex(): number { return this.pendingIndex; }
+
+  /** Which queue items are already known to never happen — cancelled while
+   *  pending, a dead actor outside their simultaneous tier, or a focus whose
+   *  holder has been damaged (doomed the moment the hit lands, unless its own
+   *  tier's snapshot already exempted it). UI: darken those cards NOW, not
+   *  when their turn comes. */
+  pendingCancelled(): boolean[] {
+    return this.pending.map((p, i) => {
+      if (p.cancelled) return true;
+      if (i < this.pendingIndex) return false; // resolved, uncancelled
+      const sameTier = p.speed === this.tierSpeed;
+      if (!p.actor.isAlive() && !(sameTier && this.tierAlive.has(p.actor))) return true;
+      if (p.action.def.actionType === ActionType.Focus && p.actor.hitThisTurn) {
+        return sameTier ? this.tierInterrupted.has(p.actor) : true;
+      }
+      return false;
+    });
+  }
 
   /** Reveal-level view of this round's queue (AIView) — what everyone at the
    *  table knows once cards are flipped. */
@@ -603,6 +627,7 @@ export class CombatEngine implements EngineApi, AIView {
 
     // Actor died before this tier — skip silently.
     if (!this.tierAlive.has(cur.actor)) {
+      cur.cancelled = true;
       this.pendingIndex++;
       return { kind: 'resolved', logs: [], action: this.reveal(cur), done: this.pendingIndex >= this.pending.length };
     }
@@ -692,6 +717,7 @@ export class CombatEngine implements EngineApi, AIView {
         } else if (!blocked.length) {
           this.log('defense', `${actor.name} «${action.def.name}» es posa en guàrdia.`, actor.team);
         }
+        this.history.push({ round: this.round, actor, action: action.def, targets: targets.length ? [...targets] : [actor] });
         this.dispatch('onResolve', actor, action.def, { targets: targets.length ? targets : [actor] });
         break;
       }
@@ -713,6 +739,7 @@ export class CombatEngine implements EngineApi, AIView {
           list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
         }
         list = this.applyTargetRedirects(actor, list);
+        this.history.push({ round: this.round, actor, action: action.def, targets: [...list] });
         // ONE attack roll per pass: every target defends against the same
         // roll — unless the action declares rollPerTarget (fragmentation:
         // fresh attack dice against each target).
@@ -740,10 +767,12 @@ export class CombatEngine implements EngineApi, AIView {
       }
       case ActionType.Focus: {
         if (this.tierInterrupted.has(actor)) {
+          cur.cancelled = true;
           this.log('interrupt', `El focus «${action.def.name}» de ${actor.name} s'interromp!`, actor.team);
         } else {
           this.dispatchPlay(actor, action.def);
           this.log('focus', `${actor.name} usa «${action.def.name}».`, actor.team);
+          this.history.push({ round: this.round, actor, action: action.def, targets: [...targets] });
           this.dispatch('onResolve', actor, action.def, { targets });
           if (action.def.isConsumable) action.consumed = true;
         }
@@ -1069,12 +1098,12 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Each actor who took an action this round pays its fatigue cost (1 by
    *  default; esgotadora cards more). Skipping / stunned characters did not
-   *  act, so they don't tire. Dead actors are past caring. Interrupted focus
-   *  actions still tire — you exerted the will to start them. */
+   *  act, so they don't tire. Dead actors are past caring. CANCELLED actions
+   *  (interrupted focus, cancelled while pending) never happened — no cost. */
   private accumulateFatigue(): void {
     if (!FATIGUE_ENABLED) return;
     for (const p of this.pending) {
-      if (!p.actor.isAlive()) continue;
+      if (!p.actor.isAlive() || p.cancelled) continue;
       p.actor.fatigue += p.action.def.fatigueCost ?? 1;
     }
   }

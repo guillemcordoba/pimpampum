@@ -25,6 +25,6 @@ function makeWolf(): Character {
 }
 
 export const WOLF: EnemyModule = {
-  template: { id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg', role: 'horda', threat: 0.009, skills: ['wolf'], basePV: 5, suggestedLevel: 2 },
+  template: { id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg', role: 'horda', threat: 0.018, skills: ['wolf'], basePV: 5, suggestedLevel: 2 },
   skills: [WOLF_SKILL],
 };

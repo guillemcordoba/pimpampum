@@ -19,10 +19,11 @@ import { getEnemyTemplate } from './catalog.js';
 /** Winrate steepness (median of per-template logit fits, 2026-07-18 re-measure
  *  after the player-kit re-ordering pass). */
 export const WINRATE_K = 3.2;
-/** Party-strength scaling exponent: S(n) = (n/4)^α. Recomputed β-consistently
- *  from the goblin party probes (2026-07-18: S3 .64, S5 1.96, S6 3.47 →
- *  least-squares α ≈ 2.6 — party synergy steepened with the re-ordered kits). */
-export const PARTY_ALPHA = 2.6;
+/** Party-strength scaling exponent: S(n) = (n/4)^α. Measured with FIXED-count
+ *  probes (6 goblins, PV ladder only). Re-measured 2026-07-19 after the
+ *  armour rescale (parties squishier, less flat mitigation): S5 1.59, S6 2.36
+ *  → least-squares α ≈ 2.1. */
+export const PARTY_ALPHA = 2.1;
 /** PV-multiplier clamp for solved groups (linearity was measured within this). */
 export const PV_MULT_MIN = 0.4;
 export const PV_MULT_MAX = 3;
@@ -58,7 +59,7 @@ export const ROLE_COUNT: Record<EnemyTemplate['role'], [number, number]> = {
 };
 
 /** Handy target-winrate presets for UIs. The solver takes any winrate. */
-export const TARGET_WINRATES = { easy: 0.85, medium: 0.65, hard: 0.5, boss: 0.3 } as const;
+export const TARGET_WINRATES = { easy: 0.90, medium: 0.80, hard: 0.65, boss: 0.50 } as const;
 export type EncounterDifficulty = keyof typeof TARGET_WINRATES;
 
 /** Per-player skill-level sum the whole calibration was measured at (mean
@@ -69,51 +70,89 @@ export const PLAYER_REF_LEVELS = 6;
  * Strength factor of ONE player with `levels` total skill levels, relative
  * to the calibration-reference player (≡ 1 at PLAYER_REF_LEVELS).
  *
- * Measured 2026-07-18 AFTER the player-kit re-ordering pass (weakest actions
- * first, signature late — the ramp intention): budget sweep, λ50 logit fits
- * vs goblin×6 and bone-devil×3 probes. Implied g ≈ 0.77 at 2 levels, 0.93
- * at 5, 1.00 at 6.2, 1.10 at 7.5. Affine fit, log-RMSE 0.026.
+ * Measured 2026-07-19 AFTER the card-review pass (kits slimmed to 4-5 cards):
+ * budget sweep, λ50 logit fits vs goblin×6 and bone-devil×3 probes. Levels
+ * barely move party strength now — the first cards carry the player: implied
+ * g ≈ 0.93 at 2 levels, 0.99 at 3, 1.00 at 5-6, plateau ~1.05 above. Affine
+ * fit, log-RMSE 0.035.
  */
 export function playerLevelFactor(levels: number): number {
-  return 0.65 + 0.35 * (Math.max(1, levels) / PLAYER_REF_LEVELS);
+  return 0.85 + 0.15 * (Math.max(1, levels) / PLAYER_REF_LEVELS);
+}
+
+/** Calibration-mean worn armour: the random reference parties the threats
+ *  were measured against average this much passive armour. armorFactor(REF) ≡ 1. */
+export const PARTY_REF_ARMOR = 0.75;
+
+/**
+ * Party-strength multiplier for the party's AVERAGE worn armour. Armour is a
+ * small bounded lever now (max +2 worn), but not negligible — measured
+ * 2026-07-19 vs the goblin probe and tuned against solved-encounter
+ * validation (armour helps weaker random parties proportionally more than the
+ * strong probe party, so the effective slope is steeper). Anchored so the
+ * calibration mean (+0.75) ≡ 1. Slope ~0.28/point of armour.
+ */
+export function armorFactor(avgArmor: number): number {
+  return 1 + 0.28 * (Math.max(0, avgArmor) - PARTY_REF_ARMOR);
 }
 
 /**
  * Party strength (4 reference players ≡ 1). With `playerLevels` (each
  * player's total skill-level sum) every player counts as g(levels)
  * effective reference players; without it all players are assumed at the
- * reference budget.
+ * reference budget. `avgArmor` scales the whole party by armorFactor
+ * (defaults to the calibration mean → factor 1).
  */
-export function partyStrength(playerCount: number, playerLevels?: number[]): number {
+export function partyStrength(playerCount: number, playerLevels?: number[], avgArmor?: number): number {
   const eff = playerLevels?.length
     ? playerLevels.reduce((s, l) => s + playerLevelFactor(l), 0)
     : Math.max(1, playerCount);
-  return Math.pow(Math.max(0.25, eff) / 4, PARTY_ALPHA);
+  const armor = avgArmor === undefined ? 1 : armorFactor(avgArmor);
+  return armor * Math.pow(Math.max(0.25, eff) / 4, PARTY_ALPHA);
 }
 
 /**
- * Threat multiplier of a reduced kit (level < kit size). Enemy kits RAMP
- * (weakest attack at level 1, signature power late — intentions.md), and the
- * measured factors track the level fraction almost exactly (2026-07 ramped
- * kits: goblin ×0.49 at 2/4, golem ×0.53 at 3/5): half the kit ≈ half the
- * threat. Kits whose attacks all sit early (basilisc ×1.11 at 3/5) overshoot
- * — known per-kit variance.
+ * Threat multiplier of a reduced kit (level < kit size), FLAT-kit fallback:
+ * the 2026-07-19 card pass slimmed kits to their essentials, and reduced flat
+ * kits keep almost all their threat (measured ×0.91-1.09: golem L3/4,
+ * basilisc L3/5) — the early cards carry them. RAMPING kits (real power in
+ * the top cards, e.g. the goblin since the level-scaling redesign) instead
+ * carry MEASURED per-level multipliers on the template (levelThreat) and
+ * never use this formula.
  */
 export function levelFactor(level: number, kitSize: number): number {
   if (level >= kitSize) return 1;
-  return Math.max(0.3, level / kitSize);
+  return Math.min(1, 0.4 + level / kitSize);
+}
+
+/** Level multiplier for a template: measured per-level points when present
+ *  (linear interpolation between known points and toward 1 at
+ *  suggestedLevel; clamped to the lowest measured point below it), else the
+ *  global flat-kit formula. */
+export function templateLevelFactor(t: EnemyTemplate, level: number): number {
+  if (level >= t.suggestedLevel) return 1;
+  const table = t.levelThreat;
+  if (!table) return levelFactor(level, t.suggestedLevel);
+  if (table[level] !== undefined) return table[level];
+  const known = Object.keys(table).map(Number).sort((a, b) => a - b);
+  const below = known.filter(l => l < level).pop();
+  const above = known.find(l => l > level);
+  const lo = below !== undefined ? { l: below, f: table[below] } : undefined;
+  const hi = above !== undefined ? { l: above, f: table[above] } : { l: t.suggestedLevel, f: 1 };
+  if (!lo) return hi.f; // below the lowest measured point: clamp to it
+  return lo.f + (hi.f - lo.f) * (level - lo.l) / (hi.l - lo.l);
 }
 
 /** Threat of one body of `t` at `level` with its PV scaled by `pvMult`. */
 export function unitThreat(t: EnemyTemplate, level = t.suggestedLevel, pvMult = 1): number {
-  return t.threat * levelFactor(level, t.suggestedLevel) * pvMult;
+  return t.threat * templateLevelFactor(t, level) * pvMult;
 }
 
 /** Per-body base threat on the "effective bodies" scale: u = T·probe^(1−β).
  *  One body of the species contributes (u·λ)^(1/β) effective-body units. */
 function unitBase(t: EnemyTemplate, level = t.suggestedLevel): number {
   const probe = PROBE_COUNT[t.role];
-  return t.threat * levelFactor(level, t.suggestedLevel) * Math.pow(probe, 1 - COUNT_BETA);
+  return t.threat * templateLevelFactor(t, level) * Math.pow(probe, 1 - COUNT_BETA);
 }
 
 /** Threat of a GROUP: per-body threat anchored at the probe count, scaled
@@ -151,8 +190,8 @@ export function compositionThreat(groups: FieldedGroup[]): number {
 }
 
 /** Predicted player winrate against an arbitrary fielded composition. */
-export function predictEncounter(groups: FieldedGroup[], playerCount: number, playerLevels?: number[]): number {
-  return winrateForRatio(compositionThreat(groups) / partyStrength(playerCount, playerLevels));
+export function predictEncounter(groups: FieldedGroup[], playerCount: number, playerLevels?: number[], avgArmor?: number): number {
+  return winrateForRatio(compositionThreat(groups) / partyStrength(playerCount, playerLevels, avgArmor));
 }
 
 /** Predicted player winrate for a threat/strength ratio. */
@@ -171,7 +210,8 @@ export interface PoolSpec {
   templateId: string;
   /** Fixed body count; solved within role bounds when omitted. */
   count?: number;
-  /** Fielded skill level (kit ordinal); template's full kit when omitted. */
+  /** Fixed skill level (kit ordinal); SOLVED when omitted — the solver steps
+   *  levels down from the full kit before gutting PV. */
   level?: number;
 }
 
@@ -190,20 +230,23 @@ export interface SolvedEncounter {
   predictedWinrate: number;
   pvMult: number;
   ratio: number;
+  /** Average worn armour the solve assumed for the party — the combat should
+   *  equip the players to roughly match, or the promised winrate won't hold. */
+  partyArmor: number;
 }
 
 /**
- * Solve an encounter: pick body counts (where free) and a common PV
- * multiplier so the pool's total threat hits the budget implied by the
- * target winrate. Returns null for an empty/unknown pool.
+ * Solve an encounter: pick body counts, per-group LEVELS (where free) and a
+ * common PV multiplier so the pool's total threat hits the budget implied by
+ * the target winrate. Returns null for an empty/unknown pool.
  */
-export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinrate: number, playerLevels?: number[]): SolvedEncounter | null {
+export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinrate: number, playerLevels?: number[], avgArmor?: number): SolvedEncounter | null {
   const entries = pool
     .map(spec => ({ spec, template: getEnemyTemplate(spec.templateId) }))
     .filter((e): e is { spec: PoolSpec; template: EnemyTemplate } => !!e.template);
   if (entries.length === 0) return null;
 
-  const strength = partyStrength(playerCount, playerLevels);
+  const strength = partyStrength(playerCount, playerLevels, avgArmor);
   const budget = strength * ratioForWinrate(targetWinrate);
 
   // Counts: fixed ones are honoured. Free ones SNAP to the measured probe
@@ -226,25 +269,54 @@ export function solveEncounter(pool: PoolSpec[], playerCount: number, targetWinr
     return Math.min(hi, Math.max(lo, Math.round(drifted)));
   });
 
-  // Shared-economy aggregation (compositionThreat) — a common PV multiplier
-  // scales the total linearly, so the budget solve stays closed-form.
-  const baseThreat = compositionThreat(entries.map(({ spec, template }, i) => ({
-    templateId: template.id, count: counts[i], level: spec.level ?? template.suggestedLevel,
+  // Levels are an OUTPUT of the solver (enemies scale by levels, not PV):
+  // fixed levels are honoured; free ones start at the full kit and step DOWN
+  // one at a time ONLY while the needed PV multiplier sits below the anchor
+  // band — an easy budget fields green, few-action enemies instead of full
+  // kits with gutted PV — stopping as soon as PV is healthy again. The
+  // hysteresis biases toward FULLER kits (adding a body trims at most a
+  // level, it doesn't crash the kit).
+  const LEVEL_STEP_BELOW = 0.8;
+  const levels = entries.map(({ spec, template }) => spec.level ?? template.suggestedLevel);
+  const threatAt = () => compositionThreat(entries.map(({ template }, i) => ({
+    templateId: template.id, count: counts[i], level: levels[i],
   })));
+  // Don't step a group below the lowest level we have a MEASURED threat for
+  // (a ramped kit's curve is only known down to its lowest levelThreat key;
+  // below that a card-starved body is far weaker than the model assumes).
+  const minLevelOf = (t: EnemyTemplate) =>
+    t.levelThreat ? Math.min(...Object.keys(t.levelThreat).map(Number)) : 1;
+  let baseThreat = threatAt();
+  for (;;) {
+    if (budget / Math.max(0.001, baseThreat) >= LEVEL_STEP_BELOW) break;
+    let best: { i: number; threat: number; err: number } | null = null;
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].spec.level !== undefined || levels[i] <= minLevelOf(entries[i].template)) continue;
+      levels[i]--;
+      const t = threatAt();
+      const e = Math.abs(Math.log(budget / Math.max(0.001, t)));
+      levels[i]++;
+      if (!best || e < best.err) best = { i, threat: t, err: e };
+    }
+    if (!best) break;
+    levels[best.i]--;
+    baseThreat = best.threat;
+  }
   const pvMult = Math.min(PV_MULT_MAX, Math.max(PV_MULT_MIN, budget / Math.max(0.001, baseThreat)));
 
   const ratio = (baseThreat * pvMult) / strength;
   return {
-    groups: entries.map(({ spec, template }, i) => ({
+    groups: entries.map(({ template }, i) => ({
       templateId: template.id,
       count: counts[i],
-      level: spec.level ?? template.suggestedLevel,
+      level: levels[i],
       pv: Math.max(2, Math.round(template.basePV * pvMult)),
     })),
     targetWinrate,
     predictedWinrate: winrateForRatio(ratio),
     pvMult,
     ratio,
+    partyArmor: avgArmor ?? PARTY_REF_ARMOR,
   };
 }
 

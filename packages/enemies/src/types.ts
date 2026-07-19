@@ -27,8 +27,15 @@ export interface EnemyTemplate {
   /** Default skill level (ordinal: number of actions known) when none is
    *  supplied. Usually the full kit. */
   suggestedLevel: number;
+  /** MEASURED threat multiplier at reduced levels (vs the full kit at
+   *  suggestedLevel), for RAMPING kits whose top cards carry real power
+   *  (measure-threat.ts level probes). Missing levels interpolate linearly
+   *  between known points (and toward 1 at suggestedLevel); levels below the
+   *  lowest measured point clamp to it. Flat kits omit this and use the
+   *  global levelFactor. */
+  levelThreat?: Record<number, number>;
   /** Innate passive armour (scales, stone hide…). Equipped by the factory as
-   *  a synthetic Torso item so it flows through the normal armour pipeline. */
+   *  a synthetic Armor item so it flows through the normal armour pipeline. */
   naturalArmor?: number;
   /** Equipment ids the creature carries by default (goblin shields…). */
   equipment?: string[];

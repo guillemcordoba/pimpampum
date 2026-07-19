@@ -32,7 +32,7 @@ export function createEnemyFromTemplate(
     equipment.push({
       id: `${template.id}-armadura-natural`,
       name: 'Armadura natural',
-      slot: EquipmentSlot.Torso,
+      slot: EquipmentSlot.Armor,
       passiveArmor: template.naturalArmor,
       speedPenalty: 0,
       rollBonuses: [],

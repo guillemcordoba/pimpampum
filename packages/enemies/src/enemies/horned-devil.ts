@@ -19,6 +19,6 @@ const HORNED_DEVIL_SKILL: SkillDefinition = {
 };
 
 export const HORNED_DEVIL: EnemyModule = {
-  template: { id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', iconPath: ICON + 'delapouite/devil-mask.svg', role: 'solitari', threat: 0.165, skills: ['horned-devil'], basePV: 34, suggestedLevel: 5 },
+  template: { id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', iconPath: ICON + 'delapouite/devil-mask.svg', role: 'solitari', threat: 0.797, skills: ['horned-devil'], basePV: 100, suggestedLevel: 5 },
   skills: [HORNED_DEVIL_SKILL],
 };

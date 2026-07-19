@@ -102,7 +102,7 @@ function isHighlighted(team: number, idx: number): boolean {
                 v-for="({ r, action }, i) in revealedCards"
                 :key="i"
                 class="reveal-card"
-                :class="{ enemy: r.actorTeam === 1, current: isCurrent(i), resolved: isResolved(i) }"
+                :class="{ enemy: r.actorTeam === 1, current: isCurrent(i), resolved: isResolved(i), cancelled: r.cancelled }"
               >
                 <div class="reveal-card-name">
                   {{ r.actorName }}
@@ -210,6 +210,11 @@ function isHighlighted(team: number, idx: number): boolean {
 
 /* Already-resolved cards fade and desaturate. */
 .reveal-card.resolved { opacity: 0.4; filter: grayscale(0.85); }
+
+/* A cancelled action (interrupted focus, cancelled while pending, dead
+ * actor): the card goes DARK — it never happened. */
+.reveal-card.cancelled :deep(.mini-card) { filter: brightness(0.35) grayscale(0.9); }
+.reveal-card.cancelled .reveal-card-name { opacity: 0.5; text-decoration: line-through; }
 
 /* The card under resolution lifts and glows gold. */
 .reveal-card.current { transform: translateY(-4px); }

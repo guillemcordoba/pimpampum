@@ -52,6 +52,9 @@ export function useGame() {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
+    // Equip each hero with the armour entered for them, so the fight matches
+    // the promised winrate (the balancer prices for this armour).
+    const armorItem = (a: number) => a >= 2 ? 'armadura-de-ferro' : a >= 1 ? 'armadura-de-cuir' : null;
     playerSpecs.value = handoff.playerLevels.map((level, i) => {
       const candidates = shuffled.filter(s => s.actions.length >= level);
       // No kit that big: fall back to the deepest kits, clamped.
@@ -62,6 +65,8 @@ export function useGame() {
       const equipment: string[] = [];
       const usesWeapon = skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'));
       if (usesWeapon) equipment.push('destral');
+      const armorId = armorItem(handoff.playerArmor[i] ?? 1);
+      if (armorId) equipment.push(armorId);
       return {
         name: `Heroi ${i + 1}`,
         classCss: skill.classCss,
@@ -238,6 +243,12 @@ export function useGame() {
     // resolved
     currentTargetPrompt.value = null;
     currentStepIndex.value = eng.currentPendingIndex - 1;
+    // Re-sync the revealed card with its resolution outcome, and darken every
+    // card ALREADY known to never happen (a focus whose holder just took
+    // damage goes dark the moment the hit lands, not when its turn comes).
+    if (currentStepIndex.value >= 0) revealed.value[currentStepIndex.value] = step.action;
+    const doomed = eng.pendingCancelled();
+    revealed.value = revealed.value.map((r, i) => (doomed[i] && !r.cancelled ? { ...r, cancelled: true } : r));
     combatLog.value = [...eng.logEntries];
     highlightedTarget.value = inferHighlight(step.logs);
     if (step.done) roundComplete.value = true;

@@ -39,12 +39,9 @@ export const STAT_DISPLAY_NAMES = {
 
 /** Equipment slot Catalan labels. */
 export const SLOT_LABELS: Record<string, string> = {
-  Torso: 'Tors',
-  Head: 'Cap',
-  Arms: 'Braços',
-  Legs: 'Cames',
-  MainHand: 'Mà principal',
-  OffHand: 'Mà secundària',
+  Armor: 'Armadura',
+  Weapon: 'Arma',
+  Shield: 'Escut',
 };
 
 export interface RulesSection {

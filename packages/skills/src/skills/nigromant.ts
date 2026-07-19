@@ -81,20 +81,6 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Negació: cancel one enemy's still-pending (slower) action.
-  cancel_action: {
-    onResolve(ctx) {
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        const ok = ctx.engine.cancelPendingAction(t);
-        ctx.engine.log('focus', ok
-          ? `${ctx.source.name} preveu i cancel·la l'acció de ${t.name}.`
-          : `${ctx.source.name} no arriba a temps de cancel·lar ${t.name}.`, ctx.source.team);
-      }
-    },
-    getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
-    aiWeight() { return 1.4; },
-  },
-
   // Putrefacció: a contagious decay. Ticks `damage`/turn (armour-ignored);
   // spread to never-infected teammates — see the PUTREFACCIO behaviour above.
   plague: {
@@ -134,29 +120,22 @@ export const NIGROMANT: SkillDefinition = {
       icon: 'lorc/evil-hand.svg',
     }),
     action({
-      id: 'negacio', name: 'Negació', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Focus, speed: -1,
-      effects: [{ type: 'cancel_action', params: {} }],
-      desc: "Cancel·la l'acció d'un enemic.",
-      icon: 'lorc/dead-eye.svg',
-    }),
-    action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 4, type: ActionType.Focus, speed: -1,
+      unlock: 3, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'plague', params: { damage: 2, turns: 3 } }],
       desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 5: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(1, 6),
+      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(1, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 6, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
+      unlock: 5, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 2 } }],
       desc: 'Condemna tots els enemics (2 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

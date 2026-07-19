@@ -5,6 +5,7 @@ Pim Pam Pum has these intentions as a combat system:
 - All three action types (Atac, Defensa, Focus) should be good enough to see balanced play.
 - No action should be so good that it's the best choice every time, nor so bad it never sees play.
 - **Deliberate power tiers are fine, especially for objects.** Some cards and items are simply worse than others (a bastó is worse than a destral — and stays that way). Humble options are part of the fiction and the loot economy; parity is required between *skills* at equal level-sum, not between individual cards or items.
+- **Armour is a small tuning lever, never a load-bearing one.** Passive armour should nudge a party's durability, not decide fights. The full range from no armour to a maximal loadout must not swing a combat's outcome by more than ~15 percentage points, and its effect must be even across enemy types — never a hard counter to one archetype (a flat per-hit subtraction silently becomes one against many-small-hits swarms, where it can negate almost everything). Encounter balance must not assume armour the player isn't guaranteed to have. Tune armour so it stays a light passive, not a switch.
 - Making good decisions should matter more than winning because of powerful actions.
 - Anticipating others' plays should be greatly rewarded.
 - Combos between actions played in the same round should be among the best options when set up right (allies can agree on combos beforehand).

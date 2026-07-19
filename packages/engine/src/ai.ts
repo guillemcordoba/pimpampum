@@ -146,13 +146,17 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       w += woundedEnemies * 1.5; // finish wounded foes
       // Interrupt value: an undefended hit cancels a slower pending Focus,
       // so an attack that outspeeds enemies' focus cards is worth playing
-      // even when its dice are tiny (disruptor jabs).
+      // even when its dice are tiny (disruptor jabs). Strong enough to make
+      // the fast knife a real choice next to bigger dice.
       const disruptable = enemies.filter(e => e.actions.some(a =>
         a.def.actionType === ActionType.Focus
         && a.isAvailable()
         && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel
         && a.def.speed < def.speed)).length;
-      w += Math.min(2.1, 0.7 * disruptable);
+      w += Math.min(3.6, 1.2 * disruptable);
+      // First-strike prior: a fast attack lands before retaliation — and
+      // before same-round deaths can void it.
+      w += 0.2 * Math.min(4, Math.max(0, actor.getEffectiveSpeed(action)));
       if (strategy === AIStrategy.Aggro) w += 2;
       break;
     }

@@ -78,17 +78,21 @@ for (const t of ENEMY_TEMPLATES) {
   if (r) results[t.id] = { count, ...r };
 }
 
-console.log('\nParty strength (goblin probes):');
+// Party strength via FIXED-count probes: always the goblin probe count (6),
+// only the PV ladder moves — S(n) = λ50(n)/λ50(4) is PV-linear and free of
+// β count-scaling contamination (the old drifted-count probes were not).
+console.log('\nParty strength (fixed 6-goblin probes):');
 const goblin = ENEMY_TEMPLATES.find(t => t.id === 'goblin')!;
-const partyProbe: Record<number, { count: number; l50: number }> = {};
-for (const [n, count] of [[3, 5], [5, 8], [6, 9]] as const) {
-  const r = fit(goblin, count, n);
-  if (r) partyProbe[n] = { count, l50: r.l50 };
+const partyProbe: Record<number, { l50: number }> = {};
+for (const n of [3, 5, 6]) {
+  const r = fit(goblin, PROBE_COUNT[goblin.role], n);
+  if (r) partyProbe[n] = { l50: r.l50 };
 }
 
 console.log('\nLevel discount (reduced kits, threat multiplier vs full):');
 const levelProbes: { id: string; level: number; kit: number }[] = [
-  { id: 'goblin', level: 2, kit: 3 },
+  { id: 'goblin', level: 3, kit: 4 },
+  { id: 'goblin', level: 2, kit: 4 },
   { id: 'stone-golem', level: 3, kit: 4 },
   { id: 'basilisk', level: 3, kit: 5 },
 ];
@@ -108,12 +112,9 @@ console.log('threat per body at basePV (S4 ≡ 1, T = 1/(count·λ50)):');
 for (const [id, r] of Object.entries(results)) {
   console.log(`  ${id.padEnd(14)} T = ${(1 / (r.count * r.l50)).toFixed(3)}  (probe ×${r.count}, λ50 ${r.l50.toFixed(2)})`);
 }
-const Tg = 1 / (results['goblin'].count * results['goblin'].l50);
-const BETA = 2.0; // keep in sync with generator COUNT_BETA
-console.log('party strength S(n) (S4 = 1, β-consistent):');
+console.log('party strength S(n) = λ50(n)/λ50(4) (fixed-count probes):');
 for (const [n, p] of Object.entries(partyProbe)) {
-  const s = Tg * results['goblin'].count * Math.pow(p.count / results['goblin'].count, BETA) * p.l50;
-  console.log(`  S(${n}) = ${s.toFixed(2)}`);
+  console.log(`  S(${n}) = ${(p.l50 / results['goblin'].l50).toFixed(2)}`);
 }
 const ks = Object.values(results).map(r => r.k).sort((a, b) => a - b);
 console.log(`k (winrate steepness): [${ks.map(k => k.toFixed(1)).join(', ')}], median ${ks[Math.floor(ks.length / 2)].toFixed(2)}`);

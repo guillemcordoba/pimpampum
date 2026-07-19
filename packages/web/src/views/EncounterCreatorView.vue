@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   ENEMY_TEMPLATES, getEnemyTemplate, solveEncounter, TARGET_WINRATES,
-  PLAYER_REF_LEVELS,
   type PoolSpec,
 } from '@pimpampum/enemies';
 import { setPendingEncounter } from '../composables/pendingEncounter';
@@ -15,13 +14,27 @@ const playerCount = ref(4);
 const PLAYER_COUNTS = [3, 4, 5, 6];
 
 // Per-player total skill levels (an input to the balancer's party strength).
-const playerLevels = ref<number[]>(Array(4).fill(PLAYER_REF_LEVELS));
+// UI default: 5 levels per player (the balancer's calibration reference,
+// PLAYER_REF_LEVELS, stays 6 — the input just starts a notch below it).
+const DEFAULT_PLAYER_LEVELS = 5;
+const playerLevels = ref<number[]>(Array(4).fill(DEFAULT_PLAYER_LEVELS));
+// Per-player passive armour (0-2): a balancer input AND what each hero is
+// equipped with when combat begins.
+const DEFAULT_ARMOR = 1;
+const playerArmor = ref<number[]>(Array(4).fill(DEFAULT_ARMOR));
 watch(playerCount, n => {
-  const prev = playerLevels.value;
-  playerLevels.value = Array.from({ length: n }, (_, i) => prev[i] ?? PLAYER_REF_LEVELS);
+  const pl = playerLevels.value, pa = playerArmor.value;
+  playerLevels.value = Array.from({ length: n }, (_, i) => pl[i] ?? DEFAULT_PLAYER_LEVELS);
+  playerArmor.value = Array.from({ length: n }, (_, i) => pa[i] ?? DEFAULT_ARMOR);
 });
+function setPlayerArmor(i: number, value: number) {
+  const clamped = Math.max(0, Math.min(2, Math.round(value) || 0));
+  playerArmor.value = playerArmor.value.map((a, k) => (k === i ? clamped : a));
+}
+const avgArmor = computed(() =>
+  playerArmor.value.reduce((s, a) => s + a, 0) / Math.max(1, playerArmor.value.length));
 function setPlayerLevel(i: number, value: number) {
-  const clamped = Math.max(1, Math.min(20, Math.round(value) || PLAYER_REF_LEVELS));
+  const clamped = Math.max(1, Math.min(20, Math.round(value) || DEFAULT_PLAYER_LEVELS));
   playerLevels.value = playerLevels.value.map((l, k) => (k === i ? clamped : l));
 }
 
@@ -34,10 +47,11 @@ const PRESETS = [
   { label: 'Èpica', value: Math.round(TARGET_WINRATES.boss * 100) },
 ];
 
-// Composition: which species, how many (starts at 1), at which level.
-interface PoolRow { templateId: string; count: number; level: number; }
+// Composition: which species and how many. Levels are NOT an input — the
+// solver produces them (enemies scale by levels; green kits for easy fights).
+interface PoolRow { templateId: string; count: number; }
 const pool = ref<PoolRow[]>([
-  { templateId: 'goblin', count: 1, level: getEnemyTemplate('goblin')?.suggestedLevel ?? 1 },
+  { templateId: 'goblin', count: 1 },
 ]);
 
 const templateOf = (id: string) => getEnemyTemplate(id);
@@ -47,7 +61,7 @@ const unusedTemplates = computed(() =>
 function addSpecies(templateId: string): void {
   const t = getEnemyTemplate(templateId);
   if (!t) return;
-  pool.value.push({ templateId, count: 1, level: t.suggestedLevel });
+  pool.value.push({ templateId, count: 1 });
 }
 function removeSpecies(i: number): void {
   pool.value.splice(i, 1);
@@ -55,16 +69,12 @@ function removeSpecies(i: number): void {
 function bump(row: PoolRow, delta: number): void {
   row.count = Math.max(1, row.count + delta);
 }
-function levelOptions(templateId: string): number[] {
-  const kit = templateOf(templateId)?.suggestedLevel ?? 1;
-  return Array.from({ length: kit }, (_, i) => i + 1);
-}
 
 // --- The solve (pure & cheap: recomputed on every input change) --------------
 const solved = computed(() => {
   const specs: PoolSpec[] = pool.value.map(p =>
-    ({ templateId: p.templateId, count: p.count, level: p.level }));
-  return solveEncounter(specs, playerCount.value, winrate.value / 100, playerLevels.value);
+    ({ templateId: p.templateId, count: p.count }));
+  return solveEncounter(specs, playerCount.value, winrate.value / 100, playerLevels.value, avgArmor.value);
 });
 
 const predictedPct = computed(() =>
@@ -80,7 +90,7 @@ const clamped = computed(() =>
 const router = useRouter();
 function playEncounter(): void {
   if (!solved.value) return;
-  setPendingEncounter(solved.value, [...playerLevels.value]);
+  setPendingEncounter(solved.value, [...playerLevels.value], [...playerArmor.value]);
   router.push('/combat');
 }
 </script>
@@ -117,6 +127,18 @@ function playEncounter(): void {
         </div>
         <div class="winrate-caption">suma de nivells d'habilitat de cada jugador</div>
 
+        <div class="subhead spaced">Armadura dels jugadors</div>
+        <div class="levels-row">
+          <input
+            v-for="(a, i) in playerArmor" :key="i"
+            type="number" min="0" max="2" class="level-input"
+            :value="a"
+            title="Armadura passiva del jugador (0-2)"
+            @input="setPlayerArmor(i, Number(($event.target as HTMLInputElement).value))"
+          >
+        </div>
+        <div class="winrate-caption">armadura passiva (0-2); els herois l'equipen al combat</div>
+
         <div class="subhead spaced">Dificultat</div>
         <div class="choice-row">
           <button
@@ -152,11 +174,6 @@ function playEncounter(): void {
               <button type="button" class="step" @click="bump(p, +1)">+</button>
             </div>
 
-            <span class="level-label">nivell</span>
-            <select v-model.number="p.level" class="level-select" title="Nivell (accions que coneix)">
-              <option v-for="l in levelOptions(p.templateId)" :key="l" :value="l">{{ l }}</option>
-            </select>
-
             <button type="button" class="chip-x" title="Treu aquest enemic" @click="removeSpecies(i)">×</button>
           </div>
 
@@ -187,10 +204,7 @@ function playEncounter(): void {
               <span class="result-count">{{ g.count }}×</span>
               <span class="result-name">{{ templateOf(g.templateId)?.displayName }}</span>
               <span class="result-detail">
-                <template v-if="g.level < (templateOf(g.templateId)?.suggestedLevel ?? g.level)">
-                  nivell <strong>{{ g.level }}</strong> (coneix les primeres {{ g.level }} accions) ·
-                </template>
-                <strong>{{ g.pv }}</strong> PV cadascun
+                nivell <strong>{{ g.level }}</strong> · <strong>{{ g.pv }}</strong> PV cadascun
               </span>
             </div>
           </div>
@@ -214,10 +228,11 @@ function playEncounter(): void {
 </template>
 
 <style scoped>
-.creator-page { padding: 1rem 2rem; max-width: 1500px; margin: 0 auto; }
+.creator-page { padding: 1rem 2rem; max-width: 1250px; margin: 0 auto; }
 
 .layout {
-  display: grid; grid-template-columns: minmax(240px, 1fr) minmax(320px, 1.5fr) minmax(320px, 1.5fr);
+  display: grid; grid-template-columns: minmax(240px, 280px) minmax(300px, 1fr) minmax(380px, 1.5fr);
+  justify-content: center;
   gap: 2rem; align-items: start; margin-top: 1.5rem;
 }
 @media (max-width: 1100px) {

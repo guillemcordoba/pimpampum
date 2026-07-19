@@ -2,6 +2,18 @@ import { DiceRoll } from './dice.js';
 import { Character } from './character.js';
 import { ActionDefinition, TargetRequirement } from './types.js';
 
+/** One action that actually happened in this combat: who played what, at whom,
+ *  in which round. Attacks record their FINAL target list (after redirects);
+ *  defenses their chosen guard/block targets; interrupted focuses are NOT
+ *  recorded (they never happened). Content queries it via EngineApi.history
+ *  (flanking, ripostes-at-repeat-offenders, pattern-reading seers…). */
+export interface ActionEvent {
+  round: number;
+  actor: Character;
+  action: ActionDefinition;
+  targets: Character[];
+}
+
 /**
  * The slice of the combat engine that effect handlers are allowed to touch.
  * Implemented by CombatEngine and passed to handlers via EffectContext so that
@@ -10,6 +22,9 @@ import { ActionDefinition, TargetRequirement } from './types.js';
 export interface EngineApi {
   /** Current round number (1-based). */
   readonly round: number;
+
+  /** Everything that has happened so far, in resolution order (see ActionEvent). */
+  readonly history: ReadonlyArray<ActionEvent>;
 
   /** Append a line to the combat log. `kind` drives colour/category in the UI. */
   log(kind: string, message: string, team?: number): void;

@@ -69,16 +69,18 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.4 : 0; },
   },
 
-  // Traca final: an all-enemies ATTACK whose dice are the ENTIRE bandolier —
-  // Nd6 with N = càrregues left, all spent on play (erupció pattern: the
-  // count is stamped in a round-scoped status and injected at roll time).
+  // Traca final: an all-enemies ATTACK that spends the ENTIRE bandolier —
+  // Nd4 with N = càrregues spent, capped at `max` dice (the surplus burns
+  // off; erupció pattern: the count is stamped in a round-scoped status and
+  // injected at roll time).
   empty_bandolier: {
     canPlay(actor) { return charges(actor) >= 1; },
     onPlay(ctx) {
-      const n = charges(ctx.source);
+      const total = charges(ctx.source);
+      const n = Math.min(total, num(ctx.params, 'max', 99));
       setCharges(ctx.source, 0);
       ctx.source.setStatus('traca-encesa', n, 1);
-      ctx.engine.log('attack', `${ctx.source.name} encén la traca final amb ${n} càrregues!`, ctx.source.team);
+      ctx.engine.log('attack', `${ctx.source.name} encén la traca final amb ${total} càrregues!`, ctx.source.team);
     },
     modifyAttack(ctx) {
       const n = ctx.source.getStatusValue('traca-encesa', 0);
@@ -162,8 +164,8 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
       unlock: 4, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
-      effects: [{ type: 'empty_bandolier', params: { sides: 6 } }],
-      desc: 'Gasta totes les càrregues: ataca amb tants d6 com càrregues gastades. Afecta tots els enemics.',
+      effects: [{ type: 'empty_bandolier', params: { sides: 4, max: 4 } }],
+      desc: 'Gasta totes les càrregues: ataca amb 1d4 per càrrega (màx. 4d4). Afecta tots els enemics.',
       icon: 'skoll/carpet-bombing.svg',
     }),
   ],
