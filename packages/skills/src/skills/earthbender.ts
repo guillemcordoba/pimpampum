@@ -1,31 +1,15 @@
-import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { standingWallAction } from '../cards/index.js';
 import { num } from '../effects/helpers.js';
 
 /**
  * Dominador de la terra — Toph-style earthbending: the immovable counter-
  * striker. Waits, listens through the ground, answers head-on. The most
  * defensa-weighted skill in the game: a wall that keeps standing until
- * something smashes through it (the generic standingGuard seam), and a
- * capstone that swallows an enemy whole.
+ * something smashes through it (the SHARED Mur de pedra card, cards/
+ * standing-wall.ts), and a capstone that swallows an enemy whole.
  */
-
-// Mur de terra: a standing slab. While it stands, attacks on the holder are
-// contested against the CASTER's defense roll; the first blow that penetrates
-// shatters it (onStandingGuardBroken) and lands on the holder.
-const MUR: StatusBehavior = {
-  standingGuard(ctx) {
-    const data = ctx.entry.data ?? {};
-    const caster = data.caster as Character | undefined;
-    if (!caster || !caster.isAlive()) { ctx.holder.clearStatus(ctx.key); return; }
-    const roll = ctx.engine.rollDiceFor(caster, data.dice as DiceRoll | undefined, 'defense');
-    return roll + caster.getRollBonus('earthbender', 'defense') + num(data, 'bonus', 2);
-  },
-  onStandingGuardBroken(ctx) {
-    ctx.holder.clearStatus(ctx.key);
-    ctx.engine.log('defense', `El mur de terra que protegia ${ctx.holder.name} es fa miques!`, ctx.holder.team);
-  },
-};
 
 // Presó de terra: swallowed whole — unreachable, and pinned so only Focus
 // actions (concentration needs no limbs) can be played.
@@ -35,25 +19,6 @@ const ENTERRAT: StatusBehavior = {
 };
 
 const TERRA_EFFECTS: Record<string, EffectHandler> = {
-  // Raise a persistent wall on the guarded ally (rides the Defensa flow: this
-  // round the earthbender guards normally; the wall status takes over after).
-  earth_wall: {
-    onResolve(ctx) {
-      for (const t of ctx.targets) {
-        if (t.team !== ctx.source.team) continue; // walls rise for allies, not blocked enemies
-        t.setStatus('mur-de-terra', 1, -1, { caster: ctx.source, bonus: ctx.action.rollBonus ?? 0, dice: ctx.action.dice }, MUR);
-        ctx.engine.log('defense', `Un mur de pedra s'alça davant ${t.name} — i s'hi queda.`, t.team);
-      }
-    },
-    aiWeight(ctx) {
-      // Walls don't advance the win condition — worth it for a wounded,
-      // unwalled ally; a poor default otherwise (overplaying stalls fights).
-      const unwalled = [ctx.actor, ...ctx.allies].filter(a => !a.hasStatus('mur-de-terra'));
-      if (unwalled.length === 0) return -10;
-      return unwalled.some(a => a.currentPV < a.maxPV * 0.6) ? 1.0 : -1.5;
-    },
-  },
-
   // Presó de terra: the earth swallows the chosen enemy whole — no contest.
   bury: {
     getTargetRequirement() { return 'enemy'; },
@@ -91,13 +56,7 @@ export const EARTHBENDER: SkillDefinition = {
       desc: "Si encerta, l'objectiu surt llançat: −2 de velocitat el torn següent.",
       icon: 'delapouite/ionic-column.svg',
     }),
-    action({
-      id: 'mur-de-terra', name: 'Mur de terra', skillId: 'earthbender',
-      unlock: 3, type: ActionType.Defensa, speed: 0, dice: d(2, 10), fatigueCost: 3,
-      effects: [{ type: 'earth_wall' }],
-      desc: 'El mur persisteix: mentre és dret, els atacs contra el protegit es resolen contra la teva defensa. El primer atac que el travessa el destrueix.',
-      icon: 'heavenly-dog/defensive-wall.svg',
-    }),
+    standingWallAction({ skillId: 'earthbender', unlock: 3 }),
     action({
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
       unlock: 4, type: ActionType.Focus, speed: -1, fatigueCost: 3,

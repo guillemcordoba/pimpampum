@@ -6,6 +6,9 @@ export {
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 
+// Shared cards (one card, several skills — see cards/index.ts)
+export { standingWallAction } from './cards/index.js';
+
 // Effects
 export { registerAllEffects, ALL_EFFECTS, EFFECT_TYPES } from './effects/index.js';
 export { maxCharges, EXPLOSIVE_SKILL_ID } from './skills/explosives-engineer.js';

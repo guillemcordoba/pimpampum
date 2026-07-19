@@ -3,6 +3,7 @@ import { ATTACK_EFFECTS } from './attack-effects.js';
 import { FOCUS_EFFECTS } from './focus-effects.js';
 import { DEFENSE_EFFECTS } from './defense-effects.js';
 import { WEAPON_EFFECTS } from './weapon-effects.js';
+import { SHARED_CARD_EFFECTS } from '../cards/index.js';
 
 /**
  * Generic, parameterised effect handlers shared across skills, keyed by the
@@ -15,6 +16,7 @@ export const ALL_EFFECTS: Record<string, EffectHandler> = {
   ...FOCUS_EFFECTS,
   ...DEFENSE_EFFECTS,
   ...WEAPON_EFFECTS,
+  ...SHARED_CARD_EFFECTS,
 };
 
 /** Register the generic effect handlers on an EffectRegistry. */

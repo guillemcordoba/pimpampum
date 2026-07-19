@@ -4,7 +4,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "concurrently -k \"pnpm --filter engine exec tsc --watch --preserveWatchOutput\" \"pnpm --filter web dev\"",
-    "simulate": "pnpm --filter simulator start"
+    "simulate": "pnpm --filter @pimpampum/simulator start"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
