@@ -28,6 +28,11 @@ import { createRegistry, buildReferenceParty, PartySpec } from '@pimpampum/skill
 import { EnemyDefinition, fullKitLevel } from './types.js';
 import { getEnemy, registerEnemySkills } from './catalog.js';
 import { createEnemyFrom } from './factory.js';
+import { leanChooser } from './ai-policy.js';
+
+/** The balancer plays with the distilled lean AI (see ai-policy.ts) — the
+ *  strength of this policy IS the meaning of every difficulty number. */
+const BALANCER_CHOOSER = leanChooser();
 
 /** A concrete fielded group (what actually stands on the table). */
 export interface FieldedGroup {
@@ -103,7 +108,9 @@ export function simulateEncounter(groups: FieldedGroup[], party: PartySpec, opts
       // Simulated players need a strategy; enemies carry their template's.
       assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
       const enemies = buildComposition(groups);
-      const result = new CombatEngine(players, enemies, { registry, maxRounds }).runCombat();
+      const result = new CombatEngine(players, enemies, {
+        registry, maxRounds, actionChooser: BALANCER_CHOOSER,
+      }).runCombat();
       if (result.winner === 0) wins += 1;
       else if (result.winner === null) wins += 0.5;
       rounds += result.rounds;

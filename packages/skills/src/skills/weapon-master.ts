@@ -96,8 +96,8 @@ export const MESTRE_ARMES: SkillDefinition = {
     action({
       id: 'estat-de-flux', name: 'Estat de flux', skillId: 'mestre-armes',
       unlock: 4, type: ActionType.Focus, speed: -4,
-      effects: [{ type: 'flow_state' }],
-      desc: 'Durant la resta del combat, després de revelar les cartes, pots canviar la teva carta per una altra.',
+      effects: [{ type: 'flow_state' }, { type: 'empower', params: { amount: 6, turns: 2 } }],
+      desc: "Durant la resta del combat, després de revelar les cartes, pots canviar la teva carta per una altra. El teu proper atac té {A}+6.",
       icon: 'lorc/meditation.svg',
     }),
     action({

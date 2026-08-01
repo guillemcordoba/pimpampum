@@ -2,6 +2,13 @@
 export { DiceRoll, rollDie } from './dice.js';
 export { random, setRng, seededRng, withSeed } from './rng.js';
 
+// Learned lean policy (weights distilled from the search AI)
+export {
+  LearnedPolicy, policyFeatures, policyContext, POLICY_WEIGHTS,
+  POLICY_FEATURE_NAMES, POLICY_FEATURE_COUNT,
+} from './policy.js';
+export type { PolicyFeatures, PolicyContext } from './policy.js';
+
 // Core types
 export { ActionType, EquipmentSlot, isAttack, isDefenseAction, isFocusAction } from './types.js';
 export type {
@@ -32,7 +39,7 @@ export type { StatusEntry, Guard, CreateCharacterOptions } from './character.js'
 // Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
 export type {
-  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions,
+  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser,
   RevealedAction, TargetPrompt, StepResult, RoundPrep,
 } from './combat.js';
 

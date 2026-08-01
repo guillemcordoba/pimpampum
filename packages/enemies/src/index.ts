@@ -19,6 +19,7 @@ export {
   solveEncounter, generateEncounter, simulateEncounter, buildComposition,
   TARGET_WINRATES, PV_MIN, PV_MAX,
 } from './simulate.js';
+export { leanChooser, isPolicyTrained } from './ai-policy.js';
 export type {
   PoolSpec, SolvedGroup, SolvedEncounter, EncounterDifficulty, FieldedGroup,
   SimOptions, SimResult, SolveOptions,

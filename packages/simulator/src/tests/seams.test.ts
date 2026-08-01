@@ -541,3 +541,76 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
     expect(d.currentPV).toBe(15);
   });
 });
+
+describe('combat cloning (the lookahead primitive)', () => {
+  function runRoundRaw(engine: CombatEngine, selections: { team: number; idx: number; actionIdx: number; targets?: { team: number; idx: number }[] }[]): void {
+    engine.prepareRound();
+    engine.planActions(selections);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') {
+      if (r.kind === 'target') throw new Error('unexpected target prompt in test');
+      r = engine.resolveNextAction();
+    }
+    engine.finishRound();
+  }
+
+  it('a clone plays forward without touching the original', () => {
+    const a = makeChar('A', 20, [atkDef('cop', { rollBonus: 5 })]);
+    const b = sac(30);
+    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+
+    const copy = engine.clone();
+    const [copyA] = copy.teams[0];
+    const [copyB] = copy.teams[1];
+    expect(copyA).not.toBe(a);              // genuinely separate objects
+    expect(copyB).not.toBe(b);
+
+    runRoundRaw(copy, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+
+    expect(copyB.currentPV).toBeLessThan(30); // the clone advanced…
+    expect(b.currentPV).toBe(30);             // …and the original did not
+    expect(copy.round).toBe(1);
+    expect(engine.round).toBe(0);
+    expect(engine.history).toHaveLength(0);
+    expect(copy.history.length).toBeGreaterThan(0);
+  });
+
+  it('clones statuses, modifiers and consumed cards without sharing them', () => {
+    const BEHAVIOR: StatusBehavior = { modifySpeed() { return 0; } };
+    const a = makeChar('A', 20, [atkDef()]);
+    const b = sac();
+    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    a.setStatus('prova', 3, 5, { n: 1 }, BEHAVIOR);
+
+    const copy = engine.clone();
+    const copyA = copy.teams[0][0];
+    expect(copyA.getStatusValue('prova')).toBe(3);
+    expect(copyA.getStatus('prova')!.behavior).toBe(BEHAVIOR); // shared, not copied
+
+    copyA.setStatus('prova', 99, 5, { n: 2 }, BEHAVIOR);
+    copyA.actions[0].consumed = true;
+    expect(a.getStatusValue('prova')).toBe(3);      // original untouched
+    expect(a.getStatus('prova')!.data!.n).toBe(1);
+    expect(a.actions[0].consumed).toBe(false);
+  });
+
+  it('rewires cross-character references (guards and Characters parked in status data)', () => {
+    const LINK: StatusBehavior = {};
+    const a = makeChar('A', 20, [defenseDef('g', { dice: new DiceRoll(1, 1) })]);
+    const ally = makeChar('B', 20, [focusDef()]);
+    const foe = sac();
+    const engine = new CombatEngine([a, ally], [foe], { registry: REGISTRY });
+    ally.guards = [{ defender: a, action: a.actions[0].def }];
+    ally.setStatus('lligat', 1, -1, { binder: foe }, LINK);
+
+    const copy = engine.clone();
+    const [copyA, copyAlly] = copy.teams[0];
+    const [copyFoe] = copy.teams[1];
+    // The clone's guard must point at the CLONE's defender, not the original.
+    expect(copyAlly.guards[0].defender).toBe(copyA);
+    expect(copyAlly.guards[0].defender).not.toBe(a);
+    // …and so must a Character sitting inside an inert status payload.
+    expect(copyAlly.getStatus('lligat')!.data!.binder).toBe(copyFoe);
+    expect(copyAlly.getStatus('lligat')!.data!.binder).not.toBe(foe);
+  });
+});

@@ -1,4 +1,4 @@
-import { CombatModifier } from './modifier.js';
+import { CombatModifier, ModifierDuration } from './modifier.js';
 import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
@@ -28,6 +28,11 @@ export interface Guard {
   defender: Character;
   /** The defense action providing the guard (for skill/rollBonus/effects). */
   action: ActionDefinition;
+}
+
+/** Copy a modifier duration (the object form carries mutable countdown state). */
+function cloneDuration(d: ModifierDuration): ModifierDuration {
+  return typeof d === 'object' ? { ...d } : d;
 }
 
 /**
@@ -95,6 +100,83 @@ export class Character {
 
   isAlive(): boolean {
     return this.currentPV > 0;
+  }
+
+  /**
+   * Deep-copy the MUTABLE combat state, sharing every immutable definition
+   * (ActionDefinition, EquipmentDefinition, StatusBehavior). Used by lookahead
+   * search, which must play a round forward and then throw the result away.
+   *
+   * Cross-character references (guards, blockers, and any Character a status
+   * parked in its `data` payload) are NOT resolved here — they point at
+   * originals until `remapRefs` runs with the full original→copy map, because
+   * the whole roster has to exist before they can be rewired.
+   */
+  cloneState(): Character {
+    const copy = new Character(
+      this.name,
+      this.maxPV,
+      new Map(this.skills),
+      this.actions.map(a => {
+        const inst = new ActionInstance(a.def);
+        inst.consumed = a.consumed;
+        return inst;
+      }),
+      this.characterClass,
+      this.category,
+      this.iconPath,
+    );
+    copy.team = this.team;
+    copy.aiStrategy = this.aiStrategy;
+    copy.currentPV = this.currentPV;
+    copy.equipment = [...this.equipment];
+    copy.modifiers = this.modifiers.map(m => {
+      const c = new CombatModifier(m.stat, m.value, cloneDuration(m.duration));
+      c.dice = m.dice;
+      c.source = m.source;
+      c.condition = m.condition;
+      return c;
+    });
+    copy.statuses = new Map(
+      [...this.statuses].map(([k, e]) => [k, {
+        value: e.value,
+        remaining: e.remaining,
+        data: e.data ? { ...e.data } : undefined,
+        behavior: e.behavior,
+      }]),
+    );
+    copy.skipTurns = this.skipTurns;
+    copy.hitThisTurn = this.hitThisTurn;
+    copy.hitThisCombat = this.hitThisCombat;
+    copy.playedActionIdx = this.playedActionIdx;
+    copy.setAsideActions = new Map(this.setAsideActions);
+    copy.fatigue = this.fatigue;
+    // guards/blockers are wired up by remapRefs.
+    return copy;
+  }
+
+  /**
+   * Second clone pass: rewire every reference that points at another
+   * character. Status `data` is an inert payload the engine never interprets,
+   * but content does park Character references in it (a binder, a summoner),
+   * so identities are remapped generically wherever they appear.
+   */
+  remapRefs(source: Character, map: Map<Character, Character>): void {
+    const remapGuards = (guards: Guard[]): Guard[] =>
+      guards.map(g => ({ defender: map.get(g.defender) ?? g.defender, action: g.action }));
+    this.guards = remapGuards(source.guards);
+    this.blockers = remapGuards(source.blockers);
+    for (const [key, entry] of this.statuses) {
+      const original = source.statuses.get(key);
+      if (!original?.data || !entry.data) continue;
+      for (const [k, v] of Object.entries(original.data)) {
+        if (v instanceof Character) {
+          entry.data[k] = map.get(v) ?? v;
+        } else if (Array.isArray(v) && v.some(x => x instanceof Character)) {
+          entry.data[k] = v.map(x => (x instanceof Character ? map.get(x) ?? x : x));
+        }
+      }
+    }
   }
 
   // --- Skills ---------------------------------------------------------------

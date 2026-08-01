@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   ENEMY_DEFINITIONS, getEnemy, solveEncounter, TARGET_WINRATES,
   type PoolSpec, type SolvedEncounter,
 } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
+import type { SolveRequest, SolveReply } from '../workers/solve-worker';
 import { setPendingEncounter } from '../composables/pendingEncounter';
 
 const base = import.meta.env.BASE_URL;
@@ -32,8 +33,6 @@ function setPlayerArmor(i: number, value: number) {
   const clamped = Math.max(0, Math.min(2, Math.round(value) || 0));
   playerArmor.value = playerArmor.value.map((a, k) => (k === i ? clamped : a));
 }
-const avgArmor = computed(() =>
-  playerArmor.value.reduce((s, a) => s + a, 0) / Math.max(1, playerArmor.value.length));
 function setPlayerLevel(i: number, value: number) {
   const clamped = Math.max(1, Math.min(20, Math.round(value) || DEFAULT_PLAYER_LEVELS));
   playerLevels.value = playerLevels.value.map((l, k) => (k === i ? clamped : l));
@@ -73,12 +72,24 @@ function bump(row: PoolRow, delta: number): void {
 
 // --- The solve --------------------------------------------------------------
 // The balancer PLAYS the encounter a few hundred times rather than predicting
-// it from a formula, so a solve costs ~1-2s. It runs debounced and off the
-// render path; `solving` drives the UI's pending state.
+// it from a formula, so a solve costs ~1-2s of solid CPU. That runs in a
+// WORKER: on the main thread it froze the page, and — worse — a synchronous
+// solve cannot be interrupted, so bumping the enemy count during one meant
+// waiting for it to finish before anything responded.
+//
+// Cancellation is `terminate()`. There is no cooperative abort to ask for: the
+// solve is one long synchronous call inside the worker, so killing the worker
+// outright is the only thing that actually stops the work.
 const solved = ref<SolvedEncounter | null>(null);
 const solving = ref(false);
 let solveToken = 0;
 let solveTimer: ReturnType<typeof setTimeout> | undefined;
+let worker: Worker | null = null;
+
+function disposeWorker(): void {
+  worker?.terminate();
+  worker = null;
+}
 
 function runSolve(): void {
   const token = ++solveToken;
@@ -92,25 +103,55 @@ function runSolve(): void {
   const target = winrate.value / 100;
   if (specs.length === 0) { solved.value = null; solving.value = false; return; }
   solving.value = true;
-  // Yield a frame so the pending state paints before the simulation blocks.
-  setTimeout(() => {
+
+  // A previous solve may still be burning CPU — kill it before starting another.
+  disposeWorker();
+  try {
+    worker = new Worker(new URL('../workers/solve-worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (event: MessageEvent<SolveReply>) => {
+      const reply = event.data;
+      if (reply.id !== token) return;          // a newer solve superseded this one
+      solved.value = reply.ok ? reply.result : null;
+      solving.value = false;
+      disposeWorker();
+    };
+    worker.onerror = () => {
+      // Fall back to solving inline rather than leaving the panel spinning.
+      disposeWorker();
+      if (token !== solveToken) return;
+      solved.value = solveEncounter(specs, party, target);
+      solving.value = false;
+    };
+    const request: SolveRequest = { id: token, pool: specs, party, target };
+    worker.postMessage(request);
+  } catch {
+    // No worker support: solve inline. The page will hitch, but it still works.
     const result = solveEncounter(specs, party, target);
-    if (token !== solveToken) return; // a newer solve superseded this one
+    if (token !== solveToken) return;
     solved.value = result;
     solving.value = false;
-  }, 0);
+  }
 }
 
 watch(
   [pool, playerCount, playerLevels, playerArmor, winrate],
   () => {
-    solveToken++;             // invalidate whatever is in flight
+    // Invalidate and STOP whatever is in flight, so a run of rapid clicks does
+    // not queue up solves behind each other.
+    solveToken++;
+    disposeWorker();
     solving.value = true;
     clearTimeout(solveTimer);
     solveTimer = setTimeout(runSolve, 350);
   },
   { deep: true, immediate: true },
 );
+
+// Leaving the page mid-solve must not leave a worker chewing CPU.
+onBeforeUnmount(() => {
+  clearTimeout(solveTimer);
+  disposeWorker();
+});
 
 const predictedPct = computed(() =>
   solved.value ? Math.round(solved.value.predictedWinrate * 100) : null);

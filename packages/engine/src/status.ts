@@ -30,6 +30,9 @@ export interface StatusHookContext extends StatusRef {
 
 /** Multipliers a status applies to the holder's attack action. */
 export interface AttackStatusMods {
+  /** Flat bonus added to the attacker's dice total BEFORE any multiplier —
+   *  the "charged strike" shape: prepare a turn, hit far harder. */
+  attackRollBonus?: number;
   /** Multiplies the attacker's dice total — which is also the damage basis
    *  (pre-armour), since damage is the margin. */
   attackTotalMult?: number;

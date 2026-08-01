@@ -9,6 +9,11 @@ Pim Pam Pum has these intentions as a combat system:
 - Making good decisions should matter more than winning because of powerful actions.
 - Anticipating others' plays should be greatly rewarded.
 - Combos between actions played in the same round should be among the best options when set up right (allies can agree on combos beforehand).
+- **The game should feel SWINGY, and swing should come from reads rather than from dice.** A round is a bet: everyone commits blind, and the reveal should pay out hard in both directions.
+  - **Guessing right must feel like a save.** Playing a defense into the attack it turns out to intercept should visibly rescue someone — the difference between having guessed right and having guessed wrong is a big chunk of a character's health, not a rounding error.
+  - **Catching someone undefended must feel brutal.** An attack that lands on a target with no defense up should take a large fraction of them off the table, not chip them. The punishment is what makes the guess matter.
+  - **The intended shape is set up → execute.** Focus cards buff, mark or expose; the follow-up attack then hits so hard it can effectively remove an opponent in one blow. A big attack that lands unopposed after a turn of preparation is *supposed* to be a kill, and telegraphing that preparation is what gives the other side its chance to answer.
+  - This is deliberately in tension with "prefer many smaller dice": tight dice make the *contest* predictable, which is what lets the READ, rather than the roll, carry the swing. Swing comes from the size of the payoff, not the variance of the roll.
 - Combats should be dynamic, not stuck repeating the same move.
 - **Combats should not go on for more than ~5 rounds.** This applies to all combats, including symmetric AI-vs-AI mirror matches — they may not stall longer either. The starting PV (provisionally 12) and the dice on the cards are the main levers; tune them via simulation.
 - **Speed ordering: most defenses are faster than most attacks, and most focuses are slow.** Exceptions are allowed and interesting (a lightning-fast strike, a heavy slow guard), but the bulk of cards should follow the ordering.

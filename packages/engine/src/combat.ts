@@ -103,12 +103,22 @@ interface PendingAction {
   cancelled?: boolean;
 }
 
+/**
+ * Picks the action index for an AI-driven actor. Return null to fall back to
+ * the built-in weighted heuristic. This is the seam a search- or
+ * policy-driven AI plugs into; it stays content-agnostic (the engine hands
+ * over itself and the actor, and gets back an index into the actor's hand).
+ */
+export type ActionChooser = (engine: CombatEngine, actor: Character) => number | null;
+
 export interface CombatEngineOptions {
   registry: EffectRegistry;
   maxRounds?: number;
   /** AI decisiveness: exponent on action weights (1 = soft sampling, higher =
    *  greedier, human-like play). Default 2. */
   aiSharpness?: number;
+  /** Override how AI actors choose their card (search AI, learned policy). */
+  actionChooser?: ActionChooser;
 }
 
 const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound'] as const;
@@ -119,6 +129,8 @@ export class CombatEngine implements EngineApi, AIView {
   readonly teams: [Character[], Character[]];
   readonly maxRounds: number;
   readonly aiSharpness: number;
+  /** Optional policy override for AI action choice (search/learned AI). */
+  actionChooser?: ActionChooser;
   round = 0;
   logEntries: LogEntry[] = [];
   /** Every action that actually resolved this combat, in order (EngineApi.history). */
@@ -138,11 +150,78 @@ export class CombatEngine implements EngineApi, AIView {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
     this.aiSharpness = opts.aiSharpness ?? 2;
+    this.actionChooser = opts.actionChooser;
     this.teams = [teamA, teamB];
     teamA.forEach(c => { c.team = 0; });
     teamB.forEach(c => { c.team = 1; });
     for (const c of [...teamA, ...teamB]) c.resetForNewCombat();
     this.dispatchCombatStart();
+  }
+
+  /**
+   * Deep-copy the whole combat so a caller can play it forward and throw the
+   * result away — the primitive lookahead search is built on.
+   *
+   * Immutable definitions (actions, equipment, status behaviours, the effect
+   * registry) are SHARED; everything mutable is copied and every
+   * cross-character reference is rewired to the copies. The clone starts with
+   * an empty log (nothing reads logs mid-search) but keeps the combat history,
+   * which content does read — `flanking` asks whether an ally already struck
+   * this target this round.
+   */
+  clone(): CombatEngine {
+    const map = new Map<Character, Character>();
+    const cloneTeam = (team: Character[]): Character[] => team.map(c => {
+      const copy = c.cloneState();
+      map.set(c, copy);
+      return copy;
+    });
+    const teams: [Character[], Character[]] = [cloneTeam(this.teams[0]), cloneTeam(this.teams[1])];
+    for (const [original, copy] of map) copy.remapRefs(original, map);
+    const at = (c: Character): Character => map.get(c) ?? c;
+
+    // Bypass the constructor: it would reset every combatant and re-fire the
+    // onCombatStart hooks, wiping the state we are trying to preserve.
+    const e = Object.create(CombatEngine.prototype) as CombatEngine;
+    // The readonly fields can only be written during construction, and this
+    // instance never ran one.
+    const fixed = e as unknown as {
+      registry: EffectRegistry; teams: [Character[], Character[]];
+      maxRounds: number; aiSharpness: number; history: ActionEvent[];
+    };
+    fixed.registry = this.registry;
+    fixed.teams = teams;
+    fixed.maxRounds = this.maxRounds;
+    fixed.aiSharpness = this.aiSharpness;
+    e.actionChooser = this.actionChooser;
+    fixed.history = this.history.map(ev => ({
+      round: ev.round,
+      actor: at(ev.actor),
+      action: ev.action,
+      targets: ev.targets.map(at),
+    }));
+    e.round = this.round;
+    e.logEntries = [];
+    e.plays = this.plays.map(p => ({ ...p }));
+    e.pending = this.pending.map(p => {
+      const actor = at(p.actor);
+      // ActionInstances are cloned alongside their owner, so find the copy by
+      // position in the owner's hand rather than by identity.
+      const idx = p.actor.actions.indexOf(p.action);
+      return {
+        actor,
+        action: idx >= 0 ? actor.actions[idx] : p.action,
+        speed: p.speed,
+        targets: p.targets ? p.targets.map(at) : null,
+        cancelled: p.cancelled,
+      };
+    });
+    e.pendingIndex = this.pendingIndex;
+    e.tierSpeed = this.tierSpeed;
+    e.tierAlive = new Set([...this.tierAlive].map(at));
+    e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
+    e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
+    return e;
   }
 
   /** Run every effect's onCombatStart hook once per combatant (resource init). */
@@ -467,8 +546,11 @@ export class CombatEngine implements EngineApi, AIView {
         action = c.actions[sel.actionIdx];
         targets = sel.targets ? sel.targets.map(t => this.resolveRef(t)) : null;
       } else {
-        const planned = selectAction(this, c);
-        action = c.actions[planned.actionIdx];
+        const chosen = this.actionChooser?.(this, c) ?? null;
+        const idx = chosen !== null && this.canPlayActionIdx(c, chosen)
+          ? chosen
+          : selectAction(this, c).actionIdx;
+        action = c.actions[idx];
         targets = null; // AI targets at resolution time, with reveal-level info
       }
       if (!action) continue;
@@ -924,7 +1006,9 @@ export class CombatEngine implements EngineApi, AIView {
       + this.attackRollBonusAgainst(target);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
-    const attackTotal = Math.max(0, (baseRoll + extraDice + atkBonus) * (statusMods.attackTotalMult ?? 1));
+    const attackTotal = Math.max(0,
+      (baseRoll + extraDice + atkBonus + (statusMods.attackRollBonus ?? 0))
+      * (statusMods.attackTotalMult ?? 1));
 
     // Feints bypass the guard entirely (treated as undefended) — unless a
     // status on the target vetoes the bypass (seismic awareness & co.).

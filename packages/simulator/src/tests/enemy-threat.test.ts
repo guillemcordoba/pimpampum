@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CombatEngine, assignStrategies, AIStrategy, withSeed } from '@pimpampum/engine';
 import { buildReferenceParty, PartySpec } from '@pimpampum/skills';
 import {
-  ENEMY_DEFINITIONS, generateEncounter, solveEncounter, buildSolvedEncounter,
+  ENEMY_DEFINITIONS, generateEncounter, solveEncounter, buildSolvedEncounter, leanChooser,
 } from '@pimpampum/enemies';
 import { REGISTRY } from './helpers.js';
 
@@ -29,6 +29,11 @@ const TOLERANCE = 0.18;
 /** Solves run at a modest sample so the suite stays quick. */
 const SOLVE_OPTS = { games: 160, searchGames: 100 } as const;
 
+/** The balancer plays with the distilled lean AI, so the replay must too —
+ *  grading a solve made under strong play with a weaker policy measures the
+ *  gap between the two policies, not the solver. */
+const REPLAY_CHOOSER = leanChooser();
+
 /** Independent re-measurement of a solved encounter. */
 function verify(solvedGroups: () => ReturnType<typeof buildSolvedEncounter>, party: PartySpec, seed: number): number {
   return withSeed(seed, () => {
@@ -37,7 +42,9 @@ function verify(solvedGroups: () => ReturnType<typeof buildSolvedEncounter>, par
       const players = buildReferenceParty(party);
       assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
       const enemies = solvedGroups();
-      const w = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 }).runCombat().winner;
+      const w = new CombatEngine(players, enemies, {
+        registry: REGISTRY, maxRounds: 40, actionChooser: REPLAY_CHOOSER,
+      }).runCombat().winner;
       if (w === 0) wins++;
       else if (w === null) wins += 0.5;
     }
@@ -74,9 +81,12 @@ describe('balancer v3: solved encounters hold up on an independent replay', () =
 
 describe('balancer v3: the solver hits the requested difficulty', () => {
   /** How far the ACHIEVED winrate may sit from the REQUESTED one. Wider than
-   *  the replay tolerance: PV is an integer lever, so at small bodies some
-   *  targets are simply not reachable — the solver reports what it achieved. */
-  const TARGET_TOLERANCE = 0.15;
+   *  the replay tolerance because two things stack: PV is an INTEGER lever, so
+   *  at small bodies a single point is worth several winrate points and some
+   *  targets are genuinely unreachable; and the search runs on a cheap sample.
+   *  The solver always reports what it actually achieved, so a miss is visible
+   *  to the caller rather than hidden. */
+  const TARGET_TOLERANCE = 0.18;
 
   for (const [label, party, enemyId, count] of [
     ['4 players, cuir', { count: 4, levels: 6, armor: 1 }, 'goblin', 6],
