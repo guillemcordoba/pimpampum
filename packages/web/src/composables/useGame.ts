@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
 import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter, PLAYER_SKILLS } from '@pimpampum/skills';
-import { createEnemyFromTemplate, getEnemyTemplate, registerEnemySkills } from '@pimpampum/enemies';
+import { createEnemyFrom, getEnemy, registerEnemySkills } from '@pimpampum/enemies';
 import { takePendingEncounter } from './pendingEncounter';
 
 export type GamePhase = 'setup' | 'card-selection' | 'reveal' | 'resolving' | 'victory';
@@ -18,13 +18,13 @@ export interface PlayerSpec {
   potions: string[];
 }
 
-/** An enemy entry in the setup screen (template + level + equipment).
- *  `pv` overrides the template's hand-set `basePV`. */
+/** An enemy entry in the setup screen. Creatures carry no printed PV — the
+ *  encounter decides it, so `pv` is always explicit. */
 export interface EnemySpec {
-  templateId: string;
+  enemyId: string;
   level: number;
   equipment: string[];
-  pv?: number;
+  pv: number;
 }
 
 const registry = createRegistry();
@@ -45,7 +45,7 @@ export function useGame() {
   if (handoff) {
     enemySpecs.value = handoff.encounter.groups.flatMap(g =>
       Array.from({ length: g.count }, () =>
-        ({ templateId: g.templateId, level: g.level, equipment: [], pv: g.pv })));
+        ({ enemyId: g.enemyId, level: g.level, equipment: [], pv: g.pv })));
 
     const shuffled = [...PLAYER_SKILLS];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -129,10 +129,11 @@ export function useGame() {
 
   function buildEnemies(): Character[] {
     return enemySpecs.value.map((s, i) => {
-      const t = getEnemyTemplate(s.templateId);
-      if (!t) throw new Error(`Unknown enemy ${s.templateId}`);
-      const levels = Object.fromEntries(t.skills.map(sk => [sk, s.level]));
-      return createEnemyFromTemplate(t, levels, `${t.displayName} ${i + 1}`, s.equipment, s.pv);
+      const t = getEnemy(s.enemyId);
+      if (!t) throw new Error(`Unknown enemy ${s.enemyId}`);
+      return createEnemyFrom(t, {
+        pv: s.pv, level: s.level, name: `${t.displayName} ${i + 1}`, equipment: s.equipment,
+      });
     });
   }
 

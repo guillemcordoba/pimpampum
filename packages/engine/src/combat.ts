@@ -1,4 +1,5 @@
 import { DiceRoll, rollDie } from './dice.js';
+import { random } from './rng.js';
 import { Character, Guard, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
@@ -481,7 +482,7 @@ export class CombatEngine implements EngineApi, AIView {
     // every tie (defenses up before same-speed enemy attacks, etc. — a
     // measured ~52/48 seat bias). Shuffle before sorting so tie order is fair.
     for (let i = built.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [built[i], built[j]] = [built[j], built[i]];
     }
     built.sort((a, b) => b.speed - a.speed);
@@ -964,7 +965,7 @@ export class CombatEngine implements EngineApi, AIView {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
       const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
-      let defenderTotal = Math.max(0, defRoll + defBonus);
+      let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
@@ -982,11 +983,12 @@ export class CombatEngine implements EngineApi, AIView {
       // bypassed by the same legitimate feints that bypass live guards.
       const standing = bypass ? null : this.bestStandingGuard(target);
       if (standing) {
-        const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standing.total, 'attack');
+        const standingTotal = Math.max(0, standing.total - mods.defensePenalty);
+        const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standingTotal, 'attack');
         const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
-        const defStr = armor > 0 ? `${standing.total}+${armor} armadura=${standing.total + armor}` : `${standing.total}`;
+        const defStr = armor > 0 ? `${standingTotal}+${armor} armadura=${standingTotal + armor}` : `${standingTotal}`;
         this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs «${standing.key}» de ${target.name}: defensa ${defStr}`, source.team);
-        const res = resolveAttack(adjustedAttacker, standing.total);
+        const res = resolveAttack(adjustedAttacker, standingTotal);
         if (!res.hit) {
           // Only the attacker can learn from a wall — it has no skill to raise.
           if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
@@ -1040,8 +1042,10 @@ export class CombatEngine implements EngineApi, AIView {
   private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0): void {
     const def = action.def;
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal);
-    this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
-    const res = resolveAttack(adjustedAttacker, sum);
+    // A defense penalty bites the wall's joint total once, not once per member.
+    const wallTotal = Math.max(0, sum - mods.defensePenalty);
+    this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
+    const res = resolveAttack(adjustedAttacker, wallTotal);
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${source.name} «${def.name}».`, wall[0].defender.team);

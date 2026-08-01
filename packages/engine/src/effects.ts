@@ -86,6 +86,11 @@ export interface AttackModifiers {
   ignoreArmor: boolean;
   /** Treat the target as undefended — ignore any active guard (feints). */
   ignoreDefense: boolean;
+  /** Subtracted from whatever defense total contests this attack — a guard, a
+   *  standing wall, or the SUM of a joint wall (clamped at 0). Unlike
+   *  `rollBonus` it does nothing to an undefended target: it weakens a
+   *  defense rather than strengthening the blow (gang-ups, off-balance). */
+  defensePenalty: number;
   /** Skip this target entirely — no roll, no damage (e.g. an attack that only
    *  strikes marked targets passes over everyone else). */
   skip: boolean;
@@ -98,7 +103,7 @@ export interface AttackModifiers {
 }
 
 export function newAttackModifiers(): AttackModifiers {
-  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, skip: false, bonusDamage: 0, extraDamageDice: [] };
+  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, defensePenalty: 0, skip: false, bonusDamage: 0, extraDamageDice: [] };
 }
 
 /** Context handed to an effect handler hook. Fields are populated per-hook. */

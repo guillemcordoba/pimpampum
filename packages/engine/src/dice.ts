@@ -1,6 +1,8 @@
+import { random } from './rng.js';
+
 /** Roll a single die with the given number of sides (1..sides). */
 export function rollDie(sides: number): number {
-  return Math.floor(Math.random() * sides) + 1;
+  return Math.floor(random() * sides) + 1;
 }
 
 /** Represents a dice roll like 1d6, 2d4, or 1d4-1 */
@@ -15,7 +17,7 @@ export class DiceRoll {
   roll(): number {
     let total = 0;
     for (let i = 0; i < this.numDice; i++) {
-      total += Math.floor(Math.random() * this.sides) + 1;
+      total += Math.floor(random() * this.sides) + 1;
     }
     return Math.max(0, total + this.modifier);
   }

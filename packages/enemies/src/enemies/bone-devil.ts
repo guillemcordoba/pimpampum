@@ -1,6 +1,6 @@
 import { ActionType, AIStrategy } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const BONE_DEVIL_SKILL: SkillDefinition = {
   id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', category: 'enemy',
@@ -17,7 +17,8 @@ const BONE_DEVIL_SKILL: SkillDefinition = {
   ],
 };
 
-export const BONE_DEVIL: EnemyModule = {
-  template: { id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', iconPath: ICON + 'lorc/daemon-skull.svg', role: 'elit', threat: 0.267, skills: ['bone-devil'], basePV: 18, suggestedLevel: 3, aiStrategy: AIStrategy.Power },
+export const BONE_DEVIL: EnemyDefinition = {
+  id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', iconPath: ICON + 'lorc/daemon-skull.svg',
+  aiStrategy: AIStrategy.Power,
   skills: [BONE_DEVIL_SKILL],
 };

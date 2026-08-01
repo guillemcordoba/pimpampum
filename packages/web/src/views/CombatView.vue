@@ -28,6 +28,7 @@ const isFullscreen = computed(() => game.gamePhase.value !== 'setup');
     <VictoryScreen
       v-if="game.gamePhase.value === 'victory'"
       :winner="game.winner.value"
+      :log="game.combatLog.value"
       @play-again="game.playAgain()"
     />
   </div>

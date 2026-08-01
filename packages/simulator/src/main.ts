@@ -1,8 +1,8 @@
-import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy } from '@pimpampum/engine';
-import { getAction } from '@pimpampum/skills';
+import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy, withSeed } from '@pimpampum/engine';
+import { getAction, buildReferenceParty } from '@pimpampum/skills';
 import {
-  ENEMY_TEMPLATES, TARGET_WINRATES, generateEncounter,
-  createEnemyFromTemplate, getEnemyTemplate,
+  ENEMY_DEFINITIONS, TARGET_WINRATES, generateEncounter,
+  createEnemyFrom, getEnemy,
 } from '@pimpampum/enemies';
 import {
   REGISTRY, randomTeam, runMatch,
@@ -60,28 +60,44 @@ function mirrorBalance(size: number, budget: number, games: number): void {
     .forEach(a => console.log(`   ${(getAction(a.id)?.name ?? a.id).padEnd(24)} plays ${String(a.plays).padStart(5)}  win ${a.pct.toFixed(1)}%`));
 }
 
+/** Bodies fielded per template in the parametric check — this script's choice
+ *  of a natural-looking fight, not data the content carries. */
+const FIELDED: Record<string, number> = {
+  goblin: 6, 'spined-devil': 6, wolf: 6,
+  'goblin-shaman': 3, 'bone-devil': 3, 'stone-golem': 3,
+  basilisk: 1, 'horned-devil': 1,
+};
+
 // --- Parametric balancer check: solved encounters vs their promised winrate --
 function parametricAnalysis(playerCount: number, perPlayerBudget: number, games: number): void {
-  console.log(`\n=== Balancer v2 (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
+  console.log(`\n=== Balancer v3 — simulated (${playerCount} players @ budget ${perPlayerBudget}, ${games} games/cell) ===`);
   for (const [label, target] of Object.entries(TARGET_WINRATES)) {
     const cells: string[] = [];
-    for (const template of ENEMY_TEMPLATES) {
-      const gen = generateEncounter(template, playerCount, target);
+    for (const template of ENEMY_DEFINITIONS) {
+      // Grade against the SAME party spec the solver targeted — verifying
+      // against a differently-built party measures the party gap, not the
+      // solver — but with an independent seed, so this is a real replay.
+      const party = { count: playerCount, levels: perPlayerBudget, armor: 1 };
+      const gen = generateEncounter(template, FIELDED[template.id] ?? 3, party, target, { games: 120, searchGames: 80 });
       if (!gen) continue;
       const g = gen.groups[0];
-      let wins = 0;
-      for (let i = 0; i < games; i++) {
-        const players = randomTeam('P', playerCount, perPlayerBudget);
-        const enemies = Array.from({ length: g.count }, (_, k) =>
-          createEnemyFromTemplate(getEnemyTemplate(g.templateId)!,
-            Object.fromEntries(getEnemyTemplate(g.templateId)!.skills.map(s => [s, g.level])),
-            `${template.displayName} ${k + 1}`, [], g.pv));
-        assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
-        const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
-        const w = engine.runCombat().winner;
-        if (w === 0) wins++; else if (w === null) wins += 0.5;
-      }
-      cells.push(`${template.id.slice(0, 10)} ${g.count}×pv${g.pv} ${(100 * wins / games).toFixed(0)}%`);
+      const wins = withSeed(31337, () => {
+        let wins = 0;
+        for (let i = 0; i < games; i++) {
+          const players = buildReferenceParty(party);
+          const enemies = Array.from({ length: g.count }, (_, k) =>
+            createEnemyFrom(getEnemy(g.enemyId)!, {
+              pv: g.pv, level: g.level, name: `${template.displayName} ${k + 1}`,
+            }));
+          assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+          const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
+          const w = engine.runCombat().winner;
+          if (w === 0) wins++; else if (w === null) wins += 0.5;
+        }
+        return wins;
+      });
+      const flag = gen.clamped ? '!' : '';
+      cells.push(`${template.id.slice(0, 10)} ${g.count}×pv${g.pv} ${(100 * wins / games).toFixed(0)}%${flag}`);
     }
     console.log(`   [${label.padEnd(6)} → ${(100 * target).toFixed(0)}%] ${cells.join(' | ')}`);
   }

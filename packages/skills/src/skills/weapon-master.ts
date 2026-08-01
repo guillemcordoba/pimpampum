@@ -88,7 +88,7 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'tall-precis', name: 'Tall precís', skillId: 'mestre-armes',
-      unlock: 3, type: ActionType.Atac, speed: -1, dice: d(2, 6),
+      unlock: 3, type: ActionType.Atac, speed: -1, dice: d(3, 4),
       effects: [{ type: 'weapon_damage' }],
       desc: '',
       icon: 'lorc/sword-wound.svg',

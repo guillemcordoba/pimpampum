@@ -1,7 +1,11 @@
 <script setup lang="ts">
-defineProps<{
+import type { LogEntry } from '@pimpampum/engine';
+import { downloadCombatLog } from '../utils/combat-log';
+
+withDefaults(defineProps<{
   winner: number | null;
-}>();
+  log?: LogEntry[];
+}>(), { log: () => [] });
 
 const emit = defineEmits<{ (e: 'playAgain'): void }>();
 </script>
@@ -15,9 +19,23 @@ const emit = defineEmits<{ (e: 'playAgain'): void }>();
       <div class="victory-subtitle">
         {{ winner === 0 ? 'El teu equip ha guanyat!' : winner === 1 ? "L'enemic ha guanyat!" : 'Cap equip ha guanyat.' }}
       </div>
-      <button class="btn btn-primary" @click="emit('playAgain')">
-        Torna a jugar
-      </button>
+      <div class="victory-actions">
+        <button class="btn btn-primary" @click="emit('playAgain')">
+          Torna a jugar
+        </button>
+        <button
+          type="button" class="btn"
+          :disabled="log.length === 0"
+          title="Descarrega el registre com a fitxer de text"
+          @click="downloadCombatLog(log)"
+        >⭳ Descarrega el registre</button>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.victory-actions {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;
+}
+</style>

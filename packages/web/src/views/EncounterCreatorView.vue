@@ -2,9 +2,10 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  ENEMY_TEMPLATES, getEnemyTemplate, solveEncounter, TARGET_WINRATES,
-  type PoolSpec,
+  ENEMY_DEFINITIONS, getEnemy, solveEncounter, TARGET_WINRATES,
+  type PoolSpec, type SolvedEncounter,
 } from '@pimpampum/enemies';
+import type { PartySpec } from '@pimpampum/skills';
 import { setPendingEncounter } from '../composables/pendingEncounter';
 
 const base = import.meta.env.BASE_URL;
@@ -49,19 +50,19 @@ const PRESETS = [
 
 // Composition: which species and how many. Levels are NOT an input — the
 // solver produces them (enemies scale by levels; green kits for easy fights).
-interface PoolRow { templateId: string; count: number; }
+interface PoolRow { enemyId: string; count: number; }
 const pool = ref<PoolRow[]>([
-  { templateId: 'goblin', count: 1 },
+  { enemyId: 'goblin', count: 1 },
 ]);
 
-const templateOf = (id: string) => getEnemyTemplate(id);
+const templateOf = (id: string) => getEnemy(id);
 const unusedTemplates = computed(() =>
-  ENEMY_TEMPLATES.filter(t => !pool.value.some(p => p.templateId === t.id)));
+  ENEMY_DEFINITIONS.filter(t => !pool.value.some(p => p.enemyId === t.id)));
 
-function addSpecies(templateId: string): void {
-  const t = getEnemyTemplate(templateId);
+function addSpecies(enemyId: string): void {
+  const t = getEnemy(enemyId);
   if (!t) return;
-  pool.value.push({ templateId, count: 1 });
+  pool.value.push({ enemyId, count: 1 });
 }
 function removeSpecies(i: number): void {
   pool.value.splice(i, 1);
@@ -70,20 +71,58 @@ function bump(row: PoolRow, delta: number): void {
   row.count = Math.max(1, row.count + delta);
 }
 
-// --- The solve (pure & cheap: recomputed on every input change) --------------
-const solved = computed(() => {
+// --- The solve --------------------------------------------------------------
+// The balancer PLAYS the encounter a few hundred times rather than predicting
+// it from a formula, so a solve costs ~1-2s. It runs debounced and off the
+// render path; `solving` drives the UI's pending state.
+const solved = ref<SolvedEncounter | null>(null);
+const solving = ref(false);
+let solveToken = 0;
+let solveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function runSolve(): void {
+  const token = ++solveToken;
   const specs: PoolSpec[] = pool.value.map(p =>
-    ({ templateId: p.templateId, count: p.count }));
-  return solveEncounter(specs, playerCount.value, winrate.value / 100, playerLevels.value, avgArmor.value);
-});
+    ({ enemyId: p.enemyId, count: p.count }));
+  const party: PartySpec = {
+    count: playerCount.value,
+    levels: [...playerLevels.value],
+    armor: [...playerArmor.value],
+  };
+  const target = winrate.value / 100;
+  if (specs.length === 0) { solved.value = null; solving.value = false; return; }
+  solving.value = true;
+  // Yield a frame so the pending state paints before the simulation blocks.
+  setTimeout(() => {
+    const result = solveEncounter(specs, party, target);
+    if (token !== solveToken) return; // a newer solve superseded this one
+    solved.value = result;
+    solving.value = false;
+  }, 0);
+}
+
+watch(
+  [pool, playerCount, playerLevels, playerArmor, winrate],
+  () => {
+    solveToken++;             // invalidate whatever is in flight
+    solving.value = true;
+    clearTimeout(solveTimer);
+    solveTimer = setTimeout(runSolve, 350);
+  },
+  { deep: true, immediate: true },
+);
 
 const predictedPct = computed(() =>
   solved.value ? Math.round(solved.value.predictedWinrate * 100) : null);
-// The solver clamps (levels, body counts, PV multiplier); highlight when the
-// achievable winrate drifts more than 2 pp from the requested one.
+/** 1σ sampling error of the simulated winrate, in points. */
+const marginPct = computed(() =>
+  solved.value ? Math.max(1, Math.round(solved.value.stderr * 100)) : null);
+// Flag when the achievable winrate drifts from the request by more than the
+// simulation's own error bar — i.e. a real miss, not sampling noise.
 const clamped = computed(() =>
-  solved.value !== null &&
-  Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate) > 0.02);
+  solved.value !== null
+  && Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate)
+     > Math.max(0.02, 2 * solved.value.stderr));
 
 // Hand the solved encounter to the combat view: its enemy roster arrives
 // pre-filled; the players are created there as usual.
@@ -161,12 +200,12 @@ function playEncounter(): void {
 
         <div class="pool">
           <div
-            v-for="(p, i) in pool" :key="p.templateId"
+            v-for="(p, i) in pool" :key="p.enemyId"
             class="pool-row"
-            :style="{ '--class-color': `var(--class-${templateOf(p.templateId)?.classCss})` }"
+            :style="{ '--class-color': `var(--class-${templateOf(p.enemyId)?.classCss})` }"
           >
-            <img :src="base + (templateOf(p.templateId)?.iconPath ?? '')" alt="">
-            <div class="pool-name">{{ templateOf(p.templateId)?.displayName }}</div>
+            <img :src="base + (templateOf(p.enemyId)?.iconPath ?? '')" alt="">
+            <div class="pool-name">{{ templateOf(p.enemyId)?.displayName }}</div>
 
             <div class="pool-count">
               <button type="button" class="step" @click="bump(p, -1)">−</button>
@@ -193,16 +232,21 @@ function playEncounter(): void {
       <section class="column result">
         <h2 class="col-title">Encontre</h2>
 
-        <template v-if="solved">
+        <div v-if="solving" class="result-solving">
+          <span class="spinner"></span>
+          Simulant l'encontre…
+        </div>
+
+        <template v-else-if="solved">
           <div class="result-groups">
             <div
-              v-for="g in solved.groups" :key="g.templateId"
+              v-for="g in solved.groups" :key="g.enemyId"
               class="result-row"
-              :style="{ '--class-color': `var(--class-${templateOf(g.templateId)?.classCss})` }"
+              :style="{ '--class-color': `var(--class-${templateOf(g.enemyId)?.classCss})` }"
             >
-              <img :src="base + (templateOf(g.templateId)?.iconPath ?? '')" alt="">
+              <img :src="base + (templateOf(g.enemyId)?.iconPath ?? '')" alt="">
               <span class="result-count">{{ g.count }}×</span>
-              <span class="result-name">{{ templateOf(g.templateId)?.displayName }}</span>
+              <span class="result-name">{{ templateOf(g.enemyId)?.displayName }}</span>
               <span class="result-detail">
                 nivell <strong>{{ g.level }}</strong> · <strong>{{ g.pv }}</strong> PV cadascun
               </span>
@@ -211,11 +255,16 @@ function playEncounter(): void {
 
           <div class="result-meta">
             <span :class="{ warn: clamped }">
-              Probabilitat de victòria prevista: <strong>{{ predictedPct }}%</strong>
+              Probabilitat de victòria mesurada:
+              <strong>{{ predictedPct }}%</strong> <span class="margin">±{{ marginPct }}</span>
               <template v-if="clamped"> (el creador no ha pogut ajustar-se més al {{ winrate }}% demanat)</template>
             </span>
-            · Multiplicador de PV: <strong>×{{ solved.pvMult.toFixed(2) }}</strong>
+            · Durada mitjana: <strong>{{ solved.avgRounds.toFixed(1) }}</strong> rondes
           </div>
+          <p class="result-note">
+            Mesurada jugant l'encontre {{ solved.games }} vegades contra un grup
+            com el teu, no estimada amb una fórmula.
+          </p>
 
           <button type="button" class="play-btn" @click="playEncounter">
             ⚔ Comença el combat
@@ -342,6 +391,26 @@ function playEncounter(): void {
 }
 .result-meta strong { color: var(--parchment); }
 .result-meta .warn, .result-meta .warn strong { color: #d9924a; }
+.result-meta .margin { font-size: 0.85em; opacity: 0.75; }
+
+.result-note {
+  text-align: center; font-family: 'Crimson Text', serif; font-style: italic;
+  color: var(--parchment-dark); opacity: 0.75; font-size: 0.88rem;
+  margin: 0.35rem 0 0;
+}
+
+.result-solving {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  font-family: 'Crimson Text', serif; font-style: italic;
+  color: var(--parchment-dark); padding: 2rem 0;
+}
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--parchment-dark); border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
 
 .play-btn {
   display: block; margin: 1.2rem auto 0;

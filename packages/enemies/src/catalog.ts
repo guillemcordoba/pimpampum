@@ -1,6 +1,6 @@
 import { ActionDefinition, EffectRegistry } from '@pimpampum/engine';
 import { SkillDefinition } from '@pimpampum/skills';
-import { EnemyTemplate, EnemyModule } from './types.js';
+import { EnemyDefinition } from './types.js';
 import { GOBLIN } from './enemies/goblin.js';
 import { GOBLIN_SHAMAN } from './enemies/goblin-shaman.js';
 import { WOLF } from './enemies/wolf.js';
@@ -10,24 +10,22 @@ import { STONE_GOLEM } from './enemies/stone-golem.js';
 import { HORNED_DEVIL } from './enemies/horned-devil.js';
 import { BASILISK } from './enemies/basilisk.js';
 
-// Every enemy module, in display order. Add a new enemy by creating a file in
-// `enemies/` and listing its module here.
-const ENEMY_MODULES: EnemyModule[] = [
+// Every creature, in display order. Add a new enemy by creating a file in
+// `enemies/` and listing its definition here.
+export const ENEMY_DEFINITIONS: EnemyDefinition[] = [
   GOBLIN, GOBLIN_SHAMAN, WOLF, SPINED_DEVIL,
   BONE_DEVIL, STONE_GOLEM, HORNED_DEVIL, BASILISK,
 ];
 
-export const ENEMY_TEMPLATES: EnemyTemplate[] = ENEMY_MODULES.map(m => m.template);
-
-const templateIndex = new Map(ENEMY_TEMPLATES.map(t => [t.id, t]));
-export function getEnemyTemplate(id: string): EnemyTemplate | undefined {
-  return templateIndex.get(id);
+const enemyIndex = new Map(ENEMY_DEFINITIONS.map(e => [e.id, e]));
+export function getEnemy(id: string): EnemyDefinition | undefined {
+  return enemyIndex.get(id);
 }
 
 // Enemy skills live here (not in @pimpampum/skills) so they only surface in the
 // enemy section of the app. They reuse the generic SkillDefinition/action helpers
 // and the effect handlers registered by @pimpampum/skills.
-export const ENEMY_SKILLS: SkillDefinition[] = ENEMY_MODULES.flatMap(m => m.skills);
+export const ENEMY_SKILLS: SkillDefinition[] = ENEMY_DEFINITIONS.flatMap(e => e.skills);
 
 const enemySkillIndex = new Map(ENEMY_SKILLS.map(s => [s.id, s]));
 export function getEnemySkill(id: string): SkillDefinition | undefined {

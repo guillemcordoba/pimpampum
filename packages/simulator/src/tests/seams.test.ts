@@ -485,3 +485,59 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
     expect(ferit.currentPV).toBeLessThanOrEqual(13);
   });
 });
+
+describe('flanking (AttackModifiers.defensePenalty)', () => {
+  /** Round runner accepting raw selections for BOTH teams. */
+  function runRoundRaw(engine: CombatEngine, selections: { team: number; idx: number; actionIdx: number; targets?: { team: number; idx: number }[] }[]): void {
+    engine.prepareRound();
+    engine.planActions(selections);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') {
+      if (r.kind === 'target') throw new Error('unexpected target prompt in test');
+      r = engine.resolveNextAction();
+    }
+    engine.finishRound();
+  }
+
+  /** Two AI-free enemy attackers vs one self-guarding player. E1 (fast, plain)
+   *  opens the target; E2 (slow, `flanking`) should find a weakened defense. */
+  function flankSetup(defBonus: number, flankBonus: number) {
+    const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: defBonus }), focusDef()]);
+    const e1 = makeChar('E1', 50, [atkDef('obre', { speed: 3 })]);
+    const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: flankBonus, effects: [{ type: 'flanking' }] })]);
+    const engine = new CombatEngine([d], [e1, e2], { registry: REGISTRY });
+    return { d, engine };
+  }
+  const bothAtD = [
+    { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+    { team: 1, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+  ];
+  const selfGuard = { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] };
+  const focusing = { team: 0, idx: 0, actionIdx: 1 };
+
+  it('a flanked defense is lowered by 3, so a blow that would miss now lands', () => {
+    // Defense 1+5=6. Flanking attack 1+3=4 → 4 vs 6−3=3 → margin 1.
+    const { d, engine } = flankSetup(5, 3);
+    runRoundRaw(engine, [selfGuard, ...bothAtD]);
+    expect(d.currentPV).toBe(19);
+  });
+
+  it('without an ally opening the target there is no penalty', () => {
+    // Same numbers, but E2 attacks alone: 4 vs 6 → blocked.
+    const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: 5 })]);
+    const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: 3, effects: [{ type: 'flanking' }] })]);
+    const engine = new CombatEngine([d], [e2], { registry: REGISTRY });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
+    ]);
+    expect(d.currentPV).toBe(20);
+  });
+
+  it('an UNDEFENDED target takes no extra damage — the penalty is not a roll bonus', () => {
+    // D focuses instead of defending: E1 hits for 1, E2 for its full 4 (not 7).
+    const { d, engine } = flankSetup(5, 3);
+    runRoundRaw(engine, [focusing, ...bothAtD]);
+    expect(d.currentPV).toBe(15);
+  });
+});

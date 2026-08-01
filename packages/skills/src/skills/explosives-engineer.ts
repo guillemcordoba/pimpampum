@@ -1,4 +1,4 @@
-import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num } from '../effects/helpers.js';
 
@@ -105,7 +105,7 @@ const ENCEGAT: StatusBehavior = {
     if (ctx.engine.rollDie(20) > 10) return intended;
     const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
     if (pool.length === 0) return intended;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const pick = pool[Math.floor(random() * pool.length)];
     if (pick !== intended) ctx.engine.log('info', `${ctx.holder.name} dispara a cegues dins el fum i apunta cap a ${pick.name}!`, ctx.holder.team);
     return pick;
   },

@@ -1,6 +1,6 @@
 import { ActionType, AIStrategy, DiceRoll, EffectHandler } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const BASILISK_EFFECTS: Record<string, EffectHandler> = {
   // Mirada petrificant: the basilisk's own contest — its gaze dice + its
@@ -41,7 +41,8 @@ const BASILISK_SKILL: SkillDefinition = {
   effects: BASILISK_EFFECTS,
 };
 
-export const BASILISK: EnemyModule = {
-  template: { id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg', role: 'solitari', threat: 0.691, skills: ['basilisk'], basePV: 43, suggestedLevel: 5, naturalArmor: 2, aiStrategy: AIStrategy.Power },
+export const BASILISK: EnemyDefinition = {
+  id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg',
+  naturalArmor: 2, aiStrategy: AIStrategy.Power,
   skills: [BASILISK_SKILL],
 };

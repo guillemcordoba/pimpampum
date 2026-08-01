@@ -1,5 +1,6 @@
 // Dice
 export { DiceRoll, rollDie } from './dice.js';
+export { random, setRng, seededRng, withSeed } from './rng.js';
 
 // Core types
 export { ActionType, EquipmentSlot, isAttack, isDefenseAction, isFocusAction } from './types.js';

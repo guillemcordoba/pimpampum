@@ -1,6 +1,6 @@
 import { ActionType } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const HORNED_DEVIL_SKILL: SkillDefinition = {
   id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', category: 'enemy',
@@ -18,7 +18,7 @@ const HORNED_DEVIL_SKILL: SkillDefinition = {
   ],
 };
 
-export const HORNED_DEVIL: EnemyModule = {
-  template: { id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', iconPath: ICON + 'delapouite/devil-mask.svg', role: 'solitari', threat: 0.797, skills: ['horned-devil'], basePV: 100, suggestedLevel: 5 },
+export const HORNED_DEVIL: EnemyDefinition = {
+  id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', iconPath: ICON + 'delapouite/devil-mask.svg',
   skills: [HORNED_DEVIL_SKILL],
 };

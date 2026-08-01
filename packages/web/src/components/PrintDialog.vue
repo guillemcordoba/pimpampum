@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
 import { ALL_SKILLS, ALL_EQUIPMENT } from '@pimpampum/skills';
-import { ENEMY_TEMPLATES, getEnemySkill } from '@pimpampum/enemies';
+import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
 import type { ActionDefinition } from '@pimpampum/engine';
 import { actionToDisplayProps, equipmentToDisplayProps } from '../composables/useActionDisplay';
 import { printDialogOpen, printingAll, closePrintDialog } from '../composables/usePrintDialog';
@@ -12,10 +12,10 @@ import CharacterSheet from './cards/CharacterSheet.vue';
 
 const base = import.meta.env.BASE_URL;
 
-function enemyActions(templateId: string): ActionDefinition[] {
-  const t = ENEMY_TEMPLATES.find(x => x.id === templateId);
+function enemyActions(enemyId: string): ActionDefinition[] {
+  const t = ENEMY_DEFINITIONS.find(x => x.id === enemyId);
   if (!t) return [];
-  return t.skills.flatMap(sid => getEnemySkill(sid)?.actions ?? []);
+  return t.skills.flatMap(s => s.actions);
 }
 
 // --- Selection state -------------------------------------------------------
@@ -27,7 +27,7 @@ const playerSel = reactive<Record<string, Record<string, boolean>>>(
 
 const enemySel = reactive<Record<string, Record<string, boolean>>>(
   Object.fromEntries(
-    ENEMY_TEMPLATES.map(t => [
+    ENEMY_DEFINITIONS.map(t => [
       t.id,
       Object.fromEntries(enemyActions(t.id).map(a => [a.id, true])),
     ]),
@@ -74,10 +74,10 @@ function toggleAllPlayers(checked: boolean) {
   for (const s of ALL_SKILLS) toggleSkill(s.id, playerSel, checked);
 }
 
-const allEnemiesChecked = computed(() => ENEMY_TEMPLATES.every(t => skillAll(t.id, enemySel)));
-const someEnemiesChecked = computed(() => ENEMY_TEMPLATES.some(t => skillAny(t.id, enemySel)));
+const allEnemiesChecked = computed(() => ENEMY_DEFINITIONS.every(t => skillAll(t.id, enemySel)));
+const someEnemiesChecked = computed(() => ENEMY_DEFINITIONS.some(t => skillAny(t.id, enemySel)));
 function toggleAllEnemies(checked: boolean) {
-  for (const t of ENEMY_TEMPLATES) toggleSkill(t.id, enemySel, checked);
+  for (const t of ENEMY_DEFINITIONS) toggleSkill(t.id, enemySel, checked);
 }
 
 const allEquipChecked = computed(() => ALL_EQUIPMENT.every(e => equipSel[e.id]));
@@ -104,10 +104,8 @@ const printCards = computed<PrintItem[]>(() => {
       }
     }
   }
-  for (const t of ENEMY_TEMPLATES) {
-    for (const sid of t.skills) {
-      const skill = getEnemySkill(sid);
-      if (!skill) continue;
+  for (const t of ENEMY_DEFINITIONS) {
+    for (const skill of t.skills) {
       for (const a of skill.actions) {
         if (enemySel[t.id]?.[a.id]) {
           items.push({
@@ -230,7 +228,7 @@ async function handlePrint() {
               <span>Enemics</span>
             </label>
             <div class="print-dialog-indent">
-              <div v-for="t in ENEMY_TEMPLATES" :key="t.id" class="print-dialog-char">
+              <div v-for="t in ENEMY_DEFINITIONS" :key="t.id" class="print-dialog-char">
                 <label class="print-dialog-check">
                   <button class="print-dialog-expand" @click.prevent="toggleExpand('e-' + t.id)">
                     {{ expanded['e-' + t.id] ? '▾' : '▸' }}

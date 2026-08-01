@@ -1,4 +1,4 @@
-import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior, ActionType } from '@pimpampum/engine';
+import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior, ActionType, random } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
@@ -64,8 +64,11 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.2 : 0; },
   },
 
-  // Flanking: undefendable when a living ally has ALREADY attacked the same
-  // target this round (reads the combat history) — gang-up knives, pack bites.
+  // Flanking: the target's defense is WEAKENED (−`amount`, default 3) when a
+  // living ally has ALREADY attacked them this round (reads the combat
+  // history) — gang-up knives, pack bites. A penalty rather than an outright
+  // bypass: with a big horde every body opens the target for the next, and
+  // "undefendable" turned that into no defense existing at all.
   flanking: {
     modifyAttack(ctx) {
       if (!ctx.target || !ctx.attackMods) return;
@@ -74,7 +77,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
         && e.actor !== ctx.source && e.actor.team === ctx.source.team
         && e.action.actionType === ActionType.Atac
         && e.targets.includes(ctx.target!));
-      if (flanked) ctx.attackMods.ignoreDefense = true;
+      if (flanked) ctx.attackMods.defensePenalty += num(ctx.params, 'amount', 3);
     },
     aiWeight(ctx) { return ctx.allies.length >= 1 ? 1.3 : 0.5; },
   },
@@ -251,7 +254,7 @@ function performSecondAttack(ctx: EffectContext): void {
   } else {
     const pool = ctx.engine.enemiesOf(ctx.source);
     if (!pool.length) return;
-    t = pool[Math.floor(Math.random() * pool.length)];
+    t = pool[Math.floor(random() * pool.length)];
   }
   if (!t) return;
   ctx.engine.performExtraAttack(ctx.source, t, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} segon atac` });

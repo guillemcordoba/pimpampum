@@ -1,6 +1,6 @@
 import { ActionType, AIStrategy } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const GOBLIN_SHAMAN_SKILL: SkillDefinition = {
   id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', category: 'enemy',
@@ -20,7 +20,8 @@ const GOBLIN_SHAMAN_SKILL: SkillDefinition = {
   ],
 };
 
-export const GOBLIN_SHAMAN: EnemyModule = {
-  template: { id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', iconPath: ICON + 'delapouite/skull-staff.svg', role: 'elit', threat: 0.239, skills: ['goblin-shaman'], basePV: 19, suggestedLevel: 4, aiStrategy: AIStrategy.Power },
+export const GOBLIN_SHAMAN: EnemyDefinition = {
+  id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', iconPath: ICON + 'delapouite/skull-staff.svg',
+  aiStrategy: AIStrategy.Power,
   skills: [GOBLIN_SHAMAN_SKILL],
 };

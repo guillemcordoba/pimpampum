@@ -4,7 +4,7 @@
 <template>
   <div class="home-page">
     <h1 class="screen-title">Pim Pam Pum</h1>
-    <p class="screen-subtitle">Primer la narrativa, després l'agilitat, i per acabar, els mindgames.</p>
+    <p class="screen-subtitle">Lore, ritme i mindgames</p>
 
     <div class="nav-tiles">
       <router-link to="/rules" class="nav-tile">

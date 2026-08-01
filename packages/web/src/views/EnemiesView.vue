@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ENEMY_TEMPLATES, getEnemySkill } from '@pimpampum/enemies';
+import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';
@@ -11,15 +11,15 @@ const base = import.meta.env.BASE_URL;
 const search = ref('');
 const filteredEnemies = computed(() => {
   const q = search.value.trim().toLowerCase();
-  if (!q) return ENEMY_TEMPLATES;
-  return ENEMY_TEMPLATES.filter(
+  if (!q) return ENEMY_DEFINITIONS;
+  return ENEMY_DEFINITIONS.filter(
     t => t.displayName.toLowerCase().includes(q)
-      || t.skills.some(s => (getEnemySkill(s)?.displayName ?? '').toLowerCase().includes(q)),
+      || t.skills.some(s => s.displayName.toLowerCase().includes(q)),
   );
 });
 
-const selectedId = ref<string>(ENEMY_TEMPLATES[0]?.id ?? '');
-const selected = computed(() => ENEMY_TEMPLATES.find(t => t.id === selectedId.value) ?? null);
+const selectedId = ref<string>(ENEMY_DEFINITIONS[0]?.id ?? '');
+const selected = computed(() => ENEMY_DEFINITIONS.find(t => t.id === selectedId.value) ?? null);
 
 // Keep the selection valid as the filter narrows the list.
 watch(filteredEnemies, list => {
@@ -28,7 +28,7 @@ watch(filteredEnemies, list => {
 
 const actions = computed(() => {
   if (!selected.value) return [];
-  return selected.value.skills.flatMap(skillId => getEnemySkill(skillId)?.actions ?? []);
+  return selected.value.skills.flatMap(s => s.actions);
 });
 </script>
 

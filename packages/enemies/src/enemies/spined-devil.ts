@@ -1,6 +1,6 @@
 import { ActionType } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const SPINED_DEVIL_SKILL: SkillDefinition = {
   id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', category: 'enemy',
@@ -13,7 +13,7 @@ const SPINED_DEVIL_SKILL: SkillDefinition = {
   ],
 };
 
-export const SPINED_DEVIL: EnemyModule = {
-  template: { id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', iconPath: ICON + 'lorc/imp.svg', role: 'horda', threat: 0.097, skills: ['spined-devil'], basePV: 20, suggestedLevel: 3 },
+export const SPINED_DEVIL: EnemyDefinition = {
+  id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', iconPath: ICON + 'lorc/imp.svg',
   skills: [SPINED_DEVIL_SKILL],
 };

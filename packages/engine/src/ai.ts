@@ -1,4 +1,5 @@
 import { Character } from './character.js';
+import { random } from './rng.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import { EffectRegistry, AIContext } from './effects.js';
@@ -268,7 +269,7 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   const weights = indices.map(i =>
     Math.pow(actionWeight(view, actor, actor.actions[i], strategy), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
-  let roll = Math.random() * total;
+  let roll = random() * total;
   let chosen = indices[0];
   for (let k = 0; k < indices.length; k++) {
     roll -= weights[k];

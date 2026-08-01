@@ -29,3 +29,9 @@ export { registerSkills, createRegistry } from './setup.js';
 // Character building
 export { buildCharacter, buildSkillSum } from './build.js';
 export type { CharacterBuildSpec } from './build.js';
+
+// Reference party generation (the balancer's player-side input)
+export {
+  buildReferenceParty, buildReferencePlayer, PLAYER_PV, COMPLEMENTARY_SKILLS,
+} from './party.js';
+export type { PartySpec } from './party.js';

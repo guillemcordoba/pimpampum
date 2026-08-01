@@ -24,7 +24,7 @@ function mirrors(): void {
 }
 
 function day(): void {
-  const enc = solveEncounter([{ templateId: 'goblin' }, { templateId: 'goblin-shaman' }], 4, 0.65)!;
+  const enc = solveEncounter([{ enemyId: 'goblin', count: 4 }, { enemyId: 'goblin-shaman', count: 2 }], { count: 4, levels: 7, armor: 1 }, 0.65)!;
   const winsByCombat = [0, 0, 0];
   const reached = [0, 0, 0];
   for (let dayI = 0; dayI < DAYS; dayI++) {

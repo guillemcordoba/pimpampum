@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import type { LogEntry } from '@pimpampum/engine';
+import { downloadCombatLog } from '../utils/combat-log';
 
 const props = defineProps<{ entries: LogEntry[] }>();
 
@@ -11,21 +12,8 @@ watch(() => props.entries.length, async () => {
   if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight;
 });
 
-/** Download the full combat log as a plain-text file, grouped by round. */
 function downloadLog(): void {
-  const lines: string[] = [];
-  let lastRound = -1;
-  for (const e of props.entries) {
-    if (e.round !== lastRound) { lines.push(''); lastRound = e.round; }
-    lines.push(e.message);
-  }
-  const blob = new Blob([lines.join('\n').trim() + '\n'], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'pimpampum-combat-log.txt';
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCombatLog(props.entries);
 }
 
 /** Split a message so damage / PV amounts can be emphasised. */

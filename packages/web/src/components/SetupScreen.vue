@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
 import { PLAYER_SKILLS, ALL_EQUIPMENT, ALL_POTIONS, getSkill, getPotion } from '@pimpampum/skills';
-import { ENEMY_TEMPLATES, getEnemySkill } from '@pimpampum/enemies';
+import { ENEMY_DEFINITIONS, fullKitLevel } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
 
 const props = defineProps<{ game: Game }>();
@@ -140,18 +140,18 @@ function addPlayer() {
 }
 
 // --- Enemy draft ----------------------------------------------------------
-const enemyTemplateId = ref(ENEMY_TEMPLATES[0]?.id ?? '');
+const enemyTemplateId = ref(ENEMY_DEFINITIONS[0]?.id ?? '');
 const enemyLevel = ref(3);
-/** Empty = the template's hand-set basePV. */
-const enemyPv = ref<number | ''>('');
+/** Creatures carry no printed PV — the encounter sets it. */
+const DEFAULT_ENEMY_PV = 20;
+const enemyPv = ref<number>(DEFAULT_ENEMY_PV);
 
-const enemyTemplate = computed(() => ENEMY_TEMPLATES.find(t => t.id === enemyTemplateId.value));
+const enemyTemplate = computed(() => ENEMY_DEFINITIONS.find(t => t.id === enemyTemplateId.value));
 /** Max enemy level = the size of the template's kit (actions across its skills). */
 const enemyMaxLevel = computed(() => {
   const t = enemyTemplate.value;
   if (!t) return 7;
-  const counts = t.skills.map(id => getEnemySkill(id)?.actions.length ?? 0).filter(n => n > 0);
-  return counts.length ? Math.max(...counts) : 7;
+  return fullKitLevel(t);
 });
 const enemyEquip = ref<string[]>([]);
 const enemyEquipSearch = ref('');
@@ -184,10 +184,10 @@ function removeEnemyEquip(id: string) {
 function addEnemy() {
   if (!enemyTemplateId.value) return;
   g.addEnemy({
-    templateId: enemyTemplateId.value,
+    enemyId: enemyTemplateId.value,
     level: Math.max(1, Math.min(enemyMaxLevel.value, enemyLevel.value)),
     equipment: [...enemyEquip.value],
-    pv: enemyPv.value === '' ? undefined : enemyPv.value,
+    pv: Math.max(1, enemyPv.value || DEFAULT_ENEMY_PV),
   });
   enemyEquip.value = [];
   enemyEquipSearch.value = '';
@@ -200,7 +200,7 @@ const enemyLevelSum = computed(() =>
   g.enemySpecs.value.reduce((sum, e) => sum + e.level, 0));
 
 function templateName(id: string): string {
-  return ENEMY_TEMPLATES.find(t => t.id === id)?.displayName ?? id;
+  return ENEMY_DEFINITIONS.find(t => t.id === id)?.displayName ?? id;
 }
 function skillName(id: string): string {
   return getSkill(id)?.displayName ?? id;
@@ -307,7 +307,7 @@ function skillName(id: string): string {
             <h2>Enemics (Σ {{ enemyLevelSum }})</h2>
             <div class="roster">
               <div v-for="(e, i) in g.enemySpecs.value" :key="i" class="roster-tile">
-                <strong>{{ templateName(e.templateId) }}</strong>
+                <strong>{{ templateName(e.enemyId) }}</strong>
                 <div class="roster-detail">nivell {{ e.level }}<template v-if="e.pv"> · PV {{ e.pv }}</template></div>
                 <div v-if="e.equipment.length" class="roster-detail">⚙ {{ e.equipment.join(', ') }}</div>
                 <button class="x" @click="g.removeEnemy(i)">✕</button>
@@ -328,9 +328,9 @@ function skillName(id: string): string {
       <section class="setup-panel">
         <div class="builder">
           <select v-model="enemyTemplateId" class="txt">
-            <option v-for="t in ENEMY_TEMPLATES" :key="t.id" :value="t.id">{{ t.displayName }}</option>
+            <option v-for="t in ENEMY_DEFINITIONS" :key="t.id" :value="t.id">{{ t.displayName }}</option>
           </select>
-          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" :max="enemyMaxLevel" class="num"> PV <input v-model.number="enemyPv" type="number" min="1" class="num" :placeholder="String(enemyTemplate?.basePV ?? '')"></label>
+          <label class="pv-row">Nivell <input v-model.number="enemyLevel" type="number" min="1" :max="enemyMaxLevel" class="num"> PV <input v-model.number="enemyPv" type="number" min="1" class="num"></label>
 
           <div class="subhead">Equipament</div>
           <input v-model="enemyEquipSearch" type="search" placeholder="Cerca…" class="txt search-input">

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
 } from '@pimpampum/engine';
-import { generateEncounter, getEnemyTemplate, buildSolvedEncounter } from '@pimpampum/enemies';
+import { generateEncounter, getEnemy, buildSolvedEncounter } from '@pimpampum/enemies';
 import { randomTeam, runMatch, REGISTRY } from './helpers.js';
 
 describe('resolution math', () => {
@@ -82,10 +82,10 @@ describe('solved encounters', () => {
   const ids = ['goblin', 'wolf', 'stone-golem', 'basilisk'];
   for (const id of ids) {
     it(`${id} encounters solve and resolve for every player count`, () => {
-      const template = getEnemyTemplate(id);
+      const template = getEnemy(id);
       expect(template).toBeTruthy();
       for (const pc of [3, 4, 5, 6]) {
-        const solved = generateEncounter(template!, pc, 0.65);
+        const solved = generateEncounter(template!, 4, { count: pc, levels: 7, armor: 1 }, 0.65, { games: 80, searchGames: 60 });
         expect(solved).toBeTruthy();
         const enemies = buildSolvedEncounter(solved!);
         expect(enemies.length).toBeGreaterThan(0);

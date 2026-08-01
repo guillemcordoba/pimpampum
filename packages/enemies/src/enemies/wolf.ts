@@ -1,6 +1,6 @@
 import { ActionType, createCharacter, Character } from '@pimpampum/engine';
 import { SkillDefinition, action, d, COP_DESESPERAT } from '@pimpampum/skills';
-import { EnemyModule, ICON } from '../types.js';
+import { EnemyDefinition, ICON } from '../types.js';
 
 const WOLF_SKILL: SkillDefinition = {
   id: 'wolf', displayName: 'Llop', classCss: 'llop', category: 'enemy',
@@ -24,7 +24,7 @@ function makeWolf(): Character {
   });
 }
 
-export const WOLF: EnemyModule = {
-  template: { id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg', role: 'horda', threat: 0.018, skills: ['wolf'], basePV: 5, suggestedLevel: 2 },
+export const WOLF: EnemyDefinition = {
+  id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg',
   skills: [WOLF_SKILL],
 };
