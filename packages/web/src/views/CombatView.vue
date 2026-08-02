@@ -14,7 +14,7 @@ const isFullscreen = computed(() => game.gamePhase.value !== 'setup');
 </script>
 
 <template>
-  <div v-if="!isFullscreen">
+  <div v-if="!isFullscreen" class="setup-host">
     <SetupScreen :game="game" />
   </div>
 
@@ -35,6 +35,10 @@ const isFullscreen = computed(() => game.gamePhase.value !== 'setup');
 </template>
 
 <style scoped>
+/* Hand the full available height down to the setup screen, which sizes its
+   columns to it rather than to the viewport. */
+.setup-host { height: 100%; min-height: 0; }
+
 .combat-fullscreen {
   position: fixed;
   inset: 0;

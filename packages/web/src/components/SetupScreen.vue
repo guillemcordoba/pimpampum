@@ -366,23 +366,24 @@ function skillName(id: string): string {
 </template>
 
 <style scoped>
-.setup { max-width: 1400px; margin: 0 auto; }
-.setup-cols { display: grid; grid-template-columns: 1.4fr 2fr 1.4fr; gap: 1rem; align-items: start; }
-/* Cap each column at the viewport. ~7rem subtracts the sticky nav + main padding.
-   The builder panels become flex columns so their inner catalogs can absorb the
-   leftover height instead of producing an outer panel scrollbar. */
-/* Fixed height — the two builder panels always fill the viewport so their
-   catalogs absorb leftover space whether content is small or large.
-   min-height: 0 prevents the grid item's default min-height: auto from
-   overriding the cap when content is tall. */
+/* The setup screen fills whatever height its host gives it and never makes the
+   page scroll: the three columns stretch to that height and only their inner
+   catalogs/rosters scroll. Measuring the viewport instead (the old
+   `calc(100vh - 7rem)`) broke the moment anything was added above it. */
+.setup { height: 100%; min-height: 0; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; }
+.setup-cols {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1.4fr 2fr 1.4fr; gap: 1rem;
+  align-items: stretch;
+}
+/* min-height: 0 prevents a grid item's default min-height: auto from refusing
+   to shrink below its content and pushing the page past the host's height. */
 .setup-cols > .setup-panel {
-  height: calc(100vh - 7rem);
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .teams-middle {
-  max-height: calc(100vh - 7rem);
   min-height: 0;
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 1rem; min-width: 0;
@@ -474,5 +475,15 @@ select.txt option { background: #241c12; color: var(--parchment); }
 @media (max-width: 1100px) {
   .setup-cols { grid-template-columns: 1fr 1fr; }
   .teams-middle { grid-column: 1 / -1; }
+}
+
+/* Stacked on a phone there is no height to share out: let the page scroll
+   normally instead of squeezing three panels into one screen. */
+@media (max-width: 760px) {
+  .setup { height: auto; }
+  .setup-cols { grid-template-columns: 1fr; }
+  .setup-cols > .setup-panel { height: auto; }
+  .teams-middle { overflow-y: visible; }
+  .catalog { max-height: 45vh; }
 }
 </style>

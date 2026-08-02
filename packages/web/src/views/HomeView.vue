@@ -25,10 +25,10 @@
         <div class="nav-tile-desc">Enemics i les seves accions</div>
       </router-link>
 
-      <router-link to="/combat" class="nav-tile">
+      <router-link to="/combats" class="nav-tile">
         <div class="nav-tile-icon">&#9876;</div>
-        <div class="nav-tile-title">Combat</div>
-        <div class="nav-tile-desc">Juga una batalla al navegador</div>
+        <div class="nav-tile-title">Combats</div>
+        <div class="nav-tile-desc">Crea combats i juga'ls</div>
       </router-link>
     </div>
   </div>

@@ -9,10 +9,51 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
     },
     {
-      path: '/combat',
-      name: 'combat',
-      component: () => import('../views/CombatView.vue'),
+      // Everything about setting up a fight lives under one tab: build an
+      // encounter, run one against real players, or play one against the AI.
+      path: '/combats',
+      component: () => import('../views/CombatsView.vue'),
+      children: [
+        { path: '', redirect: { name: 'encounters' } },
+        {
+          path: 'creador',
+          name: 'encounters',
+          component: () => import('../views/EncounterCreatorView.vue'),
+        },
+        {
+          path: 'jugadors',
+          name: 'player-combats',
+          component: () => import('../views/PlayerCombatsView.vue'),
+        },
+        {
+          // One combat being run by a GM at a real table: the enemy cards plus
+          // a PV tracker per body, kept in localStorage under the id in the URL
+          // so a refresh loses nothing. Renders without the sub-tab strip — it
+          // is a focused screen with its own bar and a way back to the list.
+          path: 'jugadors/:id',
+          name: 'tracker',
+          component: () => import('../views/TrackerView.vue'),
+        },
+        {
+          path: 'ia',
+          name: 'ai-combat',
+          component: () => import('../views/CombatView.vue'),
+        },
+      ],
     },
+    {
+      // The same combat, read-only, for a second screen the players watch.
+      // Top-level (not a /combats child) so it gets no app chrome at all.
+      path: '/combats/jugadors/:id/pantalla',
+      name: 'tracker-players',
+      component: () => import('../views/TrackerPlayersView.vue'),
+      meta: { bare: true },
+    },
+    // The paths these screens used to live at.
+    { path: '/combat', redirect: { name: 'ai-combat' } },
+    { path: '/encounters', redirect: { name: 'encounters' } },
+    { path: '/tracker/:id', redirect: to => ({ name: 'tracker', params: to.params }) },
+    { path: '/tracker/:id/players', redirect: to => ({ name: 'tracker-players', params: to.params }) },
     {
       path: '/skills',
       name: 'skills',
@@ -27,11 +68,6 @@ const router = createRouter({
       path: '/enemies',
       name: 'enemies',
       component: () => import('../views/EnemiesView.vue'),
-    },
-    {
-      path: '/encounters',
-      name: 'encounters',
-      component: () => import('../views/EncounterCreatorView.vue'),
     },
     {
       path: '/rules',

@@ -151,7 +151,23 @@ Consumers import the built `dist/` of the workspace packages, so engine/skills/e
 Vue 3 + Vue Router SPA. Combat uses the engine's **step-by-step** API via `composables/useGame.ts`:
 setup (character creation) → card-selection → reveal (with Estat-de-flux card swaps) → resolving (one action at a time, with mid-resolution target prompts) → victory. `TargetSelector.vue` supports the defense **dual prompt** (ally to guard OR enemy to block). `composables/useActionDisplay.ts` converts actions/equipment to printable-card props: contest dice under the crossed-swords icon (Atac) or shield icon (Defensa), an auto-appended "Necessita arma equipada." on weapon cards, and corner stats for above-default fatigue costs and resource costs (càrregues, pressió); an item whose only mechanics are one granted card renders AS that card (the shield).
 
-Routes: `/` (home), `/combat` (create characters + play), `/skills` (printable skill cards), `/objects` (equipment cards), `/enemies` (creatures + their cards), `/encounters` (the balancer's encounter creator: pick players + difficulty + enemy pool in a Jugadors | Enemics | Encontre column layout; difficulty is a target winrate), `/fitxa` (printable character sheet), `/rules`.
+Routes: `/` (home), `/skills` (printable skill cards), `/objects` (equipment cards), `/enemies` (creatures + their cards), `/fitxa` (printable character sheet), `/rules`, plus everything about a fight under one **`/combats`** tab (`CombatsView.vue` = a thin sub-tab strip + nested `router-view`, so only the active section renders):
+
+- `/combats/creador` — the balancer's encounter creator (pick players + difficulty + enemy pool in a Jugadors | Enemics | Encontre column layout; difficulty is a target winrate). Its two start buttons are **Combat contra la IA** and **Combat contra els jugadors**.
+- `/combats/jugadors` — the list of combats being run at a table (the tracker sessions in localStorage), and `/combats/jugadors/:id` — one of them. The tracker is a nested child but renders WITHOUT the sub-tab strip (`CombatsView` shows the strip only for the three section routes): it is a focused screen with its own sticky bar and a `← Combats` link back to the list.
+- `/combats/ia` — create characters + play in the browser.
+
+`/combats/jugadors/:id/pantalla` (the players' read-only screen) is declared top-level with `meta.bare` so it gets no chrome at all despite the nested-looking path. The old `/combat`, `/encounters` and `/tracker/:id` paths redirect into the new ones.
+
+**Height, not viewport math.** The creator and the AI-combat setup screen fill the height their host hands down (`main` → `CombatsView` → section) and scroll only *inside* their columns; nothing measures `100vh` any more (`SetupScreen`'s old `calc(100vh - 7rem)` broke the moment the sub-tab strip appeared above it). Below 760px each releases the cap (`height: auto`) and the page scrolls normally.
+
+### Combat tracker (running a fight at a real table)
+
+A solved encounter has two "start" buttons: **Combat contra la IA** (the simulated fight in `/combat`) and **Combat contra els jugadors**, which mints a random id and opens `/tracker/:id` — the GM's screen for a fight played with real dice and printed cards. It shows, per creature, the **names** of the cards that creature's level unlocks (plus the cards its gear grants — the shield's «Escut de fusta») as a checklist, since the GM plays from the printed deck, and a **PV tracker per body** (bar, ±1 steppers, editable number, renameable). ONLY the enemies are tracked — the players keep their own sheets at the table — and there is no round counter.
+
+State lives in `composables/combatTracker.ts` — one `TrackerSession` per id in **localStorage** under `pimpampum.tracker.<id>`, written on every edit, so a refresh never loses a fight. `listTrackerSessions()` key-scans the prefix (no separate index to drift), and `/encounters` lists the saved combats.
+
+`/tracker/:id/players` is the same session **read-only** for a second screen the players watch: `meta.bare` skips the app chrome, and it follows the GM's tab through the `storage` event (same browser only — there is no backend). The GM's `revealPV` switch decides what it shows: PV bars with numbers when on, and when off **only the damage each enemy has taken**, which never leaks how much it can still absorb.
 
 ### Card design / theming
 

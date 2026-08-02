@@ -8,6 +8,7 @@ import {
 import type { PartySpec } from '@pimpampum/skills';
 import type { SolveRequest, SolveReply } from '../workers/solve-worker';
 import { setPendingEncounter } from '../composables/pendingEncounter';
+import { createTrackerSession } from '../composables/combatTracker';
 
 const base = import.meta.env.BASE_URL;
 
@@ -171,16 +172,23 @@ const router = useRouter();
 function playEncounter(): void {
   if (!solved.value) return;
   setPendingEncounter(solved.value, [...playerLevels.value], [...playerArmor.value]);
-  router.push('/combat');
+  router.push({ name: 'ai-combat' });
+}
+
+// --- Running it at a real table ---------------------------------------------
+// The other way to start: not a simulated fight but a combat tracker for a GM
+// running it by hand — the enemy cards and a PV tracker per body, persisted
+// under a random id that also sits in the URL. It then shows up under
+// «Combats contra els jugadors».
+function openTracker(): void {
+  if (!solved.value) return;
+  const session = createTrackerSession({ encounter: solved.value });
+  router.push({ name: 'tracker', params: { id: session.id } });
 }
 </script>
 
 <template>
   <div class="creator-page">
-    <p class="screen-subtitle">
-      Tria quants jugadors, la dificultat i quins enemics: el creador et diu quants en surten i amb quins PV.
-    </p>
-
     <div class="layout">
       <!-- Left: the party and the fight they want -->
       <section class="column">
@@ -307,9 +315,14 @@ function playEncounter(): void {
             com el teu, no estimada amb una fórmula.
           </p>
 
-          <button type="button" class="play-btn" @click="playEncounter">
-            ⚔ Comença el combat
-          </button>
+          <div class="start-buttons">
+            <button type="button" class="play-btn" @click="playEncounter">
+              ⚔ Combat contra la IA
+            </button>
+            <button type="button" class="play-btn tracker" @click="openTracker">
+              📋 Combat contra els jugadors
+            </button>
+          </div>
         </template>
         <div v-else class="result-empty">Afegeix enemics per veure l'encontre.</div>
       </section>
@@ -318,21 +331,40 @@ function playEncounter(): void {
 </template>
 
 <style scoped>
-.creator-page { padding: 1rem 2rem; max-width: 1250px; margin: 0 auto; }
+/* Sizes to the height it is given, never to the viewport: the three columns
+   stretch to fill it and each scrolls on its own if its content is long, so
+   the page itself never grows a scrollbar. */
+.creator-page {
+  height: 100%; min-height: 0; max-width: 1250px; margin: 0 auto;
+  display: flex; flex-direction: column;
+}
 
 .layout {
-  display: grid; grid-template-columns: minmax(240px, 280px) minmax(300px, 1fr) minmax(380px, 1.5fr);
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* One row, capped at the container: `minmax(0, 1fr)` lets it shrink below
+     its content so a long column scrolls instead of growing the page. */
+  grid-template-rows: minmax(0, 1fr);
   justify-content: center;
-  gap: 2rem; align-items: start; margin-top: 1.5rem;
-}
-@media (max-width: 1100px) {
-  .layout { grid-template-columns: 1fr 1fr; }
-  .layout .result { grid-column: 1 / -1; }
+  gap: 1.5rem;
+  /* Each panel ends where its content ends — no boxes stretched to the
+     tallest column — while still never spilling past the screen. */
+  align-items: start;
 }
 .column {
+  min-height: 0; max-height: 100%; overflow-y: auto;
   background: rgba(0, 0, 0, 0.14);
   border: 1px solid rgba(232, 220, 196, 0.25);
   border-radius: 8px; padding: 1rem 1.2rem 1.4rem;
+}
+/* Declared AFTER .column: a media query adds no specificity, so the override
+   only wins by coming later. */
+@media (max-width: 1100px) {
+  /* Two columns can't share one screen height sensibly: let the page scroll. */
+  .creator-page { height: auto; }
+  .layout { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+  .layout .result { grid-column: 1 / -1; }
+  .column { max-height: none; overflow-y: visible; }
 }
 .col-title {
   font-family: 'Cinzel Decorative', serif; color: var(--parchment);
@@ -453,14 +485,24 @@ function playEncounter(): void {
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
 
+.start-buttons {
+  display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; margin-top: 1.2rem;
+}
 .play-btn {
-  display: block; margin: 1.2rem auto 0;
   font-family: 'Cinzel Decorative', serif; font-size: 1.05rem;
   color: var(--parchment); background: rgba(232, 220, 196, 0.12);
   border: 1px solid var(--parchment); border-radius: 6px;
   padding: 0.55rem 1.4rem; cursor: pointer; transition: all 0.15s;
 }
 .play-btn:hover { background: rgba(232, 220, 196, 0.22); }
+.play-btn.tracker { background: rgba(0, 0, 0, 0.25); border-color: var(--parchment-dark); }
+.play-btn.tracker:hover { border-color: var(--parchment); background: rgba(232, 220, 196, 0.16); }
 
-@media (max-width: 760px) { .layout { grid-template-columns: 1fr; gap: 1.2rem; } }
+/* Stacked on a phone there is no height to share out: let the page scroll
+   normally instead of squeezing three columns into one screen. */
+@media (max-width: 760px) {
+  .creator-page { height: auto; }
+  .layout { grid-template-columns: 1fr; gap: 1.2rem; }
+  .column { overflow-y: visible; }
+}
 </style>
