@@ -54,6 +54,8 @@ export interface SimOptions {
 }
 
 const DEFAULT_GAMES = 320;
+/** Games behind the winrate a solve REPORTS (±1.7pp rather than ±3pp). */
+const SOLVE_REPORT_GAMES = 1000;
 const DEFAULT_SEED = 20260801;
 
 let sharedRegistry: EffectRegistry | null = null;
@@ -135,13 +137,24 @@ export function simulateEncounter(groups: FieldedGroup[], party: PartySpec, opts
 // --------------------------------------------------------------- the solver
 
 /**
- * Absolute PV bounds a solved body may be given. Creatures carry no printed
- * PV any more, so the solver searches PV itself rather than a multiplier on a
- * stat-block number. The range only has to span "flimsier than a goblin" to
- * "a boss that soaks a whole fight".
+ * Bounds on the PV a solved BODY may be given. These are body PV, not the
+ * scale the solver searches: a body ends up with `scale × its bulk`, so the
+ * bracket is these bounds divided through by the heaviest bulk in the
+ * encounter (see `solveEncounter`). Getting that conversion wrong silently
+ * raises the floor for big creatures — a bulk-3.57 basilisk could not be given
+ * less than 7 PV, which made easy fights containing one unreachable.
  */
-export const PV_MIN = 2;
+export const PV_MIN = 1;
 export const PV_MAX = 600;
+
+/** Below this body PV, one point of PV is worth more than the sampling error,
+ *  so the solver checks the neighbouring integers (see `solveEncounter`). */
+const REFINE_BELOW_PV = 12;
+
+/** A creature's relative flesh; 1 when it doesn't say. */
+function bulkOf(def: EnemyDefinition): number {
+  return def.bulk && def.bulk > 0 ? def.bulk : 1;
+}
 
 /** One group requested from the solver. */
 export interface PoolSpec {
@@ -172,8 +185,10 @@ export interface SolvedEncounter {
   predictedWinrate: number;
   /** 1σ error on `predictedWinrate`. */
   stderr: number;
-  /** The PV the solver settled on for groups that didn't fix their own. */
-  solvedPv: number;
+  /** The PV scale the solver settled on. A group's PV is `scale × bulk`, so
+   *  this equals the PV of a bulk-1 body; read the per-group `pv` for what
+   *  actually stands on the table. */
+  solvedScale: number;
   /** True when the target was unreachable inside the PV bounds. */
   clamped: boolean;
   avgRounds: number;
@@ -214,36 +229,130 @@ export function solveEncounter(
   const steps = opts.steps ?? 11;
   const target = Math.min(0.99, Math.max(0.01, targetWinrate));
 
-  // Groups that fix their own PV are left alone; the rest all take the PV
-  // being searched. Every body is equally durable unless the caller says
-  // otherwise — creatures no longer carry a printed PV to scale from.
-  const groupsAt = (pv: number): FieldedGroup[] => entries.map(({ spec, def }) => ({
+  // Groups that fix their own PV are left alone; the rest take the scale being
+  // searched, SHARED OUT by each creature's bulk — a goblin beside a basilisk
+  // should not be equally durable just because one lever set both.
+  //
+  // The scale is the only thing solved, so a single-species encounter lands on
+  // the same PV whatever its bulk (the scale absorbs it): bulk redistributes,
+  // it never makes a creature secretly tougher.
+  const groupsAt = (scale: number): FieldedGroup[] => entries.map(({ spec, def }) => ({
     enemyId: def.id,
     count: spec.count,
     level: spec.level ?? fullKitLevel(def),
-    pv: spec.pv ?? Math.max(PV_MIN, Math.round(pv)),
+    pv: spec.pv ?? Math.max(PV_MIN, Math.round(scale * bulkOf(def))),
   }));
 
-  const winrateAt = (pv: number, games: number): number =>
-    simulateEncounter(groupsAt(pv), party, { ...opts, games, seed }).winrate;
+  // Every evaluation the search makes is kept: bisection throws all but the
+  // last bracket away, and that discarded information is worth more than the
+  // final decision (see the fit below).
+  const samples: { scale: number; winrate: number; games: number }[] = [];
+  const winrateAt = (scale: number, games: number): number => {
+    const winrate = simulateEncounter(groupsAt(scale), party, { ...opts, games, seed }).winrate;
+    samples.push({ scale, winrate, games });
+    return winrate;
+  };
+
+  const logit = (p: number): number => Math.log(p / (1 - p));
+
+  /**
+   * Where does the winrate curve cross the target?
+   *
+   * Bisection answers that from its LAST comparison only, and each comparison
+   * is a ±4pp sample, so near the crossing it decides on noise and its answer
+   * random-walks a few PV either side — measured at up to ±4.6pp of placement
+   * error on a lone basilisk. Every sample taken on the way down is evidence
+   * about the same curve, though, so fit them all instead of discarding them.
+   *
+   * `logit(winrate)` is close to linear in scale over the region that matters
+   * (measured on the basilisk: 55→130 PV holds a slope near −0.045/PV), so a
+   * games-weighted least-squares line through the nearby samples, inverted at
+   * the target, places the answer using the whole search rather than its last
+   * step. Returns null when the samples can't support a fit.
+   */
+  const fitCrossing = (): number | null => {
+    const usable = samples.filter(s =>
+      s.winrate > 0.02 && s.winrate < 0.98
+      && Math.abs(logit(s.winrate) - logit(target)) < 2.2);   // near the target only
+    if (usable.length < 3) return null;
+    let sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (const s of usable) {
+      const w = s.games, x = s.scale, y = logit(s.winrate);
+      sw += w; sx += w * x; sy += w * y; sxx += w * x * x; sxy += w * x * y;
+    }
+    const denom = sw * sxx - sx * sx;
+    if (denom === 0) return null;
+    const slope = (sw * sxy - sx * sy) / denom;
+    const intercept = (sy - slope * sx) / sw;
+    if (!(slope < 0)) return null;                 // winrate must fall with PV
+    const crossing = (logit(target) - intercept) / slope;
+    return Number.isFinite(crossing) ? crossing : null;
+  };
+
+  // The bracket is in SCALE, but the bounds that matter are per body — so
+  // convert through the heaviest bulk present. At `lo` the biggest creature
+  // sits at PV_MIN (everything lighter floors there too), at `hi` it sits at
+  // PV_MAX. Bracketing in raw PV instead would deny a heavy creature the
+  // bottom of its range and make easy encounters containing one unsolvable.
+  const heaviest = Math.max(...entries.map(e => bulkOf(e.def)));
 
   // Bisect: more enemy PV → lower player winrate. Early steps only need to
   // find the region, so they run cheap; later steps sharpen as the bracket
   // narrows and the decision gets finer than the sampling error.
-  let lo = PV_MIN, hi = PV_MAX;
+  const loBound = PV_MIN / heaviest, hiBound = PV_MAX / heaviest;
+  let lo = loBound, hi = hiBound;
   let clamped = false;
-  let solvedPv: number;
+  let solvedScale: number;
   if (winrateAt(lo, searchGames) <= target) {
-    solvedPv = lo; clamped = true;        // even flimsy bodies beat the target
+    solvedScale = lo; clamped = true;        // even flimsy bodies beat the target
   } else if (winrateAt(hi, searchGames) >= target) {
-    solvedPv = hi; clamped = true;        // even the toughest aren't enough
+    solvedScale = hi; clamped = true;        // even the toughest aren't enough
   } else {
     for (let i = 0; i < steps; i++) {
       const mid = Math.sqrt(lo * hi);     // geometric: PV scales multiplicatively
       const games = Math.round(searchGames * (1 + (2 * i) / Math.max(1, steps - 1)));
       if (winrateAt(mid, games) > target) lo = mid; else hi = mid;
     }
-    solvedPv = Math.sqrt(lo * hi);
+    // Prefer the fit. It must NOT be clamped to the final bracket — that
+    // bracket's position is the very thing that is noisy, so the corrections
+    // worth making are the ones that land outside it. Bound it instead by the
+    // search's own bracket and by a sanity factor around the bisection answer,
+    // so a bad fit can be wrong but never absurd.
+    const bisected = Math.sqrt(lo * hi);
+    const fitted = fitCrossing();
+    solvedScale = fitted !== null
+      ? Math.min(hiBound, Math.max(loBound, Math.min(bisected * 1.6, Math.max(bisected / 1.6, fitted))))
+      : bisected;
+
+    // The bisection converges in CONTINUOUS scale, but what gets fielded is
+    // integer PV per body, and down at small bodies that rounding is worth
+    // several winrate points — one PV on a 3 PV basilisk moves the fight ~5pp,
+    // so the continuous crossing point can round to a config well off target.
+    // There, try the neighbouring integers and keep the one that lands closest.
+    //
+    // ONLY there. Above ~a dozen PV the neighbours differ by far less than the
+    // sampling error, so an argmin over them picks whichever config got a lucky
+    // sample rather than the better one — winner's curse in the selection,
+    // measured at ~10pp of added error on a 44 PV golem. Those solves keep the
+    // bisection's answer, which is already finer than we can measure.
+    //
+    // The selection is noisy by nature, so it only CHOOSES; the winrate
+    // reported below is still measured independently, on another seed.
+    const anchor = solvedScale * heaviest;
+    if (anchor <= REFINE_BELOW_PV) {
+      const candidates = [...new Set(
+        [Math.floor(anchor) - 1, Math.floor(anchor), Math.ceil(anchor), Math.ceil(anchor) + 1]
+          .filter(pv => pv >= PV_MIN && pv <= PV_MAX)
+          .map(pv => pv / heaviest),
+      )];
+      let best = solvedScale, bestGap = Infinity;
+      for (const candidate of candidates) {
+        // Fights this small are cheap to play, so buy precision here.
+        const gap = Math.abs(winrateAt(candidate, searchGames * 4) - target);
+        if (gap < bestGap) { bestGap = gap; best = candidate; }
+      }
+      solvedScale = best;
+    }
   }
 
   // Report an INDEPENDENT measurement of what we return: the number the GM
@@ -255,9 +364,12 @@ export function solveEncounter(
   // honest rather than a defect: PV is an INTEGER lever, so at small bodies a
   // single point of PV is worth several winrate points and some targets are
   // simply not reachable. `stderr` says how much of the gap is sampling.
-  const groups = groupsAt(solvedPv);
+  // Measured harder than a plain evaluation: this one number is what the GM
+  // reads and trusts, and at 320 games its ±3pp was large enough to make a
+  // correctly-placed encounter look mis-solved. It costs ~25% of a solve.
+  const groups = groupsAt(solvedScale);
   const final = simulateEncounter(groups, party, {
-    ...opts, games: opts.games ?? DEFAULT_GAMES, seed: seed + 977,
+    ...opts, games: opts.games ?? SOLVE_REPORT_GAMES, seed: seed + 977,
   });
 
   return {
@@ -270,7 +382,7 @@ export function solveEncounter(
     targetWinrate: target,
     predictedWinrate: final.winrate,
     stderr: final.stderr,
-    solvedPv: Math.max(PV_MIN, Math.round(solvedPv)),
+    solvedScale: Math.round(solvedScale * 100) / 100,
     clamped,
     avgRounds: final.avgRounds,
     games: final.games,

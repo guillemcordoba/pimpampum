@@ -26,5 +26,7 @@ function makeWolf(): Character {
 
 export const WOLF: EnemyDefinition = {
   id: 'wolf', displayName: 'Llop', classCss: 'llop', iconPath: ICON + 'lorc/wolf-head.svg',
+  /** ~45 kg — a grey wolf (32-65 kg male, 27-45 female). */
+  bulk: 0.86,
   skills: [WOLF_SKILL],
 };

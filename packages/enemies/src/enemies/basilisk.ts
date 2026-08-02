@@ -44,5 +44,9 @@ const BASILISK_SKILL: SkillDefinition = {
 export const BASILISK: EnemyDefinition = {
   id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg',
   naturalArmor: 2, aiStrategy: AIStrategy.Power,
+  /** ~3.2 t — a Rowling serpent, not D&D's 300 lb lizard: 15 m long ("up to
+   *  fifty feet") and "thick as an oak trunk". The kit already says as much —
+   *  a tail that sweeps three people at once is not a 6-foot reptile. */
+  bulk: 3.57,
   skills: [BASILISK_SKILL],
 };

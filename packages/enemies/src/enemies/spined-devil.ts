@@ -15,5 +15,7 @@ const SPINED_DEVIL_SKILL: SkillDefinition = {
 
 export const SPINED_DEVIL: EnemyDefinition = {
   id: 'spined-devil', displayName: 'Diable Espinós', classCss: 'diable-espinos', iconPath: ICON + 'lorc/imp.svg',
+  /** ~11 kg — a spinagon is 2-3 ft and 25 lb. */
+  bulk: 0.54,
   skills: [SPINED_DEVIL_SKILL],
 };

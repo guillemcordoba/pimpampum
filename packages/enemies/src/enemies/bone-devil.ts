@@ -20,5 +20,7 @@ const BONE_DEVIL_SKILL: SkillDefinition = {
 export const BONE_DEVIL: EnemyDefinition = {
   id: 'bone-devil', displayName: "Diable d'Os", classCss: 'diable-dos', iconPath: ICON + 'lorc/daemon-skull.svg',
   aiStrategy: AIStrategy.Power,
+  /** ~227 kg — an osyluth is 9 ft and ~500 lb. */
+  bulk: 1.48,
   skills: [BONE_DEVIL_SKILL],
 };

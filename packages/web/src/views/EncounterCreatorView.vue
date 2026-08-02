@@ -2,7 +2,7 @@
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  ENEMY_DEFINITIONS, getEnemy, solveEncounter, TARGET_WINRATES,
+  ENEMY_DEFINITIONS, getEnemy, fullKitLevel, solveEncounter, TARGET_WINRATES,
   type PoolSpec, type SolvedEncounter,
 } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
@@ -48,27 +48,39 @@ const PRESETS = [
   { label: 'Èpica', value: Math.round(TARGET_WINRATES.boss * 100) },
 ];
 
-// Composition: which species and how many. Levels are NOT an input — the
-// solver produces them (enemies scale by levels; green kits for easy fights).
-interface PoolRow { enemyId: string; count: number; }
+// Composition: which species, how many, and at what LEVEL. Level is a lore
+// input, not something the solver optimises: a scout goblin and a war-leader
+// goblin are different creatures, and the GM says which one walked in. It is
+// still a real lever on the fight — the same difficulty bought at a higher
+// level needs less PV and ends sooner (measured: 6 goblins at 65% run 20.5
+// rounds at level 1 and 9.1 at level 4) — so the solved PV and the average
+// round count are reported back and the GM tunes against them.
+interface PoolRow { enemyId: string; count: number; level: number; }
 const pool = ref<PoolRow[]>([
-  { enemyId: 'goblin', count: 1 },
+  { enemyId: 'goblin', count: 1, level: fullKitLevel(getEnemy('goblin')!) },
 ]);
 
 const templateOf = (id: string) => getEnemy(id);
+const maxLevelOf = (id: string) => {
+  const t = getEnemy(id);
+  return t ? fullKitLevel(t) : 1;
+};
 const unusedTemplates = computed(() =>
   ENEMY_DEFINITIONS.filter(t => !pool.value.some(p => p.enemyId === t.id)));
 
 function addSpecies(enemyId: string): void {
   const t = getEnemy(enemyId);
   if (!t) return;
-  pool.value.push({ enemyId, count: 1 });
+  pool.value.push({ enemyId, count: 1, level: fullKitLevel(t) });
 }
 function removeSpecies(i: number): void {
   pool.value.splice(i, 1);
 }
 function bump(row: PoolRow, delta: number): void {
   row.count = Math.max(1, row.count + delta);
+}
+function bumpLevel(row: PoolRow, delta: number): void {
+  row.level = Math.max(1, Math.min(maxLevelOf(row.enemyId), row.level + delta));
 }
 
 // --- The solve --------------------------------------------------------------
@@ -95,7 +107,7 @@ function disposeWorker(): void {
 function runSolve(): void {
   const token = ++solveToken;
   const specs: PoolSpec[] = pool.value.map(p =>
-    ({ enemyId: p.enemyId, count: p.count }));
+    ({ enemyId: p.enemyId, count: p.count, level: p.level }));
   const party: PartySpec = {
     count: playerCount.value,
     levels: [...playerLevels.value],
@@ -161,6 +173,14 @@ const marginPct = computed(() =>
   solved.value ? Math.max(1, Math.round(solved.value.stderr * 100)) : null);
 // Flag when the achievable winrate drifts from the request by more than the
 // simulation's own error bar — i.e. a real miss, not sampling noise.
+// The game is tuned for fights of about five rounds (intentions.md). Past that
+// the solver has bought its difficulty with hit points rather than with danger,
+// which reads as a slog at the table — so say so instead of hiding it in a
+// number the GM has to interpret.
+const LONG_FIGHT_ROUNDS = 6;
+const longFight = computed(() =>
+  solved.value !== null && solved.value.avgRounds > LONG_FIGHT_ROUNDS);
+
 const clamped = computed(() =>
   solved.value !== null
   && Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate)
@@ -255,14 +275,29 @@ function openTracker(): void {
           >
             <img :src="base + (templateOf(p.enemyId)?.iconPath ?? '')" alt="">
             <div class="pool-name">{{ templateOf(p.enemyId)?.displayName }}</div>
-
-            <div class="pool-count">
-              <button type="button" class="step" @click="bump(p, -1)">−</button>
-              <span class="count-num">{{ p.count }}</span>
-              <button type="button" class="step" @click="bump(p, +1)">+</button>
-            </div>
-
             <button type="button" class="chip-x" title="Treu aquest enemic" @click="removeSpecies(i)">×</button>
+
+            <div class="pool-knobs">
+              <label class="knob">
+                <span class="knob-label">quants</span>
+                <button type="button" class="step" @click="bump(p, -1)">−</button>
+                <span class="count-num">{{ p.count }}</span>
+                <button type="button" class="step" @click="bump(p, +1)">+</button>
+              </label>
+
+              <label class="knob" title="Quantes cartes coneix: un explorador verd o un cabdill veterà">
+                <span class="knob-label">nivell</span>
+                <button
+                  type="button" class="step"
+                  :disabled="p.level <= 1" @click="bumpLevel(p, -1)"
+                >−</button>
+                <span class="count-num">{{ p.level }}<span class="of-max">/{{ maxLevelOf(p.enemyId) }}</span></span>
+                <button
+                  type="button" class="step"
+                  :disabled="p.level >= maxLevelOf(p.enemyId)" @click="bumpLevel(p, +1)"
+                >+</button>
+              </label>
+            </div>
           </div>
 
           <div class="add-species">
@@ -302,19 +337,25 @@ function openTracker(): void {
             </div>
           </div>
 
-          <div class="result-meta">
-            <span :class="{ warn: clamped }">
-              Probabilitat de victòria mesurada:
-              <strong>{{ predictedPct }}%</strong> <span class="margin">±{{ marginPct }}</span>
-              <template v-if="clamped"> (el creador no ha pogut ajustar-se més al {{ winrate }}% demanat)</template>
-            </span>
-            · Durada mitjana: <strong>{{ solved.avgRounds.toFixed(1) }}</strong> rondes
+          <div class="readouts">
+            <div class="readout" :class="{ warn: clamped }">
+              <span class="readout-value">{{ predictedPct }}%<span class="margin">±{{ marginPct }}</span></span>
+              <span class="readout-label">victòria dels jugadors</span>
+            </div>
+            <div class="readout" :class="{ warn: longFight }">
+              <span class="readout-value">{{ solved.avgRounds.toFixed(1) }}</span>
+              <span class="readout-label">rondes de mitjana</span>
+            </div>
           </div>
-          <p class="result-note">
-            Mesurada jugant l'encontre {{ solved.games }} vegades contra un grup
-            com el teu, no estimada amb una fórmula.
-          </p>
 
+          <p v-if="clamped" class="result-note warn">
+            El creador no ha pogut ajustar-se més al {{ winrate }}% demanat.
+          </p>
+          <p v-else-if="longFight" class="result-note warn">
+            Combat llarg. Puja el nivell dels enemics o posa'n més cossos:
+            la mateixa dificultat comprada amb cartes millors necessita menys PV
+            i s'acaba abans.
+          </p>
           <div class="start-buttons">
             <button type="button" class="play-btn" @click="playEncounter">
               ⚔ Combat contra la IA
@@ -409,7 +450,7 @@ function openTracker(): void {
 
 .pool { display: flex; flex-direction: column; gap: 0.5rem; }
 .pool-row {
-  display: flex; align-items: center; gap: 0.7rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem 0.7rem;
   background: rgba(0, 0, 0, 0.22);
   border: 1px solid var(--parchment-dark);
   border-left: 4px solid var(--class-color, var(--parchment-dark));
@@ -417,7 +458,21 @@ function openTracker(): void {
 }
 .pool-row img { width: 36px; height: 36px; filter: invert(85%) sepia(15%) saturate(360%) hue-rotate(2deg) brightness(95%); }
 .pool-name { font-family: 'Cinzel Decorative', serif; color: var(--parchment); flex: 1; }
-.pool-count { display: flex; align-items: center; gap: 0.35rem; }
+
+/* The two things the GM decides about a species: how many walked in, and how
+   seasoned they are. Both feed the solve, so both sit on the row. */
+.pool-knobs {
+  flex-basis: 100%;
+  display: flex; flex-wrap: wrap; gap: 1.2rem;
+  padding-left: calc(36px + 0.7rem);
+}
+.knob { display: flex; align-items: center; gap: 0.35rem; }
+.knob-label {
+  font-family: 'Crimson Text', serif; font-style: italic;
+  color: var(--parchment-dark); font-size: 0.85rem; margin-right: 0.1rem;
+}
+.of-max { color: var(--parchment-dark); font-size: 0.75em; }
+.step:disabled { opacity: 0.35; cursor: default; }
 .step {
   width: 1.6rem; height: 1.6rem; border-radius: 4px; cursor: pointer;
   color: var(--parchment); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--parchment-dark);
@@ -458,19 +513,27 @@ function openTracker(): void {
 .result-detail { font-family: 'Crimson Text', serif; color: var(--parchment-dark); }
 .result-detail strong { color: var(--parchment); }
 
-.result-meta {
-  text-align: center; font-family: 'Crimson Text', serif; color: var(--parchment-dark);
-  margin-top: 0.9rem;
+/* The two numbers the GM tunes against: how often they win, and how long it
+   takes. Big enough to read while nudging a level up and down. */
+.readouts { display: flex; justify-content: center; gap: 2.5rem; margin-top: 1.1rem; }
+.readout { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
+.readout-value {
+  font-family: 'Cinzel Decorative', serif; color: var(--parchment);
+  font-size: 1.7rem; line-height: 1.1;
 }
-.result-meta strong { color: var(--parchment); }
-.result-meta .warn, .result-meta .warn strong { color: #d9924a; }
-.result-meta .margin { font-size: 0.85em; opacity: 0.75; }
+.readout-label {
+  font-family: 'Crimson Text', serif; font-style: italic;
+  color: var(--parchment-dark); font-size: 0.88rem;
+}
+.readout .margin { font-size: 0.55em; opacity: 0.7; margin-left: 0.15rem; }
+.readout.warn .readout-value { color: #d9924a; }
 
 .result-note {
   text-align: center; font-family: 'Crimson Text', serif; font-style: italic;
   color: var(--parchment-dark); opacity: 0.75; font-size: 0.88rem;
   margin: 0.35rem 0 0;
 }
+.result-note.warn { color: #d9924a; opacity: 0.95; }
 
 .result-solving {
   display: flex; align-items: center; justify-content: center; gap: 0.6rem;

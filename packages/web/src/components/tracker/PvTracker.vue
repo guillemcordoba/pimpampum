@@ -62,7 +62,12 @@ function onInput(event: Event): void {
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(232, 220, 196, 0.18);
 }
-.large .bar { height: 16px; border-radius: 8px; }
+/* `--tile-scale` is set by whatever hosts the tracker (the players' board sizes
+   its tiles to the room), so the large variant grows with its tile. */
+.large .bar {
+  height: calc(14px * var(--tile-scale, 1));
+  border-radius: calc(7px * var(--tile-scale, 1));
+}
 .fill {
   height: 100%;
   background: linear-gradient(90deg, #a4302c, #7fae3f);
@@ -77,9 +82,12 @@ function onInput(event: Event): void {
   font-family: 'MedievalSharp', serif; color: var(--parchment);
   font-size: 1rem;
 }
-.large .value { font-size: 1.8rem; }
+.large .value { font-size: calc(1.6rem * var(--tile-scale, 1)); }
 .value img { width: 15px; height: 15px; align-self: center; opacity: 0.85; }
-.large .value img { width: 26px; height: 26px; }
+.large .value img {
+  width: calc(23px * var(--tile-scale, 1));
+  height: calc(23px * var(--tile-scale, 1));
+}
 
 .cur {
   width: 2.8ch; padding: 0; text-align: right;

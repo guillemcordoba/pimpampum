@@ -20,5 +20,7 @@ const HORNED_DEVIL_SKILL: SkillDefinition = {
 
 export const HORNED_DEVIL: EnemyDefinition = {
   id: 'horned-devil', displayName: 'Diable Banyut', classCss: 'diable-banyut', iconPath: ICON + 'delapouite/devil-mask.svg',
+  /** ~295 kg — a cornugon is 9 ft, 600 lb (3e) / 700 lb (PF). */
+  bulk: 1.62,
   skills: [HORNED_DEVIL_SKILL],
 };

@@ -17,5 +17,7 @@ const GOBLIN_SKILL: SkillDefinition = {
 export const GOBLIN: EnemyDefinition = {
   id: 'goblin', displayName: 'Goblin', classCss: 'goblin', iconPath: ICON + 'delapouite/goblin-head.svg',
   equipment: ['escut'],
+  /** ~20 kg — D&D 3.5 gives 40-45 lb, Warhammer 18-20 kg. */
+  bulk: 0.66,
   skills: [GOBLIN_SKILL],
 };

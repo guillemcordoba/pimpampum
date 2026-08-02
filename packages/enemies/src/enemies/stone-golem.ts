@@ -19,5 +19,7 @@ const STONE_GOLEM_SKILL: SkillDefinition = {
 export const STONE_GOLEM: EnemyDefinition = {
   id: 'stone-golem', displayName: 'Gòlem de Pedra', classCss: 'golem-de-pedra', iconPath: ICON + 'delapouite/rock-golem.svg',
   aiStrategy: AIStrategy.Protect,
+  /** ~907 kg — 9 ft and 2000 lb of rock. */
+  bulk: 2.35,
   skills: [STONE_GOLEM_SKILL],
 };
