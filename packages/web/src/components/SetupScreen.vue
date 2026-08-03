@@ -1,142 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
-import { PLAYER_SKILLS, ALL_EQUIPMENT, ALL_POTIONS, getSkill, getPotion } from '@pimpampum/skills';
+import { ALL_EQUIPMENT } from '@pimpampum/skills';
 import { ENEMY_DEFINITIONS, fullKitLevel } from '@pimpampum/enemies';
 import type { Game } from '../composables/useGame';
+import PartyRoster from './party/PartyRoster.vue';
 
 const props = defineProps<{ game: Game }>();
 const g = props.game;
-const base = import.meta.env.BASE_URL;
-
-const DEFAULT_SKILL_LEVEL = 1;
-
-// --- Player draft ---------------------------------------------------------
-const draftName = ref('');
-const draftPv = ref(12);
-const draftSkills = ref<Record<string, number>>({});
-const draftEquip = ref<string[]>([]);
-const skillSearch = ref('');
-const equipSearch = ref('');
-/** Carried potions — picked like any other equipment, one copy each. */
-const draftPotions = ref<string[]>([]);
-
-function potionSummary(potions: string[]): string {
-  return potions.map(id => getPotion(id)?.name ?? id).join(', ');
-}
 
 // Catalog DOM refs — used to scroll a newly-picked row into view.
-const skillCatalogEl = ref<HTMLElement | null>(null);
-const equipCatalogEl = ref<HTMLElement | null>(null);
 const enemyEquipCatalogEl = ref<HTMLElement | null>(null);
 
 async function scrollRowIntoView(container: HTMLElement | null, id: string) {
   await nextTick();
   const el = container?.querySelector(`[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
   el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-/** Picked skills pinned at the top (always visible regardless of search);
- *  available skills below, filtered by search. */
-const skillCatalogRows = computed(() => {
-  const picked = draftSkillIds.value
-    .map(id => PLAYER_SKILLS.find(s => s.id === id))
-    .filter((s): s is (typeof PLAYER_SKILLS)[number] => !!s)
-    .map(skill => ({ skill, picked: true as const }));
-
-  const q = skillSearch.value.trim().toLowerCase();
-  const available = PLAYER_SKILLS
-    .filter(s => !(s.id in draftSkills.value))
-    .filter(s => !q || s.displayName.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
-    .map(skill => ({ skill, picked: false as const }));
-
-  return [...picked, ...available];
-});
-
-/** Player equipment catalog: equipment AND potions in one flat list, all
- *  rendered identically. Picked rows pinned first, then filtered available. */
-interface EquipCatalogRow { id: string; name: string; picked: boolean; isPotion: boolean; }
-
-const equipCatalogRows = computed<EquipCatalogRow[]>(() => {
-  const q = equipSearch.value.trim().toLowerCase();
-  const pickedEquip = draftEquip.value
-    .map(id => ALL_EQUIPMENT.find(e => e.id === id))
-    .filter((e): e is (typeof ALL_EQUIPMENT)[number] => !!e)
-    .map(e => ({ id: e.id, name: e.name, picked: true, isPotion: false }));
-  const pickedPotions = draftPotions.value
-    .map(id => getPotion(id))
-    .filter((p): p is NonNullable<ReturnType<typeof getPotion>> => !!p)
-    .map(p => ({ id: p.id, name: p.name, picked: true, isPotion: true }));
-  const availEquip = ALL_EQUIPMENT
-    .filter(e => !draftEquip.value.includes(e.id))
-    .filter(e => !q || e.name.toLowerCase().includes(q))
-    .map(e => ({ id: e.id, name: e.name, picked: false, isPotion: false }));
-  const availPotions = ALL_POTIONS
-    .filter(p => !draftPotions.value.includes(p.id))
-    .filter(p => !q || p.name.toLowerCase().includes(q))
-    .map(p => ({ id: p.id, name: p.name, picked: false, isPotion: true }));
-
-  return [...pickedEquip, ...pickedPotions, ...availEquip, ...availPotions];
-});
-
-function addPotion(id: string) {
-  if (draftPotions.value.includes(id)) return;
-  draftPotions.value = [...draftPotions.value, id];
-  scrollRowIntoView(equipCatalogEl.value, id);
-}
-function removePotion(id: string) {
-  draftPotions.value = draftPotions.value.filter(p => p !== id);
-}
-
-function addSkill(id: string) {
-  if (id in draftSkills.value) return;
-  draftSkills.value = { ...draftSkills.value, [id]: DEFAULT_SKILL_LEVEL };
-  scrollRowIntoView(skillCatalogEl.value, id);
-}
-function removeSkill(id: string) {
-  const next = { ...draftSkills.value };
-  delete next[id];
-  draftSkills.value = next;
-}
-/** Max level of a skill = the number of actions it defines (level N = knows
- *  the first N actions). */
-function skillMaxLevel(id: string): number {
-  return getSkill(id)?.actions.length ?? 7;
-}
-function setSkillLevel(id: string, level: number) {
-  const clamped = Math.max(1, Math.min(skillMaxLevel(id), Math.round(level) || 1));
-  draftSkills.value = { ...draftSkills.value, [id]: clamped };
-}
-function addEquip(id: string) {
-  if (draftEquip.value.includes(id)) return;
-  draftEquip.value = [...draftEquip.value, id];
-  scrollRowIntoView(equipCatalogEl.value, id);
-}
-function removeEquip(id: string) {
-  draftEquip.value = draftEquip.value.filter(e => e !== id);
-}
-
-const draftSkillIds = computed(() => Object.keys(draftSkills.value));
-const canAddPlayer = computed(() => draftSkillIds.value.length > 0);
-
-function addPlayer() {
-  if (!canAddPlayer.value) return;
-  const firstSkill = PLAYER_SKILLS.find(s => s.id === draftSkillIds.value[0])!;
-  g.addPlayer({
-    name: draftName.value || `Heroi ${g.playerSpecs.value.length + 1}`,
-    classCss: firstSkill.classCss,
-    iconPath: firstSkill.iconPath,
-    pv: draftPv.value,
-    skills: { ...draftSkills.value },
-    equipment: [...draftEquip.value],
-    potions: [...draftPotions.value],
-  });
-  draftName.value = '';
-  draftPv.value = 12;
-  draftSkills.value = {};
-  draftEquip.value = [];
-  draftPotions.value = [];
-  skillSearch.value = '';
-  equipSearch.value = '';
 }
 
 // --- Enemy draft ----------------------------------------------------------
@@ -194,128 +72,39 @@ function addEnemy() {
 }
 
 // --- Sums -----------------------------------------------------------------
-const playerSkillSum = computed(() =>
-  g.playerSpecs.value.reduce((sum, p) => sum + Object.values(p.skills).reduce((a, b) => a + b, 0), 0));
 const enemyLevelSum = computed(() =>
   g.enemySpecs.value.reduce((sum, e) => sum + e.level, 0));
 
 function templateName(id: string): string {
   return ENEMY_DEFINITIONS.find(t => t.id === id)?.displayName ?? id;
 }
-function skillName(id: string): string {
-  return getSkill(id)?.displayName ?? id;
-}
 </script>
 
 <template>
   <div class="setup">
     <div class="setup-cols">
-      <!-- Player builder (left) -->
+      <!-- Left: the same stored party the encounter creator prices against -->
       <section class="setup-panel">
-        <div class="builder">
-          <input v-model="draftName" placeholder="Nom de l'heroi" class="txt">
-          <label class="pv-row">PV <input v-model.number="draftPv" type="number" min="5" max="60" class="num"></label>
-
-          <div class="subhead">Habilitats</div>
-          <input v-model="skillSearch" type="search" placeholder="Cerca…" class="txt search-input">
-          <div ref="skillCatalogEl" class="catalog">
-            <template v-for="row in skillCatalogRows" :key="row.skill.id">
-              <div
-                v-if="row.picked"
-                class="catalog-row picked"
-                :class="row.skill.classCss"
-                :data-id="row.skill.id"
-              >
-                <img :src="base + row.skill.iconPath" :alt="''" class="catalog-icon">
-                <span class="catalog-name">{{ row.skill.displayName }}</span>
-                <input
-                  type="number" min="1" :max="skillMaxLevel(row.skill.id)"
-                  :value="draftSkills[row.skill.id]"
-                  class="num lvl"
-                  @input="setSkillLevel(row.skill.id, Number(($event.target as HTMLInputElement).value))"
-                >
-                <button class="picked-x" @click="removeSkill(row.skill.id)" title="Treure">✕</button>
-              </div>
-              <button
-                v-else
-                type="button"
-                class="catalog-row"
-                :class="row.skill.classCss"
-                :data-id="row.skill.id"
-                @click="addSkill(row.skill.id)"
-              >
-                <img :src="base + row.skill.iconPath" :alt="''" class="catalog-icon">
-                <span class="catalog-name">{{ row.skill.displayName }}</span>
-                <span class="catalog-add">+</span>
-              </button>
-            </template>
-            <div v-if="skillCatalogRows.length === 0" class="catalog-empty">Cap habilitat</div>
-          </div>
-
-          <div class="subhead">Equipament</div>
-          <input v-model="equipSearch" type="search" placeholder="Cerca…" class="txt search-input">
-          <div ref="equipCatalogEl" class="catalog">
-            <template v-for="row in equipCatalogRows" :key="row.id">
-              <div
-                v-if="row.picked"
-                class="catalog-row picked"
-                :data-id="row.id"
-              >
-                <span class="catalog-name">{{ row.name }}</span>
-                <button
-                  class="picked-x"
-                  @click="row.isPotion ? removePotion(row.id) : removeEquip(row.id)"
-                  title="Treure"
-                >✕</button>
-              </div>
-              <button
-                v-else
-                type="button"
-                class="catalog-row"
-                :data-id="row.id"
-                @click="row.isPotion ? addPotion(row.id) : addEquip(row.id)"
-              >
-                <span class="catalog-name">{{ row.name }}</span>
-                <span class="catalog-add">+</span>
-              </button>
-            </template>
-            <div v-if="equipCatalogRows.length === 0" class="catalog-empty">Cap objecte</div>
-          </div>
-
-          <button class="btn btn-primary" :disabled="!canAddPlayer" @click="addPlayer">Afegir heroi →</button>
+        <h2>Els jugadors</h2>
+        <div class="party-scroll">
+          <PartyRoster />
         </div>
       </section>
 
-      <!-- Middle: both team rosters + start button stacked underneath them -->
+      <!-- Middle: the enemy roster + start button stacked underneath it -->
       <div class="teams-middle">
-        <div class="teams-row">
-          <section class="setup-panel team-panel">
-            <h2>Herois (Σ {{ playerSkillSum }})</h2>
-            <div class="roster">
-              <div v-for="(p, i) in g.playerSpecs.value" :key="i" class="roster-tile" :class="p.classCss">
-                <strong>{{ p.name }}</strong>
-                <div class="roster-detail">PV {{ p.pv }} · {{ Object.entries(p.skills).map(([s, l]) => `${skillName(s)} ${l}`).join(', ') }}</div>
-                <div v-if="p.equipment.length" class="roster-detail">⚙ {{ p.equipment.join(', ') }}</div>
-                <div v-if="p.potions.length" class="roster-detail">⚗ {{ potionSummary(p.potions) }}</div>
-                <button class="x" @click="g.removePlayer(i)">✕</button>
-              </div>
-              <div v-if="g.playerSpecs.value.length === 0" class="empty-hint">← Afegeix herois</div>
+        <section class="setup-panel team-panel">
+          <h2>Enemics (Σ {{ enemyLevelSum }})</h2>
+          <div class="roster">
+            <div v-for="(e, i) in g.enemySpecs.value" :key="i" class="roster-tile">
+              <strong>{{ templateName(e.enemyId) }}</strong>
+              <div class="roster-detail">nivell {{ e.level }}<template v-if="e.pv"> · PV {{ e.pv }}</template></div>
+              <div v-if="e.equipment.length" class="roster-detail">⚙ {{ e.equipment.join(', ') }}</div>
+              <button class="x" @click="g.removeEnemy(i)">✕</button>
             </div>
-          </section>
-
-          <section class="setup-panel team-panel">
-            <h2>Enemics (Σ {{ enemyLevelSum }})</h2>
-            <div class="roster">
-              <div v-for="(e, i) in g.enemySpecs.value" :key="i" class="roster-tile">
-                <strong>{{ templateName(e.enemyId) }}</strong>
-                <div class="roster-detail">nivell {{ e.level }}<template v-if="e.pv"> · PV {{ e.pv }}</template></div>
-                <div v-if="e.equipment.length" class="roster-detail">⚙ {{ e.equipment.join(', ') }}</div>
-                <button class="x" @click="g.removeEnemy(i)">✕</button>
-              </div>
-              <div v-if="g.enemySpecs.value.length === 0" class="empty-hint">Afegeix enemics →</div>
-            </div>
-          </section>
-        </div>
+            <div v-if="g.enemySpecs.value.length === 0" class="empty-hint">Afegeix enemics →</div>
+          </div>
+        </section>
 
         <div class="start-row">
           <button class="btn btn-primary btn-big" :disabled="!g.canStart()" @click="g.startCombat()">
@@ -388,8 +177,11 @@ function skillName(id: string): string {
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 1rem; min-width: 0;
 }
-.teams-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
 .setup-panel { background: rgba(0,0,0,0.2); border: 1px solid rgba(232,220,196,0.15); border-radius: 8px; padding: 1rem; min-width: 0; }
+.setup-panel h2 { font-family: 'Cinzel Decorative', serif; color: var(--parchment); font-size: 1.05rem; margin: 0 0 0.7rem; }
+/* The roster is the whole left panel: it takes the leftover height and
+   scrolls inside, like the enemy builder's catalog does. */
+.party-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .team-panel { background: rgba(0,0,0,0.35); }
 .empty-hint { color: var(--parchment-dark); opacity: 0.6; font-style: italic; padding: 0.5rem 0; text-align: center; font-size: 0.85rem; }
 .roster { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -406,12 +198,11 @@ function skillName(id: string): string {
 .picked-x { background: none; border: none; color: var(--parchment-dark); cursor: pointer; font-size: 0.85rem; padding: 0 0.2rem; }
 .picked-x:hover { color: var(--parchment); }
 
-/* Searchable catalog (skills + equipment) */
+/* Searchable equipment catalog (the enemy builder's only list) */
 .search-input { font-size: 0.85rem; }
 .catalog {
   display: flex; flex-direction: column; gap: 0.2rem;
-  /* Soak up whatever leftover height the panel has, share it between the
-     skill catalog and the equipment catalog, and only scroll inside.
+  /* Soak up whatever leftover height the panel has and only scroll inside.
      min-height: 0 is critical — otherwise the catalog refuses to shrink
      below its content size and pushes the panel past its max-height. */
   flex: 1 1 0;
@@ -449,25 +240,10 @@ function skillName(id: string): string {
 .catalog-add { color: var(--parchment-dark); font-weight: bold; }
 .catalog-empty { color: var(--parchment-dark); opacity: 0.6; font-size: 0.8rem; padding: 0.4rem; text-align: center; font-style: italic; }
 
-/* Class accent for skill rows (mirrors skills page) */
-.catalog-row.guerrer { --class-color: var(--class-guerrer); }
-.catalog-row.murri { --class-color: var(--class-murri); }
-.catalog-row.mag { --class-color: var(--class-mag); }
-.catalog-row.barbar { --class-color: var(--class-barbar); }
-.catalog-row.clergue { --class-color: var(--class-clergue); }
-.catalog-row.monjo { --class-color: var(--class-monjo); }
-.catalog-row.trobador { --class-color: var(--class-trobador); }
-.catalog-row.fetiller { --class-color: var(--class-fetiller); }
-.catalog-row.bruixot { --class-color: var(--class-bruixot); }
-.catalog-row.paladi { --class-color: var(--class-paladi); }
-.catalog-row.druida { --class-color: var(--class-druida); }
-.catalog-row.objecte { --class-color: var(--class-objecte); }
-
 .txt, .num, select.txt { background: rgba(0,0,0,0.4); border: 1px solid rgba(232,220,196,0.3); border-radius: 4px; color: var(--parchment); padding: 0.3rem; }
 select.txt { color-scheme: dark; }
 select.txt option { background: #241c12; color: var(--parchment); }
 .num { width: 4rem; }
-.lvl { width: 3.2rem; }
 .pv-row { color: var(--parchment); display: inline-flex; gap: 0.4rem; align-items: center; }
 .start-row { text-align: center; }
 .btn-big { font-size: 1.2rem; padding: 0.6rem 1.5rem; }
@@ -484,6 +260,7 @@ select.txt option { background: #241c12; color: var(--parchment); }
   .setup-cols { grid-template-columns: 1fr; }
   .setup-cols > .setup-panel { height: auto; }
   .teams-middle { overflow-y: visible; }
+  .party-scroll { overflow-y: visible; }
   .catalog { max-height: 45vh; }
 }
 </style>

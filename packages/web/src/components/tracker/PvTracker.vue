@@ -37,6 +37,9 @@ function onInput(event: Event): void {
       <div class="fill" :style="{ width: pct + '%' }"></div>
     </div>
     <div class="row">
+      <!-- ±5 as well as ±1: a single margin routinely takes 5-8 PV off, and
+           clicking − six times mid-fight is the slow way to run a table. -->
+      <button v-if="!readonly" type="button" class="step big" title="−5 PV" @click="set(current - 5)">−5</button>
       <button v-if="!readonly" type="button" class="step" title="−1 PV" @click="set(current - 1)">−</button>
       <span class="value">
         <img :src="base + STAT_ICONS.pv" alt="PV">
@@ -50,12 +53,16 @@ function onInput(event: Event): void {
         <span class="max">/ {{ max }}</span>
       </span>
       <button v-if="!readonly" type="button" class="step" title="+1 PV" @click="set(current + 1)">+</button>
+      <button v-if="!readonly" type="button" class="step big" title="+5 PV" @click="set(current + 5)">+5</button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.pv-tracker { display: flex; flex-direction: column; gap: 0.3rem; min-width: 9.5rem; }
+/* Wide enough for ±5, ±1 and the number without the row wrapping. The players'
+   screen is read-only (no steppers), so it is not held to this. */
+.pv-tracker { display: flex; flex-direction: column; gap: 0.3rem; min-width: 13rem; }
+.pv-tracker.large { min-width: 0; }
 
 .bar {
   height: 8px; border-radius: 4px; overflow: hidden;
@@ -114,4 +121,12 @@ function onInput(event: Event): void {
 }
 .step:hover { background: rgba(232, 220, 196, 0.18); }
 .step:active { background: rgba(232, 220, 196, 0.3); }
+/* The ±5 pair reads as the secondary action: same height, wider for its two
+   glyphs, and dimmer so the ±1 buttons stay the ones the eye lands on. */
+.step.big {
+  width: 2.1rem; font-size: 0.82rem;
+  color: var(--parchment-dark);
+  border-color: rgba(232, 220, 196, 0.3);
+}
+.step.big:hover { color: var(--parchment); }
 </style>

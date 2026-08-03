@@ -1,22 +1,17 @@
 import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
 import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
-import { createRegistry, buildCharacter, PLAYER_SKILLS } from '@pimpampum/skills';
+import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemyFrom, getEnemy, registerEnemySkills } from '@pimpampum/enemies';
 import { takePendingEncounter } from './pendingEncounter';
+import { useParties, heroBuildSpec, type HeroSpec } from './party';
 
 export type GamePhase = 'setup' | 'card-selection' | 'reveal' | 'resolving' | 'victory';
 
-/** A player character being built in the setup screen. */
-export interface PlayerSpec {
-  name: string;
-  classCss: string;
-  iconPath: string;
-  pv: number;
-  skills: Record<string, number>;
-  equipment: string[];
-  potions: string[];
-}
+/** A player character. The heroes ARE the stored party — the combat view does
+ *  not keep a roster of its own, so a fight fields exactly the table the
+ *  encounter creator priced its encounters against. */
+export type PlayerSpec = HeroSpec;
 
 /** An enemy entry in the setup screen. Creatures carry no printed PV — the
  *  encounter decides it, so `pv` is always explicit. */
@@ -34,49 +29,19 @@ export function useGame() {
   const gamePhase = ref<GamePhase>('setup');
   const engine = ref<CombatEngine | null>(null);
 
-  const playerSpecs = ref<PlayerSpec[]>([]);
+  // The heroes come from the stored party rather than a roster of this
+  // screen's own, so the fight fields exactly the characters the encounter
+  // creator solved against.
+  const party = useParties();
+  const playerSpecs = computed<PlayerSpec[]>(() => party.heroes.value);
   const enemySpecs = ref<EnemySpec[]>([]);
 
-  // An encounter handed over by the creator (/encounters) pre-fills the
-  // enemy roster AND auto-builds one hero per player: a random skill that
-  // actually has action cards at that player's selected level (kit size ≥
-  // level), played whole — no splitting across skills.
+  // An encounter handed over by the creator pre-fills the enemy roster.
   const handoff = takePendingEncounter();
   if (handoff) {
     enemySpecs.value = handoff.encounter.groups.flatMap(g =>
       Array.from({ length: g.count }, () =>
         ({ enemyId: g.enemyId, level: g.level, equipment: [], pv: g.pv })));
-
-    const shuffled = [...PLAYER_SKILLS];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    // Equip each hero with the armour entered for them, so the fight matches
-    // the promised winrate (the balancer prices for this armour).
-    const armorItem = (a: number) => a >= 2 ? 'armadura-de-ferro' : a >= 1 ? 'armadura-de-cuir' : null;
-    playerSpecs.value = handoff.playerLevels.map((level, i) => {
-      const candidates = shuffled.filter(s => s.actions.length >= level);
-      // No kit that big: fall back to the deepest kits, clamped.
-      const pool = candidates.length > 0
-        ? candidates
-        : shuffled.filter(s => s.actions.length === Math.max(...shuffled.map(x => x.actions.length)));
-      const skill = pool[i % pool.length];
-      const equipment: string[] = [];
-      const usesWeapon = skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'));
-      if (usesWeapon) equipment.push('destral');
-      const armorId = armorItem(handoff.playerArmor[i] ?? 1);
-      if (armorId) equipment.push(armorId);
-      return {
-        name: `Heroi ${i + 1}`,
-        classCss: skill.classCss,
-        iconPath: skill.iconPath,
-        pv: 12,
-        skills: { [skill.id]: Math.min(skill.actions.length, level) },
-        equipment,
-        potions: [],
-      };
-    });
   }
 
   const combatLog = ref<LogEntry[]>([]);
@@ -99,13 +64,8 @@ export function useGame() {
 
   // --- Setup ---------------------------------------------------------------
 
-  function addPlayer(spec: PlayerSpec) {
-    if (playerSpecs.value.length >= 10) return;
-    playerSpecs.value = [...playerSpecs.value, spec];
-  }
-  function removePlayer(idx: number) {
-    playerSpecs.value = playerSpecs.value.filter((_, i) => i !== idx);
-  }
+  // There is no addPlayer/removePlayer here: the players ARE the stored party,
+  // edited through <PartyRoster> in whichever screen the GM happens to be in.
   function addEnemy(spec: EnemySpec) {
     if (enemySpecs.value.length >= 10) return;
     enemySpecs.value = [...enemySpecs.value, spec];
@@ -115,16 +75,7 @@ export function useGame() {
   }
 
   function buildPlayers(): Character[] {
-    return playerSpecs.value.map((s, i) => buildCharacter({
-      name: s.name || `Heroi ${i + 1}`,
-      classCss: s.classCss,
-      iconPath: s.iconPath,
-      pv: s.pv,
-      skills: s.skills,
-      equipment: s.equipment,
-      potions: s.potions,
-      category: 'player',
-    }));
+    return playerSpecs.value.map((s, i) => buildCharacter(heroBuildSpec(s, i)));
   }
 
   function buildEnemies(): Character[] {
@@ -322,6 +273,12 @@ export function useGame() {
     gamePhase.value = 'victory';
   }
 
+  // Arriving from the creator there is nothing left to set up: it settled both
+  // sides — the enemies it solved, and the party it priced them against — so
+  // «Combat contra la IA» drops straight into the fight. If the party is empty
+  // the setup screen still appears, which is where that gets fixed.
+  if (handoff && canStart()) startCombat();
+
   function playAgain() {
     gamePhase.value = 'setup';
     engine.value = null;
@@ -338,7 +295,7 @@ export function useGame() {
     combatLog, playerSelections, skippingPlayers, winner,
     revealed, currentStepIndex, currentTargetPrompt, multiTargetSelections,
     highlightedTarget, roundComplete, flowSwappers,
-    addPlayer, removePlayer, addEnemy, removeEnemy, canStart, startCombat,
+    addEnemy, removeEnemy, canStart, startCombat,
     selectCard, canConfirmCards, confirmCards, startResolving, advanceResolution,
     selectTarget, confirmTargets, nextRound, playAgain, flowSwapCard, cardSwapCharges,
   };

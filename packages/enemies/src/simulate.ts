@@ -24,7 +24,7 @@
  * noise. This is what makes a bisection on a stochastic function stable.
  */
 import { CombatEngine, EffectRegistry, Character, withSeed, assignStrategies, AIStrategy } from '@pimpampum/engine';
-import { createRegistry, buildReferenceParty, PartySpec } from '@pimpampum/skills';
+import { createRegistry, buildReferenceParty, isExplicitParty, PartySpec } from '@pimpampum/skills';
 import { EnemyDefinition, fullKitLevel } from './types.js';
 import { getEnemy, registerEnemySkills } from './catalog.js';
 import { createEnemyFrom } from './factory.js';
@@ -121,11 +121,13 @@ export function simulateEncounter(groups: FieldedGroup[], party: PartySpec, opts
   });
 
   const winrate = wins / games;
-  // Games are not quite iid Bernoulli: the party is redrawn each time and
-  // party composition matters a lot against some kits, so the observed spread
-  // runs ~25% wider than the binomial figure (measured on the basilisk: 4.4pp
-  // vs a predicted 3.5pp). Inflate rather than quote an error bar we beat.
-  const HETEROGENEITY = 1.25;
+  // A DRAWN party makes games not quite iid Bernoulli: the party is redrawn
+  // each time and party composition matters a lot against some kits, so the
+  // observed spread runs ~25% wider than the binomial figure (measured on the
+  // basilisk: 4.4pp vs a predicted 3.5pp). Inflate rather than quote an error
+  // bar we beat. An EXPLICIT party is the same characters every game, so that
+  // source of spread is gone and the binomial figure is the honest one.
+  const HETEROGENEITY = isExplicitParty(party) ? 1 : 1.25;
   return {
     winrate,
     games,

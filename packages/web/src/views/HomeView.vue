@@ -25,10 +25,16 @@
         <div class="nav-tile-desc">Enemics i les seves accions</div>
       </router-link>
 
-      <router-link to="/combats" class="nav-tile">
+      <router-link to="/combats/jugadors" class="nav-tile">
+        <div class="nav-tile-icon">&#9819;</div>
+        <div class="nav-tile-title">Grups de jugadors</div>
+        <div class="nav-tile-desc">Els teus jugadors i els combats que han lluitat</div>
+      </router-link>
+
+      <router-link to="/combats/creador" class="nav-tile">
         <div class="nav-tile-icon">&#9876;</div>
-        <div class="nav-tile-title">Combats</div>
-        <div class="nav-tile-desc">Crea combats i juga'ls</div>
+        <div class="nav-tile-title">Creador de combats</div>
+        <div class="nav-tile-desc">Munta un encontre i juga'l</div>
       </router-link>
     </div>
   </div>

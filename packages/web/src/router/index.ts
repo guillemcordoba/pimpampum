@@ -21,9 +21,19 @@ const router = createRouter({
           component: () => import('../views/EncounterCreatorView.vue'),
         },
         {
+          // The combats run at a table are filed under the PARTY that fought
+          // them: this is the list of parties, one level up from the fights.
           path: 'jugadors',
           name: 'player-combats',
           component: () => import('../views/PlayerCombatsView.vue'),
+        },
+        {
+          // One party's history. A literal `grup/` segment keeps it clear of
+          // `jugadors/:id`, which is a combat — the tracker URLs predate this
+          // screen and are read aloud at tables, so they do not move.
+          path: 'jugadors/grup/:partyId',
+          name: 'party-combats',
+          component: () => import('../views/PartyCombatsView.vue'),
         },
         {
           // One combat being run by a GM at a real table: the enemy cards plus

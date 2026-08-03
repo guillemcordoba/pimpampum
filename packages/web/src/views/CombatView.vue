@@ -19,7 +19,11 @@ const isFullscreen = computed(() => game.gamePhase.value !== 'setup');
   </div>
 
   <div v-else class="combat-fullscreen">
-    <button class="back-btn no-print" @click="router.push('/')">&#x2190; Tornar</button>
+    <!-- The fight is started FROM the creator, so that is where leaving it
+         goes — not the home page. -->
+    <button class="back-btn no-print" @click="router.push({ name: 'encounters' })">
+      &#x2190; Creador de combats
+    </button>
 
     <CombatScreen v-if="game.gamePhase.value !== 'victory'" :game="game" />
 

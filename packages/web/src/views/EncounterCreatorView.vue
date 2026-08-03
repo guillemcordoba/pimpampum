@@ -9,35 +9,17 @@ import type { PartySpec } from '@pimpampum/skills';
 import type { SolveRequest, SolveReply } from '../workers/solve-worker';
 import { setPendingEncounter } from '../composables/pendingEncounter';
 import { createTrackerSession } from '../composables/combatTracker';
+import { useParties, heroBuildSpec } from '../composables/party';
+import PartyRoster from '../components/party/PartyRoster.vue';
 
 const base = import.meta.env.BASE_URL;
 
-// --- Inputs -----------------------------------------------------------------
-const playerCount = ref(4);
-const PLAYER_COUNTS = [3, 4, 5, 6];
-
-// Per-player total skill levels (an input to the balancer's party strength).
-// UI default: 5 levels per player (the balancer's calibration reference,
-// PLAYER_REF_LEVELS, stays 6 — the input just starts a notch below it).
-const DEFAULT_PLAYER_LEVELS = 5;
-const playerLevels = ref<number[]>(Array(4).fill(DEFAULT_PLAYER_LEVELS));
-// Per-player passive armour (0-2): a balancer input AND what each hero is
-// equipped with when combat begins.
-const DEFAULT_ARMOR = 1;
-const playerArmor = ref<number[]>(Array(4).fill(DEFAULT_ARMOR));
-watch(playerCount, n => {
-  const pl = playerLevels.value, pa = playerArmor.value;
-  playerLevels.value = Array.from({ length: n }, (_, i) => pl[i] ?? DEFAULT_PLAYER_LEVELS);
-  playerArmor.value = Array.from({ length: n }, (_, i) => pa[i] ?? DEFAULT_ARMOR);
-});
-function setPlayerArmor(i: number, value: number) {
-  const clamped = Math.max(0, Math.min(2, Math.round(value) || 0));
-  playerArmor.value = playerArmor.value.map((a, k) => (k === i ? clamped : a));
-}
-function setPlayerLevel(i: number, value: number) {
-  const clamped = Math.max(1, Math.min(20, Math.round(value) || DEFAULT_PLAYER_LEVELS));
-  playerLevels.value = playerLevels.value.map((l, k) => (k === i ? clamped : l));
-}
+// --- The party --------------------------------------------------------------
+// The GM enters their real table ONCE (it persists), and every solve from then
+// on is priced against those actual heroes — their kits, levels, PV and gear —
+// rather than against a random party of a similar shape. The winrate the
+// creator promises is therefore THIS party's winrate.
+const party = useParties();
 
 // Target difficulty is an INPUT to the balancer: the players' win probability.
 const winrate = ref(Math.round(TARGET_WINRATES.medium * 100));
@@ -108,13 +90,11 @@ function runSolve(): void {
   const token = ++solveToken;
   const specs: PoolSpec[] = pool.value.map(p =>
     ({ enemyId: p.enemyId, count: p.count, level: p.level }));
-  const party: PartySpec = {
-    count: playerCount.value,
-    levels: [...playerLevels.value],
-    armor: [...playerArmor.value],
-  };
+  const partySpec: PartySpec = { characters: party.heroes.value.map(heroBuildSpec) };
   const target = winrate.value / 100;
-  if (specs.length === 0) { solved.value = null; solving.value = false; return; }
+  if (specs.length === 0 || party.heroes.value.length === 0) {
+    solved.value = null; solving.value = false; return;
+  }
   solving.value = true;
 
   // A previous solve may still be burning CPU — kill it before starting another.
@@ -132,14 +112,14 @@ function runSolve(): void {
       // Fall back to solving inline rather than leaving the panel spinning.
       disposeWorker();
       if (token !== solveToken) return;
-      solved.value = solveEncounter(specs, party, target);
+      solved.value = solveEncounter(specs, partySpec, target);
       solving.value = false;
     };
-    const request: SolveRequest = { id: token, pool: specs, party, target };
+    const request: SolveRequest = { id: token, pool: specs, party: partySpec, target };
     worker.postMessage(request);
   } catch {
     // No worker support: solve inline. The page will hitch, but it still works.
-    const result = solveEncounter(specs, party, target);
+    const result = solveEncounter(specs, partySpec, target);
     if (token !== solveToken) return;
     solved.value = result;
     solving.value = false;
@@ -147,7 +127,7 @@ function runSolve(): void {
 }
 
 watch(
-  [pool, playerCount, playerLevels, playerArmor, winrate],
+  [pool, party.heroes, winrate],
   () => {
     // Invalidate and STOP whatever is in flight, so a run of rapid clicks does
     // not queue up solves behind each other.
@@ -187,11 +167,12 @@ const clamped = computed(() =>
      > Math.max(0.02, 2 * solved.value.stderr));
 
 // Hand the solved encounter to the combat view: its enemy roster arrives
-// pre-filled; the players are created there as usual.
+// pre-filled. The players need no handing over — the combat view fields the
+// same stored party this solve was priced against.
 const router = useRouter();
 function playEncounter(): void {
   if (!solved.value) return;
-  setPendingEncounter(solved.value, [...playerLevels.value], [...playerArmor.value]);
+  setPendingEncounter(solved.value);
   router.push({ name: 'ai-combat' });
 }
 
@@ -202,7 +183,13 @@ function playEncounter(): void {
 // «Combats contra els jugadors».
 function openTracker(): void {
   if (!solved.value) return;
-  const session = createTrackerSession({ encounter: solved.value });
+  // Filed under the party that is about to fight it, so the combats list can
+  // group a table's history under the players who lived it.
+  const session = createTrackerSession({
+    encounter: solved.value,
+    partyId: party.active.value?.id,
+    partyName: party.active.value?.name,
+  });
   router.push({ name: 'tracker', params: { id: session.id } });
 }
 </script>
@@ -210,57 +197,10 @@ function openTracker(): void {
 <template>
   <div class="creator-page">
     <div class="layout">
-      <!-- Left: the party and the fight they want -->
+      <!-- Left: the real party at the table, entered once and remembered -->
       <section class="column">
         <h2 class="col-title">Els jugadors</h2>
-
-        <div class="subhead">Nombre de jugadors</div>
-        <div class="choice-row">
-          <button
-            v-for="n in PLAYER_COUNTS" :key="n" type="button"
-            class="choice-btn" :class="{ active: playerCount === n }"
-            @click="playerCount = n"
-          >{{ n }}</button>
-        </div>
-
-        <div class="subhead spaced">Nivells dels jugadors</div>
-        <div class="levels-row">
-          <input
-            v-for="(l, i) in playerLevels" :key="i"
-            type="number" min="1" max="20" class="level-input"
-            :value="l"
-            title="Suma de nivells d'habilitat del jugador"
-            @input="setPlayerLevel(i, Number(($event.target as HTMLInputElement).value))"
-          >
-        </div>
-        <div class="winrate-caption">suma de nivells d'habilitat de cada jugador</div>
-
-        <div class="subhead spaced">Armadura dels jugadors</div>
-        <div class="levels-row">
-          <input
-            v-for="(a, i) in playerArmor" :key="i"
-            type="number" min="0" max="2" class="level-input"
-            :value="a"
-            title="Armadura passiva del jugador (0-2)"
-            @input="setPlayerArmor(i, Number(($event.target as HTMLInputElement).value))"
-          >
-        </div>
-        <div class="winrate-caption">armadura passiva (0-2); els herois l'equipen al combat</div>
-
-        <div class="subhead spaced">Dificultat</div>
-        <div class="choice-row">
-          <button
-            v-for="p in PRESETS" :key="p.label" type="button"
-            class="choice-btn" :class="{ active: winrate === p.value }"
-            @click="winrate = p.value"
-          >{{ p.label }}</button>
-        </div>
-
-        <div class="winrate-row">
-          <input v-model.number="winrate" type="range" min="5" max="95" step="5" class="winrate-slider">
-          <span class="winrate-value">{{ winrate }}%</span>
-        </div>
-        <div class="winrate-caption">probabilitat de victòria dels jugadors</div>
+        <PartyRoster />
       </section>
 
       <!-- Right: the species pool -->
@@ -316,6 +256,22 @@ function openTracker(): void {
       <section class="column result">
         <h2 class="col-title">Encontre</h2>
 
+        <!-- Difficulty is what the solve is aimed at, so it sits above the
+             answer it produces rather than beside the party. -->
+        <div class="choice-row">
+          <button
+            v-for="p in PRESETS" :key="p.label" type="button"
+            class="choice-btn" :class="{ active: winrate === p.value }"
+            @click="winrate = p.value"
+          >{{ p.label }}</button>
+        </div>
+
+        <div class="winrate-row">
+          <input v-model.number="winrate" type="range" min="5" max="95" step="5" class="winrate-slider">
+          <span class="winrate-value">{{ winrate }}%</span>
+        </div>
+        <div class="winrate-caption spaced-below">probabilitat de victòria dels jugadors</div>
+
         <div v-if="solving" class="result-solving">
           <span class="spinner"></span>
           Simulant l'encontre…
@@ -365,6 +321,9 @@ function openTracker(): void {
             </button>
           </div>
         </template>
+        <div v-else-if="party.heroes.value.length === 0" class="result-empty">
+          Afegeix jugadors al grup per poder simular l'encontre.
+        </div>
         <div v-else class="result-empty">Afegeix enemics per veure l'encontre.</div>
       </section>
     </div>
@@ -411,9 +370,6 @@ function openTracker(): void {
   font-family: 'Cinzel Decorative', serif; color: var(--parchment);
   text-align: center; font-size: 1.25rem; margin: 0.2rem 0 1rem;
 }
-.subhead { font-family: 'MedievalSharp', serif; color: var(--parchment); margin-bottom: 0.5rem; text-align: center; }
-.subhead.spaced { margin-top: 1.4rem; }
-
 .choice-row { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
 .choice-btn {
   font-family: 'MedievalSharp', serif; font-size: 0.95rem;
@@ -427,17 +383,7 @@ function openTracker(): void {
   border-color: var(--parchment);
 }
 
-.levels-row { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
-.level-input {
-  width: 3.2rem; text-align: center;
-  font-family: 'MedievalSharp', serif; font-size: 0.95rem;
-  color: var(--parchment); background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--parchment-dark); border-radius: 4px;
-  padding: 0.3rem 0.2rem;
-}
-.level-input:focus { outline: none; border-color: var(--parchment); }
-
-.winrate-row { display: flex; align-items: center; gap: 0.7rem; justify-content: center; margin-top: 1rem; }
+.winrate-row { display: flex; align-items: center; gap: 0.7rem; justify-content: center; margin-top: 0.7rem; }
 .winrate-slider { width: 220px; accent-color: var(--parchment); }
 .winrate-value {
   font-family: 'MedievalSharp', serif; color: var(--parchment);
@@ -446,6 +392,11 @@ function openTracker(): void {
 .winrate-caption {
   text-align: center; font-family: 'Crimson Text', serif; font-style: italic;
   color: var(--parchment-dark); font-size: 0.9rem; margin-top: 0.2rem;
+}
+/* Separates the difficulty knob from the solved encounter below it. */
+.winrate-caption.spaced-below {
+  padding-bottom: 1rem; margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(232, 220, 196, 0.15);
 }
 
 .pool { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -482,17 +433,13 @@ function openTracker(): void {
 .chip-x { background: none; border: none; color: var(--parchment-dark); cursor: pointer; font-size: 1rem; padding: 0 0.2rem; }
 .chip-x:hover { color: var(--parchment); }
 
-.level-label {
-  font-family: 'Crimson Text', serif; font-style: italic;
-  color: var(--parchment-dark); font-size: 0.9rem;
-}
-.level-select, .add-species .txt {
+.add-species .txt {
   font-family: 'MedievalSharp', serif; font-size: 0.9rem;
   color: var(--parchment-dark); background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--parchment-dark); border-radius: 4px;
   padding: 0.25rem 0.4rem; color-scheme: dark;
 }
-.level-select option, .add-species .txt option { background: #241c12; color: var(--parchment); }
+.add-species .txt option { background: #241c12; color: var(--parchment); }
 .add-species .txt { width: 100%; padding: 0.5rem 0.7rem; border-style: dashed; font-size: 0.95rem; }
 
 .result-empty {

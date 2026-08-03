@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { ACTION_TYPE_CSS } from '@pimpampum/engine';
 import { getEnemy, unlockedEnemyActions } from '@pimpampum/enemies';
 import { getEquipment } from '@pimpampum/skills';
-import { useTrackerSession, deleteTrackerSession, type TrackedBody, type TrackedGroup } from '../composables/combatTracker';
+import {
+  useTrackerSession, deleteTrackerSession, groupName, defaultBodyName, bodyName,
+  type TrackedBody, type TrackedGroup,
+} from '../composables/combatTracker';
 import PvTracker from '../components/tracker/PvTracker.vue';
 
 const base = import.meta.env.BASE_URL;
@@ -59,6 +62,27 @@ function setPV(body: TrackedBody, value: number): void {
   touch();
 }
 
+/** Renaming a group needs no fan-out: bodies without a name of their own
+ *  DERIVE it from the group, on every screen, through `bodyName()`. */
+function renameGroup(group: TrackedGroup, value: string): void {
+  group.name = value.trim();
+  touch();
+}
+
+/** A body's own name, or nothing — blank means "follow the group", which is
+ *  what the placeholder shows. */
+function renameBody(group: TrackedGroup, index: number, value: string): void {
+  const own = value.trim();
+  const body = group.bodies[index];
+  if (!body) return;
+  if (own && own !== defaultBodyName(groupName(group), index, group.bodies.length)) {
+    body.name = own;
+  } else {
+    delete body.name;
+  }
+  touch();
+}
+
 function resetCombat(): void {
   const s = session.value;
   if (!s) return;
@@ -69,9 +93,17 @@ function resetCombat(): void {
 
 function discardTracker(): void {
   if (!confirm('Esborra aquest combat? No es pot desfer.')) return;
+  const back = backTo.value;   // read before the session goes away
   deleteTrackerSession(id.value);
-  router.push({ name: 'player-combats' });
+  router.push(back);
 }
+
+// Back goes to the party whose history this fight belongs to, not to the top
+// of the tree — that is the screen the GM came from.
+const backTo = computed(() => ({
+  name: 'party-combats',
+  params: { partyId: session.value?.partyId || 'sense-grup' },
+}));
 
 const aliveCount = computed(() =>
   session.value?.groups.reduce((n, g) => n + g.bodies.filter(b => b.currentPV > 0).length, 0) ?? 0);
@@ -83,7 +115,7 @@ const enemyCount = computed(() =>
   <div v-if="session" class="tracker-page">
     <!-- The GM's control strip: it never scrolls away mid-fight. -->
     <header class="tracker-bar">
-      <router-link class="back-link" :to="{ name: 'player-combats' }">← Combats</router-link>
+      <router-link class="back-link" :to="backTo">← Combats</router-link>
 
       <div class="bar-info">
         <span><strong>{{ aliveCount }}</strong>/{{ enemyCount }} enemics dempeus</span>
@@ -114,7 +146,17 @@ const enemyCount = computed(() =>
     >
       <div class="group-head">
         <img class="group-icon" :src="base + (defOf(g.enemyId)?.iconPath ?? '')" alt="">
-        <h2 class="panel-title flush">{{ defOf(g.enemyId)?.displayName }}</h2>
+        <!-- The GM names the lot on the table: «Els guàrdies del pont» beats
+             «Goblin» when two groups of the same creature are in one fight.
+             Blank falls back to the creature's own name. -->
+        <input
+          class="group-name-input"
+          type="text"
+          :value="g.name"
+          :placeholder="defOf(g.enemyId)?.displayName"
+          :title="`Nom d'aquest grup (per defecte: ${defOf(g.enemyId)?.displayName})`"
+          @change="renameGroup(g, ($event.target as HTMLInputElement).value)"
+        >
         <span class="group-meta">
           ×{{ g.bodies.length }} · nivell <strong>{{ g.level }}</strong> ·
           <strong>{{ g.pv }}</strong> PV
@@ -134,8 +176,14 @@ const enemyCount = computed(() =>
       </ul>
 
       <div class="bodies">
-        <div v-for="b in g.bodies" :key="b.uid" class="body-card" :class="{ down: b.currentPV <= 0 }">
-          <input v-model="b.name" class="name-input" type="text" @change="touch()">
+        <div v-for="(b, i) in g.bodies" :key="b.uid" class="body-card" :class="{ down: b.currentPV <= 0 }">
+          <input
+            class="name-input" type="text"
+            :value="b.name ?? ''"
+            :placeholder="bodyName(g, i)"
+            title="Nom d'aquest enemic (buit = segueix el nom del grup)"
+            @change="renameBody(g, i, ($event.target as HTMLInputElement).value)"
+          >
           <PvTracker :current="b.currentPV" :max="b.maxPV" @update="setPV(b, $event)" />
         </div>
       </div>
@@ -145,7 +193,7 @@ const enemyCount = computed(() =>
 
   <div v-else-if="missing" class="empty">
     <p>Aquest combat ja no existeix (o es va crear en un altre navegador).</p>
-    <router-link :to="{ name: 'player-combats' }" class="bar-btn primary">Torna als combats</router-link>
+    <router-link :to="backTo" class="bar-btn primary">Torna als combats</router-link>
   </div>
 </template>
 
@@ -155,7 +203,7 @@ const enemyCount = computed(() =>
 .tracker-bar {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap;
-  padding: 0.7rem 1rem; margin: -1.5rem -1.5rem 1.2rem;
+  padding: 0.7rem 1rem; margin: -1.5rem -1.5rem 2rem;
   background: var(--bg-dark);
   border-bottom: 1px solid rgba(232, 220, 196, 0.2);
 }
@@ -209,6 +257,20 @@ const enemyCount = computed(() =>
 .panel-title.flush { margin: 0; }
 
 .group-head { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+/* Reads as the panel's heading, but is a text field — the dotted rule is the
+   standing hint that the GM can rename this lot. */
+.group-name-input {
+  font-family: 'Cinzel Decorative', serif; font-size: 1.15rem;
+  color: var(--parchment); background: rgba(0, 0, 0, 0.2);
+  border: 1px solid transparent; border-bottom: 1px dotted var(--parchment-dark);
+  border-radius: 4px; padding: 0.15rem 0.45rem; min-width: 8rem;
+}
+.group-name-input::placeholder { color: var(--parchment); opacity: 0.75; }
+.group-name-input:hover { background: rgba(232, 220, 196, 0.08); }
+.group-name-input:focus {
+  outline: none; background: rgba(0, 0, 0, 0.35);
+  border-color: var(--parchment); border-bottom-style: solid;
+}
 .group-icon {
   width: 40px; height: 40px;
   filter: invert(85%) sepia(15%) saturate(360%) hue-rotate(2deg) brightness(95%);
@@ -230,15 +292,20 @@ const enemyCount = computed(() =>
 }
 .body-card.down { opacity: 0.45; }
 
+/* Editable, and it has to LOOK it: the underline used to be transparent until
+   hover, so a GM had no way to know a body could be renamed. */
 .name-input {
   width: 100%; text-align: center;
   font-family: 'MedievalSharp', serif; font-size: 1rem;
-  color: var(--parchment); background: none;
-  border: none; border-bottom: 1px dotted transparent;
-  padding: 0.1rem 0;
+  color: var(--parchment); background: rgba(0, 0, 0, 0.18);
+  border: 1px solid transparent; border-bottom: 1px dotted var(--parchment-dark);
+  border-radius: 3px; padding: 0.1rem 0.25rem;
 }
-.name-input:hover { border-bottom-color: var(--parchment-dark); }
-.name-input:focus { outline: none; border-bottom-color: var(--parchment); }
+.name-input:hover { background: rgba(232, 220, 196, 0.08); }
+.name-input:focus {
+  outline: none; background: rgba(0, 0, 0, 0.32);
+  border-color: var(--parchment); border-bottom-style: solid;
+}
 
 /* The kit as a checklist: the GM plays from the printed deck, so the screen
    only needs to say WHICH cards this creature holds at its level. */

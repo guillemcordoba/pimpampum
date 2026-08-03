@@ -2,9 +2,16 @@
  * Reference party generation.
  *
  * The encounter balancer prices a fight by SIMULATING it, so it needs actual
- * player characters — but a GM only tells it how many players there are, how
- * many skill levels each has and what armour they wear. This builds a
- * representative party from exactly those inputs.
+ * player characters. There are two ways to give it some:
+ *
+ *  - EXPLICIT (`characters`): the real party at the GM's table, kits and gear
+ *    and all. Every game builds exactly these, so the winrate the balancer
+ *    reports is *this party's* winrate rather than an average over parties of
+ *    a similar shape. This is what the web app's encounter creator passes.
+ *  - DRAWN (`count`/`levels`/`armor`): only how many players there are, how
+ *    many skill levels each has and what armour they wear — a representative
+ *    party is drawn from those inputs. Used when no concrete party exists
+ *    (the simulator's sweeps and the balancer test suite).
  *
  * The draw models INTENDED play rather than uniform randomness: the first
  * skill is always a MAIN kit, and the complementary kits (metge/runes/ombres/
@@ -16,7 +23,7 @@
  */
 import { Character, random } from '@pimpampum/engine';
 import { PLAYER_SKILLS } from './catalog.js';
-import { buildCharacter } from './build.js';
+import { buildCharacter, CharacterBuildSpec } from './build.js';
 import { SkillDefinition } from './types.js';
 
 /** Default PV pool for a player character (rules.md provisional default). */
@@ -32,7 +39,8 @@ const ARMOR_BY_VALUE: Record<number, string | null> = {
   2: 'armadura-de-ferro',
 };
 
-export interface PartySpec {
+/** A party described only by its shape — a representative one is drawn. */
+export interface DrawnPartySpec {
   /** How many players. */
   count: number;
   /** Total skill levels per player. A single number applies to everyone;
@@ -44,6 +52,23 @@ export interface PartySpec {
   pv?: number;
   /** Name prefix for generated characters. */
   prefix?: string;
+  characters?: undefined;
+}
+
+/** The real party: build exactly these characters, every game. */
+export interface ExplicitPartySpec {
+  /** The actual heroes — their own skills, levels, PV, equipment and potions.
+   *  Nothing is drawn, so the simulation is about THIS party. */
+  characters: CharacterBuildSpec[];
+}
+
+export type PartySpec = DrawnPartySpec | ExplicitPartySpec;
+
+/** True when the party is fixed rather than redrawn each simulated game.
+ *  Callers use this to decide whether party-composition variance is a source
+ *  of sampling noise (see the stderr inflation in the balancer). */
+export function isExplicitParty(spec: PartySpec): spec is ExplicitPartySpec {
+  return Array.isArray(spec.characters);
 }
 
 function per(value: number | number[] | undefined, i: number, fallback: number): number {
@@ -103,8 +128,17 @@ export function buildReferencePlayer(name: string, levels: number, armor = 0, pv
   });
 }
 
-/** Build a whole reference party from the balancer's player inputs. */
+/** Build a whole party from the balancer's player inputs: the explicit heroes
+ *  when it has them, otherwise a representative draw. */
 export function buildReferenceParty(spec: PartySpec): Character[] {
+  if (isExplicitParty(spec)) {
+    return spec.characters.map((c, i) => buildCharacter({
+      ...c,
+      name: c.name || `Heroi ${i + 1}`,
+      pv: c.pv || PLAYER_PV,
+      category: 'player',
+    }));
+  }
   const prefix = spec.prefix ?? 'Heroi ';
   return Array.from({ length: Math.max(1, spec.count) }, (_, i) =>
     buildReferencePlayer(

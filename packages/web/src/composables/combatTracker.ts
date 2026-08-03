@@ -18,7 +18,12 @@ const VERSION = 1;
 /** One body on the board: the PV tracker is the whole model. */
 export interface TrackedBody {
   uid: string;
-  name: string;
+  /** The GM's OWN name for this body, if they gave it one. Absent means "follow
+   *  the group" — the display name is derived, never stored. Storing the
+   *  derived name is what used to make a group rename stop halfway: any body
+   *  whose stored string had drifted from the expected default was silently
+   *  skipped, and the players' screen kept the old name. */
+  name?: string;
   maxPV: number;
   currentPV: number;
 }
@@ -30,6 +35,11 @@ export interface TrackedGroup {
   level: number;
   /** Starting PV the balancer solved for each body of this group. */
   pv: number;
+  /** What the GM calls this lot at the table — «Els guàrdies del pont» rather
+   *  than «Goblin». Empty/absent means the creature's own name; the field is an
+   *  override, never a copy, so renaming a creature in the catalog still shows
+   *  through on old sessions. */
+  name?: string;
   bodies: TrackedBody[];
 }
 
@@ -38,6 +48,13 @@ export interface TrackerSession {
   id: string;
   createdAt: number;
   updatedAt: number;
+  /** Which party fought this. Optional because sessions created before combats
+   *  were filed under a party have none — those surface as unfiled rather than
+   *  being dropped. */
+  partyId?: string;
+  /** The party's name AT THE TIME, so a renamed or deleted party still reads
+   *  sensibly in the list. */
+  partyName?: string;
   /** When false the players' view shows only the DAMAGE each enemy has taken,
    *  never its PV — the GM decides fight by fight. */
   revealPV: boolean;
@@ -60,12 +77,38 @@ export function trackerKey(id: string): string {
   return PREFIX + id;
 }
 
+/**
+ * Sessions written before body names became derived stored the auto-generated
+ * string on every body. Drop those, so they follow their group again; anything
+ * that does NOT look auto-generated was typed by the GM and is kept.
+ *
+ * Both spellings are checked — the creature's name and the group's current name
+ * — because a session may have been renamed while the old push-down code was
+ * live, leaving bodies on either form.
+ */
+function dropDerivedBodyNames(session: TrackerSession): TrackerSession {
+  for (const group of session.groups ?? []) {
+    const count = group.bodies.length;
+    const creature = getEnemy(group.enemyId)?.displayName ?? group.enemyId;
+    const label = groupName(group);
+    group.bodies.forEach((body, i) => {
+      if (body.name === undefined) return;
+      if (body.name === defaultBodyName(creature, i, count)
+        || body.name === defaultBodyName(label, i, count)) {
+        delete body.name;
+      }
+    });
+  }
+  return session;
+}
+
 export function loadTrackerSession(id: string): TrackerSession | null {
   try {
     const raw = localStorage.getItem(trackerKey(id));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as TrackerSession;
-    return parsed && parsed.v === VERSION ? parsed : null;
+    if (!parsed || parsed.v !== VERSION || !Array.isArray(parsed.groups)) return null;
+    return dropDerivedBodyNames(parsed);
   } catch {
     return null;
   }
@@ -102,8 +145,16 @@ export function listTrackerSessions(): TrackerSession[] {
 
 // --- creation ----------------------------------------------------------------
 
+/** Every stored combat fought by one party, newest activity first. */
+export function listTrackerSessionsFor(partyId: string): TrackerSession[] {
+  return listTrackerSessions().filter(s => s.partyId === partyId);
+}
+
 export interface TrackerSessionInput {
   encounter: SolvedEncounter;
+  /** The party that walked into this fight. */
+  partyId?: string;
+  partyName?: string;
 }
 
 /** Turn a solved encounter into a fresh tracker session and persist it.
@@ -111,7 +162,7 @@ export interface TrackerSessionInput {
  *  Only the ENEMIES are tracked: the players sit at the table with their own
  *  sheets and dice, and the GM has no business keeping their PV. */
 export function createTrackerSession(input: TrackerSessionInput): TrackerSession {
-  const { encounter } = input;
+  const { encounter, partyId, partyName } = input;
   const now = Date.now();
 
   const session: TrackerSession = {
@@ -119,6 +170,8 @@ export function createTrackerSession(input: TrackerSessionInput): TrackerSession
     id: randomId(),
     createdAt: now,
     updatedAt: now,
+    partyId,
+    partyName,
     revealPV: false,
     summary: {
       targetWinrate: encounter.targetWinrate,
@@ -129,11 +182,10 @@ export function createTrackerSession(input: TrackerSessionInput): TrackerSession
       enemyId: g.enemyId,
       level: g.level,
       pv: g.pv,
-      bodies: Array.from({ length: g.count }, (_, i) => ({
+      // No `name`: unnamed bodies follow their group, so renaming the group
+      // renames them everywhere at once.
+      bodies: Array.from({ length: g.count }, () => ({
         uid: randomId(6),
-        name: g.count > 1
-          ? `${getEnemy(g.enemyId)?.displayName ?? g.enemyId} ${i + 1}`
-          : getEnemy(g.enemyId)?.displayName ?? g.enemyId,
         maxPV: g.pv,
         currentPV: g.pv,
       })),
@@ -143,10 +195,29 @@ export function createTrackerSession(input: TrackerSessionInput): TrackerSession
   return session;
 }
 
-/** A short human label for a session (used by the saved-tables list). */
+/** What to call a group: the GM's own name for it, else the creature's. */
+export function groupName(group: TrackedGroup): string {
+  return group.name?.trim() || getEnemy(group.enemyId)?.displayName || group.enemyId;
+}
+
+/** What a body is called when nobody has named it by hand: the group's name,
+ *  numbered when there is more than one of them. */
+export function defaultBodyName(groupLabel: string, index: number, count: number): string {
+  return count > 1 ? `${groupLabel} ${index + 1}` : groupLabel;
+}
+
+/** What to show for a body: the GM's own name, else derived from the group.
+ *  EVERY screen calls this — deriving it in one place is what guarantees the
+ *  GM's tracker and the players' screen can never disagree. */
+export function bodyName(group: TrackedGroup, index: number): string {
+  const own = group.bodies[index]?.name?.trim();
+  return own || defaultBodyName(groupName(group), index, group.bodies.length);
+}
+
+/** A short human label for a session (used by the saved-combats list). */
 export function sessionLabel(session: TrackerSession): string {
   const parts = session.groups.map(g => {
-    const name = getEnemy(g.enemyId)?.displayName ?? g.enemyId;
+    const name = groupName(g);
     return g.bodies.length > 1 ? `${g.bodies.length}× ${name}` : name;
   });
   return parts.join(' · ') || 'Encontre buit';

@@ -14,7 +14,16 @@ const route = useRoute();
       <router-link to="/skills" :class="{ active: route.path.startsWith('/skills') }">Habilitats</router-link>
       <router-link to="/objects" :class="{ active: route.path === '/objects' }">Objectes</router-link>
       <router-link to="/enemies" :class="{ active: route.path === '/enemies' }">Enemics</router-link>
-      <router-link to="/combats" :class="{ active: route.path.startsWith('/combats') }">Combats</router-link>
+      <router-link
+        to="/combats/jugadors"
+        :class="{ active: route.path.startsWith('/combats/jugadors') }"
+      >Grups de jugadors</router-link>
+      <!-- The AI fight is not a destination of its own: it is something the
+           creator starts, so it lights this tab rather than adding one. -->
+      <router-link
+        to="/combats/creador"
+        :class="{ active: route.path.startsWith('/combats/creador') || route.path.startsWith('/combats/ia') }"
+      >Creador de combats</router-link>
     </div>
     <button class="print-all-btn" type="button" @click="openPrintDialog">Imprimir-ho tot</button>
   </nav>

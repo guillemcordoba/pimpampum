@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { getEnemy } from '@pimpampum/enemies';
-import { useTrackerSession } from '../composables/combatTracker';
+import { useTrackerSession, bodyName } from '../composables/combatTracker';
 import PvTracker from '../components/tracker/PvTracker.vue';
 
 const base = import.meta.env.BASE_URL;
@@ -15,9 +15,13 @@ const { session, missing } = useTrackerSession(id, false);
 
 const defOf = (enemyId: string) => getEnemy(enemyId);
 
-/** Every enemy body, flattened — the players see bodies, not groups. */
+/** Every enemy body, flattened — the players see bodies, not groups.
+ *  The label comes from `bodyName()`, the same helper the GM's screen uses, so
+ *  renaming a group on the tracker shows up here without anything being copied
+ *  between the two. */
 const bodies = computed(() =>
-  session.value?.groups.flatMap(g => g.bodies.map(b => ({ ...b, enemyId: g.enemyId }))) ?? []);
+  session.value?.groups.flatMap(g =>
+    g.bodies.map((b, i) => ({ ...b, enemyId: g.enemyId, label: bodyName(g, i) }))) ?? []);
 
 // --- Fitting the board -------------------------------------------------------
 // This screen is read from across a table, so the tiles should be as large as
@@ -90,7 +94,7 @@ const gridStyle = computed(() => ({
         :style="{ '--class-color': `var(--class-${defOf(b.enemyId)?.classCss})` }"
       >
         <img class="enemy-icon" :src="base + (defOf(b.enemyId)?.iconPath ?? '')" alt="">
-        <div class="enemy-name">{{ b.name }}</div>
+        <div class="enemy-name">{{ b.label }}</div>
 
         <div v-if="b.currentPV <= 0" class="downed">Abatut</div>
 
