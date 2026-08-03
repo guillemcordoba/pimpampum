@@ -211,6 +211,45 @@ more than the noise, so the neighbouring integers are tried too — but ONLY
 there: doing it at 43 PV picks lucky samples and added ~10pp of error. A solve
 costs ~1-4 s.
 
+### Duration is a constraint, not a report (2026-08-03)
+
+PV is the solver's only lever, and PV buys **durability, not danger**. So when
+a composition cannot threaten the party per round, the only way to reach a hard
+winrate is to turn the enemies into sponges. Measured over 100 GM-shaped
+requests, unconstrained solving produced a median 12-round fight, single-creature
+encounters averaging 19 rounds and 235 PV per body, and a peak of **one wolf with
+432 PV over 29 rounds**.
+
+Worse, the difficulty those numbers reported was not the creature's. A 29-round
+fight runs past the daily fatigue budget (`FATIGUE_CONFIG.max = 20`), after which
+the only playable card is Cop desesperat — 1d4, and **1 PV of self-damage per
+swing**, on a 12 PV hero. Re-measuring with the fatigue ceiling lifted:
+
+| solved encounter | asked | with fatigue | without |
+|---|---|---|---|
+| 1× wolf @432 PV | 50% | 48% | **100%** |
+| 1× spined devil @415 PV | 50% | 52% | **100%** |
+| 6× wolf @63 PV | 50% | 51% | 86% |
+| 3× basilisk @10 PV (short) | 50% | 54% | 54% |
+
+The sponge fights were never 50/50: the party wins them outright and was being
+dragged to a coin flip by exhausting itself. The short-fight control does not
+move, which is what makes this causal.
+
+So `solveEncounter` holds `maxAvgRounds` (default `DEFAULT_MAX_AVG_ROUNDS = 6`)
+as a hard constraint. Rounds rise monotonically with PV, so the budget is a
+ceiling on scale: after solving for winrate, if the fight is too long the solver
+bisects **down** to the largest scale that fits and returns that, setting
+`durationCapped`. The winrate then comes out EASIER than requested, and honestly
+so — the fix is a different composition, never more hit points. The duration
+bisection runs on the search seed, so common random numbers still hold.
+
+Consequence worth knowing: within 6 rounds, plain melee bodies cannot be made
+dangerous to a competent party at all — every solo creature solves to ~100%
+player win. The compositions that still reach a 50% fight are the ones with real
+per-round threat (3× basilisk at 10 PV / 3.5 rounds; 6× goblin shaman at 10 PV /
+4 rounds). That is a content signal, not a solver defect.
+
 **Invariants — do not break these.**
 - Every candidate in a solve shares one seed (COMMON RANDOM NUMBERS, via the
   engine's `withSeed`). This is what makes bisecting a stochastic function

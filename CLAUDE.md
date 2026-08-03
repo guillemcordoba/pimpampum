@@ -11,6 +11,7 @@ pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `e
 | `rules.md` | Game mechanics, in prose (Catalan). **Read before changing combat logic.** |
 | `intentions.md` | Balance/design intentions — strategy triangle, dice philosophy, fatigue philosophy. |
 | `ARCHITECTURE.md` | Engine seam list, effect-handler catalogue, balancer internals, web-app detail, measured findings. **Read the relevant section before touching that subsystem.** |
+| `NEXT-STEPS.md` | Open balance work: the 2026-08-03 audit, the kit scoreboard, and what to do next. Read before changing enemy or player kits. |
 | An action's `description` | What that card does. If the implementation disagrees, **the description wins** and the handler is fixed. |
 
 ## Non-negotiables

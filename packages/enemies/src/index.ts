@@ -17,7 +17,7 @@ export type { EnemyDefinition } from './types.js';
 // simulating it, not predicted from fitted per-creature scalars.
 export {
   solveEncounter, generateEncounter, simulateEncounter, buildComposition,
-  TARGET_WINRATES, PV_MIN, PV_MAX,
+  TARGET_WINRATES, PV_MIN, PV_MAX, DEFAULT_MAX_AVG_ROUNDS,
 } from './simulate.js';
 export { leanChooser, isPolicyTrained } from './ai-policy.js';
 export type {

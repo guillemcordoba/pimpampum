@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { getSkill, getPotion } from '@pimpampum/skills';
+import { getSkill, getPotion, getEquipment } from '@pimpampum/skills';
 import { useParties, type HeroSpec } from '../../composables/party';
 import HeroEditor from './HeroEditor.vue';
 
@@ -84,8 +84,22 @@ function skillSummary(hero: HeroSpec): string {
     .join(', ');
 }
 function gearSummary(hero: HeroSpec): string {
+  const gear = hero.equipment.map(id => getEquipment(id)?.name ?? id);
   const potions = hero.potions.map(id => getPotion(id)?.name ?? id);
-  return [...hero.equipment, ...potions].join(', ');
+  return [...gear, ...potions].join(', ');
+}
+
+/**
+ * A hero whose kit has weapon cards but no weapon is holding a DEAD HAND:
+ * weapon-tagged actions require one, so they are unplayable. The balancer
+ * prices that faithfully and the encounters come out bizarre (it once solved
+ * six goblins to 1 PV each), so the roster has to say it out loud.
+ */
+function missingWeapon(hero: HeroSpec): boolean {
+  const needsWeapon = Object.keys(hero.skills).some(id =>
+    getSkill(id)?.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
+  if (!needsWeapon) return false;
+  return !hero.equipment.some(id => getEquipment(id)?.attackBonus !== undefined);
 }
 /** Total skill levels of the party — the number the balance principle uses. */
 const levelSum = computed(() => party.heroes.value.reduce(
@@ -146,7 +160,15 @@ const levelSum = computed(() => party.heroes.value.reduce(
             </label>
             · {{ skillSummary(h) }}
           </div>
-          <div v-if="gearSummary(h)" class="hero-detail">⚙ {{ gearSummary(h) }}</div>
+          <!-- Always rendered, empty included: an unequipped hero is a very
+               different character from an equipped one, and silence read as
+               "fine" while the balancer priced them as nearly helpless. -->
+          <div class="hero-detail" :class="{ warn: !gearSummary(h) }">
+            ⚙ {{ gearSummary(h) || 'sense equipament' }}
+          </div>
+          <div v-if="missingWeapon(h)" class="hero-detail warn">
+            ⚠ les seves cartes d'arma no es poden jugar sense arma
+          </div>
         </div>
         <div class="hero-actions">
           <button type="button" class="icon-btn" title="Edita" @click="openEdit(i)">✎</button>
@@ -212,6 +234,7 @@ const levelSum = computed(() => party.heroes.value.reduce(
   font-family: 'Crimson Text', serif; color: var(--parchment-dark);
   font-size: 0.82rem; overflow-wrap: anywhere;
 }
+.hero-detail.warn { color: #d9924a; }
 .hero-actions { display: flex; flex-direction: column; gap: 0.1rem; }
 
 .pv-inline { display: inline-flex; align-items: center; gap: 0.25rem; }

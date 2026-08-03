@@ -101,7 +101,20 @@ const equipCatalogRows = computed<EquipCatalogRow[]>(() => {
 
 function addSkill(id: string) {
   if (id in draftSkills.value) return;
+  const first = draftSkillIds.value.length === 0;
   draftSkills.value = { ...draftSkills.value, [id]: DEFAULT_SKILL_LEVEL };
+  // Picking the FIRST skill on a blank hero brings sensible kit with it. An
+  // unequipped hero is not a neutral starting point — no shield means no
+  // defense card, and a weapon kit with no weapon cannot play its cards at
+  // all, which the balancer then prices as a nearly helpless party. Every
+  // piece stays removable; this only stops "I never chose" from silently
+  // meaning "nothing".
+  if (first && draftEquip.value.length === 0) {
+    const skill = PLAYER_SKILLS.find(s => s.id === id);
+    const gear = ['escut', 'armadura-de-cuir'];
+    if (skill?.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) gear.push('destral');
+    draftEquip.value = gear.filter(g => ALL_EQUIPMENT.some(e => e.id === g));
+  }
   scrollRowIntoView(skillCatalogEl.value, id);
 }
 function removeSkill(id: string) {

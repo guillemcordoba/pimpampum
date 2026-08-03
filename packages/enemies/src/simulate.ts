@@ -194,9 +194,34 @@ export interface SolvedEncounter {
   /** True when the target was unreachable inside the PV bounds. */
   clamped: boolean;
   avgRounds: number;
+  /**
+   * True when the DURATION budget bound the answer rather than the winrate
+   * target: the requested difficulty was only reachable by making the fight
+   * longer than `maxAvgRounds`, so the solver returned the hardest encounter
+   * that still fits the budget. `predictedWinrate` is then EASIER than
+   * `targetWinrate`, and honestly so — the fix is a different composition
+   * (more bodies, or a higher level), not more hit points.
+   */
+  durationCapped: boolean;
+  /** The round budget this solve was held to. */
+  maxAvgRounds: number;
   /** Combats the reported winrate was measured over. */
   games: number;
 }
+
+/**
+ * Average rounds a solved encounter may run.
+ *
+ * The game is tuned for fights of about five rounds (intentions.md), and the
+ * daily fatigue budget (20) is meant to cover 2-3 combats — roughly 7 actions
+ * each. Left unconstrained the solver blows through both: measured over 100
+ * GM-shaped requests it produced a median 12-round fight, and one-creature
+ * encounters averaged 19 rounds and 235 PV per body.
+ *
+ * 6 rather than 5, to match the threshold the encounter creator already warns
+ * at and to leave a round of slack for sampling noise.
+ */
+export const DEFAULT_MAX_AVG_ROUNDS = 6;
 
 export interface SolveOptions extends SimOptions {
   /** Games used during the search (cheap); the final answer is re-measured
@@ -204,15 +229,29 @@ export interface SolveOptions extends SimOptions {
   searchGames?: number;
   /** Bisection steps on PV. Default 11. */
   steps?: number;
+  /** Cap on the average fight length, in rounds. Default
+   *  `DEFAULT_MAX_AVG_ROUNDS`; pass `Infinity` to solve on winrate alone. */
+  maxAvgRounds?: number;
 }
 
 /**
  * Solve an encounter: keep the requested composition and set the enemies' PV
- * so the SIMULATED player winrate hits the target.
+ * so the SIMULATED player winrate hits the target, WITHOUT the fight running
+ * longer than `maxAvgRounds`.
  *
  * Winrate falls monotonically as enemy PV rises, so a bisection converges —
  * and because every evaluation shares one seed, the function it bisects is
  * deterministic rather than noisy.
+ *
+ * Duration is a CONSTRAINT, not a report. PV is the solver's only lever, and
+ * it buys durability rather than danger: when a composition cannot threaten
+ * the party per round, the only way to reach a hard winrate is to turn the
+ * enemies into sponges, and the "difficulty" that results is the party
+ * exhausting its fatigue budget and killing itself on Cop desesperat — lifting
+ * the fatigue ceiling turned a solved 50% 432-PV wolf into a 100% party win.
+ * That is not the fight the number promises, so it is refused: the solver
+ * returns the hardest encounter inside the budget and flags `durationCapped`,
+ * leaving the GM to change the composition instead.
  */
 export function solveEncounter(
   pool: PoolSpec[],
@@ -230,6 +269,7 @@ export function solveEncounter(
   const searchGames = opts.searchGames ?? 120;
   const steps = opts.steps ?? 11;
   const target = Math.min(0.99, Math.max(0.01, targetWinrate));
+  const maxAvgRounds = opts.maxAvgRounds ?? DEFAULT_MAX_AVG_ROUNDS;
 
   // Groups that fix their own PV are left alone; the rest take the scale being
   // searched, SHARED OUT by each creature's bulk — a goblin beside a basilisk
@@ -357,6 +397,35 @@ export function solveEncounter(
     }
   }
 
+  // --- the duration constraint ----------------------------------------------
+  // A fight gets longer the more PV the bodies have, monotonically, so the
+  // budget defines a CEILING on scale. Find the largest scale that still fits
+  // and take the lower of the two answers.
+  //
+  // Evaluated on the search seed, like every other search decision, so the
+  // common-random-numbers property holds here too: the length curve being
+  // bisected is deterministic rather than noisy.
+  let durationCapped = false;
+  if (Number.isFinite(maxAvgRounds)) {
+    const roundsAt = (scale: number, games: number): number =>
+      simulateEncounter(groupsAt(scale), party, { ...opts, games, seed }).avgRounds;
+
+    if (roundsAt(solvedScale, searchGames) > maxAvgRounds) {
+      durationCapped = true;
+      if (roundsAt(loBound, searchGames) > maxAvgRounds) {
+        // Even the flimsiest bodies outlast the budget — nothing to search.
+        solvedScale = loBound;
+      } else {
+        let short = loBound, long = solvedScale;
+        for (let i = 0; i < steps; i++) {
+          const mid = Math.sqrt(short * long);
+          if (roundsAt(mid, searchGames) <= maxAvgRounds) short = mid; else long = mid;
+        }
+        solvedScale = short;                 // the hardest fight inside the budget
+      }
+    }
+  }
+
   // Report an INDEPENDENT measurement of what we return: the number the GM
   // sees is a fresh estimate, never the sample the search steered on (picking
   // the best of several noisy candidates and then reporting that same sample
@@ -386,6 +455,8 @@ export function solveEncounter(
     stderr: final.stderr,
     solvedScale: Math.round(solvedScale * 100) / 100,
     clamped,
+    durationCapped,
+    maxAvgRounds,
     avgRounds: final.avgRounds,
     games: final.games,
   };

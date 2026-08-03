@@ -151,20 +151,28 @@ const predictedPct = computed(() =>
 /** 1σ sampling error of the simulated winrate, in points. */
 const marginPct = computed(() =>
   solved.value ? Math.max(1, Math.round(solved.value.stderr * 100)) : null);
-// Flag when the achievable winrate drifts from the request by more than the
-// simulation's own error bar — i.e. a real miss, not sampling noise.
-// The game is tuned for fights of about five rounds (intentions.md). Past that
-// the solver has bought its difficulty with hit points rather than with danger,
-// which reads as a slog at the table — so say so instead of hiding it in a
-// number the GM has to interpret.
-const LONG_FIGHT_ROUNDS = 6;
-const longFight = computed(() =>
-  solved.value !== null && solved.value.avgRounds > LONG_FIGHT_ROUNDS);
+// Fight length is a CONSTRAINT in the solver now, not something to warn about
+// after the fact: it will not buy difficulty with hit points. When holding the
+// budget cost it the requested winrate it says so, and the answer is a
+// different composition — more bodies, or a higher level — never more PV.
+const durationCapped = computed(() => solved.value?.durationCapped === true);
 
+// A miss the solver did NOT choose. `solved.clamped` is authoritative — it
+// means the search ran out of PV in one direction — and must be honoured even
+// when the achieved winrate happens to land near the target: a floor-clamped
+// solve reading "79% vs 80% asked" looks like a hit while actually meaning
+// "these enemies are already too dangerous at 1 PV each".
 const clamped = computed(() =>
   solved.value !== null
-  && Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate)
-     > Math.max(0.02, 2 * solved.value.stderr));
+  && !solved.value.durationCapped
+  && (solved.value.clamped
+    || Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate)
+       > Math.max(0.02, 2 * solved.value.stderr)));
+
+/** Clamped at the PV FLOOR: the composition is too strong even at minimum PV. */
+const tooStrong = computed(() =>
+  solved.value !== null && solved.value.clamped
+  && solved.value.predictedWinrate < solved.value.targetWinrate);
 
 // Hand the solved encounter to the combat view: its enemy roster arrives
 // pre-filled. The players need no handing over — the combat view fields the
@@ -294,23 +302,29 @@ function openTracker(): void {
           </div>
 
           <div class="readouts">
-            <div class="readout" :class="{ warn: clamped }">
+            <div class="readout" :class="{ warn: clamped || durationCapped }">
               <span class="readout-value">{{ predictedPct }}%<span class="margin">±{{ marginPct }}</span></span>
               <span class="readout-label">victòria dels jugadors</span>
             </div>
-            <div class="readout" :class="{ warn: longFight }">
+            <div class="readout">
               <span class="readout-value">{{ solved.avgRounds.toFixed(1) }}</span>
               <span class="readout-label">rondes de mitjana</span>
             </div>
           </div>
 
-          <p v-if="clamped" class="result-note warn">
-            El creador no ha pogut ajustar-se més al {{ winrate }}% demanat.
+          <p v-if="durationCapped" class="result-note warn">
+            Aquests enemics no poden arribar al {{ winrate }}% sense allargar el
+            combat més enllà de {{ solved.maxAvgRounds }} rondes. Aquest és el
+            combat més difícil que hi cap. Per fer-lo més dur, posa més cossos o
+            puja'ls el nivell — no més PV.
           </p>
-          <p v-else-if="longFight" class="result-note warn">
-            Combat llarg. Puja el nivell dels enemics o posa'n més cossos:
-            la mateixa dificultat comprada amb cartes millors necessita menys PV
-            i s'acaba abans.
+          <p v-else-if="tooStrong" class="result-note warn">
+            Aquests enemics ja són massa per als jugadors fins i tot amb el mínim
+            de PV. Posa'n menys, baixa'ls el nivell — o mira si als herois els
+            falta equipament.
+          </p>
+          <p v-else-if="clamped" class="result-note warn">
+            El creador no ha pogut ajustar-se més al {{ winrate }}% demanat.
           </p>
           <div class="start-buttons">
             <button type="button" class="play-btn" @click="playEncounter">

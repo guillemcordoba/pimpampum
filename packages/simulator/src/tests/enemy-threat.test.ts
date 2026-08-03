@@ -103,8 +103,10 @@ describe('balancer v3: the solver hits the requested difficulty', () => {
       const solved = solveEncounter([{ enemyId, count }], party as PartySpec, target, SOLVE_OPTS);
       expect(solved).toBeTruthy();
       // A clamped solve is an HONEST miss (the target is unreachable with this
-      // composition), so it only has to say so — not to hit the number.
-      if (solved!.clamped) return;
+      // composition), so it only has to say so — not to hit the number. Same
+      // for a duration-capped one: the difficulty was reachable only by
+      // dragging the fight out, which the solver refuses to do.
+      if (solved!.clamped || solved!.durationCapped) return;
       expect(
         Math.abs(solved!.predictedWinrate - target),
         `${label}: asked ${(100 * target).toFixed(0)}%, achieved ${(100 * solved!.predictedWinrate).toFixed(0)}%`,
@@ -127,6 +129,25 @@ describe('balancer v3: the solver hits the requested difficulty', () => {
     // More bodies at the same difficulty must mean flimsier bodies.
     expect(solves[0].groups[0].pv).toBeGreaterThan(solves[1].groups[0].pv);
     expect(solves[1].groups[0].pv).toBeGreaterThan(solves[2].groups[0].pv);
+  });
+
+  it('holds the duration budget, and says so when that cost it the target', () => {
+    const party: PartySpec = { count: 4, levels: 6, armor: 1 };
+    // One wolf cannot threaten four heroes; unconstrained the solver bought
+    // 50% with ~400 PV and a 29-round slog. The budget must refuse that.
+    const solved = solveEncounter([{ enemyId: 'wolf', count: 1 }], party, 0.5, SOLVE_OPTS)!;
+    expect(solved.avgRounds).toBeLessThanOrEqual(solved.maxAvgRounds + 2);
+    // Refusing costs the target, and that must be reported rather than hidden:
+    // the fight is EASIER than asked, not secretly longer.
+    expect(solved.durationCapped).toBe(true);
+    expect(solved.predictedWinrate).toBeGreaterThan(0.5);
+  });
+
+  it('leaves short fights alone — the budget only binds when it has to', () => {
+    const party: PartySpec = { count: 4, levels: 6, armor: 1 };
+    const solved = solveEncounter([{ enemyId: 'basilisk', count: 3 }], party, 0.5, SOLVE_OPTS)!;
+    expect(solved.durationCapped).toBe(false);
+    expect(Math.abs(solved.predictedWinrate - 0.5)).toBeLessThan(TARGET_TOLERANCE);
   });
 
   it('prices mixed compositions', () => {
