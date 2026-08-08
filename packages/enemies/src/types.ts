@@ -1,4 +1,3 @@
-import { AIStrategy } from '@pimpampum/engine';
 import { SkillDefinition } from '@pimpampum/skills';
 
 /**
@@ -62,7 +61,6 @@ export interface EnemyDefinition {
   bulk?: number;
   /** How a GM plays this creature: biases the AI's action mix toward the kit's
    *  identity (Power for casters, Protect for walls). Defaults to Aggro. */
-  aiStrategy?: AIStrategy;
 }
 
 /** Every action the kit knows — the level at which a creature has its full kit. */

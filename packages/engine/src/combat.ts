@@ -7,9 +7,10 @@ import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent,
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
-import { resolveAttack, checkSkillUp } from './resolution.js';
+import { resolveAttack, checkSkillUp, masteryBonus } from './resolution.js';
 import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
 import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
+import { DEFAULT_LOOKAHEAD, LookaheadOptions, bestResponse } from './lookahead.js';
 
 export interface LogEntry {
   kind: string;
@@ -117,7 +118,16 @@ export interface CombatEngineOptions {
   /** AI decisiveness: exponent on action weights (1 = soft sampling, higher =
    *  greedier, human-like play). Default 2. */
   aiSharpness?: number;
-  /** Override how AI actors choose their card (search AI, learned policy). */
+  /** How far the AI thinks (see lookahead.ts). 0 = score the cards as they
+   *  stand — fast, and blind to what the rest of the round commits. 1 = play
+   *  the round forward and score the position it leaves, which is what lets
+   *  coordinated play (guarding the ally mid-focus) be seen at all. ≥2 is for
+   *  offline study: measured at ~500× the cost of depth 1. Default 0. */
+  aiDepth?: number;
+  /** Lookahead budget when `aiDepth` ≥ 1 (samples / passes / topK). */
+  aiLookahead?: Partial<LookaheadOptions>;
+  /** Override how AI actors choose their card. The lookahead is NOT plumbed
+   *  through here — it is the same AI thinking harder, so it rides `aiDepth`. */
   actionChooser?: ActionChooser;
 }
 
@@ -129,8 +139,15 @@ export class CombatEngine implements EngineApi, AIView {
   readonly teams: [Character[], Character[]];
   readonly maxRounds: number;
   readonly aiSharpness: number;
-  /** Optional policy override for AI action choice (search/learned AI). */
+  /** How far the AI thinks (see lookahead.ts). Mutable: a lookahead rollout
+   *  drops its clone to 0 so the search cannot recurse into itself. */
+  aiDepth: number;
+  readonly aiLookahead: LookaheadOptions;
+  /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
+  /** This round's lookahead assignment, per team — computed once for the whole
+   *  team (best response is a joint decision) and handed out per character. */
+  private lookaheadPlan: { round: number; team: number; choices: Map<Character, number> } | null = null;
   round = 0;
   logEntries: LogEntry[] = [];
   /** Every action that actually resolved this combat, in order (EngineApi.history). */
@@ -150,6 +167,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
     this.aiSharpness = opts.aiSharpness ?? 2;
+    this.aiDepth = opts.aiDepth ?? 0;
+    this.aiLookahead = { ...DEFAULT_LOOKAHEAD, ...opts.aiLookahead };
     this.actionChooser = opts.actionChooser;
     this.teams = [teamA, teamB];
     teamA.forEach(c => { c.team = 0; });
@@ -194,6 +213,8 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.maxRounds = this.maxRounds;
     fixed.aiSharpness = this.aiSharpness;
     e.actionChooser = this.actionChooser;
+    e.aiDepth = this.aiDepth;
+    (e as unknown as { aiLookahead: LookaheadOptions }).aiLookahead = this.aiLookahead;
     fixed.history = this.history.map(ev => ({
       round: ev.round,
       actor: at(ev.actor),
@@ -370,7 +391,7 @@ export class CombatEngine implements EngineApi, AIView {
     } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + masteryBonus(defender, guard.action);
       let defenderTotal = Math.max(0, defRoll + defBonus);
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
@@ -532,6 +553,20 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Build the speed-ordered pending queue. Human selections carry actionIdx (targets
    *  optional); every other living actor is filled by the AI. Returns reveal info. */
+  /** The lookahead's card for `c` this round, or null at depth 0. Best response
+   *  is a JOINT decision, so it is solved once per team per round and cached —
+   *  asking per character would throw away the coordination it exists for. */
+  private lookaheadPick(c: Character): number | null {
+    if (this.aiDepth < 1) return null;
+    if (!this.lookaheadPlan || this.lookaheadPlan.round !== this.round || this.lookaheadPlan.team !== c.team) {
+      this.lookaheadPlan = {
+        round: this.round, team: c.team,
+        choices: bestResponse(this, c.team, { ...this.aiLookahead, depth: this.aiDepth }).choices,
+      };
+    }
+    return this.lookaheadPlan.choices.get(c) ?? null;
+  }
+
   planActions(humanSelections: ActionSelection[] = []): RevealedAction[] {
     const selByChar = new Map<Character, ActionSelection>();
     for (const sel of humanSelections) selByChar.set(this.resolveRef(sel), sel);
@@ -546,7 +581,7 @@ export class CombatEngine implements EngineApi, AIView {
         action = c.actions[sel.actionIdx];
         targets = sel.targets ? sel.targets.map(t => this.resolveRef(t)) : null;
       } else {
-        const chosen = this.actionChooser?.(this, c) ?? null;
+        const chosen = this.actionChooser?.(this, c) ?? this.lookaheadPick(c);
         const idx = chosen !== null && this.canPlayActionIdx(c, chosen)
           ? chosen
           : selectAction(this, c).actionIdx;
@@ -739,7 +774,7 @@ export class CombatEngine implements EngineApi, AIView {
         const count = getActionTargetCount(cur.action.def);
         if (count >= pool.length) {
           cur.targets = pool;
-        } else if (cur.actor.aiStrategy !== null) {
+        } else if (cur.actor.aiControlled) {
           cur.targets = this.autoTargets(cur.actor, cur.action.def, req, count, cur.speed);
         } else {
           return {
@@ -1002,7 +1037,7 @@ export class CombatEngine implements EngineApi, AIView {
     let extraDice = 0;
     for (const d of mods.extraDamageDice) extraDice += d.roll();
     const atkBonus = (def.rollBonus ?? 0) + mods.rollBonus
-      + source.getRollBonus(def.skillId, 'attack')
+      + source.getRollBonus(def.skillId, 'attack') + masteryBonus(source, def)
       + this.attackRollBonusAgainst(target);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
@@ -1048,7 +1083,7 @@ export class CombatEngine implements EngineApi, AIView {
     } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense');
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + masteryBonus(defender, guard.action);
       let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
@@ -1161,7 +1196,7 @@ export class CombatEngine implements EngineApi, AIView {
   private rollWall(source: Character, wall: Guard[], attackTotal: number): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
     const rolls = wall.map(g => {
       const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
-      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense');
+      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + masteryBonus(g.defender, g.action);
       return { g, total: Math.max(0, roll + bonus) };
     });
     const rawSum = rolls.reduce((s, r) => s + r.total, 0);

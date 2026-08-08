@@ -13,4 +13,4 @@ export const SHARED_CARD_EFFECTS: Record<string, EffectHandler> = {
   ...STANDING_WALL_EFFECTS,
 };
 
-export { standingWallAction } from './standing-wall.js';
+export { standingCoverAction } from './standing-wall.js';

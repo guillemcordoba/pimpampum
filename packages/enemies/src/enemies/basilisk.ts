@@ -1,4 +1,4 @@
-import { ActionType, AIStrategy, DiceRoll, EffectHandler } from '@pimpampum/engine';
+import { ActionType, DiceRoll, EffectHandler } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
 import { EnemyDefinition, ICON } from '../types.js';
 
@@ -43,7 +43,7 @@ const BASILISK_SKILL: SkillDefinition = {
 
 export const BASILISK: EnemyDefinition = {
   id: 'basilisk', displayName: 'Basilisc', classCss: 'basilisc', iconPath: ICON + 'delapouite/spiked-dragon-head.svg',
-  naturalArmor: 2, aiStrategy: AIStrategy.Power,
+  naturalArmor: 2,
   /** ~3.2 t — a Rowling serpent, not D&D's 300 lb lizard: 15 m long ("up to
    *  fifty feet") and "thick as an oak trunk". The kit already says as much —
    *  a tail that sweeps three people at once is not a 6-foot reptile. */

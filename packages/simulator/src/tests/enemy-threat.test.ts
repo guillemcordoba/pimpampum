@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { CombatEngine, assignStrategies, AIStrategy, withSeed } from '@pimpampum/engine';
+import { CombatEngine, setAIControlled, withSeed } from '@pimpampum/engine';
 import { buildReferenceParty, PartySpec } from '@pimpampum/skills';
 import {
-  ENEMY_DEFINITIONS, generateEncounter, solveEncounter, buildSolvedEncounter, leanChooser,
+  ENEMY_DEFINITIONS, generateEncounter, solveEncounter, buildSolvedEncounter,
 } from '@pimpampum/enemies';
 import { REGISTRY } from './helpers.js';
 
@@ -29,10 +29,10 @@ const TOLERANCE = 0.18;
 /** Solves run at a modest sample so the suite stays quick. */
 const SOLVE_OPTS = { games: 160, searchGames: 100 } as const;
 
-/** The balancer plays with the distilled lean AI, so the replay must too —
- *  grading a solve made under strong play with a weaker policy measures the
- *  gap between the two policies, not the solver. */
-const REPLAY_CHOOSER = leanChooser();
+/** The balancer prices at aiDepth 1, so the replay must think just as hard —
+ *  grading a solve made under strong play with a weaker AI measures the gap
+ *  between the two settings, not the solver. */
+const REPLAY_DEPTH = 1;
 
 /** Independent re-measurement of a solved encounter. */
 function verify(solvedGroups: () => ReturnType<typeof buildSolvedEncounter>, party: PartySpec, seed: number): number {
@@ -40,10 +40,10 @@ function verify(solvedGroups: () => ReturnType<typeof buildSolvedEncounter>, par
     let wins = 0;
     for (let i = 0; i < GAMES; i++) {
       const players = buildReferenceParty(party);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const enemies = solvedGroups();
       const w = new CombatEngine(players, enemies, {
-        registry: REGISTRY, maxRounds: 40, actionChooser: REPLAY_CHOOSER,
+        registry: REGISTRY, maxRounds: 40, aiDepth: REPLAY_DEPTH,
       }).runCombat().winner;
       if (w === 0) wins++;
       else if (w === null) wins += 0.5;

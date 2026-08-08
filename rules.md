@@ -24,6 +24,25 @@ Cada acció té:
 - **Tipus**: Atac, Defensa o Focus.
 - **Daus**: els daus que es tiren quan l'acció es resol (per exemple, 1d8, 2d6). Les accions d'atac tenen daus d'atac; les accions de defensa tenen daus de defensa.
 
+### Mestratge
+
+A cada tirada d'una acció s'hi suma el **mestratge**: el nivell que tens de
+l'habilitat menys el nivell en què s'aprèn aquella acció.
+
+> Esgrima 5, jugant la primera acció d'Esgrima (que s'aprèn a nivell 1):
+> mestratge +4. Jugant la cinquena acció, acabada d'aprendre: mestratge +0.
+
+La primera acció d'una habilitat és la que has repetit deu mil vegades; la que
+acabes d'aprendre encara et surt maldestra. Per això les accions velles no
+queden mai obsoletes: el que hi guanyes en mestratge compensa que els daus
+siguin més petits, i una acció nova ha de ser prou bona per superar-les.
+
+Com que **les dues bandes hi sumen el seu mestratge**, dos contendents igual de
+entrenats s'anul·len: una tirada enfrontada entre iguals és exactament la
+mateixa que si el mestratge no existís. Només parla quan hi ha diferència
+d'entrenament — i és el que fa que el nivell d'un enemic sigui una mesura real
+de com de perillós és, i no només de quantes cartes té.
+
 ### Accions d'atac
 
 Quan es resol una acció d'atac, l'atacant tria un objectiu i tira els **daus d'atac** de l'acció (més els modificadors que tingui).

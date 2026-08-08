@@ -24,8 +24,8 @@ packages/
 │       ├── modifier.ts        # CombatModifier, ModifierDuration
 │       ├── character.ts       # Character (PV + skills Map + statuses + guards + blockedBy + fatigue), createCharacter
 │       ├── combat.ts          # CombatEngine — step-by-step state machine + AI driver
-│       ├── ai.ts              # selectAction (weighted pick) + pickResolveTargets (resolution-time targeting), AIView
-│       ├── strategy.ts        # AIStrategy enum
+│       ├── ai.ts              # depth 0: selectAction (weighted pick) + pickResolveTargets, AIView
+│       ├── lookahead.ts       # depth ≥1: positionScore + iterated best response (the depth knob)
 │       └── display.ts         # ACTION_TYPE_*, STAT_ICONS, SLOT_LABELS, RULES_SUMMARY
 ├── skills/                    # @pimpampum/skills — PLAYER game content
 │   └── src/
@@ -45,7 +45,6 @@ packages/
 │       ├── catalog.ts         # ENEMY_DEFINITIONS, ENEMY_SKILLS, registerEnemySkills(registry)
 │       ├── factory.ts         # createEnemyFrom(def, { pv, level?, name?, equipment? })
 │       ├── simulate.ts        # Encounter balancer v3 (SIMULATED)
-│       ├── ai-policy.ts       # leanChooser() — the policy the balancer plays with
 │       └── enemies/           # One EnemyDefinition per creature
 ├── simulator/                 # @pimpampum/simulator — balance testing (tsx + vitest)
 │   └── src/
@@ -121,6 +120,7 @@ list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `silence_on_hit`, `second_attack`, `self_stun`, `undefendable_on_hit`,
 `buff_on_hit`, `skill_bonus_from`, `spell_leech_on_hit`, `self_damage`,
 `double_wound`, `counter`, `retaliate_wound`, `debuff_on_block`,
+`dot_on_block`, `heal_on_block`,
 `buff_on_block`, `buff_on_block_fail`, `self_armor`, `heal`, `skill_mod`,
 `stun`, `evasion`, `nimble_escape`, `mark_target`, `weapon_buff`,
 `wound_wounded`, `regen`, `dot`, `wild_shape`, `summon`, `sacrifice`,
@@ -156,6 +156,24 @@ themselves**, rolling their defense dice separately against each incoming
 attack. Engine: `Character.guards` + `Character.blockers`, round-scoped,
 resolved at resolution time in speed order; `TargetRequirement 'defense'` drives
 the dual prompt.
+
+**Every defense card pays off when it blocks** (`intentions.md`: the premium is
+what keeps Protect ahead of Aggro). The rider rides `onDefend`, which fires once
+per blocked attack for a guard and for every member of a joint wall:
+`counter` (riposte, `weapon: true` adds the wielded weapon's flat bonus),
+`retaliate_wound` (flat `amount` or rolled `dice`, ignores armour),
+`debuff_on_block`, `dot_on_block`, `heal_on_block`, `buff_on_block`;
+`onBlockFail` is the mirror seam for cards that pay when the blow gets through
+(`buff_on_block_fail`, Berserk's `rage_from_pain`).
+
+**Mur de pedra has LIFE** (`cards/standing-wall.ts`). The wall rolls its `life`
+dice when it goes up (its own knob, separate from the dice it defends with —
+2d10 of life behind a 4d6 guard) and stores the result in `data.life`; a breach no longer
+shatters it — `onStandingGuardBroken` flags `data.breaching` and the status's
+own `modifyIncomingDamage` charges that damage to the wall, passing only the
+excess to the protected and clearing the status when the stone runs out. Note
+`performExtraAttack` consults ACTIVE guards only, so counters and other extra
+attacks fly past a standing wall.
 
 **Focus interrupts.** Cancelled if the actor takes DAMAGE before it resolves; a
 hit fully absorbed by armour does NOT interrupt (rule changed 2026-07-18).
@@ -264,9 +282,9 @@ per-round threat (3× basilisk at 10 PV / 3.5 rounds; 6× goblin shaman at 10 PV
 - PV is an integer lever, so some targets are genuinely unreachable; the solver
   reports what it achieved (`clamped`).
 
-**The AI defines difficulty.** Every number is the winrate of AI play, so
-`ai.ts` quality is balance quality. The balancer plays with the distilled lean
-policy in `ai-policy.ts`.
+**The AI defines difficulty.** Every number is the winrate of AI play, so AI
+quality is balance quality. The balancer plays the one AI at `aiDepth` 1 (see
+The AI, below).
 
 **`bulk`** is how much flesh a creature is relative to a 70 kg human:
 `bulk = ∛(kg / 70)`, taken from the weight it has in the fantasies it comes from
@@ -284,23 +302,55 @@ single-creature convenience; `simulateEncounter` scores any composition;
 
 ### The AI
 
-Players are human-controlled when `aiStrategy === null`. Enemies get their
-strategy from `EnemyDefinition.aiStrategy` (stamped by `createEnemyFrom`;
-default Aggro) — pick it to match how a GM would play the kit, since calibration
-runs with it. `assignStrategies` is only for simulated *player* teams (it
-downgrades a strategy the character can't cash in — Protect without a Defensa
-action, Power without a Focus — to Aggro).
+**There is exactly one AI, with a depth knob.** It lives in the engine
+(`ai.ts` + `lookahead.ts`), carries no learned weights and no per-card table, so
+adding a card never requires retraining anything — the property an instrument
+that prices encounters has to have.
 
-The AI models human play. Actions are chosen at plan time by weighted sampling
-sharpened by `CombatEngineOptions.aiSharpness` (weights^τ, default 2; 1 = soft
-play), with attacks weighted by **expected PV removed** (projected margin damage
-blended over defended/undefended outcomes and armour). **Targets** are chosen at
-resolution time (`pickResolveTargets`), seeing what a human sees after the
-reveal: take lethal kills, interrupt enemies whose slower focus is still
-pending, prefer dangerous and wounded targets, avoid active guards. Defenses use
-a **guard-vs-block heuristic** (guard wounded allies, else block the scariest
-enemy whose attack is still pending, else self-guard). Calibration counts draws
-as ½.
+`CombatEngineOptions.aiDepth` is the knob:
+
+- **Depth 0** — score the cards as they stand. Attacks are weighted by
+  **expected PV removed** (projected margin damage blended over
+  defended/undefended outcomes and armour); content adds its own judgement
+  through per-effect `aiWeight` hints and `StatusBehavior.adjustActionWeight`.
+  Choice is weighted sampling sharpened by `aiSharpness` (weights^τ, default 2).
+  Fast (~4 ms/combat) and blind to what the rest of the round commits.
+- **Depth 1** — play the round forward and score the position it leaves
+  (`positionScore`: PV differential, bodies standing, fatigue — hand-written,
+  readable weights). The team is solved JOINTLY by iterated best response, which
+  is the only way a defense can be valued next to the focus it protects.
+  `topK` prunes candidates by the depth-0 opinion. ~6× the cost, and it beats
+  depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
+- **Depth ≥2** — measured at ~500× depth 1. Offline study only.
+
+`LookaheadOptions.restrictTo` limits the AI to a subset of card types, which is
+how "is attack-spam actually optimal?" gets asked fairly: both sides think
+equally hard, one merely has a smaller strategy space.
+
+**The balancer prices at depth 1** (`BALANCER_DEPTH` in `simulate.ts`), and the
+web app's enemies run at depth 1 too, so a fight plays out at the strength it
+was priced for. **The AI's play strength IS the unit of difficulty**: price
+against a party that blunders and the encounter feels trivial at a table that
+doesn't.
+
+`Character.aiControlled` decides who the engine plays: false for the web app's
+human seats (they get prompted for cards and targets), true for enemies (set by
+`createEnemyFrom`) and for simulated player teams (`setAIControlled`).
+**Targets** are chosen at resolution time (`pickResolveTargets`), seeing what a
+human sees after the reveal: take lethal kills, interrupt enemies whose slower
+focus is still pending, prefer dangerous and wounded targets, avoid active
+guards. Defenses use a guard-vs-block heuristic (guard wounded allies, else
+block the scariest enemy whose attack is still pending, else self-guard).
+Calibration counts draws as ½.
+
+**Deleted 2026-08-08, deliberately:** the distilled lean policy
+(`enemies/ai-policy.ts` + its generated `CARD_BIAS`), the learned value model
+and its self-play training pipeline (`simulator/ai/`, `train-ai.ts`,
+`distil-ai.ts`), and the Aggro/Power/Protect strategy biases. The lean policy
+was measured playing no better than random card selection while pricing every
+encounter in the game; the strategies were a thumb on the scale pushing
+characters toward a card TYPE regardless of position. A creature now differs
+from another because its CARDS differ.
 
 ---
 
@@ -318,6 +368,29 @@ as ½.
   level 4) but that the long fights come from compositions that cannot threaten
   the party at all (4 wolves need 91 PV each, 22 rounds, because a level-2 wolf
   attacks with 1d2).
+- `ai-benchmark.ts` — the POLICY BENCHMARK: which AI should we measure the game
+  with? Runs every policy (`heuristic` = the engine's own AI, `lean` = the
+  balancer's distilled policy, `spam`, `uniform`) over one fixed encounter and
+  reports strength, cost per combat, a mirrored head-to-head matrix, the share
+  of decisions spent per action type, per-card play rate conditioned on
+  legality, and whether the lean policy's per-card bias has gone stale (cards
+  with no bias score 0). Run it after any content change that could shift how
+  the AI plays. **First run, 2026-08-08: the lean policy plays no better than
+  choosing a random legal card** — see NEXT-STEPS §9.
+- `kit-analyzer.ts` — the KIT REGRESSION HARNESS (NEXT-STEPS §7): library +
+  CLI, one code path, two modes (`--player <skill>` / `--enemy <id>`; no flag
+  sweeps every main kit). Per kit it reports level monotonicity under common
+  random numbers, fight length (median/p90/draws), the attack-spam comparison
+  (the subject side replayed with a "biggest attack always" chooser), per-card
+  play rate **conditioned on legality**, and per-card win correlation. The
+  reference encounter is fixed and hand-calibrated — moving it invalidates
+  earlier report cards.
+- `experiment-defense-vs-attack.ts` — the DEFENSE PREMIUM check: exact (convolved,
+  not sampled) probability that each defense card holds against every attack card
+  of the same level, plus the minimum dice each defense needs to hit the 80%
+  target in `intentions.md`. It found the premium was only 72% on average with
+  52% of pairs below target (2026-08-08), which drove the defense dice up to
+  3d4 / 3d6 / 4d6 by level. Re-run after touching any contest dice.
 - Other one-offs: `experiment-tuning.ts` (PV/armour sweeps), `experiment-heal.ts`
   (heal-stall draws), `experiment-berserk.ts` (component attribution),
   `experiment-seat.ts` (seat bias), `experiment-day.ts` (fatigue budget across a

@@ -1,6 +1,6 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
-import { standingWallAction } from '../cards/index.js';
+import { standingCoverAction } from '../cards/index.js';
 import { num } from '../effects/helpers.js';
 
 /**
@@ -47,16 +47,16 @@ export const EARTHBENDER: SkillDefinition = {
       desc: '',
       icon: 'delapouite/throwing-ball.svg',
     }),
+    standingCoverAction({ skillId: 'earthbender', unlock: 2 }),
     action({
       id: 'columna-de-terra', name: 'Columna de terra', skillId: 'earthbender',
-      unlock: 2, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
+      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
       effects: [
         { type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } },
       ],
       desc: "Si encerta, l'objectiu surt llançat: −2 de velocitat el torn següent.",
       icon: 'delapouite/ionic-column.svg',
     }),
-    standingWallAction({ skillId: 'earthbender', unlock: 3 }),
     action({
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
       unlock: 4, type: ActionType.Focus, speed: -1, fatigueCost: 3,

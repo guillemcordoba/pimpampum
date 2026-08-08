@@ -49,8 +49,8 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Rugit de guerra: a terrifying war cry. The roar's own contest, card logic:
-  // the berserker rolls the card's dice + their skill LEVEL (a rare level-enters-
-  // the-roll exception, printed on the card) against each enemy's resist dice;
+  // the berserker rolls the card's dice + their skill LEVEL (the FULL level, not
+  // just mastery — printed on the card) against each enemy's resist dice;
   // losers with a still-pending action lose it (engine `cancelPendingAction`,
   // speed-gated — the roar wants high speed).
   fear_roar: {
@@ -88,8 +88,9 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
     onBlockFail(ctx) {
       const dmg = ctx.damageDealt ?? 0;
       if (dmg <= 0) return;
-      applyMod(ctx.source, 'attack', dmg, 'restOfCombat', ctx.action.name);
-      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${dmg} {A} la resta del combat.`, ctx.source.team);
+      const gain = dmg * num(ctx.params, 'multiplier', 2);
+      applyMod(ctx.source, 'attack', gain, 'restOfCombat', ctx.action.name);
+      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} la resta del combat.`, ctx.source.team);
     },
     aiWeight() { return 0.6; },
   },
@@ -98,7 +99,7 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
 
 export const BERSERK: SkillDefinition = {
   id: 'berserk', displayName: 'Berserk', classCss: 'barbar', category: 'player',
-  description: "Bàrbar de fúria desfermada: la ràbia és el que colpeja i devasta; l'arma que empunyes la potencia. Tot atac, autodestructiu.",
+  description: "Bàrbar de fúria desfermada: la ràbia és el que colpeja i devasta; l'arma que empunyes la potencia. Autodestructiu: fins i tot parar un cop alimenta la fúria.",
   iconPath: ICON_PREFIX + 'delapouite/barbarian.svg',
   actions: [
     action({
@@ -109,11 +110,11 @@ export const BERSERK: SkillDefinition = {
       icon: 'skoll/blood.svg',
     }),
     action({
-      id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
-      unlock: 2, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain' }],
-      desc: 'Reps tot el dany i guanyes +{A} permanent igual al dany rebut.',
-      icon: 'lorc/muscle-up.svg',
+      id: 'cop-d-espatlla', name: "Cop d'espatlla", skillId: 'berserk',
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6),
+      effects: [{ type: 'buff_on_block', params: { kind: 'attack', amount: 2, duration: 'nextTurn' } }],
+      desc: 'Si bloqueges un atac, {A}+2 el proper torn.',
+      icon: 'delapouite/shield-bash.svg',
     }),
     action({
       id: 'atac-temerari', name: 'Atac temerari', skillId: 'berserk',
@@ -123,15 +124,22 @@ export const BERSERK: SkillDefinition = {
       icon: 'lorc/axe-swing.svg',
     }),
     action({
+      id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
+      unlock: 4, type: ActionType.Defensa, speed: 2,
+      effects: [{ type: 'rage_from_pain', params: { multiplier: 2 } }],
+      desc: 'Reps tot el dany i guanyes +{A} permanent igual al doble del dany rebut.',
+      icon: 'lorc/muscle-up.svg',
+    }),
+    action({
       id: 'entrar-en-furia', name: 'Entrar en Fúria', skillId: 'berserk',
-      unlock: 4, type: ActionType.Focus, speed: 2, fatigueCost: 3,
+      unlock: 5, type: ActionType.Focus, speed: 2, fatigueCost: 3,
       effects: [{ type: 'enter_rage', params: { value: 5, turns: 3 } }],
       desc: 'Baixes a 1 PV. Durant 3 torns res et pot fer baixar PV, {A}+5 als teus atacs.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
       id: 'rugit-de-guerra', name: 'Rugit de guerra', skillId: 'berserk',
-      unlock: 5, type: ActionType.Focus, speed: 2, dice: d(1, 20),
+      unlock: 6, type: ActionType.Focus, speed: 2, dice: d(1, 20),
       effects: [{ type: 'fear_roar', params: { resist: d(1, 20) } }],
       desc: "Tira 1d20 + nivell de Berserk contra 1d20 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
       icon: 'lorc/screaming.svg',

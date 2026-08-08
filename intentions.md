@@ -18,6 +18,9 @@ Pim Pam Pum has these intentions as a combat system:
 - **Combats should not go on for more than ~5 rounds.** This applies to all combats, including symmetric AI-vs-AI mirror matches — they may not stall longer either. The starting PV (provisionally 12) and the dice on the cards are the main levers; tune them via simulation.
 - **Speed ordering: most defenses are faster than most attacks, and most focuses are slow.** Exceptions are allowed and interesting (a lightning-fast strike, a heavy slow guard), but the bulk of cards should follow the ordering.
 - **At the same skill level, a defense card should be stronger than an attack card.** Attacks always threaten (an undefended target takes the full roll); a defense only pays off when it intercepts, so the card itself gets a premium.
+  - **The premium is big, not a nudge: a defense card should beat an attack card of the same level ~80% of the time.** Slightly larger dice is not enough — reading the attack correctly is supposed to shut it down, not shave a couple of points off it. The 80% is the target for the *contest itself* (defense total ≥ attack total, ties held by the defense); getting there is a dice job, and the gap can be closed with defense dice, attack dice or roll bonuses, whichever keeps the felt power curve intact.
+  - **Read the 80% as the MEAN across same-level attacks, never as a floor against the worst of them.** This was calibrated the other way on 2026-08-08 — every defense sized so it beat the *strongest* same-level attack 80% of the time — which put the mean at ~90% and made a four-hero party of 85-90% guards effectively invulnerable: the kit analyzer's turtle test then had a defenses-only party beating a thinking one by up to 42pp. One die came back off every defense; the mean is 78% and the turtle collapsed. A guard that stops everything is not a premium, it is a win condition. Measured by `simulator/src/experiment-defense-vs-attack.ts` — re-run it after touching any contest dice, and re-run the turtle test after touching defenses at all.
+  - **And a landed block should hurt.** Every defense card carries a payoff that fires when it blocks — damage back, a burn, a debuff, a heal, stone that soaks the next blow. Guessing right pays in more than damage avoided; it is what keeps Protect ahead of Aggro.
 - **Prefer many smaller dice over fewer bigger dice** (e.g. 2d4 over 1d8): tighter distributions make contests less swingy. Big single dice (1d12) are reserved as deliberate swingy flavour for wild skills.
 - **Dice are the felt power curve.** The weakest attacks roll 1d4; the strongest roll ~3d8. Players should experience progression as lower dice → higher dice. PV is never a design anchor for dice — it's the free knob tuned afterwards so combats hit the duration target.
 - **Simplicity over mathematical complexity.** Whenever possible prefer flat modifiers and plain dice over formulas — lower the players' cognitive load at the table. A card should read as "arma +2" or "2d6", not as a computation.
@@ -32,6 +35,23 @@ The system aims for a **Power > Protect > Aggro** triangle, now expressed throug
 - **Aggro** (attack-heavy play) beats **Power** (focus-heavy play) — focus actions are slow, so fast attacks land first and interrupt an undefended focus before it resolves.
 
 This emerges because the strongest focus actions are **high risk / high reward**: very powerful but slow, so the best play is often protecting an ally who is committing to a big focus. Lighter, faster focus actions (dodges, small buffs) add variety without demanding full team protection.
+
+**When a corner of the triangle dominates, BUFF THE CORNER THAT BEATS IT.** The
+reflex is to nerf whatever is winning; the rule here is the opposite. If Protect
+is dominating — the measurable symptom is the kit analyzer's turtle test, a
+defenses-only party beating a thinking one — diagnose why, then **buff Focus
+cards until the balance returns**, rather than shaving defenses down. Power is
+supposed to beat Protect, so Protect running away means Power is too weak, and
+cutting Protect would only lower the whole game's power level instead of
+restoring the relationship. The same applies around the triangle.
+
+A note on what actually answers a turtle, since not every focus does: buffing an
+attack is useless against a wall of guards that holds 85% of everything. The
+cards that break a turtle are the ones a guard cannot stop — undefendable
+payloads (Guèiser, Riu de lava), reaps that ignore defenses (Mà de la tomba),
+and build-ups big enough that no guard survives what they eventually land.
+Enemy kits are especially thin here, which is why a turtling party currently
+goes unpunished.
 
 Balance levers that maintain the triangle (being tuned via simulation):
 - **Focus power** — a resolved high-impact focus should be game-changing (large skill buffs, transformations).

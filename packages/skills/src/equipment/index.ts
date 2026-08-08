@@ -3,11 +3,15 @@ import { action, d } from '../types.js';
 
 const ICON = 'icons/000000/transparent/1x1/';
 
-/** Defense card granted by wearing the shield (unlock 0: needs no skill). */
+/** Defense card granted by wearing the shield (unlock 0: needs no skill).
+ *  Blocking with a shield shoves the attacker back — the universal defense
+ *  payoff, the mildest of them (everyone can carry a shield). */
 const ESCUT_DE_FUSTA = action({
   id: 'escut-de-fusta', name: 'Escut de fusta', skillId: 'escut', unlock: 0,
   type: ActionType.Defensa, speed: 2, dice: d(2, 4),
-  desc: '', icon: 'willdabeast/round-shield.svg',
+  effects: [{ type: 'debuff_on_block', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } }],
+  desc: 'Si bloqueges un atac, {V}−2 a l\'atacant el proper torn.',
+  icon: 'willdabeast/round-shield.svg',
 });
 
 /** All equipment items. One armour, one weapon, one shield — small levers.

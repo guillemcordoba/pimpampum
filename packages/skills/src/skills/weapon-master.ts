@@ -81,7 +81,7 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'contraatac', name: 'Contraatac', skillId: 'mestre-armes',
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 4),
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6),
       effects: [{ type: 'counter', params: { dice: d(1, 6) } }],
       desc: 'Si bloqueges, contraataques amb 1d6.',
       icon: 'lorc/sword-clash.svg',

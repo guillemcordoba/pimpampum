@@ -2,12 +2,6 @@
 export { DiceRoll, rollDie } from './dice.js';
 export { random, setRng, seededRng, withSeed } from './rng.js';
 
-// Learned lean policy (weights distilled from the search AI)
-export {
-  LearnedPolicy, policyFeatures, policyContext, POLICY_WEIGHTS,
-  POLICY_FEATURE_NAMES, POLICY_FEATURE_COUNT,
-} from './policy.js';
-export type { PolicyFeatures, PolicyContext } from './policy.js';
 
 // Core types
 export { ActionType, EquipmentSlot, isAttack, isDefenseAction, isFocusAction } from './types.js';
@@ -44,12 +38,11 @@ export type {
 } from './combat.js';
 
 // AI
-export { selectAction, pickResolveTargets, assignStrategies, availableActionIndices } from './ai.js';
+export { selectAction, pickResolveTargets, setAIControlled, availableActionIndices } from './ai.js';
+export { positionScore, bestResponse, lookaheadChooser, DEFAULT_LOOKAHEAD } from './lookahead.js';
+export type { LookaheadOptions } from './lookahead.js';
 export type { AIView, PlannedAction, PendingSummary } from './ai.js';
 
-// Strategy
-export { AIStrategy } from './strategy.js';
-export type { StrategyStats } from './strategy.js';
 
 // Display constants
 export { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, SLOT_LABELS, RULES_SUMMARY } from './display.js';

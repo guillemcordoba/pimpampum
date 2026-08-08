@@ -23,10 +23,10 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/measure-swing.ts
  */
 import {
-  ActionType, AIStrategy, Character, CombatEngine, assignStrategies, withSeed,
+  ActionType, Character, CombatEngine, lookaheadChooser, setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { buildReferenceParty } from '@pimpampum/skills';
-import { createEnemy, leanChooser } from '@pimpampum/enemies';
+import { createEnemy } from '@pimpampum/enemies';
 import { REGISTRY } from './tests/helpers.js';
 
 declare const process: { env: Record<string, string | undefined> };
@@ -125,7 +125,7 @@ function winrate(chooser: ((e: CombatEngine, a: Character) => number | null) | n
     let wins = 0;
     for (let i = 0; i < games; i++) {
       const { players, enemies } = build(m);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
         registry: REGISTRY, maxRounds: 40, actionChooser: chooser ?? undefined,
       });
@@ -165,12 +165,12 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
     contested: 0, prevented: 0, preventedFracSum: 0,
     postFocusAttack: 0, postFocusCount: 0, plainAttack: 0, plainCount: 0,
   };
-  const chooser = leanChooser();
+  const chooser = lookaheadChooser({ depth: 1, samples: 2, passes: 1, topK: 3 });
 
   withSeed(seed, () => {
     for (let g = 0; g < games; g++) {
       const { players, enemies } = build(m);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
         registry: REGISTRY, maxRounds: 40, actionChooser: chooser,
       });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, assignStrategies, AIStrategy,
+  checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, setAIControlled,
 } from '@pimpampum/engine';
 import { generateEncounter, getEnemy, buildSolvedEncounter } from '@pimpampum/enemies';
 import { randomTeam, runMatch, REGISTRY } from './helpers.js';
@@ -33,8 +33,8 @@ describe('engine sanity', () => {
     for (let i = 0; i < 60; i++) {
       const a = randomTeam('A', 2, 6);
       const b = randomTeam('B', 2, 6);
-      assignStrategies(a, [AIStrategy.Power]);
-      assignStrategies(b, [AIStrategy.Aggro]);
+      setAIControlled(a);
+      setAIControlled(b);
       const res = new CombatEngine(a, b, { registry: REGISTRY, maxRounds: 50 }).runCombat();
       expect(res.rounds).toBeGreaterThan(0);
       expect([0, 1, null]).toContain(res.winner);
@@ -51,7 +51,7 @@ describe('mirror balance (equal skill budgets)', () => {
     let aWins = 0, bWins = 0;
     const N = 600;
     for (let i = 0; i < N; i++) {
-      const w = runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6));
+      const w = runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6), undefined, 40, 0);
       if (w === 0) aWins++; else if (w === 1) bWins++;
     }
     const rate = aWins / (aWins + bWins);
@@ -61,7 +61,9 @@ describe('mirror balance (equal skill budgets)', () => {
 
   it('average combat length is reasonable', () => {
     const stats = newCombatStats();
-    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6), stats);
+    // Symmetry and action-mix checks: depth 0 keeps the suite fast, and a
+    // mirror is 50/50 at any depth.
+    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6), stats, 40, 0);
     const avg = stats.rounds / stats.combats;
     expect(avg).toBeGreaterThan(1.5);
     // intentions.md targets ≤~5 rounds INCLUDING mirrors; keep the ceiling
@@ -71,7 +73,7 @@ describe('mirror balance (equal skill budgets)', () => {
 
   it('all three action types see play', () => {
     const stats = newCombatStats();
-    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 3, 7), randomTeam('B', 3, 7), stats);
+    for (let i = 0; i < 300; i++) runMatch(randomTeam('A', 3, 7), randomTeam('B', 3, 7), stats, 40, 0);
     expect(stats.actionTypePlays['Atac'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Defensa'] ?? 0).toBeGreaterThan(0);
     expect(stats.actionTypePlays['Focus'] ?? 0).toBeGreaterThan(0);
@@ -90,7 +92,7 @@ describe('solved encounters', () => {
         const enemies = buildSolvedEncounter(solved!);
         expect(enemies.length).toBeGreaterThan(0);
         const players = randomTeam('P', pc, 7);
-        assignStrategies(players, [AIStrategy.Power]);
+        setAIControlled(players);
         const res = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 60 }).runCombat();
         expect([0, 1, null]).toContain(res.winner);
         expect(res.rounds).toBeGreaterThan(0);

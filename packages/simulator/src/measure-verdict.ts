@@ -17,24 +17,16 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/measure-verdict.ts
  */
 import {
-  ActionType, AIStrategy, Character, CombatEngine, assignStrategies, withSeed,
+  ActionType, Character, CombatEngine, availableActionIndices, lookaheadChooser,
+  setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { buildReferenceParty } from '@pimpampum/skills';
 import { createEnemy } from '@pimpampum/enemies';
 import { REGISTRY } from './tests/helpers.js';
-import { ValueModel } from './ai/value.js';
-import { searchChooser, bestResponse } from './ai/search.js';
 
 declare const process: { env: Record<string, string | undefined> };
-const { readFileSync, existsSync } = await import('node:fs') as {
-  readFileSync(p: string, e: string): string; existsSync(p: string): boolean;
-};
 
 const GAMES = Number(process.env.GAMES ?? 40);
-const WEIGHTS = 'src/ai/weights.json';
-const model = existsSync(WEIGHTS)
-  ? ValueModel.fromJSON(JSON.parse(readFileSync(WEIGHTS, 'utf8')))
-  : (() => { throw new Error('No trained weights — run train-ai.ts first.'); })();
 
 const MATCHUPS = [
   { label: 'goblin swarm', enemy: 'goblin', count: 6, pv: 17 },
@@ -50,7 +42,8 @@ function build(m: (typeof MATCHUPS)[number]): { players: Character[]; enemies: C
   };
 }
 
-const SEARCH = { registry: REGISTRY, model, samples: 5, passes: 2, depth: 1 } as const;
+// Both sides think exactly as hard; only the strategy SPACE differs.
+const AI = { depth: 1, samples: 4, passes: 2, topK: 3 } as const;
 
 /** Both teams run the search; team 0 may be restricted to a card-type subset. */
 function duel(restrictPlayers: ActionType[] | undefined, m: (typeof MATCHUPS)[number], games: number, seed: number) {
@@ -60,17 +53,16 @@ function duel(restrictPlayers: ActionType[] | undefined, m: (typeof MATCHUPS)[nu
     [String(ActionType.Defensa)]: 'Defensa',
     [String(ActionType.Focus)]: 'Focus',
   };
-  const enemySearch = searchChooser({ ...SEARCH }, [1]);
-  const chooser = (engine: CombatEngine, actor: Character): number | null => {
-    if (actor.team === 1) return enemySearch(engine, actor);
-    return bestResponse(engine, 0, { ...SEARCH, restrictTo: restrictPlayers }).choices.get(actor) ?? null;
-  };
+  const enemyAI = lookaheadChooser({ ...AI }, [1]);
+  const playerAI = lookaheadChooser({ ...AI, restrictTo: restrictPlayers }, [0]);
+  const chooser = (engine: CombatEngine, actor: Character): number | null =>
+    (actor.team === 1 ? enemyAI : playerAI)(engine, actor);
 
   const wins = withSeed(seed, () => {
     let w = 0;
     for (let g = 0; g < games; g++) {
       const { players, enemies } = build(m);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
         registry: REGISTRY, maxRounds: 40, actionChooser: chooser,
       });

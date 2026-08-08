@@ -5,7 +5,7 @@
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-day.ts
  */
-import { CombatEngine, FATIGUE_CONFIG, newCombatStats, assignStrategies, AIStrategy } from '@pimpampum/engine';
+import { CombatEngine, FATIGUE_CONFIG, newCombatStats, setAIControlled } from '@pimpampum/engine';
 import { solveEncounter } from '@pimpampum/enemies';
 import { REGISTRY, randomTeam, runMatch, buildSolvedEncounter } from './tests/helpers.js';
 
@@ -32,7 +32,7 @@ function day(): void {
     for (let c = 0; c < COMBATS_PER_DAY; c++) {
       reached[c]++;
       const enemies = buildSolvedEncounter(enc);
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
       const res = engine.runCombat();
       if (res.winner === 0) winsByCombat[c]++;

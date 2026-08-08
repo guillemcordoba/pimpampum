@@ -9,7 +9,8 @@ import { num, tspec, resolveTargets, targetReq } from '../effects/helpers.js';
  * enemy through armour and defenses; Putrefacció is a contagious decay (its
  * spread is the `putrefaccio` status behaviour below); Xuclar la vida drains
  * to self-heal; Invocar l'ombra de l'infern condemns the whole enemy party.
- * No pets, no defense — a Power-corner attrition controller.
+ * Its one guard, Sudari de tomba, condemns whatever it turns away, so even
+ * defending feeds the reaping. No pets — a Power-corner attrition controller.
  */
 // The doom mark: every roll at disadvantage, 3 slower.
 const CONDEMNAT: StatusBehavior = {
@@ -62,6 +63,20 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
       // Worth more when there are undoomed enemies left to mark.
       const undoomed = ctx.enemies.filter(e => !e.hasStatus('condemnat')).length;
       return undoomed > 0 ? 1.5 : 0.1;
+    },
+  },
+
+  // Sudari de tomba: the shroud is the kit's only guard, and it feeds the kit's
+  // engine — whatever it turns away is marked for the reaping.
+  condemn_on_block: {
+    onDefend(ctx) {
+      if (!ctx.target) return;
+      ctx.target.setStatus('condemnat', 1, num(ctx.params, 'turns', 2), undefined, CONDEMNAT);
+      ctx.engine.log('defense', `El sudari toca ${ctx.target.name}: queda condemnat.`, ctx.source.team);
+    },
+    aiWeight(ctx) {
+      // Worth more while there are foes still undoomed to catch on it.
+      return ctx.enemies.some(e => !e.hasStatus('condemnat')) ? 0.8 : 0.3;
     },
   },
 
@@ -120,22 +135,29 @@ export const NIGROMANT: SkillDefinition = {
       icon: 'lorc/evil-hand.svg',
     }),
     action({
+      id: 'sudari-de-tomba', name: 'Sudari de tomba', skillId: 'nigromant',
+      unlock: 3, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
+      effects: [{ type: 'condemn_on_block', params: { turns: 1 } }],
+      desc: "Si bloqueges un atac, l'atacant queda condemnat (1 torn).",
+      icon: 'lorc/haunting.svg',
+    }),
+    action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Focus, speed: -1,
+      unlock: 4, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'plague', params: { damage: 2, turns: 3 } }],
       desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 5: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(1, 6),
+      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(1, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 5, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
+      unlock: 6, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 2 } }],
       desc: 'Condemna tots els enemics (2 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

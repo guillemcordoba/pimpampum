@@ -1,5 +1,4 @@
 import { CombatModifier, ModifierDuration } from './modifier.js';
-import { AIStrategy } from './strategy.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
 import { fatigueStateName } from './fatigue.js';
@@ -50,7 +49,9 @@ function sumModifiers(mods: CombatModifier[], kinds: Set<string>): number {
 
 export class Character {
   team = 0;
-  aiStrategy: AIStrategy | null = null;
+  /** Whether the engine decides this character's cards and targets. Humans
+   *  (the web app's players) are false and get prompted instead. */
+  aiControlled = false;
 
   // Base definition
   maxPV: number;
@@ -127,7 +128,7 @@ export class Character {
       this.iconPath,
     );
     copy.team = this.team;
-    copy.aiStrategy = this.aiStrategy;
+    copy.aiControlled = this.aiControlled;
     copy.currentPV = this.currentPV;
     copy.equipment = [...this.equipment];
     copy.modifiers = this.modifiers.map(m => {
@@ -182,7 +183,9 @@ export class Character {
   // --- Skills ---------------------------------------------------------------
 
   /** Skill level: the number of actions of the skill the character knows.
-   *  Levels NEVER enter a roll — rolls are the action's dice plus bonuses. */
+   *  A level enters a roll only through MASTERY (`masteryBonus`: level minus
+   *  the card's unlock level); the rest of a roll is the action's dice plus
+   *  bonuses. */
   getSkillLevel(skillId: string): number {
     return this.skills.get(skillId) ?? 0;
   }

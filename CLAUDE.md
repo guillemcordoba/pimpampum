@@ -2,7 +2,7 @@
 
 A tabletop RPG combat system, written in Catalan. **Skill-based**: characters have one base stat (PV) plus skills whose level is a small ordinal — **level N = the character knows the first N actions of the skill**. Combat is a **dice contest**: each card carries its own dice, one contested roll decides everything, and the **damage is the margin** (attack total − defense total) minus passive armour. No d20, no to-hit roll, no separate damage roll. Every action played costs **fatigue** from a daily budget. There are **no predefined classes** — players build characters on the fly from skills and levels.
 
-pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `enemies` (enemy content + encounter balancer), `simulator` (balance testing) and `web` (Vue 3 SPA).
+pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `enemies` (enemy content + encounter balancer), `simulator` (balance testing), `web` (Vue 3 SPA) and `lab` (throwaway rules experiments — its own mini-engine, deliberately NOT built on `engine`; see `packages/lab/README.md`). Nothing in `lab` is production content.
 
 ## Where the truth lives
 

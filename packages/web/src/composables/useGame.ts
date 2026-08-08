@@ -96,9 +96,10 @@ export function useGame() {
     if (!canStart()) return;
     const players = buildPlayers();
     const enemies = buildEnemies();
-    // Players are human-controlled (aiStrategy null); enemies come from
-    // templates with their kit strategy already set by the factory.
-    engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50 });
+    // Players are human-controlled; the factory marks enemies aiControlled.
+    // The enemies think one round ahead (aiDepth 1) — the same AI the balancer
+    // priced the encounter with, so the fight plays out as advertised.
+    engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50, aiDepth: 1 });
     combatLog.value = [];
     winner.value = null;
     startNewRound();

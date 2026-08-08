@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ActionDefinition, ActionType, AIStrategy, Character, CombatEngine,
+  ActionDefinition, ActionType, Character, CombatEngine,
   createCharacter, DiceRoll, StatusBehavior, FATIGUE_CONFIG,
 } from '@pimpampum/engine';
 import { buildCharacter } from '@pimpampum/skills';
@@ -44,7 +44,7 @@ function makeChar(name: string, pv: number, actions: ActionDefinition[]): Charac
 /** A passive AI-driven punching bag that only waits. */
 function sac(pv = 100): Character {
   const c = makeChar('Sac', pv, [focusDef()]);
-  c.aiStrategy = AIStrategy.Power;
+  c.aiControlled = true;
   return c;
 }
 
@@ -132,7 +132,7 @@ describe('StatusBehavior query seams', () => {
     const target = makeChar('Target', 20, [focusDef()]);
     const guard = makeChar('Guard', 20, [defenseDef()]);
     const attacker = makeChar('Attacker', 20, [atkDef()]);
-    attacker.aiStrategy = AIStrategy.Aggro;
+    attacker.aiControlled = true;
     const engine = new CombatEngine([target, guard], [attacker], { registry: REGISTRY });
 
     // Guarded (rollBonus 1000): the attack is always blocked.
@@ -157,7 +157,7 @@ describe('StatusBehavior query seams', () => {
     const target = makeChar('Target', 20, [focusDef()]);
     const guard = makeChar('Guard', 20, [defenseDef()]);
     const attacker = makeChar('Attacker', 20, [atkDef()]);
-    attacker.aiStrategy = AIStrategy.Aggro;
+    attacker.aiControlled = true;
     const engine = new CombatEngine([target, guard], [attacker], { registry: REGISTRY });
 
     // Refresh the absorb stance each round like a defense action would.
@@ -319,7 +319,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus })]);
     const d2 = makeChar('D2', 20, [defenseDef('bloc2', { dice: new DiceRoll(1, 1), rollBonus: 0 }), focusDef()]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus, ...opts })]);
-    e.aiStrategy = AIStrategy.Aggro;
+    e.aiControlled = true;
     const engine = new CombatEngine([d1, d2], [e], { registry: REGISTRY });
     return { d1, d2, e, engine };
   }
@@ -612,5 +612,54 @@ describe('combat cloning (the lookahead primitive)', () => {
     // …and so must a Character sitting inside an inert status payload.
     expect(copyAlly.getStatus('lligat')!.data!.binder).toBe(copyFoe);
     expect(copyAlly.getStatus('lligat')!.data!.binder).not.toBe(foe);
+  });
+});
+
+/**
+ * Mur de pedra's life pool (the shared standing-wall card). The wall no longer
+ * shatters on the first breach: the stone eats the damage, and only crumbles
+ * once its own life is spent — any excess carries through to the protected.
+ */
+describe('standing wall: the wall has life', () => {
+  /** Wall card with deterministic dice: 0d0+10 → defends at 10, life 10. */
+  function wallDef(): ActionDefinition {
+    return {
+      id: 'mur-test', name: 'Mur', skillId: 'test', unlockLevel: 1,
+      actionType: ActionType.Defensa, speed: 5, dice: new DiceRoll(0, 0, 10),
+      effects: [{ type: 'standing_wall' }], description: '', iconPath: '',
+    };
+  }
+
+  it('soaks each breach into its own life and shatters only when drained', () => {
+    // Attack 12 + 1d1 = 13 vs a wall of 10 → every breach is exactly 3.
+    const caster = makeChar('Terra', 30, [wallDef(), focusDef()]);
+    const attacker = makeChar('Attacker', 20, [atkDef('cop', { rollBonus: 12 })]);
+    attacker.aiControlled = true;
+    const engine = new CombatEngine([caster], [attacker], { registry: REGISTRY });
+
+    // Round 1: the caster raises the wall on themselves and guards normally, so
+    // this breach hits the caster, not the stone.
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
+    expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(10);
+    expect(caster.currentPV).toBe(27);
+
+    // Rounds 2-3: no live guard — the standing wall contests and eats the margin.
+    runRound(engine, [{ idx: 0, actionIdx: 1 }]);
+    expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(7);
+    expect(caster.currentPV).toBe(27);
+    runRound(engine, [{ idx: 0, actionIdx: 1 }]);
+    expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(4);
+    expect(caster.currentPV).toBe(27);
+
+    // Round 4: 4 life left against a breach of 3 → 1 left, still standing.
+    runRound(engine, [{ idx: 0, actionIdx: 1 }]);
+    expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(1);
+    expect(caster.currentPV).toBe(27);
+
+    // Round 5: the last point of stone absorbs 1, the wall crumbles and the
+    // remaining 2 carry through.
+    runRound(engine, [{ idx: 0, actionIdx: 1 }]);
+    expect(caster.hasStatus('mur-de-pedra')).toBe(false);
+    expect(caster.currentPV).toBe(25);
   });
 });

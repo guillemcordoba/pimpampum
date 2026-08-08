@@ -23,16 +23,42 @@
  * same seed, so candidates differ by their own merits rather than by dice
  * noise. This is what makes a bisection on a stochastic function stable.
  */
-import { CombatEngine, EffectRegistry, Character, withSeed, assignStrategies, AIStrategy } from '@pimpampum/engine';
+import { CombatEngine, EffectRegistry, Character, withSeed, setAIControlled } from '@pimpampum/engine';
 import { createRegistry, buildReferenceParty, isExplicitParty, PartySpec } from '@pimpampum/skills';
 import { EnemyDefinition, fullKitLevel } from './types.js';
 import { getEnemy, registerEnemySkills } from './catalog.js';
 import { createEnemyFrom } from './factory.js';
-import { leanChooser } from './ai-policy.js';
+/**
+ * How hard the balancer's AI thinks. The strength of this play IS the meaning
+ * of every difficulty number: price an encounter against a party that blunders
+ * and it will feel trivial at a table that does not. Depth 1 (2026-08-08) beats
+ * depth 0 head-to-head 70/30 for ~6x the compute — see ai-benchmark.ts.
+ */
+const BALANCER_DEPTH: number = 1;
 
-/** The balancer plays with the distilled lean AI (see ai-policy.ts) — the
- *  strength of this policy IS the meaning of every difficulty number. */
-const BALANCER_CHOOSER = leanChooser();
+/**
+ * SEARCH CHEAP, VERIFY HONESTLY.
+ *
+ * Pricing every evaluation at depth 1 costs 29× a whole solve (measured
+ * 2026-08-08: 6.9 s → 199 s for one 4-goblin request), which is a browser
+ * worker running for three minutes. But the bisection does not need strong
+ * play — it needs the winrate to FALL as PV rises, which depth 0 gets right.
+ * Only the answer needs to be true.
+ *
+ * So the scale is searched at depth 0, then a short local refinement and the
+ * reported measurement run at depth 1. The refinement matters because the two
+ * settings do not agree: the same request solves to pv24 at depth 0 and pv20
+ * at depth 1 — both sides play better, and a goblin swarm gains more from
+ * coordinating than a four-hero party does.
+ */
+const SEARCH_DEPTH: number = 0;
+/** Local bisection steps at the real depth, around the depth-0 answer. */
+const VERIFY_STEPS = 4;
+/** How far off the depth-0 answer can be; the measured gap was ~17%. */
+const VERIFY_BRACKET = 1.6;
+/** Games behind the depth-1 numbers. Fewer than the depth-0 report used —
+ *  ±2.9pp instead of ±1.7pp — because each game costs ~7× more. */
+const VERIFY_GAMES = 300;
 
 /** A concrete fielded group (what actually stands on the table). */
 export interface FieldedGroup {
@@ -47,6 +73,13 @@ export interface FieldedGroup {
 export interface SimOptions {
   /** Combats per evaluation. 200 → ±3.5pp, 500 → ±2.2pp (1σ). */
   games?: number;
+  /** Lookahead budget when aiDepth ≥ 1 (samples/passes/topK). */
+  aiLookahead?: { samples?: number; passes?: number; topK?: number };
+  /** How hard the AI thinks while pricing (engine `aiDepth`). Defaults to
+   *  BALANCER_DEPTH. Lower it to trade accuracy for speed — every number a
+   *  solve produces is the winrate of play AT THIS SETTING, so a solve and its
+   *  replay must use the same one. */
+  aiDepth?: number;
   /** Seed for common random numbers across candidates. */
   seed?: number;
   registry?: EffectRegistry;
@@ -54,8 +87,6 @@ export interface SimOptions {
 }
 
 const DEFAULT_GAMES = 320;
-/** Games behind the winrate a solve REPORTS (±1.7pp rather than ±3pp). */
-const SOLVE_REPORT_GAMES = 1000;
 const DEFAULT_SEED = 20260801;
 
 let sharedRegistry: EffectRegistry | null = null;
@@ -107,11 +138,10 @@ export function simulateEncounter(groups: FieldedGroup[], party: PartySpec, opts
     let wins = 0, rounds = 0;
     for (let i = 0; i < games; i++) {
       const players = buildReferenceParty(party);
-      // Simulated players need a strategy; enemies carry their template's.
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const enemies = buildComposition(groups);
       const result = new CombatEngine(players, enemies, {
-        registry, maxRounds, actionChooser: BALANCER_CHOOSER,
+        registry, maxRounds, aiDepth: opts.aiDepth ?? BALANCER_DEPTH, aiLookahead: opts.aiLookahead,
       }).runCombat();
       if (result.winner === 0) wins += 1;
       else if (result.winner === null) wins += 0.5;
@@ -289,9 +319,11 @@ export function solveEncounter(
   // last bracket away, and that discarded information is worth more than the
   // final decision (see the fit below).
   const samples: { scale: number; winrate: number; games: number }[] = [];
-  const winrateAt = (scale: number, games: number): number => {
-    const winrate = simulateEncounter(groupsAt(scale), party, { ...opts, games, seed }).winrate;
-    samples.push({ scale, winrate, games });
+  const winrateAt = (scale: number, games: number, aiDepth = SEARCH_DEPTH): number => {
+    const winrate = simulateEncounter(groupsAt(scale), party, { ...opts, games, seed, aiDepth }).winrate;
+    // Only depth-0 samples feed the fit below: mixing two AI strengths into one
+    // regression would fit a curve neither of them follows.
+    if (aiDepth === SEARCH_DEPTH) samples.push({ scale, winrate, games });
     return winrate;
   };
 
@@ -408,7 +440,7 @@ export function solveEncounter(
   let durationCapped = false;
   if (Number.isFinite(maxAvgRounds)) {
     const roundsAt = (scale: number, games: number): number =>
-      simulateEncounter(groupsAt(scale), party, { ...opts, games, seed }).avgRounds;
+      simulateEncounter(groupsAt(scale), party, { ...opts, games, seed, aiDepth: SEARCH_DEPTH }).avgRounds;
 
     if (roundsAt(solvedScale, searchGames) > maxAvgRounds) {
       durationCapped = true;
@@ -426,6 +458,45 @@ export function solveEncounter(
     }
   }
 
+  // --- verify at the real depth --------------------------------------------
+  // Everything above ran at SEARCH_DEPTH. The winrate curve at BALANCER_DEPTH
+  // sits elsewhere, so re-cross it with a short local bisection rather than a
+  // fresh search: a handful of expensive evaluations instead of thirty. The
+  // duration cap is a hard ceiling and is never refined upward through.
+  if (BALANCER_DEPTH !== SEARCH_DEPTH && !clamped) {
+    const ceiling = durationCapped ? solvedScale : hiBound;
+    let lo2 = Math.max(loBound, solvedScale / VERIFY_BRACKET);
+    let hi2 = Math.min(ceiling, solvedScale * VERIFY_BRACKET);
+    if (hi2 > lo2) {
+      for (let i = 0; i < VERIFY_STEPS; i++) {
+        const mid = Math.sqrt(lo2 * hi2);
+        if (winrateAt(mid, searchGames, BALANCER_DEPTH) > target) lo2 = mid; else hi2 = mid;
+      }
+      solvedScale = Math.min(ceiling, Math.sqrt(lo2 * hi2));
+    }
+  }
+
+  // The duration budget was bisected at SEARCH_DEPTH, but fights run to a
+  // different length at BALANCER_DEPTH — so an answer can pass the ≤6 check and
+  // then REPORT 6.9 rounds. Re-check the final answer at the real depth and
+  // walk it down if it overran; cheap, because it starts from an answer that is
+  // already nearly right.
+  if (BALANCER_DEPTH !== SEARCH_DEPTH && Number.isFinite(maxAvgRounds)) {
+    const realRounds = (scale: number): number =>
+      simulateEncounter(groupsAt(scale), party, {
+        ...opts, games: searchGames, seed, aiDepth: BALANCER_DEPTH,
+      }).avgRounds;
+    if (realRounds(solvedScale) > maxAvgRounds) {
+      durationCapped = true;
+      let short = loBound, long = solvedScale;
+      for (let i = 0; i < VERIFY_STEPS; i++) {
+        const mid = Math.sqrt(short * long);
+        if (realRounds(mid) <= maxAvgRounds) short = mid; else long = mid;
+      }
+      solvedScale = short;
+    }
+  }
+
   // Report an INDEPENDENT measurement of what we return: the number the GM
   // sees is a fresh estimate, never the sample the search steered on (picking
   // the best of several noisy candidates and then reporting that same sample
@@ -440,7 +511,7 @@ export function solveEncounter(
   // correctly-placed encounter look mis-solved. It costs ~25% of a solve.
   const groups = groupsAt(solvedScale);
   const final = simulateEncounter(groups, party, {
-    ...opts, games: opts.games ?? SOLVE_REPORT_GAMES, seed: seed + 977,
+    ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, aiDepth: BALANCER_DEPTH,
   });
 
   return {

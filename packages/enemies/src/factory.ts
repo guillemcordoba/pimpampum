@@ -1,4 +1,4 @@
-import { AIStrategy, Character, ActionDefinition, EquipmentDefinition, EquipmentSlot, createCharacter } from '@pimpampum/engine';
+import { Character, ActionDefinition, EquipmentDefinition, EquipmentSlot, createCharacter } from '@pimpampum/engine';
 import { getEquipment, COP_DESESPERAT } from '@pimpampum/skills';
 import { EnemyDefinition, fullKitLevel } from './types.js';
 import { getEnemy, unlockedEnemyActions } from './catalog.js';
@@ -51,7 +51,7 @@ export function createEnemyFrom(def: EnemyDefinition, spec: EnemySpec): Characte
     equipment,
     category: 'enemy',
   });
-  c.aiStrategy = def.aiStrategy ?? AIStrategy.Aggro;
+  c.aiControlled = true;
   return c;
 }
 

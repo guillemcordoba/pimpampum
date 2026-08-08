@@ -1,4 +1,4 @@
-import { newCombatStats, Character, CombatEngine, assignStrategies, AIStrategy, withSeed } from '@pimpampum/engine';
+import { newCombatStats, Character, CombatEngine, setAIControlled, withSeed } from '@pimpampum/engine';
 import { getAction, buildReferenceParty } from '@pimpampum/skills';
 import {
   ENEMY_DEFINITIONS, TARGET_WINRATES, generateEncounter,
@@ -89,7 +89,7 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
             createEnemyFrom(getEnemy(g.enemyId)!, {
               pv: g.pv, level: g.level, name: `${template.displayName} ${k + 1}`,
             }));
-          assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+          setAIControlled(players);
           const engine = new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
           const w = engine.runCombat().winner;
           if (w === 0) wins++; else if (w === null) wins += 0.5;

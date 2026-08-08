@@ -1,5 +1,6 @@
 import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { standingCoverAction } from '../cards/index.js';
 import { num } from '../effects/helpers.js';
 
 /** The skill all explosive ordnance belongs to (content may know its own ids). */
@@ -144,16 +145,26 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
       desc: 'Afecta tots els enemics: tira els daus per a cadascun per separat.',
       icon: 'lorc/grenade.svg',
     }),
+    // Built, not bent: sandbags, crates and rubble hauled into the line of fire.
+    // The engineer's cover is cheaper and flimsier than the earthbender's stone
+    // (3d6 behind 2d6 of life, one round to throw up) but needs no charges.
+    standingCoverAction({
+      skillId: 'enginyer-explosius', unlock: 2,
+      id: 'barricada', name: 'Barricada', key: 'barricada', label: 'la barricada',
+      dice: d(2, 6), life: d(1, 6), speed: 1, fatigueCost: 2,
+      desc: 'La barricada persisteix: mentre és dreta, els atacs contra el protegit es resolen contra la teva defensa. Té 1d6 de vida i absorbeix el dany que la travessa; es destrueix quan se li acaba.',
+      icon: 'delapouite/barricade.svg',
+    }),
     action({
       id: 'bomba-de-fum', name: 'Bomba de fum', skillId: 'enginyer-explosius',
-      unlock: 2, type: ActionType.Focus, speed: 2,
+      unlock: 3, type: ActionType.Focus, speed: 2,
       effects: [{ type: 'smoke', params: { turns: 1 } }],
       desc: 'Cada enemic que ataca aquest torn tira un d20: amb 10 o menys, l’atac impacta un personatge a l’atzar.',
       icon: 'darkzaitzev/smoke-bomb.svg',
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',
-      unlock: 3, type: ActionType.Focus, speed: -2, fatigueCost: 2,
+      unlock: 4, type: ActionType.Focus, speed: -2, fatigueCost: 2,
       effects: [
         { type: 'charge_cost', params: { amount: 3 } },
         { type: 'lay_minefield', params: { mines: 3, damageSides: 6 } },
@@ -163,7 +174,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
-      unlock: 4, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
+      unlock: 5, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
       effects: [{ type: 'empty_bandolier', params: { sides: 4, max: 4 } }],
       desc: 'Gasta totes les càrregues: ataca amb 1d4 per càrrega (màx. 4d4). Afecta tots els enemics.',
       icon: 'skoll/carpet-bombing.svg',

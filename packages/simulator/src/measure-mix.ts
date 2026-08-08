@@ -10,25 +10,16 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/measure-mix.ts
  */
 import {
-  ActionType, AIStrategy, Character, CombatEngine, assignStrategies, withSeed,
+  ActionType, Character, CombatEngine, availableActionIndices, lookaheadChooser,
+  setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { buildReferenceParty } from '@pimpampum/skills';
 import { createEnemy } from '@pimpampum/enemies';
 import { REGISTRY } from './tests/helpers.js';
-import { ValueModel } from './ai/value.js';
-import { searchChooser, attackOnlyChooser, randomChooser } from './ai/search.js';
 
 declare const process: { env: Record<string, string | undefined> };
-const { readFileSync, existsSync } = await import('node:fs') as {
-  readFileSync(p: string, e: string): string; existsSync(p: string): boolean;
-};
 
 const GAMES = Number(process.env.GAMES ?? 80);
-const WEIGHTS = 'src/ai/weights.json';
-
-const model = existsSync(WEIGHTS)
-  ? ValueModel.fromJSON(JSON.parse(readFileSync(WEIGHTS, 'utf8')))
-  : (() => { throw new Error('No trained weights — run train-ai.ts first.'); })();
 
 /** ENEMY / COUNT / EPV pick the matchup so the verdict can be checked on more
  *  than one shape of fight (a swarm, an elite squad, a lone boss). */
@@ -72,7 +63,7 @@ function measure(label: string, chooser: ((e: CombatEngine, a: Character) => num
   withSeed(seed, () => {
     for (let g = 0; g < GAMES; g++) {
       const { players, enemies } = matchup();
-      assignStrategies(players, [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect]);
+      setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
         registry: REGISTRY, maxRounds: 40, actionChooser: chooser ?? undefined,
       });
@@ -113,13 +104,20 @@ function measure(label: string, chooser: ((e: CombatEngine, a: Character) => num
   return { label, winrate: wins / GAMES, byType, byCard, rounds: rounds / GAMES };
 }
 
-const search = searchChooser({ registry: REGISTRY, model, samples: 6, passes: 2, depth: 1 }, [0]);
+// The mindless baselines the strategy triangle has to beat, plus the real AI.
+const strongAI = lookaheadChooser({ depth: 1, samples: 4, passes: 2, topK: 3 }, [0]);
+const attackOnlyAI = lookaheadChooser({ depth: 1, samples: 4, passes: 2, topK: 3, restrictTo: [ActionType.Atac] }, [0]);
+const randomAI = (engine: CombatEngine, actor: Character): number | null => {
+  if (actor.team !== 0) return null;
+  const legal = availableActionIndices(actor, engine.registry);
+  return legal.length ? legal[Math.floor(Math.random() * legal.length)] : null;
+};
 
 const results = [
-  measure('random legal', randomChooser([0]), 909),
-  measure('attack-only', attackOnlyChooser([0]), 909),
-  measure('built-in heuristic', null, 909),
-  measure('SEARCH (strong)', search, 909),
+  measure('random legal', randomAI, 909),
+  measure('attack-only (thinking)', attackOnlyAI, 909),
+  measure('depth 0 (static)', null, 909),
+  measure('depth 1 (strong)', strongAI, 909),
 ];
 
 console.log(`Player-side action mix, ${GAMES} games each (4 players vs ${COUNT}× ${ENEMY} @ pv${EPV})\n`);
@@ -133,10 +131,10 @@ for (const r of results) {
   );
 }
 
-const strong = results[results.length - 1];
+const best = results[results.length - 1];
 console.log(`\nWhat the strong AI actually plays (top cards, ${GAMES} games):\n`);
 console.log('  card                       plays   win%   type');
-[...strong.byCard.entries()]
+[...best.byCard.entries()]
   .sort((a, b) => b[1].plays - a[1].plays)
   .slice(0, 18)
   .forEach(([, e]) => {
@@ -146,8 +144,8 @@ console.log('  card                       plays   win%   type');
   });
 
 console.log('\nVERDICT');
-const atacPct = (100 * strong.byType.Atac)
-  / Math.max(1, strong.byType.Atac + strong.byType.Defensa + strong.byType.Focus);
+const atacPct = (100 * best.byType.Atac)
+  / Math.max(1, best.byType.Atac + best.byType.Defensa + best.byType.Focus);
 if (atacPct > 85) {
   console.log(`  Strong play is ${atacPct.toFixed(0)}% attacks → ATTACK-SPAM IS NEAR-OPTIMAL.`);
   console.log('  The strategy triangle is broken: defense and focus are not competitive.');

@@ -4,7 +4,6 @@ import { ActionInstance } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import { EffectRegistry, AIContext } from './effects.js';
 import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
-import { AIStrategy } from './strategy.js';
 
 /** Reveal-level summary of one queued action this round. */
 export interface PendingSummary {
@@ -128,7 +127,7 @@ function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies
   return acc / enemies.length;
 }
 
-function actionWeight(view: AIView, actor: Character, action: ActionInstance, strategy: AIStrategy): number {
+function actionWeight(view: AIView, actor: Character, action: ActionInstance): number {
   const def = action.def;
   const allies = view.alliesOf(actor, false);
   const enemies = view.enemiesOf(actor);
@@ -158,20 +157,17 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance, st
       // First-strike prior: a fast attack lands before retaliation — and
       // before same-round deaths can void it.
       w += 0.2 * Math.min(4, Math.max(0, actor.getEffectiveSpeed(action)));
-      if (strategy === AIStrategy.Aggro) w += 2;
       break;
     }
     case ActionType.Defensa: {
       w = 1.5;
       if (woundedAllies > 0) w += 2 * woundedAllies;
       if (selfHurt) w += 1.5;
-      if (strategy === AIStrategy.Protect) w += 2.5;
       if (enemies.length === 0) w = 0.1;
       break;
     }
     case ActionType.Focus: {
       w = 1.2;
-      if (strategy === AIStrategy.Power) w += 1.5;
       if (selfHurt && def.speed < 5) w -= 1; // don't telegraph a slow focus while dying
       break;
     }
@@ -219,7 +215,7 @@ export function pickResolveTargets(
     const allies = pool.filter(t => t.team === actor.team);
     const enemies = pool.filter(t => t.team !== actor.team);
     const wounded = allies.filter(a => a !== actor && pvFraction(a) < 0.5);
-    const preferGuard = actor.aiStrategy === AIStrategy.Protect || wounded.length > 0;
+    const preferGuard = wounded.length > 0;
     if ((preferGuard || enemies.length === 0) && allies.length > 0) {
       return [...allies].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
     }
@@ -262,12 +258,11 @@ export function pickResolveTargets(
  *  later, at resolution time (pickResolveTargets), with reveal-level info.
  *  Returns actionIdx -1 (an explicit pass) when nothing is playable. */
 export function selectAction(view: AIView, actor: Character): PlannedAction {
-  const strategy = actor.aiStrategy ?? AIStrategy.Power;
   const indices = availableActionIndices(actor, view.registry);
   if (indices.length === 0) return { actionIdx: -1 };
 
   const weights = indices.map(i =>
-    Math.pow(actionWeight(view, actor, actor.actions[i], strategy), view.aiSharpness));
+    Math.pow(actionWeight(view, actor, actor.actions[i]), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = random() * total;
   let chosen = indices[0];
@@ -279,15 +274,8 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   return { actionIdx: chosen };
 }
 
-/** Assign rotating strategies across a simulated player team. A strategy the
- *  character cannot cash in (Protect without a defense, Power without a
- *  focus) falls back to Aggro instead of landing on nothing. */
-export function assignStrategies(team: Character[], strategies: AIStrategy[]): void {
-  team.forEach((c, i) => {
-    let s = strategies[i % strategies.length];
-    const has = (t: ActionType) => c.actions.some(a => a.def.actionType === t);
-    if (s === AIStrategy.Protect && !has(ActionType.Defensa)) s = AIStrategy.Aggro;
-    if (s === AIStrategy.Power && !has(ActionType.Focus)) s = AIStrategy.Aggro;
-    c.aiStrategy = s;
-  });
+/** Hand every character in `team` over to the AI (the engine picks their cards
+ *  and targets). Human seats are left alone — they get prompted instead. */
+export function setAIControlled(team: Character[], value = true): void {
+  for (const c of team) c.aiControlled = value;
 }

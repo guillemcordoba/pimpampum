@@ -1,6 +1,6 @@
 import {
   Character, CombatEngine, CombatStats, newCombatStats,
-  assignStrategies, AIStrategy, EffectRegistry,
+  setAIControlled, EffectRegistry,
 } from '@pimpampum/engine';
 import { PLAYER_SKILLS, buildCharacter, ALL_EQUIPMENT, ALL_POTIONS, createRegistry } from '@pimpampum/skills';
 import { getEnemy, createEnemyFrom, buildSolvedEncounter, registerEnemySkills } from '@pimpampum/enemies';
@@ -97,13 +97,18 @@ export function randomTeam(prefix: string, size: number, perPlayerBudget: number
   return Array.from({ length: size }, (_, i) => randomPlayer(`${prefix}${i + 1}`, perPlayerBudget, equip, pv));
 }
 
-const STRATS = [AIStrategy.Power, AIStrategy.Aggro, AIStrategy.Protect];
 
 /** Run one match; returns winning team index (0/1) or null for a draw. */
-export function runMatch(teamA: Character[], teamB: Character[], stats?: CombatStats, maxRounds = 40): number | null {
-  assignStrategies(teamA, shuffle(STRATS));
-  assignStrategies(teamB, shuffle(STRATS));
-  const engine = new CombatEngine(teamA, teamB, { registry: REGISTRY, maxRounds });
+/** How hard both sides think in a mirror match. Depth 1 is what the balancer
+ *  prices at, so a kit's mirror winrate and its encounter price mean the same
+ *  thing — at ~6x the compute. Tests that only check SYMMETRY (a mirror should
+ *  be 50/50 whatever the depth) pass 0 to stay fast. */
+export const MIRROR_DEPTH = 1;
+
+export function runMatch(teamA: Character[], teamB: Character[], stats?: CombatStats, maxRounds = 40, aiDepth = MIRROR_DEPTH): number | null {
+  setAIControlled(teamA);
+  setAIControlled(teamB);
+  const engine = new CombatEngine(teamA, teamB, { registry: REGISTRY, maxRounds, aiDepth });
   return engine.runCombat(stats).winner;
 }
 
@@ -116,14 +121,14 @@ export interface MatchupResult {
 }
 
 /** Repeatedly fight two freshly-built teams (factories) and tally results. */
-export function runMatchup(makeA: () => Character[], makeB: () => Character[], games: number, stats?: CombatStats): MatchupResult {
+export function runMatchup(makeA: () => Character[], makeB: () => Character[], games: number, stats?: CombatStats, aiDepth = MIRROR_DEPTH): MatchupResult {
   const res: MatchupResult = { games, aWins: 0, bWins: 0, draws: 0, totalRounds: 0 };
   for (let i = 0; i < games; i++) {
     const teamA = makeA();
     const teamB = makeB();
     const before = stats ? { ...stats } : undefined;
     const local = newCombatStats();
-    const winner = runMatch(teamA, teamB, stats ? local : undefined);
+    const winner = runMatch(teamA, teamB, stats ? local : undefined, 40, aiDepth);
     if (stats) {
       stats.combats += local.combats;
       stats.rounds += local.rounds;

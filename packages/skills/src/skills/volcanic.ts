@@ -1,6 +1,6 @@
 import { ActionType, Character, DiceRoll, EffectHandler, EngineApi, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
-import { num } from '../effects/helpers.js';
+import { num, diceParam } from '../effects/helpers.js';
 
 /**
  * Màgia volcànica — Pele's register: slow, inexorable, geological. The whole
@@ -53,13 +53,14 @@ const VOLCANIC_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Pell d'obsidiana: every blocked attack scorches the attacker (fixed,
+  // Pell d'obsidiana: every blocked attack scorches the attacker (rolled,
   // armour-ignored — heat) and stokes the mountain.
   obsidian_skin: {
     onDefend(ctx) {
       const attacker = ctx.target;
       if (!attacker) return;
-      const dmg = num(ctx.params, 'damage', 2);
+      const dice = diceParam(ctx.params, 'dice');
+      const dmg = dice ? dice.roll() : num(ctx.params, 'damage', 2);
       ctx.engine.log('defense', `L'obsidiana crema ${attacker.name} (${dmg} dany).`, ctx.source.team);
       ctx.engine.applyPvLoss(attacker, dmg, ctx.source);
       addPressure(ctx.engine, ctx.source, 1);

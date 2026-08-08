@@ -1,4 +1,4 @@
-import { ActionType, AIStrategy } from '@pimpampum/engine';
+import { ActionType } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '@pimpampum/skills';
 import { EnemyDefinition, ICON } from '../types.js';
 
@@ -22,7 +22,6 @@ const GOBLIN_SHAMAN_SKILL: SkillDefinition = {
 
 export const GOBLIN_SHAMAN: EnemyDefinition = {
   id: 'goblin-shaman', displayName: 'Goblin Xaman', classCss: 'goblin-shaman', iconPath: ICON + 'delapouite/skull-staff.svg',
-  aiStrategy: AIStrategy.Power,
   /** ~18 kg — goblin stock, older and leaner. */
   bulk: 0.64,
   skills: [GOBLIN_SHAMAN_SKILL],
