@@ -85,6 +85,6 @@ export const RULES_SUMMARY: RulesSection[] = [
     title: 'Fatiga',
     icon: STAT_ICONS.fatigue,
     type: 'text',
-    text: "Comences el dia amb 0 fatiga. Cada acció que juguis suma 1 {FATIGA} a la teva fatiga (per defecte). Pots acumular un màxim de 20 de fatiga en un dia.",
+    text: "Cinc nivells, que assigna el màster: Cansat, Fatigat, Extenuat, Exhaust, Esgotat. Cada nivell resta 1 a totes les teves tirades. Només un descans llarg (4 hores o més) la neteja del tot.",
   },
 ];

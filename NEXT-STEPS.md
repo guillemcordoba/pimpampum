@@ -20,7 +20,6 @@ Harnesses (all under `packages/simulator/src/`, run with
 | file | question |
 |---|---|
 | `experiment-gm-encounters.ts` | 100 GM-shaped requests, solved + replayed |
-| `experiment-long-fights.ts` | what actually decides a long fight? |
 | `experiment-pv-curve.ts` | winrate vs PV for one composition |
 | `experiment-kit-threat.ts` | **the kit scoreboard** — see §5 |
 | `experiment-kit-levels.ts` | **is a higher level a better kit?** — see §5.1 |
@@ -48,9 +47,10 @@ More bodies gives the same difficulty for **less** total PV and a **shorter**
 fight. Danger scales with how many things act each round; PV only scales how
 long they soak.
 
-**And the difficulty numbers measured the wrong thing.** A 29-round fight runs
-past the daily fatigue budget (`FATIGUE_CONFIG.max = 20`), after which the only
-playable card is Cop desesperat — 1d4, and **1 PV of self-damage per swing**,
+**And the difficulty numbers measured the wrong thing.** Under the daily
+fatigue budget of the time (max 20 — since replaced by the DM-assigned fatigue
+level, which no card spends), a 29-round fight ran past it, after which the only
+playable card was Cop desesperat — 1d4, and **1 PV of self-damage per swing**,
 on a 12 PV hero. Re-measuring with the fatigue ceiling lifted:
 
 | solved encounter | asked | with fatigue | without |
@@ -64,8 +64,11 @@ The sponge fights were never even: the party wins them outright and was dragged
 to a coin flip by exhausting itself. The short-fight control does not move,
 which is what makes this causal rather than correlational.
 
-This conflicts with `intentions.md` directly — 20 fatigue is meant to pace 2-3
-combats *per day*, and these single encounters consumed 1.5× the whole day.
+This conflicted with the `intentions.md` of the time — 20 fatigue was meant to
+pace 2-3 combats *per day*, and these single encounters consumed 1.5× the whole
+day. (2026-09-13: the budget is gone, so the artifact cannot recur; the
+duration constraint below stays because a sponge fight is still not the fight
+the number promises.)
 
 ## 3. What was changed
 
@@ -173,9 +176,10 @@ at 6 bodies (33% → 49% for the players from L2 to L4). Per card, at 3×/20 PV:
   more than a third of all turns — and those turns are not spent attacking.
 - **Pilar de foc** carries the same 2d6 as Forquilla but at speed −2 and
   without the undefendable rider; it displaces the better card (3.05 → 1.80).
-- **Flames de l'avern** is literally never played: 4 fatigue, speed −5, Focus.
+- **Flames de l'avern** is literally never played: speed −5, Focus (and, at the
+  time, 4 fatigue).
 - **Alè de l'infern** is nearly dead (0.39) — 1d6 against defended heroes is
-  ~0 damage — while costing 2 fatigue.
+  ~0 damage (and cost 2 fatigue at the time).
 
 (Win-when-played is confounded — a defense is played when already losing — so
 the causal evidence is the level sweep, not that column. The sweep is causal:
@@ -188,7 +192,7 @@ level". Plays per combat per body: Cop de pedra **4.59**, Mur de pedra 0.10,
 Terratrèmol 0.49, Enduriment 0.08. Levels 2-4 add three cards that together
 account for under 15% of its turns.
 
-The common thread in both kits: **the expensive card (3-4 fatigue) or the
+The common thread in both kits: **the expensive card (then 3-4 fatigue) or the
 defensive card is either never played or played instead of the attack that was
 already better.** Neither kit needs *more* cards; the cards above level 1 need
 to be worth a turn.
@@ -242,7 +246,7 @@ is for the design.
 
 1. **Higher level is a better kit.** Level N+1 knows a *superset* of level N's
    cards, so a rational player can never do worse — any measured regression
-   means either a **trap card** (its fatigue costs more than it returns) or an
+   means either a **trap card** (it costs more than it returns) or an
    AI that overvalues the new card. Require `w(L+1) ≥ w(L) − noise` for every
    L, and a meaningful total gain from level 1 to full kit. Flat steps are
    nearly as bad as negative ones: a level that buys nothing is a level the GM
@@ -264,9 +268,11 @@ is for the design.
    play-rate per card conditioned on *legality*, not on turns.
 5. **No auto-include.** The inverse: a card played nearly every time it is legal
    removes the decision. Both tails are failures; the target is a spread.
-6. **Fatigue stays inside its budget.** A single combat should cost roughly a
-   third of `FATIGUE_CONFIG.max`, since the budget is meant to pace 2-3 combats
-   per day. A kit that exhausts the day in one fight breaks the pacing knob (§2).
+6. **The kit holds up tired.** Fatigue is a DM-assigned level now (−1 on every
+   roll per level, one level ≈ one difficulty tier), so the day's pacing is no
+   longer a card budget. What remains to check is that a kit's cards keep
+   working at Fatigat — a kit whose whole plan is one big roll degrades faster
+   than one built on many small dice.
 7. **No card correlates with losing.** Per-card win correlation, as `main.ts`
    already does per skill and per action. A negative correlate is a trap card
    that requirement 1 may miss when it is only situationally bad.
@@ -309,7 +315,7 @@ no engine change needed.
 - **Legality-conditioned play counters**: today's play mix counts what was
   played; requirements 4 and 5 need "played / times it was legal to play".
 - A **round-1 PV snapshot** per combat for requirement 9.
-- Per-combat **fatigue spent** for requirement 6.
+- A **fatigue-level sweep** (0, 2, 4) for requirement 6.
 
 **Output.** A report card per kit — one line per requirement with the measured
 number, its threshold, and PASS/FAIL — plus a one-screen matrix across all kits

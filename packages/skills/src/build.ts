@@ -18,6 +18,8 @@ export interface CharacterBuildSpec {
   equipment?: string[];
   /** Potion ids carried (consumable cards added to the hand; repeats allowed). */
   potions?: string[];
+  /** Fatigue level (0-5) the character starts with — the DM's call. */
+  fatigue?: number;
   category?: 'player' | 'enemy';
 }
 
@@ -42,7 +44,7 @@ export function buildCharacter(spec: CharacterBuildSpec): Character {
     .map(getEquipment)
     .filter((e): e is EquipmentDefinition => !!e);
 
-  return createCharacter({
+  const c = createCharacter({
     name: spec.name,
     classCss: spec.classCss ?? 'objecte',
     iconPath: spec.iconPath ?? '',
@@ -52,6 +54,8 @@ export function buildCharacter(spec: CharacterBuildSpec): Character {
     equipment,
     category: spec.category ?? 'player',
   });
+  if (spec.fatigue) c.setFatigue(spec.fatigue);
+  return c;
 }
 
 /** Total skill levels in a build spec (used for skill-sum balancing). */

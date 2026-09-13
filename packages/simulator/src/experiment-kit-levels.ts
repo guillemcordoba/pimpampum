@@ -65,7 +65,7 @@ console.log(`${GAMES} combats per cel·la · llavor ${SEED} · 4 herois equipats
 console.log('  cartes per nivell:');
 for (let l = 1; l <= maxLevel; l++) {
   const gained = cards.filter(a => a.unlockLevel === l)
-    .map(a => `${a.name} (${a.actionType}, vel ${a.speed}, fat ${a.fatigueCost ?? 1})`).join(', ');
+    .map(a => `${a.name} (${a.actionType}, vel ${a.speed})`).join(', ');
   console.log(`    ${l} │ ${gained || '—'}`);
 }
 

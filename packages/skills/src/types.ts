@@ -43,7 +43,8 @@ interface ActionOpts {
   /** Icon path tail after ICON_PREFIX, e.g. "lorc/broadsword.svg". */
   icon: string;
   consumable?: boolean;
-  /** Fatigue cost when played (default 1). Esgotadora cards declare 2-4. */
+  /** LEGACY budget price (default 1; esgotadora cards declared 2-4). Ignored
+   *  by the engine — see ActionDefinition.fatigueCost. */
   fatigueCost?: number;
   /** Desperation fallback: only playable when no other card is. */
   lastResort?: boolean;

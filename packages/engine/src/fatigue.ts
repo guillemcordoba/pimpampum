@@ -1,33 +1,42 @@
 /**
- * Fatigue: a per-character DAILY STAMINA BUDGET. Every action played (in or
- * out of combat) adds its fatigue cost — 1 by default; heavy "esgotadora"
- * cards declare more. An action cannot be played if it would push the counter
- * past the daily maximum; a night's sleep clears it (Character.sleep()).
+ * Fatigue: a per-character LEVEL from 0 (Fresc) to 5 (Esgotat), assigned by
+ * the DM from the fiction — a second fight with no respite, a forced march, a
+ * night without sleep, cold, hunger, an untreated wound. Nothing in the engine
+ * ever raises it on its own; playing cards costs no fatigue. Only a long rest
+ * of four hours or more clears it, all of it at once (Character.rest()).
  *
- * Fatigue NEVER touches dice rolls: flat roll penalties froze long fights
- * instead of ending them (measured 2026-07-17, ~95% of mirror draws). Its job
- * is to price heroics (rage, adrenaline, big rituals) and cap the day —
- * including out-of-combat action spam like healing a whole party to full.
+ * Each level subtracts 1 from EVERY roll the character makes — attack,
+ * defense, focus contests, out-of-combat contests. Measured 2026-09-13
+ * (`simulator/src/experiment-fatigue-tiers.ts`): one point is worth roughly one
+ * difficulty tier — a 65% ("hard") fight is 49% at Cansat, 31% at Fatigat, 6%
+ * at Esgotat — so a level is handed out like a tier, never as flavour.
+ *
+ * The penalty is PLAYER-SIDE ONLY. Enemies never carry fatigue: since damage
+ * is the margin, a symmetric penalty cancels out and only the min-0 floor
+ * survives, which doubles fight length (3.9 → 7.7 rounds at −5, the freeze the
+ * 2026-07-17 measurement rejected). One-sided, it shortens fights instead
+ * (5.0 → 4.2 rounds), because the tired side also defends worse.
  */
 
-export const FATIGUE_ENABLED = true;
+/** Deepest fatigue level. */
+export const FATIGUE_MAX_LEVEL = 5;
 
-/**
- * Daily fatigue budget — THE pacing knob. Sized so a party comfortably
- * sustains ~2-3 combats in a day (measured 2026-07-17: max 15 → 3rd combat
- * winnable but clearly degraded). Mutable object so the simulator can sweep
- * candidate values at runtime.
- */
-export const FATIGUE_CONFIG = { max: 20 };
+/** Catalan name of each fatigue level, 0 (fresh) to FATIGUE_MAX_LEVEL. */
+export const FATIGUE_LEVEL_NAMES: readonly string[] = [
+  'Fresc', 'Cansat', 'Fatigat', 'Extenuat', 'Exhaust', 'Esgotat',
+];
 
-export function maxFatigue(): number {
-  return FATIGUE_CONFIG.max;
+/** Clamp any number to a valid fatigue level. */
+export function clampFatigue(level: number): number {
+  return Math.max(0, Math.min(FATIGUE_MAX_LEVEL, Math.round(level) || 0));
 }
 
-/** Catalan label for the current fatigue state. */
-export function fatigueStateName(fatigue: number): string {
-  const left = FATIGUE_CONFIG.max - fatigue;
-  if (left <= 0) return 'Esgotat';
-  if (left <= FATIGUE_CONFIG.max / 3) return 'Cansat';
-  return 'Fresc';
+/** Flat modifier a fatigue level applies to every roll (−1 per level). */
+export function fatigueRollPenalty(level: number): number {
+  return -clampFatigue(level);
+}
+
+/** Catalan label for a fatigue level. */
+export function fatigueStateName(level: number): string {
+  return FATIGUE_LEVEL_NAMES[clampFatigue(level)];
 }

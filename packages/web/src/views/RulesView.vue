@@ -68,9 +68,9 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
 
       <section>
         <h2>Fatiga</h2>
-        <p>Cada acció té un <strong>cost de fatiga</strong>: 1 per defecte; les accions esgotadores en costen més (indicat a la carta). Cada cop que jugues una acció, dins o fora de combat, sumes el seu cost al teu comptador.</p>
-        <p>La fatiga màxima és <strong>20</strong>: no pots jugar una acció que te la faria superar. <strong>Dormir una nit</strong> neteja tota la fatiga. La fatiga no afecta mai les tirades: és el pressupost d'energia del dia.</p>
-        <p>Quan no pots jugar cap altra carta, entra a la teva mà el <strong>Cop desesperat</strong>: un atac feble (1d4, lent) que no costa fatiga i et fa perdre 1 PV després de l'atac, encertis o no.</p>
+        <p>La fatiga té <strong>cinc nivells</strong>: Cansat, Fatigat, Extenuat, Exhaust i Esgotat. Cada nivell resta <strong>1 a totes les teves tirades</strong> — atac, defensa, focus i fora de combat. Jugar cartes no cansa: és el <strong>màster</strong> qui decideix quan puges de nivell, segons la ficció (un segon combat sense respir, una marxa forçada, una nit sense dormir, fred, gana, una ferida sense curar), i pot fer-te pujar més d'un nivell de cop.</p>
+        <p>Cada nivell fa cada combat aproximadament <strong>un grau més difícil</strong>: no és un detall de color. Només un <strong>descans llarg de 4 hores o més</strong> neteja tota la fatiga. Els enemics no en tenen mai.</p>
+        <p>Quan no pots jugar cap altra carta, entra a la teva mà el <strong>Cop desesperat</strong>: un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.</p>
       </section>
 
       <section>

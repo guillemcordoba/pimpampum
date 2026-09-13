@@ -26,8 +26,8 @@ export const ALL_POTIONS: ActionDefinition[] = [
   action({
     id: 'pocio-dale', name: "Poció d'alè", skillId: 'pocio',
     unlock: 0, type: ActionType.Focus, speed: 1, consumable: true, fatigueCost: 0,
-    effects: [{ type: 'fatigue_relief', params: { amount: 5 } }],
-    desc: 'Recuperes 5 punts de fatiga. Un sol ús.',
+    effects: [{ type: 'fatigue_relief', params: { amount: 1 } }],
+    desc: 'Baixes 1 nivell de fatiga. Un sol ús.',
     icon: 'lorc/heart-bottle.svg',
   }),
 ];

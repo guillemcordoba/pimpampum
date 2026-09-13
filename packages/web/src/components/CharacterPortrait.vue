@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
-import { STAT_ICONS, maxFatigue } from '@pimpampum/engine';
+import { STAT_ICONS } from '@pimpampum/engine';
 import { maxCharges } from '@pimpampum/skills';
 
 const base = import.meta.env.BASE_URL;
@@ -61,8 +61,8 @@ const pressure = computed(() => {
       <span class="pv-text">
         <img :src="base + STAT_ICONS.pv" alt="PV">{{ character.currentPV }}/{{ character.maxPV }}
       </span>
-      <span class="fatigue-text" :class="{ tired: character.fatigue >= maxFatigue() }">
-        <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.fatigue }}/{{ maxFatigue() }} · {{ character.getFatigueStateName() }}
+      <span v-if="character.fatigue > 0" class="fatigue-text tired">
+        <img :src="base + STAT_ICONS.fatigue" alt="Fatiga">{{ character.getFatigueStateName() }} <span class="fatigue-penalty">−{{ character.fatigue }}</span>
       </span>
       <span v-if="bandolier" class="bandolier-text" :class="{ empty: bandolier.current === 0 }">
         <img :src="base + STAT_ICONS.charge" alt="Càrregues">{{ bandolier.current }}/{{ bandolier.max }} càrregues

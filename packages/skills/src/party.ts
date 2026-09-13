@@ -8,10 +8,10 @@
  *    and all. Every game builds exactly these, so the winrate the balancer
  *    reports is *this party's* winrate rather than an average over parties of
  *    a similar shape. This is what the web app's encounter creator passes.
- *  - DRAWN (`count`/`levels`/`armor`): only how many players there are, how
- *    many skill levels each has and what armour they wear — a representative
- *    party is drawn from those inputs. Used when no concrete party exists
- *    (the simulator's sweeps and the balancer test suite).
+ *  - DRAWN (`count`/`levels`/`armor`/`fatigue`): only how many players there
+ *    are, how many skill levels each has, what armour they wear and how tired
+ *    they are — a representative party is drawn from those inputs. Used when
+ *    no concrete party exists (the simulator's sweeps and the balancer tests).
  *
  * The draw models INTENDED play rather than uniform randomness: the first
  * skill is always a MAIN kit, and the complementary kits (metge/runes/ombres/
@@ -50,6 +50,9 @@ export interface DrawnPartySpec {
   armor?: number | number[];
   /** PV per player (default PLAYER_PV). */
   pv?: number;
+  /** Fatigue level (0-5) per player, same broadcasting rule as `levels`.
+   *  Default 0 (Fresc). */
+  fatigue?: number | number[];
   /** Name prefix for generated characters. */
   prefix?: string;
   characters?: undefined;
@@ -107,7 +110,7 @@ function drawSkills(levels: number): Record<string, number> {
 }
 
 /** Build one representative player with the given levels and armour. */
-export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = PLAYER_PV): Character {
+export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = PLAYER_PV, fatigue = 0): Character {
   const skills = drawSkills(levels);
   const chosen = PLAYER_SKILLS.filter(s => skills[s.id] !== undefined);
   const equipment: string[] = ['escut'];
@@ -125,6 +128,7 @@ export function buildReferencePlayer(name: string, levels: number, armor = 0, pv
     pv,
     skills,
     equipment,
+    fatigue,
   });
 }
 
@@ -146,5 +150,6 @@ export function buildReferenceParty(spec: PartySpec): Character[] {
       per(spec.levels, i, 6),
       per(spec.armor, i, 0),
       spec.pv ?? PLAYER_PV,
+      per(spec.fatigue, i, 0),
     ));
 }

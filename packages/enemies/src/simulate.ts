@@ -242,9 +242,8 @@ export interface SolvedEncounter {
 /**
  * Average rounds a solved encounter may run.
  *
- * The game is tuned for fights of about five rounds (intentions.md), and the
- * daily fatigue budget (20) is meant to cover 2-3 combats — roughly 7 actions
- * each. Left unconstrained the solver blows through both: measured over 100
+ * The game is tuned for fights of about five rounds (intentions.md). Left
+ * unconstrained the solver blows straight through that: measured over 100
  * GM-shaped requests it produced a median 12-round fight, and one-creature
  * encounters averaged 19 rounds and 235 PV per body.
  *
@@ -276,10 +275,11 @@ export interface SolveOptions extends SimOptions {
  * Duration is a CONSTRAINT, not a report. PV is the solver's only lever, and
  * it buys durability rather than danger: when a composition cannot threaten
  * the party per round, the only way to reach a hard winrate is to turn the
- * enemies into sponges, and the "difficulty" that results is the party
- * exhausting its fatigue budget and killing itself on Cop desesperat — lifting
- * the fatigue ceiling turned a solved 50% 432-PV wolf into a 100% party win.
- * That is not the fight the number promises, so it is refused: the solver
+ * enemies into sponges. Under the old daily fatigue budget the "difficulty"
+ * that resulted was the party exhausting itself and dying on Cop desesperat
+ * (lifting the ceiling turned a solved 50% 432-PV wolf into a 100% party win);
+ * the budget is gone, but a 29-round fight is still not the fight the number
+ * promises, so it is refused: the solver
  * returns the hardest encounter inside the budget and flags `durationCapped`,
  * leaving the GM to change the composition instead.
  */

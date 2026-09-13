@@ -1,6 +1,7 @@
 /**
- * Sizing experiment for the DISCRETE fatigue redesign: what is one point of
- * flat roll penalty actually worth, when only ONE side carries it?
+ * Sizing experiment behind the discrete fatigue ladder (fatigue.ts): what is
+ * one point of flat roll penalty actually worth, when only ONE side carries
+ * it, and does it matter which rolls it touches?
  *
  * The 2026-07-17 rejection of roll penalties measured them accruing
  * symmetrically inside a mirror match — where, since damage is the margin,
@@ -17,10 +18,13 @@ const GAMES = 800;
 
 type Scope = 'skill' | 'attack' | 'defense';
 
+/** 'skill' (every roll) is what the real fatigue level does, so it goes
+ *  through Character.fatigue; the partial scopes use an ad-hoc modifier. */
 function penalize(team: Character[], amount: number, scope: Scope): void {
   if (amount === 0) return;
   for (const c of team) {
-    c.addModifier(new CombatModifier(scope, -amount, ModifierDuration.RestOfCombat).withSource('fatiga'));
+    if (scope === 'skill') c.setFatigue(amount);
+    else c.addModifier(new CombatModifier(scope, -amount, ModifierDuration.RestOfCombat).withSource('fatiga'));
   }
 }
 

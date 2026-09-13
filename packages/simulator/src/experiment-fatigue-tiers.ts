@@ -1,19 +1,19 @@
 /**
- * Part 2 of the discrete-fatigue sizing: (a) what one fatigue level costs a
- * party at each difficulty tier, (b) whether a SYMMETRIC penalty reproduces
- * the 2026-07-17 freeze (the reason roll penalties were rejected).
+ * The table behind the fatigue ladder (fatigue.ts): (a) what one fatigue
+ * level costs a party at each difficulty tier, (b) whether a SYMMETRIC
+ * penalty reproduces the 2026-07-17 freeze (the reason roll penalties were
+ * once rejected) — it does, which is why enemies never carry fatigue.
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-fatigue-tiers.ts
  */
-import { Character, CombatEngine, CombatModifier, ModifierDuration, newCombatStats, setAIControlled } from '@pimpampum/engine';
+import { Character, CombatEngine, newCombatStats, setAIControlled } from '@pimpampum/engine';
 import { solveEncounter, TARGET_WINRATES } from '@pimpampum/enemies';
 import { REGISTRY, randomTeam, buildSolvedEncounter } from './tests/helpers.js';
 
 const GAMES = 500;
 
-function penalize(team: Character[], amount: number): void {
-  if (amount === 0) return;
-  for (const c of team) c.addModifier(new CombatModifier('skill', -amount, ModifierDuration.RestOfCombat).withSource('fatiga'));
+function penalize(team: Character[], level: number): void {
+  for (const c of team) c.setFatigue(level);
 }
 
 console.log('Party winrate by difficulty tier × fatigue penalty (all rolls), 4 players @7:\n');

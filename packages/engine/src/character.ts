@@ -1,7 +1,7 @@
 import { CombatModifier, ModifierDuration } from './modifier.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
-import { fatigueStateName } from './fatigue.js';
+import { clampFatigue, fatigueRollPenalty, fatigueStateName } from './fatigue.js';
 import type { StatusBehavior, StatusRef } from './status.js';
 
 /**
@@ -74,9 +74,9 @@ export class Character {
   playedActionIdx: number | null = null;
   /** actionIdx -> turns set aside (-1 = permanent). */
   setAsideActions = new Map<number, number>();
-  /** Persistent daily fatigue counter — the stamina budget actions spend
-   *  (fatigueCost, default 1). Carries between combats; sleep() clears it.
-   *  Never touches dice rolls. */
+  /** Fatigue LEVEL, 0 (Fresc) to FATIGUE_MAX_LEVEL (Esgotat). Set by the DM
+   *  from the fiction, never by the engine; each level is −1 on every roll
+   *  (see getRollBonus). Persists across combats; rest() clears it. */
   fatigue = 0;
   /** Enemy defenders currently blocking this character: force every attack
    *  target this character would choose onto the wall. Blocks stack — two or
@@ -193,8 +193,8 @@ export class Character {
   /**
    * Flat bonus added to a dice roll for an action of `skillId`: equipment
    * rollBonuses (skillId match or '*', kind match or unscoped) + combat
-   * modifiers (stat ∈ {'skill', skillId, kind}). `kind` omitted for
-   * non-contest rolls (heals). May be negative. Fatigue never touches rolls.
+   * modifiers (stat ∈ {'skill', skillId, kind}), minus the fatigue level.
+   * `kind` omitted for non-contest rolls (heals). May be negative.
    */
   getRollBonus(skillId: string, kind?: 'attack' | 'defense'): number {
     let bonus = 0;
@@ -207,16 +207,21 @@ export class Character {
     }
     const kinds = new Set<string>(['skill', skillId]);
     if (kind) kinds.add(kind);
-    return bonus + sumModifiers(this.modifiers, kinds);
+    return bonus + sumModifiers(this.modifiers, kinds) + fatigueRollPenalty(this.fatigue);
   }
 
-  /** Catalan label for the current fatigue state. */
+  /** Catalan label for the current fatigue level. */
   getFatigueStateName(): string {
     return fatigueStateName(this.fatigue);
   }
 
-  /** A night's sleep: clears the whole daily fatigue budget. */
-  sleep(): void {
+  /** Set the fatigue level, clamped to 0..FATIGUE_MAX_LEVEL. */
+  setFatigue(level: number): void {
+    this.fatigue = clampFatigue(level);
+  }
+
+  /** A long rest (four hours or more): clears every level of fatigue. */
+  rest(): void {
     this.fatigue = 0;
   }
 

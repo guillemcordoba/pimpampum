@@ -83,15 +83,17 @@ export interface ActionDefinition {
   /** Healing/support actions may target (and revive) downed allies. */
   canReviveTarget?: boolean;
   /**
-   * Fatigue added to the actor when this action is played (in or out of
-   * combat). Defaults to 1; heavy "esgotadora" cards declare more. An action
-   * is unplayable if it would push the actor past the daily maximum
-   * (FATIGUE_CONFIG.max).
+   * LEGACY price tag from the daily fatigue budget (default 1; "esgotadora"
+   * cards declared 2-4). Fatigue is a DM-assigned level now and playing a
+   * card costs none, so the engine ignores this field entirely. It is kept
+   * only so the replacement pricing of those cards (charges, self-damage, a
+   * fatigue level…) can be decided card by card without losing the record
+   * of which ones were meant to be expensive.
    */
   fatigueCost?: number;
   /**
    * A desperation fallback: only playable when NO other (non-last-resort)
-   * action is playable — e.g. once the fatigue budget is spent.
+   * action is playable — every other card consumed or blocked by a status.
    */
   lastResort?: boolean;
 }

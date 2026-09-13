@@ -3,11 +3,12 @@ import { action, d } from './types.js';
 
 /**
  * Cop desesperat — the universal fallback (Pokémon-Struggle inspired): a
- * skill-less, 0-fatigue card in every combatant's hand that only becomes
- * playable when NOTHING else is (the engine's generic `lastResort` flag) —
- * typically when the daily fatigue budget is spent. Weak and self-wounding
- * (1 PV after the swing, hit or miss), so exhausted fights end through
- * desperate, bleeding play instead of a stand-still.
+ * skill-less card in every combatant's hand that only becomes playable when
+ * NOTHING else is (the engine's generic `lastResort` flag) — every other card
+ * consumed or blocked by a status. Weak and self-wounding (1 PV after the
+ * swing, hit or miss), so a cornered fight ends through desperate, bleeding
+ * play instead of a stand-still. (It used to be the card of a spent daily
+ * fatigue budget; fatigue is a DM-assigned level now and costs no cards.)
  */
 export const COP_DESESPERAT: ActionDefinition = action({
   id: 'cop-desesperat', name: 'Cop desesperat', skillId: 'desesperacio',

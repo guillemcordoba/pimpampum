@@ -47,10 +47,9 @@ export function actionStats(def: ActionDefinition): CardStat[] {
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
   // Diceless actions (some focus cards) still show a bare roll bonus.
   if (bonusStr && !bonusShown) stats.push({ iconPath: STAT_ICONS.defense, value: bonusStr });
-  // Esgotadora cards show their above-default fatigue cost in the corner.
-  if (def.fatigueCost !== undefined && def.fatigueCost !== 1) {
-    stats.push({ iconPath: STAT_ICONS.fatigue, value: String(def.fatigueCost) });
-  }
+  // `fatigueCost` is a legacy price tag with no rule behind it (fatigue is a
+  // DM-assigned level now), so the corner stays empty until those cards get
+  // their replacement pricing.
   // Bandolier cost: fixed càrregues for ordnance, or the whole pool (Traca final).
   const chargeEff = def.effects.find(e => e.type === 'charge_cost');
   if (chargeEff) {

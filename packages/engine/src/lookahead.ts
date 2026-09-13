@@ -30,6 +30,7 @@ import { Character } from './character.js';
 import { CombatEngine } from './combat.js';
 import { selectAction } from './ai.js';
 import { ActionType } from './types.js';
+import { FATIGUE_MAX_LEVEL } from './fatigue.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
 export interface LookaheadOptions {
@@ -62,8 +63,9 @@ export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 2, passe
  *  - Bodies still standing — action economy. A team down a member loses a card
  *    every round for the rest of the fight, which is worth more than the PV
  *    that member had left.
- *  - Fatigue spent — a real cost paid in a currency that outlives the combat
- *    (`FATIGUE_CONFIG.max` is a DAY's budget), so it is worth a little, not a lot.
+ *  - Fatigue level — a cost paid in a currency that outlives the combat (a
+ *    level is −1 on every roll until a long rest, and only a few cards can
+ *    add one), so it is worth a little, not a lot.
  *
  * A finished combat short-circuits to a win/loss, which has to dominate every
  * positional term or the AI would trade a win away for a healthier board.
@@ -89,7 +91,7 @@ export function positionScore(engine: CombatEngine, team: number): number {
   const pvDiff = pvFrac(us) - pvFrac(them);
   const bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
-  const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / 20;
+  const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
 
   return 10 * pvDiff + 6 * bodyDiff + 0.5 * fatigueDiff;
 }

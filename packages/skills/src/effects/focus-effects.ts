@@ -281,16 +281,17 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 1; },
   },
 
-  // Recover fatigue (stamina potions): subtracts `amount` from the drinker's
-  // daily fatigue counter, floored at 0.
+  // Recover fatigue (stamina potions): lowers the drinker's fatigue LEVEL by
+  // `amount` levels, floored at Fresc.
   fatigue_relief: {
     onResolve(ctx) {
-      const amount = num(ctx.params, 'amount', 5);
+      const amount = num(ctx.params, 'amount', 1);
       const before = ctx.source.fatigue;
-      ctx.source.fatigue = Math.max(0, ctx.source.fatigue - amount);
-      ctx.engine.log('focus', `${ctx.source.name} recupera l'alè (${before - ctx.source.fatigue} punts de fatiga).`, ctx.source.team);
+      ctx.source.setFatigue(ctx.source.fatigue - amount);
+      ctx.engine.log('focus', `${ctx.source.name} recupera l'alè (−${before - ctx.source.fatigue} nivell de fatiga: ${ctx.source.getFatigueStateName()}).`, ctx.source.team);
     },
-    aiWeight(ctx) { return ctx.actor.fatigue >= 6 ? 1.2 : 0.05; },
+    // A level is −1 on every roll: worth a turn whenever there is one to shed.
+    aiWeight(ctx) { return ctx.actor.fatigue >= 1 ? 1.2 : 0; },
   },
 
   // Remove negative modifiers and damage-over-time statuses from the target(s).
