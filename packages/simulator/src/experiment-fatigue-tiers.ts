@@ -17,12 +17,12 @@ function penalize(team: Character[], amount: number): void {
 }
 
 console.log('Party winrate by difficulty tier × fatigue penalty (all rolls), 4 players @7:\n');
-console.log('tier        asked    -0     -1     -2     -3     -4');
+console.log('tier        asked    -0     -1     -2     -3     -4     -5');
 for (const [name, target] of Object.entries(TARGET_WINRATES)) {
   const enc = solveEncounter([{ enemyId: 'goblin', count: 4 }, { enemyId: 'goblin-shaman', count: 1 }], { count: 4, levels: 7, armor: 1 }, target);
   if (!enc) { console.log(`${name}: unsolved`); continue; }
   const cells: string[] = [];
-  for (let x = 0; x <= 4; x++) {
+  for (let x = 0; x <= 5; x++) {
     let wins = 0;
     const stats = newCombatStats();
     for (let i = 0; i < GAMES; i++) {
