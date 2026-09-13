@@ -20,13 +20,13 @@ pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `e
 - **Co-location.** A skill's handlers and the `StatusBehavior` consts they attach live in that skill's own file, handlers on `SkillDefinition.effects`. `skills/src/effects/` holds only genuinely generic, parameterised handlers reused by several skills.
 - **`registerEnemySkills(registry)` must be called alongside `createRegistry()` whenever enemies fight**, or enemy-specific handlers are missing.
 - **Design lore-first.** When designing new actions, disregard current mechanics entirely — not the existing handlers, not what is easy to implement, not what already exists. Aim for originality and the skill's own fantasy, then build whatever handlers or seams that requires. Implementation effort is never a reason to compromise a design. (Design only; the registry pattern still governs how it is coded.)
-- **Card descriptions are brief, mechanical, non-standard effects only.** State *only* what deviates from a vanilla action — "Afecta tots els enemics.", "Ignora l'armadura." Never restate what the card already shows (contest dice, speed, fatigue/resource cost). No flavour prose.
+- **Card descriptions are brief, mechanical, non-standard effects only.** State *only* what deviates from a vanilla action — "Afecta tots els enemics.", "Ignora l'armadura." Never restate what the card already shows (contest dice, speed, resource cost). No flavour prose.
 - **Any content change is experimental until simulated.** Run `/analyze` (or `pnpm simulate`), present the results, and flag conflicts with `intentions.md`.
 
 ## Core mechanics
 
 - **PV** is the only base stat; players default to **12**. Enemies carry no printed PV — the encounter sets it and the balancer solves it. No character sizes, no rest system beyond the one-line sleep rule.
-- **Action**: belongs to a skill; has a **speed**, a **type** (Atac / Defensa / Focus) and **dice** (the card's dice are both its precision and its power). `fatigueCost` on a definition is a legacy price tag the engine ignores.
+- **Action**: belongs to a skill; has a **speed**, a **type** (Atac / Defensa / Focus) and **dice** (the card's dice are both its precision and its power). Playing one never costs fatigue.
 - **Attack**: ONE contested roll, attack dice vs defense dice. Ties hold for the defense. **Damage = the margin**, minus the recipient's passive armour (min 0). **Undefended targets are auto-hit for the full attack total.** AoE: ONE roll per pass, every target defends against that same roll separately.
 - **Defense** targets an **ally** (guard) or an **enemy** (block); defenses covering the same attack **sum** into a wall, and the defender always also defends themselves. See `ARCHITECTURE.md`.
 - **Focus**: usually slow, cancelled if the actor takes damage first (armour-absorbed hits do not interrupt).

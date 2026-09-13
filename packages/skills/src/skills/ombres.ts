@@ -131,7 +131,7 @@ export const OMBRES: SkillDefinition = {
     }),
     action({
       id: 'lligam-dombres', name: "Lligam d'ombres", skillId: 'ombres',
-      unlock: 2, type: ActionType.Focus, speed: 1, fatigueCost: 2, dice: d(2, 6),
+      unlock: 2, type: ActionType.Focus, speed: 1, dice: d(2, 6),
       effects: [{ type: 'shadow_bind', params: { resist: d(2, 6) } }],
       desc: "Tira 2d6 contra 2d6 d'un enemic. Si guanyes, ni tu ni ell no podeu actuar. Al final de cada torn es repeteix la tirada, i ell hi suma +3 per cada torn retingut: si et supera, queda lliure.",
       icon: 'lorc/shadow-grasp.svg',

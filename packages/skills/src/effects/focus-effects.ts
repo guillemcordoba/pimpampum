@@ -231,7 +231,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   // Summon a combatant from a factory carried in params. The aiWeight strongly
   // dampens itself once the team is large (the focus base weight is ~2-4, so we
   // need to negate that to actually stop the AI from picking it). This avoids
-  // exponential population blow-ups in fatigued late-round play.
+  // exponential population blow-ups in late-round play.
   summon: {
     onResolve(ctx) {
       // `maxTeam` hard-caps how many combatants the summoner's side may EVER

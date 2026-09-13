@@ -50,7 +50,7 @@ export const EARTHBENDER: SkillDefinition = {
     standingCoverAction({ skillId: 'earthbender', unlock: 2 }),
     action({
       id: 'columna-de-terra', name: 'Columna de terra', skillId: 'earthbender',
-      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6), fatigueCost: 2,
+      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6),
       effects: [
         { type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } },
       ],
@@ -59,7 +59,7 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
-      unlock: 4, type: ActionType.Focus, speed: -1, fatigueCost: 3,
+      unlock: 4, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'bury', params: { turns: 3 } }],
       desc: "Tria un enemic. La terra se l'empassa durant 3 torns: no pot ser atacat i només pot jugar cartes de Focus.",
       icon: 'lorc/sinking-trap.svg',

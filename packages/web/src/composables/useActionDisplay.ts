@@ -47,9 +47,6 @@ export function actionStats(def: ActionDefinition): CardStat[] {
   stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
   // Diceless actions (some focus cards) still show a bare roll bonus.
   if (bonusStr && !bonusShown) stats.push({ iconPath: STAT_ICONS.defense, value: bonusStr });
-  // `fatigueCost` is a legacy price tag with no rule behind it (fatigue is a
-  // DM-assigned level now), so the corner stays empty until those cards get
-  // their replacement pricing.
   // Bandolier cost: fixed càrregues for ordnance, or the whole pool (Traca final).
   const chargeEff = def.effects.find(e => e.type === 'charge_cost');
   if (chargeEff) {
@@ -139,14 +136,13 @@ const TOKEN_ICON_MAP: Record<string, { icon: string; alt: string }> = {
   '{D}': { icon: STAT_ICONS.defense, alt: 'D' },
   '{V}': { icon: STAT_ICONS.speed, alt: 'V' },
   '{DAMAGE}': { icon: STAT_ICONS.damage, alt: 'Dany' },
-  '{FATIGA}': { icon: STAT_ICONS.fatigue, alt: 'Fatiga' },
 };
 
-/** Render **bold** markup and {A}/{D}/{V}/{DAMAGE}/{FATIGA} icon tokens to inline HTML. */
+/** Render **bold** markup and {A}/{D}/{V}/{DAMAGE} icon tokens to inline HTML. */
 export function renderDescription(text: string): string {
   const base = import.meta.env.BASE_URL;
   return text
-    .replace(/\{(?:A|D|V|DAMAGE|FATIGA)\}/g, token => {
+    .replace(/\{(?:A|D|V|DAMAGE)\}/g, token => {
       const entry = TOKEN_ICON_MAP[token];
       return entry
         ? `<img src="${base}${entry.icon}" class="rules-icon" alt="${entry.alt}">`

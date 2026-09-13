@@ -23,7 +23,7 @@ The user drives the creative decisions; you ground them in the system and do the
 ## Phase 0 — Frame & ground (read before talking)
 
 1. Read `CLAUDE.md` (architecture + the lore-first design principle), `intentions.md` (balance goals), and `rules.md` if any new mechanic touches combat resolution.
-2. Skim `packages/skills/src/skills/*.ts` to calibrate the power curve (damage dice, speeds, fatigue, unlock levels) and to spot adjacent skills the new one must not duplicate.
+2. Skim `packages/skills/src/skills/*.ts` to calibrate the power curve (damage dice, speeds, resource costs, unlock levels) and to spot adjacent skills the new one must not duplicate.
 
 ## Phase 1 — Research for inspiration
 
@@ -44,7 +44,7 @@ Keep it tight and inspirational — a digest, not a dissertation. Skip or shorte
 Before any numbers, pin down the fantasy. Lead with questions, conversationally (use `AskUserQuestion` only for clean forks, always with a recommended default):
 
 - **Who are they?** The archetype / role / fantasy.
-- **Crafted or channeled?** Physical gear/inventory they carry (finite, deploy-style) vs. magic conjured on demand (fatigue-gated). This shapes how every action *feels*.
+- **Crafted or channeled?** Physical gear/inventory they carry (finite, deploy-style) vs. magic conjured on demand (charge- or cooldown-gated). This shapes how every action *feels*.
 - **Emotional core / playstyle?** Reckless, cold-precise, control, burst, attrition…
 
 From the answers, propose: a **thematic identity** (skill name + `classCss` theme), the **overlaps** with existing skills, and the **one real identity decision** for the user (e.g. a signature resource or capstone). The concrete action slate is settled in the next phase, not here.
@@ -66,7 +66,7 @@ Do **not** propose per-action stats (speed, damage dice, costs, design forks) in
 Go through the **approved** actions **individually, in order**. For each action:
 
 1. State its **lore hook** in one line.
-2. Propose **concrete stats**, grounded by citing comparable existing actions: `actionType` (Atac/Defensa/Focus), `speed`, damage `d(n, sides, mod)`, `targetCount` (1, N, or 99 = all), any **resource cost**, `fatigueCost` (default 1; 2 = heavy).
+2. Propose **concrete stats**, grounded by citing comparable existing actions: `actionType` (Atac/Defensa/Focus), `speed`, damage `d(n, sides, mod)`, `targetCount` (1, N, or 99 = all), any **resource cost** (càrregues, pressió, a fatigue level for a true ultimate).
 3. Surface the **single real design fork** with `AskUserQuestion` (2–4 options, recommend one, "(Recommended)" first). Keep other knobs as proposed-but-tunable. If the user rejects to clarify, ask what they want to clarify and reshape.
 4. **Lock it — but ONLY when the user explicitly says it's good.** Never mark a card locked/approved on your own, and never move to the next card, until the user gives an explicit go-ahead (e.g. "good", "locked", "yes"). Proposing stats is not locking; expect back-and-forth on a single card before approval. In the memory file, track each card's status (`proposed` vs `LOCKED`) and only flip to `LOCKED` after the user's explicit approval. Re-state the running table after each change.
 

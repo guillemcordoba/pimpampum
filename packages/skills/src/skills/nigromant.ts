@@ -157,7 +157,7 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 6, type: ActionType.Focus, speed: -5, fatigueCost: 3, targetCount: 99,
+      unlock: 6, type: ActionType.Focus, speed: -5, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 2 } }],
       desc: 'Condemna tots els enemics (2 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

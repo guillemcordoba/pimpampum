@@ -192,8 +192,8 @@ routes through it. Cards cost none; `rest()` (a 4h+ rest) clears it. Measured
 level ≈ one difficulty tier, one-sided penalties SHORTEN fights, symmetric ones
 double them — so enemies never carry fatigue (see `intentions.md`). The
 balancer prices the party at its fatigue level like any other party input.
-`ActionDefinition.fatigueCost` survives as an ignored legacy price tag until
-the old esgotadora cards get their replacement cost. Nobody is ever
+The cards the old budget priced above 1 are listed in `NEXT-STEPS.md` §11 and
+carry no cost at all until that is decided. Nobody is ever
 action-less: every combatant holds **Cop desesperat** (universal, 1d4 slow
 attack, 1 PV self-damage hit or miss — `skills/src/desperation.ts`), playable
 ONLY when nothing else is (the generic `ActionDefinition.lastResort` flag).

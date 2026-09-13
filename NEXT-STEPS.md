@@ -561,3 +561,36 @@ rebuild:
   The Sudari did not fix it; its damage cards are the problem.
 - Barricada's win-correlation splits hard by party size (34.8% in 2v2, 56.2% in
   3v3) — cover is worth little when there is only one ally to stand behind.
+
+## 11. Unpriced "esgotadora" cards (2026-09-13)
+
+The daily fatigue budget is gone (fatigue is a DM-assigned level now; playing
+cards costs none — `rules.md`). Every card is therefore free to play as often
+as it is legal, including the ones the budget used to price above 1. They keep
+working; they are simply unpriced until a replacement cost is chosen per card
+(càrregues per rest, self-damage, a fatigue level for a true ultimate…). The
+cost they carried, for the record:
+
+| kit | card | was |
+|---|---|---|
+| enginyer-explosius | Barricada, Camp minat, Traca final | 2 |
+| volcanic | Riu de lava, Erupció | 2 |
+| nigromant | Invocar l'ombra de l'infern | 3 |
+| berserk | Entrar en Fúria | 3 |
+| ombres | Lligam d'ombres | 2 |
+| mestre-armes | Atac encadenat | 2 |
+| earthbender | Columna de terra 2, Presó de terra 3 | |
+| gel | Paisatge congelat | 3 |
+| horned-devil | Alè de l'infern 2, Flames de l'avern 4 | |
+| bone-devil | Udol de terror | 2 |
+| goblin-shaman | Possessió demoníaca 4, Pluja de flames 2 | |
+| stone-golem | Terratrèmol, Enduriment | 2 |
+| basilisk | Mirada petrificant, Cop de cua | 2 |
+| goblin | Allau de la horda | 2 |
+| wolf | Udol | 2 |
+
+The 2026-09-13 mirror and balancer runs moved nothing measurable when these
+went free (both within noise of `main`), so there is no urgency from balance —
+the reason to price them is design: a card that was meant to be heroic should
+cost something. Injecció d'adrenalina already made the move (its target gains a
+fatigue level) because fatigue *was* its effect, not its price.

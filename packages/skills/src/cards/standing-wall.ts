@@ -89,13 +89,13 @@ export const STANDING_WALL_EFFECTS: Record<string, EffectHandler> = {
 export function standingCoverAction(opts: {
   skillId: string; unlock: number;
   id?: string; name?: string; key?: string; label?: string; desc?: string;
-  dice?: DiceRoll; life?: DiceRoll; speed?: number; fatigueCost?: number; icon?: string;
+  dice?: DiceRoll; life?: DiceRoll; speed?: number; icon?: string;
 }) {
   const key = opts.key ?? 'mur-de-pedra';
   const life = opts.life ?? d(2, 6);
   return action({
     id: opts.id ?? 'mur-de-pedra', name: opts.name ?? 'Mur de pedra', skillId: opts.skillId, unlock: opts.unlock,
-    type: ActionType.Defensa, speed: opts.speed ?? 0, dice: opts.dice ?? d(3, 6), fatigueCost: opts.fatigueCost ?? 3,
+    type: ActionType.Defensa, speed: opts.speed ?? 0, dice: opts.dice ?? d(3, 6),
     effects: [{ type: 'standing_wall', params: { key, life, label: opts.label ?? 'el mur de pedra' } }],
     desc: opts.desc ?? `El mur persisteix: mentre és dret, els atacs contra el protegit es resolen contra la teva defensa. Té ${life} de vida i absorbeix el dany que el travessa; es destrueix quan se li acaba.`,
     icon: opts.icon ?? 'delapouite/stone-wall.svg',
