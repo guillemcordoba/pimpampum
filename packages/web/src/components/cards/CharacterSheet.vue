@@ -49,8 +49,9 @@ const SKILL_ROWS = 3;
         </div>
       </div>
 
-      <!-- Bottom: fatigue level track (one box per level, −N on every roll)
-           + untitled resource-tracking area -->
+      <!-- Bottom: fatigue level track — one row per level, each stating its
+           own penalty so the sheet needs no rules text — + untitled
+           resource-tracking area -->
       <div class="sheet-bottom-blocks">
         <div class="sheet-block-wrapper">
           <span class="sheet-block-title">
@@ -59,9 +60,11 @@ const SKILL_ROWS = 3;
           </span>
           <div class="sheet-block sheet-fatigue-track">
             <div v-for="lvl in FATIGUE_MAX_LEVEL" :key="lvl" class="sheet-fatigue-level">
-              <span>−{{ lvl }} {{ FATIGUE_LEVEL_NAMES[lvl] }}</span>
               <div class="sheet-fatigue-box"></div>
+              <span class="sheet-fatigue-name">{{ FATIGUE_LEVEL_NAMES[lvl] }}</span>
+              <span class="sheet-fatigue-penalty">−{{ lvl }} a totes les tirades</span>
             </div>
+            <div class="sheet-fatigue-note">Només un descans llarg (4 h o més) la neteja.</div>
           </div>
         </div>
         <div class="sheet-block-wrapper">

@@ -81,10 +81,6 @@ export const RULES_SUMMARY: RulesSection[] = [
     type: 'text',
     text: "Efecte especial. Es cancel·la si reps dany abans.",
   },
-  {
-    title: 'Fatiga',
-    icon: STAT_ICONS.fatigue,
-    type: 'text',
-    text: "Cinc nivells, que assigna el màster: Cansat, Fatigat, Extenuat, Exhaust, Esgotat. Cada nivell resta 1 a totes les teves tirades. Només un descans llarg (4 hores o més) la neteja del tot.",
-  },
 ];
+// Fatigue is explained on the player sheet itself (its level track spells
+// out the −N per level), so the rules card carries no section for it.
