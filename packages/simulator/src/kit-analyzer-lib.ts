@@ -33,9 +33,13 @@
  *     (`bench/cells.ts`): random cards, or restricted to attacks / defenses /
  *     focus while still thinking as hard as ever inside that space, plus "one
  *     seat repeats a single card" per card. The best of them is the bar.
- *  4/5. NO DEAD CARDS / NO AUTO-INCLUDES — play rate per card conditioned on
- *     LEGALITY (not on turns), so a card that is rarely playable isn't scored
- *     as if it were always on offer. Both tails fail.
+ *  4/5. NO DEAD CARDS, NO TRAPS — LEAVE-ONE-OUT ABLATION. Play the kit; play it
+ *     again with one card physically removed from the hand; subtract. A card
+ *     whose removal costs the kit nothing is dead; a card whose removal IMPROVES
+ *     the kit is a trap. This replaced "how often did the AI pick it", which
+ *     made a hand-written evaluator the judge of the content it is meant to
+ *     serve — the same cards read dead, then alive, then dead again across
+ *     three sessions in which not one die changed.
  *  7. NO CARD CORRELATES WITH LOSING — win-when-played per card. Confounded on
  *     its own (a defense gets played when already losing), so it is reported as
  *     a flag to investigate, never as a verdict.
@@ -70,7 +74,7 @@ import {
   ENEMY_DEFINITIONS, fullKitLevel, getEnemy, simulateEncounter, solveEncounter,
   type FieldedGroup,
 } from '@pimpampum/enemies';
-import { MAIN_KITS, hero } from './bench/reference.js';
+import { MAIN_KITS, hero, heroWithout } from './bench/reference.js';
 import {
   FAIR, SATURATION, SHAPES, calibrationParty, saturatedCells, solveShape, usableCells,
   type Cell,
@@ -78,8 +82,9 @@ import {
 import {
   RESTRICTED_POLICIES, THOUGHTLESS_POLICIES, cellKey, cellResult, runMatrix,
   type CellPolicy, type CellSetup, type MatrixResult,
+  pairedMatrixDelta,
 } from './bench/cells.js';
-import { deltaPP, deltaStderr, exact, gamesFor, maxOfKBias, pct, share, stderr } from './bench/report.js';
+import { deltaPP, deltaStderr, gamesFor, maxOfKBias, pct, pp, share, stderr } from './bench/report.js';
 import { games, SMOKE } from './bench/games.js';
 import { cacheStatus, enemyPrint, skillPrint } from './bench/cache.js';
 
@@ -95,9 +100,12 @@ export interface Subject {
 }
 
 /** The subject at `level` in seat 1, with the given company at full kit. */
-function partyWith(skillId: string, level: number, companyIdx: number): PartySpec {
+function partyWith(skillId: string, level: number, companyIdx: number, without?: string): PartySpec {
   const base = calibrationParty(companyIdx).characters!;
-  return { characters: [hero('Subjecte', skillId, level), ...base.slice(1)] };
+  const subject = without
+    ? heroWithout('Subjecte', skillId, level, without)
+    : hero('Subjecte', skillId, level);
+  return { characters: [subject, ...base.slice(1)] };
 }
 
 // --- Enemy mode gets calibrated too -----------------------------------------
@@ -168,10 +176,17 @@ function calibrationRowCount(): number {
 
 /** Build the party and opposition for one cell. The ONLY thing the two modes
  *  differ by. */
-export function setupFor(subject: Subject, level: number): (cell: Cell) => CellSetup {
+/**
+ * How a subject is fielded at a level — and, optionally, WITHOUT one of its
+ * cards (the leave-one-out ablation; see `heroWithout`).
+ *
+ * The opposition is untouched by `without`: the whole claim is that this side
+ * lost one option and nothing else moved.
+ */
+export function setupFor(subject: Subject, level: number, without?: string): (cell: Cell) => CellSetup {
   if (subject.mode === 'player') {
     return cell => ({
-      party: partyWith(subject.id, level, cell.companyIdx),
+      party: partyWith(subject.id, level, cell.companyIdx, without),
       enemies: solveShape(SHAPES[cell.shapeIdx]).groups,
       subjectTeam: 0,
     });
@@ -179,7 +194,10 @@ export function setupFor(subject: Subject, level: number): (cell: Cell) => CellS
   const shape = enemyShape(subject);
   return cell => ({
     party: calibrationParty(cell.companyIdx),
-    enemies: shape.groups.map(g => ({ ...g, level })),
+    // PV is held at the value solved for the FULL kit. An ablated creature
+    // re-solved to the same target winrate would simply grow PV until the
+    // missing card stopped mattering, and every card would price at zero.
+    enemies: shape.groups.map(g => ({ ...g, level, without: without ? [without] : undefined })),
     subjectTeam: 1,
   });
 }
@@ -191,12 +209,41 @@ function cellsFor(subject: Subject): Cell[] {
 
 export interface Verdict { ok: boolean; detail: string }
 
+/**
+ * What one card is worth to its kit, by leave-one-out ablation.
+ *
+ * Carried on the report rather than folded into the verdict string because the
+ * DISTRIBUTION is the finding: a kit whose cards are worth +8/+7/+6/+5 and one
+ * whose cards are worth +24/+1/+0/+0 both pass the dead-card check, and they
+ * are not the same kit.
+ */
+export interface CardValue {
+  id: string;
+  name: string;
+  /** winrate(kit) − winrate(kit without this card). */
+  value: number;
+  /** 1σ on that difference. */
+  stderr: number;
+  /** Turns the card was legal / chosen, in the FULL-kit arm. Explanation for a
+   *  value, never the verdict behind it. */
+  legal: number;
+  played: number;
+  /** Worst and best cell for this card, in winrate points. A card can be worth
+   *  nothing on average and decide two matchups in opposite directions, and
+   *  that is a design fact rather than noise — it is what a KIT having bad
+   *  matchups looks like, one card at a time. */
+  worst: { label: string; diff: number };
+  best: { label: string; diff: number };
+}
+
 export interface KitReport {
   subject: Subject;
   cards: ActionDefinition[];
   levels: { level: number; run: MatrixResult }[];
   monotonicity: Verdict;
   duration: Verdict;
+  /** Per-card ablation values, strongest first. */
+  cardValues: CardValue[];
   spam: Verdict;
   strategySpace: Verdict;
   oneTrick: Verdict;
@@ -287,38 +334,87 @@ const MINDLESS_GAMES = Math.max(300, gamesFor(MINDLESS_MARGIN * 100));
  */
 const BASELINE_SCREEN_FRACTION = 0.5;
 /**
- * Play rate (conditioned on legality) outside this band fails 4/5.
+ * WHAT A CARD IS WORTH — and why this is no longer a play rate.
  *
- * THE DEAD LINE IS RELATIVE, the auto-include line is absolute, and the
- * asymmetry is the point.
+ * Requirement 4/5 used to read "how often was this card chosen out of the turns
+ * it was legal", with a dead line near 1/N. That question has the AI judging
+ * the card, and the AI is a hand-written evaluator: the same eleven cards read
+ * DEAD, then ALIVE, then dead again across three sessions in which not one die
+ * changed. A measurement whose verdict tracks an evaluator constant is
+ * measuring the evaluator.
  *
- * A policy spreading evenly over N cards puts each at 1/N, so what counts as
- * "never chosen" depends on how many alternatives there are: 1/N is 20% in a
- * five-card kit and 3.3% in a thirty-card one. A flat 2% works today and stops
- * working as kits grow — by ~30 cards the dead line sits at the neutral rate
- * and every card reads dead. So the line is a FRACTION OF NEUTRAL. (At today's
- * 4-6 card kits that lands at 2.5-3.8%, i.e. where the old constant was — this
- * changes how the test ages, not what it says now.)
+ * So the question is now LEAVE-ONE-OUT: build the kit, build it again with this
+ * card physically absent (`heroWithout`), play both over the same matrix on the
+ * same dice, and subtract.
  *
- * Auto-include does not scale: a card chosen 85% of the times it is legal has
- * removed the decision regardless of how many cards it beat.
+ *   value(C) = winrate(kit) − winrate(kit without C)
+ *
+ * WHAT THIS IS AND IS NOT ROBUST TO. A play rate is a function of the
+ * EVALUATOR'S RANKING: edit one `aiWeight` and it moves to whatever you like,
+ * which is how `Aguantar el cop` went from dead to alive at 0.6 → 1.1. An
+ * ablation is a function of GAME OUTCOMES: if the AI plays a card more and the
+ * winrate does not move, the card is doing nothing WHEN PLAYED, and no constant
+ * can fake that. That is the robustness being bought, and it is real.
+ *
+ * But the AI is still playing both arms, so read the sign carefully:
+ *
+ *  - value > 0 → a LOWER BOUND on what the card is worth, and the one claim
+ *    here that holds for a better player too. A larger choice set can never hurt
+ *    someone who plays it optimally, so anyone who plays at least this well gets
+ *    at least this much from the card.
+ *  - value ≈ 0 → THIS AI gains nothing from holding it. The weaker claim, and
+ *    the one requirement 4/5 fails on: a stronger player might still find a use,
+ *    but nothing in the harness can see it, and a card whose entire value is
+ *    invisible to a round of lookahead is a card to go and look at.
+ *  - value < 0 → the AI plays WORSE for holding the card, which an optimal
+ *    player never would: you can always ignore a card. So this is not evidence
+ *    against the CARD, it is evidence that the AI is drawn to it wrongly — or
+ *    that it is a genuine trap option, tempting and bad, which a human would
+ *    fall for too. The harness cannot tell those apart, so it FLAGS this rather
+ *    than failing the kit, the same way requirement 7 flags a confounded
+ *    correlation.
+ *
+ * KNOWN WEAKNESS, and it is structural rather than a bug: leave-one-out is
+ * SUB-ADDITIVE. Two cards that do the same job cover for each other, so each
+ * ablates to nearly nothing and the pair reads dead while the function they
+ * share is load-bearing. Read a dead verdict as "nothing here needs THIS card",
+ * never as "this card does nothing". The level sweep (requirement 1) is the
+ * complement — it removes cards in prefixes, so redundancy cannot hide there.
  */
-const DEAD_FRACTION_OF_NEUTRAL = 0.15;
-const AUTO_INCLUDE = 0.85;
-
-/** The "never chosen" line for a kit of `cards` cards. */
-function deadCardLine(cards: number): number {
-  return (DEAD_FRACTION_OF_NEUTRAL / Math.max(1, cards));
-}
+/**
+ * A card worth less than this in winrate is not carrying its slot.
+ *
+ * PROVISIONAL, and honestly so: nobody knows yet what a healthy card is worth
+ * under this measurement, because nothing has ever measured it. The one thing
+ * that would be wrong is to pick the number that makes today's kits pass.
+ *
+ * Two soft anchors put it near 2pp. Requirement 1 asks the whole kit to gain
+ * ≥5pp from its first card to its last, which over today's 4-6 card kits is
+ * ~1pp a card if the gain were spread evenly — so 2pp asks a card to pull
+ * somewhat above an even share. And 2pp is roughly what the default sample can
+ * resolve at 2σ; a finer line would only report noise.
+ *
+ * The report prints EVERY card's value, not just the failures, precisely so the
+ * distribution is visible and this constant can be set from it rather than from
+ * an argument. Move it when the numbers say to — and re-run every scoreboard,
+ * because it is a unit.
+ */
+const DEAD_VALUE = 0.02;
 
 /**
  * Cards this harness CANNOT judge, and why.
  *
- * Every number here is the winrate of AI play, and the AI chooses blind and
- * never re-chooses. A card whose whole value is what a PERSON does after the
- * reveal is therefore unmeasurable by it — not dead, not weak, invisible. Left
- * undeclared, requirement 4/5 fails it forever and the honest response would be
+ * The ablation removed the AI's opinion from the verdict, but not the AI from
+ * the fight: both arms are still played by it. A card whose value is something
+ * only a PERSON can extract is therefore worth nothing in BOTH arms, and
+ * ablates to exactly zero — indistinguishable from a card that does nothing at
+ * all. Not dead, not weak: invisible, and the honest response to the ❌ would be
  * to "fix" a card that is not broken.
+ *
+ * (This is the one exemption the ablation still needs, and it is a narrower
+ * claim than the play-rate version made: not "the AI undervalues it" — which is
+ * no longer an excuse for anything — but "neither arm of the experiment can use
+ * it, so the subtraction is 0 − 0".)
  *
  * This list is deliberately hard to add to: a card belongs here only when the
  * AI structurally cannot use it, never when it merely plays it badly.
@@ -470,35 +566,61 @@ export function analyze(subject: Subject, games: number): KitReport {
       : 'sense cartes per provar',
   };
 
-  // 4/5. Play rate conditioned on legality, at full kit.
-  const deadLine = deadCardLine(cards.length);
-  // Enough legality observations to tell `deadLine` apart from zero at ~2σ. The
-  // old gate compared an accumulated per-decision count against a COMBAT count,
-  // which is not the same dimension.
-  const minLegal = Math.ceil(4 / deadLine);
+  // 4/5. LEAVE-ONE-OUT ABLATION: is the kit worse without each card?
+  //
+  // Same cells, same games, same seed offset as the full-kit run above, so the
+  // two arms meet the same dice and differ by one card. The baselines cancel in
+  // the subtraction, so this is read on raw winrates.
   const dead: string[] = [];
-  const auto: string[] = [];
+  const misplayed: string[] = [];
   const unjudged: string[] = [];
   const blind: string[] = [];
+  const values: CardValue[] = [];
   for (const c of cards) {
+    if (c.unlockLevel > maxLevel) continue;
     if (AI_BLIND_CARDS[c.id]) { blind.push(c.name); continue; }
+    const run = runMatrix(cells, setupFor(subject, maxLevel, c.id), games, 'policy', 0,
+      subjectPrintFor(subject, maxLevel, c.id));
+    // PAIRED, per cell. The two arms met the same cells from the same seeds, so
+    // the between-cell spread — tens of points — cancels rather than being
+    // counted twice. Treating them as independent puts a ±2.9pp bar around an
+    // effect of one card in a four-seat party, which is wider than any card is
+    // worth, and every verdict would be decided by noise.
+    const paired = pairedMatrixDelta(top, run);
+    const { delta: value, stderr: se } = paired;
+    const ranked = [...paired.byCell].sort((a, b) => a.diff - b.diff);
+    // Play rate is no longer the verdict, but it is the best available
+    // EXPLANATION of one: a card worth nothing and never played is a card the
+    // kit does not need, while a card worth nothing and played constantly is a
+    // card something else already covers.
     const legal = top.counters.legal[c.id] ?? 0;
-    if (legal < minLegal) { unjudged.push(`${c.name} (${legal})`); continue; }
     const played = top.counters.played[c.id] ?? 0;
-    const rate = played / legal;
-    const se = stderr(rate, legal);
-    if (rate + 2 * se < deadLine) dead.push(`${c.name} ${share(played, legal).trim()}`);
-    else if (rate - 2 * se > AUTO_INCLUDE) auto.push(`${c.name} ${share(played, legal).trim()}`);
+    values.push({
+      id: c.id, name: c.name, value, stderr: se, legal, played,
+      worst: ranked[0], best: ranked[ranked.length - 1],
+    });
+    const shown = `${c.name} ${pp(value)}±${(se * 200).toFixed(1)}${legal ? ` (jugada ${share(played, legal).trim()})` : ''}`;
+    if (value + 2 * se < 0) misplayed.push(shown);
+    else if (value + 2 * se < DEAD_VALUE) dead.push(shown);
+    // Not enough power to tell DEAD_VALUE from zero — say so rather than pass.
+    else if (2 * se > DEAD_VALUE && value - 2 * se < DEAD_VALUE) unjudged.push(shown);
   }
+  values.sort((a, b) => b.value - a.value);
   const cardUse: Verdict = {
-    ok: dead.length === 0 && auto.length === 0,
+    // Two things do NOT fail the kit. An UNJUDGED card fails the SAMPLE, and
+    // saying "this kit is broken" on the strength of too few combats is the
+    // failure mode this whole layer was cleaned up to stop. A NEGATIVE value is
+    // a statement about the AI, not the card — see the note on the sign above.
+    ok: dead.length === 0,
     detail: [
+      misplayed.length
+        ? `la IA juga PITJOR amb aquestes a la mà (mira-hi, no és culpa de la carta): ${misplayed.join(', ')}`
+        : '',
       dead.length ? `mortes: ${dead.join(', ')}` : '',
-      auto.length ? `automàtiques: ${auto.join(', ')}` : '',
-      unjudged.length ? `sense prou mostra: ${unjudged.join(', ')}` : '',
+      unjudged.length ? `sense prou mostra per decidir: ${unjudged.join(', ')}` : '',
       blind.length ? `no mesurables per la IA: ${blind.join(', ')}` : '',
     ].filter(Boolean).join(' · ')
-      || `totes dins la banda [${exact(deadLine, 1)} – ${exact(AUTO_INCLUDE)}, ${cards.length} cartes]`,
+      || `totes ≥${pp(DEAD_VALUE)} de valor d'ablació`,
   };
 
   // 7. Cards correlating with losing (a flag, not a verdict — confounded).
@@ -518,7 +640,10 @@ export function analyze(subject: Subject, games: number): KitReport {
     detail: losers.length ? `correlacionen amb perdre: ${losers.join(', ')}` : 'cap per sota del 40%',
   };
 
-  return { subject, cards, levels, monotonicity, duration, spam, strategySpace, oneTrick, cardUse, correlation };
+  return {
+    subject, cards, levels, cardValues: values,
+    monotonicity, duration, spam, strategySpace, oneTrick, cardUse, correlation,
+  };
 }
 
 // --- Warming one matrix, for bench/parallel.ts ------------------------------
@@ -534,6 +659,7 @@ export function analyze(subject: Subject, games: number): KitReport {
 export function warmMatrix(job: {
   mode: 'player' | 'enemy'; id: string; count?: number;
   level: number; games: number; policy: string; seedOffset: number; cellIdx: number;
+  without?: string;
 }): void {
   const subject: Subject = { mode: job.mode, id: job.id, count: job.count };
   const cells = cellsFor(subject);
@@ -544,25 +670,26 @@ export function warmMatrix(job: {
     : (job.policy as CellPolicy);
   const perCell = Math.max(SMOKE ? 1 : 10, Math.round(job.games / cells.length));
   cellResult(
-    () => setupFor(subject, job.level)(cell), cell, perCell, policy, job.seedOffset,
-    cellKey(subjectPrintFor(subject, job.level), cell, perCell, policy, job.seedOffset),
+    () => setupFor(subject, job.level, job.without)(cell), cell, perCell, policy, job.seedOffset,
+    cellKey(subjectPrintFor(subject, job.level, job.without), cell, perCell, policy, job.seedOffset),
   );
 }
 
 /** The subject half of a cell key. Shared so the warmer and the real run
  *  cannot address the same measurement differently — a warmer that keyed
  *  differently would fill the cache with entries nothing ever reads. */
-export function subjectPrintFor(subject: Subject, level: number): string {
+export function subjectPrintFor(subject: Subject, level: number, without?: string): string {
   const base = subject.mode === 'player'
     ? skillPrint(subject.id)
     : `${enemyPrint(subject.id)}:${subject.count}:${enemyShape(subject).pv}`;
-  return `${base}@L${level}`;
+  return `${base}@L${level}${without ? `-${without}` : ''}`;
 }
 
 /** Every matrix run `analyze` will ask for, so they can be warmed up front. */
 export function warmJobsFor(subject: Subject, games: number): {
   mode: 'player' | 'enemy'; id: string; count?: number;
   level: number; games: number; policy: string; seedOffset: number; cellIdx: number;
+  without?: string;
 }[] {
   const cards = subject.mode === 'player'
     ? ALL_SKILLS.find(s => s.id === subject.id)!.actions
@@ -584,6 +711,16 @@ export function warmJobsFor(subject: Subject, games: number): {
   for (const c of cards) {
     if (c.unlockLevel > maxLevel) continue;
     for (const cellIdx of cellIdxs) jobs.push({ ...base, level: maxLevel, games: screenGames, policy: `one:${c.id}`, seedOffset: 0, cellIdx });
+  }
+  // The ablations: one full-kit run per card, with that card gone. Same games
+  // and same seed offset as the level sweep's top row, because that row is what
+  // each of them is subtracted from and the two must meet the same dice.
+  for (const c of cards) {
+    if (c.unlockLevel > maxLevel) continue;
+    if (AI_BLIND_CARDS[c.id]) continue;
+    for (const cellIdx of cellIdxs) {
+      jobs.push({ ...base, level: maxLevel, games, policy: 'policy', seedOffset: 0, cellIdx, without: c.id });
+    }
   }
   // The verify pass cannot be warmed: which policy it re-measures is CHOSEN
   // from the screen above, so it is not known until that has run.

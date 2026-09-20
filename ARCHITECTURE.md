@@ -516,10 +516,26 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   sweeps every main kit). Per kit it reports level monotonicity under common
   random numbers, fight length (median/p90/draws), the attack-spam comparison
   (the subject side replayed with a "biggest attack always" chooser), per-card
-  play rate **conditioned on legality**, and per-card win correlation. Its
+  value by **leave-one-out ablation**, and per-card win correlation. Its
   scenarios are the SOLVED shapes in `bench/shapes.ts`, so they re-price
   themselves rather than needing hand-calibration — and an out-of-band shape is
   dropped from the headline and reported loudly instead of averaged over.
+  **The dead-card verdict is an ABLATION, not a play rate**: the kit is played
+  again with one card physically absent from the hand (`heroWithout`, and
+  `EnemySpec.without` on the enemy side) and the winrates are subtracted, so
+  `value(C) = winrate(kit) − winrate(kit without C)`. Asking instead "did the AI
+  choose it" made the hand-written evaluator the judge of the content it exists
+  to serve — a play rate moves to whatever you like when one `aiWeight` moves,
+  and the same eleven cards read dead, then alive, then dead again across three
+  sessions in which no die changed. **The sign is asymmetric**: `value > 0` is a
+  LOWER BOUND that survives a better player (a bigger choice set never hurts
+  optimal play), `value ≈ 0` is dead *for this AI* and is what 4/5 fails on, and
+  `value < 0` means the AI plays worse for holding the card — a finding about
+  the AI, so it is flagged, never failed. The known
+  weakness is sub-additivity: two cards doing one job cover for each other and
+  both ablate to nothing, so a dead verdict means "nothing needs THIS card",
+  never "this card does nothing" — the level sweep, which removes cards in
+  prefixes, is the complement.
 - `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
   the way the analyzer will (solve against one company, measure against all), so
   the tool that CHOOSES the counts cannot disagree with the tool the counts are

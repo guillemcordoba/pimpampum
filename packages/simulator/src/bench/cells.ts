@@ -439,7 +439,56 @@ function runMatrixUncached(
   };
 }
 
-/** 1σ on the difference of two matrix results. */
+/** 1σ on the difference of two matrix results, treating them as INDEPENDENT.
+ *  Conservative under common random numbers; see `pairedMatrixDelta`. */
 export function matrixDeltaStderr(a: MatrixResult, b: MatrixResult): number {
   return deltaStderr(a.winrate, a.games, b.winrate, b.games);
+}
+
+/**
+ * The difference of two matrix results measured on the SAME CELLS — paired.
+ *
+ * `matrixDeltaStderr` adds the two arms' variances as if they were independent
+ * samples. They are not: a cell is run from a seed that depends only on the
+ * cell, so both arms met the same shape, the same seating and the same opening
+ * dice, and the enormous between-cell variation (a 42pp spread is normal)
+ * CANCELS instead of landing in the error bar twice. Treating them as
+ * independent is safe but blunt, and for an effect the size of one card it is
+ * blunt enough to decide the verdict: every card of a kit comes back "within
+ * noise of zero" and the harness reports nothing.
+ *
+ * So the unit of observation is the CELL, and the statistic is the mean of the
+ * per-cell differences with its own spread. Note the degrees of freedom are
+ * `cells − 1` — about eleven, not two thousand — so this buys precision from
+ * the pairing, not from the sample, and a kit measured over few cells still
+ * gets a wide bar. That is the honest trade: it is a cluster-robust estimate,
+ * and it can underestimate when the cells happen to agree with each other.
+ */
+export function pairedMatrixDelta(a: MatrixResult, b: MatrixResult): {
+  delta: number; stderr: number;
+  /** The per-cell differences themselves. The SPREAD is a finding: a card worth
+   *  +10pp against hordes and −10pp against a boss averages to nothing, and an
+   *  average that hides that is worse than no number. */
+  byCell: { label: string; diff: number }[];
+} {
+  if (a.byCell.length !== b.byCell.length) {
+    throw new Error(
+      `pairedMatrixDelta: ${a.byCell.length} cells vs ${b.byCell.length}. Pairing two runs that `
+      + `did not meet the same cells is not a paired comparison — it is two different experiments `
+      + `subtracted, and the answer would look tighter than either.`,
+    );
+  }
+  const pairs = a.byCell.map((c, i) => {
+    if (c.label !== b.byCell[i].label) {
+      throw new Error(`pairedMatrixDelta: cell ${i} is '${c.label}' in one arm and '${b.byCell[i].label}' in the other.`);
+    }
+    // Both deltas are against the SAME baseline for that cell, so it cancels.
+    return { label: c.label, diff: c.delta - b.byCell[i].delta };
+  });
+  const diffs = pairs.map(p => p.diff);
+  const n = diffs.length;
+  const mean = diffs.reduce((s, d) => s + d, 0) / n;
+  if (n < 2) return { delta: mean, stderr: Infinity, byCell: pairs };
+  const variance = diffs.reduce((s, d) => s + (d - mean) ** 2, 0) / (n - 1);
+  return { delta: mean, stderr: Math.sqrt(variance / n), byCell: pairs };
 }

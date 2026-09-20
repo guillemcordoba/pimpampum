@@ -333,3 +333,91 @@ describe('the fight matrix', () => {
     expect(SATURATION.max).toBeLessThan(1);
   });
 });
+
+/**
+ * WHAT A CARD IS WORTH IS NOT WHAT THE AI THINKS OF IT.
+ *
+ * Requirement 4/5 spent three sessions as a play rate — "how often did the AI
+ * choose this card out of the turns it was legal" — and in that form it made a
+ * hand-written evaluator the judge of the content the evaluator exists to
+ * serve. The same eleven cards read DEAD, then ALIVE, then dead again while not
+ * one die changed; what moved was a weight in `ai.ts`. It is now a LEAVE-ONE-OUT
+ * ABLATION: play the kit, play it again with the card physically absent from
+ * the hand, subtract.
+ *
+ * These guards exist because the play-rate version is the easy thing to write.
+ * The counters are still there (they explain a verdict, which is a real job),
+ * and nothing but a test stops the next edit from quietly promoting them back
+ * into the verdict itself.
+ */
+describe('a card is judged by its absence, not by the AI', () => {
+  const lib = fs.readFileSync(path.join(SRC, 'kit-analyzer-lib.ts'), 'utf8');
+
+  it('the 4/5 verdict is computed from an ablation run', () => {
+    const block = lib.slice(lib.indexOf('// 4/5.'), lib.indexOf('// 7.'));
+    expect(block.length, 'could not find the 4/5 block — did the markers move?').toBeGreaterThan(200);
+    expect(
+      /setupFor\([^)]*,\s*c\.id\)/.test(block),
+      'requirement 4/5 no longer builds an ABLATED subject (`setupFor(subject, level, c.id)`). '
+      + 'Whatever it is measuring now, it is not what the kit loses without the card.',
+    ).toBe(true);
+    expect(
+      block.includes('pairedMatrixDelta'),
+      'the ablation must be read with the PAIRED estimator: both arms meet the same cells from '
+      + 'the same seeds, and treating them as independent puts a bar wider than any card is worth '
+      + 'around every value, which hands the verdict to noise.',
+    ).toBe(true);
+  });
+
+  it('play rate never decides the verdict', () => {
+    const block = lib.slice(lib.indexOf('// 4/5.'), lib.indexOf('// 7.'));
+    // `legal`/`played` may be READ (they annotate a value) but must not be
+    // compared against a threshold — that is the old test wearing new clothes.
+    const rate = /(played\s*\/\s*legal|rate)\s*[+\-]?[^;]*[<>]/.test(block);
+    expect(
+      rate,
+      'a play rate is being compared against a threshold inside requirement 4/5. Counting how '
+      + 'often the AI picked a card measures the AI. Report it as the EXPLANATION of an ablation '
+      + 'value if it helps; do not let it decide anything.',
+    ).toBe(false);
+  });
+
+  it('the ablation removes the card, not the skill level', () => {
+    const ref = fs.readFileSync(path.join(SRC, 'bench/reference.ts'), 'utf8');
+    const fn = ref.slice(ref.indexOf('export function heroWithout'));
+    expect(
+      fn.slice(0, fn.indexOf('\n}')).includes('...base'),
+      'heroWithout must start from the full hero and drop one card id. Rebuilding it at a lower '
+      + 'LEVEL would remove the card and the +1 on every roll that comes with it, and the '
+      + 'difference measured would be mostly the bonus.',
+    ).toBe(true);
+  });
+
+  it('a negative ablation value flags the AI, it does not fail the kit', () => {
+    // A larger choice set cannot hurt someone who plays it optimally — you can
+    // always ignore a card. So value < 0 says the AI is drawn to the card
+    // wrongly, NOT that the card is bad, and failing the kit on it would put
+    // the evaluator back in the judge's seat by the other door. The ONE claim
+    // that survives a better player is value > 0: a lower bound on what the
+    // card is worth.
+    const block = lib.slice(lib.indexOf('// 4/5.'), lib.indexOf('// 7.'));
+    const ok = block.match(/ok:\s*([^,\n]+)/);
+    expect(ok, 'no ok: line in the 4/5 verdict').not.toBeNull();
+    expect(
+      /misplay|negative|trap/i.test(ok![1]),
+      `requirement 4/5 fails on "${ok![1].trim()}". A card the AI plays WORSE for holding is a `
+      + 'finding about the AI, and an optimal player is never hurt by an extra option. Report it, '
+      + 'do not fail the kit on it.',
+    ).toBe(false);
+  });
+
+  it('an ablated subject is keyed apart from the whole kit', () => {
+    // Same cells, same games, same seed — the ONLY thing separating an ablated
+    // run from the full-kit run in the cache is the card in the key. Drop it
+    // and every ablation reads back the full kit's own numbers, which is a
+    // value of exactly zero for every card: the verdict this test defends,
+    // arrived at by never running the experiment.
+    const fn = lib.slice(lib.indexOf('export function subjectPrintFor'));
+    expect(fn.slice(0, fn.indexOf('\n}')).includes('without')).toBe(true);
+  });
+});

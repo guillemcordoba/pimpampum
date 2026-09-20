@@ -1024,3 +1024,200 @@ That is not a card problem and it is not a harness problem. It is either the
 evaluator still mispricing a turn, or attack being too strong relative to
 defense and focus at the level of the rules. It needs a design decision, so it
 is left for one.
+
+## 16. The AI policy bug hunt (2026-09-20)
+
+§15.6 said "either the evaluator still misprices a turn, or attack is too strong
+at the level of the rules". Before touching a die, the evaluator was audited for
+places where it DISAGREES WITH THE RULES — which is a bug, and is fixable
+without a design decision. Three were found.
+
+| bug | what it did | fix |
+|---|---|---|
+| **`restrictTo` leaked through the topK pruner** | `bestResponse` pruned candidates by sampling `selectAction`, which knows nothing about the restriction, so a search restricted to attacks evaluated and played defenses — the "attacks only" arm was only ~74% attacks | every sample filtered through `allowed`, topped up from the allowed list |
+| **The roll estimate ignored the actor's skill** | `expectedAttackTotal` and `bestDefenseTotal` summed the card's dice and forgot `skillLevelBonus`, so the AI priced every contest as if both sides were level 0 | both add it |
+| **AoE was priced as single-target** | `estimateExpectedDamage` averaged damage over the enemies but never multiplied by how many the card actually hits | `(acc / enemies.length) * min(targetCount, enemies.length)` |
+
+Requirement 3 failures went **5/6 → 1/6**, and 3b (the strategy-space margin)
+from 1/6 passing to **6/6**.
+
+### 16.1 The fix that was reverted, and why that is the interesting one
+
+A fourth "bug" was found and fixed and then **deliberately reverted**: the
+Defensa action weight is a FLAT constant sitting beside an attack weight that
+scales with expected damage. Three action types priced in three different
+currencies cannot all be right, and that is knowably wrong on inspection.
+
+The fix — estimating prevented damage the way attack damage is estimated —
+moved requirement 3 from **1/6 failing to 6/6**, then a different constant moved
+it back, with the dice, the cards and the rules untouched throughout.
+
+That is the whole problem, and it is why the weight is still there with a
+comment on it: there is no ground truth to tune it against, so "fixing" it means
+turning a knob until the tests go green, and a test that can be turned green by
+a knob was not measuring the game. **The AI may be corrected where it disagrees
+with the RULES. It may not be tuned until the tests pass.**
+
+## 17. The circularity, and what replaced the part of it that could be
+
+Requirement 3 asks "does thinking beat not thinking", and the thinking is done
+by a hand-written evaluator. Requirement 4/5 asked "does the AI choose this
+card", and the choosing was done by the same one. So both requirements judged
+the game through the instrument being tuned, and the verdicts moved when the
+instrument moved: the same eleven cards read DEAD (§15.1), then ALIVE, then dead
+again, across three sessions in which not one die changed.
+
+Not all of that is fixable. Requirement 3 is IRREDUCIBLY about a policy — "a
+good player beats a bad one" has no meaning without a player — and the honest
+response there is the one taken in §16.1: correct the AI where it contradicts
+the rules, never where it contradicts a test.
+
+Requirement 4/5 is not like that, and it has been replaced.
+
+### 17.1 Leave-one-out ablation
+
+> Stop asking "did the AI pick this card?" and ask "does the kit get worse
+> without it?"
+
+Play the kit. Play it again with the card **physically absent from the hand** —
+`heroWithout` on the player side, `EnemySpec.without` on the enemy side — over
+the same cells, from the same seeds. Subtract.
+
+```
+value(C) = winrate(kit) − winrate(kit without C)
+```
+
+**What this buys.** A play rate is a function of the EVALUATOR'S RANKING — edit
+one `aiWeight` and it moves to whatever you like, which is exactly how
+`Aguantar el cop` went from dead to alive at 0.6 → 1.1. An ablation is a
+function of GAME OUTCOMES: if the AI plays a card more and the winrate does not
+move, the card is doing nothing *when played*, and no constant can fake that.
+
+**But the AI still plays both arms**, so the sign matters and only one direction
+is safe:
+
+- `value > 0` → a **lower bound** on what the card is worth, and the one claim
+  that survives a better player. A larger choice set can never hurt someone who
+  plays it optimally, so anyone playing at least this well gets at least this
+  much from the card.
+- `value ≈ 0` → **dead**: *this* AI gains nothing from holding it. The weaker
+  claim, and what 4/5 fails on — a stronger player might find a use, but a card
+  whose entire value is invisible to a round of lookahead is one to go and look
+  at.
+- `value < 0` → the AI plays **worse** for holding the card, which an optimal
+  player never would. That is evidence about the AI, not the card (or a genuine
+  trap option, tempting and bad, that a human would fall for too — the harness
+  cannot tell them apart). So it is **flagged, not failed**, like requirement 7.
+
+The first draft of this called a negative value a "trap" and failed the kit on
+it. That was the circularity walking back in through the other door: it would
+have failed content on an evaluator's mistake.
+
+The skill LEVEL is held fixed, so the hero keeps every point of skill and loses
+exactly one option; dropping the level too would remove the card and the +1 on
+every roll that comes with it, and the difference would be mostly the bonus.
+Cop desesperat is never removable — it is a rule, not a kit card.
+
+No AI seam is involved. A first attempt added a `banned` list to the lookahead's
+`legal()`; it was reverted, because a ban only binds the searcher (`spam` and
+`uniform` would still play the card) and it is a second mechanism for one
+concept. Removing the card from the hand binds everything, including a human.
+
+### 17.2 What it costs, and what it cannot see
+
+**SUB-ADDITIVITY.** Two cards that do the same job cover for each other, so each
+ablates to nearly nothing while the function they share is load-bearing. Read a
+dead verdict as *"nothing here needs THIS card"*, never *"this card does
+nothing"*. The level sweep (requirement 1) removes cards in prefixes and is the
+complement.
+
+**POWER.** One card, in one seat of four, is a small intervention, and its
+winrate effect is correspondingly small — the same limit requirement 1 already
+lives with, which is why three of Mestre d'Armes' four level steps report "flat
+(within noise)". Treating the two arms as independent samples put a **±2.9pp**
+bar at 2σ around effects of ±3pp, so every verdict would have been decided by
+noise. They are not independent: both met the same cells from the same seeds, so
+the estimator is **paired per cell** (`pairedMatrixDelta`) and the enormous
+between-cell spread cancels instead of being counted twice.
+
+That buys precision from the PAIRING, not from the sample — the degrees of
+freedom are `cells − 1`, about eleven — and it is honest in both directions: for
+cards whose value genuinely swings between matchups the paired bar comes back
+*wider* than the independent one, because the heterogeneity is real and the
+binomial estimate was hiding it. The report therefore prints every card's value
+with its worst and best cell, not just the average.
+
+Cards the harness still cannot judge keep their declared exemption
+(`AI_BLIND_CARDS`), but on a narrower claim than before: not "the AI undervalues
+it" — which is no longer an excuse for anything — but "neither arm can use it,
+so the subtraction is 0 − 0". Today that list holds one card, `Estat de flux`,
+whose whole value is post-reveal card swaps.
+
+### 17.3 What the first ablation sweep found (2026-09-20)
+
+29 cards across the six main player kits, at 2,400 combats an arm.
+
+**The play rate and the ablation are not measuring the same thing.** Mestre
+d'Armes' `Atac llampec` is the most-played card in its kit — 40% of the turns
+it is legal, the highest figure in the game — and ablates to **−2.0pp ± 5.0**.
+
+Read that interval, not the point estimate: [−7.0, +3.0] contains zero and
+contains the +2pp line, so the finding is **"this harness cannot tell what the
+most-played card in the kit is worth"**, not "the kit is no better without it".
+Those are different claims and only the first is supported. (An earlier draft of
+this section stated the −2.0 as a result. It was not one.)
+
+The width is not noise to be bought off with more combats — it is the card. It
+is worth **−16pp against hordes and +12pp against the bone-devil squad**, a
+28-point swing, and an average is a poor summary of a number shaped like that.
+What the play rate never had any way to say is precisely this: that the card the
+AI reaches for most is the one whose value the measurement is least sure of.
+
+**The strong cards are burst and area, and their value is matchup-shaped:**
+
+| card | value | worst cell | best cell |
+|---|---|---|---|
+| Traca final (Enginyer) | +10.4pp±9.6 | horda −16pp | mixt **+35pp** |
+| Columna de terra (Earthbender) | +9.1pp±6.4 | horda −6pp | cap **+31pp** |
+| Granada de fragmentació (Enginyer) | +8.1pp±10.2 | cap −13pp | horda **+44pp** |
+| Pell d'obsidiana (Volcànica) | +6.7pp±3.0 | horda −1pp | horda +17pp |
+| Xuclar la vida (Nigromant) | +5.3pp±6.3 | escamot −9pp | mixt +23pp |
+
+A ±10pp error bar on a +8pp card is not a failure of the harness — it is the
+card. Granada swings 57 points between its best and worst matchup, and an
+average is the wrong summary of it. This is why the report prints worst and best
+cells beside every value.
+
+**A SYSTEMATIC CONFOUND: kit size.** Per-card values fall as kits grow, because
+a bigger kit has more substitutes for whatever the removed card did.
+
+```
+Earthbender  4 cards   +9.1 +4.6 +4.1 +0.3      all positive
+Enginyer     5 cards  +10.4 +8.1 -1.1 -1.4 -1.4
+Volcànica    5 cards   +6.7 -0.1 -1.2 -2.4 -2.6
+Nigromant    6 cards   +5.3 +0.5 -0.4 -1.2 -2.1 -2.9
+Berserk      6 cards   +0.7 -0.0 -0.6 -0.7 -1.1 -1.7   nothing above noise
+```
+
+Earthbender is the only kit to pass 4/5 outright — and it is also the WEAKEST
+kit in the game at −8.6pp. A kit can be internally coherent, every card pulling,
+and still be badly under-powered. The old metric could not separate those two
+questions; this one does, and the separation is the point.
+
+**Berserk is the finding.** Six cards, not one distinguishable from zero, and it
+is also the one kit failing 3b — restricting it to attacks costs it nothing.
+Those are the same fact seen twice: a kit whose cards are interchangeable is a
+kit where the strategy space does not matter. It is the next thing to design.
+
+### 17.4 The defense buff was reverted, and did not need to come back
+
+The triangle protocol (`intentions.md`: when a corner dominates, buff the corner
+that beats it) had been applied in `bd70451` — six defense cards up a die step —
+because attacks-only was tying free play. **It was the AI bugs, not the dice.**
+With `bd70451` reverted and the §16 fixes in, free play beats attacks-only on
+6/6 kits (+0.0 to +14.5pp) and clears the 10pp bar on 5/6.
+
+So the buff is reverted and stays reverted. The one kit still failing 3b is
+Berserk, at +0.0pp, which §17.3 says is a kit-design problem rather than a
+system-wide one — and buffing every defense in the game to fix one kit is how
+the dice drift away from the design.

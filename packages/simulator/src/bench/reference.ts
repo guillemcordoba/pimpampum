@@ -20,7 +20,7 @@
  * load. A content change that moves the benchmark now throws, at import, with
  * the numbers in the message — instead of quietly rebasing the scoreboard.
  */
-import { ALL_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_PV, PLAYER_SKILLS } from '@pimpampum/skills';
+import { ALL_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_PV, PLAYER_SKILLS, unlockedActions } from '@pimpampum/skills';
 import type { CharacterBuildSpec, PartySpec, SkillDefinition } from '@pimpampum/skills';
 
 /**
@@ -106,6 +106,43 @@ export function hero(name: string, skillId: string, level: number = FULL_KIT): C
     equipment,
     skills: { [s.id]: levelOf(s, level) },
   };
+}
+
+/**
+ * The same hero with ONE CARD PHYSICALLY REMOVED — the leave-one-out ablation.
+ *
+ * "Did the AI pick this card?" makes the AI the judge of the card, and the
+ * answer then moves when a hand-tuned evaluator weight moves, with the game
+ * unchanged. "Is the kit WORSE without it?" does not: the card is gone from the
+ * hand, so every policy — the lookahead, spam, uniform, a human — is measured
+ * on a kit that genuinely lacks it. No AI seam, no ban list, nothing the
+ * searcher has to be trusted to honour.
+ *
+ * TWO THINGS ARE DELIBERATELY HELD FIXED.
+ *
+ *  - THE SKILL LEVEL. Dropping it too would remove the card AND the +1 on every
+ *    roll that comes with it, and the winrate difference would then be mostly
+ *    the bonus. Here the hero keeps every point of skill and loses exactly one
+ *    option. (That is also what makes this a different measurement from the
+ *    level sweep, which removes a card and its bonus together, and only ever
+ *    the LAST one.)
+ *  - COP DESESPERAT, which `buildCharacter` re-adds. It is a rule, not a kit
+ *    card, so an ablated hero is never left with an empty hand.
+ */
+export function heroWithout(
+  name: string, skillId: string, level: number, cardId: string,
+): CharacterBuildSpec {
+  const base = hero(name, skillId, level);
+  const ids = unlockedActions(skillId, base.skills[skillId]).map(a => a.id);
+  if (!ids.includes(cardId)) {
+    throw new Error(
+      `bench/reference: cannot ablate '${cardId}' from ${skillId} at level ${base.skills[skillId]} — `
+      + `this hero does not hold that card (holds: ${ids.join(', ')}). Ablating an absent card `
+      + `measures the kit against itself and would report the card as worth exactly nothing, `
+      + `which is indistinguishable from the finding this test exists to make.`,
+    );
+  }
+  return { ...base, actions: ids.filter(id => id !== cardId) };
 }
 
 /** A kit only knows as many actions as it has, so a level request is clamped. */

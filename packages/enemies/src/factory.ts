@@ -13,6 +13,17 @@ export interface EnemySpec {
   name?: string;
   /** Extra gear on top of what the creature already carries. */
   equipment?: string[];
+  /**
+   * Card ids to leave OUT of this body's hand — the leave-one-out ablation
+   * (`simulator/bench`). The creature keeps its skill LEVELS, and therefore its
+   * roll bonus; it simply never holds these cards.
+   *
+   * Here rather than in the simulator because a hand is built here, once, and a
+   * second builder that "also makes a body but without card X" is exactly the
+   * kind of parallel path that drifts. Cop desesperat is never removable: every
+   * combatant always holds it, which is a rule and not part of any kit.
+   */
+  without?: string[];
 }
 
 /** Instantiate one body of a creature. */
@@ -24,8 +35,9 @@ export function createEnemyFrom(def: EnemyDefinition, spec: EnemySpec): Characte
     skills[skill.id] = level;
     actions.push(...unlockedEnemyActions(skill.id, level));
   }
+  const kit = spec.without?.length ? actions.filter(a => !spec.without!.includes(a.id)) : actions;
   // Every combatant always holds the universal desperation card.
-  actions.push(COP_DESESPERAT);
+  kit.push(COP_DESESPERAT);
   const equipment = [...(def.equipment ?? []), ...(spec.equipment ?? [])]
     .map(getEquipment)
     .filter((e): e is EquipmentDefinition => !!e);
@@ -47,7 +59,7 @@ export function createEnemyFrom(def: EnemyDefinition, spec: EnemySpec): Characte
     iconPath: def.iconPath,
     pv: spec.pv,
     skills,
-    actions,
+    actions: kit,
     equipment,
     category: 'enemy',
   });

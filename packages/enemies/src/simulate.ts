@@ -68,6 +68,9 @@ export interface FieldedGroup {
   level?: number;
   /** PV per body. */
   pv: number;
+  /** Card ids these bodies do NOT hold — the leave-one-out ablation. See
+   *  `EnemySpec.without`. */
+  without?: string[];
 }
 
 export interface SimOptions {
@@ -105,7 +108,7 @@ function buildGroup(g: FieldedGroup): Character[] {
   if (!def) return [];
   return Array.from({ length: Math.max(0, g.count) }, (_, i) => {
     const name = g.count > 1 ? `${def.displayName} ${i + 1}` : def.displayName;
-    return createEnemyFrom(def, { pv: g.pv, level: g.level, name });
+    return createEnemyFrom(def, { pv: g.pv, level: g.level, name, without: g.without });
   });
 }
 

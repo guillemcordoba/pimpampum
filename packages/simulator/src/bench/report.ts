@@ -57,6 +57,19 @@ export function deltaPP(a: number, na: number, b: number, nb: number): string {
   return `${d >= 0 ? '+' : ''}${d.toFixed(1)}pp±${se.toFixed(1)}`;
 }
 
+/**
+ * A signed difference of winrates, in points, with NO error bar.
+ *
+ * `deltaPP` is the same number with its own 1σ attached, and is what to reach
+ * for by default. This exists for callers that already hold the error and need
+ * to quote it at a different number of sigmas than 1 — printing a 1σ bar beside
+ * a verdict decided at 2σ invites the reader to check the test and get a
+ * different answer than the test did.
+ */
+export function pp(delta: number, decimals = 1): string {
+  return `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(decimals)}pp`;
+}
+
 /** 1σ of a difference of two independent rates, as a fraction. */
 export function deltaStderr(a: number, na: number, b: number, nb: number): number {
   return Math.sqrt(stderr(a, na) ** 2 + stderr(b, nb) ** 2);

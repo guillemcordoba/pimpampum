@@ -10,7 +10,7 @@ import { MAIN_KITS } from './bench/reference.js';
 import { COMPANY, FAIR, SATURATION, SHAPES, saturatedCells, solveShape, usableCells } from './bench/shapes.js';
 
 const COMPANY_COUNT = COMPANY.map((_, i) => i);
-import { exact, gamesFor, pct, share, stderr } from './bench/report.js';
+import { exact, gamesFor, pct, pp, share, stderr } from './bench/report.js';
 import { games, SMOKE } from './bench/games.js';
 import { cacheStatus } from './bench/cache.js';
 import { lanes, warm, type WarmJob } from './bench/parallel.js';
@@ -54,7 +54,18 @@ function printReport(r: KitReport): void {
   console.log(`  ${mark(r.spam)} 3. pensar bat qualsevol estratègia sense pensar — ${r.spam.detail}`);
   console.log(`  ${mark(r.strategySpace)} 3b. l'espai d'estratègia importa — ${r.strategySpace.detail}`);
   console.log(`  ${mark(r.oneTrick)} 3c. una sola carta repetida no basta — ${r.oneTrick.detail}`);
-  console.log(`  ${mark(r.cardUse)} 4/5. ni cartes mortes ni automàtiques — ${r.cardUse.detail}`);
+  console.log(`  ${mark(r.cardUse)} 4/5. cap carta morta ni trampa (ablació) — ${r.cardUse.detail}`);
+  // The whole table, not just the failures: the SHAPE of a kit's card values is
+  // the design finding, and a pass/fail line hides it. Printed once per kit,
+  // strongest first, so a kit carried by one card is visible at a glance even
+  // when every card clears the line.
+  for (const v of r.cardValues) {
+    console.log(
+      `        ${v.name.padEnd(22)} ${pp(v.value).padStart(7)}±${(v.stderr * 200).toFixed(1).padStart(4)}`
+      + `   pitjor ${v.worst.label} ${pp(v.worst.diff, 0).padStart(6)}`
+      + ` · millor ${v.best.label} ${pp(v.best.diff, 0).padStart(6)}`,
+    );
+  }
   console.log(`  ${mark(r.correlation)} 7. cap carta correlaciona amb perdre — ${r.correlation.detail}`);
 
   const top = r.levels[r.levels.length - 1].run;
