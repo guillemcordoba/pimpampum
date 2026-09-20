@@ -143,14 +143,6 @@ El màster posa una dificultat. Qui l'intenta tira:
 Igualar-la o superar-la és un èxit. **Sense cap habilitat que hi encaixi, tires
 només el 1d20.** La fatiga hi resta, com a totes les tirades.
 
-| | | Exemples |
-|---|---|---|
-| 5 | Fàcil | fondre un pany glaçat; travessar un congost per sobre d'una Columna de terra |
-| 10 | Normal | forçar una porta barrada; escorcollar una casa; seguir el rastre d'un carro d'ahir |
-| 15 | Difícil | creuar un llac gelat; mantenir viu un moribund fins al matí; reconèixer un segell fals |
-| 20 | Molt difícil | fer caure un pont en el moment exacte; trobar un pas fet per no ser trobat |
-| 25 | Heroic | aguantar un túnel que s'ensorra mentre surt tothom; tornar algú que fa una hora que és mort |
-
 ### Aprendre
 
 **Si falles per 1 o 2, l'habilitat puja un nivell.** Si és una habilitat que no
