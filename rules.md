@@ -134,4 +134,27 @@ Fora de combat, els jugadors es poden intercanviar objectes entre ells i canviar
 
 ## Fora de combat
 
-Les accions es poden fer servir fora de combat per fer tirades d'habilitat. El director de joc (DM) estableix un nivell de dificultat per a la tasca. Es tiren els daus de l'acció (més modificadors) contra la dificultat. Les regles de pujar de nivell s'apliquen igualment.
+Qualsevol acció es pot fer servir per superar un repte fora de combat.
+
+El màster posa una dificultat. Qui l'intenta tira:
+
+> **1d20 + els daus de l'acció + el seu nivell d'habilitat**
+
+Igualar-la o superar-la és un èxit. **Sense cap habilitat que hi encaixi, tires
+només el 1d20.** La fatiga hi resta, com a totes les tirades.
+
+| | | Exemples |
+|---|---|---|
+| 5 | Fàcil | fondre un pany glaçat; travessar un congost per sobre d'una Columna de terra |
+| 10 | Normal | forçar una porta barrada; escorcollar una casa; seguir el rastre d'un carro d'ahir |
+| 15 | Difícil | creuar un llac gelat; mantenir viu un moribund fins al matí; reconèixer un segell fals |
+| 20 | Molt difícil | fer caure un pont en el moment exacte; trobar un pas fet per no ser trobat |
+| 25 | Heroic | aguantar un túnel que s'ensorra mentre surt tothom; tornar algú que fa una hora que és mort |
+
+### Aprendre
+
+**Si falles per 1 o 2, l'habilitat puja un nivell.** Si és una habilitat que no
+tenies, la comences a nivell 1.
+
+> En Roc clava cops a un arbre amb una espasa que ha trobat. Dificultat 10, treu
+> un 9. L'arbre continua dret; ara té Esgrima 1.
