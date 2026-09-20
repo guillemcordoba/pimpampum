@@ -170,6 +170,13 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance): n
       break;
     }
     case ActionType.Defensa: {
+      // A FLAT constant beside an attack weight that scales with damage. That
+      // is knowably wrong — three action types priced in three currencies
+      // cannot be right — and it is deliberately left alone: the fix has no
+      // ground truth, and tuning it moved requirement 3 from 1/6 failing to
+      // 6/6 and back again without the game changing at all. The AI may be
+      // corrected where it DISAGREES WITH THE RULES; it may not be tuned until
+      // the tests go green. See NEXT-STEPS §17.
       w = 1.5;
       if (woundedAllies > 0) w += 2 * woundedAllies;
       if (selfHurt) w += 1.5;

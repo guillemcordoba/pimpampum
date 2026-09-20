@@ -204,10 +204,16 @@ describe('balancer v3: the solver hits the requested difficulty', () => {
     // it, so the two could disagree. What matters is that a miss is OWNED:
     // the accuracy of solves across compositions is what the difficulty block
     // above measures, on eight of them rather than on this one.
+    // A miss is OWNED by any of the three flags. `clamped` means the solver ran
+    // out of PV, which is already an honest report — `searchMissed` is
+    // explicitly the case none of the others covers, so demanding it alone (as
+    // this did) fails a solve that DID own up, just through a different flag.
+    // The sibling test above had this right and this one did not.
     const off = Math.abs(solved.missBy) > Math.max(SOLVE_MISS_EPSILON, 2 * solved.stderr);
+    const owned = solved.clamped || solved.durationCapped || solved.searchMissed;
     expect(
-      !off || solved.searchMissed,
-      `asked 50%, achieved ${(100 * solved.predictedWinrate).toFixed(0)}% and reported it as a hit`,
+      !off || owned,
+      `asked 50%, achieved ${(100 * solved.predictedWinrate).toFixed(0)}% and every flag is false`,
     ).toBe(true);
   });
 

@@ -130,7 +130,7 @@ export const BERSERK: SkillDefinition = {
     }),
     action({
       id: 'cop-d-espatlla', name: "Cop d'espatlla", skillId: 'berserk',
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 8),
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6),
       effects: [{ type: 'buff_on_block', params: { kind: 'attack', amount: 2, duration: 'nextTurn' } }],
       desc: 'Si bloqueges un atac, {A}+2 el proper torn.',
       icon: 'delapouite/shield-bash.svg',

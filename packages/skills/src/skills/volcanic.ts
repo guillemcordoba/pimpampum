@@ -149,7 +149,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 8),
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(2, 6),
       effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
       desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
       icon: 'lorc/crystalize.svg',
