@@ -47,10 +47,6 @@ export type WarmJob =
      *  parallelises: a whole-matrix job would pin a level to a single core, and
      *  the level sweep is the dominant cost. */
     cellIdx: number;
-    /** Card id the subject does NOT hold — an ABLATION cell. It is part of the
-     *  cache key, so leaving it off this type would have every ablation warm
-     *  the full kit's cell instead and then miss, silently, in the run. */
-    without?: string;
   };
 
 /** Leave a couple of cores for the machine; more children than cores just adds

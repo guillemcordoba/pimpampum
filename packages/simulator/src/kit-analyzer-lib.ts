@@ -33,9 +33,11 @@
  *     (`bench/cells.ts`): random cards, or restricted to attacks / defenses /
  *     focus while still thinking as hard as ever inside that space, plus "one
  *     seat repeats a single card" per card. The best of them is the bar.
- *  4/5. WHICH CARDS CARRY THE KIT — LEAVE-ONE-OUT ABLATION. It certifies a card
- *     ALIVE and cannot certify one DEAD; the floor is measured and the seat's
- *     whole budget is only ~4× it (§17.5). Play the kit; play it
+ *  4/5. WHICH CARDS THE GAME WANTS PLAYED — per-decision counterfactual value
+ *     (`bench/regret.ts`, §18). A card clearly less often the best play than
+ *     chance alone would make it is dead — and since nothing here costs
+ *     anything to play or gates a replay, never worth playing is never worth
+ *     holding. Play the kit; play it
  *     again with one card physically removed from the hand; subtract. A card
  *     whose removal costs the kit nothing is dead; a card whose removal IMPROVES
  *     the kit is a trap. This replaced "how often did the AI pick it", which
@@ -76,7 +78,7 @@ import {
   ENEMY_DEFINITIONS, fullKitLevel, getEnemy, simulateEncounter, solveEncounter,
   type FieldedGroup,
 } from '@pimpampum/enemies';
-import { MAIN_KITS, hero, heroWithout } from './bench/reference.js';
+import { MAIN_KITS, hero } from './bench/reference.js';
 import {
   FAIR, SATURATION, SHAPES, calibrationParty, saturatedCells, solveShape, usableCells,
   type Cell,
@@ -84,9 +86,9 @@ import {
 import {
   RESTRICTED_POLICIES, THOUGHTLESS_POLICIES, cellKey, cellResult, runMatrix,
   type CellPolicy, type CellSetup, type MatrixResult,
-  pairedMatrixDelta,
 } from './bench/cells.js';
-import { deltaPP, deltaStderr, gamesFor, maxOfKBias, pct, pp, share, stderr } from './bench/report.js';
+import { DEFAULT_REGRET, measureKit, scoreCards, type CardScore } from './bench/regret.js';
+import { deltaPP, deltaStderr, exact, gamesFor, maxOfKBias, pct, share, stderr } from './bench/report.js';
 import { games, SMOKE } from './bench/games.js';
 import { cacheStatus, enemyPrint, skillPrint } from './bench/cache.js';
 
@@ -102,12 +104,9 @@ export interface Subject {
 }
 
 /** The subject at `level` in seat 1, with the given company at full kit. */
-function partyWith(skillId: string, level: number, companyIdx: number, without?: string): PartySpec {
+function partyWith(skillId: string, level: number, companyIdx: number): PartySpec {
   const base = calibrationParty(companyIdx).characters!;
-  const subject = without
-    ? heroWithout('Subjecte', skillId, level, without)
-    : hero('Subjecte', skillId, level);
-  return { characters: [subject, ...base.slice(1)] };
+  return { characters: [hero('Subjecte', skillId, level), ...base.slice(1)] };
 }
 
 // --- Enemy mode gets calibrated too -----------------------------------------
@@ -178,17 +177,11 @@ function calibrationRowCount(): number {
 
 /** Build the party and opposition for one cell. The ONLY thing the two modes
  *  differ by. */
-/**
- * How a subject is fielded at a level — and, optionally, WITHOUT one of its
- * cards (the leave-one-out ablation; see `heroWithout`).
- *
- * The opposition is untouched by `without`: the whole claim is that this side
- * lost one option and nothing else moved.
- */
-export function setupFor(subject: Subject, level: number, without?: string): (cell: Cell) => CellSetup {
+/** How a subject is fielded at a level. */
+export function setupFor(subject: Subject, level: number): (cell: Cell) => CellSetup {
   if (subject.mode === 'player') {
     return cell => ({
-      party: partyWith(subject.id, level, cell.companyIdx, without),
+      party: partyWith(subject.id, level, cell.companyIdx),
       enemies: solveShape(SHAPES[cell.shapeIdx]).groups,
       subjectTeam: 0,
     });
@@ -196,53 +189,39 @@ export function setupFor(subject: Subject, level: number, without?: string): (ce
   const shape = enemyShape(subject);
   return cell => ({
     party: calibrationParty(cell.companyIdx),
-    // PV is held at the value solved for the FULL kit. An ablated creature
-    // re-solved to the same target winrate would simply grow PV until the
-    // missing card stopped mattering, and every card would price at zero.
-    enemies: shape.groups.map(g => ({ ...g, level, without: without ? [without] : undefined })),
+    enemies: shape.groups.map(g => ({ ...g, level })),
     subjectTeam: 1,
   });
 }
 
+/** The cards a subject holds at full kit. Shared, so `card-value.ts` and the
+ *  report card cannot disagree about what a kit even contains. */
+export function cardsOf(subject: Subject): ActionDefinition[] {
+  return subject.mode === 'player'
+    ? ALL_SKILLS.find(s => s.id === subject.id)!.actions
+    : getEnemy(subject.id)!.skills.flatMap(s => s.actions);
+}
+
 /** The cells a subject is measured in. */
-function cellsFor(subject: Subject): Cell[] {
+export function cellsFor(subject: Subject): Cell[] {
   return subject.mode === 'player' ? usableCells() : enemyShape(subject).cells;
 }
 
 export interface Verdict {
   ok: boolean;
   detail: string;
-  /** The requirement could not be TESTED, as opposed to passed. A ✅ that means
-   *  "we could not check" is a lie the summary table tells at a glance, and
-   *  requirement 4/5 is in exactly that position: see `DETECTION_FLOOR`. */
+  /** The requirement could not be TESTED, as opposed to passed. A ✅ meaning
+   *  "we could not check" is a lie the summary table tells at a glance. */
   inconclusive?: boolean;
 }
 
 /**
- * What one card is worth to its kit, by leave-one-out ablation.
- *
- * Carried on the report rather than folded into the verdict string because the
- * DISTRIBUTION is the finding: a kit whose cards are worth +8/+7/+6/+5 and one
- * whose cards are worth +24/+1/+0/+0 both pass the dead-card check, and they
- * are not the same kit.
+ * How many fights the per-decision valuation gets, derived from the analyzer's
+ * own budget so one `--games` scales everything. A quarter, because every
+ * DECISION is an observation here and every FIGHT was one there.
  */
-export interface CardValue {
-  id: string;
-  name: string;
-  /** winrate(kit) − winrate(kit without this card). */
-  value: number;
-  /** 1σ on that difference. */
-  stderr: number;
-  /** Turns the card was legal / chosen, in the FULL-kit arm. Explanation for a
-   *  value, never the verdict behind it. */
-  legal: number;
-  played: number;
-  /** Worst and best cell for this card, in winrate points. A card can be worth
-   *  nothing on average and decide two matchups in opposite directions, and
-   *  that is a design fact rather than noise — it is what a KIT having bad
-   *  matchups looks like, one card at a time. */
-  worst: { label: string; diff: number };
-  best: { label: string; diff: number };
+function cardValueGames(games: number): number {
+  return Math.max(SMOKE ? 2 : 12, Math.round(games / 4));
 }
 
 export interface KitReport {
@@ -251,8 +230,8 @@ export interface KitReport {
   levels: { level: number; run: MatrixResult }[];
   monotonicity: Verdict;
   duration: Verdict;
-  /** Per-card ablation values, strongest first. */
-  cardValues: CardValue[];
+  /** Per-card value, strongest first (`bench/regret.ts`). */
+  cardValues: CardScore[];
   spam: Verdict;
   strategySpace: Verdict;
   oneTrick: Verdict;
@@ -342,77 +321,6 @@ const MINDLESS_GAMES = Math.max(300, gamesFor(MINDLESS_MARGIN * 100));
  * shape the balancer uses for exactly this reason.
  */
 const BASELINE_SCREEN_FRACTION = 0.5;
-/**
- * WHAT A CARD IS WORTH — and why this is no longer a play rate.
- *
- * Requirement 4/5 used to read "how often was this card chosen out of the turns
- * it was legal", with a dead line near 1/N. That question has the AI judging
- * the card, and the AI is a hand-written evaluator: the same eleven cards read
- * DEAD, then ALIVE, then dead again across three sessions in which not one die
- * changed. A measurement whose verdict tracks an evaluator constant is
- * measuring the evaluator.
- *
- * So the question is now LEAVE-ONE-OUT: build the kit, build it again with this
- * card physically absent (`heroWithout`), play both over the same matrix on the
- * same dice, and subtract.
- *
- *   value(C) = winrate(kit) − winrate(kit without C)
- *
- * WHAT THIS IS AND IS NOT ROBUST TO. A play rate is a function of the
- * EVALUATOR'S RANKING: edit one `aiWeight` and it moves to whatever you like,
- * which is how `Aguantar el cop` went from dead to alive at 0.6 → 1.1. An
- * ablation is a function of GAME OUTCOMES: if the AI plays a card more and the
- * winrate does not move, the card is doing nothing WHEN PLAYED, and no constant
- * can fake that. That is the robustness being bought, and it is real.
- *
- * But the AI is still playing both arms, so read the sign carefully:
- *
- *  - value > 0 → a LOWER BOUND on what the card is worth, and the one claim
- *    here that holds for a better player too. A larger choice set can never hurt
- *    someone who plays it optimally, so anyone who plays at least this well gets
- *    at least this much from the card.
- *  - value ≈ 0 → THIS AI gains nothing from holding it. The weaker claim, and
- *    the one requirement 4/5 fails on: a stronger player might still find a use,
- *    but nothing in the harness can see it, and a card whose entire value is
- *    invisible to a round of lookahead is a card to go and look at.
- *  - value < 0 → the AI plays WORSE for holding the card, which an optimal
- *    player never would: you can always ignore a card. So this is not evidence
- *    against the CARD, it is evidence that the AI is drawn to it wrongly — or
- *    that it is a genuine trap option, tempting and bad, which a human would
- *    fall for too. The harness cannot tell those apart, so it FLAGS this rather
- *    than failing the kit, the same way requirement 7 flags a confounded
- *    correlation.
- *
- * KNOWN WEAKNESS, and it is structural rather than a bug: leave-one-out is
- * SUB-ADDITIVE. Two cards that do the same job cover for each other, so each
- * ablates to nearly nothing and the pair reads dead while the function they
- * share is load-bearing. Read a dead verdict as "nothing here needs THIS card",
- * never as "this card does nothing". The level sweep (requirement 1) is the
- * complement — it removes cards in prefixes, so redundancy cannot hide there.
- */
-/**
- * THE INSTRUMENT'S NOISE FLOOR — measured, not argued (NEXT-STEPS §17.5).
- *
- * This constant was first set at 2pp from two soft arguments, and the arguments
- * were wrong. The floor was then MEASURED, by running the same kit against
- * itself on fresh dice nine times — a comparison whose true answer is zero by
- * construction:
- *
- *   -3.0  -1.2  +0.1  |  +0.5  +1.3  +0.1  |  -0.6  -0.6  -0.5
- *
- * So ±3pp is what this harness reports when nothing is there, and one of the
- * nine excluded zero at 2σ where 1-in-20 was expected — the paired estimator's
- * eleven degrees of freedom make its bars slightly optimistic. A value under
- * this floor is not a small finding, it is not a finding.
- *
- * READ IT WITH THE CEILING (§17.5): stripping a subject's WHOLE kit is worth
- * ~11pp, so an evenly balanced 5-card kit puts ~2.2pp on each card — under the
- * floor. That is why nothing here can certify a card DEAD: the instrument
- * cannot tell a well-balanced kit from a kit of nothings, and no threshold
- * fixes that. It can only certify a card ALIVE.
- */
-const DETECTION_FLOOR = 0.03;
-
 /**
  * Cards this harness CANNOT judge, and why.
  *
@@ -578,65 +486,46 @@ export function analyze(subject: Subject, games: number): KitReport {
       : 'sense cartes per provar',
   };
 
-  // 4/5. LEAVE-ONE-OUT ABLATION: is the kit worse without each card?
+  // 4/5. WHICH CARDS THE GAME ACTUALLY WANTS PLAYED (NEXT-STEPS §18).
   //
-  // Same cells, same games, same seed offset as the full-kit run above, so the
-  // two arms meet the same dice and differ by one card. The baselines cancel in
-  // the subtraction, so this is read on raw winrates.
-  const carries: string[] = [];
-  const unresolved: string[] = [];
-  const harmful: string[] = [];
+  // This was a leave-one-out ablation until it was calibrated (§17.5) and found
+  // to be underpowered by construction: a whole kit in one seat is worth ~11pp
+  // against a ~3pp noise floor, so an evenly balanced 5-card kit has every card
+  // under the floor. It is now measured AT THE DECISION — force each legal card
+  // from a position both branches share exactly, play the fight out, subtract.
+  // 29 of 29 cards resolve where 7 did, at a fraction of the cost.
+  const kitValues = measureKit(cells, setupFor(subject, maxLevel), cardValueGames(games), DEFAULT_REGRET);
+  const scored = scoreCards(kitValues);
+  const byId = new Map(scored.map(v => [v.id, v]));
+
+  const dead: string[] = [];
+  const unjudged: string[] = [];
   const blind: string[] = [];
-  const values: CardValue[] = [];
+  const values: CardScore[] = [];
   for (const c of cards) {
     if (c.unlockLevel > maxLevel) continue;
     if (AI_BLIND_CARDS[c.id]) { blind.push(c.name); continue; }
-    const run = runMatrix(cells, setupFor(subject, maxLevel, c.id), games, 'policy', 0,
-      subjectPrintFor(subject, maxLevel, c.id));
-    // PAIRED, per cell. The two arms met the same cells from the same seeds, so
-    // the between-cell spread — tens of points — cancels rather than being
-    // counted twice. Treating them as independent puts a ±2.9pp bar around an
-    // effect of one card in a four-seat party, which is wider than any card is
-    // worth, and every verdict would be decided by noise.
-    const paired = pairedMatrixDelta(top, run);
-    const { delta: value, stderr: se } = paired;
-    const ranked = [...paired.byCell].sort((a, b) => a.diff - b.diff);
-    // Play rate is no longer the verdict, but it is the best available
-    // EXPLANATION of one: a card worth nothing and never played is a card the
-    // kit does not need, while a card worth nothing and played constantly is a
-    // card something else already covers.
-    const legal = top.counters.legal[c.id] ?? 0;
-    const played = top.counters.played[c.id] ?? 0;
-    values.push({
-      id: c.id, name: c.name, value, stderr: se, legal, played,
-      worst: ranked[0], best: ranked[ranked.length - 1],
-    });
-    const shown = `${c.name} ${pp(value)}±${(se * 200).toFixed(1)}${legal ? ` (jugada ${share(played, legal).trim()})` : ''}`;
-    // CERTIFIED ALIVE: the interval excludes zero AND the point estimate clears
-    // the measured floor. Both are needed — the bars are known to run slightly
-    // tight, so the floor is the backstop.
-    if (value - 2 * se > 0 && value >= DETECTION_FLOOR) carries.push(shown);
-    else if (value + 2 * se < -DETECTION_FLOOR) harmful.push(shown);
-    else unresolved.push(shown);
+    const v = byId.get(c.id);
+    if (!v) { unjudged.push(`${c.name} (mai legal)`); continue; }
+    values.push(v);
+    const shown = `${c.name} ${v.value.toFixed(1)} PV · millor ${share(v.bestShare * v.observations, v.observations).trim()} vs atzar ${exact(v.nullShare)}`;
+    // THE VERDICT IS THE ABSOLUTE STATISTIC ONLY. `value` ranks a card against
+    // the rest of its hand and those values sum to ~zero by arithmetic, so
+    // failing on it would flag half of every kit no matter how good the kit is.
+    // "Was it ever the right play" does not have that problem: a card clearly
+    // under the share chance alone would hand it is one the game never wants
+    // played, and since nothing in these rules costs anything to play or gates
+    // a replay, a card never worth playing is a card not worth holding.
+    if (v.bestShare + 2 * v.bestStderr < v.nullShare) dead.push(shown);
   }
   values.sort((a, b) => b.value - a.value);
   const cardUse: Verdict = {
-    // WHAT THIS CAN AND CANNOT CONCLUDE (§17.5). It can certify a card ALIVE: a
-    // positive value is a lower bound that survives a better player, since a
-    // larger choice set never hurts optimal play. It CANNOT certify one dead —
-    // the whole seat is worth ~11pp and the floor is 3pp, so a perfectly even
-    // 5-card kit would have every card read "dead", and no threshold fixes
-    // that. So the only FAILURE available is a card certified actively harmful
-    // beyond the floor; everything else is reported, and the requirement is
-    // marked INCONCLUSIVE rather than passed, because a ✅ here would claim the
-    // kit was checked for dead cards when it cannot be.
-    ok: harmful.length === 0,
-    inconclusive: harmful.length === 0,
+    ok: dead.length === 0,
     detail: [
-      harmful.length ? `FAN MAL (per sota del terra de soroll): ${harmful.join(', ')}` : '',
-      carries.length ? `sostenen el kit (≥${pp(DETECTION_FLOOR)}, interval sense el zero): ${carries.join(', ')}` : 'CAP carta supera el terra de soroll',
-      unresolved.length ? `no resoltes (per sota de ±${pp(DETECTION_FLOOR)}, el terra mesurat): ${unresolved.join(', ')}` : '',
+      dead.length ? `MORTES (mai són la millor jugada): ${dead.join(', ')}` : 'cap carta per sota del que donaria l\'atzar',
+      unjudged.length ? `sense mostra: ${unjudged.join(', ')}` : '',
       blind.length ? `no mesurables per la IA: ${blind.join(', ')}` : '',
+      `[${kitValues.positions} decisions en ${kitValues.fights} combats]`,
     ].filter(Boolean).join(' · '),
   };
 
@@ -676,7 +565,6 @@ export function analyze(subject: Subject, games: number): KitReport {
 export function warmMatrix(job: {
   mode: 'player' | 'enemy'; id: string; count?: number;
   level: number; games: number; policy: string; seedOffset: number; cellIdx: number;
-  without?: string;
 }): void {
   const subject: Subject = { mode: job.mode, id: job.id, count: job.count };
   const cells = cellsFor(subject);
@@ -687,26 +575,25 @@ export function warmMatrix(job: {
     : (job.policy as CellPolicy);
   const perCell = Math.max(SMOKE ? 1 : 10, Math.round(job.games / cells.length));
   cellResult(
-    () => setupFor(subject, job.level, job.without)(cell), cell, perCell, policy, job.seedOffset,
-    cellKey(subjectPrintFor(subject, job.level, job.without), cell, perCell, policy, job.seedOffset),
+    () => setupFor(subject, job.level)(cell), cell, perCell, policy, job.seedOffset,
+    cellKey(subjectPrintFor(subject, job.level), cell, perCell, policy, job.seedOffset),
   );
 }
 
 /** The subject half of a cell key. Shared so the warmer and the real run
  *  cannot address the same measurement differently — a warmer that keyed
  *  differently would fill the cache with entries nothing ever reads. */
-export function subjectPrintFor(subject: Subject, level: number, without?: string): string {
+export function subjectPrintFor(subject: Subject, level: number): string {
   const base = subject.mode === 'player'
     ? skillPrint(subject.id)
     : `${enemyPrint(subject.id)}:${subject.count}:${enemyShape(subject).pv}`;
-  return `${base}@L${level}${without ? `-${without}` : ''}`;
+  return `${base}@L${level}`;
 }
 
 /** Every matrix run `analyze` will ask for, so they can be warmed up front. */
 export function warmJobsFor(subject: Subject, games: number): {
   mode: 'player' | 'enemy'; id: string; count?: number;
   level: number; games: number; policy: string; seedOffset: number; cellIdx: number;
-  without?: string;
 }[] {
   const cards = subject.mode === 'player'
     ? ALL_SKILLS.find(s => s.id === subject.id)!.actions
@@ -728,16 +615,6 @@ export function warmJobsFor(subject: Subject, games: number): {
   for (const c of cards) {
     if (c.unlockLevel > maxLevel) continue;
     for (const cellIdx of cellIdxs) jobs.push({ ...base, level: maxLevel, games: screenGames, policy: `one:${c.id}`, seedOffset: 0, cellIdx });
-  }
-  // The ablations: one full-kit run per card, with that card gone. Same games
-  // and same seed offset as the level sweep's top row, because that row is what
-  // each of them is subtracted from and the two must meet the same dice.
-  for (const c of cards) {
-    if (c.unlockLevel > maxLevel) continue;
-    if (AI_BLIND_CARDS[c.id]) continue;
-    for (const cellIdx of cellIdxs) {
-      jobs.push({ ...base, level: maxLevel, games, policy: 'policy', seedOffset: 0, cellIdx, without: c.id });
-    }
   }
   // The verify pass cannot be warmed: which policy it re-measures is CHOSEN
   // from the screen above, so it is not known until that has run.

@@ -516,30 +516,20 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   sweeps every main kit). Per kit it reports level monotonicity under common
   random numbers, fight length (median/p90/draws), the attack-spam comparison
   (the subject side replayed with a "biggest attack always" chooser), per-card
-  value by **leave-one-out ablation**, and per-card win correlation. Its
+  value by **per-decision counterfactual**, and per-card win correlation. Its
   scenarios are the SOLVED shapes in `bench/shapes.ts`, so they re-price
   themselves rather than needing hand-calibration — and an out-of-band shape is
   dropped from the headline and reported loudly instead of averaged over.
-  **The dead-card verdict is an ABLATION, not a play rate**: the kit is played
-  again with one card physically absent from the hand (`heroWithout`, and
-  `EnemySpec.without` on the enemy side) and the winrates are subtracted, so
-  `value(C) = winrate(kit) − winrate(kit without C)`. Asking instead "did the AI
-  choose it" made the hand-written evaluator the judge of the content it exists
-  to serve — a play rate moves to whatever you like when one `aiWeight` moves,
-  and the same eleven cards read dead, then alive, then dead again across three
-  sessions in which no die changed. **The sign is asymmetric**: `value > 0` is a
-  LOWER BOUND that survives a better player (a bigger choice set never hurts
-  optimal play) and is the ONLY thing the harness can certify; `value < 0` means
-  the AI plays worse for holding the card, a finding about the AI rather than the
-  card. **It cannot certify a card DEAD**, and requirement 4/5 therefore reports
-  `➖` rather than `✅`: the noise floor was measured at ±3pp against a whole
-  seat worth only ~11pp, so an evenly balanced 5-card kit (~2.2pp a card) is
-  indistinguishable from a kit of nothings. NEXT-STEPS §17.5 has both control
-  runs; `DETECTION_FLOOR` carries the numbers. The known
-  weakness is sub-additivity: two cards doing one job cover for each other and
-  both ablate to nothing, so a dead verdict means "nothing needs THIS card",
-  never "this card does nothing" — the level sweep, which removes cards in
-  prefixes, is the complement.
+  **The dead-card verdict is a PER-DECISION COUNTERFACTUAL** (see
+  `card-value.ts` below), not a play rate and no longer an ablation. A card
+  clearly less often the best play than chance alone would make it is dead —
+  and since nothing in these rules costs anything to play or gates a replay, a
+  card never worth playing is a card not worth holding. Asking instead "did the
+  AI choose it" made the evaluator the judge of the content it exists to serve;
+  the same eleven cards read dead, then alive, then dead again across three
+  sessions in which no die changed. The leave-one-out ablation that replaced it
+  was honest but underpowered by construction (NEXT-STEPS §17.5) and has been
+  deleted.
 - `card-value.ts` + `bench/regret.ts` — **what a card is worth, measured at
   the decision rather than at the fight**. At a position where C is legal, the
   engine is CLONED once per legal card, that card is forced, the fight is played

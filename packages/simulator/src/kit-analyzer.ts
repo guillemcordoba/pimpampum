@@ -57,16 +57,20 @@ function printReport(r: KitReport): void {
   console.log(`  ${mark(r.spam)} 3. pensar bat qualsevol estratègia sense pensar — ${r.spam.detail}`);
   console.log(`  ${mark(r.strategySpace)} 3b. l'espai d'estratègia importa — ${r.strategySpace.detail}`);
   console.log(`  ${mark(r.oneTrick)} 3c. una sola carta repetida no basta — ${r.oneTrick.detail}`);
-  console.log(`  ${mark(r.cardUse)} 4/5. quines cartes sostenen el kit (ablació) — ${r.cardUse.detail}`);
+  console.log(`  ${mark(r.cardUse)} 4/5. cap carta morta (valor per decisió) — ${r.cardUse.detail}`);
   // The whole table, not just the failures: the SHAPE of a kit's card values is
   // the design finding, and a pass/fail line hides it. Printed once per kit,
   // strongest first, so a kit carried by one card is visible at a glance even
   // when every card clears the line.
+  const cardName = new Map(r.cards.map(c => [c.id, c.name]));
   for (const v of r.cardValues) {
+    // Two columns, two different claims. `valor` RANKS a card inside its own
+    // hand and the column sums to ~zero by arithmetic, so a negative entry
+    // means "worse than the other things available", never "bad card". "millor
+    // opció" against its own chance null is the one that can say dead.
     console.log(
-      `        ${v.name.padEnd(22)} ${pp(v.value).padStart(7)}±${(v.stderr * 200).toFixed(1).padStart(4)}`
-      + `   pitjor ${v.worst.label} ${pp(v.worst.diff, 0).padStart(6)}`
-      + ` · millor ${v.best.label} ${pp(v.best.diff, 0).padStart(6)}`,
+      `        ${(cardName.get(v.id) ?? v.id).padEnd(24)} ${v.value.toFixed(1).padStart(6)} PV`
+      + `   millor ${share(v.bestShare * v.observations, v.observations)} vs atzar ${exact(v.nullShare)}`,
     );
   }
   console.log(`  ${mark(r.correlation)} 7. cap carta correlaciona amb perdre — ${r.correlation.detail}`);

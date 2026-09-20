@@ -90,12 +90,27 @@ export interface PositionValues {
      *  check. PV differential is only worth using if it agrees with the thing
      *  it stands in for, and that has to be measured rather than assumed. */
     winValue: number;
-    /** Was this the best-scoring card at this position? The ABSOLUTE statistic:
-     *  `value` is relative to the rest of the hand and sums to ~zero across it,
-     *  so it can rank cards and can never call one dead. "Never the right
-     *  play" can. Its null is 1/k, not 0 — with k noisy candidates a card wins
-     *  by luck about one time in k. */
+    /**
+     * Was this the best-scoring card at this position? The ABSOLUTE statistic:
+     * `value` is relative to the rest of the hand and sums to ~zero across it,
+     * so it can rank cards and can never call one dead. "Never the right play"
+     * can.
+     *
+     * SHARED ON A TIE, so the values sum to exactly 1 across the hand and this
+     * is a probability rather than a count of ties. Giving every tied card a
+     * full 1 inflated the total to ~127% of positions.
+     */
     wasBest: number;
+    /**
+     * How many cards were on offer at this position — the card's OWN null.
+     *
+     * With k candidates scored on noisy rollouts, a card with no merit takes
+     * the top spot about one time in k. k varies by position (cards gate on
+     * targets, statuses and resources), so a single global 1/k is an average of
+     * a quantity that is never the same twice. Carried per observation so the
+     * null can be summed exactly instead of estimated.
+     */
+    candidates: number;
   }[];
   /** How many cards were on offer — `valueVsBest` is a max over this many
    *  noisy estimates, so the winner's curse scales with it. */
@@ -218,7 +233,9 @@ export function valuePosition(
       const mean = others.reduce((n, o) => n + o.score, 0) / others.length;
       const best = Math.max(...others.map(o => o.score));
       const wonMean = others.reduce((n, o) => n + o.won, 0) / others.length;
-      const isBest = b.score >= Math.max(...branches.map(o => o.score)) ? 1 : 0;
+      const top = Math.max(...branches.map(o => o.score));
+      const tied = branches.filter(o => o.score >= top).length;
+      const isBest = b.score >= top ? 1 / tied : 0;
       return {
         id: b.cardId,
         // AGAINST THE MEAN ALTERNATIVE is the headline, because it is
@@ -231,7 +248,145 @@ export function valuePosition(
         won: b.won,
         winValue: b.won - wonMean,
         wasBest: isBest,
+        candidates: branches.length,
       };
     }),
   };
+}
+
+// --- Running it over a whole kit ---------------------------------------------
+// ONE implementation, used by both the `card-value.ts` CLI and the kit
+// analyzer's requirement 4/5. The last time this package had two ways to
+// compute one measurement it had three, and they disagreed (`cells.ts`,
+// `instrument`). It takes a `setupFor` rather than importing the analyzer's,
+// so it stays content-agnostic and nothing here points back at the analyzer.
+
+import { buildReferenceParty } from '@pimpampum/skills';
+import { buildComposition } from '@pimpampum/enemies';
+import { REGISTRY } from './arena.js';
+import { CELL_AI, type CellSetup } from './cells.js';
+import { type Cell } from './shapes.js';
+import { setAIControlled as _setAI, lookaheadChooser as _look } from '@pimpampum/engine';
+
+/** Every observation of one card: what it was worth at a position, and which
+ *  FIGHT that position came from — positions inside a fight are not
+ *  independent, so the fight is the cluster the error bar is built on. */
+export interface CardObs {
+  value: number; winValue: number; wasBest: number; candidates: number; fight: number;
+}
+
+export interface KitValues {
+  byCard: Map<string, CardObs[]>;
+  positions: number;
+  fights: number;
+}
+
+/** Base seed. Fixed, so two runs of this over unchanged content agree. */
+export const REGRET_SEED = 909_000;
+
+/**
+ * Play fights across the cells and price the subject's whole hand at every
+ * decision it faces.
+ *
+ * The REAL fight is played by the real policy, so the positions visited are the
+ * ones the game actually reaches; only the counterfactual branches roll out
+ * cheaply. That asymmetry is deliberate — the question is what a card is worth
+ * in play, not in a position nobody would be in.
+ */
+export function measureKit(
+  cells: Cell[],
+  setupFor: (cell: Cell) => CellSetup,
+  games: number,
+  opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET,
+): KitValues {
+  const byCard = new Map<string, CardObs[]>();
+  const per = Math.max(1, Math.round(games / Math.max(1, cells.length)));
+  let positions = 0, fights = 0;
+
+  for (const cell of cells) {
+    const setup = setupFor(cell);
+    withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
+      for (let g = 0; g < per; g++) {
+        const players = buildReferenceParty(setup.party);
+        _setAI(players);
+        const engine = new CombatEngine(players, buildComposition(setup.enemies), {
+          registry: REGISTRY, maxRounds: 40, actionChooser: _look(CELL_AI),
+        });
+        const subject = engine.teams[setup.subjectTeam][0];
+        const fight = fights++;
+        let guard = 0;
+        while (!engine.isOver() && engine.round < engine.maxRounds && guard++ < 40) {
+          if (subject?.isAlive()) {
+            const priced = valuePosition(engine, subject, { ...opts, team: setup.subjectTeam });
+            if (priced) {
+              positions++;
+              for (const c of priced.cards) {
+                const list = byCard.get(c.id) ?? [];
+                list.push({
+                  value: c.value, winValue: c.winValue,
+                  wasBest: c.wasBest, candidates: c.candidates, fight,
+                });
+                byCard.set(c.id, list);
+              }
+            }
+          }
+          engine.runRound();
+        }
+      }
+    });
+  }
+  return { byCard, positions, fights };
+}
+
+/**
+ * 1σ CLUSTERED BY FIGHT. Positions inside one combat share its dice, its
+ * seating and its whole history, so treating them as independent divides the
+ * error by the root of a number far larger than the real one. The cluster is
+ * the fight; the observation is its mean.
+ */
+export function clusteredStderr(
+  obs: CardObs[], pick: (o: CardObs) => number = o => o.value,
+): { mean: number; stderr: number; clusters: number } {
+  const byFight = new Map<number, number[]>();
+  for (const o of obs) byFight.set(o.fight, [...(byFight.get(o.fight) ?? []), pick(o)]);
+  const means = [...byFight.values()].map(v => v.reduce((a, b) => a + b, 0) / v.length);
+  const n = means.length;
+  const mean = means.reduce((a, b) => a + b, 0) / Math.max(1, n);
+  if (n < 2) return { mean, stderr: Infinity, clusters: n };
+  const variance = means.reduce((s, m) => s + (m - mean) ** 2, 0) / (n - 1);
+  return { mean, stderr: Math.sqrt(variance / n), clusters: n };
+}
+
+/** One card's verdict-ready summary. */
+export interface CardScore {
+  id: string;
+  /** Mean value against the average alternative — a RANKING within the hand,
+   *  summing to ~zero across it. Never a verdict on its own. */
+  value: number;
+  stderr: number;
+  /** Share of positions where it was the best play, and what chance alone
+   *  would have given it. The ABSOLUTE statistic: clearly under its own null
+   *  means the game never wants it played. */
+  bestShare: number;
+  nullShare: number;
+  bestStderr: number;
+  /** The same value on win probability — the surrogate check. */
+  winValue: number;
+  observations: number;
+}
+
+export function scoreCards(kit: KitValues): CardScore[] {
+  const out: CardScore[] = [];
+  for (const [id, list] of kit.byCard) {
+    const v = clusteredStderr(list);
+    const w = clusteredStderr(list, o => o.winValue);
+    const b = clusteredStderr(list, o => o.wasBest);
+    out.push({
+      id, value: v.mean, stderr: v.stderr,
+      bestShare: b.mean, bestStderr: b.stderr,
+      nullShare: list.reduce((a, o) => a + 1 / o.candidates, 0) / list.length,
+      winValue: w.mean, observations: list.length,
+    });
+  }
+  return out.sort((a, b) => b.value - a.value);
 }

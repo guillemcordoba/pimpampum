@@ -1393,3 +1393,69 @@ instrument is new, §17 was wrong twice before it was calibrated, and this one
 has had exactly one calibration (the ρ check) rather than the two §17.5 got. A
 positive control — force a card known to be worthless and confirm it prices
 near the bottom — is still owed before any card is redesigned on these numbers.
+
+### 18.5 Wired in, and the ablation deleted (2026-09-20)
+
+Requirement 4/5 now READS the per-decision measure and can pass or fail again —
+it spent one session reporting `➖` because the ablation could not support any
+verdict. The ablation machinery is deleted outright, not merely unwired:
+`heroWithout`, `pairedMatrixDelta`, `EnemySpec.without`, `FieldedGroup.without`
+and the `without` plumbing through `setupFor` / `subjectPrintFor` / `warmJobsFor`
+/ `WarmJob` all existed for it and nothing else. §17.5 and §17.6 are the durable
+artifact; the machinery was scaffolding (CLAUDE.md).
+
+**Its exit contribution was the independent cross-check** — the second
+validation §18.4 said was owed, and the only thing that could provide it:
+
+```
+Enginyer ρ=0.80   M.Armes ρ=0.80   Nigromant ρ=0.49
+Berserk  ρ=0.60   Earthbender ρ=1.00   Volcànica ρ=0.10     mean 0.63
+```
+
+**The top card agrees on 5 of 6 kits.** Enginyer's exception is Granada/Traca —
+the top two under both, merely swapped, and the ablation never resolved Granada.
+The low ρ sit exactly where the ablation had no power: below its floor its
+ordering *is* noise, so disagreement there is the ablation being random. Where
+it had its clearest signal, Earthbender, ρ=1.00.
+
+### 18.6 The two-sided control (`tests/card-value.test.ts`)
+
+Not a script — a TEST, because "is the instrument still calibrated?" is a
+standing question and an executable claim is what CLAUDE.md asks for. Two cards
+whose value is known without measuring anything are injected into a real hand:
+
+- **NO-OP** — a Focus with no dice and no effects. Forfeits the turn.
+- **OVERWHELMING** — 20d6 against every enemy, at speed 9. Ends the fight.
+
+If the no-op is not last and the 20d6 not first, every number the instrument has
+printed is worthless.
+
+**Both near-misses were worth more than a passing test.**
+
+1. `unlockLevel: 1` on a skill nobody has a level in made both controls silently
+   ILLEGAL (`actionPlayable` gates on `skills.get(skillId) >= unlockLevel`). The
+   first run happily priced the real kit and never mentioned the controls were
+   absent — hence the "prices every card it was given" assertion.
+2. With `targetCount` left at 1, the 20d6 priced **SECOND**, behind Contraatac.
+   **The instrument was right and the control was wrong**: the solved horde is
+   eight goblins at ONE PV, so a 70-point swing at one of them throws 69 points
+   away, while a defense that guards against eight attackers is worth a lot.
+   *Overkill is not power.*
+
+### 18.7 Verdict shape, and two statistics that are not redundant
+
+The verdict is the ABSOLUTE statistic only: `bestShare + 2σ < nullShare`.
+
+`value` cannot be a verdict — it is a card's score minus the mean of its
+alternatives, so across a hand the values **sum to ~zero by arithmetic** and
+failing on it would flag half of every kit however well designed. The null for
+`bestShare` is each card's **own**, summed as `mean(1/k)` over the positions it
+actually faced, because k moves position to position as cards gate on targets
+and statuses; ties are **shared**, so the shares sum to 1 rather than inflating
+to ~127%.
+
+They are not redundant. Earthbender's `Mur de pedra` is rarely the single best
+play (19.4% against a 20% null) yet clearly above its hand's average (+2.7 PV):
+a solid default that is seldom the sharpest choice. `Presó de terra` is both
+below its null (10.9% ±0.8 vs 20%) and far below the hand average (−8.1 PV),
+which is what a dead card looks like on both axes.
