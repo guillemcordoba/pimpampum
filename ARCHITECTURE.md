@@ -83,7 +83,19 @@ whole pool twice), `modifyOutgoingDamage`, `modifyIncomingDamage`,
 content-side save contests route through `EngineApi.adjustContestTotal`),
 `clampPvLoss`, `attackRollAgainstHolder`, `preventsGuard`, `blocksActionType`,
 `untargetable`, `ignoresConcealment`, `preventsGuardBypass`, `absorbsGuard`,
-`cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`.
+`cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`, `positionValue`.
+
+**`positionValue` (2026-09-20)** deserves its own note: it is what a status is
+WORTH to its holder, in the same unit as `positionScore`'s PV term, and it
+exists because the lookahead's leaf evaluator could only see PV, bodies and
+fatigue. Anything that did not immediately move one of those — a wall not yet
+breached, an enemy who cannot act, a set-up being held, rot that has not ticked
+— scored exactly zero, so the search never chose it. Measured: eleven cards
+across six kits under 3% of the turns they were legal, nearly all of them
+control, prevention or set-up. Keep estimates CONSERVATIVE; a status that
+over-values itself gets played to the exclusion of everything else, which is
+the same failure in the other direction (a first pass at double the value had
+Presó de terra correlating with losing).
 
 **Engine hooks** — `onAttackAction`, `redirectAttackTarget`,
 `onEnemyAttackAction` (hazards/traps), `attackRepeats`,
