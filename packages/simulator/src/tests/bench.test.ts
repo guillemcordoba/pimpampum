@@ -28,7 +28,6 @@ import { ALL_SKILLS } from '@pimpampum/skills';
 import {
   MINDLESS_MARGIN, MINDLESS_GAMES, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, ONE_TRICK_GAMES,
 } from '../kit-analyzer-lib.js';
-import { gamesFor } from '../bench/report.js';
 import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -395,19 +394,29 @@ describe('a card is judged by what it does, not by the AI picking it', () => {
     ).toBe(true);
   });
 
-  it("the null is each card's own, not one number for the kit", () => {
+  it("the null is each card's own, and self-calibrating", () => {
     // k is how many cards were on offer AT THAT POSITION, and it moves as cards
-    // gate on targets, statuses and resources. One kit-wide 1/k averages a
-    // quantity that is never the same twice.
-    expect(/1 \/ o\.candidates/.test(regret) || /1 \/ [a-z]+\.candidates/.test(regret),
-      "the chance null must be summed per observation as 1/candidates").toBe(true);
+    // gate on targets, statuses and resources. A flat kit-wide 1/k averages a
+    // quantity that is never the same twice — and it is also WRONG whenever
+    // more than one card can reach the top: ties are credited in full, so with
+    // 1.5 cards tying on a four-card hand, 1/k understates what chance hands
+    // out by half again and the line is too low to catch anything.
+    expect(
+      /o\.topCount \/ o\.candidates/.test(regret),
+      'the chance null must be summed per observation as topCount/candidates: if m of k cards '
+      + 'reach the top, a card picked at random is among them with probability m/k.',
+    ).toBe(true);
   });
 
-  it('shares a tie rather than counting it twice', () => {
+  it('drops positions where every card scores the same', () => {
+    // Once the outcome is settled every branch plays to the same board and all
+    // candidates tie, so each would collect 1/k from a position that said
+    // nothing — and 1/k is exactly the chance null every card is tested
+    // against. Decided positions drag every card toward the line.
     expect(
-      /1 \/ tied/.test(regret),
-      'a tie for best must be SHARED, so the shares sum to 1 across a hand and "best share" is a '
-      + 'probability. Giving every tied card a full 1 inflated the total to ~127% of positions.',
+      /top === bottom/.test(regret),
+      'positions where all candidates score identically must be dropped: they are not decisions, '
+      + 'and they pull every best-share toward its own null.',
     ).toBe(true);
   });
 

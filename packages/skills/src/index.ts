@@ -1,7 +1,7 @@
 // Skills + actions
 export {
   ALL_SKILLS, PLAYER_SKILLS, getSkill,
-  ALL_ACTIONS, getAction, unlockedActions,
+  ALL_ACTIONS, getAction, unlockedActions, registerSkill, unregisterSkill,
 } from './catalog.js';
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';

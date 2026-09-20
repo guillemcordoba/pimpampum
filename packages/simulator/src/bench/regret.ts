@@ -96,20 +96,25 @@ export interface PositionValues {
      * so it can rank cards and can never call one dead. "Never the right play"
      * can.
      *
-     * SHARED ON A TIE, so the values sum to exactly 1 across the hand and this
-     * is a probability rather than a count of ties. Giving every tied card a
-     * full 1 inflated the total to ~127% of positions.
+     * Credited IN FULL to every card that reaches the top, not shared: the
+     * question is whether the card is ever a right play, and a card tying for
+     * best is. See the note at the computation.
      */
     wasBest: number;
     /**
-     * How many cards were on offer at this position — the card's OWN null.
+     * How many cards were credited at the top HERE, and out of how many.
      *
-     * With k candidates scored on noisy rollouts, a card with no merit takes
-     * the top spot about one time in k. k varies by position (cards gate on
-     * targets, statuses and resources), so a single global 1/k is an average of
-     * a quantity that is never the same twice. Carried per observation so the
-     * null can be summed exactly instead of estimated.
+     * These give the card's own chance null: if m of k cards reach the top at a
+     * position, a card picked at random is among them with probability m/k. A
+     * flat 1/k is only right when exactly one card can win, and ties are
+     * credited in full — so with m averaging 1.5 on a four-card hand, 1/k
+     * understates what chance alone hands out by half again, and every card
+     * gets compared to a line that is too low to catch anything.
+     *
+     * Computed rather than assumed, so the null stays correct if the tie rule
+     * ever changes again.
      */
+    topCount: number;
     candidates: number;
   }[];
   /** How many cards were on offer — `valueVsBest` is a max over this many
@@ -136,13 +141,27 @@ export interface RegretOptions {
    * cleaned up to remove.
    */
   rolloutDepth: number;
-  /** Playouts averaged per candidate card at a position. */
+  /**
+   * Playouts averaged per candidate card at a position.
+   *
+   * SET BY A CONTROL, not by taste. `wasBest` asks which card topped a
+   * position, so it needs the ranking WITHIN that position to be reliable —
+   * and a noisy score lets a worthless card take the top spot by luck, which
+   * drags its share up toward the 1/k null it is tested against. At 2 samples
+   * a card that does literally nothing (`bench/control-kits.ts`) scored 21.2%
+   * against a 25% null and escaped the dead-card check; at 6 it scored 17.7%
+   * and was caught. Lowering this re-opens that hole, and
+   * `requirement-controls.test.ts` will say so.
+   *
+   * Costs linearly. It is affordable because fights are three rounds at the
+   * median and a rollout is cheap.
+   */
   samples: number;
   /** The seat being measured. */
   team: number;
 }
 
-export const DEFAULT_REGRET: RegretOptions = { rolloutDepth: 1, samples: 2, team: 0 };
+export const DEFAULT_REGRET: RegretOptions = { rolloutDepth: 1, samples: 6, team: 0 };
 
 /**
  * Force `actionIdx` for the actor in SEAT `seat` this round, AI for everyone
@@ -226,6 +245,23 @@ export function valuePosition(
     };
   });
 
+  // A POSITION WHERE EVERY CARD SCORES THE SAME IS NOT A DECISION.
+  //
+  // Short fights reach plenty of them: once the outcome is settled, every
+  // branch plays out to the same board and all candidates tie. A tie is SHARED
+  // (see `wasBest`), so each card collects 1/k from a position that told us
+  // nothing — and 1/k is exactly the chance null. Decided positions therefore
+  // drag every card's best-share toward the very line it is tested against,
+  // and a card that is NEVER worth playing stops looking like one.
+  //
+  // Caught by a control kit holding a card that does literally nothing
+  // (`bench/control-kits.ts`): the no-op ranked dead last by value, as it must,
+  // and still cleared its null. Dropping these positions is not throwing away
+  // data — there was none in them.
+  const top = Math.max(...branches.map(b => b.score));
+  const bottom = Math.min(...branches.map(b => b.score));
+  if (top === bottom) return null;
+
   return {
     alternatives: branches.length - 1,
     cards: branches.map((b, i) => {
@@ -233,9 +269,22 @@ export function valuePosition(
       const mean = others.reduce((n, o) => n + o.score, 0) / others.length;
       const best = Math.max(...others.map(o => o.score));
       const wonMean = others.reduce((n, o) => n + o.won, 0) / others.length;
-      const top = Math.max(...branches.map(o => o.score));
-      const tied = branches.filter(o => o.score >= top).length;
-      const isBest = b.score >= top ? 1 / tied : 0;
+      // A TIE FOR BEST IS CREDITED IN FULL TO EVERY CARD THAT REACHES IT.
+      //
+      // The question is "is this card ever the right play", and if two cards
+      // tie for best then playing either one IS a right play. Splitting the
+      // credit answers a different question — "is it UNIQUELY the best" — and
+      // it punishes a kit for holding two good cards: two IDENTICAL attacks
+      // each took half of every tie, landing both at 19.7% against a 25% null
+      // and reading DEAD, while the no-op beside them escaped.
+      //
+      // Full credit was tried first and inflated the total to ~127% of
+      // positions, which is why it was split. That inflation was not the ties
+      // between real cards — it was DECIDED positions, where the outcome is
+      // already settled and every card scores the same. Those are now dropped
+      // above as the non-decisions they are, and the inflation goes with them.
+      const isBest = b.score >= top ? 1 : 0;
+      const topCount = branches.filter(o => o.score >= top).length;
       return {
         id: b.cardId,
         // AGAINST THE MEAN ALTERNATIVE is the headline, because it is
@@ -249,6 +298,7 @@ export function valuePosition(
         winValue: b.won - wonMean,
         wasBest: isBest,
         candidates: branches.length,
+        topCount,
       };
     }),
   };
@@ -272,7 +322,8 @@ import { setAIControlled as _setAI, lookaheadChooser as _look } from '@pimpampum
  *  FIGHT that position came from — positions inside a fight are not
  *  independent, so the fight is the cluster the error bar is built on. */
 export interface CardObs {
-  value: number; winValue: number; wasBest: number; candidates: number; fight: number;
+  value: number; winValue: number; wasBest: number;
+  candidates: number; topCount: number; fight: number;
 }
 
 export interface KitValues {
@@ -324,7 +375,7 @@ export function measureKit(
                 const list = byCard.get(c.id) ?? [];
                 list.push({
                   value: c.value, winValue: c.winValue,
-                  wasBest: c.wasBest, candidates: c.candidates, fight,
+                  wasBest: c.wasBest, candidates: c.candidates, topCount: c.topCount, fight,
                 });
                 byCard.set(c.id, list);
               }
@@ -384,7 +435,7 @@ export function scoreCards(kit: KitValues): CardScore[] {
     out.push({
       id, value: v.mean, stderr: v.stderr,
       bestShare: b.mean, bestStderr: b.stderr,
-      nullShare: list.reduce((a, o) => a + 1 / o.candidates, 0) / list.length,
+      nullShare: list.reduce((a, o) => a + o.topCount / o.candidates, 0) / list.length,
       winValue: w.mean, observations: list.length,
     });
   }

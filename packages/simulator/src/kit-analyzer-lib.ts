@@ -242,6 +242,9 @@ export interface KitReport {
 /** Rounds budget from intentions.md: combats should not run past ~5. */
 const MAX_MEDIAN_ROUNDS = 5;
 const MAX_P90_ROUNDS = 8;
+/** Fights that never end. Separate from the two length bars because it is a
+ *  different failure: a stalemate is not a slow fight, it is no fight. */
+const MAX_DRAW_RATE = 0.02;
 /**
  * A level step this far below zero is a regression — OR the step's own 2σ,
  * whichever is larger.
@@ -357,7 +360,112 @@ export const AI_BLIND_CARDS: Record<string, string> = {
     + 'who can see the reveal. Its own handler already says so (aiWeight 0.2).',
 };
 
-export function analyze(subject: Subject, games: number): KitReport {
+// --- THE DECISION RULES, as pure functions ----------------------------------
+//
+// Requirements 3, 3b and 3c ask the same question against three different bars:
+// "does the real policy beat this impoverished arm by at least X?" They used to
+// compute it three times, in three places, and that is exactly how 3c came to
+// be missing its error term while its two neighbours had one (NEXT-STEPS
+// §19.1). One rule, three bars: the drift has nowhere to happen.
+//
+// They are pure and exported so they can be CONTROL-TESTED on inputs whose
+// answer is known — a margin that clearly clears the bar, one that clearly
+// misses, one that misses only inside its own noise, one where the arm wins,
+// and one where the sample cannot resolve the bar at all. A verdict rule that
+// is only ever exercised by real data is a rule nobody has checked.
+
+export interface MarginCheck {
+  ok: boolean;
+  margin: number;
+  stderr: number;
+  /** Misses the bar nominally but reaches it inside its own interval. Worth
+   *  saying out loud: the reader should not act on it either way. */
+  borderline: boolean;
+  /** The impoverished arm BEATS the policy beyond noise. Not a content finding
+   *  — an impoverished side outplaying the real one is a statement about the
+   *  policy, and pointing it at the kit sends the reader to the wrong file. */
+  armWins: boolean;
+  /** Whether this many combats can resolve this bar at all (`gamesFor`). A
+   *  verdict below its own resolution reports which seed was used. */
+  resolvable: boolean;
+}
+
+/**
+ * Does the policy beat an impoverished arm by at least `bar`?
+ *
+ * FAILS ONLY ON WHAT IS CLEARLY PAST THE LINE, never on what merely fails to
+ * clear it with confidence: a X here means "go look", and a false one costs a
+ * session. The asymmetry runs the other way from requirement 1's total-gain
+ * check, where failing to DEMONSTRATE a gain is itself the finding.
+ */
+export function marginVerdict(
+  policyWinrate: number, policyGames: number,
+  armWinrate: number, armGames: number,
+  bar: number,
+): MarginCheck {
+  const margin = policyWinrate - armWinrate;
+  const se = deltaStderr(policyWinrate, policyGames, armWinrate, armGames);
+  return {
+    margin,
+    stderr: se,
+    ok: margin + 2 * se >= bar,
+    borderline: margin < bar && margin + 2 * se >= bar,
+    armWins: margin + 2 * se < 0,
+    resolvable: Math.min(policyGames, armGames) >= gamesFor(bar * 100),
+  };
+}
+
+/** One level step, and whether it is a regression, flat, or just noisy. */
+export type StepKind = 'gain' | 'regression' | 'noisy' | 'flat';
+
+/**
+ * Classify a level step.
+ *
+ * A step counts as a REGRESSION only when it is both materially negative AND
+ * bigger than its own error bar — otherwise the verdict is a report on the
+ * sample size rather than on the kit. At the old default a genuinely flat level
+ * read as a regression about one time in four, and over four steps most kits
+ * printed a false X.
+ */
+export function classifyStep(step: number, se: number, regressionPP: number): StepKind {
+  if (step < -Math.max(regressionPP, 2 * se)) return 'regression';
+  if (step < -regressionPP) return 'noisy';
+  if (Math.abs(step) <= 2 * se) return 'flat';
+  return 'gain';
+}
+
+/**
+ * Do fights end?
+ *
+ * THREE SEPARATE FAILURES, reported separately. "Drags" and "never ends" are
+ * different problems with different fixes, and collapsing them into one boolean
+ * sent every reader of a X here to look at the wrong number: measured
+ * 2026-09-20, every kit failed this on the DRAW RATE while its median (3) and
+ * p90 (6) sat comfortably inside their bars.
+ */
+export function durationVerdict(
+  medianRounds: number, p90Rounds: number, drawRate: number,
+  maxMedian: number, maxP90: number, maxDraws: number,
+): { ok: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (medianRounds > maxMedian) reasons.push(`mediana ${medianRounds} > ${maxMedian}`);
+  if (p90Rounds > maxP90) reasons.push(`p90 ${p90Rounds} > ${maxP90}`);
+  if (drawRate >= maxDraws) reasons.push(`taules ≥ ${exact(maxDraws)} (combats que no acaben MAI)`);
+  return { ok: reasons.length === 0, reasons };
+}
+
+export interface AnalyzeBudget {
+  /** Verify-pass sample for requirements 3 and 3b. */
+  mindlessGames?: number;
+  /** Verify-pass sample for 3c, whose bar is four times finer. */
+  oneTrickGames?: number;
+  /** Fights behind requirement 4/5. */
+  cardValueGames?: number;
+}
+
+export function analyze(subject: Subject, games: number, budget: AnalyzeBudget = {}): KitReport {
+  const mindlessGames = budget.mindlessGames ?? MINDLESS_GAMES;
+  const oneTrickGames = budget.oneTrickGames ?? ONE_TRICK_GAMES;
   const cards = subject.mode === 'player'
     ? ALL_SKILLS.find(s => s.id === subject.id)!.actions
     : getEnemy(subject.id)!.skills.flatMap(s => s.actions);
@@ -393,9 +501,10 @@ export function analyze(subject: Subject, games: number): KitReport {
     const se = deltaStderr(a.winrate, a.games, b.winrate, b.games);
     const label = `${levels[i - 1].level}→${levels[i].level}`;
     const shown = `${label} ${deltaPP(a.winrate, a.games, b.winrate, b.games)}`;
-    if (step < -Math.max(REGRESSION_PP, 2 * se)) regressions.push(shown);
-    else if (step < -REGRESSION_PP) noisy.push(shown);
-    else if (Math.abs(step) <= 2 * se) flat.push(label);
+    const kind = classifyStep(step, se, REGRESSION_PP);
+    if (kind === 'regression') regressions.push(shown);
+    else if (kind === 'noisy') noisy.push(shown);
+    else if (kind === 'flat') flat.push(label);
   }
   const first = levels[0].run, last = levels[levels.length - 1].run;
   const totalGain = last.delta - first.delta;
@@ -413,9 +522,11 @@ export function analyze(subject: Subject, games: number): KitReport {
   // requirements 4/5 and 7 all read off the level sweep's own combats, so they
   // ride its budget for free rather than costing a run of their own.
   const top = levels[levels.length - 1].run;
+  const dur = durationVerdict(top.medianRounds, top.p90Rounds, top.drawRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_DRAW_RATE);
   const duration: Verdict = {
-    ok: top.medianRounds <= MAX_MEDIAN_ROUNDS && top.p90Rounds <= MAX_P90_ROUNDS && top.drawRate < 0.02,
-    detail: `mediana ${top.medianRounds} · p90 ${top.p90Rounds} · taules ${pct(top.drawRate, top.games)}`,
+    ok: dur.ok,
+    detail: `mediana ${top.medianRounds} · p90 ${top.p90Rounds} · taules ${pct(top.drawRate, top.games)}`
+      + (dur.reasons.length ? ` → falla per: ${dur.reasons.join(', ')}` : ''),
   };
 
   // 3. Every mindless strategy must lose, and lose badly. SELECT, THEN VERIFY:
@@ -424,7 +535,7 @@ export function analyze(subject: Subject, games: number): KitReport {
   // precision on FRESH numbers, and take the margin from that second pass —
   // with both arms swept over the SAME cells, since a margin between two
   // different matrices is not a margin.
-  const screenGames = Math.max(40, Math.round(MINDLESS_GAMES * BASELINE_SCREEN_FRACTION));
+  const screenGames = Math.max(40, Math.round(mindlessGames * BASELINE_SCREEN_FRACTION));
   const screen = (p: CellPolicy) =>
     runMatrix(cells, setupFor(subject, maxLevel), screenGames, p, 0,
       subjectPrintFor(subject, maxLevel)).winrate;
@@ -443,34 +554,34 @@ export function analyze(subject: Subject, games: number): KitReport {
     : null;
 
   const VERIFY_OFFSET = 7_919;
-  const toughest = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES, picked.policy, VERIFY_OFFSET,
+  const toughest = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames, picked.policy, VERIFY_OFFSET,
     keyFor(maxLevel, picked.policy, VERIFY_OFFSET));
-  const policyRun = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES, 'policy', VERIFY_OFFSET,
+  const policyRun = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames, 'policy', VERIFY_OFFSET,
     keyFor(maxLevel, 'policy', VERIFY_OFFSET));
   const trickRun = pickedTrick
-    ? runMatrix(cells, setupFor(subject, maxLevel), ONE_TRICK_GAMES, pickedTrick.policy, VERIFY_OFFSET,
+    ? runMatrix(cells, setupFor(subject, maxLevel), oneTrickGames, pickedTrick.policy, VERIFY_OFFSET,
       keyFor(maxLevel, pickedTrick.policy, VERIFY_OFFSET))
     : null;
   // The policy arm 3c subtracts has to carry the SAME sample, or the margin's
   // error is dominated by whichever side was measured more cheaply.
   const trickPolicyRun = pickedTrick
-    ? runMatrix(cells, setupFor(subject, maxLevel), ONE_TRICK_GAMES, 'policy', VERIFY_OFFSET,
+    ? runMatrix(cells, setupFor(subject, maxLevel), oneTrickGames, 'policy', VERIFY_OFFSET,
       keyFor(maxLevel, 'policy', VERIFY_OFFSET))
     : policyRun;
   const pickedRestricted = restrictedScreened.reduce((a, b) => (b.winrate > a.winrate ? b : a));
-  const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES,
+  const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames,
     pickedRestricted.policy, VERIFY_OFFSET, keyFor(maxLevel, pickedRestricted.policy, VERIFY_OFFSET));
-  const margin = policyRun.winrate - toughest.winrate;
-  const marginSe = deltaStderr(policyRun.winrate, policyRun.games, toughest.winrate, toughest.games);
+  const spamCheck = marginVerdict(policyRun.winrate, policyRun.games, toughest.winrate, toughest.games, MINDLESS_MARGIN);
+  const margin = spamCheck.margin, marginSe = spamCheck.stderr;
   const screenBias = maxOfKBias(sideScreened.length) * stderr(picked.winrate, screenGames);
-  const borderline = margin < MINDLESS_MARGIN && margin + 2 * marginSe >= MINDLESS_MARGIN;
+  const borderline = spamCheck.borderline;
   const spam: Verdict = {
     // FAIL ONLY WHEN THE MARGIN IS CLEARLY BELOW THE BAR, not whenever it fails
     // to clear it with confidence. A ❌ here means "go look at this kit", so a
     // false one costs a session — which is what the first report card's wall of
     // ❌ cost. The asymmetry runs the other way from requirement 1's total-gain
     // check: there, failing to DEMONSTRATE a gain is itself the finding.
-    ok: margin + 2 * marginSe >= MINDLESS_MARGIN,
+    ok: spamCheck.ok,
     detail: `política ${pct(policyRun.winrate, policyRun.games)} vs la millor estratègia sense pensar`
       + ` (${picked.label}) ${pct(toughest.winrate, toughest.games)}`
       + ` → marge ${deltaPP(policyRun.winrate, policyRun.games, toughest.winrate, toughest.games)}`
@@ -484,35 +595,27 @@ export function analyze(subject: Subject, games: number): KitReport {
   // question than 3, and it is the one currently failing everywhere: attacking
   // whenever an attack is legal ties free play. Its own bar, because a
   // restricted THINKER is not a thoughtless one.
-  const spaceMargin = policyRun.winrate - restrictedRun.winrate;
-  const spaceSe = deltaStderr(policyRun.winrate, policyRun.games, restrictedRun.winrate, restrictedRun.games);
+  const spaceCheck = marginVerdict(policyRun.winrate, policyRun.games, restrictedRun.winrate, restrictedRun.games, STRATEGY_SPACE_MARGIN);
+  const spaceMargin = spaceCheck.margin, spaceSe = spaceCheck.stderr;
   const strategySpace: Verdict = {
-    ok: spaceMargin + 2 * spaceSe >= STRATEGY_SPACE_MARGIN,
+    ok: spaceCheck.ok,
     detail: `la millor restricció d'espai (${pickedRestricted.label}) ${pct(restrictedRun.winrate, restrictedRun.games)}`
       + ` → marge ${deltaPP(policyRun.winrate, policyRun.games, restrictedRun.winrate, restrictedRun.games)}`
       + ` [cal ≥${STRATEGY_SPACE_MARGIN * 100}pp; encara pensa, només té menys cartes on triar]`,
   };
 
   // 3c. The one-trick flag, scored apart for the reason in ONE_TRICK_MARGIN.
-  const trickMargin = trickRun ? trickPolicyRun.winrate - trickRun.winrate : 0;
-  const trickSe = trickRun
-    ? deltaStderr(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games)
-    : 0;
+  const trickCheck = trickRun
+    ? marginVerdict(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games, ONE_TRICK_MARGIN)
+    : null;
+  const trickMargin = trickCheck?.margin ?? 0;
   const oneTrick: Verdict = {
-    // WITH ITS ERROR BAR, like 3 and 3b. This check used to compare a point
-    // estimate against the bar and nothing else — `trickMargin >= ONE_TRICK_MARGIN`
-    // — which is exactly what this file's own header forbids ("a ❌ means go
-    // look, so the checks fail only on what is CLEARLY past the line"). The
-    // margins here carry ±4pp at 2σ against a 5pp bar, so the missing term was
-    // the same size as the thing being measured, and Enginyer failed on
-    // +4.7pp±3.5 — a margin that clears the bar comfortably inside its own
-    // interval.
-    ok: !trickRun || trickMargin + 2 * trickSe >= ONE_TRICK_MARGIN,
+    ok: !trickCheck || trickCheck.ok,
     detail: trickRun && pickedTrick
       ? `la millor carta repetida (${pickedTrick.label}) ${pct(trickRun.winrate, trickRun.games)}`
         + ` → marge ${deltaPP(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games)}`
         + ` [cal ≥${ONE_TRICK_MARGIN * 100}pp; només un seient dels quatre, no comparable amb 3]`
-        + (trickMargin + 2 * trickSe < 0 ? ' ⚠️ la carta repetida GUANYA — mira la política, no el kit' : '')
+        + (trickCheck?.armWins ? ' ⚠️ la carta repetida GUANYA — mira la política, no el kit' : '')
       : 'sense cartes per provar',
   };
 
@@ -524,7 +627,7 @@ export function analyze(subject: Subject, games: number): KitReport {
   // under the floor. It is now measured AT THE DECISION — force each legal card
   // from a position both branches share exactly, play the fight out, subtract.
   // 29 of 29 cards resolve where 7 did, at a fraction of the cost.
-  const kitValues = measureKit(cells, setupFor(subject, maxLevel), cardValueGames(games), DEFAULT_REGRET);
+  const kitValues = measureKit(cells, setupFor(subject, maxLevel), budget.cardValueGames ?? cardValueGames(games), DEFAULT_REGRET);
   const scored = scoreCards(kitValues);
   const byId = new Map(scored.map(v => [v.id, v]));
 

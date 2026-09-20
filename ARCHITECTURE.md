@@ -546,6 +546,20 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   always below its own average), while `millor opció` — how often the card was
   the best play, against a 1/k null — is absolute. Quoted AT A DEPTH: the
   continuation policy cancels in level but not in ordering (NEXT-STEPS §18.3).
+- `bench/control-kits.ts` + `tests/requirement-controls.test.ts` — **control
+  experiments for the requirements themselves**. Real content can never tell you
+  whether a ❌ fired because the kit is broken or because the REQUIREMENT is:
+  both look equally plausible on the page. So subjects are built whose verdict
+  follows from their CONSTRUCTION — a kit of identical cards (levels and
+  thinking cannot matter), a kit holding a card that does nothing (4/5 must name
+  it and must not name the working attacks), a ladder kit that only improves —
+  registered through `registerSkill` and run through the real `analyze`. Two
+  layers: the decision RULES are controlled as pure functions in
+  `tests/requirements.test.ts` (requirements 3, 3b and 3c share ONE
+  `marginVerdict` with three bars, since computing it three times is how 3c lost
+  its error term), and the whole pipeline is controlled here. Its first run
+  found three real faults in the measurement plus one in itself — see NEXT-STEPS
+  §19.5.
 - `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
   the way the analyzer will (solve against one company, measure against all), so
   the tool that CHOOSES the counts cannot disagree with the tool the counts are

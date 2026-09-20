@@ -1547,3 +1547,73 @@ level)`, which names neither the policy nor the seed offset, so different
 policies looked like they would collide in the cache. They do not: `runMatrix`
 builds the real key with `cellKey(subjectPrint, cell, perCell, policy,
 seedOffset)`, which carries both.
+
+### 19.5 A control harness for the requirements (`bench/control-kits.ts`)
+
+Unit-testing a decision rule is not enough: a rule can be perfect and still be
+fed the wrong number, and the wiring between "what was measured" and "what was
+judged" is where 3c lost its error bar. So there are now two layers.
+
+- **`tests/requirements.test.ts`** — the rules as pure functions
+  (`marginVerdict`, `classifyStep`, `durationVerdict`), on synthetic numbers.
+  Requirements 3, 3b and 3c now SHARE one margin rule with three bars; they used
+  to compute it three times in three places, which is precisely how 3c came to
+  be missing the error term its two neighbours had.
+- **`tests/requirement-controls.test.ts`** — the whole pipeline, on subjects
+  whose verdict follows from their CONSTRUCTION: a kit of identical cards, a kit
+  holding a card that does nothing, a ladder kit that only improves.
+
+**The harness found four faults in its first run, three of them real.**
+
+1. **It found itself first.** `ALL_SKILLS` is an array but the lookups are Maps
+   built from it at module load, so pushing a control kit satisfied `cardsOf`
+   while leaving `unlockedActions` blind. Every control hero was built holding
+   nothing but Cop desesperat, and the suite dutifully reported that a 1d6→7d6
+   ladder buys no gain. Plausible numbers, every one about an empty hand. Fixed
+   with a real `registerSkill` seam, and the harness now asserts its own premise
+   before measuring anything.
+2. **Overkill is not power, again.** The ladder scaled dice only, and the solved
+   horde is eight goblins at ONE PV — so a bigger die is 69 points thrown away.
+   Same trap as the 20d6 control card in §18.6. It scales targets too now.
+3. **Decided positions were dragging every card toward its own null.** Once a
+   fight's outcome is settled every branch plays to the same board and all
+   candidates tie, contributing credit from a position that carried no
+   information. ~17% of positions. They are dropped as the non-decisions they
+   are.
+4. **Splitting a tie punished duplicates.** Two IDENTICAL attacks each took half
+   of every tie, landing both at 19.7% against a 25% null and reading DEAD while
+   the no-op beside them escaped. The question is "is this card ever a right
+   play", and a card tying for best is — so ties are credited in full. (Full
+   credit had been tried first and inflated the total to 127%; that inflation
+   was fault 3, not the ties.)
+
+### 19.6 KNOWN GAP — requirements 3 and 3b measure the SIDE, not the subject
+
+Both impoverish all four seats while the subject occupies one. On a kit with
+exactly one distinct card — where thinking cannot possibly matter to the subject
+— requirement 3 still measured **+13.5pp**, because the three companions are
+calibration heroes with real kits.
+
+That is not a bug: `cells.ts` documents the side-wide scope, and it is the only
+fair form of "does thinking matter". But it means 3 and 3b are largely measuring
+the FIXED COMPANY, which is identical for every subject, and that is why their
+verdicts cluster. **Controlling them end-to-end needs a party of four control
+kits, which the analyzer cannot field today.** Their shared rule is controlled;
+this gap is not.
+
+### 19.7 Two constants now set by control rather than by argument
+
+- **`DEFAULT_REGRET.samples` 2 → 6.** `wasBest` needs the ranking within a
+  position to be reliable, and a noisy score lets a worthless card top it by
+  luck, dragging its share toward the null. At 2 samples the no-op scored 21.2%
+  against a 25% null and escaped; at 6 it scored 17.7% and was caught.
+- **The null is now self-calibrating**: `mean(topCount / candidates)` rather than
+  `mean(1 / candidates)`. If m of k cards reach the top, a card picked at random
+  is among them with probability m/k. With ties credited in full and m averaging
+  ~1.5 on a four-card hand, a flat 1/k understated chance by half again and the
+  line was too low to catch anything.
+
+With all four corrections, the statistic discriminates sharply — Mestre d'Armes
+against an 18% null: Contraatac **53.4%**, Atac llampec 28.8%, Tall precís
+12.1% ❌, Atac encadenat 3.3% ❌, Estat de flux 2.3% ❌. Spearman ρ against win
+probability is 1.00.
