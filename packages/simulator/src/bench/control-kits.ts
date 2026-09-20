@@ -26,7 +26,8 @@
  * These are deliberately crude. A control whose own answer needs an argument is
  * not a control.
  */
-import { ActionType, DiceRoll, type ActionDefinition } from '@pimpampum/engine';
+import { ActionType, DiceRoll, type ActionDefinition, type EffectHandler } from '@pimpampum/engine';
+import { REGISTRY } from './arena.js';
 import { buildCharacter, registerSkill, unregisterSkill, unlockedActions, type SkillDefinition } from '@pimpampum/skills';
 
 let seq = 0;
@@ -39,10 +40,12 @@ function card(skillId: string, i: number, over: Partial<ActionDefinition>): Acti
   } as ActionDefinition;
 }
 
-function kit(id: string, actions: ActionDefinition[]): SkillDefinition {
+function kit(
+  id: string, actions: ActionDefinition[], effects: Record<string, EffectHandler> = {},
+): SkillDefinition {
   return {
     id, displayName: id, classCss: 'objecte', category: 'player',
-    description: 'control', iconPath: '', actions, effects: {},
+    description: 'control', iconPath: '', actions, effects,
   };
 }
 
@@ -86,10 +89,16 @@ export function ladderKit(cards = 4): SkillDefinition {
  */
 export function withControlKit<T>(def: SkillDefinition, fn: (def: SkillDefinition) => T): T {
   registerSkill(def);
+  // A control kit's OWN handlers, into the same registry the fights use. They
+  // come out again in the finally: EffectRegistry.register throws on a
+  // duplicate, so a leaked handler would blow up whichever test ran next
+  // rather than this one.
+  for (const [type, handler] of Object.entries(def.effects ?? {})) REGISTRY.register(type, handler);
   try {
     assertReaches(def);
     return fn(def);
   } finally {
+    for (const type of Object.keys(def.effects ?? {})) REGISTRY.unregister(type);
     unregisterSkill(def);
   }
 }
@@ -175,4 +184,75 @@ export function situationalKit(): SkillDefinition {
     card(id, 1, { name: 'Wide', dice: new DiceRoll(1, 6), targetCount: 99 }),
     card(id, 2, { name: 'Heavy', dice: new DiceRoll(6, 6) }),
   ]);
+}
+
+/**
+ * NOTHING BUT DEFENCES, and enormous ones.
+ *
+ * Fielded in all four seats (`allSeats`) this party cannot kill anything: no
+ * attack card, and Cop desesperat is `lastResort` so it never becomes legal
+ * while a defence is. The 10d6 defence means nothing penetrates either. Both
+ * sides therefore survive to the 40-round cap, every time, and the fight is a
+ * DRAW by construction — which is what requirement 2's draw bar exists to
+ * catch, and what nothing was checking.
+ */
+export function defenceOnlyKit(): SkillDefinition {
+  const id = `control-turtle-${seq++}`;
+  return kit(id, [
+    // SPEED 9, and that is the whole trick. A defence always self-guards
+    // (combat.ts: "A defense always covers its own player against every incoming
+    // attack"), but guards register when the ACTION RESOLVES and higher speed
+    // resolves first. At speed 0 the goblins struck before the wall existed and
+    // the party died in two rounds behind 10d6. Targeting was a red herring:
+    // `getActionTargetRequirement` hard-codes 'defense' for any Defensa, so a
+    // handler cannot make one self-targeted anyway.
+    card(id, 1, { name: 'Wall', actionType: ActionType.Defensa, speed: 9, dice: new DiceRoll(10, 6) }),
+    card(id, 2, { name: 'Wall2', actionType: ActionType.Defensa, speed: 9, dice: new DiceRoll(10, 6) }),
+  ]);
+}
+
+/** Ends the fight on round one: 20d6 at every enemy, fastest on the field. */
+export function blitzKit(): SkillDefinition {
+  const id = `control-blitz-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Blitz', speed: 9, dice: new DiceRoll(20, 6), targetCount: 99 }),
+    card(id, 2, { name: 'Blitz2', speed: 9, dice: new DiceRoll(20, 6), targetCount: 99 }),
+  ]);
+}
+
+/**
+ * A card that is only LEGAL once its holder is nearly dead.
+ *
+ * Requirement 7 flags cards whose win-rate-when-played is clearly under 40%,
+ * and it is CONFOUNDED by design: a card played only in trouble correlates with
+ * losing however good it is. That confound is exactly what makes it
+ * controllable — gate a card on the holder being down to a third of their PV
+ * and it can only ever be played from a losing position, so requirement 7 must
+ * flag it. The card itself is a perfectly good attack.
+ *
+ * This is the control for the FLAG, not for the card: a ❌ here is the harness
+ * working, and §7.1 says so — it is reported as a flag to investigate, never as
+ * a verdict.
+ */
+const ONLY_WHEN_LOSING: EffectHandler = {
+  canPlay(actor) { return actor.currentPV * 3 <= actor.maxPV; },
+};
+const ONLY_WHEN_HEALTHY: EffectHandler = {
+  canPlay(actor) { return actor.currentPV * 3 > actor.maxPV; },
+};
+
+export function losingOnlyKit(): SkillDefinition {
+  const id = `control-losing-${seq++}`;
+  // MUTUALLY EXCLUSIVE GATES, and Desperate is the WEAKER card. A first draft
+  // gated only Desperate, at a third of PV, and made it the STRONGER card: it
+  // came back winning 70% of the turns it was played. Two things were wrong —
+  // one hero dropping to a third of their PV does not mean the PARTY is losing,
+  // and a better card rescues the fights it is played in. Now Desperate is the
+  // only legal card once its holder is down to a third of their PV, and it is
+  // 1d4 against Normal's 2d6, so it is played from a losing position and does
+  // not turn it around.
+  return kit(id, [
+    card(id, 1, { name: 'Normal', dice: new DiceRoll(2, 6), effects: [{ type: `${id}-healthy` }] }),
+    card(id, 2, { name: 'Desperate', dice: new DiceRoll(1, 4), effects: [{ type: `${id}-hurt` }] }),
+  ], { [`${id}-hurt`]: ONLY_WHEN_LOSING, [`${id}-healthy`]: ONLY_WHEN_HEALTHY });
 }

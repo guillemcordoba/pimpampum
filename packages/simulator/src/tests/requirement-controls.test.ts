@@ -19,23 +19,37 @@
 import { describe, it, expect } from 'vitest';
 import { analyze, type Subject } from '../kit-analyzer-lib.js';
 import {
-  deadCardKit, flatKit, ladderKit, situationalKit, trapKit, withControlKit,
+  blitzKit, deadCardKit, defenceOnlyKit, flatKit, ladderKit, losingOnlyKit,
+  situationalKit, trapKit, withControlKit,
 } from '../bench/control-kits.js';
 
 /** Small, because every effect asserted here is huge by construction. */
 /**
- * Small, because every effect asserted here is huge by construction — EXCEPT
- * 3c, whose 5pp bar needs `gamesFor(5)` = 800 combats an arm however large the
- * true effect is. Handing it less would make this control fail for the reason
- * §19.1 documents rather than for the reason it is testing.
+ * EVERY BLOCK PAYS ONLY FOR THE REQUIREMENT IT ASSERTS.
+ *
+ * `analyze` measures all seven requirements whatever you are checking, so a
+ * single shared budget makes every control pay 3c's bill — and 3c's bar is
+ * 5pp, which `gamesFor` prices at 800 combats an arm (§19.1). Handing that to
+ * the requirement-1 and requirement-2 controls took the file past half an hour
+ * and it was killed. A control suite nobody can afford to run is a control
+ * suite nobody runs.
+ *
+ * So: a floor cheap enough to be irrelevant, and each block raises the one
+ * number its own assertion depends on.
  */
-const BUDGET = { mindlessGames: 200, oneTrickGames: 800, cardValueGames: 240 };
+const CHEAP = { mindlessGames: 60, oneTrickGames: 60, cardValueGames: 40 };
+/** 3c's bar needs its own sample or the control fails for §19.1's reason
+ *  rather than for the reason it is testing. */
+const FOR_3C = { ...CHEAP, oneTrickGames: 800 };
+/** 4/5 is per-DECISION, so it needs fights, not verify passes. */
+const FOR_CARDS = { ...CHEAP, cardValueGames: 240 };
 const GAMES = 120;
 
-const run = (def: { id: string }) => analyze({ mode: 'player', id: def.id } as Subject, GAMES, BUDGET);
+const run = (def: { id: string }) => analyze({ mode: 'player', id: def.id } as Subject, GAMES, CHEAP);
 
 describe('a kit of IDENTICAL cards — levels and thinking cannot matter', () => {
-  const r = withControlKit(flatKit(4), run);
+  const r = withControlKit(flatKit(4), def =>
+    analyze({ mode: 'player', id: def.id } as Subject, GAMES, FOR_3C));
 
   it('requirement 1 does not report a gain the kit cannot have', () => {
     // Every card is the same card. A level adds an option identical to the one
@@ -70,7 +84,8 @@ describe('a kit of IDENTICAL cards — levels and thinking cannot matter', () =>
 });
 
 describe('a kit with a card that does NOTHING', () => {
-  const r = withControlKit(deadCardKit(), run);
+  const r = withControlKit(deadCardKit(), def =>
+    analyze({ mode: 'player', id: def.id } as Subject, GAMES, FOR_CARDS));
   const named = (name: string): boolean => r.cardUse.detail.includes(name);
 
   it('requirement 4/5 fails the kit', () => {
@@ -152,7 +167,8 @@ describe('a kit of SITUATIONAL cards — no single card is right everywhere', ()
   // Requirement 3c's must-FIRE direction. Wide-and-weak clears a horde of 1-PV
   // goblins; narrow-and-heavy is the only thing that touches a 41-PV basilisk.
   // Repeating either has to lose to playing both.
-  const r = withControlKit(situationalKit(), run);
+  const r = withControlKit(situationalKit(), def =>
+    analyze({ mode: 'player', id: def.id } as Subject, GAMES, FOR_3C));
 
   it('requirement 3c passes a kit no one card can carry', () => {
     expect(
@@ -169,5 +185,79 @@ describe('a kit of SITUATIONAL cards — no single card is right everywhere', ()
     const m = r.oneTrick.detail.match(/marge ([+-][0-9.]+)pp/);
     expect(m, `no margin in: ${r.oneTrick.detail}`).not.toBeNull();
     expect(Number(m![1]), `margin not positive: ${r.oneTrick.detail}`).toBeGreaterThan(0);
+  });
+});
+
+describe('requirement 2 — a fight that CANNOT end', () => {
+  /*
+   * Four seats of nothing-but-defence, with a 10d6 wall. The party can never
+   * kill (no attack card, and Cop desesperat is lastResort so it never becomes
+   * legal while a defence is), and nothing penetrates the wall. Both sides
+   * survive to the 40-round cap every time.
+   *
+   * This needs `allSeats`, and that is the point: requirement 2 is a property
+   * of the whole FIGHT, so a control kit in one seat of four cannot move it —
+   * the other three would go on killing things. Same limit that blocks the
+   * requirement 3 / 3b controls (§19.6); this is the seam that lifts it.
+   */
+  const r = withControlKit(defenceOnlyKit(), def =>
+    analyze({ mode: 'player', id: def.id } as Subject, 60, { ...CHEAP, allSeats: true }));
+
+  it('fails requirement 2', () => {
+    expect(r.duration.ok, `req 2 passed a fight nobody can win: ${r.duration.detail}`).toBe(false);
+  });
+
+  it('fails for the RIGHT reason — the draw rate, not the length bars', () => {
+    // "Drags" and "never ends" are different problems with different fixes.
+    // Before `durationVerdict` named them separately, every reader of a ❌ went
+    // to look at the median, which was fine.
+    expect(r.duration.detail, `req 2 blamed the wrong thing: ${r.duration.detail}`).toMatch(/taules/);
+  });
+});
+
+describe('requirement 2 — a fight that ends on round one', () => {
+  // The other direction, and the one that catches a bar set so tight nothing
+  // could ever pass it: 20d6 at every enemy, fastest on the field.
+  const r = withControlKit(blitzKit(), run);
+
+  it('passes requirement 2', () => {
+    expect(r.duration.ok, `req 2 failed an instant win: ${r.duration.detail}`).toBe(true);
+  });
+});
+
+describe('requirement 7 — a card only legal once its holder is nearly dead', () => {
+  /*
+   * Requirement 7 is CONFOUNDED by design — a card played only in trouble
+   * correlates with losing however good it is — and that confound is exactly
+   * what makes it controllable. `Desperate` is a perfectly good 3d6 attack
+   * gated on the holder being down to a third of their PV, so it can only ever
+   * be played from a losing position.
+   *
+   * A ❌ here is the harness working. §7.1 calls this a flag to investigate,
+   * never a verdict, and this control is why that wording has to stay.
+   */
+  // More fights than the other controls: the gated card is only legal from a
+  // losing position, so it appears in roughly a fifth of them, and requirement
+  // 7 will not judge a card on fewer than 60 PLAYS. (That gate used to scale
+  // with the sample — see MIN_PLAYS_JUDGED — which made a rare card
+  // unjudgeable at ANY sample size.)
+  const r = withControlKit(losingOnlyKit(), def =>
+    analyze({ mode: 'player', id: def.id } as Subject, 400, CHEAP));
+
+  it('flags the card that only ever appears when losing', () => {
+    expect(
+      r.correlation.ok,
+      `req 7 missed a card that is only legal when losing: ${r.correlation.detail}`,
+    ).toBe(false);
+    expect(r.correlation.detail).toMatch(/Desperate/);
+  });
+
+  it('does NOT flag the ungated card beside it', () => {
+    // The other half, and the half usually skipped: a flag that fires on
+    // everything is as useless as one that never fires.
+    expect(
+      r.correlation.detail.includes('Normal'),
+      `req 7 flagged the healthy card too: ${r.correlation.detail}`,
+    ).toBe(false);
   });
 });

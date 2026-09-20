@@ -104,7 +104,17 @@ export interface Subject {
 }
 
 /** The subject at `level` in seat 1, with the given company at full kit. */
-function partyWith(skillId: string, level: number, companyIdx: number): PartySpec {
+function partyWith(skillId: string, level: number, companyIdx: number, allSeats = false): PartySpec {
+  if (allSeats) {
+    // EVERY SEAT the subject kit. Requirements 2, 3 and 3b are properties of
+    // the whole SIDE, not of one seat, so a control kit occupying one of four
+    // cannot move them: a kit with a single distinct card still measured a
+    // +13.5pp thinking margin because its three companions were real kits
+    // (NEXT-STEPS §19.6). This is the seam those controls need, and nothing
+    // else uses it — a real sweep always fields the calibration company, which
+    // is what makes kits comparable to each other.
+    return { characters: [0, 1, 2, 3].map(i => ({ ...hero(`Subjecte ${i + 1}`, skillId, level) })) };
+  }
   const base = calibrationParty(companyIdx).characters!;
   return { characters: [hero('Subjecte', skillId, level), ...base.slice(1)] };
 }
@@ -178,10 +188,10 @@ function calibrationRowCount(): number {
 /** Build the party and opposition for one cell. The ONLY thing the two modes
  *  differ by. */
 /** How a subject is fielded at a level. */
-export function setupFor(subject: Subject, level: number): (cell: Cell) => CellSetup {
+export function setupFor(subject: Subject, level: number, allSeats = false): (cell: Cell) => CellSetup {
   if (subject.mode === 'player') {
     return cell => ({
-      party: partyWith(subject.id, level, cell.companyIdx),
+      party: partyWith(subject.id, level, cell.companyIdx, allSeats),
       enemies: solveShape(SHAPES[cell.shapeIdx]).groups,
       subjectTeam: 0,
     });
@@ -247,6 +257,25 @@ const MAX_P90_ROUNDS = 8;
 const MAX_DRAW_RATE = 0.02;
 /** Win-when-played below this is flagged by requirement 7. */
 const LOSING_FLOOR = 0.4;
+/**
+ * PLAYS — not combats — before requirement 7 will judge a card.
+ *
+ * The gate used to be `plays < games * 0.2`, which compares a PLAY count to a
+ * COMBAT count. Those are not the same dimension, and the consequence is worse
+ * than untidy: because the threshold SCALES with the sample, a card played in
+ * fewer than a fifth of fights could never be judged however many fights were
+ * run. Ten thousand combats would give it two thousand plays and the gate would
+ * still refuse. Found by a control card that is only legal once its holder is
+ * nearly dead — 13 plays against a gate of 24, and no sample size could fix it.
+ *
+ * (This is the same dimension error requirement 4/5 already had and fixed. It
+ * survived here because nothing tested requirement 7 at all.)
+ *
+ * Sixty plays puts 2 sigma at about 12pp on a rate near the floor, which is
+ * enough to tell 10% from 40% and not enough to tell 35% from 40% — which is
+ * the right place for a flag that is confounded anyway.
+ */
+const MIN_PLAYS_JUDGED = 60;
 /**
  * A level step this far below zero is a regression — OR the step's own 2σ,
  * whichever is larger.
@@ -478,6 +507,10 @@ export function correlatesWithLosing(
 }
 
 export interface AnalyzeBudget {
+  /** Field the subject kit in ALL FOUR seats. Control kits only — see
+   *  `partyWith`. A real sweep must field the calibration company, or kits
+   *  stop being comparable with each other. */
+  allSeats?: boolean;
   /** Verify-pass sample for requirements 3 and 3b. */
   mindlessGames?: number;
   /** Verify-pass sample for 3c, whose bar is four times finer. */
@@ -503,11 +536,11 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
     ? skillPrint(subject.id)
     : `${enemyPrint(subject.id)}:${subject.count}:${enemyShape(subject).pv}`;
   void subjectPrint;
-  const keyFor = (l: number, _p: CellPolicy, _off: number) => subjectPrintFor(subject, l);
+  const keyFor = (l: number, _p: CellPolicy, _off: number) => subjectPrintFor(subject, l, budget.allSeats);
 
   const levels: { level: number; run: MatrixResult }[] = [];
   for (let l = 1; l <= maxLevel; l++) {
-    levels.push({ level: l, run: runMatrix(cells, setupFor(subject, l), games, 'policy', 0, keyFor(l, 'policy', 0)) });
+    levels.push({ level: l, run: runMatrix(cells, setupFor(subject, l, budget.allSeats), games, 'policy', 0, keyFor(l, 'policy', 0)) });
   }
 
   // 1. Level monotonicity. A step only counts as a regression when it is both
@@ -560,8 +593,8 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   // different matrices is not a margin.
   const screenGames = Math.max(40, Math.round(mindlessGames * BASELINE_SCREEN_FRACTION));
   const screen = (p: CellPolicy) =>
-    runMatrix(cells, setupFor(subject, maxLevel), screenGames, p, 0,
-      subjectPrintFor(subject, maxLevel)).winrate;
+    runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), screenGames, p, 0,
+      subjectPrintFor(subject, maxLevel, budget.allSeats)).winrate;
 
   const thoughtlessLabels = ['atzar', 'sempre el atac més gran'];
   const restrictedLabels = ['només atacs', 'només defenses (tortuga)', 'només focus'];
@@ -577,22 +610,22 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
     : null;
 
   const VERIFY_OFFSET = 7_919;
-  const toughest = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames, picked.policy, VERIFY_OFFSET,
+  const toughest = runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), mindlessGames, picked.policy, VERIFY_OFFSET,
     keyFor(maxLevel, picked.policy, VERIFY_OFFSET));
-  const policyRun = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames, 'policy', VERIFY_OFFSET,
+  const policyRun = runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), mindlessGames, 'policy', VERIFY_OFFSET,
     keyFor(maxLevel, 'policy', VERIFY_OFFSET));
   const trickRun = pickedTrick
-    ? runMatrix(cells, setupFor(subject, maxLevel), oneTrickGames, pickedTrick.policy, VERIFY_OFFSET,
+    ? runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), oneTrickGames, pickedTrick.policy, VERIFY_OFFSET,
       keyFor(maxLevel, pickedTrick.policy, VERIFY_OFFSET))
     : null;
   // The policy arm 3c subtracts has to carry the SAME sample, or the margin's
   // error is dominated by whichever side was measured more cheaply.
   const trickPolicyRun = pickedTrick
-    ? runMatrix(cells, setupFor(subject, maxLevel), oneTrickGames, 'policy', VERIFY_OFFSET,
+    ? runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), oneTrickGames, 'policy', VERIFY_OFFSET,
       keyFor(maxLevel, 'policy', VERIFY_OFFSET))
     : policyRun;
   const pickedRestricted = restrictedScreened.reduce((a, b) => (b.winrate > a.winrate ? b : a));
-  const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel), mindlessGames,
+  const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), mindlessGames,
     pickedRestricted.policy, VERIFY_OFFSET, keyFor(maxLevel, pickedRestricted.policy, VERIFY_OFFSET));
   const spamCheck = marginVerdict(policyRun.winrate, policyRun.games, toughest.winrate, toughest.games, MINDLESS_MARGIN);
   const margin = spamCheck.margin, marginSe = spamCheck.stderr;
@@ -650,7 +683,7 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   // under the floor. It is now measured AT THE DECISION — force each legal card
   // from a position both branches share exactly, play the fight out, subtract.
   // 29 of 29 cards resolve where 7 did, at a fraction of the cost.
-  const kitValues = measureKit(cells, setupFor(subject, maxLevel), budget.cardValueGames ?? cardValueGames(games), DEFAULT_REGRET);
+  const kitValues = measureKit(cells, setupFor(subject, maxLevel, budget.allSeats), budget.cardValueGames ?? cardValueGames(games), DEFAULT_REGRET);
   const scored = scoreCards(kitValues);
   const byId = new Map(scored.map(v => [v.id, v]));
 
@@ -690,7 +723,7 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   for (const c of cards) {
     const plays = top.stats.actionPlays[c.id] ?? 0;
     const wins = top.stats.actionWinPlays[c.id] ?? 0;
-    const r7 = correlatesWithLosing(wins, plays, games * 0.2, LOSING_FLOOR);
+    const r7 = correlatesWithLosing(wins, plays, MIN_PLAYS_JUDGED, LOSING_FLOOR);
     if (!r7.judged) continue;
     const w = r7.rate;
     // Clearly below 40%, not merely measured below it. (Draws count in the
@@ -740,11 +773,14 @@ export function warmMatrix(job: {
 /** The subject half of a cell key. Shared so the warmer and the real run
  *  cannot address the same measurement differently — a warmer that keyed
  *  differently would fill the cache with entries nothing ever reads. */
-export function subjectPrintFor(subject: Subject, level: number): string {
+export function subjectPrintFor(subject: Subject, level: number, allSeats = false): string {
   const base = subject.mode === 'player'
     ? skillPrint(subject.id)
     : `${enemyPrint(subject.id)}:${subject.count}:${enemyShape(subject).pv}`;
-  return `${base}@L${level}`;
+  // allSeats is part of the KEY: a four-seat run and a one-seat run of the
+  // same kit at the same level are different experiments, and sharing a cache
+  // entry would serve one as the other. The ablation learned this the hard way.
+  return `${base}@L${level}${allSeats ? ':all4' : ''}`;
 }
 
 /** Every matrix run `analyze` will ask for, so they can be warmed up front. */
