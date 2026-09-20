@@ -52,6 +52,20 @@ export interface LookaheadOptions {
   restrictTo?: ActionType[];
 }
 
+/**
+ * `topK: 3` prunes hard — on a six-card kit roughly half the hand never reaches
+ * the search at all, ranked out by the depth-0 heuristic's hand-tuned weights.
+ *
+ * That looks like a bug and is not. Measured 2026-09-20 at `topK: 5`: draws
+ * went from ~2% to 17.8%, p90 rounds hit the 40-round cap, and every card in
+ * Mestre d'Armes started correlating with losing. A wider search does not find
+ * better cards, it finds STALLING LINES — positions that score well and never
+ * end — and the narrow pruning was quietly protecting the game from them.
+ *
+ * So the number is load-bearing. Raising it is not an improvement waiting to
+ * happen; it is a change that needs the leaf evaluator to price an unfinished
+ * fight first.
+ */
 export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 2, passes: 1, topK: 3 };
 
 /**
@@ -93,7 +107,27 @@ export function positionScore(engine: CombatEngine, team: number): number {
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
   const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
 
-  return 10 * pvDiff + 6 * bodyDiff + 0.5 * fatigueDiff;
+  // What each side's STATUSES are worth (StatusBehavior.positionValue). Without
+  // this the evaluator could only see PV, bodies and fatigue, so a wall that
+  // has not yet been breached, an enemy who cannot act, or a set-up being held
+  // all scored exactly zero — and the search never chose any of them. Measured
+  // 2026-09-20: eleven cards across six kits under 3% of the turns they were
+  // legal, nearly all of them control, prevention or set-up.
+  //
+  // Averaged per body, like the PV term, so a big team does not out-score a
+  // small one simply by holding more statuses.
+  const statusValue = (t: Character[]): number => {
+    if (t.length === 0) return 0;
+    let acc = 0;
+    for (const c of t) {
+      if (!c.isAlive()) continue;
+      for (const ref of c.statusRefs()) acc += ref.entry.behavior?.positionValue?.(ref) ?? 0;
+    }
+    return acc / t.length;
+  };
+  const statusDiff = statusValue(livingUs) - statusValue(livingThem);
+
+  return 10 * pvDiff + 6 * bodyDiff + 0.5 * fatigueDiff + 10 * statusDiff;
 }
 
 /** Action indices `actor` may legally play, via the engine's own gate, honouring

@@ -50,6 +50,18 @@ const COVER: StatusBehavior = {
     }
     return damage - absorbed;
   },
+  /**
+   * Life still in the stone is damage the holder has already not taken.
+   *
+   * Scaled against the holder's own health, because that is the unit
+   * `positionScore` measures in: a wall with 7 left in front of a 12 PV hero is
+   * worth a bit over half that hero. Capped at one body — a wall cannot be
+   * worth more than the person behind it.
+   */
+  positionValue(ref) {
+    const life = num(ref.entry.data ?? {}, 'life', 0);
+    return Math.min(1, life / Math.max(1, ref.holder.maxPV));
+  },
 };
 
 /** Life left in the cover `key` standing in front of `c`, 0 if there is none. */

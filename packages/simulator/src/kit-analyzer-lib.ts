@@ -168,7 +168,7 @@ function calibrationRowCount(): number {
 
 /** Build the party and opposition for one cell. The ONLY thing the two modes
  *  differ by. */
-function setupFor(subject: Subject, level: number): (cell: Cell) => CellSetup {
+export function setupFor(subject: Subject, level: number): (cell: Cell) => CellSetup {
   if (subject.mode === 'player') {
     return cell => ({
       party: partyWith(subject.id, level, cell.companyIdx),
@@ -295,6 +295,24 @@ const AUTO_INCLUDE = 0.85;
 function deadCardLine(cards: number): number {
   return (DEAD_FRACTION_OF_NEUTRAL / Math.max(1, cards));
 }
+
+/**
+ * Cards this harness CANNOT judge, and why.
+ *
+ * Every number here is the winrate of AI play, and the AI chooses blind and
+ * never re-chooses. A card whose whole value is what a PERSON does after the
+ * reveal is therefore unmeasurable by it — not dead, not weak, invisible. Left
+ * undeclared, requirement 4/5 fails it forever and the honest response would be
+ * to "fix" a card that is not broken.
+ *
+ * This list is deliberately hard to add to: a card belongs here only when the
+ * AI structurally cannot use it, never when it merely plays it badly.
+ */
+export const AI_BLIND_CARDS: Record<string, string> = {
+  'estat-de-flux': 'grants post-reveal card swaps. The AI commits blind and never '
+    + 'swaps, so the card is worth exactly nothing to it and everything to a player '
+    + 'who can see the reveal. Its own handler already says so (aiWeight 0.2).',
+};
 
 export function analyze(subject: Subject, games: number): KitReport {
   const cards = subject.mode === 'player'
@@ -427,7 +445,9 @@ export function analyze(subject: Subject, games: number): KitReport {
   const dead: string[] = [];
   const auto: string[] = [];
   const unjudged: string[] = [];
+  const blind: string[] = [];
   for (const c of cards) {
+    if (AI_BLIND_CARDS[c.id]) { blind.push(c.name); continue; }
     const legal = top.counters.legal[c.id] ?? 0;
     if (legal < minLegal) { unjudged.push(`${c.name} (${legal})`); continue; }
     const played = top.counters.played[c.id] ?? 0;
@@ -442,6 +462,7 @@ export function analyze(subject: Subject, games: number): KitReport {
       dead.length ? `mortes: ${dead.join(', ')}` : '',
       auto.length ? `automàtiques: ${auto.join(', ')}` : '',
       unjudged.length ? `sense prou mostra: ${unjudged.join(', ')}` : '',
+      blind.length ? `no mesurables per la IA: ${blind.join(', ')}` : '',
     ].filter(Boolean).join(' · ')
       || `totes dins la banda [${exact(deadLine, 1)} – ${exact(AUTO_INCLUDE)}, ${cards.length} cartes]`,
   };

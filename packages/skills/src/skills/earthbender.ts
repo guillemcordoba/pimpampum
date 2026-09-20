@@ -16,6 +16,23 @@ import { num } from '../effects/helpers.js';
 const ENTERRAT: StatusBehavior = {
   untargetable() { return true; },
   blocksActionType(_ref, type) { return type !== ActionType.Focus; },
+  /**
+   * Being swallowed is a burden, so this is NEGATIVE for the holder — which is
+   * how burying an enemy becomes visible to the lookahead at all. Before this,
+   * removing a body from the fight for three rounds moved neither PV nor body
+   * count and therefore scored exactly zero, and Presó de terra was played on
+   * 2.3% of the turns it was legal.
+   *
+   * Priced per round still to serve, and deliberately WELL under a whole body:
+   * the buried are also UNREACHABLE, so this buys time rather than a kill, and
+   * a first pass at 0.2/round had the AI reaching for it often enough that
+   * Presó de terra started correlating with LOSING (played on 6.6% of legal
+   * turns, won 31% of them). Tempo is worth something; it is not worth a body.
+   */
+  positionValue(ref) {
+    const left = ref.entry.remaining < 0 ? 3 : Math.min(3, ref.entry.remaining);
+    return -0.1 * left;
+  },
 };
 
 const TERRA_EFFECTS: Record<string, EffectHandler> = {

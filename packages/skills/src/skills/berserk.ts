@@ -23,6 +23,19 @@ const AGUANTANT: StatusBehavior = {
 // Entrar en Fúria: NOTHING can lower the raging holder's PV while it lasts.
 const INDESTRUCTIBLE: StatusBehavior = {
   clampPvLoss() { return 0; },
+  /**
+   * Hands back exactly the health the evaluator thinks was lost.
+   *
+   * Entering the rage slams the berserker to 1 PV, which `positionScore` reads
+   * as very nearly dead — so the search refused to enter it: the card was
+   * played on 1.0% of the turns it was legal, the deadest in the game. But
+   * while the rage lasts that 1 PV cannot be taken, so the right reading is
+   * that the holder is at FULL effective health, not at one point of it.
+   */
+  positionValue(ref) {
+    const missing = ref.holder.maxPV - Math.max(0, ref.holder.currentPV);
+    return missing / Math.max(1, ref.holder.maxPV);
+  },
 };
 const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   // Entrar en Fúria: enter the battle-trance, all in. Entering slams the body
@@ -92,7 +105,13 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
       applyMod(ctx.source, 'attack', gain, 'restOfCombat', ctx.action.name);
       ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} la resta del combat.`, ctx.source.team);
     },
-    aiWeight() { return 0.6; },
+    // The payoff is a PERMANENT attack buff, which the leaf evaluator cannot
+    // see (it is a CombatModifier, not a status), while the cost — taking the
+    // blow in full — is plainly visible. At 0.6 the card was ranked out by the
+    // depth-0 heuristic before the search ever considered it, and sat at 2.1%
+    // of the turns it was legal. It is a gamble, so it should not be the
+    // favourite; it should be allowed in the room.
+    aiWeight() { return 1.1; },
   },
 
 };

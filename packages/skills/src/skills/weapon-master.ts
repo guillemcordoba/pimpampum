@@ -14,6 +14,16 @@ import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 // margin). The chain breaks at round end unless the holder attacked (arming
 // round exempt).
 const CADENA: StatusBehavior = {
+  /**
+   * A live chain multiplies the NEXT attack, so holding one is worth something
+   * before it is spent — which the evaluator could not see, since a chain moves
+   * no PV until it fires. Scaled by how far the ladder has climbed, and capped:
+   * a chain is only worth anything while you keep attacking, and any non-attack
+   * throws it away.
+   */
+  positionValue(ref) {
+    return Math.min(0.5, 0.15 * Math.max(0, ref.entry.value));
+  },
   onAttackAction(ctx) {
     ctx.entry.value += 1; // advance the ladder in place (×value)
     return { attackTotalMult: ctx.entry.value };
@@ -38,6 +48,9 @@ const CADENA: StatusBehavior = {
 const FLUX: StatusBehavior = {
   cardSwapCharges() { return 1; },
   spendCardSwapCharge() {},
+  /** A held swap is the right card instead of the wrong one, once. Small and
+   *  flat: it is real, and it is not worth a body. */
+  positionValue() { return 0.15; },
 };
 
 const MESTRE_ARMES_EFFECTS: Record<string, EffectHandler> = {
@@ -47,7 +60,11 @@ const MESTRE_ARMES_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     canPlay(actor) { return !actor.hasStatus('cadena'); },
     onResolve(ctx) {
-      ctx.source.setStatus('cadena', 0, -1, { armedRound: ctx.engine.round }, CADENA);
+      // Armed at 1, so the FIRST chained attack is already x2. It used to arm
+      // at 0, which meant spending a whole turn to buy a x1 — nothing at all —
+      // and only then climbing. A stance that costs a turn has to pay on the
+      // turn after it, or nobody will ever enter it (2.0% of legal turns).
+      ctx.source.setStatus('cadena', 1, -1, { armedRound: ctx.engine.round }, CADENA);
       ctx.engine.log('focus', `${ctx.source.name} encadena els seus atacs!`, ctx.source.team);
     },
     // Worth arming when there are foes to grind down; nothing once already chained.
@@ -95,16 +112,24 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'estat-de-flux', name: 'Estat de flux', skillId: 'mestre-armes',
-      unlock: 4, type: ActionType.Focus, speed: -4,
+      // Speed +1, not -4. A Focus is cancelled if its actor takes damage
+      // first, so a Focus at -4 resolves only when nothing reached you all
+      // round — which against four enemies is almost never. Both of this kit's
+      // Focus cards sat under 2.5% of the turns they were legal for that
+      // reason, and a master slipping into flow is not the slowest thing on
+      // the field anyway.
+      unlock: 4, type: ActionType.Focus, speed: 1,
       effects: [{ type: 'flow_state' }, { type: 'empower', params: { amount: 6, turns: 2 } }],
       desc: "Durant la resta del combat, després de revelar les cartes, pots canviar la teva carta per una altra. El teu proper atac té {A}+6.",
       icon: 'lorc/meditation.svg',
     }),
     action({
       id: 'atac-encadenat', name: 'Atac encadenat', skillId: 'mestre-armes',
-      unlock: 5, type: ActionType.Focus, speed: -2,
+      // Speed +1 for the same reason as Estat de flux above: a stance you
+      // cannot enter is not a card.
+      unlock: 5, type: ActionType.Focus, speed: 1,
       effects: [{ type: 'chain_attack' }],
-      desc: "Cada torn que ataquis, l'atac es multiplica (×1, ×2, ×3, ×4…). Es trenca si no ataques.",
+      desc: "Cada torn que ataquis, l'atac es multiplica (×2, ×3, ×4…). Es trenca si no ataques.",
       icon: 'lorc/sword-spin.svg',
     }),
   ],

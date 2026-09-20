@@ -89,6 +89,29 @@ export interface StatusBehavior {
   absorbsGuard?(ref: StatusRef): boolean;
   /** Post-reveal card-swap charges this status grants the holder. */
   cardSwapCharges?(ref: StatusRef): number;
+  /**
+   * What holding this status is WORTH to the holder, for the lookahead's leaf
+   * evaluator (`positionScore`). Positive is good for the holder; negative is
+   * a burden they are carrying.
+   *
+   * WHY THIS SEAM EXISTS. `positionScore` could only see PV, bodies and
+   * fatigue, so anything that does not immediately move one of those scored
+   * ZERO — and the AI therefore never chose it. Measured 2026-09-20: eleven
+   * cards across six kits sat under 3% of the turns they were legal, and they
+   * were almost all walls, buries, marks and set-ups. The cards were fine; the
+   * evaluator was blind to them.
+   *
+   * The UNIT is the same as `positionScore`'s PV term: 1.0 is worth about one
+   * combatant's full health. A standing wall with 7 life left on a 12 PV party
+   * is worth roughly 7/12 of a body's health, so ~0.6. Keep estimates
+   * CONSERVATIVE — this feeds a search, and a status that over-values itself
+   * will be played to the exclusion of everything else, which is the same
+   * failure in the other direction.
+   *
+   * The engine never interprets `data`; a behaviour reads its own payload and
+   * returns a number.
+   */
+  positionValue?(ref: StatusRef): number;
   /** Spend one card-swap charge (clear the status when exhausted). */
   spendCardSwapCharge?(ref: StatusRef): void;
   /** AI: transform the base weight of a candidate action while the holder has

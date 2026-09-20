@@ -16,6 +16,11 @@ import { num, tspec, resolveTargets, targetReq } from '../effects/helpers.js';
 const CONDEMNAT: StatusBehavior = {
   rollMode() { return 'disadvantage'; },
   modifySpeed() { return -3; },
+  /** Disadvantage on every roll plus −3 speed is a real handicap, and one the
+   *  evaluator could not see at all: neither moves PV, bodies or fatigue. A
+   *  third of a body, and no more — the marked still act, they just act
+   *  worse. */
+  positionValue() { return -0.3; },
 };
 
 // Contagious decay: ticks `value` PV each round. Each round, every living
@@ -27,6 +32,13 @@ const CONDEMNAT: StatusBehavior = {
 const everInfected = new WeakSet<object>();
 
 const PUTREFACCIO: StatusBehavior = {
+  /** Rot is damage already dealt, it simply has not landed yet. Priced as the
+   *  ticks still to come, against the holder's own health — the same unit the
+   *  PV term uses — so the search stops treating a poisoned enemy as healthy. */
+  positionValue(ref) {
+    const ticks = ref.entry.remaining < 0 ? 3 : Math.min(4, ref.entry.remaining);
+    return -(ref.entry.value * ticks) / Math.max(1, ref.holder.maxPV);
+  },
   onRoundEnd(ctx) {
     const { engine, holder, entry } = ctx;
     if (holder.isAlive() && entry.value > 0) {
@@ -122,35 +134,45 @@ export const NIGROMANT: SkillDefinition = {
   actions: [
     action({
       id: 'marca-de-la-perdicio', name: 'Marca de la perdició', skillId: 'nigromant',
-      unlock: 1, type: ActionType.Focus, speed: 1,
+      unlock: 2, type: ActionType.Focus, speed: 1,
       effects: [{ type: 'condemn', params: { turns: 2 } }],
       desc: 'Condemna un enemic (2 torns): tira amb desavantatge i té −3 de velocitat.',
       icon: 'lorc/cursed-star.svg',
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(1, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(1, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',
     }),
     action({
       id: 'sudari-de-tomba', name: 'Sudari de tomba', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
+      unlock: 4, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
       effects: [{ type: 'condemn_on_block', params: { turns: 1 } }],
       desc: "Si bloqueges un atac, l'atacant queda condemnat (1 torn).",
       icon: 'lorc/haunting.svg',
     }),
     action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 4, type: ActionType.Focus, speed: -1,
+      unlock: 5, type: ActionType.Focus, speed: -1,
       effects: [{ type: 'plague', params: { damage: 2, turns: 3 } }],
       desc: "L'objectiu perd 2 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 5: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
       id: 'xuclar-la-vida', name: 'Xuclar la vida', skillId: 'nigromant',
-      unlock: 5, type: ActionType.Atac, speed: 0, dice: d(1, 6),
+      // LEVEL 1, and 2d6 rather than 1d6.
+      //
+      // The kit used to open on Marca de la perdicio — a Focus that only
+      // marks — so a level-1 necromancer could not attack AT ALL. It measured
+      // -25.7pp against a neutral kit, the worst opening level in the game,
+      // and every other kit opens on a real attack. Draining the living is
+      // also the most basic thing a necromancer does; mark-and-reap is the
+      // cleverer trick and now sits at 2-3, still adjacent so the combo is
+      // still learnt in one step. 1d6 was the weakest workhorse in the game
+      // (peers run 2d4-2d6 at the same job).
+      unlock: 1, type: ActionType.Atac, speed: 0, dice: d(2, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',

@@ -944,3 +944,83 @@ Three rules now, written into `CLAUDE.md`:
    a doc. Never a measured number in a comment. "Measured: +51.7pp", "the
    balancer's hard solve promises 65%", "roll penalties are permanently gone"
    were each true once and silently became false.
+
+## 15. Content pass (2026-09-20)
+
+With the harness fast and honest, the open content items were worked through.
+Every number below is from `kit-analyzer.ts` at 2,400 combats/level against the
+neutral baseline, or `experiment-kit-threat.ts`.
+
+### 15.1 The root cause of eleven "dead cards"
+
+Eleven cards across six kits sat under 3% of the turns they were legal, and
+almost all were walls, buries, marks and set-ups. They were not weak: the LEAF
+EVALUATOR could not see them. `positionScore` read PV, bodies and fatigue, so
+anything that did not immediately move one of those scored exactly zero and the
+search never chose it.
+
+Fixed with a new generic seam, `StatusBehavior.positionValue` — a status says
+what holding it is worth to its holder, in the same unit as the PV term, and the
+engine sums it without ever interpreting `data`. Priced conservatively: a first
+pass at double the current value had Presó de terra correlating with LOSING.
+
+**Dead cards: 11 → 0.**
+
+### 15.2 A NEGATIVE result worth keeping: topK
+
+`DEFAULT_LOOKAHEAD.topK = 3` prunes roughly half a six-card hand before the
+search sees it, which looked like the obvious cause of "thinking ≈ attacking".
+It is not. At `topK: 5`: draws 2% → **17.8%**, p90 rounds at the 40-round cap,
+every Mestre d'Armes card correlating with losing. A wider search does not find
+better cards, it finds STALLING LINES. The narrow pruning is load-bearing and
+the comment in `lookahead.ts` now says so.
+
+### 15.3 Card and creature changes
+
+| what | why | result |
+|---|---|---|
+| **Llop**: claw 1d2 → 1d4, new L3 `Caça en manada` (defense −1 per living packmate) | the only creature that could NEVER reach an even fight at any count or level; 1d2 is below the floor flat armour sets | reaches an even fight at **4 bodies, L3** |
+| **Goblin Xaman**: new L5 `Maledicció de sang` (cursed target takes +2 from every wound) | the only TRUNCATED kit — bodies needed still falling (12→4→3→2) when it ran out of cards; a shaman should multiply a horde, not be a fourth attacker | extends the ramp |
+| **Nigromant**: `Xuclar la vida` → L1 and 1d6 → 2d6; mark/reap to L2-3 | its L1 was a Focus that only marks — a level-1 necromancer could not attack at all, at **−25.7pp**, the worst opening level in the game | **−11.5pp → −2.3pp** |
+| **Mestre d'Armes**: `Estat de flux` and `Atac encadenat` speed −4/−2 → +1 | a Focus is cancelled if its actor takes damage first, so a Focus at −4 almost never resolves | both playable |
+| **Mestre d'Armes**: `Atac encadenat` arms at ×2, not ×1 | arming cost a turn and bought nothing; the ladder only started paying on the turn after | 2.0% → in band |
+| **Berserk**: `Aguantar el cop` aiWeight 0.6 → 1.1 | its payoff is a permanent attack buff the evaluator cannot see, while its cost is plainly visible; at 0.6 it was ranked out before the search considered it | in band |
+
+### 15.4 Resolved by the roll change, not by content
+
+- **Gòlem de Pedra's levels are no longer inert** — 12/12/4/4 bodies by level
+  (§5.1 measured 4 at every level).
+- **Diable Banyut's level regression is gone** — 3/4/3/3/3 bodies, no monotone
+  worsening (§5.1 measured level 1 as its most dangerous).
+- **Diable Espinós** reaches an even fight at 8 bodies (was "never").
+
+### 15.5 Where the kits stand
+
+```
+Enginyer d'Explosius  +6.4pp      Berserk         -0.3pp
+Mestre d'Armes        -1.2pp      Nigromant       -2.3pp
+Earthbender           -6.7pp      Màgia volcànica -7.5pp
+```
+
+Spread 13.9pp, down from 19.1pp. Requirements 1, 2 and 4/5 pass for all six;
+requirement 7 fails only for Enginyer's `Barricada` (24.7% win-when-played,
+confounded as always).
+
+### 15.6 STILL OPEN, and it is systemic
+
+**Requirement 3 fails 6/6: restricting a side to attacks costs it nothing.**
+Measured fairly — both sides thinking equally hard at depth 1, one merely with a
+smaller strategy space — `onlyAttacks` scores within a few points of the full
+policy on every kit. Random play (20.5%) and focus-only (6.6%) are far worse, so
+the triangle is not wholly decoration; it is specifically ATTACK that is as good
+as thought.
+
+And the turtle is worse than that: a side restricted to DEFENSES beats free play
+on two of four shapes (horda 61 vs 46, cap 68 vs 56) with a 0.8% draw rate, so
+it is genuinely winning, not stalling — defenses in this game deal damage
+through ripostes.
+
+That is not a card problem and it is not a harness problem. It is either the
+evaluator still mispricing a turn, or attack being too strong relative to
+defense and focus at the level of the rules. It needs a design decision, so it
+is left for one.

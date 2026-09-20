@@ -116,6 +116,18 @@ const ENCEGAT: StatusBehavior = {
 // first live minefield gives each attacking enemy a d20 ≤ 10 chance to trip a
 // mine, take its blast (armour-ignored) and spend it. One check per attack.
 const CAMP_MINAT: StatusBehavior = {
+  /**
+   * Mines still in the ground are damage already paid for.
+   *
+   * `positionScore` sees only PV, bodies and fatigue, so a laid minefield read
+   * as nothing at all and Camp minat was played on 1.9% of the turns it was
+   * legal. Priced at roughly one mine's average blast per charge left, against
+   * a body's health, and deliberately shy of what they WILL do: a mine only
+   * pays if someone steps on it.
+   */
+  positionValue(ref) {
+    return Math.min(0.6, 0.15 * Math.max(0, ref.entry.value));
+  },
   onEnemyAttackAction(ctx, attacker) {
     if (ctx.entry.value <= 0) return false;
     if (ctx.engine.rollDie(20) <= 10) {
