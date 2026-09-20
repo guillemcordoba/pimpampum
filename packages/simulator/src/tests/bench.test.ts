@@ -382,6 +382,26 @@ describe('a card is judged by its absence, not by the AI', () => {
     ).toBe(false);
   });
 
+  it('never certifies a card DEAD — the floor is above an even card\'s share', () => {
+    // MEASURED (NEXT-STEPS §17.5): the noise floor is ~3pp and a whole KIT in
+    // one seat is worth ~11pp, so an evenly balanced 5-card kit puts ~2.2pp on
+    // each card — under the floor. An instrument that cannot tell a good kit
+    // from an empty one must not call anything dead, and must not report a ✅
+    // for a check it did not make.
+    const block = lib.slice(lib.indexOf('// 4/5.'), lib.indexOf('// 7.'));
+    expect(
+      block.includes('inconclusive'),
+      'requirement 4/5 must mark itself INCONCLUSIVE rather than passing. A green tick here '
+      + 'claims the kit was checked for dead cards, and §17.5 measured that it cannot be.',
+    ).toBe(true);
+    expect(
+      /DEAD_VALUE|deadLine|dead\.push/.test(block),
+      'a dead-card verdict is back in requirement 4/5. The ablation certifies a card ALIVE '
+      + '(a positive value is a lower bound that survives a better player); it has no power to '
+      + 'certify one dead. See NEXT-STEPS §17.5 for the two control runs.',
+    ).toBe(false);
+  });
+
   it('the ablation removes the card, not the skill level', () => {
     const ref = fs.readFileSync(path.join(SRC, 'bench/reference.ts'), 'utf8');
     const fn = ref.slice(ref.indexOf('export function heroWithout'));
@@ -404,7 +424,7 @@ describe('a card is judged by its absence, not by the AI', () => {
     const ok = block.match(/ok:\s*([^,\n]+)/);
     expect(ok, 'no ok: line in the 4/5 verdict').not.toBeNull();
     expect(
-      /misplay|negative|trap/i.test(ok![1]),
+      /misplay|negative|trap|dead|unresolved/i.test(ok![1]),
       `requirement 4/5 fails on "${ok![1].trim()}". A card the AI plays WORSE for holding is a `
       + 'finding about the AI, and an optimal player is never hurt by an extra option. Report it, '
       + 'do not fail the kit on it.',

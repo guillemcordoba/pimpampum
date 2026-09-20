@@ -529,9 +529,13 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   and the same eleven cards read dead, then alive, then dead again across three
   sessions in which no die changed. **The sign is asymmetric**: `value > 0` is a
   LOWER BOUND that survives a better player (a bigger choice set never hurts
-  optimal play), `value ≈ 0` is dead *for this AI* and is what 4/5 fails on, and
-  `value < 0` means the AI plays worse for holding the card — a finding about
-  the AI, so it is flagged, never failed. The known
+  optimal play) and is the ONLY thing the harness can certify; `value < 0` means
+  the AI plays worse for holding the card, a finding about the AI rather than the
+  card. **It cannot certify a card DEAD**, and requirement 4/5 therefore reports
+  `➖` rather than `✅`: the noise floor was measured at ±3pp against a whole
+  seat worth only ~11pp, so an evenly balanced 5-card kit (~2.2pp a card) is
+  indistinguishable from a kit of nothings. NEXT-STEPS §17.5 has both control
+  runs; `DETECTION_FLOOR` carries the numbers. The known
   weakness is sub-additivity: two cards doing one job cover for each other and
   both ablate to nothing, so a dead verdict means "nothing needs THIS card",
   never "this card does nothing" — the level sweep, which removes cards in

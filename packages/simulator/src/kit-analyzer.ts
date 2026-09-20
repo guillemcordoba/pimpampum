@@ -34,7 +34,10 @@ function subjectName(s: Subject): string {
 }
 
 function printReport(r: KitReport): void {
-  const mark = (v: Verdict) => (v.ok ? '✅' : '❌');
+  // Three states, not two: a requirement the harness cannot currently TEST is
+  // neither passed nor failed, and rendering it ✅ would claim a check that did
+  // not happen.
+  const mark = (v: Verdict) => (v.inconclusive ? '➖' : v.ok ? '✅' : '❌');
   console.log(`\n━━ ${subjectName(r.subject)} (${r.subject.id}) · mode ${r.subject.mode} ━━`);
   // The DELTA is the headline: "how much better than a neutral kit, in the same
   // seats". The raw winrate is kept beside it because it is what a reader has
@@ -54,7 +57,7 @@ function printReport(r: KitReport): void {
   console.log(`  ${mark(r.spam)} 3. pensar bat qualsevol estratègia sense pensar — ${r.spam.detail}`);
   console.log(`  ${mark(r.strategySpace)} 3b. l'espai d'estratègia importa — ${r.strategySpace.detail}`);
   console.log(`  ${mark(r.oneTrick)} 3c. una sola carta repetida no basta — ${r.oneTrick.detail}`);
-  console.log(`  ${mark(r.cardUse)} 4/5. cap carta morta ni trampa (ablació) — ${r.cardUse.detail}`);
+  console.log(`  ${mark(r.cardUse)} 4/5. quines cartes sostenen el kit (ablació) — ${r.cardUse.detail}`);
   // The whole table, not just the failures: the SHAPE of a kit's card values is
   // the design finding, and a pass/fail line hides it. Printed once per kit,
   // strongest first, so a kit carried by one card is visible at a glance even
@@ -191,7 +194,7 @@ if (reports.length > 1) {
   for (const r of reports) {
     const top = r.levels[r.levels.length - 1].run;
     const d = top.delta * 100;
-    const m = (v: Verdict) => (v.ok ? '   ✅   ' : '   ❌   ');
+    const m = (v: Verdict) => (v.inconclusive ? '   ➖   ' : v.ok ? '   ✅   ' : '   ❌   ');
     console.log(
       `  ${subjectName(r.subject).padEnd(22)} ${((d >= 0 ? '+' : '') + d.toFixed(1) + 'pp').padStart(8)}    `
       + `${m(r.monotonicity)}  ${m(r.duration)}  ${m(r.spam)}  ${m(r.strategySpace)} ${m(r.oneTrick)}   ${m(r.cardUse)}    ${m(r.correlation)}`,

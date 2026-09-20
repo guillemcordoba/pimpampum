@@ -1100,10 +1100,9 @@ is safe:
   that survives a better player. A larger choice set can never hurt someone who
   plays it optimally, so anyone playing at least this well gets at least this
   much from the card.
-- `value ≈ 0` → **dead**: *this* AI gains nothing from holding it. The weaker
-  claim, and what 4/5 fails on — a stronger player might find a use, but a card
-  whose entire value is invisible to a round of lookahead is one to go and look
-  at.
+- `value ≈ 0` → **nothing is shown**, in either direction. This was first
+  written as "dead: *this* AI gains nothing from it", and §17.5 then measured
+  the noise floor and took that reading away — see there.
 - `value < 0` → the AI plays **worse** for holding the card, which an optimal
   player never would. That is evidence about the AI, not the card (or a genuine
   trap option, tempting and bad, that a human would fall for too — the harness
@@ -1221,3 +1220,82 @@ So the buff is reverted and stays reverted. The one kit still failing 3b is
 Berserk, at +0.0pp, which §17.3 says is a kit-design problem rather than a
 system-wide one — and buffing every defense in the game to fix one kit is how
 the dice drift away from the design.
+
+### 17.5 The ablation was CALIBRATED, and it is underpowered (2026-09-20)
+
+§17.3 was written on the assumption that the method works. It was never
+checked. Two controls, both through the same `runMatrix` the analyzer uses:
+
+**POSITIVE CONTROL — what is a seat even worth?** Strip the subject's whole kit;
+he keeps his level, his gear and Cop desesperat and holds nothing else.
+
+| kit | full | no cards | the whole seat |
+|---|---|---|---|
+| Mestre d'Armes | 55.5% | 43.6% | **+11.8pp ±8.9** |
+| Berserk | 54.0% | 43.6% | **+10.3pp ±8.6** |
+| Earthbender | 47.9% | 43.4% | **+4.5pp ±7.4** |
+
+Everything a 5-6 card kit does, in one seat of four, is worth about **11 points
+of party winrate**. That is the ceiling every card value lives under.
+
+**NEGATIVE CONTROL — what does the instrument say when nothing is there?** The
+same kit against itself on fresh dice, true difference zero by construction,
+nine times:
+
+```
+-3.0  -1.2  +0.1  |  +0.5  +1.3  +0.1  |  -0.6  -0.6  -0.5
+```
+
+The honest noise floor is **±3pp**, and one of the nine excluded zero at 2σ
+where 1-in-20 was expected — the paired estimator's eleven degrees of freedom
+make its bars slightly optimistic, as advertised.
+
+**So the typical card is below the detection threshold by construction.** ~11pp
+of budget over 5 cards is ~2pp each against a ±3pp floor. The method sees a
+kit's top one or two cards and nothing else.
+
+Consequences, all of which invalidate part of §17.3 as first written:
+
+- **Every "dead" verdict in the first sweep is unsupportable.** `DEAD_VALUE` was
+  set at 2pp from two soft arguments, below a floor that had not been measured.
+- **Every negative value in the sweep (−0.0 to −3.3pp) lies inside the null's
+  own range.** "The AI plays worse for holding this card" has no support at any
+  of those magnitudes. Demoting it from a failure to a flag was not enough.
+- **What clears the floor is real, and it is a short list**: Traca final +10.4,
+  Columna de terra +9.1, Granada +8.1, Pell d'obsidiana +6.7, Xuclar la vida
+  +5.3, Mur de pedra +4.6, Cop de roca +4.1. Seven of 29 cards.
+
+### 17.6 Four seats buys power and changes the question
+
+The one lever that multiplies the intervention without buying combats: put the
+subject in ALL FOUR seats. The noise floor is unchanged (±2-3pp) and the effects
+grow several times over.
+
+| card | 1 seat | 4 seats |
+|---|---|---|
+| Contraatac (M. d'Armes) | +0.5pp ±3.3 | **+17.8pp ±7.8** |
+| Mur de pedra (Earthbender) | +4.6pp ±3.9 | **+8.0pp ±2.4** |
+| Columna de terra | +9.1pp ±6.4 | +17.5pp ±12.1 |
+| Tall precís | +0.1pp ±4.7 | +0.2pp ±4.4 |
+
+**But it is not the same question, and Contraatac shows why.** Four seats is not
+four times one seat: a ×4 scaling of the 1-seat interval tops out at +3.8pp,
+and +17.8 is far outside it. Defenses covering the same attack SUM into a wall,
+so four copies of a defense card are worth much more than four times one copy.
+The mirror party systematically inflates cards that stack with themselves and
+says nothing about how a card performs in the mixed party the game actually
+has.
+
+Also note the positive control saturates there — four kitless heroes win 0.1%,
+so the seat-budget measurement is unusable in this design.
+
+Useful as a SENSITIVITY probe ("does this card do anything at all, anywhere");
+not a substitute for the 1-seat number.
+
+**OPEN, and it is the requirement's own shape:** with ~11pp of budget and a 3pp
+floor, an evenly balanced 5-card kit — 2.2pp a card, exactly what good design
+would produce — is indistinguishable from a kit of nothings. Requirement 4/5
+cannot both be an ablation on one seat and certify a card as dead. What IS
+measurable is the seat budget (+11.8 vs +4.5 separates Mestre d'Armes from
+Earthbender cleanly) and the list of cards certified above the floor. Needs a
+design decision, so it is left for one.

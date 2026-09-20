@@ -33,7 +33,9 @@
  *     (`bench/cells.ts`): random cards, or restricted to attacks / defenses /
  *     focus while still thinking as hard as ever inside that space, plus "one
  *     seat repeats a single card" per card. The best of them is the bar.
- *  4/5. NO DEAD CARDS, NO TRAPS — LEAVE-ONE-OUT ABLATION. Play the kit; play it
+ *  4/5. WHICH CARDS CARRY THE KIT — LEAVE-ONE-OUT ABLATION. It certifies a card
+ *     ALIVE and cannot certify one DEAD; the floor is measured and the seat's
+ *     whole budget is only ~4× it (§17.5). Play the kit; play it
  *     again with one card physically removed from the hand; subtract. A card
  *     whose removal costs the kit nothing is dead; a card whose removal IMPROVES
  *     the kit is a trap. This replaced "how often did the AI pick it", which
@@ -207,7 +209,14 @@ function cellsFor(subject: Subject): Cell[] {
   return subject.mode === 'player' ? usableCells() : enemyShape(subject).cells;
 }
 
-export interface Verdict { ok: boolean; detail: string }
+export interface Verdict {
+  ok: boolean;
+  detail: string;
+  /** The requirement could not be TESTED, as opposed to passed. A ✅ that means
+   *  "we could not check" is a lie the summary table tells at a glance, and
+   *  requirement 4/5 is in exactly that position: see `DETECTION_FLOOR`. */
+  inconclusive?: boolean;
+}
 
 /**
  * What one card is worth to its kit, by leave-one-out ablation.
@@ -382,24 +391,27 @@ const BASELINE_SCREEN_FRACTION = 0.5;
  * complement — it removes cards in prefixes, so redundancy cannot hide there.
  */
 /**
- * A card worth less than this in winrate is not carrying its slot.
+ * THE INSTRUMENT'S NOISE FLOOR — measured, not argued (NEXT-STEPS §17.5).
  *
- * PROVISIONAL, and honestly so: nobody knows yet what a healthy card is worth
- * under this measurement, because nothing has ever measured it. The one thing
- * that would be wrong is to pick the number that makes today's kits pass.
+ * This constant was first set at 2pp from two soft arguments, and the arguments
+ * were wrong. The floor was then MEASURED, by running the same kit against
+ * itself on fresh dice nine times — a comparison whose true answer is zero by
+ * construction:
  *
- * Two soft anchors put it near 2pp. Requirement 1 asks the whole kit to gain
- * ≥5pp from its first card to its last, which over today's 4-6 card kits is
- * ~1pp a card if the gain were spread evenly — so 2pp asks a card to pull
- * somewhat above an even share. And 2pp is roughly what the default sample can
- * resolve at 2σ; a finer line would only report noise.
+ *   -3.0  -1.2  +0.1  |  +0.5  +1.3  +0.1  |  -0.6  -0.6  -0.5
  *
- * The report prints EVERY card's value, not just the failures, precisely so the
- * distribution is visible and this constant can be set from it rather than from
- * an argument. Move it when the numbers say to — and re-run every scoreboard,
- * because it is a unit.
+ * So ±3pp is what this harness reports when nothing is there, and one of the
+ * nine excluded zero at 2σ where 1-in-20 was expected — the paired estimator's
+ * eleven degrees of freedom make its bars slightly optimistic. A value under
+ * this floor is not a small finding, it is not a finding.
+ *
+ * READ IT WITH THE CEILING (§17.5): stripping a subject's WHOLE kit is worth
+ * ~11pp, so an evenly balanced 5-card kit puts ~2.2pp on each card — under the
+ * floor. That is why nothing here can certify a card DEAD: the instrument
+ * cannot tell a well-balanced kit from a kit of nothings, and no threshold
+ * fixes that. It can only certify a card ALIVE.
  */
-const DEAD_VALUE = 0.02;
+const DETECTION_FLOOR = 0.03;
 
 /**
  * Cards this harness CANNOT judge, and why.
@@ -571,9 +583,9 @@ export function analyze(subject: Subject, games: number): KitReport {
   // Same cells, same games, same seed offset as the full-kit run above, so the
   // two arms meet the same dice and differ by one card. The baselines cancel in
   // the subtraction, so this is read on raw winrates.
-  const dead: string[] = [];
-  const misplayed: string[] = [];
-  const unjudged: string[] = [];
+  const carries: string[] = [];
+  const unresolved: string[] = [];
+  const harmful: string[] = [];
   const blind: string[] = [];
   const values: CardValue[] = [];
   for (const c of cards) {
@@ -600,27 +612,32 @@ export function analyze(subject: Subject, games: number): KitReport {
       worst: ranked[0], best: ranked[ranked.length - 1],
     });
     const shown = `${c.name} ${pp(value)}±${(se * 200).toFixed(1)}${legal ? ` (jugada ${share(played, legal).trim()})` : ''}`;
-    if (value + 2 * se < 0) misplayed.push(shown);
-    else if (value + 2 * se < DEAD_VALUE) dead.push(shown);
-    // Not enough power to tell DEAD_VALUE from zero — say so rather than pass.
-    else if (2 * se > DEAD_VALUE && value - 2 * se < DEAD_VALUE) unjudged.push(shown);
+    // CERTIFIED ALIVE: the interval excludes zero AND the point estimate clears
+    // the measured floor. Both are needed — the bars are known to run slightly
+    // tight, so the floor is the backstop.
+    if (value - 2 * se > 0 && value >= DETECTION_FLOOR) carries.push(shown);
+    else if (value + 2 * se < -DETECTION_FLOOR) harmful.push(shown);
+    else unresolved.push(shown);
   }
   values.sort((a, b) => b.value - a.value);
   const cardUse: Verdict = {
-    // Two things do NOT fail the kit. An UNJUDGED card fails the SAMPLE, and
-    // saying "this kit is broken" on the strength of too few combats is the
-    // failure mode this whole layer was cleaned up to stop. A NEGATIVE value is
-    // a statement about the AI, not the card — see the note on the sign above.
-    ok: dead.length === 0,
+    // WHAT THIS CAN AND CANNOT CONCLUDE (§17.5). It can certify a card ALIVE: a
+    // positive value is a lower bound that survives a better player, since a
+    // larger choice set never hurts optimal play. It CANNOT certify one dead —
+    // the whole seat is worth ~11pp and the floor is 3pp, so a perfectly even
+    // 5-card kit would have every card read "dead", and no threshold fixes
+    // that. So the only FAILURE available is a card certified actively harmful
+    // beyond the floor; everything else is reported, and the requirement is
+    // marked INCONCLUSIVE rather than passed, because a ✅ here would claim the
+    // kit was checked for dead cards when it cannot be.
+    ok: harmful.length === 0,
+    inconclusive: harmful.length === 0,
     detail: [
-      misplayed.length
-        ? `la IA juga PITJOR amb aquestes a la mà (mira-hi, no és culpa de la carta): ${misplayed.join(', ')}`
-        : '',
-      dead.length ? `mortes: ${dead.join(', ')}` : '',
-      unjudged.length ? `sense prou mostra per decidir: ${unjudged.join(', ')}` : '',
+      harmful.length ? `FAN MAL (per sota del terra de soroll): ${harmful.join(', ')}` : '',
+      carries.length ? `sostenen el kit (≥${pp(DETECTION_FLOOR)}, interval sense el zero): ${carries.join(', ')}` : 'CAP carta supera el terra de soroll',
+      unresolved.length ? `no resoltes (per sota de ±${pp(DETECTION_FLOOR)}, el terra mesurat): ${unresolved.join(', ')}` : '',
       blind.length ? `no mesurables per la IA: ${blind.join(', ')}` : '',
-    ].filter(Boolean).join(' · ')
-      || `totes ≥${pp(DEAD_VALUE)} de valor d'ablació`,
+    ].filter(Boolean).join(' · '),
   };
 
   // 7. Cards correlating with losing (a flag, not a verdict — confounded).
