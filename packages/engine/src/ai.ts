@@ -1,4 +1,5 @@
 import { Character } from './character.js';
+import { skillLevelBonus } from './resolution.js';
 import { random } from './rng.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
@@ -74,8 +75,13 @@ function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
   for (const e of actor.equipment) {
     if (e.attackBonus !== undefined) weapon = Math.max(weapon, e.attackBonus);
   }
+  // `skillLevelBonus` is part of every roll the engine makes, so leaving it out
+  // here made the AI's model of a blow disagree with the blow. At level 5 a 2d6
+  // attack really totals ~12; this estimated ~7, and against 2 armour that is
+  // 10 damage predicted as 5 — half. It cancelled for same-level contests and
+  // did not for anything else, including every player-versus-enemy comparison.
   return Math.max(0, (def.dice?.average() ?? 3) + (def.rollBonus ?? 0)
-    + weapon + actor.getRollBonus(def.skillId, 'attack'));
+    + weapon + actor.getRollBonus(def.skillId, 'attack') + skillLevelBonus(actor, def));
 }
 
 /** Best attack total a character can be expected to throw (threat proxy). */
@@ -95,7 +101,7 @@ function bestDefenseTotal(e: Character): number {
   for (const a of e.actions) {
     if (a.def.actionType !== ActionType.Defensa) continue;
     const d = (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0)
-      + e.getRollBonus(a.def.skillId, 'defense');
+      + e.getRollBonus(a.def.skillId, 'defense') + skillLevelBonus(e, a.def);
     best = Math.max(best, d);
   }
   return best;
@@ -121,7 +127,14 @@ function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies
     const defended = pWin * Math.max(0, A - bestDef - armor);
     acc += (1 - P_DEFEND) * undefended + P_DEFEND * defended;
   }
-  return acc / enemies.length;
+  // SCALED BY HOW MANY IT HITS. `acc / enemies.length` is the damage a
+  // single-target attack expects against one of them; an attack that sweeps
+  // three, or all of them, removes that much PV several times over. Nothing
+  // here read `targetCount` at all, so every area card in the game — eight of
+  // them — was priced as if it struck one body, and was undervalued by up to
+  // the size of the horde it was aimed at.
+  const hits = Math.max(1, Math.min(def.targetCount ?? 1, enemies.length));
+  return (acc / enemies.length) * hits;
 }
 
 function actionWeight(view: AIView, actor: Character, action: ActionInstance): number {

@@ -232,14 +232,29 @@ export function bestResponse(
         // Prune by the depth-0 opinion: sample it a few times and keep the
         // cards it actually reaches for. Cheap, and it never drops the card
         // depth 0 would have played.
+        //
+        // EVERY SAMPLE IS FILTERED THROUGH `allowed`. `selectAction` knows
+        // nothing about `restrictTo` — it samples the actor's whole legal hand
+        // — so without this filter the pruner handed back cards the restriction
+        // had just excluded, and a search restricted to attacks would evaluate,
+        // and play, defenses. That silently corrupted every restricted
+        // measurement: the "attacks only" arm was only ~74% attacks.
+        const allowed = new Set(candidates);
         const seen = new Map<number, number>();
         for (let i = 0; i < opts.topK * 2; i++) {
           const idx = selectAction(engine, actor).actionIdx;
-          if (idx >= 0) seen.set(idx, (seen.get(idx) ?? 0) + 1);
+          if (idx >= 0 && allowed.has(idx)) seen.set(idx, (seen.get(idx) ?? 0) + 1);
         }
         const ranked = [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([i]) => i);
         const current = choices.get(actor);
-        if (current !== undefined && !ranked.includes(current)) ranked.push(current);
+        if (current !== undefined && allowed.has(current) && !ranked.includes(current)) ranked.push(current);
+        // Sampling can miss allowed cards entirely (it is weighted and random,
+        // and under a restriction most draws may be rejected). Top up from the
+        // allowed list so the search always has `topK` real options.
+        for (const idx of candidates) {
+          if (ranked.length >= opts.topK) break;
+          if (!ranked.includes(idx)) ranked.push(idx);
+        }
         if (ranked.length > 0) candidates = ranked.slice(0, opts.topK);
       }
       for (const idx of candidates) {
