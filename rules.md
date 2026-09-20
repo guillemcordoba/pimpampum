@@ -90,13 +90,26 @@ Només s'aprèn dels fracassos ajustats: quedar-te a un pèl de superar el repte
 
 ## Fatiga
 
-Cada acció té un cost de fatiga: **1 per defecte**; les accions esgotadores en costen més (indicat a la carta). Cada cop que jugues una acció, dins o fora de combat, sumes el seu cost al teu comptador de fatiga.
+La fatiga és un **nivell** de 0 a 5 que porta cada jugador. Jugar cartes no cansa: és el **màster** qui decideix quan un personatge puja de nivell, segons la ficció — un segon combat sense respir, una marxa forçada, una nit sense dormir, fred o gana, una ferida sense curar, caure a 0 PV —, i pot fer-lo pujar més d'un nivell de cop. Un nivell mai és el càstig d'una tirada dolenta: és el pes del temps i del desgast.
 
-La fatiga màxima és **20** (provisional, pendent d'ajustar perquè un dia aguanti 2-3 combats): no pots jugar una acció que te la faria superar. **Dormir una nit neteja tota la fatiga.**
+| Nivell | Nom | Efecte |
+|---|---|---|
+| 0 | Fresc | — |
+| 1 | Cansat | −1 a totes les tirades |
+| 2 | Fatigat | −2 |
+| 3 | Extenuat | −3 |
+| 4 | Exhaust | −4 |
+| 5 | Esgotat | −5 |
 
-La fatiga no afecta mai les tirades: és el pressupost d'energia del dia.
+El nivell resta el seu valor a **totes** les tirades del personatge: atac, defensa, focus i tirades fora de combat. Un sol número, sense excepcions.
 
-L'esgotament no et deixa mai sense opcions: quan no pots jugar cap altra carta, entra a la teva mà el **Cop desesperat**, una carta universal que no costa fatiga — un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.
+Cada nivell fa cada combat aproximadament **un grau més difícil** (mesurat: un combat de 65% per al grup passa a ~49% amb tot el grup Cansat, a ~31% Fatigat i a ~6% Esgotat). No és un detall de color: el màster dóna nivells com qui puja la dificultat.
+
+Només un **descans llarg de 4 hores o més** neteja la fatiga, i la neteja tota de cop. No hi ha recuperació parcial.
+
+**Els enemics no tenen mai fatiga.** És una eina del màster sobre els jugadors.
+
+L'esgotament de cartes no et deixa mai sense opcions: quan no pots jugar cap altra carta (totes consumides o bloquejades), entra a la teva mà el **Cop desesperat**, una carta universal — un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.
 
 ## Objectes i equipament
 

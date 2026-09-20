@@ -164,6 +164,8 @@ function save() {
     skills: { ...draftSkills.value },
     equipment: [...draftEquip.value],
     potions: [...draftPotions.value],
+    // Fatigue is edited from the roster row, not here — carry it through.
+    fatigue: props.hero?.fatigue ?? 0,
   });
 }
 </script>

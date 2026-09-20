@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { STAT_ICONS } from '@pimpampum/engine';
+import { STAT_ICONS, FATIGUE_MAX_LEVEL, FATIGUE_LEVEL_NAMES } from '@pimpampum/engine';
 
 const base = import.meta.env.BASE_URL;
 
@@ -49,14 +49,23 @@ const SKILL_ROWS = 3;
         </div>
       </div>
 
-      <!-- Bottom: fatigue token track + untitled resource-tracking area -->
+      <!-- Bottom: fatigue level track — one row per level, each stating its
+           own penalty so the sheet needs no rules text — + untitled
+           resource-tracking area -->
       <div class="sheet-bottom-blocks">
         <div class="sheet-block-wrapper">
           <span class="sheet-block-title">
             <img class="sheet-stat-icon" :src="base + STAT_ICONS.fatigue" alt="fatiga">
             Fatiga
           </span>
-          <div class="sheet-block"></div>
+          <div class="sheet-block sheet-fatigue-track">
+            <div v-for="lvl in FATIGUE_MAX_LEVEL" :key="lvl" class="sheet-fatigue-level">
+              <div class="sheet-fatigue-box"></div>
+              <span class="sheet-fatigue-name">{{ FATIGUE_LEVEL_NAMES[lvl] }}</span>
+              <span class="sheet-fatigue-penalty">−{{ lvl }} a totes les tirades</span>
+            </div>
+            <div class="sheet-fatigue-note">Només un descans llarg (4 h o més) la neteja.</div>
+          </div>
         </div>
         <div class="sheet-block-wrapper">
           <!-- Empty title spacer keeps this block the same height as Fatiga's. -->

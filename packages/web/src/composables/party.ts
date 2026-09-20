@@ -37,6 +37,8 @@ export interface HeroSpec {
   skills: Record<string, number>;
   equipment: string[];
   potions: string[];
+  /** Fatigue level (0-5), the DM's call; absent on parties saved before it existed. */
+  fatigue?: number;
 }
 
 export interface StoredParty {
@@ -294,6 +296,7 @@ export function heroBuildSpec(hero: HeroSpec, fallbackIndex = 0): CharacterBuild
     skills: { ...hero.skills },
     equipment: [...hero.equipment],
     potions: [...hero.potions],
+    fatigue: hero.fatigue ?? 0,
     category: 'player',
   };
 }

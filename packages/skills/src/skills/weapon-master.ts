@@ -102,7 +102,7 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'atac-encadenat', name: 'Atac encadenat', skillId: 'mestre-armes',
-      unlock: 5, type: ActionType.Focus, speed: -2, fatigueCost: 2,
+      unlock: 5, type: ActionType.Focus, speed: -2,
       effects: [{ type: 'chain_attack' }],
       desc: "Cada torn que ataquis, l'atac es multiplica (×1, ×2, ×3, ×4…). Es trenca si no ataques.",
       icon: 'lorc/sword-spin.svg',

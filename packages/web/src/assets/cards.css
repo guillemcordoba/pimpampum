@@ -519,7 +519,7 @@
   vertical-align: middle;
   margin-right: 0.3mm;
 }
-/* Inline icons inside the rules running text (e.g. {FATIGA}) stay font-sized so
+/* Inline icons inside the rules running text (e.g. {A}) stay font-sized so
    they sit within the existing line box and don't make that line taller. */
 .print-card .rules-text .rules-icon {
   width: 1em;
@@ -740,7 +740,7 @@
 }
 
 
-/* -- Bottom blocks (Fatiga token area + untitled resource tracking) -------- */
+/* -- Bottom blocks (Fatiga level track + untitled resource tracking) -------- */
 
 .sheet-bottom-blocks {
   display: flex;
@@ -763,6 +763,43 @@
   background: rgba(255,255,255,0.5);
   border: 1.5px solid rgba(44,24,16,0.3);
   border-radius: 1.5mm;
+}
+
+.sheet-fatigue-track {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 1.5mm 2.5mm;
+}
+.sheet-fatigue-level {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  font-size: 8pt;
+  color: var(--text-dark, #2c1810);
+}
+.sheet-fatigue-box {
+  flex: none;
+  width: 4.5mm;
+  height: 4.5mm;
+  background: rgba(255,255,255,0.7);
+  border: 1.5px solid rgba(44,24,16,0.45);
+  border-radius: 1mm;
+}
+.sheet-fatigue-name {
+  flex: 1;
+  font-weight: 700;
+  text-align: left;
+}
+.sheet-fatigue-penalty {
+  white-space: nowrap;
+}
+.sheet-fatigue-note {
+  font-size: 6.5pt;
+  font-style: italic;
+  color: var(--text-dark, #2c1810);
+  opacity: 0.8;
+  margin-top: 1mm;
 }
 
 .sheet-block-title {

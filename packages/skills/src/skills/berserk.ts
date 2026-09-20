@@ -132,7 +132,7 @@ export const BERSERK: SkillDefinition = {
     }),
     action({
       id: 'entrar-en-furia', name: 'Entrar en Fúria', skillId: 'berserk',
-      unlock: 5, type: ActionType.Focus, speed: 2, fatigueCost: 3,
+      unlock: 5, type: ActionType.Focus, speed: 2,
       effects: [{ type: 'enter_rage', params: { value: 5, turns: 3 } }],
       desc: 'Baixes a 1 PV. Durant 3 torns res et pot fer baixar PV, {A}+5 als teus atacs.',
       icon: 'delapouite/enrage.svg',

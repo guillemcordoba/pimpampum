@@ -166,7 +166,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'riu-de-lava', name: 'Riu de lava', skillId: VOLCANIC_SKILL_ID,
-      unlock: 4, type: ActionType.Focus, speed: -3, fatigueCost: 2,
+      unlock: 4, type: ActionType.Focus, speed: -3,
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
         { type: 'lava_flow', params: { sides: 10 } },
@@ -176,7 +176,7 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'erupcio', name: 'Erupció', skillId: VOLCANIC_SKILL_ID,
-      unlock: 5, type: ActionType.Atac, speed: -2, fatigueCost: 2, targetCount: 99,
+      unlock: 5, type: ActionType.Atac, speed: -2, targetCount: 99,
       effects: [{ type: 'eruption', params: { min: 2 } }],
       desc: 'Gasta tota la pressió, afecta a tots els aliats i enemics.',
       icon: 'lorc/eruption.svg',

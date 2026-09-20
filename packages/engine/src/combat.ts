@@ -8,7 +8,6 @@ import {
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { resolveAttack, checkSkillUp, masteryBonus } from './resolution.js';
-import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
 import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
 import { DEFAULT_LOOKAHEAD, LookaheadOptions, bestResponse } from './lookahead.js';
 
@@ -488,7 +487,6 @@ export class CombatEngine implements EngineApi, AIView {
     if (!action) return false;
     if (!action.isAvailable() || c.isActionSetAside(actionIdx)) return false;
     if ((c.skills.get(action.def.skillId) ?? 0) < action.def.unlockLevel) return false;
-    if (FATIGUE_ENABLED && c.fatigue + (action.def.fatigueCost ?? 1) > FATIGUE_CONFIG.max) return false;
     for (const ref of c.statusRefs()) {
       if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
     }
@@ -1212,23 +1210,10 @@ export class CombatEngine implements EngineApi, AIView {
   finishRound(): void {
     for (const p of this.pending) this.dispatch('postRound', p.actor, p.action.def, { targets: p.targets ?? [] });
     this.dispatchStatusRoundEnd();
-    this.accumulateFatigue();
     for (const c of this.allCombatants()) c.advanceTurn();
     this.pending = [];
     this.pendingIndex = 0;
     this.tierSpeed = null;
-  }
-
-  /** Each actor who took an action this round pays its fatigue cost (1 by
-   *  default; esgotadora cards more). Skipping / stunned characters did not
-   *  act, so they don't tire. Dead actors are past caring. CANCELLED actions
-   *  (interrupted focus, cancelled while pending) never happened — no cost. */
-  private accumulateFatigue(): void {
-    if (!FATIGUE_ENABLED) return;
-    for (const p of this.pending) {
-      if (!p.actor.isAlive() || p.cancelled) continue;
-      p.actor.fatigue += p.action.def.fatigueCost ?? 1;
-    }
   }
 
   // --- Win conditions / driving ---------------------------------------------

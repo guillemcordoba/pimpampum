@@ -9,7 +9,7 @@ const BONE_DEVIL_SKILL: SkillDefinition = {
   actions: [
     action({ id: 'defensa-esqueletica', name: 'Defensa esquelètica', skillId: 'bone-devil', unlock: 1, type: ActionType.Defensa, speed: 1, dice: d(2, 6), effects: [{ type: 'heal_on_block', params: { amount: 2 } }], desc: 'Si bloqueges un atac, recuperes 2 PV.', icon: 'lorc/ribcage.svg' }),
     action({ id: 'fiblo-verinos', name: 'Fibló verinós', skillId: 'bone-devil', unlock: 2, type: ActionType.Atac, speed: 0, dice: d(2, 6), effects: [{ type: 'debuff_on_hit', params: { kind: 'defense', amount: 2, duration: 'restOfCombat' } }], desc: "Si fa ferida, l'enemic perd {D}-2 permanentment.", icon: 'lorc/poison-gas.svg' }),
-    action({ id: 'udol-de-terror', name: 'Udol de terror', skillId: 'bone-devil', unlock: 3, type: ActionType.Focus, speed: -2, fatigueCost: 2, effects: [
+    action({ id: 'udol-de-terror', name: 'Udol de terror', skillId: 'bone-devil', unlock: 3, type: ActionType.Focus, speed: -2, effects: [
       { type: 'skill_mod', params: { kind: 'attack', amount: -2, target: 'enemies', duration: 2 } },
       { type: 'skill_mod', params: { kind: 'defense', amount: -2, target: 'enemies', duration: 2 } },
       { type: 'skill_mod', params: { kind: 'speed', amount: -2, target: 'enemies', duration: 2 } },

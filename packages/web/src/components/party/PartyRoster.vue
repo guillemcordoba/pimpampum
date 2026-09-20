@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { clampFatigue, FATIGUE_LEVEL_NAMES } from '@pimpampum/engine';
 import { getSkill, getPotion, getEquipment } from '@pimpampum/skills';
 import { useParties, type HeroSpec } from '../../composables/party';
 import HeroEditor from './HeroEditor.vue';
@@ -75,6 +76,14 @@ function setPv(index: number, value: number): void {
   if (!hero) return;
   const pv = Math.max(1, Math.min(99, Math.round(value) || hero.pv));
   party.updateHero(index, { ...hero, pv });
+}
+
+/** Fatigue level, likewise edited from the row: the DM assigns it from the
+ *  fiction between fights, and the balancer prices the party at that level. */
+function setFatigue(index: number, value: number): void {
+  const hero = party.heroes.value[index];
+  if (!hero) return;
+  party.updateHero(index, { ...hero, fatigue: clampFatigue(value) });
 }
 
 // --- hero summaries ---------------------------------------------------------
@@ -157,6 +166,16 @@ const levelSum = computed(() => party.heroes.value.reduce(
                 :value="h.pv"
                 @change="setPv(i, Number(($event.target as HTMLInputElement).value))"
               >
+            </label>
+            <label class="pv-inline" title="Nivell de fatiga: −1 a totes les tirades per nivell">
+              Fatiga
+              <select
+                class="pv-input fatigue-select"
+                :value="h.fatigue ?? 0"
+                @change="setFatigue(i, Number(($event.target as HTMLSelectElement).value))"
+              >
+                <option v-for="(name, lvl) in FATIGUE_LEVEL_NAMES" :key="lvl" :value="lvl">{{ lvl }} · {{ name }}</option>
+              </select>
             </label>
             · {{ skillSummary(h) }}
           </div>
@@ -246,6 +265,7 @@ const levelSum = computed(() => party.heroes.value.reduce(
   padding: 0.05rem 0.15rem;
 }
 .pv-input:focus { outline: none; border-color: var(--parchment); }
+.fatigue-select { width: auto; }
 
 .no-party { display: flex; flex-direction: column; gap: 0.5rem; }
 

@@ -8,7 +8,7 @@ const WOLF_SKILL: SkillDefinition = {
   iconPath: ICON + 'lorc/wolf-head.svg',
   actions: [
     action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'wolf', unlock: 1, type: ActionType.Atac, speed: 3, dice: d(1, 2), desc: '', icon: 'delapouite/claws.svg' }),
-    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 2, type: ActionType.Focus, speed: -2, fatigueCost: 2, effects: [{ type: 'summon', params: { factory: makeWolf, maxTeam: 6 } }], desc: 'Crida un llop nou al combat, fins a un màxim de 6 llops que hagin participat en la batalla.', icon: 'lorc/wolf-howl.svg' }),
+    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 2, type: ActionType.Focus, speed: -2, effects: [{ type: 'summon', params: { factory: makeWolf, maxTeam: 6 } }], desc: 'Crida un llop nou al combat, fins a un màxim de 6 llops que hagin participat en la batalla.', icon: 'lorc/wolf-howl.svg' }),
   ],
 };
 

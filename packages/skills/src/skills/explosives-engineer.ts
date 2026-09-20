@@ -151,7 +151,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     standingCoverAction({
       skillId: 'enginyer-explosius', unlock: 2,
       id: 'barricada', name: 'Barricada', key: 'barricada', label: 'la barricada',
-      dice: d(2, 6), life: d(1, 6), speed: 1, fatigueCost: 2,
+      dice: d(2, 6), life: d(1, 6), speed: 1,
       desc: 'La barricada persisteix: mentre és dreta, els atacs contra el protegit es resolen contra la teva defensa. Té 1d6 de vida i absorbeix el dany que la travessa; es destrueix quan se li acaba.',
       icon: 'delapouite/barricade.svg',
     }),
@@ -164,7 +164,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',
-      unlock: 4, type: ActionType.Focus, speed: -2, fatigueCost: 2,
+      unlock: 4, type: ActionType.Focus, speed: -2,
       effects: [
         { type: 'charge_cost', params: { amount: 3 } },
         { type: 'lay_minefield', params: { mines: 3, damageSides: 6 } },
@@ -174,7 +174,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'traca-final', name: 'Traca final', skillId: 'enginyer-explosius',
-      unlock: 5, type: ActionType.Atac, speed: -4, fatigueCost: 2, targetCount: 99,
+      unlock: 5, type: ActionType.Atac, speed: -4, targetCount: 99,
       effects: [{ type: 'empty_bandolier', params: { sides: 4, max: 4 } }],
       desc: 'Gasta totes les càrregues: ataca amb 1d4 per càrrega (màx. 4d4). Afecta tots els enemics.',
       icon: 'skoll/carpet-bombing.svg',

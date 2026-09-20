@@ -48,5 +48,5 @@ export type { AIView, PlannedAction, PendingSummary } from './ai.js';
 export { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, STAT_ICONS, STAT_DISPLAY_NAMES, SLOT_LABELS, RULES_SUMMARY } from './display.js';
 export type { RulesSection } from './display.js';
 
-// Fatigue (daily stamina budget)
-export { FATIGUE_ENABLED, FATIGUE_CONFIG, maxFatigue, fatigueStateName } from './fatigue.js';
+// Fatigue (DM-assigned level, −1 per level on every roll)
+export { FATIGUE_MAX_LEVEL, FATIGUE_LEVEL_NAMES, clampFatigue, fatigueRollPenalty, fatigueStateName } from './fatigue.js';

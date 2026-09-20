@@ -3,7 +3,6 @@ import { random } from './rng.js';
 import { ActionInstance } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import { EffectRegistry, AIContext } from './effects.js';
-import { FATIGUE_ENABLED, FATIGUE_CONFIG } from './fatigue.js';
 
 /** Reveal-level summary of one queued action this round. */
 export interface PendingSummary {
@@ -36,11 +35,9 @@ function pvFraction(c: Character): number {
   return c.maxPV > 0 ? c.currentPV / c.maxPV : 0;
 }
 
-/** Whether every effect on an action permits playing it now (resource gates),
- *  the actor can afford its fatigue cost, and no status on the actor blocks
- *  the action's type. */
+/** Whether every effect on an action permits playing it now (resource gates)
+ *  and no status on the actor blocks the action's type. */
 export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
-  if (FATIGUE_ENABLED && actor.fatigue + (action.def.fatigueCost ?? 1) > FATIGUE_CONFIG.max) return false;
   for (const ref of actor.statusRefs()) {
     if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
   }

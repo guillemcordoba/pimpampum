@@ -81,10 +81,6 @@ export const RULES_SUMMARY: RulesSection[] = [
     type: 'text',
     text: "Efecte especial. Es cancel·la si reps dany abans.",
   },
-  {
-    title: 'Fatiga',
-    icon: STAT_ICONS.fatigue,
-    type: 'text',
-    text: "Comences el dia amb 0 fatiga. Cada acció que juguis suma 1 {FATIGA} a la teva fatiga (per defecte). Pots acumular un màxim de 20 de fatiga en un dia.",
-  },
 ];
+// Fatigue is explained on the player sheet itself (its level track spells
+// out the −N per level), so the rules card carries no section for it.

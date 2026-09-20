@@ -15,9 +15,9 @@ packages/
 │   └── src/
 │       ├── index.ts           # Public API
 │       ├── dice.ts            # DiceRoll
-│       ├── types.ts           # ActionType, ActionDefinition (dice, unlockLevel, fatigueCost), SkillInstance, EquipmentDefinition, TargetRequirement
+│       ├── types.ts           # ActionType, ActionDefinition (dice, unlockLevel), SkillInstance, EquipmentDefinition, TargetRequirement
 │       ├── resolution.ts      # resolveAttack (margin), resolveDamage, checkSkillUp, SKILL_UP_MARGIN
-│       ├── fatigue.ts         # FATIGUE_CONFIG — the daily stamina budget
+│       ├── fatigue.ts         # FATIGUE_MAX_LEVEL, level names, the −1/level roll penalty
 │       ├── effects.ts         # EffectRegistry, EffectHandler, EffectContext, EngineApi, AttackModifiers, AIContext
 │       ├── status.ts          # StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind
 │       ├── action.ts          # ActionInstance, getActionTargetRequirement/Count
@@ -103,7 +103,7 @@ that target this round.
    per pass; each target defends against that roll; `attackRepeats` statuses
    grant extra full passes (re-rolled).
 4. `finishRound()` — postRound effect hooks, status `onRoundEnd` (dots/regen
-   tick), fatigue accrual for every acted character, `advanceTurn`.
+   tick), `advanceTurn`.
 5. The simulator drives all of this via `runRound()` / `runCombat(stats)`.
 
 ### Effect handler catalogue
@@ -182,13 +182,21 @@ hit fully absorbed by armour does NOT interrupt (rule changed 2026-07-18).
 engine shuffles the queue before the speed sort so no seat holds tie priority —
 this fixed a measured seat bias.
 
-**Fatigue.** `FATIGUE_CONFIG.max = 20` is THE pacing knob (~2-3 combats/day). It
-NEVER touches rolls — roll penalties were measured to freeze fights into draws
-and are permanently rejected (see `intentions.md`). Nobody is ever action-less:
-every combatant holds **Cop desesperat** (universal, 0 fatigue, 1d4 slow attack,
-1 PV self-damage hit or miss — `skills/src/desperation.ts`), playable ONLY when
-nothing else is (the generic `ActionDefinition.lastResort` flag), so exhausted
-fights end through desperate play.
+**Fatigue.** `Character.fatigue` is a LEVEL 0-5 (`fatigue.ts`: Fresc, Cansat,
+Fatigat, Extenuat, Exhaust, Esgotat), set by the DM — `setFatigue()` from a
+`CharacterBuildSpec.fatigue` / `DrawnPartySpec.fatigue`, never by the engine.
+The whole mechanic is one line: `getRollBonus()` adds `fatigueRollPenalty()`
+(−1 per level), and every attack, defense, extra-attack and heal roll already
+routes through it. Cards cost none; `rest()` (a 4h+ rest) clears it. Measured
+2026-09-13 (`simulator/src/experiment-fatigue-tiers.ts`, `-penalty.ts`): one
+level ≈ one difficulty tier, one-sided penalties SHORTEN fights, symmetric ones
+double them — so enemies never carry fatigue (see `intentions.md`). The
+balancer prices the party at its fatigue level like any other party input.
+The cards the old budget priced above 1 are listed in `NEXT-STEPS.md` §11 and
+carry no cost at all until that is decided. Nobody is ever
+action-less: every combatant holds **Cop desesperat** (universal, 1d4 slow
+attack, 1 PV self-damage hit or miss — `skills/src/desperation.ts`), playable
+ONLY when nothing else is (the generic `ActionDefinition.lastResort` flag).
 
 **Equipment** (simplified 2026-07-19 to three slots, one item each — no
 body-part inventory, no main/off/two-hand). An item gives passive armour, a
@@ -238,10 +246,11 @@ requests, unconstrained solving produced a median 12-round fight, single-creatur
 encounters averaging 19 rounds and 235 PV per body, and a peak of **one wolf with
 432 PV over 29 rounds**.
 
-Worse, the difficulty those numbers reported was not the creature's. A 29-round
-fight runs past the daily fatigue budget (`FATIGUE_CONFIG.max = 20`), after which
-the only playable card is Cop desesperat — 1d4, and **1 PV of self-damage per
-swing**, on a 12 PV hero. Re-measuring with the fatigue ceiling lifted:
+Worse, the difficulty those numbers reported was not the creature's. Under the
+daily fatigue budget of the time (max 20, since replaced by the DM-assigned
+level), a 29-round fight ran past it, after which the only playable card was
+Cop desesperat — 1d4, and **1 PV of self-damage per swing**, on a 12 PV hero.
+Re-measuring with the fatigue ceiling lifted:
 
 | solved encounter | asked | with fatigue | without |
 |---|---|---|---|
@@ -252,7 +261,9 @@ swing**, on a 12 PV hero. Re-measuring with the fatigue ceiling lifted:
 
 The sponge fights were never 50/50: the party wins them outright and was being
 dragged to a coin flip by exhausting itself. The short-fight control does not
-move, which is what makes this causal.
+move, which is what makes this causal. (The budget is gone now, so this
+particular artifact cannot recur — but a 29-round fight is still not the fight
+the number promises, so the duration constraint stays.)
 
 So `solveEncounter` holds `maxAvgRounds` (default `DEFAULT_MAX_AVG_ROUNDS = 6`)
 as a hard constraint. Rounds rise monotonically with PV, so the budget is a
@@ -316,7 +327,7 @@ that prices encounters has to have.
   Choice is weighted sampling sharpened by `aiSharpness` (weights^τ, default 2).
   Fast (~4 ms/combat) and blind to what the rest of the round commits.
 - **Depth 1** — play the round forward and score the position it leaves
-  (`positionScore`: PV differential, bodies standing, fatigue — hand-written,
+  (`positionScore`: PV differential, bodies standing, fatigue level — hand-written,
   readable weights). The team is solved JOINTLY by iterated best response, which
   is the only way a defense can be valued next to the focus it protects.
   `topK` prunes candidates by the depth-0 opinion. ~6× the cost, and it beats
@@ -393,8 +404,8 @@ from another because its CARDS differ.
   3d4 / 3d6 / 4d6 by level. Re-run after touching any contest dice.
 - Other one-offs: `experiment-tuning.ts` (PV/armour sweeps), `experiment-heal.ts`
   (heal-stall draws), `experiment-berserk.ts` (component attribution),
-  `experiment-seat.ts` (seat bias), `experiment-day.ts` (fatigue budget across a
-  2-3-combat day). Run any with
+  `experiment-seat.ts` (seat bias), `experiment-fatigue-penalty.ts` /
+  `experiment-fatigue-tiers.ts` (the fatigue ladder's numbers). Run any with
   `pnpm --filter @pimpampum/simulator exec tsx src/<file>.ts`.
 - `tests/balance.test.ts` — resolution math (`checkSkillUp`, `resolveAttack`,
   `resolveDamage`), engine sanity (terminates, valid winner, PV in range),
@@ -423,7 +434,7 @@ prompts) → victory. `TargetSelector.vue` supports the defense **dual prompt**
 `composables/useActionDisplay.ts` converts actions/equipment to printable-card
 props: contest dice under the crossed-swords icon (Atac) or shield icon
 (Defensa), an auto-appended "Necessita arma equipada." on weapon cards, and
-corner stats for above-default fatigue costs and resource costs (càrregues,
+corner stats for resource costs (càrregues,
 pressió). An item whose only mechanics are one granted card renders AS that card
 (the shield).
 

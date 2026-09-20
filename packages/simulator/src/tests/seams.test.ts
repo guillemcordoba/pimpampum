@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ActionDefinition, ActionType, Character, CombatEngine,
-  createCharacter, DiceRoll, StatusBehavior, FATIGUE_CONFIG,
+  createCharacter, DiceRoll, StatusBehavior, FATIGUE_MAX_LEVEL,
 } from '@pimpampum/engine';
 import { buildCharacter } from '@pimpampum/skills';
 import { REGISTRY } from './helpers.js';
@@ -435,26 +435,48 @@ describe('bloqueig conjunt (summed wall)', () => {
   });
 });
 
-describe('fatigue budget', () => {
-  it('unaffordable cards are unplayable once the daily budget is spent', () => {
-    const prevMax = FATIGUE_CONFIG.max;
-    FATIGUE_CONFIG.max = 2;
-    try {
-      const a = makeChar('A', 20, [atkDef()]);
-      const engine = new CombatEngine([a], [sac(50)], { registry: REGISTRY });
-      expect(engine.canPlayActionIdx(a, 0)).toBe(true);
-      a.fatigue = 2; // budget spent: a cost-1 card would exceed the max
-      expect(engine.canPlayActionIdx(a, 0)).toBe(false);
-    } finally {
-      FATIGUE_CONFIG.max = prevMax;
-    }
+describe('fatigue level', () => {
+  it('subtracts one from every roll per level, clamped to the ladder', () => {
+    const a = makeChar('A', 20, [atkDef()]);
+    expect(a.getRollBonus('test', 'attack')).toBe(0);
+    a.setFatigue(2);
+    expect(a.getRollBonus('test', 'attack')).toBe(-2);
+    expect(a.getRollBonus('test', 'defense')).toBe(-2);
+    expect(a.getRollBonus('test')).toBe(-2); // non-contest rolls too
+    expect(a.getFatigueStateName()).toBe('Fatigat');
+    a.setFatigue(99);
+    expect(a.fatigue).toBe(FATIGUE_MAX_LEVEL);
+    a.rest();
+    expect(a.fatigue).toBe(0);
+  });
+
+  it('never gates a card and never moves on its own during a fight', () => {
+    const a = makeChar('A', 20, [atkDef()]);
+    a.setFatigue(FATIGUE_MAX_LEVEL);
+    const enemy = sac(50);
+    const engine = new CombatEngine([a], [enemy], { registry: REGISTRY });
+    expect(engine.canPlayActionIdx(a, 0)).toBe(true);
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(a.fatigue).toBe(FATIGUE_MAX_LEVEL);
+  });
+
+  it('comes off the attack total, so an undefended hit lands N lighter', () => {
+    // unlockLevel 10 zeroes the fixture's mastery bonus (skill level 10).
+    const a = makeChar('A', 20, [atkDef('big', { dice: new DiceRoll(6, 1), unlockLevel: 10 })]); // flat 6
+
+    a.setFatigue(2);
+    const enemy = sac(50);
+    const engine = new CombatEngine([a], [enemy], { registry: REGISTRY });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(enemy.currentPV).toBe(46); // 6 − 2
   });
 });
 
 describe('Metge de campanya (full path, zero engine edits)', () => {
-  it("injecció d'adrenalina doubles the ally's attack and charges +4 fatigue", () => {
+  it("injecció d'adrenalina doubles the ally's attack and costs a fatigue level", () => {
     const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
-    const lluitador = makeChar('Lluitador', 20, [atkDef()]);
+    // Flat 3d1, unlockLevel 10 so the fixture's skill level 10 adds no mastery.
+    const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1), unlockLevel: 10 })]);
     const enemy = sac(50);
     const engine = new CombatEngine([metge, lluitador], [enemy], { registry: REGISTRY });
 
@@ -463,8 +485,10 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
       { idx: 0, actionIdx: injIdx, targets: [{ team: 0, idx: 1 }] },
       { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
     ]);
-    expect(enemy.currentPV).toBe(48); // double 1d1
-    expect(lluitador.fatigue).toBe(5); // +4 injection, +1 own action
+    // The injection (speed 5) lands before the swing (speed 1), so both
+    // swings already carry the new level: two hits of 3 − 1.
+    expect(lluitador.fatigue).toBe(1); // the injection; playing cards costs none
+    expect(enemy.currentPV).toBe(46);
     expect(lluitador.hasStatus('adrenalina')).toBe(false);
   });
 
