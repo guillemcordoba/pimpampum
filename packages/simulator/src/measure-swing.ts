@@ -26,24 +26,26 @@ import {
   ActionType, Character, CombatEngine, lookaheadChooser, setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { buildReferenceParty } from '@pimpampum/skills';
-import { createEnemy } from '@pimpampum/enemies';
-import { REGISTRY } from './tests/helpers.js';
+import { buildComposition } from '@pimpampum/enemies';
+import { REGISTRY } from './bench/arena.js';
+import { SHAPES, calibrationParty, solveShape } from './bench/shapes.js';
+import { assertParsed, parseAttacks } from './bench/combatlog.js';
+import { games } from './bench/games.js';
 
 declare const process: { env: Record<string, string | undefined> };
 
-const GAMES = Number(process.env.GAMES ?? 200);
+const GAMES = games(600);
 
-const MATCHUPS = [
-  { label: 'goblin swarm', enemy: 'goblin', count: 6, pv: 17 },
-  { label: 'golem squad', enemy: 'stone-golem', count: 3, pv: 18 },
-  { label: 'devil boss', enemy: 'horned-devil', count: 1, pv: 118 },
-];
+/** SOLVED shapes (bench/shapes.ts), not hand-written PVs: the matchups here
+ *  used to be `goblin @17 / golem @18 / horned-devil @118`, numbers the solver
+ *  returned before the duration constraint refused sponge fights and before
+ *  the AI rebuild moved every price. A solved shape re-prices itself. */
+const MATCHUPS = SHAPES.map(s => ({ label: s.label, shape: s }));
 
 function build(m: (typeof MATCHUPS)[number]): { players: Character[]; enemies: Character[] } {
   return {
-    players: buildReferenceParty({ count: 4, levels: 6, armor: 1 }),
-    enemies: Array.from({ length: m.count }, (_, k) =>
-      createEnemy(m.enemy, { name: `${m.enemy} ${k + 1}`, pv: m.pv })!),
+    players: buildReferenceParty(calibrationParty(0)),
+    enemies: buildComposition(solveShape(m.shape).groups),
   };
 }
 
@@ -139,11 +141,6 @@ function winrate(chooser: ((e: CombatEngine, a: Character) => number | null) | n
 // ---------------------------------------------------------------------------
 // 2-4. Hit anatomy, parsed from combat logs.
 // ---------------------------------------------------------------------------
-const UNDEFENDED = /🎲 ([^«]+)«([^»]+)»: atac (?:[\d+]+=)?(\d+) — (.+?) no es defensa/;
-const CONTESTED = /🎲 ([^«]+)«([^»]+)»: atac (?:[\d+]+=)?(\d+) vs (.+?) «([^»]+)»: defensa (?:[\d+→+]*?)(\d+)/;
-const HIT = /💥 .*colpeja ([^:]+): (\d+) dany/;
-const BLOCKED = /🛡️ .*atura l'atac/;
-
 interface Anatomy {
   undefendedHits: number;
   undefendedDamage: number;
@@ -167,6 +164,7 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
   };
   const chooser = lookaheadChooser({ depth: 1, samples: 2, passes: 1, topK: 3 });
 
+  let parsed = 0;
   withSeed(seed, () => {
     for (let g = 0; g < games; g++) {
       const { players, enemies } = build(m);
@@ -179,55 +177,47 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
       const maxPvByName = new Map<string, number>();
       for (const c of [...players, ...enemies]) maxPvByName.set(c.name, c.maxPV);
 
-      // Who is currently carrying a set-up? Filled from the focus log lines,
-      // which name the actor, so 'attack after I prepared' is measured per
-      // CHARACTER rather than 'any focus happened recently'.
-      const primed = new Set<string>();
-      let pending: { total: number; target: string; contested: boolean; actor: string } | null = null;
-      for (const entry of engine.logEntries) {
+      // Who is currently carrying a set-up. Read from the focus log lines,
+      // which name the actor, so "the attack after I prepared" is measured per
+      // CHARACTER rather than "some focus happened recently". Attacks carry
+      // their log index, so the two streams interleave without this file
+      // needing patterns of its own for the blows.
+      const primedAt = new Map<string, number>();
+      engine.logEntries.forEach((entry, at) => {
         const prime = /^(.+?) (?:carrega el proper atac|entra en)/.exec(entry.message);
-        if (prime) primed.add(prime[1].trim());
+        if (prime) primedAt.set(prime[1].trim(), at);
+      });
 
-        const u = UNDEFENDED.exec(entry.message);
-        if (u) { pending = { total: Number(u[3]), target: u[4].trim(), contested: false, actor: u[1].trim() }; continue; }
-        const c = CONTESTED.exec(entry.message);
-        if (c) { pending = { total: Number(c[3]), target: c[4].trim(), contested: true, actor: c[1].trim() }; continue; }
-
-        if (BLOCKED.test(entry.message) && pending) {
+      const spent = new Set<string>();
+      for (const atk of parseAttacks(engine.logEntries)) {
+        parsed++;
+        const max = maxPvByName.get(atk.target) ?? 12;
+        if (atk.blocked) {
           // A defense that fully stopped the blow: everything was prevented.
-          const max = maxPvByName.get(pending.target) ?? 12;
           a.contested++;
-          a.prevented += pending.total;
-          a.preventedFracSum += Math.min(1, pending.total / max);
-          pending = null;
-          continue;
+          a.prevented += atk.roll;
+          a.preventedFracSum += Math.min(1, atk.roll / max);
+        } else if (atk.defenseRoll === undefined) {
+          a.undefendedHits++;
+          a.undefendedDamage += atk.damage;
+          a.undefendedFracSum += Math.min(1, atk.damage / max);
+          if (atk.damage >= max * 0.5) a.halfKills++;
+          if (atk.damage >= max) a.fullKills++;
+        } else {
+          a.contested++;
+          a.prevented += Math.max(0, atk.roll - atk.damage);
+          a.preventedFracSum += Math.min(1, Math.max(0, atk.roll - atk.damage) / max);
         }
 
-        const h = HIT.exec(entry.message);
-        if (h && pending) {
-          const dmg = Number(h[2]);
-          const target = h[1].trim();
-          const max = maxPvByName.get(target) ?? 12;
-          if (!pending.contested) {
-            a.undefendedHits++;
-            a.undefendedDamage += dmg;
-            a.undefendedFracSum += Math.min(1, dmg / max);
-            if (dmg >= max * 0.5) a.halfKills++;
-            if (dmg >= max) a.fullKills++;
-          } else {
-            a.contested++;
-            a.prevented += Math.max(0, pending.total - dmg);
-            a.preventedFracSum += Math.min(1, Math.max(0, pending.total - dmg) / max);
-          }
-          if (primed.has(pending.actor)) {
-            a.postFocusAttack += pending.total; a.postFocusCount++;
-            primed.delete(pending.actor);   // the charge is spent
-          } else { a.plainAttack += pending.total; a.plainCount++; }
-          pending = null;
-        }
+        const primed = primedAt.get(atk.actor);
+        if (primed !== undefined && primed < atk.at && !spent.has(atk.actor)) {
+          a.postFocusAttack += atk.roll; a.postFocusCount++;
+          spent.add(atk.actor);            // the charge is spent
+        } else { a.plainAttack += atk.roll; a.plainCount++; }
       }
     }
   });
+  assertParsed(parsed, games);
   return a;
 }
 

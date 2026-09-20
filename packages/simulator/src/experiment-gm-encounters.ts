@@ -17,29 +17,20 @@ import {
   solveEncounter, simulateEncounter, TARGET_WINRATES,
   type PoolSpec, type FieldedGroup, type SolvedEncounter,
 } from '@pimpampum/enemies';
-import { PLAYER_SKILLS, COMPLEMENTARY_SKILLS, type PartySpec, type CharacterBuildSpec } from '@pimpampum/skills';
+import type { PartySpec } from '@pimpampum/skills';
+import { referenceParty } from './bench/reference.js';
+import { exact } from './bench/report.js';
+import { games, searchGames, SMOKE } from './bench/games.js';
 
 // --- The party a GM would have entered --------------------------------------
 // Four heroes on four different MAIN kits at level 5, PV 12, leather + shield,
 // and an axe for the kits whose cards need a weapon. This is what the web app
 // seeds and what a table actually looks like.
-const MAINS = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-
-function hero(name: string, skillId: string, level = 5): CharacterBuildSpec {
-  const skill = PLAYER_SKILLS.find(s => s.id === skillId)!;
-  const equipment = ['escut', 'armadura-de-cuir'];
-  if (skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) equipment.push('destral');
-  return {
-    name, pv: 12,
-    skills: { [skill.id]: Math.min(skill.actions.length, level) },
-    equipment,
-    category: 'player',
-  };
-}
-
-const PARTY: PartySpec = {
-  characters: MAINS.slice(0, 4).map((s, i) => hero(`Heroi ${i + 1}`, s.id)),
-};
+/** The reference table (bench/reference.ts) — named kits, asserted Σ, one
+ *  definition for the whole package. It used to be re-derived here as
+ *  `MAINS.slice(0, 4)`, which silently re-based this harness whenever a kit
+ *  was added to or reordered in the catalogue. */
+const PARTY: PartySpec = referenceParty();
 
 // --- The 100 requests --------------------------------------------------------
 interface Request {
@@ -64,6 +55,10 @@ const MIXES: { label: string; pool: PoolSpec[] }[] = [
 ];
 
 const REQUESTS: Request[] = [];
+// The cost here is the SOLVES, not the verification, so a sample-size knob
+// alone cannot make this cheap: under smoke, ask a few questions rather than a
+// hundred. The point of that run is that the harness executes, not what it says.
+const MAX_REQUESTS = SMOKE ? 3 : Infinity;
 for (const d of DIFFS) {
   for (const id of SPECIES) {
     REQUESTS.push({ label: `1× ${nameOf(id)}`, kind: 'solo', difficulty: d, pool: [{ enemyId: id, count: 1, level: lvl(id) }] });
@@ -78,7 +73,8 @@ for (const d of DIFFS) {
 }
 
 // --- Run ---------------------------------------------------------------------
-const VERIFY_GAMES = 500;
+const VERIFY_GAMES = games(500);
+const ASKED = REQUESTS.slice(0, MAX_REQUESTS);
 const VERIFY_SEED = 987654321;      // independent of the solver's own seed
 
 interface Row {
@@ -93,12 +89,12 @@ interface Row {
 
 const rows: Row[] = [];
 console.log(`Party: ${PARTY.characters!.map(c => `${Object.keys(c.skills)[0]} ${Object.values(c.skills)[0]}`).join(', ')}`);
-console.log(`${REQUESTS.length} encontres · verificats amb ${VERIFY_GAMES} combats i llavor independent\n`);
+console.log(`${ASKED.length} encontres · verificats amb ${VERIFY_GAMES} combats i llavor independent\n`);
 
 const t0 = Date.now();
-REQUESTS.forEach((req, i) => {
+ASKED.forEach((req, i) => {
   const target = TARGET_WINRATES[req.difficulty];
-  const solved = solveEncounter(req.pool, PARTY, target);
+  const solved = solveEncounter(req.pool, PARTY, target, { searchGames: searchGames(120) });
   let verified = NaN, rounds = NaN, bodies = 0, maxPV = 0;
   if (solved) {
     const fielded: FieldedGroup[] = solved.groups.map(g => ({ enemyId: g.enemyId, count: g.count, level: g.level, pv: g.pv }));
@@ -113,7 +109,9 @@ REQUESTS.forEach((req, i) => {
 });
 
 // --- Report ------------------------------------------------------------------
-const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
+// Requested targets and solver-reported winrates both pass through here; the
+// callers that have an n use `pct(rate, n)` from bench/report.ts instead.
+const pct = exact;
 const pad = (s: string, n: number) => s.padEnd(n).slice(0, n);
 
 console.log('\n' + '='.repeat(96));

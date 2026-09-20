@@ -64,6 +64,12 @@ export const RULES_SUMMARY: RulesSection[] = [
     ],
   },
   {
+    title: 'Tirada',
+    icon: STAT_ICONS.attack,
+    type: 'text',
+    text: 'Daus de la carta + el teu nivell en la seva habilitat.',
+  },
+  {
     title: 'Atac',
     icon: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
     type: 'text',

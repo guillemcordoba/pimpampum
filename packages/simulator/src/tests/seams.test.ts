@@ -1,3 +1,8 @@
+// bench-exempt(depth): mechanics and seam tests — they assert what a card DOES,
+// with hand-built one-round positions and scripted choices. There is no AI
+// decision to think harder about, so a depth would be noise in the diff rather
+// than information; these are the only combats in the package that are not
+// measurements.
 import { describe, it, expect } from 'vitest';
 import {
   ActionDefinition, ActionType, Character, CombatEngine,
@@ -461,8 +466,11 @@ describe('fatigue level', () => {
   });
 
   it('comes off the attack total, so an undefended hit lands N lighter', () => {
-    // unlockLevel 10 zeroes the fixture's mastery bonus (skill level 10).
-    const a = makeChar('A', 20, [atkDef('big', { dice: new DiceRoll(6, 1), unlockLevel: 10 })]); // flat 6
+    // `skillId: 'cap'` is a skill the fixture does not have, so the roll gets no
+    // skill-level bonus and the assertion is pure dice. (It used to lean on
+    // `unlockLevel: 10` cancelling the old mestratge bonus; a roll is the card's
+    // dice plus the LEVEL now, so the unlock level no longer enters it.)
+    const a = makeChar('A', 20, [atkDef('big', { dice: new DiceRoll(6, 1), skillId: 'cap' })]); // flat 6
 
     a.setFatigue(2);
     const enemy = sac(50);
@@ -475,8 +483,9 @@ describe('fatigue level', () => {
 describe('Metge de campanya (full path, zero engine edits)', () => {
   it("injecció d'adrenalina doubles the ally's attack and costs a fatigue level", () => {
     const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
-    // Flat 3d1, unlockLevel 10 so the fixture's skill level 10 adds no mastery.
-    const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1), unlockLevel: 10 })]);
+    // Flat 3d1 on a skill the fixture does not have, so no skill-level bonus
+    // enters the roll and the doubling is the only thing being measured.
+    const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1), skillId: 'cap' })]);
     const enemy = sac(50);
     const engine = new CombatEngine([metge, lluitador], [enemy], { registry: REGISTRY });
 

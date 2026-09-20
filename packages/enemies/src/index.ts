@@ -17,7 +17,7 @@ export type { EnemyDefinition } from './types.js';
 // simulating it, not predicted from fitted per-creature scalars.
 export {
   solveEncounter, generateEncounter, simulateEncounter, buildComposition,
-  TARGET_WINRATES, PV_MIN, PV_MAX, DEFAULT_MAX_AVG_ROUNDS,
+  TARGET_WINRATES, PV_MIN, PV_MAX, DEFAULT_MAX_AVG_ROUNDS, SOLVE_MISS_EPSILON,
 } from './simulate.js';
 export type {
   PoolSpec, SolvedGroup, SolvedEncounter, EncounterDifficulty, FieldedGroup,

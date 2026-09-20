@@ -483,8 +483,8 @@ a card is added** — the staleness failure that invalidated §8 cannot recur.
 
 `LookaheadOptions.restrictTo` limits the AI to a subset of card types, which is
 how requirement 3 gets asked fairly: both sides think equally hard, one merely
-has a smaller strategy space. `measure-verdict.ts` and `measure-mix.ts` run on
-it now.
+has a smaller strategy space. `measure-verdict.ts` and `measure-mix.ts` ran on
+it; both were folded into the kit analyzer and the AI benchmark on 2026-09-20.
 
 ### What this invalidates
 
@@ -594,3 +594,353 @@ went free (both within noise of `main`), so there is no urgency from balance —
 the reason to price them is design: a card that was meant to be heroic should
 cost something. Injecció d'adrenalina already made the move (its target gains a
 fatigue level) because fatigue *was* its effect, not its price.
+
+---
+
+## 12. The measurement layer was cleaned up (2026-09-20)
+
+Before any of §10's re-runs could mean anything, the instruments had to be
+checked. They were not honest. The full account is in
+`packages/simulator/README.md` and ARCHITECTURE "The measurement layer"; the
+findings that change what earlier numbers MEAN:
+
+**Every mirror sweep in the package was unseeded and shared no random numbers
+between its arms.** `randomTeam` drew from bare `Math.random()`, so `withSeed`
+did not bind. `experiment-berserk`, `-heal`, `-objects`, `-tuning`,
+`-balance-pass` and the fatigue harnesses all compare content mutations, several
+of them reading 1-2pp differences, off arms that were independent ±2pp samples.
+**Any conclusion drawn from those scripts at 1-2pp is unsupported.** They now run
+under common random numbers.
+
+**`main.ts` graded depth-1 solves with depth-0 play.** Its parametric balancer
+check built its replay engine without an `aiDepth`, which the engine defaults to
+0 while the balancer prices at 1. Every cell it ever printed measured the gap
+between two AI settings rather than anything about the solver.
+
+**The kit analyzer's report card (§8) failed kits for statistical reasons.**
+Three separate defects, all pushing the same way:
+
+- requirement 1 compared level steps to a flat 3pp with no noise floor. At
+  `--games 300` over a 12-cell matrix a level carried σ≈2.9pp and a step σ≈4.1pp,
+  so a GENUINELY FLAT level read as a regression about one time in four — over
+  four or five steps, a false ❌ on most kits. That is most of §8's table.
+- requirement 3 subtracted a one-company baseline average from a three-company
+  policy average (two different populations), and took its bar as the MAX of
+  10-16 noisy samples, which inflates the bar by ~1.7σ (~5pp at that default)
+  and takes it straight off the margin.
+- the cells were calibrated against the WRONG PARTY: shapes were priced to 60%
+  against four mains at full kit, then fought by a subject plus two mains and a
+  complementary kit. The header printed "fair by construction" anyway.
+
+All three are fixed; the default sample is now sized by the tightest claim on
+the card (`gamesFor(3pp)` ≈ 2,200 per level).
+
+**Six harnesses carried claims that had become false** — `ai-benchmark`'s header
+still described three AIs and the deleted lean policy's learned table;
+`experiment-heal` asserted "roll penalties are permanently gone" while the
+fatigue ladder IS a flat roll penalty; `experiment-horde-armour` PRINTED a stale
+solver promise as fact; `measure-verdict`/`measure-mix`/`measure-swing` (the
+first two since deleted, §12.5) ran on
+hand-written PVs from before the duration constraint (a 118-PV lone devil — the
+exact sponge the budget now refuses). The measure-* harnesses run on solved
+shapes now.
+
+**The reference party was seven copies of `MAINS.slice(0, 4)`** — positional, so
+adding or reordering a kit in `catalog.ts` silently re-based every number in the
+package. Its Σ was emergent, not chosen: Σ20, and the docs' long-standing "Σ19"
+is what you get if earthbender (4 cards) is in the slice.
+
+**`tests/balance.test.ts` had a test that could not fail** (`expect(avg).toBeLessThan(40)`
+against a 40-round cap, dressed as the duration guard), and the balancer's
+difficulty block silently asserts nothing on any case that comes back
+`durationCapped` — which the audit measured at 79/100. Both now report what they
+actually checked.
+
+### 12.1 What the corrected instruments immediately found
+
+**The fight matrix does not have usable counts.** `probe-shapes.ts`, re-run
+against the corrected calibration party, found only 2 of 17 candidates in band:
+
+| shape | counts (player winrate) |
+|---|---|
+| horda (goblin) | 4× 82% · 5× 73% · 6× 87% · 8× **55%** (PV floor) · 10× 29% · 12× 20% |
+| escamot (bone-devil) | 3× 92% · 4× 50% · **5× 61% ✓** · 6× 65% (PV floor) · 8× 36% |
+| cap (basilisk) | **1× 66% ✓** · 2× 42% |
+| mixt | 2× 49% · 3× 50% · 4× 73% · 6× 78% (PV floor) |
+
+`horda` and `mixt` have NO count that lands near 60%: the winrate steps 32pp and
+23pp between ADJACENT counts, straight over the band, because PV is an integer
+lever and a goblin bottoms out at 1 PV. The analyzer now excludes them and says
+so rather than averaging a free win into the headline. **This is a content
+question** — the shapes need different species or a mixed-PV composition, not a
+different count.
+
+**The ally row is worth more than the kit.** The per-company spread reaches
+**66pp** (8× goblin: 31% / 38% / 97%) and **78pp** (8× bone-devil). The three
+`COMPANY` rows are not three seatings of one fight, they are three different
+fights. Any kit verdict averaged over them is averaging a near-certain loss with
+a free win, which is exactly the failure `FAIR_TOLERANCE` was added to stop —
+one dimension down. Worth resolving before the §10 re-runs.
+
+**`solveEncounter` can miss its target by ~20pp and set no flag.** 6× goblin
+against an explicit party solved to pv7 and reported **79.7%** for a 60% request,
+with neither `clamped` nor `durationCapped`. An independent re-measurement on a
+fresh seed agrees with the solver (75.7%±1.1), so this is not a reporting bug —
+the SEARCH lands in the wrong place, and the flags do not cover "the search
+missed". The depth-1 verification pass is bounded to ±60% of the depth-0 answer
+(`VERIFY_BRACKET`), so a bad depth-0 answer cannot be recovered. The web creator
+warns on `|predicted − target| > 2σ` so a GM would see it; nothing else does.
+Not touched — it is a balancer change, not a measurement one.
+
+### 12.2 What this means for the rest of this document
+
+Every number in §5, §5.1, §8 and §10.1 was produced by one or more of the
+instruments above, before they were fixed. §10 already listed them for re-running
+after the AI rebuild; they now need it for a second, independent reason. Take
+§8's report card in particular as retracted rather than stale: its verdicts were
+substantially statistical artefacts.
+
+The re-runs should wait on §12.1 — a scoreboard built on a matrix where two of
+four shapes are unusable and the ally row swings 66pp would just produce another
+table to retract.
+
+### 12.3 Hardened against content growth (2026-09-20)
+
+Asked what would go stale as enemies and skills are added, and fixed the five
+answers that fail SILENTLY. Each was verified against today's content first, and
+four of the five were **already broken** before anything new was added:
+
+| | found | now |
+|---|---|---|
+| **Empty matrix** | if every shape drifts out of band, `runCell` divides by `max(1, 0)` and reports **0% at every level** plus regressions everywhere — indistinguishable from a catastrophic kit. Two of four shapes are already out of band. | throws, naming each shape's gap and pointing at `probe-shapes.ts` |
+| **Kits measured only as subjects** | `ombres` appeared in no `COMPANY` row — scored as a subject, never once as an ally | a fourth company row covers every kit; `bench.test.ts` fails if one falls out. Costs nothing: `runCell` splits a fixed budget across the matrix |
+| **Creatures nothing is tested against** | 4 of 8 enemies (goblin-shaman, wolf, spined-devil, stone-golem) appear in no `SHAPE`, so no player kit ever faces them | `UNFIELDED_ENEMIES` requires a written reason per creature, asserted. Two are blocked on content (wolf, spined-devil can't reach an even fight at any count); two are real matrix gaps — **no caster-horde shape and no armoured-elite shape exist** |
+| **`REFERENCE_LEVEL = 5`** | an absolute number in an ordinal system. nigromant and berserk have 6 cards and were fielded with 5, while every comment said "at full kit" | heroes build at FULL KIT; Σ20 → **Σ22**, and Σ now moves when a kit gains a card, loudly |
+| **`DEAD_CARD = 0.02`** | flat, against a `1/N` neutral rate — 20% at 5 cards, 3.3% at 30, i.e. by ~30 cards the dead line sits at neutral and every card reads dead | a fraction of neutral (lands at 2.5-3.8% for today's kits, so it changes how the test AGES, not what it says now). The legality gate was also comparing per-decision counts against a combat count; it is now derived from the threshold |
+
+**And the runtime constraint I had broken.** Measured 19.8 ms/combat at depth 1:
+`DEFAULT_GAMES = 2400` put a kit at ~8 minutes and a full sweep at **~55 min**,
+against §7.2's "under a minute per kit, a coffee break for a sweep, or it will
+not get run after each edit". The thresholds differ by an order of magnitude
+(requirement 1 needs ~2,200 combats for 3pp; requirement 3 needs ~50 for 20pp),
+so `--games` now sizes the LEVEL SWEEP only and everything else is sized by its
+own threshold or rides the sweep's combats — roughly half the cost for identical
+verdicts. A sweep is still minutes rather than seconds; that is inherent to
+depth-1 play and linear in both kit count and cards per kit.
+
+**Σ20 → Σ22 re-bases everything again**, and the first re-probe shows how much
+two cards are worth: 4× goblin priced at pv17 against the Σ20 party and **pv22**
+against the Σ22 one.
+
+**Still stale by design, named so it gets chosen rather than discovered:** the
+`SHAPES` species and counts (hand-picked, re-priced by every content change);
+the `FIELDED` maps in `main.ts` and `enemy-threat.test.ts`, which silently give
+an unlisted creature 3 bodies; `kit-analyzer --all`, which gives one `3 @ 20 PV`;
+and **enemy mode, which is not FAIR-calibrated at all** — its cells use whatever
+`--count`/`--pv` say, so enemy-mode and player-mode numbers are not comparable.
+
+### 12.4 The band is narrower than the step (2026-09-20)
+
+Re-probing against the full-kit Σ22 party, **1 of 18 candidate counts lands
+inside ±8pp of 60%** — and the two that landed against the Σ20 party no longer
+do, which is itself the point: two extra cards moved every shape.
+
+```
+horda    4× 52%  5× 70%  6× 87%  8× 58%(PV floor)  10× 33%  12× 20%
+escamot  3× 95%  4× 50%  5× 79%  6× 75%(PV floor)
+cap      1× 49%  2× 42%
+mixt     2× 44%  3× 66% ✓  4× 72%  6× 79%(PV floor)
+```
+
+**This is arithmetic, not bad luck.** Adjacent body counts sit **20-35pp apart**
+and the band is 16pp wide; a step that size cannot reliably land in a target
+that size. PV is meant to be the fine lever between counts, but it is an integer
+that bottoms out at 1, so for small creatures the counts above the floor and
+below it are two regimes with nothing between them. No amount of re-probing
+fixes that.
+
+Three ways out, all design decisions:
+
+1. **Widen `FAIR_TOLERANCE`** to ~15pp so a step can land in it. One line,
+   and it weakens what "a fair cell" claims.
+2. **Give the solver a finer lever** — mixed PV within a group, so a shape can
+   be "5 goblins, three at 8 PV and two at 7". Turns a 25pp step into a smooth
+   one; a real balancer change.
+3. **Stop requiring fairness at all** (probably the right answer). The analyzer
+   exists to COMPARE kits, not to produce absolute winrates. If each shape's
+   baseline is measured with the neutral stand-in and a subject's score is
+   reported as a DELTA from that baseline, the shape never needs to sit at 60%
+   — it only needs to be unsaturated (say 15-85%) and stable. That dissolves the
+   in-band problem entirely and makes every shape usable, at the cost of one
+   extra calibration measurement per shape (already computed — it is
+   `SolvedShape.byCompany`).
+
+Option 3 also fixes the companion problem: the per-company spread reaches
+**66pp**, so even an "in band" shape is three or four different fights averaged
+together. A per-(shape, company) baseline normalises that away as well.
+
+### 12.5 The fairness requirement was never load-bearing (2026-09-20)
+
+§12.4 framed the matrix problem as "the band is narrower than the step" and
+listed three ways out. The third turned out to be the right one AND a
+simplification: **nothing was ever compared to 60%.**
+
+Walk the report card. Requirement 1 compares a level to the level below it.
+Requirement 3 compares a policy to a restricted policy on the same cells.
+Requirements 4/5 are plays over legality. Requirement 7 is per-card win
+correlation. **Every verdict was already a delta**, and a delta does not care
+where its cell sits — only that it is not pinned against an edge, where every
+arm reads the same and differences compress to nothing.
+
+So the ±8pp band is gone, replaced by a SATURATION test (20-80%) applied per
+CELL rather than per shape — because a shape can average 58% while one of its
+company rows sits at 96%, and that row measures nothing however good the average
+looks. **4 usable cells became 15**, and all four shapes are back in the matrix:
+
+```
+horda    8× goblin pv1              baselines 30/36/95/71  → 3/4 cells (c3 saturated)
+escamot  4× bone-devil pv14         baselines 60/40/51/47  → 4/4
+cap      1× basilisk pv58           baselines 50/54/47/40  → 4/4
+mixt     3× goblin + 1× horned-devil baselines 66/54/79/67 → 4/4
+```
+
+**And every score is now a delta from the cell's neutral baseline**, which also
+kills the companion problem: the seating was worth up to 66pp, and it cancels in
+both terms. A kit's headline reads "−11.4pp±1.8 vs a neutral kit in the same
+seats" instead of "41.4%, of what?".
+
+### 12.6 Three harnesses became one measurement (2026-09-20)
+
+- **`measure-verdict.ts` deleted.** It asked "does restricting a strong player to
+  attacks cost anything" with the same `restrictTo` mechanism, the same solved
+  shapes and both sides at depth 1 — i.e. requirement 3's `onlyAttacks` arm,
+  which is one of the five the analyzer already runs. It also hand-rolled the
+  round loop instead of using `runCombat`. Its party-level verdict is now the
+  analyzer's roll-up.
+- **`measure-mix.ts` deleted.** Action-type mix and per-card legality rates on
+  one shape; `ai-benchmark` §1 and §3 report both across every policy. Its one
+  unique feature, picking which shape to measure on, is now `--shape` there.
+- **`bench/cells.ts` extracted** from the analyzer. "Played out of the times it
+  was LEGAL" had THREE independent implementations — three numbers that can
+  disagree about one measurement, which is the failure mode this whole cleanup
+  exists to prevent. There is one now, and the AI benchmark uses it.
+
+**`ai-benchmark` was also still running on a hand-written encounter** (`6×
+goblin N3 @15 PV + 1× diable d'os N3 @28`) from before the duration constraint.
+It runs on solved shapes now, against the calibration party, so a number there
+and a number on a report card mean the same thing.
+
+**`FIELDED`** was a verbatim duplicate in `main.ts` and `enemy-threat.test.ts`
+with a silent fallback of 3 bodies for any unlisted creature; it lives in
+`bench/shapes.ts` and the guard fails if a creature is missing from it.
+
+**Enemy mode is calibrated now.** Its PV is solved once at full kit against the
+calibration party and then HELD FIXED while the level sweeps — re-solving per
+level would absorb the level's effect into the hit points and make requirement 1
+read flat for every creature. `--pv` is an override rather than a requirement.
+
+### 12.7 Requirement 3 was scoring a one-seat handicap against a four-seat bar
+
+Found by running the rebuilt analyzer: on both kits tried, the "toughest
+mindless strategy" came back as a REPEATED CARD and the margin sat at
+**−0.5pp** (berserk) and **−1.0pp** (earthbender) — i.e. thinking appeared to be
+worth nothing, which contradicts every other measurement ever taken (§9 has
+attack-spam at 0.6% winrate against the heuristic's 61.5%).
+
+It was structural. `uniform` and the `onlyX` restrictions impoverish the WHOLE
+SIDE — all four seats. `oneCard` is written against the team too, but a
+companion does not own the subject's card, so `legal.find` misses and the
+companion falls back to playing properly. **One seat of four is handicapped**,
+three quarters of the party still plays well, the winrate barely moves — so that
+family can never lose much, ALWAYS wins a max taken across both families, and
+pins the reported margin near zero by construction.
+
+The families are scored apart now: requirement 3 takes the whole-side bar
+(≥20pp), and a new 3b reports the one-trick bar (≥5pp, roughly a quarter of the
+side impoverished) as a FLAG, which is what §7.1 always called it.
+
+Berserk's verdict with the split:
+
+```
+before  ❌ 3. política 58.3% vs (només Entrar en Fúria) 58.8%  → −0.5pp
+after   ✅ 3. política 58.3% vs (només atacs)          40.3%  → +18.0pp ±4.0
+        ❌ 3b. millor carta repetida (Entrar en Fúria) 58.8%  → −0.5pp [cal ≥5pp]
+```
+
+3b failing is a real finding rather than an artefact: one berserk seat spamming
+Entrar en Fúria does as well as one playing properly. Whether that is a berserk
+problem or a "one seat of four barely matters" problem is the next question, and
+it needs the same treatment — a bar derived from how much a single seat CAN
+move a fight, rather than a guessed 5pp.
+
+## 13. Mestratge removed (2026-09-20)
+
+**A roll is now the card's dice plus your level in its skill.** Mestratge added
+`level − the card's unlock level` instead; it is gone by design decision.
+
+What changed, mechanically: the first card of a skill used to add `level − 1`
+and the newest card added `0`. Now every card of that skill adds the full
+level. So late-unlock cards gained the most (`+level` instead of `+0`) and
+early cards gained `+1`. What mestratge bought — old cards staying relevant as
+their dice fell behind — is no longer bought by the roll; if that property is
+wanted it has to come from the cards.
+
+What did NOT change: both sides still add their own, so equal levels cancel
+exactly and a same-level contest is arithmetically identical to one with no
+bonus at all. Level remains a danger dial that raises damage per round without
+adding PV, which is what the duration constraint relies on.
+
+Touched: `resolution.ts` (`masteryBonus` → `skillLevelBonus`), the four contest
+sites in `combat.ts`, the `Character.getSkillLevel` doc, `rules.md`'s
+«Mestratge» section (now «El nivell entra a la tirada»), the in-app
+`RULES_SUMMARY` (which never stated the roll's composition and does now), a
+stale qualifier on Berserk's `Rugit de guerra` — that card already rolled the
+full level, so the engine is now consistent with it — and two seam fixtures that
+had used `unlockLevel: 10` to cancel the old bonus.
+
+**Every balance number in this document is re-based again.** The 2026-08-08
+measurement that justified mestratge (the Gòlem's level going from inert to a
++51.7pp ramp) was about level entering the roll AT ALL, which still holds; the
+magnitudes do not. Re-run in the order §10 gives.
+
+## 14. Why the harnesses kept rotting, and what now stops it (2026-09-20)
+
+Two harnesses were found **crashing**, not merely stale: `experiment-berserk`
+and `experiment-balance-pass` both mutate `furia-implacable`, a berserk card
+that no longer exists (the level-6 card is `rugit-de-guerra`). They had been
+dead since that rename and nothing noticed.
+
+The root cause is not comment rot, it is cost:
+
+```
+13 of 19 harnesses had NO sample-size knob — GAMES was a hardcoded const
+  experiment-objects  6000     experiment-seat   8000
+  experiment-balance-pass 4000 experiment-heal   3000
+  experiment-berserk  2500     …
+```
+
+Checking that `experiment-berserk` still compiled cost 2,500 combats, so nobody
+ran it, so nobody saw it die. The three harnesses that stayed honest —
+`kit-analyzer`, `ai-benchmark`, `measure-swing` — are exactly the ones that had
+a `GAMES` override. **A harness nobody can run cheaply is one nobody runs, and
+one nobody runs rots in silence.**
+
+Three rules now, written into `CLAUDE.md`:
+
+1. **Every harness reads its sample size through `bench/games.ts`**, and
+   `tests/harnesses.test.ts` executes all of them at `GAMES=2` on every run. It
+   checks no numbers — it checks that each still runs against today's content,
+   so a renamed card or a moved log format breaks the build the day it happens.
+   The harness list is DISCOVERED from `src/`, so a new script is covered the
+   moment it exists rather than when someone remembers to register it.
+2. **A one-off experiment is deleted once its conclusion is written down.**
+   Eight were: `experiment-berserk`, `-balance-pass`, `-tuning`, `-objects`,
+   `-heal`, `-horde-armour`, `-armour-absorption`, `-pv-curve`. Their findings
+   are already in ARCHITECTURE/NEXT-STEPS; the scripts were scaffolding kept
+   past its use. Repairing them, which is what this session did first, was the
+   wrong instinct.
+3. **A claim that can go stale must be executable** — asserted
+   (`REFERENCE_SIGMA` throws), computed at print time (`gamesFor`), or dated in
+   a doc. Never a measured number in a comment. "Measured: +51.7pp", "the
+   balancer's hard solve promises 65%", "roll penalties are permanently gone"
+   were each true once and silently became false.

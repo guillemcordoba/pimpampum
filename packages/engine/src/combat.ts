@@ -7,7 +7,7 @@ import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent,
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
-import { resolveAttack, checkSkillUp, masteryBonus } from './resolution.js';
+import { resolveAttack, checkSkillUp, skillLevelBonus } from './resolution.js';
 import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
 import { DEFAULT_LOOKAHEAD, LookaheadOptions, bestResponse } from './lookahead.js';
 
@@ -390,7 +390,7 @@ export class CombatEngine implements EngineApi, AIView {
     } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + masteryBonus(defender, guard.action);
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + skillLevelBonus(defender, guard.action);
       let defenderTotal = Math.max(0, defRoll + defBonus);
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
@@ -1035,7 +1035,7 @@ export class CombatEngine implements EngineApi, AIView {
     let extraDice = 0;
     for (const d of mods.extraDamageDice) extraDice += d.roll();
     const atkBonus = (def.rollBonus ?? 0) + mods.rollBonus
-      + source.getRollBonus(def.skillId, 'attack') + masteryBonus(source, def)
+      + source.getRollBonus(def.skillId, 'attack') + skillLevelBonus(source, def)
       + this.attackRollBonusAgainst(target);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
@@ -1081,7 +1081,7 @@ export class CombatEngine implements EngineApi, AIView {
     } else if (guard) {
       const defender = guard.defender;
       const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + masteryBonus(defender, guard.action);
+      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + skillLevelBonus(defender, guard.action);
       let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
@@ -1194,7 +1194,7 @@ export class CombatEngine implements EngineApi, AIView {
   private rollWall(source: Character, wall: Guard[], attackTotal: number): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
     const rolls = wall.map(g => {
       const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
-      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + masteryBonus(g.defender, g.action);
+      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
       return { g, total: Math.max(0, roll + bonus) };
     });
     const rawSum = rolls.reduce((s, r) => s + r.total, 0);

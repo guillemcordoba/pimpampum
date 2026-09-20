@@ -2,26 +2,29 @@
  *  score, measured on the reference fight. Determines whether the lookahead's
  *  cost is a constant factor worth optimising or an inherent one. */
 import { CombatEngine, positionScore, setAIControlled, bestResponse } from '@pimpampum/engine';
-import { PLAYER_SKILLS, COMPLEMENTARY_SKILLS, ALL_SKILLS, buildReferenceParty, type PartySpec, type CharacterBuildSpec } from '@pimpampum/skills';
+import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from './tests/helpers.js';
+import { REGISTRY } from './bench/arena.js';
+import { referenceParty } from './bench/reference.js';
+import { games } from './bench/games.js';
 
-const MAINS = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-function hero(name: string, skillId: string): CharacterBuildSpec {
-  const skill = ALL_SKILLS.find(s => s.id === skillId)!;
-  const equipment = ['escut', 'armadura-de-cuir'];
-  if (skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) equipment.push('destral');
-  return { name, pv: 12, category: 'player', equipment, skills: { [skill.id]: 5 } };
-}
-const party: PartySpec = { characters: MAINS.slice(0, 4).map((s, i) => hero(`Heroi ${i + 1}`, s.id)) };
+/** The reference table (bench/reference.ts) — named kits, asserted Σ, one
+ *  definition for the whole package. It used to be re-derived here as
+ *  `MAINS.slice(0, 4)`, which silently re-based this harness whenever a kit
+ *  was added to or reordered in the catalogue. */
+const party: PartySpec = referenceParty();
 
 function fresh(): CombatEngine {
   const players = buildReferenceParty(party);
   setAIControlled(players);
   const enemies = buildComposition([{ enemyId: 'goblin', count: 4, level: 3, pv: 20 }]);
-  return new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40 });
+  // Depth 0 by design: this script drives `bestResponse` by hand to time it,
+  // so the engine must NOT be running a lookahead of its own.
+  return new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 0 });
 }
 
+/** Scales every timing loop, so the smoke run can do two reps of each. */
+const SCALE = games(200) / 200;
 const time = (label: string, n: number, fn: () => void) => {
   const t0 = performance.now();
   for (let i = 0; i < n; i++) fn();
@@ -31,9 +34,9 @@ const time = (label: string, n: number, fn: () => void) => {
 
 const e = fresh();
 console.log('\nPer-operation cost (4 heroes vs 4 goblins):');
-time('engine.clone()', 2000, () => { e.clone(); });
-time('positionScore()', 20000, () => { positionScore(e, 0); });
-time('clone + resolve one round', 500, () => {
+time('engine.clone()', Math.max(1, Math.round(2000 * SCALE)), () => { e.clone(); });
+time('positionScore()', Math.max(1, Math.round(20000 * SCALE)), () => { positionScore(e, 0); });
+time('clone + resolve one round', Math.max(1, Math.round(500 * SCALE)), () => {
   const sim = e.clone();
   sim.aiDepth = 0;
   sim.prepareRound();
@@ -43,5 +46,5 @@ time('clone + resolve one round', 500, () => {
   while (s.kind !== 'done' && g++ < 400) { if (s.kind === 'target') sim.setResolveTarget([]); s = sim.resolveNextAction(); }
   sim.finishRound();
 });
-time('bestResponse d1 s2 p1 k3', 100, () => { bestResponse(e, 0, { depth: 1, samples: 2, passes: 1, topK: 3 }); });
+time('bestResponse d1 s2 p1 k3', Math.max(1, Math.round(100 * SCALE)), () => { bestResponse(e, 0, { depth: 1, samples: 2, passes: 1, topK: 3 }); });
 console.log('');

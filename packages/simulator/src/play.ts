@@ -51,13 +51,20 @@ const SCRIPT: RoundScript[] = JSON.parse(process.env.SCRIPT ?? '[]');
 const reg = createRegistry();
 registerEnemySkills(reg);
 
+/**
+ * Depth 0 on purpose: this is a hand-play harness, not a measurement — you are the one choosing cards, and strong play would only
+ * make it slower. Stated rather than defaulted, because an implicit depth is
+ * indistinguishable from a forgotten one.
+ */
+const AI_DEPTH = 0;
+
 const players = PLAYERS.map(p => buildCharacter(
   ARMOUR ? { ...p, equipment: [...p.equipment, ARMOUR] } : p,
 ));
 const enemies = Array.from({ length: ENEMY_COUNT }, (_, i) => {
   return createEnemy('goblin', { level: ENEMY_LEVEL, name: `Gob${i + 1}`, pv: ENEMY_PV })!;
 });
-const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40 });
+const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40, aiDepth: AI_DEPTH });
 
 
 const TYPE_NAMES: Record<string, string> = {

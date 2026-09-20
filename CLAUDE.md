@@ -27,6 +27,7 @@ pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `e
 
 - **PV** is the only base stat; players default to **12**. Enemies carry no printed PV — the encounter sets it and the balancer solves it. No character sizes, no rest system beyond the one-line sleep rule.
 - **Action**: belongs to a skill; has a **speed**, a **type** (Atac / Defensa / Focus) and **dice** (the card's dice are both its precision and its power). Playing one never costs fatigue.
+- **The roll** = the card's **dice + your level in that card's skill** (`skillLevelBonus`, the only place a level enters a roll). Both sides add their own, so equal levels cancel exactly and a same-level contest is identical to one with no bonus — it only speaks when training is uneven, which is what makes an enemy's level a real danger dial and not just a wider hand. `unlockLevel` gates which cards a level unlocks; it does **not** enter the roll. (It used to: **mestratge** added `level − unlockLevel` so old cards stayed relevant as their dice fell behind. Removed 2026-09-20 by design decision — don't reintroduce it.)
 - **Attack**: ONE contested roll, attack dice vs defense dice. Ties hold for the defense. **Damage = the margin**, minus the recipient's passive armour (min 0). **Undefended targets are auto-hit for the full attack total.** AoE: ONE roll per pass, every target defends against that same roll separately.
 - **Defense** targets an **ally** (guard) or an **enemy** (block); defenses covering the same attack **sum** into a wall, and the defender always also defends themselves. See `ARCHITECTURE.md`.
 - **Focus**: usually slow, cancelled if the actor takes damage first (armour-absorbed hits do not interrupt).
@@ -37,6 +38,32 @@ pnpm monorepo: `engine` (content-agnostic combat), `skills` (player content), `e
 - **Difficulty is an INPUT** (a target player winrate; `TARGET_WINRATES` presets), never a label. There are no fixed encounters — `solveEncounter(pool, party, targetWinrate)` solves the PV that hits the target by **simulating the real fight**. A creature is just a name, an icon, a kit and a `bulk`; a new or homebrew creature needs no measurement pass.
 - **The party is an input, in two flavours** (`skills/src/party.ts`): an **explicit** party (`{ characters: CharacterBuildSpec[] }`) is the real table, built identically every game — this is what the web app passes. A **drawn** party (`{ count, levels, armor?, pv? }`) says only how many players and how strong, and a representative one is drawn per game — used by the simulator sweeps and the balancer tests. `isExplicitParty()` distinguishes them.
 - **Balance principle**: a fight is fair when both teams have a similar **total skill-level sum** (mirror teams use ~6-7 per player).
+
+## Measurement: three rules, all learned the hard way
+
+The simulator exists to produce numbers someone changes content on, so a wrong
+number is worse than no number. Full account in `packages/simulator/README.md`.
+
+- **A harness must run at `GAMES=2`, and it lives or dies by `tests/harnesses.test.ts`.**
+  Read the sample size through `bench/games.ts`, never a hardcoded const. A
+  harness nobody can run cheaply is one nobody runs, and one nobody runs rots in
+  silence — `experiment-berserk` and `experiment-balance-pass` both *crashed* on
+  a renamed card for months, because checking them cost 2,500 and 4,000 combats.
+  The smoke test runs every script in `src/` at two combats; it checks no
+  numbers, only that each still executes against today's content.
+- **A one-off experiment is DELETED once its conclusion is written down.** The
+  conclusion is the durable artifact; the script is scaffolding. Write the
+  finding into `NEXT-STEPS.md` with a date, then remove the file. Only a
+  *standing* question — one you will ask again after the next content change —
+  earns a permanent harness. Eight scripts were deleted on 2026-09-20 for
+  failing this; repairing them instead was the wrong instinct.
+- **A claim that can go stale must be executable.** Assert it (`REFERENCE_SIGMA`
+  throws when the reference party moves), compute it at print time
+  (`gamesFor(3)`), or date it in a doc. **Never state a measured number in a
+  comment as if it were permanent** — "measured: +51.7pp", "the balancer's hard
+  solve promises 65%", "roll penalties are permanently gone" were all true once
+  and silently became false. Comments describe *why*; docs hold *what was
+  measured, when*.
 
 ## Adding content
 

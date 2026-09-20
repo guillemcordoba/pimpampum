@@ -9,6 +9,8 @@
  */
 import { solveEncounter, TARGET_WINRATES, getEnemy, fullKitLevel } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
+import { exact, pct } from './bench/report.js';
+import { searchGames, SMOKE } from './bench/games.js';
 
 const party: PartySpec = { count: 4, levels: [5, 5, 5, 5], armor: [1, 1, 1, 1] };
 const TARGET = TARGET_WINRATES.hard;
@@ -21,20 +23,20 @@ const CASES: { label: string; enemyId: string; count: number }[] = [
   { label: '4× Llop', enemyId: 'wolf', count: 4 },
 ];
 
-console.log(`objectiu ${(TARGET * 100).toFixed(0)}% de victòria · 4 jugadors, 5 nivells, armadura 1\n`);
-for (const c of CASES) {
+console.log(`objectiu ${exact(TARGET)} de victòria · 4 jugadors, 5 nivells, armadura 1\n`);
+for (const c of (SMOKE ? CASES.slice(0, 1) : CASES)) {
   const def = getEnemy(c.enemyId)!;
   const full = fullKitLevel(def);
   console.log(`${c.label}   (kit complet = nivell ${full})`);
   console.log(`   niv |    PV | PV total | rondes | winrate mesurat`);
   for (let level = 1; level <= full; level++) {
-    const s = solveEncounter([{ enemyId: c.enemyId, count: c.count, level }], party, TARGET);
+    const s = solveEncounter([{ enemyId: c.enemyId, count: c.count, level }], party, TARGET, { searchGames: searchGames(120) });
     if (!s) continue;
     const pv = s.groups[0].pv;
     const flag = s.clamped ? ' (clamped)' : '';
     console.log(
       `   ${String(level).padStart(3)} | ${String(pv).padStart(5)} | ${String(pv * c.count).padStart(8)} |`
-      + ` ${s.avgRounds.toFixed(1).padStart(6)} | ${(s.predictedWinrate * 100).toFixed(0)}%±${(s.stderr * 100).toFixed(0)}${flag}`,
+      + ` ${s.avgRounds.toFixed(1).padStart(6)} | ${pct(s.predictedWinrate, s.games)}${flag}`,
     );
   }
   console.log('');

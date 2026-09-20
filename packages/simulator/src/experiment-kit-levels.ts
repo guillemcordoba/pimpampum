@@ -22,34 +22,30 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-kit-levels.ts
  *      ENEMY=stone-golem COUNT=4 EPV=20 pnpm … src/experiment-kit-levels.ts
  */
-import {
-  simulateEncounter, getEnemy, fullKitLevel, buildComposition, registerEnemySkills,
-} from '@pimpampum/enemies';
-import {
-  PLAYER_SKILLS, COMPLEMENTARY_SKILLS, createRegistry, buildReferenceParty,
-  type PartySpec, type CharacterBuildSpec,
-} from '@pimpampum/skills';
+import { simulateEncounter, getEnemy, fullKitLevel, buildComposition } from '@pimpampum/enemies';
+import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import {
   CombatEngine, newCombatStats, withSeed, setAIControlled, type CombatStats,
 } from '@pimpampum/engine';
+import { referenceParty } from './bench/reference.js';
+import { exact, pct } from './bench/report.js';
+import { REGISTRY } from './bench/arena.js';
+import { games } from './bench/games.js';
 
 // Same reference table as the scoreboard: four heroes on four main kits,
 // properly equipped. Anything else would not be comparable to §5.
-const MAINS = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-function hero(name: string, skillId: string, level = 5): CharacterBuildSpec {
-  const skill = PLAYER_SKILLS.find(s => s.id === skillId)!;
-  const equipment = ['escut', 'armadura-de-cuir'];
-  if (skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) equipment.push('destral');
-  return { name, pv: 12, skills: { [skill.id]: Math.min(skill.actions.length, level) }, equipment, category: 'player' };
-}
-const PARTY: PartySpec = { characters: MAINS.slice(0, 4).map((s, i) => hero(`Heroi ${i + 1}`, s.id)) };
+/** The reference table (bench/reference.ts) — named kits, asserted Σ, one
+ *  definition for the whole package. It used to be re-derived here as
+ *  `MAINS.slice(0, 4)`, which silently re-based this harness whenever a kit
+ *  was added to or reordered in the catalogue. */
+const PARTY: PartySpec = referenceParty();
 
 declare const process: { env: Record<string, string | undefined> };
 
 const ENEMY_ID = process.env.ENEMY ?? 'horned-devil';
 const COUNTS = [3, 6];
 const PVS = [10, 20, 30, 45];
-const GAMES = 2000;
+const GAMES = games(2000);
 /** The cell the per-card breakdown drills into: where the regression showed. */
 const DRILL = { count: Number(process.env.COUNT ?? 3), pv: Number(process.env.EPV ?? 20) };
 // One seed for the whole grid: common random numbers, so two levels differ by
@@ -61,7 +57,7 @@ const maxLevel = fullKitLevel(def);
 const cards = def.skills.flatMap(s => s.actions).sort((a, b) => a.unlockLevel - b.unlockLevel);
 
 console.log(`${def.displayName} (${def.id}) — nivell contra winrate, composició i PV FIXOS`);
-console.log(`${GAMES} combats per cel·la · llavor ${SEED} · 4 herois equipats (Σ19 nivells)\n`);
+console.log(`${GAMES} combats per cel·la · llavor ${SEED} · 4 herois equipats (Σ20 nivells)\n`);
 console.log('  cartes per nivell:');
 for (let l = 1; l <= maxLevel; l++) {
   const gained = cards.filter(a => a.unlockLevel === l)
@@ -82,7 +78,7 @@ for (const count of COUNTS) {
         [{ enemyId: ENEMY_ID, count, level, pv }], PARTY, { games: GAMES, seed: SEED },
       );
       row.push(r.winrate);
-      cells.push(`${(r.winrate * 100).toFixed(1)}%±${(r.stderr * 100).toFixed(1)}`.padStart(13));
+      cells.push(pct(r.winrate, r.games).padStart(13));
     }
     grid.push(row);
     console.log(`   ${String(level).padStart(6)}${cells.join('')}`);
@@ -100,7 +96,7 @@ for (const count of COUNTS) {
         any = true;
         console.log(
           `     ${PVS[i]} PV · nivell ${l} → ${l + 1}: `
-          + `${(grid[l - 1][i] * 100).toFixed(1)}% → ${(grid[l][i] * 100).toFixed(1)}% `
+          + `${exact(grid[l - 1][i], 1)} → ${exact(grid[l][i], 1)} `
           + `(+${(delta * 100).toFixed(1)}pp)`,
         );
       }
@@ -114,8 +110,6 @@ for (const count of COUNTS) {
 // or merely OVERPLAYED. Per-card play rate plus the creature's winrate when it
 // played the card separates the two: a card played often and correlating with
 // losing is a trap; one never played is dead weight the level should not cost.
-const REGISTRY = createRegistry();
-registerEnemySkills(REGISTRY);
 // The kit drill plays at the balancer's setting, so a drill and a solved
 // encounter mean the same thing.
 const AI_DEPTH = 1;
@@ -141,7 +135,7 @@ console.log(`\n\nDESGLOSSAMENT PER CARTA — ${DRILL.count}× ${def.displayName}
 console.log('  jugades = per combat i per cos · guanya = victòria de la CRIATURA quan la juga\n');
 for (let level = 1; level <= maxLevel; level++) {
   const { stats, enemyWinrate } = drill(DRILL.count, DRILL.pv, level);
-  console.log(`  nivell ${level}   criatura guanya ${(enemyWinrate * 100).toFixed(1)}%`);
+  console.log(`  nivell ${level}   criatura guanya ${pct(enemyWinrate, GAMES)}`);
   for (const a of cards) {
     if (a.unlockLevel > level) continue;
     const plays = stats.actionPlays[a.id] ?? 0;
@@ -149,7 +143,7 @@ for (let level = 1; level <= maxLevel; level++) {
     const winPct = plays ? 100 * (stats.actionWinPlays[a.id] ?? 0) / plays : 0;
     console.log(
       `      ${a.name.padEnd(22)} ${perBody.toFixed(2).padStart(5)} jugades/combat`
-      + `   guanya ${plays ? `${winPct.toFixed(1)}%` : '—'}`,
+      + `   guanya ${plays ? pct(winPct / 100, plays) : '—'}`,
     );
   }
 }

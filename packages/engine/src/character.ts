@@ -183,8 +183,8 @@ export class Character {
   // --- Skills ---------------------------------------------------------------
 
   /** Skill level: the number of actions of the skill the character knows.
-   *  A level enters a roll only through MASTERY (`masteryBonus`: level minus
-   *  the card's unlock level); the rest of a roll is the action's dice plus
+   *  It enters a roll in exactly one place — `skillLevelBonus` adds it to every
+   *  roll of a card of that skill; the rest of a roll is the card's dice plus
    *  bonuses. */
   getSkillLevel(skillId: string): number {
     return this.skills.get(skillId) ?? 0;

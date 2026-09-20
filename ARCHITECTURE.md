@@ -47,12 +47,20 @@ packages/
 │       ├── simulate.ts        # Encounter balancer v3 (SIMULATED)
 │       └── enemies/           # One EnemyDefinition per creature
 ├── simulator/                 # @pimpampum/simulator — balance testing (tsx + vitest)
+│   ├── README.md              # THE FIVE RULES a harness here has to obey
 │   └── src/
+│       ├── bench/             # THE FOUNDATION — import it, never re-derive it
+│       │   ├── reference.ts   # the ONE reference party (named kits, asserted Σ)
+│       │   ├── arena.ts       # shared REGISTRY, SEEDED team generation, runMatch
+│       │   ├── shapes.ts      # solved fight SHAPES + what "a fair cell" means
+│       │   └── report.ts      # pct/deltaPP/share/exact + the sampling maths
 │       ├── main.ts            # Mirror-match balance + parametric balancer check
+│       ├── kit-analyzer.ts    # the kit report card (run after every kit edit)
+│       ├── probe-shapes.ts    # which body counts make a fair cell
 │       ├── play.ts            # MANUAL play harness (seeded; play a fight by hand)
 │       ├── sanity.ts          # Quick smoke run + step-API demo
 │       ├── experiment-*.ts    # one-off experiment harnesses
-│       └── tests/             # helpers.ts, balance.test.ts, seams.test.ts, enemy-threat.test.ts
+│       └── tests/             # bench.test.ts (ANTI-DRIFT GUARD), balance, seams, enemy-threat
 └── web/                       # @pimpampum/web — Vue 3 SPA
     └── src/
         ├── composables/       # useGame.ts, party.ts, combatTracker.ts, pendingEncounter.ts, useActionDisplay.ts
@@ -138,6 +146,28 @@ Skill-specific handlers (`enter_rage`, `chain_attack`/`flow_state`,
 ---
 
 ## Mechanics detail
+
+### The roll (2026-09-20)
+
+**A roll is the card's dice plus the actor's level in that card's skill.**
+`skillLevelBonus` in `resolution.ts` is the only place a level enters a roll,
+and all four contest sites in `combat.ts` go through it.
+
+Both sides add their own, so equal levels cancel exactly and a same-level
+contest is arithmetically identical to one with no bonus. It only speaks when
+the two sides are unevenly trained — which is what makes an enemy's level a real
+danger dial rather than a count of how many cards it holds, and it raises damage
+per round WITHOUT adding PV, which is the property the duration constraint needs.
+
+It replaced **mestratge**, which added `level − the card's unlock level`: old
+cards stayed relevant because what they gained in mastery offset their smaller
+dice. Removed by design decision, not by measurement. `unlockLevel` still gates
+which cards a level unlocks — it simply no longer enters a roll. Note
+`Rugit de guerra` always rolled the FULL level for its own contest, so the
+engine is now consistent with the one card that said so on its face.
+
+**This re-bases every balance number in the repo** — every roll moved, by more
+on late-unlock cards than early ones.
 
 **Defense (dual target).** At resolution the defender picks an **ally** (guard:
 attacks on that ally also resolve against the defender's defense; penetrating
@@ -365,6 +395,80 @@ from another because its CARDS differ.
 
 ---
 
+## The measurement layer (`simulator/src/bench/`, 2026-09-20)
+
+Everything in the simulator package produces a number someone makes a content
+decision on, so the package has a FOUNDATION that every harness imports rather
+than re-deriving. Full rules in `packages/simulator/README.md`; the load-bearing
+ones:
+
+- **`bench/reference.ts` — one reference party, named and asserted.** Four kits
+  by id, built at FULL KIT, and a `REFERENCE_SIGMA` that THROWS AT IMPORT if the
+  catalogue moves. "Full kit" rather than a fixed level because a level is an
+  ordinal here: the old flat `5` had already stopped meaning "fully learnt" for
+  nigromant and berserk (6 cards each), so the party was a card short of what
+  every comment claimed. Σ therefore MOVES when a kit gains a card — the guard
+  is what makes that loud rather than silent. It was `MAINS.slice(0, 4)` copy-pasted into seven files:
+  positional, so adding or reordering a kit in `catalog.ts` silently re-based
+  every number in the package, and the level sum was emergent rather than chosen
+  (Σ20 only because those four kits happen to have ≥5 cards each — earthbender
+  has 4, which is where the docs’ long-standing "Σ19" came from).
+- **`bench/arena.ts` — seeded team generation.** The shared `REGISTRY`,
+  `randomTeam`, `runMatch`, `runMatchup`, and `sweep()` for common random
+  numbers across arms. It drew from bare `Math.random()` before, so `withSeed`
+  did not bind and no mirror sweep shared random numbers with the arm it was
+  compared against.
+- **`bench/cells.ts` — running one cell.** The impoverished policies, the ONE
+  legality-conditioned play-rate instrument (it had three independent
+  implementations), and `runMatrix`, which sweeps the usable cells and subtracts
+  the baseline.
+- **`bench/shapes.ts` — the fight matrix, and what a cell has to be.**
+  `SHAPES` carry no written-down PV: each is SOLVED to `FAIR` (60%) so it
+  re-prices itself when the cards or the AI move. It is solved against a
+  CELL-SHAPED calibration party (a neutral stand-in in seat 1 plus a real
+  `COMPANY` row) and then MEASURED against every row. Previously it was priced
+  against four mains at full kit while the cells were fought by a subject plus
+  two mains and a complementary kit — different parties, so the 60% never
+  transferred, worst at level 1 where it mattered most, and the report printed
+  "fair by construction" regardless. A CAPPED solve is out of band even when its
+  number lands near 60%: its difficulty came from the body count and the PV
+  floor, not from the target — reported, but not disqualifying.
+
+  **EVERY SCORE IS A DELTA FROM THE CELL'S NEUTRAL BASELINE.** That removes the
+  cell's own difficulty (so a shape drifting as content is added no longer moves
+  any kit's score) and the SEATING (worth up to 66pp between company rows).
+  Which is why a cell no longer has to be *fair*, only UNSATURATED: demanding
+  ±8pp of 60% excluded three of four shapes and could not be fixed by
+  re-probing, yet nothing was ever compared to 60% — every requirement was
+  already a delta. 4 usable cells became 15. **An empty matrix throws**, because
+  the averages would otherwise report 0% at every level, which reads exactly
+  like a catastrophic kit rather than a broken harness.
+- **`bench/report.ts` — no percentage is formatted by hand.** `pct(rate, n)`,
+  `deltaPP(...)`, `share(n, total)`, and `exact(rate)` for a number that is
+  KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs),
+  `significant(...)`, and `maxOfKBias(k)` for winner’s curse.
+
+**`tests/bench.test.ts` enforces four of these by scanning the source**, because
+every defect they prevent was silent — the harnesses kept printing numbers, the
+numbers were simply about something else. One reference party (never
+`.slice(0, 4)`); no bare `Math.random()`; every `new CombatEngine` states its
+`aiDepth` or supplies an `actionChooser`; every percentage goes through
+`bench/report.ts`. A file may opt out with `// bench-exempt(<rule>): <reason>`,
+and the reason’s length is asserted so the hatch cannot become a silent disable.
+
+**Two statistical rules the thresholds now follow.** Every verdict is a
+difference of two samples, so a fixed constant alone is not a threshold — the
+kit analyzer’s flat 3pp level check read a genuinely flat level as a regression
+about one time in four at its old default, which is most of what the first
+report card’s wall of ❌ was. And picking the best of *k* noisy candidates and
+reporting that same sample is winner’s curse (`maxOfKBias`, ~1.7σ at k=14), so
+requirement 3 screens cheap and re-measures the winner on a fresh seed — the
+same select-then-verify shape `simulate.ts` uses.
+
+**AI depth is never implicit.** The engine defaults `aiDepth` to 0 and the
+balancer prices at 1, so a harness that omits it grades strong play with weak
+play. That was live in `main.ts`’s parametric check until 2026-09-20.
+
 ## Simulator harnesses
 
 - `main.ts` — mirror-match balance (equal-budget random teams should win ~50/50,
@@ -379,34 +483,63 @@ from another because its CARDS differ.
   level 4) but that the long fights come from compositions that cannot threaten
   the party at all (4 wolves need 91 PV each, 22 rounds, because a level-2 wolf
   attacks with 1d2).
-- `ai-benchmark.ts` — the POLICY BENCHMARK: which AI should we measure the game
-  with? Runs every policy (`heuristic` = the engine's own AI, `lean` = the
-  balancer's distilled policy, `spam`, `uniform`) over one fixed encounter and
+- `ai-benchmark.ts` — the POLICY BENCHMARK: how strong is the AI we measure the
+  game with? Runs every policy (the engine's heuristic at depth 0, the same AI
+  at depth 1 at two budgets, `spam`, `uniform`) over one fixed encounter and
   reports strength, cost per combat, a mirrored head-to-head matrix, the share
-  of decisions spent per action type, per-card play rate conditioned on
-  legality, and whether the lean policy's per-card bias has gone stale (cards
-  with no bias score 0). Run it after any content change that could shift how
-  the AI plays. **First run, 2026-08-08: the lean policy plays no better than
-  choosing a random legal card** — see NEXT-STEPS §9.
+  of decisions spent per action type, and per-card play rate conditioned on
+  legality. **Its 2026-08-08 run is what killed the lean policy** (no better
+  than a random legal card — NEXT-STEPS §9); the staleness section now asserts
+  there is nothing left to go stale, since the one AI carries no per-card table.
 - `kit-analyzer.ts` — the KIT REGRESSION HARNESS (NEXT-STEPS §7): library +
   CLI, one code path, two modes (`--player <skill>` / `--enemy <id>`; no flag
   sweeps every main kit). Per kit it reports level monotonicity under common
   random numbers, fight length (median/p90/draws), the attack-spam comparison
   (the subject side replayed with a "biggest attack always" chooser), per-card
-  play rate **conditioned on legality**, and per-card win correlation. The
-  reference encounter is fixed and hand-calibrated — moving it invalidates
-  earlier report cards.
+  play rate **conditioned on legality**, and per-card win correlation. Its
+  scenarios are the SOLVED shapes in `bench/shapes.ts`, so they re-price
+  themselves rather than needing hand-calibration — and an out-of-band shape is
+  dropped from the headline and reported loudly instead of averaged over.
+- `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
+  the way the analyzer will (solve against one company, measure against all), so
+  the tool that CHOOSES the counts cannot disagree with the tool the counts are
+  FOR. Re-run after any content or AI change.
+- `measure-verdict.ts` and `measure-mix.ts` were DELETED (2026-09-20): both asked
+  a question the kit analyzer already answers — "does restricting a strong player
+  to attacks cost anything" is requirement 3's `onlyAttacks` arm, and the action
+  mix / per-card legality table is `ai-benchmark` §1 and §3. Three
+  implementations of one metric is three numbers that can disagree. The
+  party-level verdict is now the analyzer's roll-up; `--shape` on the benchmark
+  is what the mix harness was for.
 - `experiment-defense-vs-attack.ts` — the DEFENSE PREMIUM check: exact (convolved,
   not sampled) probability that each defense card holds against every attack card
   of the same level, plus the minimum dice each defense needs to hit the 80%
   target in `intentions.md`. It found the premium was only 72% on average with
   52% of pairs below target (2026-08-08), which drove the defense dice up to
   3d4 / 3d6 / 4d6 by level. Re-run after touching any contest dice.
-- Other one-offs: `experiment-tuning.ts` (PV/armour sweeps), `experiment-heal.ts`
-  (heal-stall draws), `experiment-berserk.ts` (component attribution),
-  `experiment-seat.ts` (seat bias), `experiment-fatigue-penalty.ts` /
-  `experiment-fatigue-tiers.ts` (the fatigue ladder's numbers). Run any with
-  `pnpm --filter @pimpampum/simulator exec tsx src/<file>.ts`.
+- Standing one-offs: `experiment-seat.ts` (seat bias),
+  `experiment-fatigue-penalty.ts` / `experiment-fatigue-tiers.ts` (the fatigue
+  ladder's numbers), `experiment-level.ts` (level as a length lever). Run any
+  with `pnpm --filter @pimpampum/simulator exec tsx src/<file>.ts`.
+- **Eight one-offs were DELETED on 2026-09-20** — `experiment-berserk`,
+  `-balance-pass`, `-tuning`, `-objects`, `-heal`, `-horde-armour`,
+  `-armour-absorption`, `-pv-curve`. Each had answered its question, and the
+  answer already lives in this file or NEXT-STEPS; the scripts were scaffolding
+  kept past its use. Two of them had been *crashing* on a renamed berserk card
+  for an unknown length of time, unnoticed, because checking them cost
+  thousands of combats. See NEXT-STEPS §14 and the three rules in CLAUDE.md.
+- `tests/harnesses.test.ts` — THE SMOKE TEST: runs every script in `src/` at
+  `GAMES=2`. It asserts nothing about the numbers, only that each harness still
+  executes against today's content, so a renamed card, a deleted skill or a
+  moved log format breaks the build the day it happens. The list is discovered
+  from the directory, so a new harness is covered the moment it is added.
+- `bench/games.ts` — the sample-size reader every harness uses (`--games`,
+  `GAMES`, then its own default). A hardcoded sample size is what made the two
+  dead harnesses impossible to check cheaply.
+- `bench/combatlog.ts` — ONE combat-log parser. Two harnesses held their own
+  near-identical regexes, and a regex that stops matching prints an empty table
+  rather than an error; `assertParsed` throws when a run played combats and read
+  nothing out of them.
 - `tests/balance.test.ts` — resolution math (`checkSkillUp`, `resolveAttack`,
   `resolveDamage`), engine sanity (terminates, valid winner, PV in range),
   mirror balance ~50%, combat length.
@@ -415,11 +548,13 @@ from another because its CARDS differ.
 - `tests/enemy-threat.test.ts` — the balancer guard: every solved encounter is
   REPLAYED with an independent seed and must land near the winrate it reported,
   plus determinism, arbitrary body counts and mixed comps.
-- `tests/helpers.ts` models INTENDED play: `randomPlayer` picks a main skill
-  first (complementary kits — metge/runes/ombres/gel — only ever appear as
-  second skills), guarantees weapon kits a mid weapon (destral), uses
-  `PLAYER_PV` 12 and ordinal budgets of ~6-7. `REGISTRY` is a shared registry
-  with player + enemy handlers.
+- `tests/bench.test.ts` — the ANTI-DRIFT GUARD: the four structural rules above,
+  enforced by scanning the source, plus the sampling maths in `bench/report.ts`.
+- `bench/arena.ts` models INTENDED play: `randomPlayer` picks a main skill first
+  (complementary kits — metge/runes/ombres/gel — only ever appear as second
+  skills), guarantees weapon kits a mid weapon (destral), uses `PLAYER_PV` 12
+  and ordinal budgets of ~6-7, and draws through the engine's SEEDED `random()`.
+  `tests/helpers.ts` is now a thin alias for it.
 
 ---
 

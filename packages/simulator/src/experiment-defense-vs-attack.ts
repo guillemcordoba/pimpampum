@@ -1,3 +1,7 @@
+// bench-exempt(interval): no sampling happens here at all. The contest is
+// solved EXACTLY by convolving the two cards' dice distributions, so every
+// percentage printed is a probability rather than an estimate of one, and an
+// error bar on it would be a lie in the other direction.
 /**
  * DEFENSE PREMIUM — does a defense card actually beat an attack card of the
  * same level?

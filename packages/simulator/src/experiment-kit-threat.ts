@@ -28,25 +28,27 @@
 import {
   ENEMY_DEFINITIONS, fullKitLevel, solveEncounter, DEFAULT_MAX_AVG_ROUNDS,
 } from '@pimpampum/enemies';
-import { PLAYER_SKILLS, COMPLEMENTARY_SKILLS, type PartySpec, type CharacterBuildSpec } from '@pimpampum/skills';
+import type { PartySpec } from '@pimpampum/skills';
+import { referenceParty } from './bench/reference.js';
+import { pct } from './bench/report.js';
+import { games, searchGames, SMOKE } from './bench/games.js';
 
 // The reference table: four heroes on four main kits, PROPERLY EQUIPPED. An
 // unequipped party is a different (much weaker) benchmark and would flatter
 // every kit — a weapon kit with no weapon cannot play its cards at all.
-const MAINS = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-function hero(name: string, skillId: string, level = 5): CharacterBuildSpec {
-  const skill = PLAYER_SKILLS.find(s => s.id === skillId)!;
-  const equipment = ['escut', 'armadura-de-cuir'];
-  if (skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) equipment.push('destral');
-  return { name, pv: 12, skills: { [skill.id]: Math.min(skill.actions.length, level) }, equipment, category: 'player' };
-}
-const PARTY: PartySpec = { characters: MAINS.slice(0, 4).map((s, i) => hero(`Heroi ${i + 1}`, s.id)) };
+/** The reference table (bench/reference.ts) — named kits, asserted Σ, one
+ *  definition for the whole package. It used to be re-derived here as
+ *  `MAINS.slice(0, 4)`, which silently re-based this harness whenever a kit
+ *  was added to or reordered in the catalogue. */
+const PARTY: PartySpec = referenceParty();
 
-const COUNTS = [1, 2, 3, 4, 6, 8, 12, 16];
+// The grid is the cost — creatures × counts × levels, each cell a solve. The
+// smoke run walks one creature and two counts.
+const COUNTS = SMOKE ? [1, 3] : [1, 2, 3, 4, 6, 8, 12, 16];
 const EVEN_FIGHT = 0.50;
 /** Slack over EVEN_FIGHT: a solve reporting 54% did reach an even match. */
 const PASS = 0.55;
-const SOLVE_OPTS = { games: 400, searchGames: 100 } as const;
+const SOLVE_OPTS = { games: games(400), searchGames: searchGames(100) };
 
 interface Cell { winrate: number; capped: boolean; pv: number; rounds: number; }
 
@@ -64,7 +66,7 @@ interface KitReport {
 const reports: KitReport[] = [];
 const t0 = Date.now();
 
-for (const def of ENEMY_DEFINITIONS) {
+for (const def of (SMOKE ? ENEMY_DEFINITIONS.slice(0, 1) : ENEMY_DEFINITIONS)) {
   const maxLevel = fullKitLevel(def);
   const levels = Array.from({ length: maxLevel }, (_, i) => i + 1);
   const grid = new Map<string, Cell>();
@@ -106,7 +108,7 @@ for (const def of ENEMY_DEFINITIONS) {
     const need = needByLevel[level - 1];
     const cell = need !== null ? grid.get(`${level}:${need}`)! : null;
     const detail = cell
-      ? `${String(need).padStart(3)} cossos  (${cell.pv} PV, ${cell.rounds.toFixed(1)} rondes, ${(cell.winrate * 100).toFixed(0)}%)`
+      ? `${String(need).padStart(3)} cossos  (${cell.pv} PV, ${cell.rounds.toFixed(1)} rondes, ${pct(cell.winrate, SOLVE_OPTS.games)})`
       : '  — cap composició hi arriba';
     console.log(`    nivell ${level}/${maxLevel} │ ${detail}`);
   }
@@ -133,7 +135,7 @@ function trend(r: KitReport): 'truncat' | 'pla' | 'mai' {
 reports.sort((a, b) => (cheapest(a) ?? 999) - (cheapest(b) ?? 999));
 
 console.log('\n' + '='.repeat(86));
-console.log(`SCOREBOARD — dins de ${DEFAULT_MAX_AVG_ROUNDS} rondes, contra 4 herois equipats (Σ19 nivells)`);
+console.log(`SCOREBOARD — dins de ${DEFAULT_MAX_AVG_ROUNDS} rondes, contra 4 herois equipats (Σ20 nivells)`);
 console.log('='.repeat(86));
 console.log('  CRIATURA               cossos per empatar   sostre   kit');
 for (const r of reports) {
@@ -144,7 +146,7 @@ for (const r of reports) {
       : 'ja pla → les cartes actuals necessiten ullals';
   console.log(
     `  ${r.name.padEnd(22)}${(need === null ? 'mai' : `${need}×`).padStart(12)}`
-    + `${`${(r.ceiling * 100).toFixed(0)}%`.padStart(13)}   ${kit}`,
+    + `${pct(r.ceiling, SOLVE_OPTS.games).padStart(13)}   ${kit}`,
   );
 }
 

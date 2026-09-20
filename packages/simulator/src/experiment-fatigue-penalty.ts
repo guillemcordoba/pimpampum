@@ -10,11 +10,18 @@
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-fatigue-penalty.ts
  */
-import { Character, CombatModifier, ModifierDuration, newCombatStats, setAIControlled, CombatEngine } from '@pimpampum/engine';
+import { Character, CombatModifier, ModifierDuration, newCombatStats, setAIControlled, withSeed, CombatEngine } from '@pimpampum/engine';
 import { solveEncounter } from '@pimpampum/enemies';
-import { REGISTRY, randomTeam, buildSolvedEncounter } from './tests/helpers.js';
+import { buildSolvedEncounter } from '@pimpampum/enemies';
+import { REGISTRY, randomTeam } from './bench/arena.js';
+import { pct } from './bench/report.js';
+import { games } from './bench/games.js';
 
-const GAMES = 800;
+const GAMES = games(800);
+
+/** COMMON RANDOM NUMBERS: every penalty level meets the same teams and dice,
+ *  so the ladder it prints is the penalty's doing and not the draw's. */
+const SEED = 20260920;
 
 type Scope = 'skill' | 'attack' | 'defense';
 
@@ -33,17 +40,18 @@ function penalize(team: Character[], amount: number, scope: Scope): void {
 function mirror(amount: number, scope: Scope): void {
   const stats = newCombatStats();
   let a = 0, d = 0;
-  for (let i = 0; i < GAMES; i++) {
-    const A = randomTeam('A', 3, 6);
-    const B = randomTeam('B', 3, 6);
-    setAIControlled(A); setAIControlled(B);
-    const engine = new CombatEngine(A, B, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
-    penalize(A, amount, scope);
-    const w = engine.runCombat(stats).winner;
-    if (w === 0) a++; else if (w === null) d++;
-  }
-  const wr = 100 * a / GAMES;
-  console.log(`  -${amount} on ${scope.padEnd(7)}  A winrate ${wr.toFixed(1).padStart(5)}%  draws ${(100 * d / GAMES).toFixed(1).padStart(4)}%  rounds ${(stats.rounds / stats.combats).toFixed(1)}`);
+  withSeed(SEED, () => {
+    for (let i = 0; i < GAMES; i++) {
+      const A = randomTeam('A', 3, 6);
+      const B = randomTeam('B', 3, 6);
+      setAIControlled(A); setAIControlled(B);
+      const engine = new CombatEngine(A, B, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+      penalize(A, amount, scope);
+      const w = engine.runCombat(stats).winner;
+      if (w === 0) a++; else if (w === null) d++;
+    }
+  });
+  console.log(`  -${amount} on ${scope.padEnd(7)}  A winrate ${pct(a / GAMES, GAMES)}  draws ${(100 * d / GAMES).toFixed(1).padStart(4)}%  rounds ${(stats.rounds / stats.combats).toFixed(1)}`);
 }
 
 /** Solved encounter (party fresh = 50%), then the party carries the penalty. */
@@ -51,17 +59,22 @@ function encounter(amount: number, scope: Scope, enc: ReturnType<typeof solveEnc
   if (!enc) return;
   const stats = newCombatStats();
   let wins = 0, draws = 0;
-  for (let i = 0; i < GAMES; i++) {
-    const party = randomTeam('P', 4, 7);
-    penalize(party, amount, scope);
-    const enemies = buildSolvedEncounter(enc);
-    setAIControlled(party); setAIControlled(enemies);
-    const engine = new CombatEngine(party, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
-    penalize(party, amount, scope);
-    const res = engine.runCombat(stats);
-    if (res.winner === 0) wins++; else if (res.winner === null) draws++;
-  }
-  console.log(`  -${amount} on ${scope.padEnd(7)}  party winrate ${(100 * wins / GAMES).toFixed(1).padStart(5)}%  draws ${(100 * draws / GAMES).toFixed(1).padStart(4)}%  rounds ${(stats.rounds / stats.combats).toFixed(1)}`);
+  withSeed(SEED, () => {
+    for (let i = 0; i < GAMES; i++) {
+      const party = randomTeam('P', 4, 7);
+      const enemies = buildSolvedEncounter(enc);
+      setAIControlled(party); setAIControlled(enemies);
+      const engine = new CombatEngine(party, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+      // ONCE, and AFTER the constructor: it resets every modifier, so a call
+      // before it is silently discarded. There used to be one on either side —
+      // dead today, and a double penalty the day the constructor stops doing
+      // that. A measurement must not depend on which of two calls survives.
+      penalize(party, amount, scope);
+      const res = engine.runCombat(stats);
+      if (res.winner === 0) wins++; else if (res.winner === null) draws++;
+    }
+  });
+  console.log(`  -${amount} on ${scope.padEnd(7)}  party winrate ${pct(wins / GAMES, GAMES)}  draws ${(100 * draws / GAMES).toFixed(1).padStart(4)}%  rounds ${(stats.rounds / stats.combats).toFixed(1)}`);
 }
 
 console.log(`Mirror (3v3, budget 6, ${GAMES} games) — A fatigued, B fresh:`);

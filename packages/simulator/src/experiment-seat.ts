@@ -1,17 +1,28 @@
+// bench-exempt(interval): this harness prints its own 95% confidence interval
+// and z-score by hand, which is stricter than the 1σ the shared formatter
+// quotes — it is the exemplar the rest of the package was brought up to, not
+// an exception to it.
 /**
  * Seat-bias check: identical generators on both seats — any deviation of
  * team A's share of decided games from 50% is engine seat bias.
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-seat.ts
  */
-import { randomTeam, runMatch } from './tests/helpers.js';
+import { withSeed } from '@pimpampum/engine';
+import { randomTeam, runMatch } from './bench/arena.js';
+import { games } from './bench/games.js';
 
-const GAMES = 8000;
+const GAMES = games(8000);
+/** Seeded so a re-run answers the same question. Seat bias is a property of
+ *  the engine, so it must not move between runs of this script. */
+const SEED = 20260920;
 let a = 0, b = 0, d = 0;
-for (let i = 0; i < GAMES; i++) {
-  const w = runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6));
-  if (w === 0) a++; else if (w === 1) b++; else d++;
-}
+withSeed(SEED, () => {
+  for (let i = 0; i < GAMES; i++) {
+    const w = runMatch(randomTeam('A', 2, 6), randomTeam('B', 2, 6));
+    if (w === 0) a++; else if (w === 1) b++; else d++;
+  }
+});
 const decided = a + b;
 const share = a / decided;
 const se = Math.sqrt(0.25 / decided);

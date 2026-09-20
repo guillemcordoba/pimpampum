@@ -1,13 +1,17 @@
 /**
- * THE POLICY BENCHMARK — which AI should we be measuring the game with?
+ * THE POLICY BENCHMARK — how strong is the AI we measure the game with?
  *
- * The project runs three AIs (ARCHITECTURE "The AI"): the heuristic one in the
- * engine (the default, and what the web app's enemies use), the distilled lean
- * policy (what `simulate.ts` prices every encounter with), and the offline
- * search. Until now nothing compared them, and on 2026-08-08 they were found to
- * disagree wildly about whether defense cards are worth playing — which matters
- * because THE BALANCER'S AI IS THE UNIT OF DIFFICULTY. A policy that never
- * defends prices every encounter as if no one defends.
+ * THE BALANCER'S AI IS THE UNIT OF DIFFICULTY: price an encounter against a
+ * party that blunders and it will feel trivial at a table that does not. This
+ * benchmark is what that claim gets checked against.
+ *
+ * It was written when the project ran three AIs — the engine's heuristic, a
+ * distilled "lean" policy, and an offline search — and found them disagreeing
+ * wildly about whether defense cards are worth playing (2026-08-08). That
+ * finding is what killed the lean policy: it turned out to be 16pp weaker than
+ * the heuristic and only ~5pp above random, and it was what every encounter
+ * ever priced had been simulated with. There is ONE AI now, with a depth knob,
+ * and no per-card learned table to go stale.
  *
  * The AI here is a measuring instrument, not an opponent: what it owes us is
  * accuracy, consistency between runs, and never silently going stale. So this
@@ -24,27 +28,34 @@
  *     disagreement lives, and it is the robust way to see it: a policy that
  *     answers "defense: 0%" while another answers "defense: 28%" cannot be
  *     reconciled by tuning.
- *  4. STALENESS — the lean policy carries a per-card learned bias keyed by card
- *     id. Cards missing from it score 0 (every new or homebrew card), and ids
- *     left behind by renames are dead weight. Both are reported: this is the
- *     failure mode that cost a full session to notice.
+ *  4. STALENESS — asserted rather than measured, because there is nothing left
+ *     to go stale: the AI carries no per-card table, so a new or homebrew card
+ *     plays well with no retraining. Kept as a line in the report so the
+ *     property is checked rather than assumed — it is the failure mode that
+ *     silently invalidated a whole session's report card.
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/ai-benchmark.ts
  *      … src/ai-benchmark.ts --games 400 --search
  */
 import {
   ActionType, Character, CombatEngine, availableActionIndices, lookaheadChooser,
-  selectAction, setAIControlled, withSeed,
+  random, selectAction, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import {
-  ALL_EQUIPMENT, ALL_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_SKILLS, buildReferenceParty,
-  type CharacterBuildSpec, type PartySpec,
-} from '@pimpampum/skills';
+import { ALL_EQUIPMENT, buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from './tests/helpers.js';
+import { REGISTRY } from './bench/arena.js';
+import { MAIN_KITS } from './bench/reference.js';
+import { SHAPES, calibrationParty, solveShape } from './bench/shapes.js';
+import { pct, share } from './bench/report.js';
+import { instrument, newCardCounters, type CardCounters } from './bench/cells.js';
+import { games } from './bench/games.js';
 
 declare const process: { argv: string[]; env: Record<string, string | undefined> };
 const argvHas = (f: string) => process.argv.slice(2).includes(f);
+const arg = (f: string) => {
+  const i = process.argv.slice(2).indexOf(f);
+  return i >= 0 ? process.argv.slice(2)[i + 1] : undefined;
+};
 
 type Chooser = (engine: CombatEngine, actor: Character) => number | null;
 
@@ -58,10 +69,14 @@ const heuristic: Chooser = (engine, actor) => {
 };
 
 /** Uniformly random over legal cards — the floor. Anything that fails to beat
- *  this is not a policy. */
+ *  this is not a policy.
+ *
+ *  Draws from the engine's SEEDED `random()`. It used to use `Math.random()`
+ *  inside a `withSeed` block, which made the floor of every comparison here
+ *  irreproducible while looking deterministic. */
 const uniform: Chooser = (engine, actor) => {
   const legal = availableActionIndices(actor, engine.registry);
-  return legal.length ? legal[Math.floor(Math.random() * legal.length)] : null;
+  return legal.length ? legal[Math.floor(random() * legal.length)] : null;
 };
 
 /** Always the biggest attack — the strategy the triangle must beat. */
@@ -106,21 +121,28 @@ const CONSTANT_OPPONENT = 'heuristic';
 
 // --- Fixtures ---------------------------------------------------------------
 
-const MAINS = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-
-function hero(name: string, skillId: string): CharacterBuildSpec {
-  const skill = ALL_SKILLS.find(s => s.id === skillId)!;
-  const equipment = ['escut', 'armadura-de-cuir'];
-  if (skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) equipment.push('destral');
-  return { name, pv: 12, category: 'player', equipment, skills: { [skill.id]: skill.actions.length } };
-}
-
-const PARTY: PartySpec = { characters: MAINS.slice(0, 4).map((s, i) => hero(`Heroi ${i + 1}`, s.id)) };
-/** Same fixed encounter the kit analyzer uses, so the two harnesses agree. */
-const ENCOUNTER = [
-  { enemyId: 'goblin', count: 6, level: 3, pv: 15 },
-  { enemyId: 'bone-devil', count: 1, level: 3, pv: 28 },
-];
+const MAINS = MAIN_KITS;
+/** The reference table (bench/reference.ts) — named kits, asserted Σ, one
+ *  definition for the whole package. It used to be re-derived here as
+ *  `MAINS.slice(0, 4)`, which silently re-based this harness whenever a kit
+ *  was added to or reordered in the catalogue. */
+/**
+ * The fight every policy is compared on: a SOLVED shape (`bench/shapes.ts`),
+ * picked with `--shape` (default the first).
+ *
+ * It used to be a hand-written `6× goblin N3 @15 PV + 1× diable d'os N3 @28` —
+ * numbers the solver returned in an earlier era of the rules, which is how a
+ * benchmark quietly stops measuring the game that exists. A solved shape
+ * re-prices itself. The `--shape` flag is what the old `measure-mix.ts` was
+ * for; it is folded in here rather than kept as a second harness asking the
+ * same question with its own sample size.
+ */
+const SHAPE = SHAPES.find(s => s.label === (arg('--shape') ?? process.env.SHAPE))
+  ?? SHAPES[0];
+/** The policies drive the CALIBRATION party — the same seats a report-card cell
+ *  uses, so a number here and a number there mean the same thing. */
+const PARTY: PartySpec = calibrationParty(0);
+const ENCOUNTER = solveShape(SHAPE).groups;
 const SEED = 424242;
 
 /** Dispatch per team so two policies can share one combat. */
@@ -128,38 +150,13 @@ function split(team0: Chooser, team1: Chooser): Chooser {
   return (engine, actor) => (actor.team === 0 ? team0 : team1)(engine, actor);
 }
 
-interface Usage {
-  legalByType: Record<string, number>;
-  playedByType: Record<string, number>;
-  legalByCard: Record<string, number>;
-  playedByCard: Record<string, number>;
-  decisions: number;
-}
-
-function newUsage(): Usage {
-  return { legalByType: {}, playedByType: {}, legalByCard: {}, playedByCard: {}, decisions: 0 };
-}
-
-/** Record what was on offer and what was taken, for one team's decisions. */
-function watch(base: Chooser, team: number, u: Usage): Chooser {
-  return (engine, actor) => {
-    if (actor.team !== team) return base(engine, actor);
-    const legal = availableActionIndices(actor, engine.registry);
-    for (const i of legal) {
-      const def = actor.actions[i].def;
-      u.legalByType[String(def.actionType)] = (u.legalByType[String(def.actionType)] ?? 0) + 1;
-      u.legalByCard[def.id] = (u.legalByCard[def.id] ?? 0) + 1;
-    }
-    const pick = base(engine, actor);
-    if (pick !== null && actor.actions[pick]) {
-      const def = actor.actions[pick].def;
-      u.playedByType[String(def.actionType)] = (u.playedByType[String(def.actionType)] ?? 0) + 1;
-      u.playedByCard[def.id] = (u.playedByCard[def.id] ?? 0) + 1;
-      u.decisions++;
-    }
-    return pick;
-  };
-}
+// "Played out of the times it was LEGAL" is measured by `bench/cells.ts`, not
+// here. It had three independent implementations across this package — this
+// file's, the kit analyzer's and the action-mix harness's — which is three
+// numbers that can disagree about one measurement.
+type Usage = CardCounters;
+const newUsage = newCardCounters;
+const watch = instrument;
 
 /** Party (team 0) on `chooser`, enemies on `enemyChooser`, fixed encounter.
  *  Also times the run: a balancer solve is thousands of combats, so cost per
@@ -211,31 +208,32 @@ function headToHead(x: Chooser, y: Chooser, games: number): number {
 // --- Report -----------------------------------------------------------------
 
 const argv = process.argv.slice(2);
-const arg = (f: string) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
-const GAMES = Number(arg('--games') ?? process.env.GAMES ?? 300);
+/** Sized so the head-to-head cells can distinguish a real 5pp gap: at 300 a
+ *  policy comparison carried ±4pp and the table was read to one decimal. */
+const GAMES = games(800);
 const NAMES = Object.keys(POLICIES);
 const TYPE_LABEL: Record<string, string> = {
   [ActionType.Atac]: 'Atac', [ActionType.Defensa]: 'Defensa', [ActionType.Focus]: 'Focus',
 };
 
 console.log(`BENCHMARK DE POLÍTIQUES · ${GAMES} combats per cel·la · llavor ${SEED}`);
-console.log(`Encontre fix: 6× goblin N3 (15 PV) + 1× diable d'os N3 (28 PV) · colla de referència (4 kits principals)\n`);
+console.log(
+  `Forma «${SHAPE.label}» resolta: ${ENCOUNTER.map(g => `${g.count}× ${g.enemyId} pv${g.pv}`).join(' + ')}`
+  + ' · colla de calibratge (seient 1 + una companyia real)\n',
+);
 
 // 1. Strength + 3. what they play.
 console.log('1. FORÇA — cada política porta la colla; els enemics sempre amb la política ' + CONSTANT_OPPONENT);
-console.log('   política      winrate   rondes   ms/combat    Atac  Defensa   Focus   (repartiment de decisions)');
+console.log('   política          winrate   rondes   ms/combat    Atac  Defensa   Focus   (repartiment de decisions)');
 const usages: Record<string, Usage> = {};
 for (const name of NAMES) {
   const u = newUsage();
   usages[name] = u;
   const { winrate, rounds, msPerCombat } = runParty(POLICIES[name], POLICIES[CONSTANT_OPPONENT], GAMES, u);
-  const share = (t: ActionType) => {
-    const played = u.playedByType[String(t)] ?? 0;
-    return u.decisions ? `${((played / u.decisions) * 100).toFixed(0)}%`.padStart(6) : '     —';
-  };
+  const typeShare = (t: ActionType) => share(u.playedByType[String(t)] ?? 0, u.decisions, 4);
   console.log(
-    `   ${name.padEnd(12)} ${(winrate * 100).toFixed(1).padStart(6)}%  ${rounds.toFixed(1).padStart(6)}  ${msPerCombat.toFixed(2).padStart(8)}`
-    + `  ${share(ActionType.Atac)}  ${share(ActionType.Defensa)}  ${share(ActionType.Focus)}`,
+    `   ${name.padEnd(16)} ${pct(winrate, GAMES)}  ${rounds.toFixed(1).padStart(6)}  ${msPerCombat.toFixed(2).padStart(8)}`
+    + `  ${typeShare(ActionType.Atac)}  ${typeShare(ActionType.Defensa)}  ${typeShare(ActionType.Focus)}`,
   );
 }
 
@@ -243,24 +241,30 @@ for (const name of NAMES) {
 // the matrix is quadratic in the policy count.
 if (!argvHas('--search')) {
   console.log('\n2. CARA A CARA — colles mirall, X a l\'esquerra; winrate de X (mitjana dels dos costats)');
-  console.log('              ' + NAMES.map(n => n.padStart(10)).join(''));
+  console.log('                  ' + NAMES.map(n => n.padStart(12)).join(''));
   for (const x of NAMES) {
-    const cells = NAMES.map(y => (x === y ? '        —' : `${(headToHead(POLICIES[x], POLICIES[y], GAMES) * 100).toFixed(1)}%`.padStart(10)));
-    console.log(`   ${x.padEnd(11)}` + cells.join(''));
+    // Both seats are played, so each cell rests on `GAMES` combats in total.
+    const cells = NAMES.map(y => (x === y ? '           —' : pct(headToHead(POLICIES[x], POLICIES[y], GAMES), GAMES).padStart(12)));
+    console.log(`   ${x.padEnd(15)}` + cells.join(''));
   }
 }
 
 // 3b. Per-card play rate conditioned on legality — the disagreement, per card.
 console.log('\n3. ÚS PER CARTA (jugades / cops que la carta era legal), colla de referència');
-const cards = MAINS.flatMap(s => s.actions);
-const header = NAMES.map(n => n.padStart(11)).join('');
+// The cards THIS PARTY actually holds. It used to be every main kit's cards,
+// so most of the table was `n/d` — the calibration party seats four kits, not
+// all six, and a row of "no data" for a kit that was never in the fight reads
+// like a kit nobody plays.
+const partyKits = new Set(PARTY.characters!.flatMap(c => Object.keys(c.skills ?? {})));
+const cards = MAINS.filter(s => partyKits.has(s.id)).flatMap(s => s.actions);
+const header = NAMES.map(n => n.padStart(16)).join('');
 console.log(`   ${'carta'.padEnd(26)}${'tipus'.padEnd(9)}${header}`);
 for (const c of cards) {
   const cells = NAMES.map(n => {
     const u = usages[n];
-    const legal = u.legalByCard[c.id] ?? 0;
-    if (legal < 20) return '        n/d';
-    return `${(((u.playedByCard[c.id] ?? 0) / legal) * 100).toFixed(1)}%`.padStart(11);
+    const legal = u.legal[c.id] ?? 0;
+    if (legal < 20) return '             n/d';
+    return share(u.played[c.id] ?? 0, legal, 10);
   });
   console.log(`   ${c.name.slice(0, 25).padEnd(26)}${(TYPE_LABEL[c.actionType] ?? '?').padEnd(9)}${cells.join('')}`);
 }

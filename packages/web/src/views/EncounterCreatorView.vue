@@ -157,17 +157,18 @@ const marginPct = computed(() =>
 // different composition — more bodies, or a higher level — never more PV.
 const durationCapped = computed(() => solved.value?.durationCapped === true);
 
-// A miss the solver did NOT choose. `solved.clamped` is authoritative — it
-// means the search ran out of PV in one direction — and must be honoured even
-// when the achieved winrate happens to land near the target: a floor-clamped
+// A miss the solver did NOT choose. Both halves come from the solver now:
+// `clamped` means it ran out of PV in one direction — authoritative even when
+// the achieved winrate happens to land near the target, since a floor-clamped
 // solve reading "79% vs 80% asked" looks like a hit while actually meaning
-// "these enemies are already too dangerous at 1 PV each".
+// "these enemies are already too dangerous at 1 PV each" — and `searchMissed`
+// means it believed it had hit the target and had not. This view used to
+// recompute the second one itself, which left the solver reporting a clean hit
+// while the UI knew better.
 const clamped = computed(() =>
   solved.value !== null
   && !solved.value.durationCapped
-  && (solved.value.clamped
-    || Math.abs(solved.value.predictedWinrate - solved.value.targetWinrate)
-       > Math.max(0.02, 2 * solved.value.stderr)));
+  && (solved.value.clamped || solved.value.searchMissed));
 
 /** Clamped at the PV FLOOR: the composition is too strong even at minimum PV. */
 const tooStrong = computed(() =>

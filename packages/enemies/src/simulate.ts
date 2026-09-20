@@ -237,7 +237,41 @@ export interface SolvedEncounter {
   maxAvgRounds: number;
   /** Combats the reported winrate was measured over. */
   games: number;
+  /**
+   * THE ACHIEVED WINRATE IS NOT THE REQUESTED ONE, and neither `clamped` nor
+   * `durationCapped` explains why.
+   *
+   * Those two cover "the solver ran out of lever". Nothing covered "the search
+   * landed in the wrong place", so a solve could be 20pp off and report itself
+   * as a clean hit — measured 2026-09-20 on 3× basilisk (asked 50%, achieved
+   * 30%, both flags false) and on 6× goblin (asked 60%, achieved 80%).
+   *
+   * Two causes, and the solver cannot tell them apart:
+   *  - PV IS AN INTEGER LEVER, so at small bodies some targets are genuinely
+   *    unreachable and the nearest configuration really is the best answer;
+   *  - the search landed badly. The depth-1 verification pass is bounded to
+   *    `VERIFY_BRACKET` around the depth-0 answer, so a bad depth-0 answer
+   *    cannot be recovered by it.
+   *
+   * Either way the caller deserves to know, so it is reported rather than
+   * diagnosed. `missBy` is signed: positive means the fight came out EASIER
+   * than asked.
+   */
+  searchMissed: boolean;
+  /** `predictedWinrate − targetWinrate`. Signed; positive = easier than asked. */
+  missBy: number;
 }
+
+/**
+ * How far the achieved winrate may sit from the requested one before
+ * `searchMissed` fires: this, or twice the reported sampling error, whichever
+ * is larger.
+ *
+ * Two points of slack because PV is an integer lever and the last step is
+ * frequently worth more than that; the 2σ term is what stops a thin sample
+ * from reading as a miss.
+ */
+export const SOLVE_MISS_EPSILON = 0.02;
 
 /**
  * Average rounds a solved encounter may run.
@@ -514,6 +548,13 @@ export function solveEncounter(
     ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, aiDepth: BALANCER_DEPTH,
   });
 
+  // A miss the solver did not CHOOSE. `clamped` and `durationCapped` are
+  // deliberate, reported refusals; this is the case where the solver believed
+  // it had hit the target and had not.
+  const missBy = final.winrate - target;
+  const searchMissed = !clamped && !durationCapped
+    && Math.abs(missBy) > Math.max(SOLVE_MISS_EPSILON, 2 * final.stderr);
+
   return {
     groups: groups.map(g => ({
       enemyId: g.enemyId,
@@ -523,6 +564,8 @@ export function solveEncounter(
     })),
     targetWinrate: target,
     predictedWinrate: final.winrate,
+    searchMissed,
+    missBy,
     stderr: final.stderr,
     solvedScale: Math.round(solvedScale * 100) / 100,
     clamped,

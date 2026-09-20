@@ -49,8 +49,8 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Rugit de guerra: a terrifying war cry. The roar's own contest, card logic:
-  // the berserker rolls the card's dice + their skill LEVEL (the FULL level, not
-  // just mastery — printed on the card) against each enemy's resist dice;
+  // the berserker rolls the card's dice + their skill level (printed on the
+  // card) against each enemy's resist dice;
   // losers with a still-pending action lose it (engine `cancelPendingAction`,
   // speed-gated — the roar wants high speed).
   fear_roar: {
