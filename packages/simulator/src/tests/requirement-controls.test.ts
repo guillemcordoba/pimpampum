@@ -18,7 +18,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { analyze, type Subject } from '../kit-analyzer-lib.js';
-import { deadCardKit, flatKit, ladderKit, withControlKit } from '../bench/control-kits.js';
+import {
+  deadCardKit, flatKit, ladderKit, situationalKit, trapKit, withControlKit,
+} from '../bench/control-kits.js';
 
 /** Small, because every effect asserted here is huge by construction. */
 /**
@@ -106,5 +108,66 @@ describe('a LADDER kit — each card strictly bigger than the last', () => {
 
   it('reports no regression on a kit that only improves', () => {
     expect(r.monotonicity.detail).not.toMatch(/regressions:/);
+  });
+});
+
+describe('a kit whose second card costs its user dearly', () => {
+  const r = withControlKit(trapKit(), run);
+
+  /*
+   * REQUIREMENT 1'S REGRESSION BRANCH CANNOT BE CONTROLLED END TO END, and the
+   * reason is worth more than the control would have been.
+   *
+   * A level adds an OPTION and a +1 on every roll. Both are pure gain, so under
+   * any reasonable policy level N+1 is at least level N: a regression is not
+   * something a kit can be built to have. Two attempts here, both instructive:
+   *
+   *   4d6 costing 6 PV   → level 2 measured +8.7pp BETTER. Against a 41-PV
+   *                        basilisk the damage outweighs the blood.
+   *   8d6 costing 20 PV  → +10.4pp better still, and the AI plays it 37% of the
+   *                        time. Trading a 12-PV hero for 28 damage to a boss
+   *                        beats plinking 2d6 for the whole fight. It is a
+   *                        kamikaze, not a trap.
+   *
+   * So the branch only ever fires on POLICY ERROR, and manufacturing a reliable
+   * one needs a cost the depth-1 lookahead cannot see — damage arriving two or
+   * more rounds later. That retro-explains the project's own history: every
+   * level regression this harness ever found (§5.1, §15.4) was closed by fixing
+   * the ROLL RULES or the AI, never by changing a card.
+   *
+   * The regression branch is controlled at the RULE level in
+   * requirements.test.ts. What is controlled here is the other direction, which
+   * matters just as much: that requirement 1 stays SILENT when a kit improves
+   * in a way that looks alarming.
+   */
+  it('does not invent a regression from a card that merely looks suicidal', () => {
+    expect(
+      r.monotonicity.detail,
+      `req 1 reported a regression on a kit that got better: ${r.monotonicity.detail}`,
+    ).not.toMatch(/regressions:/);
+  });
+});
+
+describe('a kit of SITUATIONAL cards — no single card is right everywhere', () => {
+  // Requirement 3c's must-FIRE direction. Wide-and-weak clears a horde of 1-PV
+  // goblins; narrow-and-heavy is the only thing that touches a 41-PV basilisk.
+  // Repeating either has to lose to playing both.
+  const r = withControlKit(situationalKit(), run);
+
+  it('requirement 3c passes a kit no one card can carry', () => {
+    expect(
+      r.oneTrick.ok,
+      `req 3c failed a kit whose cards split by matchup: ${r.oneTrick.detail}`,
+    ).toBe(true);
+  });
+
+  it('passes for the RIGHT reason — a real margin, not a wide error bar', () => {
+    // The margin rule passes anything not CLEARLY below the bar, so a noisy
+    // measurement passes by default. For this to be a control the measured
+    // margin has to be positive on its own: full play genuinely beating the
+    // best single card, not merely failing to lose to it.
+    const m = r.oneTrick.detail.match(/marge ([+-][0-9.]+)pp/);
+    expect(m, `no margin in: ${r.oneTrick.detail}`).not.toBeNull();
+    expect(Number(m![1]), `margin not positive: ${r.oneTrick.detail}`).toBeGreaterThan(0);
   });
 });

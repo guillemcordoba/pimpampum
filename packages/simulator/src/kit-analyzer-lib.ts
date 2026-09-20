@@ -245,6 +245,8 @@ const MAX_P90_ROUNDS = 8;
 /** Fights that never end. Separate from the two length bars because it is a
  *  different failure: a stalemate is not a slow fight, it is no fight. */
 const MAX_DRAW_RATE = 0.02;
+/** Win-when-played below this is flagged by requirement 7. */
+const LOSING_FLOOR = 0.4;
 /**
  * A level step this far below zero is a regression — OR the step's own 2σ,
  * whichever is larger.
@@ -452,6 +454,27 @@ export function durationVerdict(
   if (p90Rounds > maxP90) reasons.push(`p90 ${p90Rounds} > ${maxP90}`);
   if (drawRate >= maxDraws) reasons.push(`taules ≥ ${exact(maxDraws)} (combats que no acaben MAI)`);
   return { ok: reasons.length === 0, reasons };
+}
+
+/**
+ * Requirement 7: does this card correlate with LOSING?
+ *
+ * A FLAG, never a verdict, and confounded by construction: a defense gets
+ * played precisely when things are going badly, so a healthy defensive card
+ * correlates with losing no matter how good it is. Extracted anyway, because a
+ * flag nobody has controlled is a flag nobody should act on — and this one had
+ * no test of any kind.
+ *
+ * Draws sit in the denominator and never the numerator, so the figure is
+ * depressed by the draw rate. One more reason not to read it as a verdict.
+ */
+export function correlatesWithLosing(
+  wins: number, plays: number, minPlays: number, floor: number,
+): { judged: boolean; flagged: boolean; rate: number } {
+  if (plays < minPlays) return { judged: false, flagged: false, rate: 0 };
+  const rate = wins / plays;
+  // CLEARLY below the floor, not merely measured below it.
+  return { judged: true, flagged: rate + 2 * stderr(rate, plays) < floor, rate };
 }
 
 export interface AnalyzeBudget {
@@ -666,13 +689,14 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   const losers: string[] = [];
   for (const c of cards) {
     const plays = top.stats.actionPlays[c.id] ?? 0;
-    if (plays < games * 0.2) continue;
     const wins = top.stats.actionWinPlays[c.id] ?? 0;
-    const w = wins / plays;
+    const r7 = correlatesWithLosing(wins, plays, games * 0.2, LOSING_FLOOR);
+    if (!r7.judged) continue;
+    const w = r7.rate;
     // Clearly below 40%, not merely measured below it. (Draws count in the
     // denominator and never in the numerator, so this figure is depressed by
     // the draw rate; one more reason not to read it as a verdict.)
-    if (w + 2 * stderr(w, plays) < 0.4) losers.push(`${c.name} ${share(wins, plays).trim()}`);
+    if (r7.flagged) losers.push(`${c.name} ${share(wins, plays).trim()}`);
   }
   const correlation: Verdict = {
     ok: losers.length === 0,

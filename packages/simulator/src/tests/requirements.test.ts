@@ -21,10 +21,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  marginVerdict, classifyStep, durationVerdict,
+  marginVerdict, classifyStep, durationVerdict, correlatesWithLosing,
   MINDLESS_MARGIN, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, REGRESSION_PP,
 } from '../kit-analyzer-lib.js';
 import { gamesFor } from '../bench/report.js';
+import { roundPercentiles } from '../bench/cells.js';
 
 /** A sample big enough that a 1pp effect is resolvable — so these tests are
  *  about the RULE, not about noise. */
@@ -167,5 +168,76 @@ describe('requirement 2 — the duration rule', () => {
     // rate AT the bar is already too many fights that never end.
     expect(check(5, 8, 0.019).ok).toBe(true);
     expect(check(5, 8, 0.02).ok).toBe(false);
+  });
+});
+
+describe('requirement 7 — the win-correlation flag', () => {
+  const MIN = 100;
+  const FLOOR = 0.4;
+  const check = (wins: number, plays: number) => correlatesWithLosing(wins, plays, MIN, FLOOR);
+
+  it('refuses to judge a card it barely saw', () => {
+    // A card played nine times has no win rate worth the name, and flagging it
+    // would send a designer to look at a card the harness never watched.
+    const v = check(0, 9);
+    expect(v.judged).toBe(false);
+    expect(v.flagged).toBe(false);
+  });
+
+  it('flags a card that clearly correlates with losing', () => {
+    expect(check(100, 1000).flagged).toBe(true);   // 10%, far under the floor
+  });
+
+  it('does NOT flag a healthy card', () => {
+    expect(check(600, 1000).flagged).toBe(false);  // 60%
+  });
+
+  it('THE NULL: a card exactly at the floor is not flagged', () => {
+    // The claim is "CLEARLY below", not "measured below". At exactly 40% the
+    // interval straddles the line and there is nothing to report.
+    expect(check(400, 1000).flagged).toBe(false);
+  });
+
+  it('does not flag on a small sample what it would flag on a large one', () => {
+    // Same 35% rate, two sample sizes. The rule must need the EVIDENCE, not
+    // just the point estimate — the shape of mistake that cost requirement 3c
+    // a session (NEXT-STEPS §19.1).
+    //
+    // 35% is chosen because it sits in the ambiguous band: at n=100 its 2 sigma
+    // interval still reaches the 40% floor, at n=10,000 it does not. A first
+    // draft used 30%, which at n=100 is ALREADY clearly under the floor — the
+    // control would have passed for the wrong reason and then kept passing
+    // after the error term was removed.
+    expect(check(35, 100).flagged).toBe(false);
+    expect(check(3_500, 10_000).flagged).toBe(true);
+  });
+});
+
+describe('fight-length percentiles — what requirement 2 reads', () => {
+  it('computes the median of a known list', () => {
+    expect(roundPercentiles([1, 2, 3, 4, 5]).median).toBe(3);
+  });
+
+  it('uses NEAREST-RANK for p90, so it never interpolates a fight that did not happen', () => {
+    // Ten fights: the 90th percentile is the tenth, the longest. Stating this
+    // because an off-by-one in a percentile moves the number by one fight and
+    // nothing ever looks wrong.
+    expect(roundPercentiles([1, 1, 1, 1, 1, 1, 1, 1, 1, 40]).p90).toBe(40);
+  });
+
+  it('never indexes past the end', () => {
+    // Math.floor(n * 0.9) reaches n for large n without the clamp.
+    expect(roundPercentiles([7]).p90).toBe(7);
+    expect(roundPercentiles([3, 9]).p90).toBe(9);
+  });
+
+  it('is empty-safe rather than NaN', () => {
+    expect(roundPercentiles([])).toEqual({ median: 0, p90: 0 });
+  });
+
+  it('does not mutate its input — the caller still owns its rounds', () => {
+    const rounds = [5, 1, 3];
+    roundPercentiles(rounds);
+    expect(rounds).toEqual([5, 1, 3]);
   });
 });

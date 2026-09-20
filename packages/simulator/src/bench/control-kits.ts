@@ -125,3 +125,54 @@ function assertReaches(def: SkillDefinition): void {
     throw new Error(`control-kits: '${def.id}' builds a character without ${notHeld.join(', ')}.`);
   }
 }
+
+/**
+ * A kit whose SECOND card is a trap the AI cannot see through.
+ *
+ * Requirement 1's regression branch had no end-to-end control, and a regression
+ * is genuinely hard to build: levels only ever ADD options, and they add a +1
+ * roll bonus along with them, so a rational chooser can never do worse. The
+ * only way a level makes a kit worse is if the AI PREFERS the new card and the
+ * new card hurts.
+ *
+ * So: a big attack that also takes a large bite out of its own user. The damage
+ * estimate the AI ranks by reads the dice and does not subtract `self_damage`,
+ * so it reaches for this card — and the hero bleeds out. Constructed to fail,
+ * which is the point: a requirement that cannot detect a level making a kit
+ * worse is not checking anything.
+ */
+export function trapKit(): SkillDefinition {
+  const id = `control-trap-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Safe', dice: new DiceRoll(2, 6) }),
+    // SUICIDAL, not merely costly. A first attempt at 4d6 for 6 PV measured
+    // level 2 as +8.7pp BETTER: against a 41-PV basilisk the damage is worth
+    // more than the blood, and the +1 roll bonus a level brings helps too. A
+    // control has to be lethal by construction, not by argument — 8d6 is far
+    // more than the AI's damage estimate needs to prefer it, and 20 self-damage
+    // kills a 12-PV hero the first time it is played.
+    card(id, 2, {
+      name: 'Trap', dice: new DiceRoll(8, 6),
+      effects: [{ type: 'self_damage', params: { amount: 20 } }],
+    }),
+  ]);
+}
+
+/**
+ * A kit of SITUATIONAL cards: one for crowds, one for a single big body.
+ *
+ * Requirement 3c's must-fire direction had no control. A one-trick arm can only
+ * lose to full play when no single card is right everywhere — so the cards are
+ * built to split on exactly the axis the fight shapes vary along, `horda`
+ * (eight goblins at 1 PV) against `cap` (one basilisk at 41).
+ *
+ * Wide-and-weak clears a horde and bounces off the boss; narrow-and-heavy does
+ * the reverse. Repeating either should lose to playing both.
+ */
+export function situationalKit(): SkillDefinition {
+  const id = `control-situational-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Wide', dice: new DiceRoll(1, 6), targetCount: 99 }),
+    card(id, 2, { name: 'Heavy', dice: new DiceRoll(6, 6) }),
+  ]);
+}

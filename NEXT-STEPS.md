@@ -1617,3 +1617,57 @@ With all four corrections, the statistic discriminates sharply — Mestre d'Arme
 against an 18% null: Contraatac **53.4%**, Atac llampec 28.8%, Tall precís
 12.1% ❌, Atac encadenat 3.3% ❌, Estat de flux 2.3% ❌. Spearman ρ against win
 probability is 1.00.
+
+### 19.8 Control coverage, honestly (2026-09-20)
+
+| requirement | rule control | pipeline: must FIRE | pipeline: must STAY SILENT |
+|---|---|---|---|
+| 1 monotonicity | ✅ 5 | ✅ ladder finds the gain | ✅ flat claims none · ✅ no false regression |
+| 2 duration | ✅ 4 + ✅ 5 on the percentiles | ❌ **none** | ❌ **none** |
+| 3 thinking | ✅ shared | ❌ §19.6 | ❌ §19.6 |
+| 3b space | ✅ shared | ❌ §19.6 | ❌ §19.6 |
+| 3c one-trick | ✅ shared | ✅ situational kit | ✅ flat kit |
+| 4/5 dead cards | n/a | ✅ names the no-op | ✅ spares the real attacks |
+| 7 correlation | ✅ 5 | ❌ none | ❌ none |
+
+Requirements 3, 3b and 3c share ONE `marginVerdict`, so the five controls on it
+cover all three rules. Requirement 7 had no test of any kind before this and now
+has five, including the one that matters: the same rate must NOT be flagged on a
+sample too small to show it.
+
+### 19.9 Requirement 1's regression branch cannot be controlled, and why that matters
+
+Two attempts to build a kit that gets WORSE at level 2, both instructive:
+
+```
+4d6 costing 6 PV    → level 2 measured +8.7pp  BETTER
+8d6 costing 20 PV   → +10.4pp better still, and the AI plays it 37% of the time
+```
+
+A level adds an OPTION and a +1 on every roll. Both are pure gain, so under any
+reasonable policy level N+1 is at least level N — **a regression is not
+something a kit can be built to have.** Even a card that kills its own user is
+net positive when it trades a 12-PV hero for 28 damage to a 41-PV boss. That is
+a kamikaze, not a trap.
+
+So the branch only ever fires on POLICY ERROR, and manufacturing a reliable one
+needs a cost the depth-1 lookahead cannot see — damage arriving two or more
+rounds later.
+
+**This retro-explains the project's own history.** Every level regression this
+harness ever reported (§5.1's Diable Banyut, §15.4's Gòlem de Pedra) was closed
+by fixing the ROLL RULES or the AI, never by changing a card. That was read at
+the time as luck. It was structural.
+
+### 19.10 Still open
+
+- **Requirement 2 has no pipeline control.** Its rule and its percentiles are
+  controlled; nothing checks that a fight which must drag is measured as
+  dragging. Building one needs a party that cannot kill, which runs into the
+  same four-seat limit as §19.6.
+- **Requirement 7 has no pipeline control**, for the same reason a meaningful
+  one is hard: the statistic is confounded by design, so a card "known to
+  correlate with losing" is not constructible without deciding what the
+  confound should look like.
+- **4/5 now fails 6/6**, naming 14 dead cards. First verdict from a controlled
+  instrument — a CONTENT finding, not acted on.

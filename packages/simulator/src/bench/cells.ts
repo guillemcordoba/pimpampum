@@ -416,7 +416,7 @@ function runMatrixUncached(
     allRounds.push(...r.rounds);
     byCell.push({ label: cell.label, delta: r.winrate - cell.baseline });
   }
-  allRounds.sort((a, b) => a - b);
+  const pct = roundPercentiles(allRounds);
 
   const winrate = winSum / cells.length;
   const n = perCell * cells.length;
@@ -431,11 +431,33 @@ function runMatrixUncached(
     stderr: stderr(winrate, n),
     games: n,
     drawRate: drawSum / cells.length,
-    medianRounds: allRounds[Math.floor(allRounds.length / 2)],
-    p90Rounds: allRounds[Math.floor(allRounds.length * 0.9)],
+    medianRounds: pct.median,
+    p90Rounds: pct.p90,
     byCell,
     stats,
     counters,
+  };
+}
+
+/**
+ * Fight-length percentiles, extracted so they can be CONTROLLED.
+ *
+ * An off-by-one in a percentile is the quietest bug there is: it moves a
+ * reported number by one fight's worth and nothing ever looks wrong. These
+ * feed requirement 2 directly, which is otherwise judged on numbers no test
+ * has ever checked against a hand-computed answer.
+ *
+ * NOTE `p90` uses the nearest-rank convention, so on ten sorted fights it is
+ * the tenth — the longest — not an interpolated ninth-and-a-bit. That is the
+ * conservative reading for a "fights do not drag" check and it is asserted
+ * rather than left to be rediscovered.
+ */
+export function roundPercentiles(rounds: number[]): { median: number; p90: number } {
+  if (rounds.length === 0) return { median: 0, p90: 0 };
+  const sorted = [...rounds].sort((a, b) => a - b);
+  return {
+    median: sorted[Math.floor(sorted.length / 2)],
+    p90: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))],
   };
 }
 
