@@ -22,7 +22,7 @@ import { REGISTRY } from './helpers.js';
 
 function atkDef(id = 'hit', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
-    id, name: id, skillId: 'test', unlockLevel: 1, actionType: ActionType.Atac,
+    id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Atac,
     speed: 1, dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
     ...opts,
   };
@@ -30,20 +30,35 @@ function atkDef(id = 'hit', opts: Partial<ActionDefinition> = {}): ActionDefinit
 
 function focusDef(id = 'wait', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
-    id, name: id, skillId: 'test', unlockLevel: 1, actionType: ActionType.Focus,
+    id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Focus,
     speed: 0, effects: [], description: '', iconPath: '', ...opts,
   };
 }
 
 function defenseDef(id = 'block', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
-    id, name: id, skillId: 'test', unlockLevel: 1, actionType: ActionType.Defensa,
+    id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Defensa,
     speed: 5, rollBonus: 1000, effects: [], description: '', iconPath: '', ...opts,
   };
 }
 
 function makeChar(name: string, pv: number, actions: ActionDefinition[]): Character {
-  return createCharacter({ name, classCss: 'test', pv, skills: { test: 10 }, actions });
+  // SKILL LEVEL 0, AND EVERY FIXTURE CARD AT `unlockLevel: 0`.
+  //
+  // A roll is the card's dice plus the actor's level in its skill, so any level
+  // here would land on every assertion in this file — and these tests measure
+  // what a CARD does, exactly, with 1d1 dice. The level is a separate mechanic
+  // with its own tests.
+  //
+  // `unlockLevel: 0` is what makes level 0 workable: it is the engine's
+  // documented "this card needs no skill" convention (types.ts), and without it
+  // the unlock gate (`level >= unlockLevel`) would make every fixture card
+  // unplayable.
+  //
+  // These tests were written before a level entered a roll at all, and had been
+  // failing since mestratge arrived — 15 of them off by exactly the fixture's
+  // level, for however long that was.
+  return createCharacter({ name, classCss: 'test', pv, skills: { test: 0 }, actions });
 }
 
 /** A passive AI-driven punching bag that only waits. */
@@ -338,7 +353,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     runRound(engine, blockE);
     expect(d1.currentPV).toBe(20);
     expect(d2.currentPV).toBe(20);
-    expect(e.getSkillLevel('test')).toBe(11); // lost by 0 → learns
+    expect(e.getSkillLevel('test')).toBe(1); // lost by 0 → learns (fixtures start at 0)
   });
 
   it('a breach damages the weak link (lowest individual roll) only', () => {
@@ -346,16 +361,16 @@ describe('bloqueig conjunt (summed wall)', () => {
     runRound(engine, blockE);
     expect(d1.currentPV).toBe(20);
     expect(d2.currentPV).toBe(14); // D2 rolled 1 < D1's 3
-    expect(d1.getSkillLevel('test')).toBe(10); // margin 6 > 2 → nobody learns
-    expect(d2.getSkillLevel('test')).toBe(10);
+    expect(d1.getSkillLevel('test')).toBe(0); // margin 6 > 2 → nobody learns
+    expect(d2.getSkillLevel('test')).toBe(0);
   });
 
   it('a close breach (≤ SKILL_UP_MARGIN) teaches every blocker', () => {
     const { d1, d2, engine } = wallSetup(5, 2); // attack 6 vs (3 + 1) → margin 2
     runRound(engine, blockE);
     expect(d2.currentPV).toBe(18);
-    expect(d1.getSkillLevel('test')).toBe(11); // both learn
-    expect(d2.getSkillLevel('test')).toBe(11);
+    expect(d1.getSkillLevel('test')).toBe(1); // both learn
+    expect(d2.getSkillLevel('test')).toBe(1);
   });
 
   it('full-coverage AoE ignores the wall: each blocker defends alone', () => {
@@ -423,9 +438,9 @@ describe('bloqueig conjunt (summed wall)', () => {
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // attack 6 vs (3+1) → margin 2
     ]);
     expect(d2.currentPV).toBe(18);
-    expect(d1.getSkillLevel('test')).toBe(11); // both wall members learn
-    expect(d2.getSkillLevel('test')).toBe(11);
-    expect(a.getSkillLevel('test')).toBe(10); // the ally wasn't on the wall
+    expect(d1.getSkillLevel('test')).toBe(1); // both wall members learn
+    expect(d2.getSkillLevel('test')).toBe(1);
+    expect(a.getSkillLevel('test')).toBe(0); // the ally wasn't on the wall
   });
 
   it('a single block still resolves as an ordinary one-on-one contest', () => {
@@ -435,7 +450,7 @@ describe('bloqueig conjunt (summed wall)', () => {
       { idx: 1, actionIdx: 1 }, // D2 idles on a focus — no second block
     ]);
     expect(d1.currentPV).toBe(18); // no sum with anyone
-    expect(d1.getSkillLevel('test')).toBe(11); // close loss teaches the blocker
+    expect(d1.getSkillLevel('test')).toBe(1); // close loss teaches the blocker
     expect(d2.currentPV).toBe(20);
   });
 });
@@ -466,11 +481,7 @@ describe('fatigue level', () => {
   });
 
   it('comes off the attack total, so an undefended hit lands N lighter', () => {
-    // `skillId: 'cap'` is a skill the fixture does not have, so the roll gets no
-    // skill-level bonus and the assertion is pure dice. (It used to lean on
-    // `unlockLevel: 10` cancelling the old mestratge bonus; a roll is the card's
-    // dice plus the LEVEL now, so the unlock level no longer enters it.)
-    const a = makeChar('A', 20, [atkDef('big', { dice: new DiceRoll(6, 1), skillId: 'cap' })]); // flat 6
+    const a = makeChar('A', 20, [atkDef('big', { dice: new DiceRoll(6, 1) })]); // flat 6
 
     a.setFatigue(2);
     const enemy = sac(50);
@@ -483,9 +494,8 @@ describe('fatigue level', () => {
 describe('Metge de campanya (full path, zero engine edits)', () => {
   it("injecció d'adrenalina doubles the ally's attack and costs a fatigue level", () => {
     const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
-    // Flat 3d1 on a skill the fixture does not have, so no skill-level bonus
-    // enters the roll and the doubling is the only thing being measured.
-    const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1), skillId: 'cap' })]);
+    // Flat 3d1, so the doubling is the only thing being measured.
+    const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1) })]);
     const enemy = sac(50);
     const engine = new CombatEngine([metge, lluitador], [enemy], { registry: REGISTRY });
 
@@ -657,7 +667,7 @@ describe('standing wall: the wall has life', () => {
   /** Wall card with deterministic dice: 0d0+10 → defends at 10, life 10. */
   function wallDef(): ActionDefinition {
     return {
-      id: 'mur-test', name: 'Mur', skillId: 'test', unlockLevel: 1,
+      id: 'mur-test', name: 'Mur', skillId: 'test', unlockLevel: 0,
       actionType: ActionType.Defensa, speed: 5, dice: new DiceRoll(0, 0, 10),
       effects: [{ type: 'standing_wall' }], description: '', iconPath: '',
     };
