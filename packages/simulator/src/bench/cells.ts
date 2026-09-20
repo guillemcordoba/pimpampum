@@ -14,7 +14,8 @@
  */
 import {
   ActionType, Character, CombatEngine, CombatStats,
-  availableActionIndices, lookaheadChooser, newCombatStats, random, setAIControlled, withSeed,
+  availableActionIndices, lookaheadChooser, mergeCombatStats, newCombatStats, random,
+  setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import { buildComposition, type FieldedGroup } from '@pimpampum/enemies';
@@ -22,6 +23,7 @@ import { REGISTRY } from './arena.js';
 import { deltaStderr, stderr } from './report.js';
 import { type Cell } from './shapes.js';
 import { SMOKE } from './games.js';
+import { countedCached, key } from './cache.js';
 
 /** Base seed for every cell. Fixed so two runs of anything here are comparable. */
 export const CELL_SEED = 515_000;
@@ -202,6 +204,44 @@ export interface CellRun {
  * SELECTED on a sample must not re-use that sample, or the selection's luck
  * gets reported as the candidate's merit.
  */
+/** Everything one cell's result depends on, besides the content the caller
+ *  names. */
+export function cellKey(
+  subjectPrint: string, cell: Cell, games: number, policy: CellPolicy, seedOffset: number,
+): string {
+  const policyPrint = typeof policy === 'string' ? policy : `one:${policy.oneCard}`;
+  return key('cell', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`,
+    String(games), policyPrint, String(seedOffset));
+}
+
+/** What a cached cell holds: its outcome plus the instrumentation the report
+ *  cards read, since re-running to recover those would defeat the cache. */
+export interface CachedCell {
+  winrate: number;
+  drawRate: number;
+  rounds: number[];
+  stats: CombatStats;
+  counters: CardCounters;
+}
+
+/** Play one cell and cache it, or read it back. */
+export function cellResult(
+  setup: () => CellSetup,
+  cell: Cell,
+  games: number,
+  policy: CellPolicy,
+  seedOffset: number,
+  cacheKey?: string,
+): CachedCell {
+  const compute = (): CachedCell => {
+    const stats = newCombatStats();
+    const counters = newCardCounters();
+    const r = runOneCell(setup(), cell, games, policy, stats, counters, seedOffset);
+    return { winrate: r.winrate, drawRate: r.drawRate, rounds: r.rounds, stats, counters };
+  };
+  return cacheKey ? countedCached<CachedCell>('cell', cacheKey, compute) : compute();
+}
+
 export function runOneCell(
   setup: CellSetup,
   cell: Cell,
@@ -257,12 +297,47 @@ export interface MatrixResult {
  * `setupFor` builds the party and opposition for one cell — the caller owns
  * that, because a player subject and an enemy subject differ only there.
  */
+/**
+ * Cache key for a whole matrix run.
+ *
+ * It has to name everything the numbers depend on: the cells (which carry the
+ * baselines and the solved shapes behind them), the SUBJECT's own cards, the
+ * cards of everyone sitting beside it, the policy, the sample and the seed.
+ * The caller owns the subject/company half, since only it knows what it built.
+ */
+export function matrixKey(
+  subjectPrint: string,
+  cells: Cell[],
+  games: number,
+  policy: CellPolicy,
+  seedOffset: number,
+): string {
+  const cellPrint = cells.map(c => `${c.label}@${c.baseline.toFixed(4)}`).join(',');
+  const policyPrint = typeof policy === 'string' ? policy : `one:${policy.oneCard}`;
+  return key('matrix', subjectPrint, cellPrint, String(games), policyPrint, String(seedOffset));
+}
+
 export function runMatrix(
   cells: Cell[],
   setupFor: (cell: Cell) => CellSetup,
   games: number,
   policy: CellPolicy = 'policy',
   seedOffset = 0,
+  cacheKey?: string,
+): MatrixResult {
+  // The MATRIX is not cached — its CELLS are (`cellResult`). A matrix is just
+  // their sum, and caching at the cell is what lets a run fan out across the
+  // width of the matrix instead of one process per level.
+  return runMatrixUncached(cells, setupFor, games, policy, seedOffset, cacheKey);
+}
+
+function runMatrixUncached(
+  cells: Cell[],
+  setupFor: (cell: Cell) => CellSetup,
+  games: number,
+  policy: CellPolicy = 'policy',
+  seedOffset = 0,
+  subjectPrint?: string,
 ): MatrixResult {
   if (cells.length === 0) {
     throw new Error(
@@ -281,7 +356,16 @@ export function runMatrix(
   const allRounds: number[] = [];
   let winSum = 0, drawSum = 0, deltaSum = 0, baselineVar = 0;
   for (const cell of cells) {
-    const r = runOneCell(setupFor(cell), cell, perCell, policy, stats, counters, seedOffset);
+    const r = cellResult(
+      () => setupFor(cell), cell, perCell, policy, seedOffset,
+      subjectPrint ? cellKey(subjectPrint, cell, perCell, policy, seedOffset) : undefined,
+    );
+    mergeCombatStats(stats, r.stats);
+    for (const k of Object.keys(r.counters.legal)) counters.legal[k] = (counters.legal[k] ?? 0) + r.counters.legal[k];
+    for (const k of Object.keys(r.counters.played)) counters.played[k] = (counters.played[k] ?? 0) + r.counters.played[k];
+    for (const k of Object.keys(r.counters.legalByType)) counters.legalByType[k] = (counters.legalByType[k] ?? 0) + r.counters.legalByType[k];
+    for (const k of Object.keys(r.counters.playedByType)) counters.playedByType[k] = (counters.playedByType[k] ?? 0) + r.counters.playedByType[k];
+    counters.decisions += r.counters.decisions;
     winSum += r.winrate;
     drawSum += r.drawRate;
     deltaSum += r.winrate - cell.baseline;

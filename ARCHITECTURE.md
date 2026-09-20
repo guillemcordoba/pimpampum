@@ -443,6 +443,14 @@ ones:
   already a delta. 4 usable cells became 15. **An empty matrix throws**, because
   the averages would otherwise report 0% at every level, which reads exactly
   like a catastrophic kit rather than a broken harness.
+- **`bench/cache.ts` / `bench/parallel.ts` — why a run is fast.** A full sweep
+  went from eleven minutes to ninety seconds. The cache key is a hash of exactly
+  what a CELL depends on — the cards in it, the enemies in its shape, and the
+  engine's own SOURCE — so editing one kit invalidates the rows that seat it and
+  nothing else. The parallel layer only ever WARMS that cache: children take no
+  part in a measurement, the run stays single-threaded, and the output is
+  bit-identical to a serial one (verified by diffing against
+  `BENCH_NO_CACHE=1`). A failed child costs time, never correctness.
 - **`bench/report.ts` — no percentage is formatted by hand.** `pct(rate, n)`,
   `deltaPP(...)`, `share(n, total)`, and `exact(rate)` for a number that is
   KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs),

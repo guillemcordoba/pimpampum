@@ -40,6 +40,20 @@ export function searchGames(fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-/** True when running under the smoke test: sizes are meaningless, so a harness
- *  may skip an expensive extra pass that proves nothing at n=2. */
 export const SMOKE = process.env.BENCH_SMOKE === '1';
+
+/**
+ * Games behind a CALIBRATION measurement — a baseline, not a sample.
+ *
+ * Deliberately NOT `games()`: a baseline is subtracted from every score, is
+ * measured once and reused across every kit and level, and must not move when a
+ * harness is run at a different `--games`. It did, briefly, and the effect was
+ * worse than imprecision: the cache key moved with it, so the baselines could
+ * never be shared between two runs at different sample sizes.
+ */
+export function calibrationGames(fallback: number): number {
+  const n = Number(process.env.CALIBRATION_GAMES ?? (SMOKE ? 20 : fallback));
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+/* `SMOKE` is declared above, before the readers that consult it. */

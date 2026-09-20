@@ -233,6 +233,30 @@ silent `// eslint-disable`. Rules: `seeded`, `depth`, `interval`.
 
 ---
 
+## Why a run is fast
+
+A full sweep was eleven minutes. It is ninety seconds cold, seventy after
+editing one kit, and about a second when nothing changed. Two mechanisms, and
+both are built so that being wrong costs time rather than correctness.
+
+**`bench/cache.ts` — content-fingerprinted, per cell.** The key is a hash of
+exactly what that measurement depends on: the cards in the cell, the enemies in
+the shape, and the ENGINE's own source (so any change to how a fight resolves
+invalidates everything). Editing one player kit therefore invalidates the rows
+that seat it and nothing else. Delete `.bench-cache/` if you ever suspect it;
+it is pure derived data, and `BENCH_NO_CACHE=1` bypasses it.
+
+**`bench/parallel.ts` — children only warm the cache.** They never take part in
+a measurement. The run itself is the same single-threaded code it always was and
+simply finds its answers already computed, so the numbers are bit-identical to a
+serial run — verified by diffing a cached run against `BENCH_NO_CACHE=1`. A
+child that fails, hangs or is killed costs nothing but time. `BENCH_SERIAL=1`
+turns it off when a crash needs a readable stack.
+
+The unit of both is the CELL, because that is what parallelises to the width of
+the matrix. Jobs are BATCHED one child per lane: at one child per cell, process
+startup cost more CPU than the measurements did and wall time did not move.
+
 ## Before you trust a number
 
 1. Does the harness say what **n** it ran at, and does the threshold it is

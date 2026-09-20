@@ -22,7 +22,8 @@
 import { simulateEncounter, solveEncounter, type FieldedGroup } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
 import { hero } from './reference.js';
-import { games, searchGames } from './games.js';
+import { calibrationGames, searchGames } from './games.js';
+import { countedCached, enemyPrint, key, skillPrint } from './cache.js';
 
 /**
  * The shapes. PV is never written down here — it is SOLVED, so a shape stays
@@ -172,7 +173,7 @@ export const SATURATION = { min: 0.20, max: 0.80 };
  * enters every delta. They are measured once per run and reused across every
  * kit and level, which is what makes it affordable to buy precision here.
  */
-const CALIBRATION_GAMES = games(500);
+const CALIBRATION_GAMES = calibrationGames(500);
 /** Independent of the solver's own seed: the check must not re-use the sample
  *  the search steered on (winner's curse, ~4pp optimistic — see simulate.ts). */
 const CALIBRATION_SEED = 616_000;
@@ -234,28 +235,72 @@ const cache = new Map<string, SolvedShape>();
  * of them — and it is the per-row measurements, not the solve, that everything
  * downstream uses.
  */
+/** What a company row's party is made of, for cache keying. */
+function partyPrint(companyIdx: number): string {
+  return [calibrationKit(companyIdx), ...COMPANY[companyIdx % COMPANY.length]]
+    .map(skillPrint).join('/');
+}
+
+/** What a shape fields, for cache keying. */
+function poolPrint(shape: (typeof SHAPES)[number]): string {
+  return shape.pool.map(p => `${p.count}x${enemyPrint(p.enemyId)}`).join('+');
+}
+
+/**
+ * The solved composition alone — what stands on the table, at what PV.
+ *
+ * Split out from `solveShape` so the two halves can be warmed separately: one
+ * solve per shape, then all sixteen baselines at once. They also depend on
+ * different content (the solve only sees company 0's party), which is what lets
+ * an edit to one kit leave most of this cached.
+ */
+export function solveGroupsOnly(shape: (typeof SHAPES)[number]): FieldedGroup[] {
+  const k = key('solve', poolPrint(shape), partyPrint(0), String(FAIR), String(searchGames(120)));
+  return countedCached<FieldedGroup[]>('shape', k, () => {
+    const solved = solveEncounter(shape.pool, calibrationParty(0), FAIR, { searchGames: searchGames(120) });
+    return solved
+      ? solved.groups.map(g => ({ enemyId: g.enemyId, count: g.count, level: g.level, pv: g.pv }))
+      : [];
+  });
+}
+
+/** The neutral baseline for one (shape, company) cell. */
+export function baselineFor(shape: (typeof SHAPES)[number], companyIdx: number): number {
+  const groups = solveGroupsOnly(shape);
+  if (groups.length === 0) return 1;
+  const groupPrint = groups.map(g => `${g.count}x${g.enemyId}@${g.pv}L${g.level}`).join('+');
+  const k = key('base', groupPrint, partyPrint(companyIdx),
+    String(CALIBRATION_GAMES), String(CALIBRATION_SEED + companyIdx * 31));
+  return countedCached<number>('baseline', k, () => simulateEncounter(groups, calibrationParty(companyIdx), {
+    games: CALIBRATION_GAMES, seed: CALIBRATION_SEED + companyIdx * 31,
+  }).winrate);
+}
+
 export function solveShape(shape: (typeof SHAPES)[number]): SolvedShape {
   const hit = cache.get(shape.label);
   if (hit) return hit;
 
-  const solved = solveEncounter(shape.pool, calibrationParty(0), FAIR, { searchGames: searchGames(120) });
-  const groups: FieldedGroup[] = solved
-    ? solved.groups.map(g => ({ enemyId: g.enemyId, count: g.count, level: g.level, pv: g.pv }))
-    : [];
-
-  const byCompany = solved
-    ? COMPANY.map((_, i) => simulateEncounter(groups, calibrationParty(i), {
-      games: CALIBRATION_GAMES, seed: CALIBRATION_SEED + i * 31,
-    }).winrate)
+  // CACHED PER CELL, not per run. The solve and each company's baseline depend
+  // on different slices of the content, so they are keyed separately: editing
+  // one player kit invalidates only the rows that seat it — typically one of
+  // four — instead of the whole 30 s of fixed cost. See bench/cache.ts.
+  const groups = solveGroupsOnly(shape);
+  const solvedOk = groups.length > 0;
+  const byCompany = solvedOk
+    ? COMPANY.map((_, i) => baselineFor(shape, i))
     : COMPANY.map(() => 1);
   const mean = byCompany.reduce((a, b) => a + b, 0) / byCompany.length;
+
+  // `capped` is not cached: it is only read for the report line, and re-solving
+  // to recover it would defeat the cache entirely.
+  const solved = solvedOk ? { durationCapped: false, clamped: false } : null;
 
   const entry: SolvedShape = {
     groups,
     byCompany,
     mean,
     spread: Math.max(...byCompany) - Math.min(...byCompany),
-    capped: !solved || solved.durationCapped || solved.clamped,
+    capped: !solved,
     games: CALIBRATION_GAMES,
   };
   cache.set(shape.label, entry);
