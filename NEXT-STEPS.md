@@ -1299,3 +1299,97 @@ cannot both be an ablation on one seat and certify a card as dead. What IS
 measurable is the seat budget (+11.8 vs +4.5 separates Mestre d'Armes from
 Earthbender cleanly) and the list of cards certified above the floor. Needs a
 design decision, so it is left for one.
+
+## 18. Per-decision card value (2026-09-20)
+
+§17.5 established that a leave-one-out ablation on one seat cannot resolve what
+a card is worth, and named four compounding reasons. This is the instrument
+that removes all four, in `bench/regret.ts` + `card-value.ts`.
+
+> At a position where card C is legal, CLONE the position once per legal card,
+> force that card, play the fight out, and score the end state.
+
+|  | ablation (§17) | per-decision (this) |
+|---|---|---|
+| unit of observation | one fight | one **decision** |
+| dilution | 1 seat of 4 | none — the question is about this play |
+| pairing | same seed; arms are independent games by round 2 | the **identical position** |
+| outcome | win/loss, 1 bit | PV differential, continuous |
+| **cards resolved at 2σ** | **7 of 29** | **29 of 29** |
+| cost | ~5 matrix runs/kit | ~10s/kit |
+
+### 18.1 The outcome is not a weighting I invented
+
+`positionScore` prices PV against bodies against fatigue with coefficients
+somebody chose; scoring a card with it is the circularity this whole exercise
+exists to escape. The outcome here is **my PV minus theirs**, and nothing else.
+The rules make that one currency — damage IS the margin, and the margin is
+applied to PV — so nobody weighted anything. It also encodes the win condition
+for free: a side at 0 has lost, so a won fight scores the winner's surviving PV.
+
+It is a SURROGATE, so every run prints **Spearman ρ against the same value
+computed on win probability**: 0.70–1.00 across the six kits. Where it
+disagrees is exactly where predicted — `Erupció` is −2.8 PV but +2.3pp win,
+because AoE spreads damage that never becomes a kill.
+
+### 18.2 Two statistics, and only one of them can say "dead"
+
+**`value` is a RANKING, never a verdict.** It is a card's score minus the mean
+of its alternatives, so across one hand the values **sum to ~zero by
+arithmetic** — a kit of five superb cards still shows two or three negative,
+because half a hand is always below its own average. Negative means "worse than
+the other things you could do right now", and nothing else. (Writing this down
+because the obvious misreading — "negative card, cut it" — would be the third
+time today a relative number got reported as an absolute one.)
+
+**`millor opció` is the absolute one**: how often the card was the best play
+available. Its null is 1/k, not 0 — with k noisy candidates one wins by luck
+about one time in k. A card well under its own null is one the game never wants
+played. `Camp minat` is best **9%** of the time against a ~29% null.
+
+### 18.3 The measurement is quoted AT A DEPTH
+
+It was assumed the rollout policy's bias would difference away, since both
+branches use it. Measured, and only half true: it cancels the LEVEL and not the
+ORDERING. Mestre d'Armes at depth 0 ranks `Atac llampec` first and `Contraatac`
+second; at depth 1 they swap, significantly. The bottom of the ranking is stable
+at both.
+
+That is not purely an artefact — a riposte pays off exactly to the extent that
+the continuation keeps defending sensibly, so "worth more under better play" is
+a real property of a card. But the number is quoted at a depth, and the default
+is `CELL_AI`'s depth 1, the same the balancer prices encounters at.
+
+**What is still AI-dependent, plainly:** the positions are reached by AI play
+and the rollouts are continued by it. A card whose moment never arrives under
+this policy will not be valued here. That is far weaker than "the AI declined to
+pick it" — both branches are continued by the same policy, so its bias is
+differenced away — but it is not zero, and no instrument that plays the game can
+make it zero.
+
+### 18.4 The first full run, 600 fights a kit
+
+```
+Enginyer   Granada +11.7  Traca +9.1  Barricada +1.2  Bomba -6.4  Camp minat -12.1
+M. d'Armes Contraatac +7.1  Llampec +3.6  Tall -0.8  Encadenat -4.8  Flux -5.7
+Nigromant  Xuclar +3.5  Sudari +2.4  Marca +1.1  Ombra -0.6  Putrefacció -2.6  Mà -3.0
+Berserk    Fúria +7.0  Rugit +3.4  Espatlla +1.2  Temerari -0.8  Embat -3.7  Aguantar -4.9
+Earthbender Columna +4.6  Mur +2.7  Roca +1.3  Presó -8.1
+Volcànica  Obsidiana +5.0  Roca fosa +1.1  Guèiser -0.4  Erupció -2.8  Riu -5.3
+```
+
+Read as a ranking (§18.2). The two findings that are absolute:
+
+- **`Camp minat` is the right play 9% of the time against a ~29% null.** The
+  only card in the game clearly under its own null. It is also the card §15.1's
+  `positionValue` pass was meant to rescue.
+- **`Estat de flux` is −5.7 PV**, which CONFIRMS its `AI_BLIND_CARDS` exemption
+  empirically rather than by assertion: for this AI, playing it is a wasted
+  turn. The exemption says the harness cannot see its value, and now there is a
+  number showing the harness sees a cost.
+
+**Not yet done:** nothing has been changed on the strength of this. The
+instrument is new, §17 was wrong twice before it was calibrated, and this one
+has had exactly one calibration (the ρ check) rather than the two §17.5 got. A
+positive control — force a card known to be worthless and confirm it prices
+near the bottom — is still owed before any card is redesigned on these numbers.

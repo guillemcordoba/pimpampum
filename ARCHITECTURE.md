@@ -540,6 +540,22 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   both ablate to nothing, so a dead verdict means "nothing needs THIS card",
   never "this card does nothing" — the level sweep, which removes cards in
   prefixes, is the complement.
+- `card-value.ts` + `bench/regret.ts` — **what a card is worth, measured at
+  the decision rather than at the fight**. At a position where C is legal, the
+  engine is CLONED once per legal card, that card is forced, the fight is played
+  out and the end state scored. The branches share the *identical position*
+  (leave-one-out's two arms are independent games by round 2), every decision
+  yields an observation instead of every fight, and the subject's seat no longer
+  dilutes the signal 4×. Outcome is **my PV minus theirs** — one currency by the
+  rules, since damage IS the margin applied to PV, so nothing is weighted — and
+  every run prints Spearman ρ against the same value computed on win
+  probability (0.70–1.00 measured) because it is a surrogate, not the thing.
+  Resolves **29 of 29 cards at 2σ** where the ablation resolved 7, at a fraction
+  of the cost. Two statistics, and only the second can say "dead": `value` is a
+  RANKING whose values sum to ~zero across a hand by arithmetic (half a hand is
+  always below its own average), while `millor opció` — how often the card was
+  the best play, against a 1/k null — is absolute. Quoted AT A DEPTH: the
+  continuation policy cancels in level but not in ordering (NEXT-STEPS §18.3).
 - `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
   the way the analyzer will (solve against one company, measure against all), so
   the tool that CHOOSES the counts cannot disagree with the tool the counts are
