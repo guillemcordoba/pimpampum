@@ -8,7 +8,7 @@ const ICON = 'icons/000000/transparent/1x1/';
  *  payoff, the mildest of them (everyone can carry a shield). */
 const ESCUT_DE_FUSTA = action({
   id: 'escut-de-fusta', name: 'Escut de fusta', skillId: 'escut', unlock: 0,
-  type: ActionType.Defensa, speed: 2, dice: d(2, 4),
+  type: ActionType.Defensa, speed: 2, dice: d(3, 4),
   effects: [{ type: 'debuff_on_block', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } }],
   desc: 'Si bloqueges un atac, {V}−2 a l\'atacant el proper torn.',
   icon: 'willdabeast/round-shield.svg',

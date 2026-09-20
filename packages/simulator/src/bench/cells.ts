@@ -133,6 +133,33 @@ export function oneCardChooser(team: number, cardId: string, fallback: (e: Comba
 }
 
 /**
+ * "Always the biggest attack", with NO lookahead at all — the thinking-free
+ * floor, and the one §7.1 actually asks for.
+ *
+ * It is a different question from `onlyAttacks`, and conflating them cost this
+ * requirement its meaning. `onlyAttacks` still THINKS, a round ahead, inside a
+ * smaller strategy space; this does not think at all. One asks "does the
+ * strategy triangle matter", the other asks "does thinking matter", and only
+ * the second is what "thinking must beat not thinking" means.
+ */
+function spamChooser(team: number, fallback: (e: CombatEngine, a: Character) => number | null) {
+  return (engine: CombatEngine, actor: Character): number | null => {
+    if (actor.team !== team) return fallback(engine, actor);
+    const legal = availableActionIndices(actor, engine.registry);
+    const attacks = legal.filter(i => actor.actions[i].def.actionType === ActionType.Atac
+      && !actor.actions[i].def.lastResort);
+    if (!attacks.length) return legal.length ? legal[0] : null;
+    let best = attacks[0], bestAvg = -1;
+    for (const i of attacks) {
+      const def = actor.actions[i].def;
+      const avg = (def.dice?.average() ?? 0) + (def.rollBonus ?? 0);
+      if (avg > bestAvg) { bestAvg = avg; best = i; }
+    }
+    return best;
+  };
+}
+
+/**
  * How the SUBJECT SIDE plays a cell.
  *
  *  - `policy`   — the real thing: the one AI, thinking a round ahead.
@@ -149,13 +176,28 @@ export function oneCardChooser(team: number, cardId: string, fallback: (e: Comba
  *                 not whether thinking matters. See `oneCardChooser`.
  */
 export type CellPolicy =
-  | 'policy' | 'uniform'
+  | 'policy' | 'uniform' | 'spam'
   | 'onlyAttacks' | 'onlyDefenses' | 'onlyFocus'
   | { oneCard: string };
 
-/** Whole-side impoverishments — every seat loses the same thing, so these are
- *  comparable with the full policy and with each other. */
-export const SIDE_POLICIES: CellPolicy[] = ['uniform', 'onlyAttacks', 'onlyDefenses', 'onlyFocus'];
+/**
+ * THREE FAMILIES, THREE QUESTIONS. They are not comparable and must never be
+ * maxed together — doing so is what cost requirement 3 its meaning.
+ *
+ *  - THOUGHTLESS: no lookahead at all. "Does thinking matter?" Measured
+ *    2026-09-20: the full policy beats these by +30-40pp (uniform) and
+ *    +2.6-12.6pp (spam). Thinking matters enormously; attack-spam is a strong
+ *    strategy.
+ *  - RESTRICTED: still thinking a round ahead, inside a smaller strategy space.
+ *    "Does the Atac/Defensa/Focus triangle matter?" The answer is currently
+ *    NO: `onlyAttacks` ties free play within ~2.7pp on every kit.
+ *  - one-card: one SEAT repeats a card while the rest play on (see
+ *    kit-analyzer's 3c). A quarter of a side, so a quarter of the effect.
+ */
+export const THOUGHTLESS_POLICIES: CellPolicy[] = ['uniform', 'spam'];
+export const RESTRICTED_POLICIES: CellPolicy[] = ['onlyAttacks', 'onlyDefenses', 'onlyFocus'];
+/** @deprecated kept for callers that predate the split. */
+export const SIDE_POLICIES: CellPolicy[] = [...THOUGHTLESS_POLICIES, ...RESTRICTED_POLICIES];
 
 /** Build the subject side's chooser for a policy. */
 export function chooserFor(policy: CellPolicy, subjectTeam: number) {
@@ -167,6 +209,7 @@ export function chooserFor(policy: CellPolicy, subjectTeam: number) {
   };
   return policy === 'policy' ? real
     : policy === 'uniform' ? uniformChooser(subjectTeam, real)
+    : policy === 'spam' ? spamChooser(subjectTeam, real)
     : policy === 'onlyAttacks' ? restricted([ActionType.Atac])
     : policy === 'onlyDefenses' ? restricted([ActionType.Defensa])
     : policy === 'onlyFocus' ? restricted([ActionType.Focus])

@@ -76,7 +76,7 @@ import {
   type Cell,
 } from './bench/shapes.js';
 import {
-  SIDE_POLICIES, cellKey, cellResult, runMatrix,
+  RESTRICTED_POLICIES, THOUGHTLESS_POLICIES, cellKey, cellResult, runMatrix,
   type CellPolicy, type CellSetup, type MatrixResult,
 } from './bench/cells.js';
 import { deltaPP, deltaStderr, exact, gamesFor, maxOfKBias, pct, share, stderr } from './bench/report.js';
@@ -198,6 +198,7 @@ export interface KitReport {
   monotonicity: Verdict;
   duration: Verdict;
   spam: Verdict;
+  strategySpace: Verdict;
   oneTrick: Verdict;
   cardUse: Verdict;
   correlation: Verdict;
@@ -243,6 +244,20 @@ export const MINDLESS_MARGIN = 0.20;
  * rather than a pass/fail, because §7.1 itself calls it the weaker claim.
  */
 const ONE_TRICK_MARGIN = 0.05;
+/**
+ * Requirement 3b's bar: how much the STRATEGY SPACE is worth, over and above
+ * thinking.
+ *
+ * Lower than `MINDLESS_MARGIN` on purpose. A side restricted to attacks still
+ * searches a round ahead and still attacks whenever an attack is legal — it is
+ * a competent player with a smaller hand, not a thoughtless one, so it should
+ * not be expected to lose by the same margin. 10pp is what "Defensa and Focus
+ * earn their slots" ought to look like.
+ *
+ * It currently fails on every kit at any bar above ~3pp, which is the finding,
+ * not the threshold's fault (NEXT-STEPS §16).
+ */
+const STRATEGY_SPACE_MARGIN = 0.10;
 /**
  * SAMPLE SIZE IS PER REQUIREMENT, because the thresholds differ by an order of
  * magnitude and the cost is dominated by the tightest one.
@@ -386,8 +401,10 @@ export function analyze(subject: Subject, games: number): KitReport {
     runMatrix(cells, setupFor(subject, maxLevel), screenGames, p, 0,
       subjectPrintFor(subject, maxLevel)).winrate;
 
-  const sideLabels = ['atzar', 'només atacs', 'només defenses (tortuga)', 'només focus'];
-  const sideScreened = SIDE_POLICIES.map((p, i) => ({ label: sideLabels[i], policy: p, winrate: screen(p) }));
+  const thoughtlessLabels = ['atzar', 'sempre el atac més gran'];
+  const restrictedLabels = ['només atacs', 'només defenses (tortuga)', 'només focus'];
+  const sideScreened = THOUGHTLESS_POLICIES.map((p, i) => ({ label: thoughtlessLabels[i], policy: p, winrate: screen(p) }));
+  const restrictedScreened = RESTRICTED_POLICIES.map((p, i) => ({ label: restrictedLabels[i], policy: p, winrate: screen(p) }));
   const oneTrickScreened = cards
     .filter(c => c.unlockLevel <= maxLevel)
     .map(c => ({ label: `només ${c.name}`, policy: { oneCard: c.id } as CellPolicy, winrate: screen({ oneCard: c.id }) }));
@@ -406,6 +423,9 @@ export function analyze(subject: Subject, games: number): KitReport {
     ? runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES, pickedTrick.policy, VERIFY_OFFSET,
       keyFor(maxLevel, pickedTrick.policy, VERIFY_OFFSET))
     : null;
+  const pickedRestricted = restrictedScreened.reduce((a, b) => (b.winrate > a.winrate ? b : a));
+  const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES,
+    pickedRestricted.policy, VERIFY_OFFSET, keyFor(maxLevel, pickedRestricted.policy, VERIFY_OFFSET));
   const margin = policyRun.winrate - toughest.winrate;
   const marginSe = deltaStderr(policyRun.winrate, policyRun.games, toughest.winrate, toughest.games);
   const screenBias = maxOfKBias(sideScreened.length) * stderr(picked.winrate, screenGames);
@@ -425,7 +445,21 @@ export function analyze(subject: Subject, games: number): KitReport {
       + ` (el cribratge la sobreestima ~${(screenBias * 100).toFixed(1)}pp, per això es torna a mesurar amb llavor nova)`,
   };
 
-  // 3b. The one-trick flag, scored apart for the reason in ONE_TRICK_MARGIN.
+  // 3b. Does the STRATEGY SPACE matter? A side that still thinks a round ahead,
+  // but may only play one type of card. This is a different and much harder
+  // question than 3, and it is the one currently failing everywhere: attacking
+  // whenever an attack is legal ties free play. Its own bar, because a
+  // restricted THINKER is not a thoughtless one.
+  const spaceMargin = policyRun.winrate - restrictedRun.winrate;
+  const spaceSe = deltaStderr(policyRun.winrate, policyRun.games, restrictedRun.winrate, restrictedRun.games);
+  const strategySpace: Verdict = {
+    ok: spaceMargin + 2 * spaceSe >= STRATEGY_SPACE_MARGIN,
+    detail: `la millor restricció d'espai (${pickedRestricted.label}) ${pct(restrictedRun.winrate, restrictedRun.games)}`
+      + ` → marge ${deltaPP(policyRun.winrate, policyRun.games, restrictedRun.winrate, restrictedRun.games)}`
+      + ` [cal ≥${STRATEGY_SPACE_MARGIN * 100}pp; encara pensa, només té menys cartes on triar]`,
+  };
+
+  // 3c. The one-trick flag, scored apart for the reason in ONE_TRICK_MARGIN.
   const trickMargin = trickRun ? policyRun.winrate - trickRun.winrate : 0;
   const oneTrick: Verdict = {
     ok: !trickRun || trickMargin >= ONE_TRICK_MARGIN,
@@ -484,7 +518,7 @@ export function analyze(subject: Subject, games: number): KitReport {
     detail: losers.length ? `correlacionen amb perdre: ${losers.join(', ')}` : 'cap per sota del 40%',
   };
 
-  return { subject, cards, levels, monotonicity, duration, spam, oneTrick, cardUse, correlation };
+  return { subject, cards, levels, monotonicity, duration, spam, strategySpace, oneTrick, cardUse, correlation };
 }
 
 // --- Warming one matrix, for bench/parallel.ts ------------------------------
@@ -544,7 +578,7 @@ export function warmJobsFor(subject: Subject, games: number): {
     for (const cellIdx of cellIdxs) jobs.push({ ...base, level: l, games, policy: 'policy', seedOffset: 0, cellIdx });
   }
   const screenGames = Math.max(40, Math.round(MINDLESS_GAMES * BASELINE_SCREEN_FRACTION));
-  for (const p of SIDE_POLICIES) {
+  for (const p of [...THOUGHTLESS_POLICIES, ...RESTRICTED_POLICIES]) {
     for (const cellIdx of cellIdxs) jobs.push({ ...base, level: maxLevel, games: screenGames, policy: p as string, seedOffset: 0, cellIdx });
   }
   for (const c of cards) {

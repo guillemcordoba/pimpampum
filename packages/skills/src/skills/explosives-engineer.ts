@@ -163,7 +163,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     standingCoverAction({
       skillId: 'enginyer-explosius', unlock: 2,
       id: 'barricada', name: 'Barricada', key: 'barricada', label: 'la barricada',
-      dice: d(2, 6), life: d(1, 6), speed: 1,
+      dice: d(2, 8), life: d(1, 6), speed: 1,
       desc: 'La barricada persisteix: mentre és dreta, els atacs contra el protegit es resolen contra la teva defensa. Té 1d6 de vida i absorbeix el dany que la travessa; es destrueix quan se li acaba.',
       icon: 'delapouite/barricade.svg',
     }),

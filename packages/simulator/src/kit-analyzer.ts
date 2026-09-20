@@ -52,7 +52,8 @@ function printReport(r: KitReport): void {
   console.log(`  ${mark(r.monotonicity)} 1. nivell superior = millor kit — ${r.monotonicity.detail}`);
   console.log(`  ${mark(r.duration)} 2. els combats no s'allarguen — ${r.duration.detail}`);
   console.log(`  ${mark(r.spam)} 3. pensar bat qualsevol estratègia sense pensar — ${r.spam.detail}`);
-  console.log(`  ${mark(r.oneTrick)} 3b. una sola carta repetida no basta — ${r.oneTrick.detail}`);
+  console.log(`  ${mark(r.strategySpace)} 3b. l'espai d'estratègia importa — ${r.strategySpace.detail}`);
+  console.log(`  ${mark(r.oneTrick)} 3c. una sola carta repetida no basta — ${r.oneTrick.detail}`);
   console.log(`  ${mark(r.cardUse)} 4/5. ni cartes mortes ni automàtiques — ${r.cardUse.detail}`);
   console.log(`  ${mark(r.correlation)} 7. cap carta correlaciona amb perdre — ${r.correlation.detail}`);
 
@@ -175,14 +176,14 @@ console.log(
 // requirement 3 that could disagree with this one. One measurement, one answer.
 if (reports.length > 1) {
   console.log('\n━━ RESUM ━━');
-  console.log('  kit                    vs neutre    1.nivell  2.durada  3.pensar  3b.1carta  4/5.cartes  7.correl');
+  console.log('  kit                    vs neutre    1.nivell  2.durada  3.pensar  3b.espai  3c.1carta  4/5.cartes  7.correl');
   for (const r of reports) {
     const top = r.levels[r.levels.length - 1].run;
     const d = top.delta * 100;
     const m = (v: Verdict) => (v.ok ? '   ✅   ' : '   ❌   ');
     console.log(
       `  ${subjectName(r.subject).padEnd(22)} ${((d >= 0 ? '+' : '') + d.toFixed(1) + 'pp').padStart(8)}    `
-      + `${m(r.monotonicity)}  ${m(r.duration)}  ${m(r.spam)}  ${m(r.oneTrick)}   ${m(r.cardUse)}    ${m(r.correlation)}`,
+      + `${m(r.monotonicity)}  ${m(r.duration)}  ${m(r.spam)}  ${m(r.strategySpace)} ${m(r.oneTrick)}   ${m(r.cardUse)}    ${m(r.correlation)}`,
     );
   }
   const failsSpam = reports.filter(r => !r.spam.ok).map(r => subjectName(r.subject));
