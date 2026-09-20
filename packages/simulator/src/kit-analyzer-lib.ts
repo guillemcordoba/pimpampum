@@ -278,7 +278,7 @@ export const MINDLESS_MARGIN = 0.20;
  * impoverished, so roughly a quarter of the bar — and it is reported as a FLAG
  * rather than a pass/fail, because §7.1 itself calls it the weaker claim.
  */
-const ONE_TRICK_MARGIN = 0.05;
+export const ONE_TRICK_MARGIN = 0.05;
 /**
  * Requirement 3b's bar: how much the STRATEGY SPACE is worth, over and above
  * thinking.
@@ -292,7 +292,7 @@ const ONE_TRICK_MARGIN = 0.05;
  * It currently fails on every kit at any bar above ~3pp, which is the finding,
  * not the threshold's fault (NEXT-STEPS §16).
  */
-const STRATEGY_SPACE_MARGIN = 0.10;
+export const STRATEGY_SPACE_MARGIN = 0.10;
 /**
  * SAMPLE SIZE IS PER REQUIREMENT, because the thresholds differ by an order of
  * magnitude and the cost is dominated by the tightest one.
@@ -308,7 +308,19 @@ const STRATEGY_SPACE_MARGIN = 0.10;
  * `--games` sizes the LEVEL sweep, which is the claim that needs it. The rest
  * are floored well above their own requirement so the report stays readable.
  */
-const MINDLESS_GAMES = Math.max(300, gamesFor(MINDLESS_MARGIN * 100));
+export const MINDLESS_GAMES = Math.max(300, gamesFor(MINDLESS_MARGIN * 100));
+/**
+ * 3c's verify run gets its OWN budget, because its bar is four times finer
+ * than requirement 3's and a sample sized for one cannot resolve the other.
+ *
+ * MEASURED, not reasoned (NEXT-STEPS §19.1). At 240 combats an arm the 3c
+ * margin moved across a 10.8pp range on Enginyer and 14.4pp on Earthbender
+ * with the GAME UNCHANGED and only the dice seed moving — against a 5pp bar.
+ * The bare comparison this check used flipped PASSA/FALLA/PASSA/FALLA/PASSA
+ * over five seeds. Two things were wrong and only one was the missing error
+ * term: gamesFor(5) is 800 combats and the check was running 300.
+ */
+export const ONE_TRICK_GAMES = Math.max(MINDLESS_GAMES, gamesFor(ONE_TRICK_MARGIN * 100));
 /**
  * Baselines are SCREENED at half that to select the toughest, then the winner
  * alone is re-measured on fresh numbers.
@@ -436,9 +448,15 @@ export function analyze(subject: Subject, games: number): KitReport {
   const policyRun = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES, 'policy', VERIFY_OFFSET,
     keyFor(maxLevel, 'policy', VERIFY_OFFSET));
   const trickRun = pickedTrick
-    ? runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES, pickedTrick.policy, VERIFY_OFFSET,
+    ? runMatrix(cells, setupFor(subject, maxLevel), ONE_TRICK_GAMES, pickedTrick.policy, VERIFY_OFFSET,
       keyFor(maxLevel, pickedTrick.policy, VERIFY_OFFSET))
     : null;
+  // The policy arm 3c subtracts has to carry the SAME sample, or the margin's
+  // error is dominated by whichever side was measured more cheaply.
+  const trickPolicyRun = pickedTrick
+    ? runMatrix(cells, setupFor(subject, maxLevel), ONE_TRICK_GAMES, 'policy', VERIFY_OFFSET,
+      keyFor(maxLevel, 'policy', VERIFY_OFFSET))
+    : policyRun;
   const pickedRestricted = restrictedScreened.reduce((a, b) => (b.winrate > a.winrate ? b : a));
   const restrictedRun = runMatrix(cells, setupFor(subject, maxLevel), MINDLESS_GAMES,
     pickedRestricted.policy, VERIFY_OFFSET, keyFor(maxLevel, pickedRestricted.policy, VERIFY_OFFSET));
@@ -476,13 +494,25 @@ export function analyze(subject: Subject, games: number): KitReport {
   };
 
   // 3c. The one-trick flag, scored apart for the reason in ONE_TRICK_MARGIN.
-  const trickMargin = trickRun ? policyRun.winrate - trickRun.winrate : 0;
+  const trickMargin = trickRun ? trickPolicyRun.winrate - trickRun.winrate : 0;
+  const trickSe = trickRun
+    ? deltaStderr(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games)
+    : 0;
   const oneTrick: Verdict = {
-    ok: !trickRun || trickMargin >= ONE_TRICK_MARGIN,
+    // WITH ITS ERROR BAR, like 3 and 3b. This check used to compare a point
+    // estimate against the bar and nothing else — `trickMargin >= ONE_TRICK_MARGIN`
+    // — which is exactly what this file's own header forbids ("a ❌ means go
+    // look, so the checks fail only on what is CLEARLY past the line"). The
+    // margins here carry ±4pp at 2σ against a 5pp bar, so the missing term was
+    // the same size as the thing being measured, and Enginyer failed on
+    // +4.7pp±3.5 — a margin that clears the bar comfortably inside its own
+    // interval.
+    ok: !trickRun || trickMargin + 2 * trickSe >= ONE_TRICK_MARGIN,
     detail: trickRun && pickedTrick
       ? `la millor carta repetida (${pickedTrick.label}) ${pct(trickRun.winrate, trickRun.games)}`
-        + ` → marge ${deltaPP(policyRun.winrate, policyRun.games, trickRun.winrate, trickRun.games)}`
+        + ` → marge ${deltaPP(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games)}`
         + ` [cal ≥${ONE_TRICK_MARGIN * 100}pp; només un seient dels quatre, no comparable amb 3]`
+        + (trickMargin + 2 * trickSe < 0 ? ' ⚠️ la carta repetida GUANYA — mira la política, no el kit' : '')
       : 'sense cartes per provar',
   };
 

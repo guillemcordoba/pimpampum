@@ -1459,3 +1459,91 @@ play (19.4% against a 20% null) yet clearly above its hand's average (+2.7 PV):
 a solid default that is seldom the sharpest choice. `Presó de terra` is both
 below its null (10.9% ±0.8 vs 20%) and far below the hand average (−8.1 PV),
 which is what a dead card looks like on both axes.
+
+## 19. Harness bug sweep (2026-09-20)
+
+Every claim below was CONFIRMED BY EXPERIMENT before anything was changed. Two
+of the four suspicions were wrong, which is the point of running them.
+
+### 19.1 CONFIRMED — requirement 3c's verdict was a report on the seed
+
+3c compared a point estimate against its 5pp bar with no error term at all:
+`trickMargin >= ONE_TRICK_MARGIN`. That is exactly what this file's own header
+forbids — "a ❌ means go look, so the checks fail only on what is CLEARLY past
+the line" — and requirements 3 and 3b both carry the `+ 2σ` that 3c lacked.
+
+Re-run on five seeds with the game unchanged and only the dice moving:
+
+```
+Enginyer     PASSA  FALLA  PASSA  FALLA  PASSA    margin -3.7 … +7.1  (10.8pp wide)
+Earthbender  PASSA  FALLA  PASSA  FALLA  FALLA    margin -5.8 … +8.5  (14.4pp wide)
+```
+
+**The experiment then found a second, larger fault the code reading had missed.**
+Even with the error bar, the bars ran ±8-9pp against a 5pp bar. `gamesFor` says
+why:
+
+| req | bar | combats needed | combats run | |
+|---|---|---|---|---|
+| 3 | 20pp | 50 | 300 | ✅ 6× headroom |
+| 3b | 10pp | 200 | 300 | ✅ 1.5× |
+| **3c** | **5pp** | **800** | **300** | ❌ **2.7× short** |
+
+This is the `DEAD_VALUE` mistake (§17.5) again, in a different requirement: a
+threshold set finer than the instrument reading it. Fixed with `ONE_TRICK_GAMES
+= gamesFor(ONE_TRICK_MARGIN)`, and the policy arm it subtracts raised to match —
+otherwise the margin's error is dominated by whichever side was cheaper.
+
+**Result: 3c 5/6 failing → 4/6, and the bars fell from ±4.0 to ±2.1-2.5.** The
+under-powered version had been overstating every margin about twofold
+(−7.5 → −3.4, −6.2 → −3.6, −6.2 → −3.2, −5.3 → −2.3).
+
+A guard test now enforces `games >= gamesFor(bar)` for every requirement, and it
+was verified to FAIL on the old constant before being kept.
+
+### 19.2 The finding 3c was making all along, and it is about the AI
+
+Four kits still fail, all with NEGATIVE margins: repeating ONE card in ONE seat
+of four **beats** the AI playing freely. And it converges with the per-decision
+measure — the winning one-trick is that kit's top-valued card on five of six:
+
+| kit | 3c's winning one-trick | best card by per-decision value |
+|---|---|---|
+| Enginyer | Granada | Granada **+11.7** |
+| Mestre d'Armes | Contraatac | Contraatac **+7.1** |
+| Nigromant | Xuclar la vida | Xuclar la vida **+3.5** |
+| Earthbender | Columna de terra | Columna de terra **+4.6** |
+| Volcànica | Pell d'obsidiana | Pell d'obsidiana **+5.0** |
+| Berserk | Atac temerari | Entrar en Fúria +7.0 (Temerari −0.8) |
+
+Two independent instruments agreeing that **the AI under-plays its best card**.
+That is a policy finding, not a content one, and it belongs with §16's bug hunt
+rather than in any kit's design.
+
+### 19.3 NOT A BUG — requirement 2's draws are real stalemates
+
+Suspected: `winner()` returns null both at the round cap AND on mutual
+annihilation (speed ties resolve simultaneously), so requirement 2 might be
+counting mutual kills as "fights drag". With a median of 3 rounds and p90 of 6,
+a 3% stalemate rate looked implausible.
+
+Measured — draws classified by cause:
+
+```
+mestre-armes  4.2%   mutual 1   round cap 24
+berserk       2.5%   mutual 1   round cap 14
+earthbender   2.8%   mutual 0   round cap 17
+```
+
+**Overwhelmingly the round cap.** Requirement 2 measures what it claims, and its
+6/6 failure is a real finding: fights are bimodal — they end in about three
+rounds, or they never end at all. ~3% never end. That is a game problem to
+chase, not a harness one.
+
+### 19.4 NOT A BUG — the screen/verify cache keys
+
+Suspected: `screen()` and the verify pass both key on `subjectPrintFor(subject,
+level)`, which names neither the policy nor the seed offset, so different
+policies looked like they would collide in the cache. They do not: `runMatrix`
+builds the real key with `cellKey(subjectPrint, cell, perCell, policy,
+seedOffset)`, which carries both.

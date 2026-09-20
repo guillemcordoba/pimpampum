@@ -25,6 +25,10 @@ import {
   UNLISTED_BODIES, calibrationKit,
 } from '../bench/shapes.js';
 import { ALL_SKILLS } from '@pimpampum/skills';
+import {
+  MINDLESS_MARGIN, MINDLESS_GAMES, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, ONE_TRICK_GAMES,
+} from '../kit-analyzer-lib.js';
+import { gamesFor } from '../bench/report.js';
 import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -429,6 +433,71 @@ describe('a card is judged by what it does, not by the AI picking it', () => {
       + 'original engine against the clone gives -1, planActions reads that as "no selection", '
       + 'and every branch silently becomes identical — the first run priced all five cards at '
       + 'exactly 0.00 +/- 0.00.',
+    ).toBe(true);
+  });
+});
+
+/**
+ * NO THRESHOLD FINER THAN THE SAMPLE THAT JUDGES IT.
+ *
+ * This mistake has now been made twice in one file, in two different
+ * requirements, and neither was caught by reading the code:
+ *
+ *  - `DEAD_VALUE` was set at 2pp from two plausible-sounding arguments, against
+ *    a noise floor nobody had measured. It was 3pp. Every "dead card" that
+ *    constant produced was unsupportable (NEXT-STEPS §17.5).
+ *  - Requirement 3c judged a 5pp bar on 300 combats an arm. `gamesFor(5)` is
+ *    800. Re-run on five seeds with the game unchanged, its verdict flipped
+ *    PASSA/FALLA/PASSA/FALLA/PASSA (§19.1).
+ *
+ * `gamesFor(pp)` already says what a claim costs, and requirement 1 already
+ * quotes it in its own detail line. The gap was that nothing ENFORCED it. A
+ * threshold below its sample's resolution does not measure the game — it
+ * reports which seed was used — and that is indistinguishable from a real
+ * finding until somebody re-runs it.
+ */
+describe('every threshold is resolvable by the sample that judges it', () => {
+  const lib = fs.readFileSync(path.join(SRC, 'kit-analyzer-lib.ts'), 'utf8');
+
+  /** A requirement's bar, and the per-arm sample its verify run gets. */
+  const CHECKS: { name: string; barPP: number; games: number }[] = [
+    { name: '3 (thinking beats not thinking)', barPP: MINDLESS_MARGIN * 100, games: MINDLESS_GAMES },
+    { name: '3b (the strategy space matters)', barPP: STRATEGY_SPACE_MARGIN * 100, games: MINDLESS_GAMES },
+    { name: '3c (one repeated card)', barPP: ONE_TRICK_MARGIN * 100, games: ONE_TRICK_GAMES },
+  ];
+
+  for (const c of CHECKS) {
+    it(`requirement ${c.name} runs enough combats for its own bar`, () => {
+      const needed = gamesFor(c.barPP);
+      expect(
+        c.games,
+        `requirement ${c.name} judges a ${c.barPP}pp bar on ${c.games} combats an arm, and `
+        + `gamesFor(${c.barPP}) says it needs ${needed}. Below that the verdict is a report on `
+        + 'the seed: measured on requirement 3c at 300, it flipped four times across five seeds '
+        + 'with the game unchanged. Either raise the sample or widen the bar — do not leave a '
+        + 'threshold finer than the instrument reading it.',
+      ).toBeGreaterThanOrEqual(needed);
+    });
+  }
+
+  it('requirement 1 quotes the sample its bar needs, and still does', () => {
+    // Requirement 1 is the one check that already printed its own power
+    // requirement. Keep it printing: it is the reason the gap was noticed.
+    expect(
+      lib.includes('gamesFor(REGRESSION_PP * 100)'),
+      "requirement 1's detail line must keep quoting gamesFor(REGRESSION_PP), so a reader can see "
+      + 'whether a flat level step is a finding or a sample size.',
+    ).toBe(true);
+  });
+
+  it('a bar and its sample are declared together, not scattered', () => {
+    // ONE_TRICK_GAMES exists because 3c's bar is four times finer than
+    // requirement 3's and cannot share its budget. If it disappears, 3c has
+    // silently gone back to MINDLESS_GAMES.
+    expect(
+      lib.includes('ONE_TRICK_GAMES'),
+      '3c must keep its own sample budget. Sharing MINDLESS_GAMES puts a 5pp bar on a sample '
+      + 'sized for a 20pp one.',
     ).toBe(true);
   });
 });
