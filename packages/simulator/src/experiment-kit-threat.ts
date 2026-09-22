@@ -29,9 +29,12 @@ import {
   ENEMY_DEFINITIONS, fullKitLevel, solveEncounter, DEFAULT_MAX_AVG_ROUNDS,
 } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
-import { referenceParty } from './bench/reference.js';
-import { pct } from './bench/report.js';
-import { games, searchGames, SMOKE } from './bench/games.js';
+import { referenceParty, FANTASY } from '@pimpampum/set-fantasy';
+import { games, pct, searchGames, SMOKE, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 // The reference table: four heroes on four main kits, PROPERLY EQUIPPED. An
 // unequipped party is a different (much weaker) benchmark and would flatter

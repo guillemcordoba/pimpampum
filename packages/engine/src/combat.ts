@@ -8,8 +8,7 @@ import {
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { resolveAttack, checkSkillUp, skillLevelBonus } from './resolution.js';
-import { selectAction, pickResolveTargets, AIView, PendingSummary } from './ai.js';
-import { DEFAULT_LOOKAHEAD, LookaheadOptions, bestResponse } from './lookahead.js';
+import { AIView, PendingSummary, availableActionIndices } from './policy.js';
 
 export interface LogEntry {
   kind: string;
@@ -111,23 +110,32 @@ interface PendingAction {
  */
 export type ActionChooser = (engine: CombatEngine, actor: Character) => number | null;
 
+/** Resolution-time target choice. Also a policy, also injected. */
+export type TargetChooser = (
+  engine: CombatEngine, actor: Character, def: ActionDefinition,
+  req: TargetRequirement, count: number, pool: Character[], speed: number,
+) => Character[];
+
 export interface CombatEngineOptions {
   registry: EffectRegistry;
   maxRounds?: number;
   /** AI decisiveness: exponent on action weights (1 = soft sampling, higher =
    *  greedier, human-like play). Default 2. */
   aiSharpness?: number;
-  /** How far the AI thinks (see lookahead.ts). 0 = score the cards as they
-   *  stand — fast, and blind to what the rest of the round commits. 1 = play
-   *  the round forward and score the position it leaves, which is what lets
-   *  coordinated play (guarding the ally mid-focus) be seen at all. ≥2 is for
-   *  offline study: measured at ~500× the cost of depth 1. Default 0. */
-  aiDepth?: number;
-  /** Lookahead budget when `aiDepth` ≥ 1 (samples / passes / topK). */
-  aiLookahead?: Partial<LookaheadOptions>;
-  /** Override how AI actors choose their card. The lookahead is NOT plumbed
-   *  through here — it is the same AI thinking harder, so it rides `aiDepth`. */
+  /**
+   * WHO DECIDES. The engine has no policy of its own — `@pimpampum/ai`'s
+   * `aiPolicy()` returns both of these, and a caller wires them in.
+   *
+   * An AI-controlled character with no `actionChooser` is an error, not a
+   * default: a silent fallback policy would quietly produce measurements about
+   * a policy nobody chose, which is the failure this whole layer exists to
+   * prevent.
+   */
   actionChooser?: ActionChooser;
+  /** How targets are picked at resolution time. Without one the engine takes
+   *  the eligible targets in order — deterministic, and deliberately not a
+   *  policy. */
+  targetChooser?: TargetChooser;
 }
 
 const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound'] as const;
@@ -137,18 +145,21 @@ export class CombatEngine implements EngineApi, AIView {
   readonly registry: EffectRegistry;
   readonly teams: [Character[], Character[]];
   readonly maxRounds: number;
-  readonly aiSharpness: number;
-  /** How far the AI thinks (see lookahead.ts). Mutable: a lookahead rollout
-   *  drops its clone to 0 so the search cannot recurse into itself. */
-  aiDepth: number;
-  readonly aiLookahead: LookaheadOptions;
+  /** Mutable because a lookahead rollout retunes its clone. See
+   *  `LookaheadOptions.rolloutSharpness`. */
+  aiSharpness: number;
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
-  /** This round's lookahead assignment, per team — computed once for the whole
-   *  team (best response is a joint decision) and handed out per character. */
-  private lookaheadPlan: { round: number; team: number; choices: Map<Character, number> } | null = null;
+  targetChooser?: TargetChooser;
   round = 0;
   logEntries: LogEntry[] = [];
+  /**
+   * A clone never has its log read — `clone()` deliberately starts it empty and
+   * the comment there says so. Rollouts are almost all of the engine's work, so
+   * building combat prose for them is pure waste: `log()` returns immediately
+   * and the hot call sites skip the string interpolation entirely.
+   */
+  silent = false;
   /** Every action that actually resolved this combat, in order (EngineApi.history). */
   readonly history: ActionEvent[] = [];
 
@@ -161,14 +172,26 @@ export class CombatEngine implements EngineApi, AIView {
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
+  /**
+   * A round has BEGUN and not yet finished — `prepareRound` has run and the
+   * engine is waiting for cards.
+   *
+   * Public because the LOOKAHEAD needs it, and the reason is a bug it had.
+   * The search is invoked from inside `planActions`, which the engine only
+   * reaches after its own `prepareRound()`; a rollout that opened with another
+   * `prepareRound()` advanced the round counter a second time and rebuilt
+   * `skippingThisRound` from an ALREADY-DECREMENTED `skipTurns`, so every
+   * character skipping the real round acted in every rollout. The AI could not
+   * see a turn it had just taken away. See `lookahead.playRound`.
+   */
+  roundPrepared = false;
 
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
     this.aiSharpness = opts.aiSharpness ?? 2;
-    this.aiDepth = opts.aiDepth ?? 0;
-    this.aiLookahead = { ...DEFAULT_LOOKAHEAD, ...opts.aiLookahead };
     this.actionChooser = opts.actionChooser;
+    this.targetChooser = opts.targetChooser;
     this.teams = [teamA, teamB];
     teamA.forEach(c => { c.team = 0; });
     teamB.forEach(c => { c.team = 1; });
@@ -212,8 +235,7 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.maxRounds = this.maxRounds;
     fixed.aiSharpness = this.aiSharpness;
     e.actionChooser = this.actionChooser;
-    e.aiDepth = this.aiDepth;
-    (e as unknown as { aiLookahead: LookaheadOptions }).aiLookahead = this.aiLookahead;
+    e.targetChooser = this.targetChooser;
     fixed.history = this.history.map(ev => ({
       round: ev.round,
       actor: at(ev.actor),
@@ -222,6 +244,8 @@ export class CombatEngine implements EngineApi, AIView {
     }));
     e.round = this.round;
     e.logEntries = [];
+    // Nothing reads a clone's log (see the doc above): skip building the prose.
+    e.silent = true;
     e.plays = this.plays.map(p => ({ ...p }));
     e.pending = this.pending.map(p => {
       const actor = at(p.actor);
@@ -241,6 +265,9 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierAlive = new Set([...this.tierAlive].map(at));
     e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
     e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
+    // Carried, or the clone cannot tell an already-begun round from a fresh
+    // one — which is the whole point of the flag for the lookahead.
+    e.roundPrepared = this.roundPrepared;
     return e;
   }
 
@@ -313,6 +340,7 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   log(kind: string, message: string, team?: number): void {
+    if (this.silent) return;
     this.logEntries.push({ kind, message, team, round: this.round });
   }
 
@@ -381,7 +409,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (guards.length >= 2) {
       // Defensa conjunta: extra attacks contest the summed wall too.
       const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, guards, attackTotal);
-      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
+      if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
       ({ hit, margin } = resolveAttack(adjustedAttacker, sum));
       if (hit) { if (checkSkillUp(margin)) for (const g of guards) g.defender.raiseSkill(g.action.skillId); }
       else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
@@ -395,7 +423,7 @@ export class CombatEngine implements EngineApi, AIView {
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
       const defArmor = opts.ignoreArmor ? 0 : defender.getPassiveArmor();
-      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, defArmor)}`, source.team);
+      if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, defArmor)}`, source.team);
       ({ hit, margin } = resolveAttack(adjustedAttacker, defenderTotal));
       // Learning: the loser of the contest levels on a close loss.
       if (hit) { if (checkSkillUp(margin)) defender.raiseSkill(guard.action.skillId); }
@@ -404,7 +432,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (!hit) { this.log('defense', `🛡️ ${recipient.name} «${guard.action.name}» atura ${label}.`, recipient.team); return; }
     } else {
       const tgtArmor = opts.ignoreArmor ? 0 : target.getPassiveArmor();
-      this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, attackTotal)} — ${target.name} no es defensa${tgtArmor > 0 ? ` (${tgtArmor} armadura)` : ''}`, source.team);
+      if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, attackTotal)} — ${target.name} no es defensa${tgtArmor > 0 ? ` (${tgtArmor} armadura)` : ''}`, source.team);
     }
     const dmgBase = this.applyOutgoingDamage(source, margin);
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
@@ -500,6 +528,13 @@ export class CombatEngine implements EngineApi, AIView {
   /** Whether a character may play the action at `actionIdx` now (resource gates).
    *  Used by the web UI to disable unaffordable cards. Last-resort actions
    *  (desperation fallbacks) are only playable when nothing else is. */
+  /** The lowest-index legal action. Used only when a chooser returns an
+   *  illegal index — a floor so the round still resolves, never a policy. */
+  private firstLegalActionIdx(c: Character): number {
+    const legal = availableActionIndices(c, this.registry);
+    return legal.length ? legal[0] : 0;
+  }
+
   canPlayActionIdx(c: Character, actionIdx: number): boolean {
     if (!this.actionPlayable(c, actionIdx)) return false;
     const action = c.actions[actionIdx];
@@ -533,6 +568,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Begin a round: advance round counter, apply stun/skip. */
   prepareRound(): RoundPrep {
     this.round++;
+    this.roundPrepared = true;
     this.log('round', `⚔️ Ronda ${this.round}`);
     const skipping: TargetRef[] = [];
     this.skippingThisRound = new Set();
@@ -551,20 +587,6 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Build the speed-ordered pending queue. Human selections carry actionIdx (targets
    *  optional); every other living actor is filled by the AI. Returns reveal info. */
-  /** The lookahead's card for `c` this round, or null at depth 0. Best response
-   *  is a JOINT decision, so it is solved once per team per round and cached —
-   *  asking per character would throw away the coordination it exists for. */
-  private lookaheadPick(c: Character): number | null {
-    if (this.aiDepth < 1) return null;
-    if (!this.lookaheadPlan || this.lookaheadPlan.round !== this.round || this.lookaheadPlan.team !== c.team) {
-      this.lookaheadPlan = {
-        round: this.round, team: c.team,
-        choices: bestResponse(this, c.team, { ...this.aiLookahead, depth: this.aiDepth }).choices,
-      };
-    }
-    return this.lookaheadPlan.choices.get(c) ?? null;
-  }
-
   planActions(humanSelections: ActionSelection[] = []): RevealedAction[] {
     const selByChar = new Map<Character, ActionSelection>();
     for (const sel of humanSelections) selByChar.set(this.resolveRef(sel), sel);
@@ -579,10 +601,19 @@ export class CombatEngine implements EngineApi, AIView {
         action = c.actions[sel.actionIdx];
         targets = sel.targets ? sel.targets.map(t => this.resolveRef(t)) : null;
       } else {
-        const chosen = this.actionChooser?.(this, c) ?? this.lookaheadPick(c);
+        // NO SILENT FALLBACK. An AI seat with no chooser is a caller bug, and
+        // a default policy here would quietly produce measurements about a
+        // policy nobody chose — the failure this layer exists to prevent.
+        if (!this.actionChooser) {
+          throw new Error(
+            `CombatEngine: ${c.name} is AI-controlled but no actionChooser was supplied. `
+            + `Pass one from @pimpampum/ai (aiPolicy()), or drive the seat with an explicit selection.`,
+          );
+        }
+        const chosen = this.actionChooser(this, c);
         const idx = chosen !== null && this.canPlayActionIdx(c, chosen)
           ? chosen
-          : selectAction(this, c).actionIdx;
+          : this.firstLegalActionIdx(c);
         action = c.actions[idx];
         targets = null; // AI targets at resolution time, with reveal-level info
       }
@@ -804,7 +835,9 @@ export class CombatEngine implements EngineApi, AIView {
 
   private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, speed: number): Character[] {
     const pool = this.eligibleTargets(actor, def, req);
-    return pickResolveTargets(this, actor, def, req, count, pool, speed);
+    return this.targetChooser
+      ? this.targetChooser(this, actor, def, req, count, pool, speed)
+      : pool.slice(0, count);   // deterministic, and deliberately not a policy
   }
 
   private resolveOne(cur: PendingAction): void {
@@ -1076,7 +1109,7 @@ export class CombatEngine implements EngineApi, AIView {
       // Absorbing guard: no contest — the blow lands in full on the guard.
       hit = true; margin = attackTotal; recipient = guard.defender;
       const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
-      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)}${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
+      if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)}${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
       this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const defender = guard.defender;
@@ -1087,7 +1120,7 @@ export class CombatEngine implements EngineApi, AIView {
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
       const armor = mods.ignoreArmor ? 0 : defender.getPassiveArmor();
-      this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, armor)}`, source.team);
+      if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, armor)}`, source.team);
       const res = resolveAttack(adjustedAttacker, defenderTotal);
       hit = res.hit; margin = res.margin;
       // Learning: the loser of the contest levels on a close loss (tie = the
@@ -1104,7 +1137,7 @@ export class CombatEngine implements EngineApi, AIView {
         const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standingTotal, 'attack');
         const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
         const defStr = armor > 0 ? `${standingTotal}+${armor} armadura=${standingTotal + armor}` : `${standingTotal}`;
-        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs «${standing.key}» de ${target.name}: defensa ${defStr}`, source.team);
+        if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs «${standing.key}» de ${target.name}: defensa ${defStr}`, source.team);
         const res = resolveAttack(adjustedAttacker, standingTotal);
         if (!res.hit) {
           // Only the attacker can learn from a wall — it has no skill to raise.
@@ -1120,7 +1153,7 @@ export class CombatEngine implements EngineApi, AIView {
         // contest, no learning.
         hit = true; margin = attackTotal;
         const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
-        this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)} — ${target.name} no es defensa${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
+        if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, attackTotal)} — ${target.name} no es defensa${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
       }
     }
 
@@ -1161,7 +1194,7 @@ export class CombatEngine implements EngineApi, AIView {
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal);
     // A defense penalty bites the wall's joint total once, not once per member.
     const wallTotal = Math.max(0, sum - mods.defensePenalty);
-    this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
+    if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
     const res = resolveAttack(adjustedAttacker, wallTotal);
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
@@ -1214,6 +1247,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.pending = [];
     this.pendingIndex = 0;
     this.tierSpeed = null;
+    this.roundPrepared = false;
   }
 
   // --- Win conditions / driving ---------------------------------------------

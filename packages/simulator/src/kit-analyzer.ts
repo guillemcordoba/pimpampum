@@ -6,18 +6,22 @@
  */
 import { ALL_SKILLS } from '@pimpampum/skills';
 import { ENEMY_DEFINITIONS, getEnemy } from '@pimpampum/enemies';
-import { MAIN_KITS } from './bench/reference.js';
-import { COMPANY, FAIR, SATURATION, SHAPES, saturatedCells, solveShape, usableCells } from './bench/shapes.js';
+import {
+  COMPANY, FAIR, MAIN_KITS, saturatedCells, SATURATION, SHAPES, solveShape, usableCells,
+ FANTASY } from '@pimpampum/set-fantasy';
 
 const COMPANY_COUNT = COMPANY.map((_, i) => i);
-import { exact, gamesFor, pct, pp, share, stderr } from './bench/report.js';
-import { games, SMOKE } from './bench/games.js';
-import { cacheStatus } from './bench/cache.js';
-import { lanes, warm, type WarmJob } from './bench/parallel.js';
+import {
+  cacheStatus, exact, games, gamesFor, lanes, pct, pp, share, SMOKE, stderr, warm, type WarmJob,
+ useSet } from '@pimpampum/bench';
 import {
   analyze, warmJobsFor, REGRESSION_PP, MINDLESS_MARGIN,
   type KitReport, type Subject, type Verdict,
 } from './kit-analyzer-lib.js';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 declare const process: {
   argv: string[];

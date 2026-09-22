@@ -1,3 +1,5 @@
+// bench-exempt(sample): solves the contest exactly by convolving the dice, so
+// there is no sample and nothing for a sample size to scale.
 // bench-exempt(interval): no sampling happens here at all. The contest is
 // solved EXACTLY by convolving the two cards' dice distributions, so every
 // percentage printed is a probability rather than an estimate of one, and an

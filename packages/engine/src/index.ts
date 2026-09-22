@@ -1,4 +1,5 @@
 // Dice
+export { diceDistribution, expectedExcess } from './dice.js';
 export { DiceRoll, rollDie } from './dice.js';
 export { random, setRng, seededRng, withSeed } from './rng.js';
 
@@ -11,7 +12,7 @@ export type {
 } from './types.js';
 
 // Resolution math
-export { resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_MARGIN } from './resolution.js';
+export { skillLevelBonus, resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_MARGIN } from './resolution.js';
 
 // Effects registry
 export { EffectRegistry, newAttackModifiers } from './effects.js';
@@ -37,11 +38,11 @@ export type {
   RevealedAction, TargetPrompt, StepResult, RoundPrep,
 } from './combat.js';
 
-// AI
-export { selectAction, pickResolveTargets, setAIControlled, availableActionIndices } from './ai.js';
-export { positionScore, bestResponse, lookaheadChooser, DEFAULT_LOOKAHEAD } from './lookahead.js';
-export type { LookaheadOptions } from './lookahead.js';
-export type { AIView, PlannedAction, PendingSummary } from './ai.js';
+// The POLICY SEAM. The engine exposes the view and the legality rules; the
+// decision itself comes from an injected chooser (see CombatEngineOptions).
+// @pimpampum/ai supplies one. There is no AI in this package.
+export { canPlayAction, availableActionIndices, setAIControlled, firstLegalChooser } from './policy.js';
+export type { AIView, PlannedAction, PendingSummary } from './policy.js';
 
 
 // Display constants

@@ -24,6 +24,7 @@
  * noise. This is what makes a bisection on a stochastic function stable.
  */
 import { CombatEngine, EffectRegistry, Character, withSeed, setAIControlled } from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
 import { createRegistry, buildReferenceParty, isExplicitParty, PartySpec } from '@pimpampum/skills';
 import { EnemyDefinition, fullKitLevel } from './types.js';
 import { getEnemy, registerEnemySkills } from './catalog.js';
@@ -141,7 +142,8 @@ export function simulateEncounter(groups: FieldedGroup[], party: PartySpec, opts
       setAIControlled(players);
       const enemies = buildComposition(groups);
       const result = new CombatEngine(players, enemies, {
-        registry, maxRounds, aiDepth: opts.aiDepth ?? BALANCER_DEPTH, aiLookahead: opts.aiLookahead,
+        registry, maxRounds,
+        ...aiPolicy({ depth: opts.aiDepth ?? BALANCER_DEPTH, ...opts.aiLookahead }),
       }).runCombat();
       if (result.winner === 0) wins += 1;
       else if (result.winner === null) wins += 0.5;
@@ -474,7 +476,7 @@ export function solveEncounter(
   let durationCapped = false;
   if (Number.isFinite(maxAvgRounds)) {
     const roundsAt = (scale: number, games: number): number =>
-      simulateEncounter(groupsAt(scale), party, { ...opts, games, seed, aiDepth: SEARCH_DEPTH }).avgRounds;
+      simulateEncounter(groupsAt(scale), party, { ...opts, games, seed, ...aiPolicy({ depth: SEARCH_DEPTH }) }).avgRounds;
 
     if (roundsAt(solvedScale, searchGames) > maxAvgRounds) {
       durationCapped = true;
@@ -518,7 +520,7 @@ export function solveEncounter(
   if (BALANCER_DEPTH !== SEARCH_DEPTH && Number.isFinite(maxAvgRounds)) {
     const realRounds = (scale: number): number =>
       simulateEncounter(groupsAt(scale), party, {
-        ...opts, games: searchGames, seed, aiDepth: BALANCER_DEPTH,
+        ...opts, games: searchGames, seed, ...aiPolicy({ depth: BALANCER_DEPTH }),
       }).avgRounds;
     if (realRounds(solvedScale) > maxAvgRounds) {
       durationCapped = true;
@@ -545,7 +547,7 @@ export function solveEncounter(
   // correctly-placed encounter look mis-solved. It costs ~25% of a solve.
   const groups = groupsAt(solvedScale);
   const final = simulateEncounter(groups, party, {
-    ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, aiDepth: BALANCER_DEPTH,
+    ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, ...aiPolicy({ depth: BALANCER_DEPTH }),
   });
 
   // A miss the solver did not CHOOSE. `clamped` and `durationCapped` are

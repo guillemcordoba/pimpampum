@@ -13,17 +13,16 @@
  * measurement. `instrument()` below is now the only one.
  */
 import {
-  ActionType, Character, CombatEngine, CombatStats,
-  availableActionIndices, lookaheadChooser, mergeCombatStats, newCombatStats, random,
-  setAIControlled, withSeed,
+  ActionType, Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, random, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
-import { buildComposition, type FieldedGroup } from '@pimpampum/enemies';
-import { REGISTRY } from './arena.js';
-import { deltaStderr, stderr } from './report.js';
-import { type Cell } from './shapes.js';
-import { SMOKE } from './games.js';
+import {
+  lookaheadChooser,
+} from '@pimpampum/ai';
+import { theRegistry } from './arena.js';
+import { theSet, type Cell, type FieldedGroup, type PartySpec } from './gameset.js';
 import { countedCached, key } from './cache.js';
+import { SMOKE } from './games.js';
+import { deltaStderr, stderr } from './report.js';
 
 /** Base seed for every cell. Fixed so two runs of anything here are comparable. */
 export const CELL_SEED = 515_000;
@@ -37,7 +36,7 @@ export const CELL_SEED = 515_000;
  * STRATEGY SPACE, not a weaker brain, which is the only fair form of the
  * question "does thinking matter".
  */
-export const CELL_AI = { depth: 1, samples: 2, passes: 1, topK: 3 } as const;
+export const CELL_AI = { depth: 1, samples: 4, passes: 1, topK: 0 } as const;
 
 // --- Instrumentation --------------------------------------------------------
 
@@ -299,10 +298,10 @@ export function runOneCell(
   const rounds: number[] = [];
   withSeed(CELL_SEED + seedOffset + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
     for (let i = 0; i < games; i++) {
-      const players = buildReferenceParty(setup.party);
+      const players = theSet().buildParty(setup.party);
       setAIControlled(players);
-      const res = new CombatEngine(players, buildComposition(setup.enemies), {
-        registry: REGISTRY, maxRounds: 40, actionChooser,
+      const res = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
+        registry: theRegistry(), maxRounds: 40, actionChooser,
       }).runCombat(stats);
       rounds.push(res.rounds);
       if (res.winner === setup.subjectTeam) wins++;

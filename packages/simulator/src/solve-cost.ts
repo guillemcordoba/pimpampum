@@ -1,9 +1,14 @@
 /** How much does pricing at depth 1 actually cost, and how far does it move
  *  the answer? Same request, same seed, only the AI's thinking depth changing. */
+import { aiPolicy } from '@pimpampum/ai';
 import { solveEncounter } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
-import { referenceParty } from './bench/reference.js';
-import { games } from './bench/games.js';
+import { referenceParty, FANTASY } from '@pimpampum/set-fantasy';
+import { games, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 /** The reference table (bench/reference.ts) — named kits, asserted Σ, one
  *  definition for the whole package. It used to be re-derived here as
@@ -13,9 +18,9 @@ const party: PartySpec = referenceParty();
 const pool = [{ enemyId: 'goblin', count: 4 }];
 
 const CASES = [
-  { label: 'depth 0            ', aiDepth: 0 },
-  { label: 'depth 1 s2 p1 k3   ', aiDepth: 1 },
-  { label: 'depth 1 s1 p1 k2   ', aiDepth: 1, aiLookahead: { samples: 1, passes: 1, topK: 2 } },
+  { label: 'depth 0            ', ...aiPolicy({ depth: 0 }) },
+  { label: 'depth 1 s2 p1 k3   ', ...aiPolicy({ depth: 1 }) },
+  { label: 'depth 1 s1 p1 k2   ', ...aiPolicy({ depth: 1, ...{ samples: 1, passes: 1, topK: 2 } }) },
 ];
 for (const c of CASES) {
   const t0 = performance.now();

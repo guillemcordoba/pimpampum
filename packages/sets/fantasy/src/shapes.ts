@@ -22,8 +22,10 @@
 import { simulateEncounter, solveEncounter, type FieldedGroup } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
 import { hero } from './reference.js';
-import { calibrationGames, searchGames } from './games.js';
-import { countedCached, enemyPrint, key, skillPrint } from './cache.js';
+import {
+  calibrationGames, countedCached, enemyPrint, key, searchGames, skillPrint,
+} from '@pimpampum/bench';
+
 
 /**
  * The shapes. PV is never written down here — it is SOLVED, so a shape stays

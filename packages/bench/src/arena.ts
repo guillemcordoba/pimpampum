@@ -8,99 +8,54 @@
  * mutate a card, re-run, and read a 1-2pp difference off uncorrelated samples.
  * And it lived under `tests/` while nine non-test scripts imported it.
  *
- * Randomness now flows through the engine's `random()`, exactly as
- * `skills/src/party.ts` already documents for the balancer's own draw: "a
- * seeded caller gets a reproducible party". Wrap a sweep in `withSeed` (or use
- * `sweep()` below) and every arm meets the same teams and the same dice.
+ * Randomness flows through the engine's `random()`, so a seeded caller gets a
+ * reproducible party. Wrap a sweep in `withSeed` (or use `mirrorSweep()` below)
+ * and every arm meets the same teams and the same dice.
+ *
+ * WHAT LEFT: this file used to carry its own `randomPlayer` — a second draw,
+ * with its own equipment distribution, living alongside the one the balancer
+ * prices with. Two generators that disagree about what a typical party looks
+ * like is two answers to every question asked of "a typical party". The draw
+ * is the SET's now (`GameSet.randomParty`), and there is one of it.
  */
 import {
   Character, CombatEngine, CombatStats, EffectRegistry,
   mergeCombatStats, newCombatStats, random, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import {
-  ALL_EQUIPMENT, ALL_POTIONS, COMPLEMENTARY_SKILLS, PLAYER_PV, PLAYER_SKILLS,
-  buildCharacter, createRegistry,
-} from '@pimpampum/skills';
-import { registerEnemySkills } from '@pimpampum/enemies';
+import { aiPolicy } from '@pimpampum/ai';
+import { theSet } from './gameset.js';
 
-/** Shared registry for all simulations (player + enemy skill handlers).
- *  `registerEnemySkills` is not optional — without it enemy-specific handlers
- *  are missing and enemy cards silently do nothing. */
-export const REGISTRY: EffectRegistry = createRegistry();
-registerEnemySkills(REGISTRY);
+/**
+ * THE REGISTRY EVERY SIMULATION PLAYS WITH — the set's own handlers, built once.
+ *
+ * A function rather than a `const` because a module-level constant would run at
+ * IMPORT time, before `useSet()` has been called, and throw on any import of
+ * this package. Memoised per set so the cost is still paid once.
+ *
+ * A registry missing the set's enemy handlers plays a different game in
+ * silence — enemy cards resolve to nothing and the fight prices as trivial —
+ * so assembling it is the set's job, not the caller's.
+ */
+const registries = new Map<string, EffectRegistry>();
 
-export { PLAYER_PV };
-
-export function shuffle<T>(arr: readonly T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(random() * arr.length)];
-}
-
-/** Randomly equip ~half the slots, one item each. */
-function randomEquipment(): string[] {
-  const bySlot = new Map<string, string[]>();
-  for (const e of ALL_EQUIPMENT) {
-    if (!bySlot.has(e.slot)) bySlot.set(e.slot, []);
-    bySlot.get(e.slot)!.push(e.id);
-  }
-  const chosen: string[] = [];
-  for (const ids of bySlot.values()) {
-    if (random() < 0.5) chosen.push(pick(ids));
-  }
-  return chosen;
+export function theRegistry(): EffectRegistry {
+  const set = theSet();
+  let r = registries.get(set.id);
+  if (!r) { r = set.registry(); registries.set(set.id, r); }
+  return r;
 }
 
 /**
- * A random player with total skill levels summing to ~budget over 1-2 skills.
+ * A team of `size` drawn players at the given per-player skill budget.
  *
- * Models INTENDED play rather than uniform randomness, the same way the
- * balancer's own draw does: the first skill is always a MAIN kit, the
- * complementary kits only ever appear as a second skill, and a weapon kit is
- * guaranteed a weapon (its cards roll flat zero without one — defaulting to
- * the bastó would hand it the worst weapon half the time, a systematic
- * handicap rather than flavour).
+ * Delegates to the set: what a representative party looks like — which kits
+ * pair, what gear they carry, how many levels buy a second skill — is content
+ * calibration, not measurement.
  */
-export function randomPlayer(name: string, budget: number, equip = true, pv = PLAYER_PV): Character {
-  const mains = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-  const main = shuffle(mains)[0];
-  const chosen = [main];
-  if (random() < 0.5) chosen.push(shuffle(PLAYER_SKILLS.filter(s => s !== main))[0]);
-
-  const skills: Record<string, number> = {};
-  let remaining = budget;
-  chosen.forEach((s, i) => {
-    const last = i === chosen.length - 1;
-    const want = last ? remaining : Math.round(remaining * (0.5 + random() * 0.3));
-    skills[s.id] = Math.max(1, Math.min(s.actions.length, want));
-    remaining -= skills[s.id];
-  });
-
-  const equipment = equip ? randomEquipment() : [];
-  const usesWeapon = chosen.some(s => s.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
-  const hasWeapon = equipment.some(id => ['basto', 'destral', 'gran-destral'].includes(id));
-  if (usesWeapon && !hasWeapon) equipment.push('destral');
-  // Roughly a third of characters carry one random potion (loot economy).
-  const potions = equip && random() < 0.35 ? [pick(ALL_POTIONS).id] : [];
-
-  return buildCharacter({
-    name, classCss: chosen[0].classCss, iconPath: chosen[0].iconPath,
-    pv, skills, equipment, potions,
-  });
-}
-
-/** A team of `size` random players, each with the given per-player budget. */
 export function randomTeam(
-  prefix: string, size: number, perPlayerBudget: number, equip = true, pv = PLAYER_PV,
+  prefix: string, size: number, perPlayerBudget: number, equip = true, pv?: number,
 ): Character[] {
-  return Array.from({ length: size }, (_, i) => randomPlayer(`${prefix}${i + 1}`, perPlayerBudget, equip, pv));
+  return theSet().randomParty(prefix, size, perPlayerBudget, equip, pv);
 }
 
 /**
@@ -118,7 +73,7 @@ export function runMatch(
 ): number | null {
   setAIControlled(teamA);
   setAIControlled(teamB);
-  return new CombatEngine(teamA, teamB, { registry: REGISTRY, maxRounds, aiDepth }).runCombat(stats).winner;
+  return new CombatEngine(teamA, teamB, { registry: theRegistry(), maxRounds, ...aiPolicy({ depth: aiDepth }) }).runCombat(stats).winner;
 }
 
 export interface MatchupResult {
@@ -188,14 +143,15 @@ export interface SweepOptions {
   seed: number;
   size?: number;
   budget?: number;
-  /** PV per generated player — the PV/armour tuning sweep varies it per arm. */
+  /** PV per generated player — the PV/armour tuning sweep varies it per arm.
+   *  Defaults to the set's own `playerPV`. */
   pv?: number;
   stats?: CombatStats;
   aiDepth?: number;
 }
 
 export function mirrorSweep<T>(arms: SweepArm<T>[], opts: SweepOptions): { label: string; result: T }[] {
-  const { games, seed, size = 2, budget = 6, pv = PLAYER_PV, aiDepth = MIRROR_DEPTH } = opts;
+  const { games, seed, size = 2, budget = 6, pv = theSet().playerPV, aiDepth = MIRROR_DEPTH } = opts;
   const out: { label: string; result: T }[] = [];
   for (const arm of arms) {
     // `finally`, not "at the end": a throw in one arm must not leave the

@@ -27,10 +27,13 @@ import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import {
   CombatEngine, newCombatStats, withSeed, setAIControlled, type CombatStats,
 } from '@pimpampum/engine';
-import { referenceParty } from './bench/reference.js';
-import { exact, pct } from './bench/report.js';
-import { REGISTRY } from './bench/arena.js';
-import { games } from './bench/games.js';
+import { aiPolicy } from '@pimpampum/ai';
+import { referenceParty, FANTASY } from '@pimpampum/set-fantasy';
+import { exact, games, pct, theRegistry, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 // Same reference table as the scoreboard: four heroes on four main kits,
 // properly equipped. Anything else would not be comparable to §5.
@@ -123,7 +126,7 @@ function drill(count: number, pv: number, level: number): { stats: CombatStats; 
       setAIControlled(players);
       const enemies = buildComposition([{ enemyId: ENEMY_ID, count, level, pv }]);
       const res = new CombatEngine(players, enemies, {
-        registry: REGISTRY, maxRounds: 40, aiDepth: AI_DEPTH,
+        registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: AI_DEPTH }),
       }).runCombat(stats);
       if (res.winner === 1) enemyWins++;
     }

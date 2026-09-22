@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  checkSkillUp, resolveDamage, resolveAttack, newCombatStats, CombatEngine, setAIControlled, withSeed,
+  newCombatStats, CombatEngine, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import { generateEncounter, getEnemy, buildSolvedEncounter } from '@pimpampum/enemies';
-import { randomTeam, runMatch, REGISTRY } from './helpers.js';
+import { aiPolicy } from '@pimpampum/ai';
+import { randomTeam, runMatch, theRegistry } from '@pimpampum/bench';
 
 /** Seeded, so a failure here is reproducible rather than a coin that came up
  *  badly. Team generation runs through the engine's rng (bench/arena.ts), so
@@ -23,29 +23,6 @@ const MAX_ROUNDS = 40;
  */
 const DURATION_REGRESSION_CEILING = 15;
 
-describe('resolution math', () => {
-  it('the loser levels a skill only on a close loss (≤2)', () => {
-    expect(checkSkillUp(0)).toBe(true);   // tie: the attacker lost by 0
-    expect(checkSkillUp(1)).toBe(true);
-    expect(checkSkillUp(2)).toBe(true);
-    expect(checkSkillUp(3)).toBe(false);  // lost by too much to learn
-    expect(checkSkillUp(-1)).toBe(false); // winners never level
-  });
-
-  it('damage is the margin: defended hits deal attack − defense, undefended the full roll', () => {
-    expect(resolveAttack(10, 7)).toEqual({ hit: true, margin: 3 });
-    expect(resolveAttack(7, 7)).toEqual({ hit: false, margin: 0 });  // tie: defense holds
-    expect(resolveAttack(5, 9)).toEqual({ hit: false, margin: -4 });
-    expect(resolveAttack(6, null)).toEqual({ hit: true, margin: 6 }); // undefended: full roll
-  });
-
-  it('subtracts armour from the margin, floored at zero', () => {
-    expect(resolveDamage(7, 3)).toBe(4);
-    expect(resolveDamage(2, 5)).toBe(0);
-    expect(resolveDamage(5, 0)).toBe(5);
-  });
-});
-
 describe('engine sanity', () => {
   it('every combat terminates with a valid winner and PV stays in range', () => {
     for (let i = 0; i < 60; i++) {
@@ -53,7 +30,7 @@ describe('engine sanity', () => {
       const b = randomTeam('B', 2, 6);
       setAIControlled(a);
       setAIControlled(b);
-      const res = new CombatEngine(a, b, { registry: REGISTRY, maxRounds: 50, aiDepth: 0 }).runCombat();
+      const res = new CombatEngine(a, b, { registry: theRegistry(), maxRounds: 50, ...aiPolicy({ depth: 0 }) }).runCombat();
       expect(res.rounds).toBeGreaterThan(0);
       expect([0, 1, null]).toContain(res.winner);
       for (const c of [...a, ...b]) {
@@ -109,29 +86,3 @@ describe('mirror balance (equal skill budgets)', () => {
   });
 });
 
-describe('solved encounters', () => {
-  const ids = ['goblin', 'wolf', 'stone-golem', 'basilisk'];
-  for (const id of ids) {
-    // SMOKE TEST: it checks that a solve produces a runnable fight, not that
-    // the fight is the difficulty it claims — that is enemy-threat.test.ts,
-    // which replays at the depth the solve used. The depth here is stated
-    // rather than defaulted so the two are not confused.
-    it(`${id} encounters solve and resolve for every player count`, () => {
-      const template = getEnemy(id);
-      expect(template).toBeTruthy();
-      for (const pc of [3, 4, 5, 6]) {
-        const solved = generateEncounter(template!, 4, { count: pc, levels: 7, armor: 1 }, 0.65, { games: 80, searchGames: 60 });
-        expect(solved).toBeTruthy();
-        const enemies = buildSolvedEncounter(solved!);
-        expect(enemies.length).toBeGreaterThan(0);
-        const players = randomTeam('P', pc, 7);
-        setAIControlled(players);
-        const res = new CombatEngine(players, enemies, {
-          registry: REGISTRY, maxRounds: 60, aiDepth: 0,
-        }).runCombat();
-        expect([0, 1, null]).toContain(res.winner);
-        expect(res.rounds).toBeGreaterThan(0);
-      }
-    });
-  }
-});

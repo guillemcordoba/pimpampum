@@ -23,14 +23,19 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/measure-swing.ts
  */
 import {
-  ActionType, Character, CombatEngine, lookaheadChooser, setAIControlled, withSeed,
+  ActionType, Character, CombatEngine, setAIControlled, withSeed,
 } from '@pimpampum/engine';
+import {
+  lookaheadChooser,
+} from '@pimpampum/ai';
 import { buildReferenceParty } from '@pimpampum/skills';
 import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from './bench/arena.js';
-import { SHAPES, calibrationParty, solveShape } from './bench/shapes.js';
-import { assertParsed, parseAttacks } from './bench/combatlog.js';
-import { games } from './bench/games.js';
+import { assertParsed, games, parseAttacks, theRegistry, useSet } from '@pimpampum/bench';
+import { calibrationParty, SHAPES, solveShape, FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -129,7 +134,7 @@ function winrate(chooser: ((e: CombatEngine, a: Character) => number | null) | n
       const { players, enemies } = build(m);
       setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
-        registry: REGISTRY, maxRounds: 40, actionChooser: chooser ?? undefined,
+        registry: theRegistry(), maxRounds: 40, actionChooser: chooser ?? undefined,
       });
       const w = engine.runCombat().winner;
       if (w === 0) wins++; else if (w === null) wins += 0.5;
@@ -170,7 +175,7 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
       const { players, enemies } = build(m);
       setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
-        registry: REGISTRY, maxRounds: 40, actionChooser: chooser,
+        registry: theRegistry(), maxRounds: 40, actionChooser: chooser,
       });
       engine.runCombat();
 

@@ -20,11 +20,13 @@
  */
 import { ALL_SKILLS } from '@pimpampum/skills';
 import { getEnemy } from '@pimpampum/enemies';
-import { MAIN_KITS } from './bench/reference.js';
+import { MAIN_KITS, FANTASY } from '@pimpampum/set-fantasy';
 import { cardsOf, cellsFor, setupFor, type Subject } from './kit-analyzer-lib.js';
-import { exact, pp, share } from './bench/report.js';
-import { games } from './bench/games.js';
-import { DEFAULT_REGRET, measureKit, scoreCards } from './bench/regret.js';
+import { DEFAULT_REGRET, exact, games, measureKit, pp, scoreCards, share, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 declare const process: { argv: string[]; env: Record<string, string | undefined> };
 

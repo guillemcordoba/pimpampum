@@ -27,16 +27,15 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  ActionType, CombatEngine, DiceRoll, createCharacter, lookaheadChooser,
-  setAIControlled, withSeed, type ActionDefinition,
+  ActionType, CombatEngine, DiceRoll, createCharacter, setAIControlled, withSeed, type ActionDefinition,
 } from '@pimpampum/engine';
+import {
+  lookaheadChooser, aiPolicy,
+} from '@pimpampum/ai';
 import { buildCharacter, ALL_SKILLS, PLAYER_PV } from '@pimpampum/skills';
 import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from '../bench/arena.js';
-import { CELL_AI } from '../bench/cells.js';
-import { SHAPES, calibrationParty, solveShape } from '../bench/shapes.js';
-import { hero } from '../bench/reference.js';
-import { DEFAULT_REGRET, valuePosition, pvDifferential } from '../bench/regret.js';
+import { CELL_AI, DEFAULT_REGRET, pvDifferential, theRegistry, valuePosition } from '@pimpampum/bench';
+import { calibrationParty, hero, SHAPES, solveShape } from '@pimpampum/set-fantasy';
 
 function synthetic(id: string, over: Partial<ActionDefinition>): ActionDefinition {
   return {
@@ -94,7 +93,7 @@ function priceCards(skillId: string, fights: number): Map<string, number> {
       const players = partyWithControls(skillId);
       setAIControlled(players);
       const engine = new CombatEngine(players, buildComposition(solveShape(SHAPES[0]).groups), {
-        registry: REGISTRY, maxRounds: 40, actionChooser: lookaheadChooser(CELL_AI),
+        registry: theRegistry(), maxRounds: 40, actionChooser: lookaheadChooser(CELL_AI),
       });
       const subject = engine.teams[0][0];
       let guard = 0;
@@ -152,7 +151,7 @@ describe('the outcome is PV on one side minus PV on the other, and nothing else'
   it('is symmetric, and is the board and nothing else', () => {
     const players = [buildCharacter(hero('A', 'mestre-armes'))];
     const engine = new CombatEngine(players, buildComposition(solveShape(SHAPES[0]).groups), {
-      registry: REGISTRY, maxRounds: 40, aiDepth: 0,
+      registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 0 }),
     });
     const mine = engine.teams[0].reduce((n, c) => n + c.currentPV, 0);
     const theirs = engine.teams[1].reduce((n, c) => n + c.currentPV, 0);

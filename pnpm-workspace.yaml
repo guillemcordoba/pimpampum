@@ -1,4 +1,5 @@
 packages:
   - 'packages/*'
+  - 'packages/sets/*'
 allowBuilds:
   esbuild: true

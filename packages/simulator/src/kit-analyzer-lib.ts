@@ -75,22 +75,19 @@
 import { ActionDefinition } from '@pimpampum/engine';
 import { ALL_SKILLS, type PartySpec } from '@pimpampum/skills';
 import {
-  ENEMY_DEFINITIONS, fullKitLevel, getEnemy, simulateEncounter, solveEncounter,
-  type FieldedGroup,
+  ENEMY_DEFINITIONS, type FieldedGroup, fullKitLevel, getEnemy, simulateEncounter,
+  solveEncounter,
 } from '@pimpampum/enemies';
-import { MAIN_KITS, hero } from './bench/reference.js';
 import {
-  FAIR, SATURATION, SHAPES, calibrationParty, saturatedCells, solveShape, usableCells,
-  type Cell,
-} from './bench/shapes.js';
+  calibrationParty, type Cell, FAIR, hero, MAIN_KITS, saturatedCells, SATURATION, SHAPES,
+  solveShape, usableCells,
+} from '@pimpampum/set-fantasy';
 import {
-  RESTRICTED_POLICIES, THOUGHTLESS_POLICIES, cellKey, cellResult, runMatrix,
-  type CellPolicy, type CellSetup, type MatrixResult,
-} from './bench/cells.js';
-import { DEFAULT_REGRET, measureKit, scoreCards, type CardScore } from './bench/regret.js';
-import { deltaPP, deltaStderr, exact, gamesFor, maxOfKBias, pct, share, stderr } from './bench/report.js';
-import { games, SMOKE } from './bench/games.js';
-import { cacheStatus, enemyPrint, skillPrint } from './bench/cache.js';
+  cacheStatus, type CardScore, cellKey, type CellPolicy, cellResult, type CellSetup,
+  DEFAULT_REGRET, deltaPP, deltaStderr, enemyPrint, exact, games, gamesFor,
+  type MatrixResult, maxOfKBias, measureKit, pct, RESTRICTED_POLICIES, runMatrix,
+  scoreCards, share, skillPrint, SMOKE, stderr, THOUGHTLESS_POLICIES,
+} from '@pimpampum/bench';
 
 declare const process: { argv: string[]; env: Record<string, string | undefined> };
 
@@ -517,6 +514,69 @@ export interface AnalyzeBudget {
   oneTrickGames?: number;
   /** Fights behind requirement 4/5. */
   cardValueGames?: number;
+  /**
+   * Requirements this caller will not read, so `analyze` can skip MEASURING
+   * them rather than merely measuring them cheaply.
+   *
+   * `analyze` computes all seven whichever one you came for, and the two named
+   * here are most of the bill: 4/5 plays out a fight per candidate card per
+   * DECISION, and 3c re-measures two arms at its own four-times-finer bar. A
+   * control asserting one verdict was paying for seven —
+   * `requirement-controls.test.ts` reached FORTY MINUTES on a single file, and
+   * a suite nobody can afford to run is one nobody runs, which is the whole
+   * reason `bench/games.ts` exists.
+   *
+   * Skipped requirements come back INCONCLUSIVE, never ok. A ✅ meaning "we did
+   * not look" is the one lie the summary table must never tell.
+   *
+   * Sweeps and report cards pass nothing here — they read every verdict.
+   */
+  skip?: ('cardValue' | 'oneTrick')[];
+  /**
+   * Opponent models requirement 4/5 measures each card under — the
+   * continuation's `aiSharpness`. A card is dead only if it is dead under ALL
+   * of them; one that dies under some and lives under others is reported as
+   * SENSITIVE and never failed on.
+   *
+   * The budget is split across the models, not multiplied, so robustness costs
+   * sample size rather than time. See `DEFAULT_CARD_VALUE_MODELS`.
+   */
+  cardValueModels?: number[];
+}
+
+/**
+ * Soft, default, and hard. Spread either side of the engine's `aiSharpness: 2`
+ * because there is no defensible single value and the spread is the point:
+ * 0.5 treats the enemy's face-down card as a broad distribution, 4 as nearly a
+ * single line, and a card that only reads dead at one end of that range has not
+ * been measured (NEXT-STEPS §20.11).
+ *
+ * Three, not more, because each one costs a third of the sample.
+ */
+export const DEFAULT_CARD_VALUE_MODELS = [0.5, 2, 4];
+
+/**
+ * Requirement 4/5's decision: is this card CLEARLY never the right play?
+ *
+ * "Clearly" is the whole rule. `bestShare` is a sample like every other number
+ * here, and comparing it bare to the null flags every card that happens to
+ * measure low — which is §17.5 exactly: `DEAD_VALUE` spent a session naming
+ * cards against a noise floor nobody had measured. Subtracting 2σ first means a
+ * ❌ says "go and look at this card" rather than "this card drew badly".
+ *
+ * PURE AND EXPORTED because the other four decision rules are, and being the
+ * one that was not is why it was the only mutant to survive the first mutation
+ * run (`src/mutation.ts`): a rule inlined in `analyze` has no unit test that
+ * can reach it, so deleting its error term changed nothing any fast test could
+ * see.
+ */
+export function isDeadCard(bestShare: number, bestStderr: number, nullShare: number): boolean {
+  return bestShare + 2 * bestStderr < nullShare;
+}
+
+/** A requirement deliberately not measured (see `AnalyzeBudget.skip`). */
+function notMeasured(what: string): Verdict {
+  return { ok: false, inconclusive: true, detail: `no mesurat (skip: ${what})` };
 }
 
 export function analyze(subject: Subject, games: number, budget: AnalyzeBudget = {}): KitReport {
@@ -614,13 +674,14 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
     keyFor(maxLevel, picked.policy, VERIFY_OFFSET));
   const policyRun = runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), mindlessGames, 'policy', VERIFY_OFFSET,
     keyFor(maxLevel, 'policy', VERIFY_OFFSET));
-  const trickRun = pickedTrick
+  const skipTrick = budget.skip?.includes('oneTrick') ?? false;
+  const trickRun = pickedTrick && !skipTrick
     ? runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), oneTrickGames, pickedTrick.policy, VERIFY_OFFSET,
       keyFor(maxLevel, pickedTrick.policy, VERIFY_OFFSET))
     : null;
   // The policy arm 3c subtracts has to carry the SAME sample, or the margin's
   // error is dominated by whichever side was measured more cheaply.
-  const trickPolicyRun = pickedTrick
+  const trickPolicyRun = pickedTrick && !skipTrick
     ? runMatrix(cells, setupFor(subject, maxLevel, budget.allSeats), oneTrickGames, 'policy', VERIFY_OFFSET,
       keyFor(maxLevel, 'policy', VERIFY_OFFSET))
     : policyRun;
@@ -665,7 +726,7 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
     ? marginVerdict(trickPolicyRun.winrate, trickPolicyRun.games, trickRun.winrate, trickRun.games, ONE_TRICK_MARGIN)
     : null;
   const trickMargin = trickCheck?.margin ?? 0;
-  const oneTrick: Verdict = {
+  const oneTrick: Verdict = skipTrick ? notMeasured('oneTrick') : {
     ok: !trickCheck || trickCheck.ok,
     detail: trickRun && pickedTrick
       ? `la millor carta repetida (${pickedTrick.label}) ${pct(trickRun.winrate, trickRun.games)}`
@@ -683,21 +744,47 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   // under the floor. It is now measured AT THE DECISION — force each legal card
   // from a position both branches share exactly, play the fight out, subtract.
   // 29 of 29 cards resolve where 7 did, at a fraction of the cost.
-  const kitValues = measureKit(cells, setupFor(subject, maxLevel, budget.allSeats), budget.cardValueGames ?? cardValueGames(games), DEFAULT_REGRET);
-  const scored = scoreCards(kitValues);
-  const byId = new Map(scored.map(v => [v.id, v]));
+  // MEASURED UNDER SEVERAL OPPONENT MODELS, AND DEAD ONLY IF DEAD UNDER ALL.
+  //
+  // The continuation's greediness is a free parameter with no defensible value,
+  // and it is the most biased knob in the package: sweeping it moves individual
+  // cards' measured usage by 4–9× in relative terms, and it moves them most for
+  // exactly the set-up cards this requirement was calling dead (§20.11).
+  // Picking a "better" sharpness only relocates that bias.
+  //
+  // So the robustness check IS the fix: a verdict that flips when an
+  // unjustifiable modelling choice changes is not a verdict. The budget is
+  // SPLIT across the models rather than multiplied, so this costs no more than
+  // before — each model gets a smaller sample, which widens its error bars,
+  // which makes the check conservative. That is the right direction for a
+  // verdict whose whole job is to say "stop and look at this card".
+  const skipCards = budget.skip?.includes('cardValue') ?? false;
+  const models = budget.cardValueModels ?? DEFAULT_CARD_VALUE_MODELS;
+  const cardGamesTotal = budget.cardValueGames ?? cardValueGames(games);
+  const perModel = Math.max(1, Math.round(cardGamesTotal / models.length));
+  const setup = setupFor(subject, maxLevel, budget.allSeats);
+  const runs = skipCards ? [] : models.map(sharpness => {
+    const kv = measureKit(cells, setup, perModel, { ...DEFAULT_REGRET, continuationSharpness: sharpness });
+    return { sharpness, kv, byId: new Map(scoreCards(kv).map(v => [v.id, v])) };
+  });
+  const kitValues = runs.length
+    ? { positions: runs.reduce((s, r) => s + r.kv.positions, 0), fights: runs.reduce((s, r) => s + r.kv.fights, 0) }
+    : { positions: 0, fights: 0 };
 
   const dead: string[] = [];
+  /** Dead under SOME models and not others — the honest third category. */
+  const fragile: string[] = [];
   const unjudged: string[] = [];
   const blind: string[] = [];
   const values: CardScore[] = [];
   for (const c of cards) {
     if (c.unlockLevel > maxLevel) continue;
     if (AI_BLIND_CARDS[c.id]) { blind.push(c.name); continue; }
-    const v = byId.get(c.id);
-    if (!v) { unjudged.push(`${c.name} (mai legal)`); continue; }
-    values.push(v);
-    const shown = `${c.name} ${v.value.toFixed(1)} PV · millor ${share(v.bestShare * v.observations, v.observations).trim()} vs atzar ${exact(v.nullShare)}`;
+    const seen = runs.map(r => r.byId.get(c.id)).filter((v): v is CardScore => v !== undefined);
+    if (!seen.length) { if (runs.length) unjudged.push(`${c.name} (mai legal)`); continue; }
+    // Reported value is the mean across models; the VERDICT is per model.
+    const mean = seen.reduce((s, v) => s + v.value, 0) / seen.length;
+    values.push({ ...seen[0], value: mean });
     // THE VERDICT IS THE ABSOLUTE STATISTIC ONLY. `value` ranks a card against
     // the rest of its hand and those values sum to ~zero by arithmetic, so
     // failing on it would flag half of every kit no matter how good the kit is.
@@ -705,16 +792,22 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
     // under the share chance alone would hand it is one the game never wants
     // played, and since nothing in these rules costs anything to play or gates
     // a replay, a card never worth playing is a card not worth holding.
-    if (v.bestShare + 2 * v.bestStderr < v.nullShare) dead.push(shown);
+    const deadIn = seen.filter(v => isDeadCard(v.bestShare, v.bestStderr, v.nullShare)).length;
+    const shown = `${c.name} ${mean.toFixed(1)} PV · mort en ${deadIn}/${seen.length} models`;
+    if (deadIn === seen.length) dead.push(shown);
+    else if (deadIn > 0) fragile.push(shown);
   }
   values.sort((a, b) => b.value - a.value);
-  const cardUse: Verdict = {
+  const cardUse: Verdict = skipCards ? notMeasured('cardValue') : {
     ok: dead.length === 0,
     detail: [
-      dead.length ? `MORTES (mai són la millor jugada): ${dead.join(', ')}` : 'cap carta per sota del que donaria l\'atzar',
+      dead.length ? `MORTES en tots els models: ${dead.join(', ')}` : 'cap carta morta sota tots els models',
+      // Printed, never failed on. A card that dies under one model and lives
+      // under another has not been measured, and saying so is the point.
+      fragile.length ? `⚠️ SENSIBLES al model de rival (no és veredicte): ${fragile.join(', ')}` : '',
       unjudged.length ? `sense mostra: ${unjudged.join(', ')}` : '',
       blind.length ? `no mesurables per la IA: ${blind.join(', ')}` : '',
-      `[${kitValues.positions} decisions en ${kitValues.fights} combats]`,
+      `[${kitValues.positions} decisions en ${kitValues.fights} combats · models aiSharpness ${models.join('/')}]`,
     ].filter(Boolean).join(' · '),
   };
 

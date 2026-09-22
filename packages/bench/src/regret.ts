@@ -38,8 +38,10 @@
  * zero, and no instrument that plays the game can make it zero.
  */
 import {
-  Character, CombatEngine, availableActionIndices, random, withSeed,
+  availableActionIndices, Character, CombatEngine, random, setAIControlled as _setAI,
+  withSeed,
 } from '@pimpampum/engine';
+import { aiPolicy, lookaheadChooser as _look } from '@pimpampum/ai';
 
 /**
  * THE OUTCOME, and why it is not a weighting I invented.
@@ -142,6 +144,26 @@ export interface RegretOptions {
    */
   rolloutDepth: number;
   /**
+   * How GREEDILY everyone plays in the continuation — the engine's
+   * `aiSharpness`.
+   *
+   * Not a taste knob, a measured BIAS. Sweeping it moves individual cards'
+   * measured usage by 4–9× in relative terms, and it moves them most for
+   * exactly the set-up cards this requirement calls dead (NEXT-STEPS §20.11).
+   * A set-up card pays off against a RANGE of enemy replies; a greedy model
+   * collapses every rollout onto one line, so the payoff either never appears
+   * or is always punished.
+   *
+   * It is the same phenomenon `rolloutDepth` above already half-records — the
+   * continuation "cancels the LEVEL and not the ORDERING" — one knob further
+   * in.
+   *
+   * There is no defensible single value, so the analyzer does not pick one: it
+   * measures under several and calls a card dead only if it is dead under all
+   * of them. See `AnalyzeBudget.cardValueModels`.
+   */
+  continuationSharpness?: number;
+  /**
    * Playouts averaged per candidate card at a position.
    *
    * SET BY A CONTROL, not by taste. `wasBest` asks which card topped a
@@ -195,8 +217,17 @@ function rollout(
   engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions,
 ): { score: number; won: number } {
   const sim = engine.clone();
-  sim.aiDepth = opts.rolloutDepth;
-  sim.actionChooser = undefined;   // the clone's own policy, not the harness's
+  // THE CLONE PLAYS ON ITS OWN POLICY, NOT THE HARNESS'S — the continuation
+  // after the forced card has to be the policy `opts.rolloutDepth` names, or
+  // the price of a card is the price of a card followed by whatever the
+  // measuring harness happened to be driving with.
+  //
+  // This used to clear `actionChooser` AFTER installing the policy, which
+  // cleared the policy: the clone then reached `planActions` with no chooser
+  // at all and the engine threw for the first unforced seat. It threw rather
+  // than falling back precisely so this could not pass silently.
+  Object.assign(sim, aiPolicy({ depth: opts.rolloutDepth }));
+  if (opts.continuationSharpness !== undefined) sim.aiSharpness = opts.continuationSharpness;
   forceRound(sim, seat, actionIdx, opts.team);
   const res = sim.runCombat();
   return {
@@ -311,12 +342,9 @@ export function valuePosition(
 // `instrument`). It takes a `setupFor` rather than importing the analyzer's,
 // so it stays content-agnostic and nothing here points back at the analyzer.
 
-import { buildReferenceParty } from '@pimpampum/skills';
-import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from './arena.js';
+import { theRegistry } from './arena.js';
 import { CELL_AI, type CellSetup } from './cells.js';
-import { type Cell } from './shapes.js';
-import { setAIControlled as _setAI, lookaheadChooser as _look } from '@pimpampum/engine';
+import { theSet, type Cell } from './gameset.js';
 
 /** Every observation of one card: what it was worth at a position, and which
  *  FIGHT that position came from — positions inside a fight are not
@@ -358,10 +386,10 @@ export function measureKit(
     const setup = setupFor(cell);
     withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
       for (let g = 0; g < per; g++) {
-        const players = buildReferenceParty(setup.party);
+        const players = theSet().buildParty(setup.party);
         _setAI(players);
-        const engine = new CombatEngine(players, buildComposition(setup.enemies), {
-          registry: REGISTRY, maxRounds: 40, actionChooser: _look(CELL_AI),
+        const engine = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
+          registry: theRegistry(), maxRounds: 40, actionChooser: _look(CELL_AI),
         });
         const subject = engine.teams[setup.subjectTeam][0];
         const fight = fights++;

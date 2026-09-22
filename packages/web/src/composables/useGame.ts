@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
 import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemyFrom, getEnemy, registerEnemySkills } from '@pimpampum/enemies';
@@ -99,7 +100,7 @@ export function useGame() {
     // Players are human-controlled; the factory marks enemies aiControlled.
     // The enemies think one round ahead (aiDepth 1) — the same AI the balancer
     // priced the encounter with, so the fight plays out as advertised.
-    engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50, aiDepth: 1 });
+    engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50, ...aiPolicy({ depth: 1 }) });
     combatLog.value = [];
     winner.value = null;
     startNewRound();

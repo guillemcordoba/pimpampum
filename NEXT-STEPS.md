@@ -1623,17 +1623,21 @@ probability is 1.00.
 | requirement | rule control | pipeline: must FIRE | pipeline: must STAY SILENT |
 |---|---|---|---|
 | 1 monotonicity | ✅ 5 | ✅ ladder finds the gain | ✅ flat claims none · ✅ no false regression |
-| 2 duration | ✅ 4 + ✅ 5 on the percentiles | ❌ **none** | ❌ **none** |
-| 3 thinking | ✅ shared | ❌ §19.6 | ❌ §19.6 |
-| 3b space | ✅ shared | ❌ §19.6 | ❌ §19.6 |
+| 2 duration | ✅ 4 + ✅ 5 on the percentiles | ✅ turtle draws every fight | ✅ blitz ends on round one |
+| 3 thinking | ✅ shared | ❌ §19.6 — buildable now, §19.11 | ❌ §19.6 — buildable now, §19.11 |
+| 3b space | ✅ shared | ❌ §19.6 — buildable now, §19.11 | ❌ §19.6 — buildable now, §19.11 |
 | 3c one-trick | ✅ shared | ✅ situational kit | ✅ flat kit |
 | 4/5 dead cards | n/a | ✅ names the no-op | ✅ spares the real attacks |
-| 7 correlation | ✅ 5 | ❌ none | ❌ none |
+| 7 correlation | ✅ 5 | ✅ flags the gated card | ✅ spares the ungated one |
 
 Requirements 3, 3b and 3c share ONE `marginVerdict`, so the five controls on it
 cover all three rules. Requirement 7 had no test of any kind before this and now
 has five, including the one that matters: the same rate must NOT be flagged on a
 sample too small to show it.
+
+Requirements 2 and 7 were written on 2026-09-21 and left UNVERIFIED (the commit
+that carried them says so in its own subject line). They were verified on
+2026-09-22, and one of them had been passing for the wrong reason — §19.11.
 
 ### 19.9 Requirement 1's regression branch cannot be controlled, and why that matters
 
@@ -1661,13 +1665,1008 @@ the time as luck. It was structural.
 
 ### 19.10 Still open
 
-- **Requirement 2 has no pipeline control.** Its rule and its percentiles are
-  controlled; nothing checks that a fight which must drag is measured as
-  dragging. Building one needs a party that cannot kill, which runs into the
-  same four-seat limit as §19.6.
-- **Requirement 7 has no pipeline control**, for the same reason a meaningful
-  one is hard: the statistic is confounded by design, so a card "known to
-  correlate with losing" is not constructible without deciding what the
-  confound should look like.
 - **4/5 now fails 6/6**, naming 14 dead cards. First verdict from a controlled
   instrument — a CONTENT finding, not acted on.
+- **Requirements 3 and 3b still have no pipeline control**, but the reason given
+  in §19.6 expired the moment `allSeats` was built — see §19.11.
+
+(The requirement 2 and requirement 7 entries that stood here were closed on
+2026-09-22; §19.11.)
+
+### 19.11 The two controls landed, and one had been green for the wrong reason (2026-09-22)
+
+Both constructions from the 2026-09-21 WIP commit work, and the file is green at
+17/17:
+
+- **Requirement 2, the turtle.** Four seats of nothing-but-defence at **speed
+  9**. The speed is the whole trick and it took three wrong diagnoses to find:
+  a defence always self-guards, but guards register when the action RESOLVES
+  and higher speed resolves first, so at speed 0 the goblins struck before the
+  wall existed and a party behind 10d6 died in two rounds. Targeting was a red
+  herring — `getActionTargetRequirement` hard-codes `'defense'` for any
+  Defensa, so a handler cannot self-target anyway.
+- **Requirement 7, the gated card.** 400 combats for that block, because the
+  card is only legal from a losing position and therefore appears in roughly a
+  fifth of fights, against an absolute 60-play gate.
+
+**The req 2 control had been passing on a string that is always printed.** The
+"fails for the RIGHT reason" assertion was `expect(duration.detail).toMatch(/taules/)`,
+and `duration.detail` ALWAYS opens with `mediana N · p90 N · taules N%`. The
+assertion was true of every kit ever measured, passing or failing; it could not
+fail. It now reads only the section after `falla per:`, where the reasons that
+actually tripped are named, and with that tightening the control still passes —
+so the draw rate genuinely is what fires.
+
+That is the same shape as the duration guard §12 found in `balance.test.ts`
+(`expect(avg).toBeLessThan(40)` against a 40-round cap), and it is the second
+time it has been found in this package. **A verdict's detail string is a
+report, not an assertion surface**: match the part that only appears when the
+thing being claimed happened.
+
+What is NOT asserted, deliberately: that the length bars stayed silent. A fight
+that runs to the 40-round cap every time is also, truthfully, the longest fight
+the harness can measure, so the median and p90 bars fire too. The draw rate is
+the reason that DISTINGUISHES "never ends" from "drags", and that is all the
+control needs to show.
+
+**One more assertion in the same file cannot fail**, and it is left standing on
+purpose until it can be replaced by a real control rather than a weaker one:
+`expect(spam.detail).toMatch(/COSTAT SENCER/)`, under the name "3 and 3b measure
+the SIDE, so a flat subject does not zero their margin". That phrase is printed
+unconditionally too, so the claim in the name is not checked by anything.
+
+**And the reason §19.6 gives for that gap has expired.** It says controlling 3
+and 3b end-to-end "needs a party of four control kits, which the analyzer cannot
+field today" — but `allSeats` is exactly that party, and it was built one commit
+ago for requirement 2. Running `flatKit` under `allSeats` puts four seats of
+identical cards on the field, and then thinking cannot matter for the WHOLE
+side, which is the scope requirements 3 and 3b are measured at. Two outcomes,
+both worth having:
+
+- the margin collapses → the must-FIRE control 3 and 3b have never had;
+- the margin stays large → then with one distinct card in every seat, what
+  remains is TARGET SELECTION, and that would be a sharper statement of §15.6's
+  open problem than anything measured so far.
+
+## 20. The AI was reviewed, and given a ladder to stand on (2026-09-22)
+
+The AI is this package's instrument — every report card, every solved encounter
+and every dead-card verdict is a number it produced by playing — and it had no
+test of any kind. `ai-benchmark.ts` printed a table nobody asserted on.
+
+### 20.1 How it actually works, in three layers
+
+- **Depth 0 (`ai.ts`)** scores each card in isolation: an attack is worth
+  `1 + 1.5 × expected damage` plus riders, a defence a **flat 1.5**, a focus a
+  **flat 1.2**. `selectAction` then samples weighted-random with the weights
+  raised to `aiSharpness` (**2** by default, so the gap between currencies is
+  squared).
+- **Depth 1 (`lookahead.ts`)** clones the combat per candidate card, resolves
+  the round with everyone else at depth 0, and scores the leaf with
+  `positionScore`. `samples: 2`, `passes: 1`, `topK: 3`; the team is coordinated
+  by iterated best response.
+- **Targeting (`pickResolveTargets`)** is a SEPARATE hand-written heuristic run
+  at resolution time. **The search never chooses targets** — "this attack at X"
+  and "this attack at Y" are not different plays to the AI.
+
+Everything is measured at `MIRROR_DEPTH = 1` with `DEFAULT_LOOKAHEAD`.
+
+### 20.2 The ladder (`bench/policies.ts`, `tests/ai-strength.test.ts`)
+
+There is no ground truth for good play, and §16.1 forbids tuning until tests go
+green. Two families of claim survive that, and they are what the new test
+asserts:
+
+- **Fixed stupidity.** `firstLegal`, `feeble` (always the weakest attack),
+  `uniform`, `spam`. All defined from the CARDS, never from the AI — a baseline
+  derived from the heuristic would drift every time the heuristic moved, and
+  "the AI beats it" would stop meaning anything.
+- **The compute ladder.** The same AI at more compute is a usable ground truth
+  for the same AI at less, and no weight can move one rung without moving the
+  other. Monotone (more search never plays worse) and CONVERGED (the next rung
+  up cannot be shown to beat it) — the second is what makes a measurement a fact
+  about the game rather than about a search budget.
+
+Mirror matches, both seats, common random numbers. The convergence test carries
+a sample-size guard: "we could not show a gap" is only admissible if the sample
+could have SEEN the gap, which is §19.8's discipline for requirement 7 and the
+trap §19.11's vacuous assertions fell into.
+
+### 20.3 What the ladder says today
+
+Measured 2026-09-22, 800 mirror combats a cell:
+
+```
+✅ depth1 beats firstLegal · feeble · uniform          (the floor)
+✅ depth1 is NOT beaten by spam                        (not dominated by a one-liner)
+✅ depth1 beats the raw heuristic                      (the search earns its 6× cost)
+✅ depth1x does not play worse than depth1             (monotone)
+❌ depth1x BEATS depth1 by +8.1pp (58.1%±1.7)          (NOT CONVERGED)
+```
+
+**Production is not converged, by 8 points.** Every number in this package is
+therefore a fact about `samples: 2, passes: 1` and not only about the game.
+
+(The `spam` row was ❌ before the pairing fix of §20.5 — production was losing
+to "always the biggest attack" 45.3/54.7. The convergence row read 59.0%±1.7
+then, and the 0.9pp it moved is noise: see §20.5b for how that nearly got
+reported as a fix.)
+
+Note this is measured in MIRROR play. The `ai-benchmark` strength column, which
+drives the party against a solved shape, is confounded: the shape is solved
+against a depth-1 party, so a depth-0 party is priced against a bar set for
+someone else. Mirror is the honest comparison, and the two disagree — at 150
+combats spam appeared to beat depth1 54.7/45.3, and at 800 it does not.
+
+### 20.4 CONFIRMED BUG — the lookahead simulates the wrong round
+
+`lookahead.playRound()` opens with `engine.prepareRound()`, but the search runs
+from inside `planActions`, which the real engine only reaches AFTER its own
+`prepareRound()`. Probed directly:
+
+```
+REAL    round=1  actors queued: Hero
+ROLLOUT round=2  actors queued: Hero, Villain    ← Villain is stunned this round
+```
+
+So every rollout runs the round counter one ahead, discards
+`skippingThisRound`, and rebuilds it from an ALREADY-DECREMENTED `skipTurns`.
+**A character who is skipping the real round acts in every rollout.** The AI
+cannot see the turn it just took away, and it plans against enemies who cannot
+act. Prime suspect for §17.5's eleven control/prevention/set-up cards measuring
+dead — `positionValue` fixed the evaluator's blindness to statuses, but a skip's
+immediate effect is still invisible because the rollout undoes it.
+
+This is a disagreement with the RULES, not a knob, so §16.1 permits fixing it.
+
+**FIXED 2026-09-22** with a `roundPrepared` flag on `CombatEngine` (set by
+`prepareRound`, cleared by `finishRound`, carried across `clone()`). The
+lookahead now prepares only a round that has NOT begun — deeper recursions
+still need it, since they run after `finishRound`. Locked by
+`tests/ai-rules.test.ts`.
+
+**And it moved the ladder by NOTHING: bit-identical, +9.0pp before and after.**
+That is not the fix failing, it is the FIXTURE NOT EXERCISING IT. None of the
+four kits in the mirror party — berserk, mestre-armes, volcanic, metge —
+inflicts a stun, and `prepareRound` consumes no randomness, so removing the
+duplicate call leaves the dice stream untouched. The bug only bites where
+`skipTurns` is set: `ombres`, the basilisk, `stun_on_hit`, `self_stun`, and the
+focus stun.
+
+Two things follow, and both are worth more than the fix was.
+
+- **A winrate could not have found this, and could not confirm it either.**
+  That is the case for keeping a deterministic rules layer (§20.2's first
+  family) rather than judging the AI only by how often it wins.
+- **The ladder's mirror party does not exercise control effects at all**, so it
+  is silent about exactly the cards §17.5 found measuring dead. A second
+  fixture that fields stuns, silences and buries is worth building before
+  reading much into a single mirror.
+
+### 20.5 The search compares noisy estimates, unpaired
+
+`samples: 2`, and `bestResponse` tests each candidate's 2-rollout average
+against an incumbent `value` drawn from DIFFERENT randomness and never
+refreshed. That is selection bias — the winner is often the luckiest candidate,
+not the best — and there are no common random numbers across candidates.
+
+It is the same error §12 and §19.7 fixed in the measurement layer ("screen
+cheaply, then re-measure the winner on FRESH numbers"; "every arm runs on the
+same seed"), still sitting inside the AI that produces the measurements.
+
+The fix is not a knob: evaluate every candidate under the SAME seeds, so the
+comparison is paired.
+
+**DONE 2026-09-22.** One `pairSeed` per `bestResponse` call, shared by the
+incumbent and every candidate on every pass, applied with `withSeed` inside
+`evaluate`. Held FIXED across passes on purpose, so iterated best response
+hill-climbs one fixed sampled objective rather than a surface that reshuffles
+under it between passes.
+
+**It made the AI markedly stronger, and it did NOT make it converged.** Those
+are two different claims and it was easy to confuse them:
+
+| mirror cell | before | after |
+|---|---|---|
+| depth1 vs `spam` | 45.3%±4.1 — **LOSING** | 53.0%±2.9 |
+| depth1x vs `spam` | 51.3%±4.1 | 65.3%±2.7 |
+| depth1 vs heuristic | 68.0%±3.8 | 78.7%±2.4 |
+| depth1 vs `uniform` | 82.3%±3.1 | 89.0%±1.8 |
+| **depth1x vs depth1** | **59.0%±1.7** | **58.1%±1.7** |
+
+(Before at 150 combats a cell, after at 300; the depth1x-vs-depth1 row at 800
+both times.)
+
+Production stopped LOSING to a one-line strategy, which it had been doing. But
+both rungs gained about equally, so the gap between them barely moved: the next
+rung up still beats production by **~8pp**. Pairing was a real fix to a real
+defect. It was not the explanation for §20.3, and §20.3 is still open.
+
+### 20.5b The convergence test was itself too weak, and flipped on noise
+
+Worth recording because it is the THIRD instance of the class, after §19.11's
+two: an assertion that a noisy measurement passes by default.
+
+The first draft asserted `margin − 2σ < bar` — "we cannot SHOW a gap of `bar`
+or more". A wide interval passes that for free, and a sample-size guard does
+not save it, because the guard checks `n` while the weakness is in the
+DIRECTION of the inequality. It cost a false green immediately: across the
+pairing change the gap went 59.0%±1.7 → 58.1%±1.7, the 2σ lower bound crossed
+from 7.2pp to 4.6pp against a 5pp bar, and the test flipped red → green on
+0.9pp of noise while an 8pp gap sat there untouched. It was briefly reported as
+"pairing closed the convergence gap". It had not.
+
+It is now an equivalence test — `margin + 2σ < bar`, the gap is clearly SMALLER
+than the bar — which a wide interval fails, which is the right way round for a
+calibration claim.
+
+**The general rule, now three times learned: when a test asserts the ABSENCE of
+a problem, check which way the error bar pushes it.** If noise makes it pass,
+it is not a test.
+
+### 20.6 Still open, from the review
+
+- **The depth-0 heuristic prices three action types in three currencies**
+  (damage-scaled attack, flat 1.5 defence, flat 1.2 focus) and then squares the
+  gap via `aiSharpness`. Measured on the solved `horda` shape (150 combats,
+  2026-09-22): it plays `Contraatac` on **0.6%** of the turns it is legal while
+  the deep search plays it **50.8%**; defence is 14.2% of its decisions against
+  the deep search's 50.5%. §16.1 rightly forbids tuning the constant — but the
+  heuristic is the search's SEED, its `topK` PRUNER and the opponent model
+  inside every rollout, so its opinion gates what the search is even allowed to
+  consider.
+- **`positionScore` never reads the round clock.** The engine ends at
+  `maxRounds` with `winner: null` — a draw — but the evaluator short-circuits
+  only on a wipeout, so a stalled board at round 39 with a PV lead scores like a
+  win. This is exactly the gap the `topK: 3` comment names as the blocker for
+  widening the search ("needs the leaf evaluator to price an unfinished fight
+  first").
+- **`topK`'s top-up walks the hand in INDEX ORDER.** When the heuristic's
+  sampling does not fill `topK`, the remaining candidates are simply the
+  lowest-indexed legal cards — so which cards the search considers depends in
+  part on the order they are listed in the kit definition.
+- **Targeting is unsearched** (§20.1). On a kit of identical cards, targeting is
+  the only decision left, which is worth remembering when reading §19.6.
+
+### 20.7 The strength bar, and the `topK` pruner that was costing 36 points (2026-09-22)
+
+A bar was set on the AI's own strength, because "does it play well" had never
+been asked with a number attached: **the engine's AI must beat every fixed
+baseline at least 70% of the time** in mirror play (`STRENGTH_BAR`,
+`tests/ai-strength.test.ts`). It was deliberately set ABOVE where the AI stood
+— it beat `spam` 53.0%±2.9, a coin flip against a one-line strategy — and it is
+allowed to come down only with a measurement saying where the ceiling is.
+
+It did not need to come down. A budget sweep found the ceiling was not a ceiling
+at all; it was the pruner.
+
+```
+config                    vs spam      vs uniform   vs heuristic   ms/combat
+s2 p1 k3  (was default)    53.0%±2.9    89.0%±1.8    78.7%±2.4      2.2
+s4 p2 k3                   65.3%±2.7    89.7%±1.8    81.3%±2.2      5.2
+s8 p3 k3                   73.7%±2.5    90.0%±1.7    82.7%±2.2     11.1
+s4 p2 k0  (no pruning)     94.0%±1.4    99.0%±0.6    97.3%±0.9     10.1
+s8 p3 k0  (no pruning)     96.3%±1.1    98.7%±0.7    98.0%±0.8     22.3
+```
+
+**Removing the pruner is worth +36pp where tripling the sample is worth +9pp**,
+and `s4 p1 k0` beats `s8 p3 k3` at half the cost. The mechanism is exactly the
+one §20.6 flagged and did not connect: `topK` ranked candidates by SAMPLING
+`selectAction` — the depth-0 heuristic, which plays `Contraatac` on 0.6% of the
+turns it is legal against the full search's ~50%. A policy measured worse than
+uniform random was deciding what the good policy could look at, and it was
+excluding the defences.
+
+Second sweep, to price the trade and to check the thing the old comment feared:
+
+```
+config                   winrate vs spam   taules   rondes   ms/combat
+s2 p1 k3 (was default)    53.0%±2.9         0.0%      3.7      2.3
+s2 p1 k0                  88.7%±1.8         0.0%      3.3      3.2
+s4 p1 k0                  94.7%±1.3         0.0%      3.1      6.0
+s4 p2 k0                  94.0%±1.4         0.0%      3.0     10.2
+s2 p1 k6                  87.0%±1.9         0.0%      3.2      3.0
+```
+
+**`DEFAULT_LOOKAHEAD` and `CELL_AI` are now `{ depth: 1, samples: 4, passes: 1,
+topK: 0 }`** — where the curve flattens; a second pass buys nothing once the
+first can see the whole hand. Cost 6.0 ms against 2.3.
+
+**The old comment's fear was real, and it has been paid for.** It recorded that
+`topK: 5` once took draws from ~2% to 17.8% with p90 at the round cap, and said
+the fix was "the leaf evaluator [pricing] an unfinished fight first". That is
+the terminal check §20.6 added: a board at `maxRounds` is a DRAW, worth 0,
+because that is what `winner()` returns. With it, **draws measure 0.0% at every
+budget above, and fights get SHORTER** (3.7 → 3.1 rounds), not longer. The
+pruning was not protecting the game from stalling lines; the evaluator's blind
+spot was, and badly.
+
+**Every number measured before this is a number about a crippled search.** The
+report cards, the dead-card verdicts, the solved encounter PVs — all of it.
+
+#### Two controls broke, and both broke because the AI got better
+
+Not regressions; the premises expired.
+
+- **Requirement 1 on the flat kit** now reports a gain (+13.8pp±6.2) where the
+  control asserts it cannot have one. The control's reasoning was that four
+  IDENTICAL cards leave only the +1-per-level roll bonus, and that requirement 1
+  asks for more than that. With a search that converts the bonus into wins, it
+  does not: **requirement 1 is satisfiable by the roll bonus alone, with zero
+  card variety.** That is a real limitation of the requirement, not of the kit,
+  and it wants saying out loud.
+- **Requirement 7's gated card** is no longer flagged. `Desperate` is only legal
+  once its holder is at a third of their PV, and the control relies on that
+  correlating with losing — but a stronger party now wins those fights often
+  enough that the rate is no longer clearly under 40%. The confound the control
+  was built on got weaker.
+
+Both need rebuilding against the new AI.
+
+### 20.8 Iterating on the AI's LOGIC — what the search actually wants (2026-09-22)
+
+With `topK` gone (§20.7) the production AI sits at ~93% against `spam`, so the
+next gains have to come from logic rather than budget. Two changes tried, each
+measured on fixed baselines the AI cannot influence, at 300-400 mirror combats a
+cell.
+
+**1. Exact contest expectations, replacing a linear stand-in. KEPT.**
+
+`estimateExpectedDamage` blended `pWin × (meanA − meanD − armour)` with
+`pWin = 0.5 + 0.08 × gap`, a slope its own comment called uncalibrated. Damage
+is the MARGIN, so the honest quantity is `E[max(0, A − D − armour)]` over the
+two totals' real distributions, and the dice are small enough to convolve
+exactly and cache (`diceDistribution`, `expectedExcess` in `dice.ts`).
+Evaluating at the means is wrong in the direction that matters: 2d6 against
+1d12 and 2d6 against a flat 6.5 share an average gap and not their odds.
+
+Strength: **unchanged within noise** (heuristic vs spam 28.3% → 24.3%,
+production vs spam 94.7% → 93.3%). Kept on correctness grounds — it removes a
+free parameter rather than adding one — but it bought nothing measurable, and
+that is worth saying rather than implying otherwise. If anything it nudges
+attacks UP, since `E[max(0, ·)]` exceeds the max of the means.
+
+**2. Pricing a defense in expected PV prevented. TRIED AND REVERTED.**
+
+This is §17's reverted fix, attempted again now that there is a non-circular
+way to judge it: `w = 1 + 1.5 × estimatePreventedDamage(...)`, the exact mirror
+of what an attack is worth, judged against baselines rather than against a
+content requirement.
+
+```
+                               vs spam        vs firstLegal
+depth-0 heuristic, before       24.3%±2.5      47.7%±2.9
+depth-0 heuristic, after        18.8%±2.0      72.8%±2.2     ← much better alone
+depth-1 PRODUCTION, before      93.3%±1.4      95.7%±1.2
+depth-1 PRODUCTION, after       78.0%±2.1      91.3%±1.4     ← 15pp WORSE
+```
+
+**The heuristic played visibly better and the search that consumes it played
+visibly worse**, and that is the finding worth keeping:
+
+> Since `topK` was removed, `actionWeight` no longer chooses production's cards.
+> Its remaining job is to be the OPPONENT MODEL inside every rollout — and a
+> model that defends like a good player is a worse PREDICTOR of the field than
+> one that mostly swings. What that function owes the search is accuracy, not
+> quality.
+
+§17 was right that the flat 1.5 could not be fixed by argument, and right to
+revert it. It was wrong about why: the problem is not that there is no ground
+truth, it is that "plays better" and "models the opponent better" are different
+objectives and this function serves the second.
+
+**Consequence for anyone reading `ai.ts`:** do not "fix" the defense weight
+without measuring the SEARCH. Improving the heuristic in isolation is not
+evidence, and here it was actively misleading.
+
+### 20.9 Two controls repaired, both broken BY the AI getting better (2026-09-22)
+
+Neither was a regression. In both cases the control's premise had quietly
+depended on the AI being weak, and §20.7 took that away.
+
+**Requirement 1's flat kit — the assertion now runs the other way.** It
+asserted requirement 1 must find NO gain on four identical cards, reasoning
+that a level only adds an option already held. That forgot the other half of
+what a level is: `resolution.ts` says a roll is the card's dice PLUS your level
+in its skill, so four identical cards at level 4 hit far harder than at level 1.
+The old assertion passed only because the AI could not convert the bonus into
+wins; once it could, the kit measured +13.8pp±6.2 and the control failed.
+
+The honest version is a LIMITATION, now asserted so it cannot be forgotten:
+**requirement 1 cannot separate "the cards get better" from "every roll gets
++1", and a kit of four identical cards passes it.** A ✅ on requirement 1 is not
+evidence that a kit's levels buy any VARIETY, and every green in §5's scoreboard
+should be read with that in mind.
+
+**Requirement 7's gated card — the gate moved from a third of PV to a fifth.**
+`Desperate` is legal only once its holder is nearly dead, and the control needs
+that to correlate with losing. A party that now wins most of its fights wins
+plenty of them after one hero dips to 4 PV out of 12, so the card's
+win-when-played no longer sat clearly under the 40% floor. At 12 PV a fifth is
+2 — a hero about to die. The gates stay complementary (leave a band where
+neither card is legal and the hero falls through to `Cop desesperat`), and that
+block runs 800 fights to clear the absolute 60-play floor.
+
+**The general lesson, and it will recur:** a control whose subject is defined by
+a THRESHOLD ON THE GAME STATE ("nearly dead", "behind on PV") is calibrated
+against how well the AI plays, and will drift every time the AI changes.
+Controls defined by CONSTRUCTION — identical cards, a card that does nothing, a
+ladder that only improves — did not move at all through any of this.
+
+### 20.10 The AI is at the ceiling of its own design (2026-09-22)
+
+After §20.7 the question was whether anything was left. The answer, measured
+three ways, is: **not from budget, and not from weights.**
+
+**Budget is exhausted.** Production played against much bigger searches of the
+same design, 300 mirror combats a cell:
+
+```
+production vs s8  p2 k0   45.7%±2.9    (8× the cost)
+production vs s16 p3 k0   50.3%±2.9   (32× the cost)
+production vs s32 p3 k0   47.7%±2.9   (85× the cost)
+```
+
+All within ~1σ of even, and NON-MONOTONIC — s8 reads below s16, which is the
+signature of noise rather than a gap. An 85× search cannot beat `s4 p1 k0`.
+
+**Weights are exhausted.** Every variant played directly against current
+production, 400 mirror combats a cell. The `unchanged` cell is the control and
+it landed on exactly 50.0%, so "level" here means tested-and-level rather than
+untested:
+
+```
+bodies 12 (was 6)                   47.4%±2.5   level
+bodies 18                           47.0%±2.5   level
+bodies 3                            51.6%±2.5   level
+rollout opponent sharpness 1        48.4%±2.5   level
+rollout opponent sharpness 0.5      46.1%±2.5   level
+rollout opponent sharpness 4        50.0%±2.5   level
+pv 25 (terminal relatively bigger)  49.6%±2.5   level
+pv 5  (terminal relatively smaller) 51.5%±2.5   level
+status 20                           51.8%±2.5   level
+unchanged (CONTROL)                 50.0%±2.5   level
+```
+
+Note `bodies` moved the WRONG WAY from the theory: the argument for raising it
+was action economy (finishing a 1-PV enemy scores ~1.1 where chipping 12 PV off
+a healthy one scores ~2.5, so the evaluator prefers spreading damage to
+killing), and 12 and 18 both measured slightly worse while 3 measured slightly
+better. `pickResolveTargets` already prioritises kills, so the evaluator does
+not need to.
+
+#### Why none of it mattered, and what that implies
+
+**Fights last about three rounds, and the lookahead is depth 1.** A large share
+of rollouts therefore END the fight, where `positionScore` returns ±100 and
+every positional term is irrelevant. The leaf evaluator is mostly reading
+terminal outcomes, not positions — so it is close to a win-probability
+estimate already, which is why rescaling its terms by 3× changes nothing, and
+why more samples of the same estimate change nothing either.
+
+That is also exactly why `topK` was worth **+36pp** while every scoring weight
+is worth **zero**: what the search is short of is not a better ranking, it is
+CANDIDATES. Removing the pruner restored the missing half of the card space.
+
+**The one part of the candidate space still unexplored is TARGETS.**
+`pickResolveTargets` is a fixed heuristic run at resolution time, so "this
+attack at X" and "this attack at Y" are the same play to the search. That is
+the remaining structural lever, and the only hypothesis left with a mechanism
+behind it. A cheap form exists — optimise cards first, then run a second pass
+over targets for the chosen cards, which costs additively rather than
+multiplicatively.
+
+**Until then: no more gains. The parameter space is closed.**
+
+### 20.11 THE BIAS IS IN THE OPPONENT MODEL, NOT THE WEIGHTS (2026-09-22)
+
+Strength and bias are different questions, and §20.10 only answered the first.
+Every weight variant measured LEVEL on winrate — but an instrument can be
+exactly as strong while systematically under-playing a whole class of card, and
+every content verdict here is downstream of what the AI PLAYS. So: sweep the
+modelling choices and watch the play mix, not the winrate. Measured with
+`bench/cells.ts`'s instrument (play rate conditioned on LEGALITY, the package's
+one canonical definition), 250 combats a variant.
+
+**The evaluator weights are clean.** A 7× swing in `status`, a 6× swing in
+`bodies`, a 5× swing in `pv`:
+
+```
+variant           Atac    Defensa     Focus
+baseline    64.1%±0.5  18.4%±0.4  17.5%±0.4
+status 3    64.3%±0.5  19.5%±0.4  16.3%±0.4
+status 20   62.2%±0.5  20.5%±0.4  17.4%±0.4
+bodies 3    65.4%±0.4  18.0%±0.4  16.6%±0.3
+bodies 18   64.2%±0.5  19.4%±0.4  16.4%±0.4
+pv 5        62.7%±0.5  19.1%±0.4  18.2%±0.4
+pv 25       64.5%±0.4  18.4%±0.4  17.2%±0.3
+```
+
+No card's usage moves more than **4.2pp**. No verdict in this package rests on
+an evaluator weight — which is also why they all measured strength-level.
+
+**The rollout opponent model is NOT clean.**
+
+```
+variant                  Atac    Defensa     Focus
+rollout opp sharp 0.5  59.2%±0.6  20.3%±0.5  20.5%±0.5
+rollout opp sharp 1    62.8%±0.5  18.0%±0.4  19.2%±0.4
+baseline (sharp 2)     64.1%±0.5  18.4%±0.4  17.5%±0.4
+rollout opp sharp 4    64.4%±0.4  18.9%±0.3  16.8%±0.3
+rollout opp sharp 8    65.9%±0.4  17.5%±0.3  16.6%±0.3
+
+per card, spread across opponent models:
+  Tall precís       41.9% → 53.1%   11.2pp
+  Entrar en Fúria    1.1% →  9.2%    8.1pp    (8× relative)
+  Estat de flux      0.8% →  7.2%    6.3pp    (9× relative)
+  Contraatac        10.2% → 15.9%    5.7pp
+  Pell d'obsidiana   9.7% → 15.2%    5.5pp
+  Atac encadenat     1.7% →  7.2%    5.5pp    (4× relative)
+```
+
+Attack share moves MONOTONICALLY with how greedy the imagined enemy is, and
+individual cards move 4–9× in relative terms on a choice nobody can justify
+from the rules. `aiSharpness: 2` was picked to make the AI PLAY like a human;
+a rollout's job is not to play, it is to INTEGRATE over the card the enemy has
+face down. Those are different jobs — §20.8's lesson, arriving a second time.
+
+**And look at WHICH cards.** `Entrar en Fúria`, `Estat de flux` and
+`Atac encadenat` are among the ones requirement 4/5 calls DEAD (§19.10: "4/5 now
+fails 6/6, naming 14 dead cards"). A set-up card pays off against a RANGE of
+enemy replies; a greedy model collapses every rollout onto one line, so the
+payoff either never appears or is always punished. Soften the model and the
+value comes back.
+
+> **The 14 dead cards are not safe to act on.** Their verdict is partly a
+> property of the instrument, and the instrument's most biased knob is pointed
+> straight at them.
+
+#### What to do about it
+
+- **A verdict that flips with the opponent model is not a verdict.** Requirement
+  4/5 should measure each card under SEVERAL opponent models and call a card
+  dead only if it is dead under all of them — the robustness check is the fix,
+  not a better guess at the one true sharpness.
+- A softer rollout opponent is the better default on principle (a face-down
+  card is a distribution, not a line), and `rolloutSharpness` 1 measured level
+  on strength (48.4%±2.5). But changing it only MOVES the bias unless the
+  robustness check goes in too.
+- Note what this does NOT say: it does not say those cards are fine. It says we
+  have not measured them with an instrument that can tell.
+
+## 21. Mutation testing: can these tests actually FAIL? (2026-09-22)
+
+Three assertions have now been found in this package that could not fail at
+all — `/taules/` matched against a string that always contains it, `COSTAT
+SENCER` likewise (§19.11), and a convergence check written as `margin − 2σ <
+bar`, which any noisy sample passes for free (§20.5b). All three were found by
+READING them. Reading does not scale, and the suite is the thing every content
+decision rests on.
+
+Mutation testing is the standard answer for this and it is cheap here:
+`src/mutation.ts` injects a fault, runs the fast tests, and reports the mutant
+as KILLED or SURVIVED. A survivor is a direct indictment of a missing test.
+
+**The mutants are faults this project has actually shipped, in the lines they
+shipped in** — not random operator flips, which would score well and protect
+nothing. Dropping `marginVerdict`'s error term (§19.1), removing
+`classifyStep`'s noise floor (§12), judging a card on a sample too small to
+judge it (§19), calling a card dead on the point estimate (§17.5), zeroing
+`stderr`, making `gamesFor` return 1.
+
+**Affordable by construction.** Mutants land in the DECISION RULES, which are
+pure functions over synthetic numbers, so the kill set is the five millisecond
+files. No sweep runs per mutant; the whole sweep is seconds. The expensive
+pipeline controls are deliberately NOT in the kill set — a mutation harness
+nobody can afford to run is one nobody runs.
+
+It asserts its own premise: if the kill set does not pass UNMUTATED it refuses
+to score, because every mutant would otherwise read as killed by a failure that
+was already there.
+
+### 21.1 What the first run found
+
+**Before producing a single score, the premise guard caught a real breakage.**
+`bench.test.ts`'s "4/5 fails on the ABSOLUTE statistic" scans the SOURCE for
+`if (<expr>) dead.push` and required `<expr>` to name `bestShare` and
+`nullShare`. The §20.11 robustness refactor moved the statistic one line up
+into `deadIn`, so the test failed on a change that preserved the property
+exactly — a test asserting code SHAPE rather than behaviour. It now expands the
+guard's identifiers one level, and gained the half that was missing: an
+explicit check that the verdict never reaches `.value` (a within-hand ranking
+summing to ~zero, which is what the original comment was about).
+
+**Then one mutant survived, and it was the one that mattered.**
+
+```
+💀 SURVIVED  dead cards: call a card dead on the point estimate (§17.5)
+```
+
+Deleting the error term from requirement 4/5's deadness rule passed every fast
+test. The cause was structural: `marginVerdict`, `classifyStep`,
+`durationVerdict` and `correlatesWithLosing` are all pure exported functions
+with rule tests — deadness was the one decision still INLINE in `analyze`, so
+no unit test could reach it.
+
+Fixed by extracting `isDeadCard(bestShare, bestStderr, nullShare)` and giving
+it four tests, including the mutant itself (a card with the same point estimate
+and null as a dead one, but an interval wide enough to reach it, must NOT be
+flagged) and a monotonicity property: a noisier measurement must never flag
+MORE cards. **Score now 9/9.**
+
+### 21.2 Why this matters for the card verdicts
+
+The "14 dead cards" of §19.10 were resting on a rule that had **no unit test**
+— one edit from silently losing its error bar — while §20.11 shows those same
+cards swing 4–9× with the opponent model. Two independent reasons the verdicts
+were not safe to act on, neither of which was visible from the report card.
+
+### 21.3 Where to take it next
+
+- **Extend the kill set upward.** Mutants in `bench/cells.ts` and
+  `bench/regret.ts` (the measurement layer, not just the judgement layer) need
+  a control that is cheap enough to be in the kill set.
+- **Engine mutants need a rebuild per mutant** — the simulator consumes built
+  `dist/`. Worth it for `resolution.ts`, which is where the rules themselves
+  live.
+- **Make the score a test** once it is stable, so a new requirement cannot ship
+  with an unfailable assertion.
+
+### 21.4 Extended to the measurement layer and the engine (2026-09-22)
+
+Nine mutants became fifteen. The new ones leave the JUDGEMENT layer, which is
+where the easy wins were, for the two places a fault would be most expensive:
+
+- **`bench/regret.ts`** — the measurement itself. Decided positions no longer
+  dropped (§19.5 fault 3, which dragged every card toward its own null), a tie
+  for best split instead of credited (fault 4, which made two identical attacks
+  both read dead), and the null losing its self-calibration (§19.7, where a
+  flat `1/k` understated chance by half again).
+- **`engine/src/resolution.ts`** — where the RULES live. A tie going to the
+  attacker instead of holding for the defense; armour ceasing to reduce damage;
+  every contest teaching instead of only close ones. A suite that cannot notice
+  "a tie now goes to the attacker" is not guarding the game at all.
+
+Engine mutants are marked `rebuild`: the simulator consumes the engine as built
+`dist/`, so each costs a ~10s rebuild. That is the price of covering the rules,
+and it is worth paying.
+
+### 21.5 Why the score is a SCRIPT and not a test
+
+`pnpm --filter @pimpampum/simulator mutation`, deliberately outside the suite.
+
+The harness edits the package's own source in place, and the suite now runs
+files in PARALLEL FORKS (§20.7's cost work). A mutation test would therefore be
+rewriting the instrument while sibling workers import it — producing numbers
+nobody could explain, which is precisely the failure this whole layer exists to
+prevent. `src/mutation.ts` refuses to run when `VITEST` is set, so
+`harnesses.test.ts` still proves it executes and nothing more.
+
+Making it a test safely means mutating a COPY, and a copy outside the workspace
+cannot resolve the package's `node_modules`. That is the real blocker, and it is
+recorded here rather than worked around badly.
+
+**So the discipline is procedural, not enforced:** run the mutation script when
+adding or changing a REQUIREMENT, the same way `/analyze` is run when changing
+content. If it ever becomes enforceable cheaply, it should be.
+
+## 22. Exploitability and the strategy triangle (2026-09-22)
+
+Two standard evaluations this package has never done, both about whether the
+INSTRUMENT can be trusted rather than whether the game is good.
+`src/exploitability.ts`, `pnpm --filter @pimpampum/simulator exploitability`.
+
+**Exploitability.** Beating fixed stupidity (`ai-strength.test.ts`) is a floor.
+The standard measure of a game agent is the strength of a BEST RESPONSE — a
+counter-strategy chosen knowing the agent. A true one needs training; what is
+affordable is a best response over a SIMPLE POLICY CLASS: every "repeat one
+card" policy plus every action-type restriction, maximised over the class. A
+weak bound, but a real one, and cheap because `bench/cells.ts` already builds
+that class. A policy nobody can exploit measures the game; one with a hole
+measures its own hole, and every card verdict downstream inherits it.
+
+**The triangle.** `intentions.md` claims Power > Protect > Aggro — a CYCLE, and
+a single strength number cannot express one. (The Elo literature is explicit
+that ratings collapse exactly the intransitivity that makes such a design
+interesting.) So it is read off the pairwise matrix of the three restricted
+policies, which are precisely those three strategies.
+
+It is REPORTED, not asserted. §15.6 already measured that the triangle does not
+hold — restricting a side to attacks costs it nothing — and a test insisting on
+it would be arguing with its own measurement. The harness prints which of the
+three relations exist and whether they close into a cycle, so the design's
+central claim stops being a thing that is remembered and becomes a thing that
+is measured.
+
+### 22.1 First results: not exploitable, and the triangle is not a triangle (2026-09-22)
+
+200 mirror combats a cell, against the post-§20.7 AI.
+
+**Exploitability: none found.** The best response over the whole simple class —
+21 policies, every single-card repeat plus every type restriction — scores
+**49.5%±3.5** against production. Nothing in that class beats it. A weak bound
+by construction (a trained best response could do better), but the obvious
+holes are not there, and that is what the bound was for.
+
+**The triangle is a strict ORDER, not a cycle.**
+
+```
+row vs column, row's winrate      Aggro      Protect      Power
+   Aggro   (només atacs)            —       57.3%±3.5   30.3%±3.2
+   Protect (només defenses)     43.3%±3.5       —       24.3%±3.0
+   Power   (només focus)        70.0%±3.2   74.0%±3.1       —
+```
+
+**Power > Aggro > Protect**, every relation outside its error bar, no cycle.
+`intentions.md` asks for Power > Protect > Aggro > Power. What is measured is
+Power beating BOTH others decisively and Protect coming last — the opposite of
+the design's middle term.
+
+This also overturns §15.6, which had it the other way round ("a side restricted
+to DEFENSES beats free play on two of four shapes"). That was measured through
+the `topK: 3` AI, which almost never defended and therefore never found out
+what defending was worth; with the pruner gone the ordering reverses. One more
+number that was really about the instrument.
+
+**Two things follow, and they are different.**
+
+- For the INSTRUMENT: this is now a standing measurement rather than a
+  remembered claim, and it is not exploitable, so it can be trusted to report
+  the ordering honestly.
+- For the GAME: the central design intention of `intentions.md` does not hold.
+  Focus-only play dominates, defence-only play is dominated by everything. That
+  is a CONTENT finding and a big one — and, unlike the dead-card verdicts, it
+  does not depend on a knob nobody can justify: it is three restricted policies
+  playing each other, measured at 200 combats a cell with every gap far outside
+  its interval.
+
+Not acted on. It wants a design decision, and `intentions.md` is the document
+that has to move first.
+
+## 23. The package refactor, and how each requirement gets upheld (plan, 2026-09-22)
+
+### 23.1 Why: sets
+
+This is not one game. It is an engine, a measurement framework, and N CONTENT
+SETS (fantasy now; a Star Wars set, a hard-SF set later). Every set must satisfy
+the same requirements on its own cards, so the framework has to be a LIBRARY a
+set calls, not a program that sweeps "the" content.
+
+**The blocker, measured:** 9 of 13 `bench/` modules import `@pimpampum/skills`
+or `@pimpampum/enemies` directly — `reference.ts` names the calibration kits,
+`shapes.ts` names the enemies, `arena.ts` builds parties, `cache.ts`
+fingerprints content. The measurement layer is welded to one set.
+
+### 23.2 The `GameSet` contract
+
+The linchpin. A set implements it; bench and playtest take it as a parameter.
+
+```ts
+interface GameSet {
+  id: string;
+  registry(): EffectRegistry;        // createRegistry + registerEnemySkills
+  kits(): SkillDefinition[];
+  enemies(): EnemyDefinition[];
+  buildParty(spec: PartySpec): Character[];
+  buildEncounter(groups: FieldedGroup[]): Character[];
+  /** SET-SPECIFIC CALIBRATION — not framework, content. */
+  referenceParty(): PartySpec;
+  shapes(): Shape[];
+  print(): string;                   // fingerprint, for the bench cache
+}
+```
+
+Note what moves OUT of bench and into the set: `reference.ts` and `shapes.ts`.
+Which kits form the reference party and which creatures form a fair fight are
+properties of a SET, not of measurement. That they lived in bench is why bench
+could never have served a second set.
+
+### 23.3 Packages
+
+```
+engine        rules only. no AI, no content.                  (no deps)
+ai            selectAction, lookahead, positionScore          → engine
+bench         set-AGNOSTIC measurement: arena, cells, regret,
+              report, games, cache, parallel, combatlog       → engine, ai
+playtest      requirement verdicts + the assertion API,
+              + synthetic control kits                        → engine, ai, bench
+balancer      encounter solver                                → engine, ai
+sets/fantasy  content + its own calibration + its own tests   → engine (+ playtest dev)
+web           the app                                         → engine, ai, set, balancer
+```
+
+`simulator` dissolves: `bench/` → bench, `kit-analyzer-lib` → playtest, the
+harnesses and dev tools stay behind as `tools` (ai-benchmark, exploitability,
+mutation, profile-lookahead, play, probe-shapes).
+
+### 23.4 Tests, per layer
+
+**engine** — fast, deterministic, NO content and NO AI.
+resolution math · status seams · combat flow (guards, interrupts, rounds) ·
+legality (`availableActionIndices`, `canPlayAction`). Mutation-verified.
+
+**ai** — fast + statistical, on SYNTHETIC kits, never on a real set.
+fast: predictions match what the engine rolls · the search simulates the round
+it is choosing for · a restricted search obeys its restriction · terminal
+values agree with `winner()`.
+statistical: beats fixed baselines ≥70% · monotone in compute · converged ·
+not exploitable.
+*Using synthetic kits matters: the AI must be verifiable without any set, or
+every set inherits the fantasy set's quirks in its instrument.*
+
+**bench** — fast, on synthetic numbers.
+report maths (error bars, `gamesFor`, significance) · the sample-size seam ·
+regret's statistical rules (tie credit, decided positions, self-calibrating
+null) · source conventions.
+
+**playtest** — fast + statistical, on SYNTHETIC content.
+fast: the requirement RULES (`marginVerdict`, `isDeadCard`, `durationVerdict`,
+`classifyStep`, `correlatesWithLosing`).
+statistical: the PIPELINE controls — flat kit, ladder kit, dead-card kit,
+situational kit, turtle, blitz, losing-only — subjects whose verdict follows
+from construction.
+
+**sets/fantasy** — THE CONTENT VERDICTS. See below.
+
+### 23.5 How per-card, per-kit and per-set requirements are upheld
+
+A set's test files are short and declarative. The framework supplies the
+assertions; the set supplies the content and the calibration.
+
+```ts
+// sets/fantasy/src/tests/kits/berserk.slow.test.ts     ← ONE FILE PER KIT
+import { playtest } from '@pimpampum/playtest';
+import { FANTASY } from '../../index.js';
+
+const pt = playtest(FANTASY, { kit: 'berserk' });   // one measured sweep
+
+describe('berserk', () => {
+  // PER CARD — both tails. Power tiers are fine (intentions.md); what is not
+  // fine is a card that is never the right play, or one that is so often the
+  // right play that the decision disappears.
+  it.each(pt.cards)('$name is ever the right play', c => pt.expectNotDead(c));
+  it.each(pt.cards)('$name does not erase the decision', c => pt.expectNotAutoInclude(c));
+
+  // PER KIT
+  it('sits inside the power band vs a neutral kit', () => pt.expectKitInBand());
+  it('gets stronger with level', () => pt.expectLevelRamp());
+});
+```
+
+```ts
+// sets/fantasy/src/tests/set.slow.test.ts             ← PER SET
+const pt = playtest(FANTASY);
+it('the strategy triangle is a cycle', () => pt.expectTriangle());
+it('fights run to length', () => pt.expectDuration());
+it('armour stays a small lever (≤15pp, even across enemies)', () => pt.expectArmourSwing());
+it('encounters solve to the difficulty requested', () => pt.expectBalancerAccuracy());
+it('equal-budget mirrors land near 50/50', () => pt.expectMirrorParity());
+```
+
+**Why one file per kit.** Each kit needs ONE measured sweep, and that sweep
+yields every card verdict in it — the per-decision value is amortised across
+the kit, so per-card checks cost nothing extra. vitest parallelises by FILE, so
+a file per kit runs every kit concurrently. Adding a kit adds a file and a core,
+not a longer wait.
+
+**Design intentions are ADVISORY, not assertions.** Speed bands, the dice
+curve, the power ramp, type diversity by level 2-3 — `intentions.md` says
+"exceptions are allowed and interesting" and "deliberate power tiers are fine",
+so a defense weaker than an attack is legitimate when it buys an upside.
+Asserting these would manufacture failures and be deleted the first time they
+were inconvenient. They become a design-time REPORT — "these cards sit outside
+the usual bands, deliberate?" — printed by `pnpm --filter set-fantasy design`,
+never failed on. The verdicts stay with measurement.
+
+### 23.6 Order
+
+1. `ai` out of `engine` (breaks the engine↔AI cycle: the engine takes an
+   injected chooser, `aiDepth` moves to callers).
+2. `bench` package, with `GameSet` threaded through it.
+3. `playtest` package: verdicts + assertion API + control kits.
+4. `balancer` out of `enemies`.
+5. `sets/fantasy`: merge skills + enemies, move `reference`/`shapes` in, write
+   the per-kit and per-set test files.
+6. `tools`: what is left of simulator.
+
+---
+
+## 24. Step 2–3 landed: the instrument no longer knows the game
+
+Done, green: `pnpm build` clean across the workspace, 119 fast tests in 0.6 s,
+mutation score 15/15.
+
+`@pimpampum/bench` now takes its content as a parameter. `GameSet` (in
+`bench/src/gameset.ts`) is the contract; `FANTASY` (in
+`packages/sets/fantasy/src/index.ts`) is the only implementation and is pure
+adapter — delete it and bench still compiles, still runs its own tests, and
+simply has no content installed. That is the property that makes a second set
+possible, and it is the one thing the old layout could never have.
+
+Installed once per process: `useSet(FANTASY)`. Bench **throws** when it is
+missing rather than defaulting, and the error names the fix. A measurement
+layer that silently measures default content is the failure this whole section
+exists to prevent.
+
+### 24.1 What the move deleted
+
+- **A second party generator.** `bench/arena.ts` carried its own
+  `randomPlayer` — its own equipment distribution, its own weapon rule —
+  alongside `skills/party.ts`, which is what the balancer prices with. Two
+  generators that disagree about what a typical party looks like is two answers
+  to every question asked of "a typical party". The draw is `GameSet.randomParty`
+  now, and there is one of it.
+- **`tests/helpers.ts`**, a pure re-export alias left behind by an earlier move.
+- **`REGISTRY` as a module-level constant.** It is `theRegistry()` now, memoised
+  per set: a constant would be built at import time, before any `useSet()`, and
+  would have thrown on every import of the package.
+- **`MIRROR_PARTY` as a constant**, for the same reason → `mirrorParty()`.
+
+### 24.2 The cache had to learn about sets
+
+`key()` mixes `theSet().id` in alongside `enginePrint()`. Two sets ask
+structurally identical questions — "the neutral baseline of company row 0 on
+shape 0" — and without the id the second set to run would be served the first
+set's answer. `skillPrint`/`enemyPrint` delegate to the set (only it knows which
+actions hang off an id) and memoise under `setId:kind:id`.
+
+### 24.3 The convention suite was scanning the wrong tree
+
+`tests/bench.test.ts` walked `simulator/src`, which used to be the repo's entire
+measurement layer. After the move it was watching the leftovers. It now scans
+`simulator`, `bench`, `ai` and every `sets/*`, with package-qualified paths in
+the failure messages — and passes, which is the useful part: the moved code
+already obeyed the rules.
+
+This is the convention suite's own failure mode, applied to itself. Worth
+remembering the next time code moves.
+
+### 24.4 TWO LIVE BUGS, both found by moving the code
+
+**1. Every regret rollout would have thrown.** `regret.ts:rollout` did:
+
+```ts
+Object.assign(sim, aiPolicy({ depth: opts.rolloutDepth }));
+sim.actionChooser = undefined;   // the clone's own policy, not the harness's
+```
+
+The second line cleared the policy the first line had just installed. The clone
+then reached `planActions` with no chooser and the engine threw for the first
+unforced seat — which it does *by design*, since §23 removed the silent
+fallback. Introduced when `aiDepth`/`lookaheadPick` left the engine; invisible
+because per-decision card value only runs in the slow tier, which has been
+unverified since the split.
+
+**The slow tier being unverified is not a scheduling detail. It is how a total
+break in the card-value pipeline survived a week.** Fixing that is the next
+item after the refactor.
+
+**2. The `wasBest` tie mutant had been scored as a kill it never earned.**
+While `regret.ts` lived in the simulator it ran through `tsx`, which transpiles
+without typechecking. The mutant patched `isBest` to reference `topCount`, a
+`const` declared on the *next* line; the kill set died of a TDZ
+`ReferenceError`, and a crash read as a kill. Moving the module to a package
+consumed as built `dist/` turned the crash into a compile error. Rewritten to
+compile (both lines, swapped), the mutant **survived**: nothing in the fast tier
+checked the tie rule at all.
+
+Fixed by the duplicate-invariance tests now in `ai-rules.test.ts` — the first
+metamorphic relation in the suite, and an exact one rather than a statistical
+one: under common random numbers two identical cards replay the identical
+rollout, so the tie is guaranteed rather than probable. Score is 15/15 again,
+this time earned.
+
+**The general lesson: a mutant that crashes is not a mutant that was caught.**
+Every mutant should be checked to COMPILE, not merely to produce a red suite.
+`build()` now does this for free for cross-package mutants — it runs `tsc` —
+which is why moving the code exposed it. The mutants that still live inside
+`simulator/src` do not get that check, and should.
+
+### 24.5 Seeds must be pinned in tests that call `valuePosition`
+
+It draws its per-position seed from the global stream, so three tests in one
+file get three different positions depending on what ran before them. Roughly
+one position in eight comes back **decided** (every branch scores the same),
+which `valuePosition` correctly returns `null` for — and which reads as a flaky
+test rather than as the non-decision it is. Wrap in `withSeed`, and assert the
+premise (the position is a decision) rather than assuming it.

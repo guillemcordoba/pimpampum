@@ -9,8 +9,12 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-seat.ts
  */
 import { withSeed } from '@pimpampum/engine';
-import { randomTeam, runMatch } from './bench/arena.js';
-import { games } from './bench/games.js';
+import { games, randomTeam, runMatch, useSet } from '@pimpampum/bench';
+import { FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 const GAMES = games(8000);
 /** Seeded so a re-run answers the same question. Seat bias is a property of

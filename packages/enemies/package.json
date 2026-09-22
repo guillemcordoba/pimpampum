@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*",
-    "@pimpampum/skills": "workspace:*"
+    "@pimpampum/skills": "workspace:*",
+    "@pimpampum/ai": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

@@ -20,9 +20,14 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/probe-shapes.ts
  */
 import { simulateEncounter, solveEncounter } from '@pimpampum/enemies';
-import { COMPANY, FAIR, SATURATION, calibrationKit, calibrationParty } from './bench/shapes.js';
-import { exact, pct } from './bench/report.js';
-import { searchGames, SMOKE } from './bench/games.js';
+import {
+  calibrationKit, calibrationParty, COMPANY, FAIR, SATURATION,
+ FANTASY } from '@pimpampum/set-fantasy';
+import { exact, games, pct, searchGames, SMOKE, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -41,7 +46,7 @@ const CANDIDATES: { label: string; pool: (n: number) => { enemyId: string; count
 ];
 
 /** Games per company when re-measuring a solved count. */
-const CHECK_GAMES = 400;
+const CHECK_GAMES = games(400);
 
 console.log(
   `CALIBRATGE DE FORMES · objectiu ${FAIR * 100}% (només una diana; el que compta és la saturació)`

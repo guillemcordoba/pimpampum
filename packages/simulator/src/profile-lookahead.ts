@@ -1,12 +1,20 @@
 /** Where does a depth-1 decision actually spend its time? clone / resolve /
  *  score, measured on the reference fight. Determines whether the lookahead's
  *  cost is a constant factor worth optimising or an inherent one. */
-import { CombatEngine, positionScore, setAIControlled, bestResponse } from '@pimpampum/engine';
+import {
+  CombatEngine, setAIControlled,
+} from '@pimpampum/engine';
+import {
+  positionScore, bestResponse, aiPolicy, selectAction,
+} from '@pimpampum/ai';
 import { buildReferenceParty, type PartySpec } from '@pimpampum/skills';
 import { buildComposition } from '@pimpampum/enemies';
-import { REGISTRY } from './bench/arena.js';
-import { referenceParty } from './bench/reference.js';
-import { games } from './bench/games.js';
+import { games, theRegistry, useSet } from '@pimpampum/bench';
+import { referenceParty, FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 /** The reference table (bench/reference.ts) — named kits, asserted Σ, one
  *  definition for the whole package. It used to be re-derived here as
@@ -20,7 +28,7 @@ function fresh(): CombatEngine {
   const enemies = buildComposition([{ enemyId: 'goblin', count: 4, level: 3, pv: 20 }]);
   // Depth 0 by design: this script drives `bestResponse` by hand to time it,
   // so the engine must NOT be running a lookahead of its own.
-  return new CombatEngine(players, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 0 });
+  return new CombatEngine(players, enemies, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 0 }) });
 }
 
 /** Scales every timing loop, so the smoke run can do two reps of each. */
@@ -38,7 +46,7 @@ time('engine.clone()', Math.max(1, Math.round(2000 * SCALE)), () => { e.clone();
 time('positionScore()', Math.max(1, Math.round(20000 * SCALE)), () => { positionScore(e, 0); });
 time('clone + resolve one round', Math.max(1, Math.round(500 * SCALE)), () => {
   const sim = e.clone();
-  sim.aiDepth = 0;
+  sim.actionChooser = (e, a) => selectAction(e, a).actionIdx;
   sim.prepareRound();
   sim.planActions([]);
   let s = sim.resolveNextAction();

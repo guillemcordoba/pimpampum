@@ -1,3 +1,6 @@
+// bench-exempt(sample): a scripted hand-played round with no sampling at all —
+// there is no sample size to turn down, which is why harnesses.test.ts runs it
+// as-is to prove it still executes.
 /**
  * Manual play harness — drive a combat by hand, one round at a time, with a
  * SEEDED rng so the same script always replays the same game.
@@ -12,6 +15,7 @@
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/play.ts
  */
 import { CombatEngine, ActionType, Character, TargetRef } from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
 import { createRegistry, buildCharacter } from '@pimpampum/skills';
 import { createEnemy, registerEnemySkills } from '@pimpampum/enemies';
 
@@ -64,7 +68,7 @@ const players = PLAYERS.map(p => buildCharacter(
 const enemies = Array.from({ length: ENEMY_COUNT }, (_, i) => {
   return createEnemy('goblin', { level: ENEMY_LEVEL, name: `Gob${i + 1}`, pv: ENEMY_PV })!;
 });
-const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40, aiDepth: AI_DEPTH });
+const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40, ...aiPolicy({ depth: AI_DEPTH }) });
 
 
 const TYPE_NAMES: Record<string, string> = {

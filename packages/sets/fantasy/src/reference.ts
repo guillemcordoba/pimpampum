@@ -20,8 +20,10 @@
  * load. A content change that moves the benchmark now throws, at import, with
  * the numbers in the message — instead of quietly rebasing the scoreboard.
  */
-import { ALL_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_PV, PLAYER_SKILLS } from '@pimpampum/skills';
-import type { CharacterBuildSpec, PartySpec, SkillDefinition } from '@pimpampum/skills';
+import {
+  ALL_SKILLS, type CharacterBuildSpec, COMPLEMENTARY_SKILLS, type PartySpec, PLAYER_PV,
+  PLAYER_SKILLS, type SkillDefinition,
+} from '@pimpampum/skills';
 
 /**
  * The four kits at the reference table, BY ID. Not a slice — the point is that

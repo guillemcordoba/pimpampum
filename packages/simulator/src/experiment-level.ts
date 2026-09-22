@@ -9,8 +9,12 @@
  */
 import { solveEncounter, TARGET_WINRATES, getEnemy, fullKitLevel } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
-import { exact, pct } from './bench/report.js';
-import { searchGames, SMOKE } from './bench/games.js';
+import { exact, pct, searchGames, SMOKE, useSet } from '@pimpampum/bench';
+import { FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 const party: PartySpec = { count: 4, levels: [5, 5, 5, 5], armor: [1, 1, 1, 1] };
 const TARGET = TARGET_WINRATES.hard;

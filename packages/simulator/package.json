@@ -5,12 +5,19 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mutation": "tsx src/mutation.ts",
+    "exploitability": "tsx src/exploitability.ts",
+    "test:slow": "SLOW=1 vitest run src/tests/*.slow.test.ts",
+    "test:all": "SLOW=1 vitest run"
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*",
     "@pimpampum/skills": "workspace:*",
-    "@pimpampum/enemies": "workspace:*"
+    "@pimpampum/enemies": "workspace:*",
+    "@pimpampum/ai": "workspace:*",
+    "@pimpampum/bench": "workspace:*",
+    "@pimpampum/set-fantasy": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

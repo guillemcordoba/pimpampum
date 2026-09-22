@@ -10,12 +10,18 @@
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-fatigue-penalty.ts
  */
-import { Character, CombatModifier, ModifierDuration, newCombatStats, setAIControlled, withSeed, CombatEngine } from '@pimpampum/engine';
-import { solveEncounter } from '@pimpampum/enemies';
-import { buildSolvedEncounter } from '@pimpampum/enemies';
-import { REGISTRY, randomTeam } from './bench/arena.js';
-import { pct } from './bench/report.js';
-import { games } from './bench/games.js';
+import {
+  Character, CombatEngine, CombatModifier, ModifierDuration, newCombatStats,
+  setAIControlled, withSeed,
+} from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
+import { buildSolvedEncounter, solveEncounter } from '@pimpampum/enemies';
+import { games, pct, randomTeam, theRegistry, useSet } from '@pimpampum/bench';
+import { FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 const GAMES = games(800);
 
@@ -45,7 +51,7 @@ function mirror(amount: number, scope: Scope): void {
       const A = randomTeam('A', 3, 6);
       const B = randomTeam('B', 3, 6);
       setAIControlled(A); setAIControlled(B);
-      const engine = new CombatEngine(A, B, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+      const engine = new CombatEngine(A, B, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
       penalize(A, amount, scope);
       const w = engine.runCombat(stats).winner;
       if (w === 0) a++; else if (w === null) d++;
@@ -64,7 +70,7 @@ function encounter(amount: number, scope: Scope, enc: ReturnType<typeof solveEnc
       const party = randomTeam('P', 4, 7);
       const enemies = buildSolvedEncounter(enc);
       setAIControlled(party); setAIControlled(enemies);
-      const engine = new CombatEngine(party, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+      const engine = new CombatEngine(party, enemies, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
       // ONCE, and AFTER the constructor: it resets every modifier, so a call
       // before it is silently discarded. There used to be one on either side —
       // dead today, and a double penalty the day the constructor stops doing

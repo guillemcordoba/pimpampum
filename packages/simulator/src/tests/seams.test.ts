@@ -5,11 +5,11 @@
 // measurements.
 import { describe, it, expect } from 'vitest';
 import {
-  ActionDefinition, ActionType, Character, CombatEngine,
-  createCharacter, DiceRoll, StatusBehavior, FATIGUE_MAX_LEVEL,
+  ActionDefinition, ActionType, Character, CombatEngine, checkSkillUp, resolveAttack, resolveDamage,
+  createCharacter, DiceRoll, StatusBehavior, FATIGUE_MAX_LEVEL, firstLegalChooser,
 } from '@pimpampum/engine';
 import { buildCharacter } from '@pimpampum/skills';
-import { REGISTRY } from './helpers.js';
+import { theRegistry } from '@pimpampum/bench';
 
 /**
  * Deterministic tests for the engine's generic StatusBehavior seams. Statuses
@@ -87,7 +87,7 @@ describe('StatusBehavior query seams', () => {
     };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac();
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('ultim-ale', 1, -1, undefined, FLOOR_1);
     engine.applyPvLoss(a, 999);
     expect(a.currentPV).toBe(1);
@@ -107,7 +107,7 @@ describe('StatusBehavior query seams', () => {
       blocksActionType(_ref, type) { return type !== ActionType.Focus; },
     };
     const a = makeChar('A', 20, [atkDef(), focusDef(), defenseDef()]);
-    const engine = new CombatEngine([a], [sac()], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [sac()], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('enterrat', 1, -1, undefined, NOMES_FOCUS);
     expect(engine.canPlayActionIdx(a, 0)).toBe(false);
     expect(engine.canPlayActionIdx(a, 1)).toBe(true);
@@ -121,7 +121,7 @@ describe('StatusBehavior query seams', () => {
     const IN_MINUS_2: StatusBehavior = { modifyIncomingDamage(_ref, dmg) { return dmg - 2; } };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac(50);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('verí-a-la-fulla', 1, -1, undefined, OUT_3);
     b.setStatus('pell-de-pedra', 1, -1, undefined, IN_MINUS_2);
     runRound(engine, [{ idx: 0, actionIdx: 0 }]); // 1 (1d1) + 3 − 2 = 2
@@ -138,7 +138,7 @@ describe('StatusBehavior query seams', () => {
     };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac(50);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     b.setStatus('marca', 1, -1, undefined, WOUND_5_ONCE);
     runRound(engine, [{ idx: 0, actionIdx: 0 }]); // 1 + 5
     expect(b.currentPV).toBe(44);
@@ -153,7 +153,7 @@ describe('StatusBehavior query seams', () => {
     const guard = makeChar('Guard', 20, [defenseDef()]);
     const attacker = makeChar('Attacker', 20, [atkDef()]);
     attacker.aiControlled = true;
-    const engine = new CombatEngine([target, guard], [attacker], { registry: REGISTRY });
+    const engine = new CombatEngine([target, guard], [attacker], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     // Guarded (rollBonus 1000): the attack is always blocked.
     runRound(engine, [
@@ -178,7 +178,7 @@ describe('StatusBehavior query seams', () => {
     const guard = makeChar('Guard', 20, [defenseDef()]);
     const attacker = makeChar('Attacker', 20, [atkDef()]);
     attacker.aiControlled = true;
-    const engine = new CombatEngine([target, guard], [attacker], { registry: REGISTRY });
+    const engine = new CombatEngine([target, guard], [attacker], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     // Refresh the absorb stance each round like a defense action would.
     engine.prepareRound();
@@ -205,7 +205,7 @@ describe('StatusBehavior query seams', () => {
     };
     const a = makeChar('A', 20, [atkDef('primera'), atkDef('segona')]);
     const b = sac();
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('flux-test', 2, -1, undefined, SWAP);
 
     engine.prepareRound();
@@ -241,7 +241,7 @@ describe('StatusBehavior engine seams', () => {
     };
     const a = makeChar('A', 20, [atkDef(), focusDef()]);
     const b = sac(100);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     engine.prepareRound();
     a.setStatus('cadena-test', 1, -1, { armedRound: engine.round }, CHAIN);
@@ -277,7 +277,7 @@ describe('StatusBehavior engine seams', () => {
     };
     const a = makeChar('A', 200, [atkDef()]);
     const layer = sac(500);
-    const engine = new CombatEngine([a], [layer], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [layer], { registry: theRegistry(), actionChooser: firstLegalChooser });
     layer.setStatus('mines-test', 3, -1, undefined, MINES);
 
     for (let i = 0; i < 60 && layer.hasStatus('mines-test'); i++) {
@@ -293,7 +293,7 @@ describe('StatusBehavior engine seams', () => {
     };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac(50);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('adrenalina-test', 1, 1, undefined, DOUBLE_ONCE);
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
     expect(b.currentPV).toBe(48); // two 1d1 swings
@@ -309,7 +309,7 @@ describe('StatusBehavior engine seams', () => {
     };
     const a = makeChar('A', 20, [atkDef(), focusDef()]);
     const b = sac(50);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('adrenalina-test', 1, 1, undefined, DOUBLE_ONCE);
     runRound(engine, [{ idx: 0, actionIdx: 1 }]); // focus — the surge fizzles
     expect(a.hasStatus('adrenalina-test')).toBe(false);
@@ -325,7 +325,7 @@ describe('StatusBehavior engine seams', () => {
     };
     const a = makeChar('A', 20, [focusDef()]);
     const b = sac(50);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('crema-test', 2, 3, undefined, TICK_2);
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
@@ -340,7 +340,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     const d2 = makeChar('D2', 20, [defenseDef('bloc2', { dice: new DiceRoll(1, 1), rollBonus: 0 }), focusDef()]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus, ...opts })]);
     e.aiControlled = true;
-    const engine = new CombatEngine([d1, d2], [e], { registry: REGISTRY });
+    const engine = new CombatEngine([d1, d2], [e], { registry: theRegistry(), actionChooser: firstLegalChooser });
     return { d1, d2, e, engine };
   }
   const blockE = [
@@ -397,7 +397,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     const d1 = makeChar('D1', 20, [defenseDef('g1', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
     const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
-    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
       { team: 0, idx: 0, actionIdx: 0 },
       { team: 0, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D1 guards A
@@ -414,7 +414,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     const d1 = makeChar('D1', 20, [focusDef()]);
     const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
-    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }, // A defends (guards D1) → self-guard active
       { team: 0, idx: 1, actionIdx: 0 },
@@ -430,7 +430,7 @@ describe('bloqueig conjunt (summed wall)', () => {
     const d1 = makeChar('D1', 20, [defenseDef('g1', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
     const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 5 })]);
-    const engine = new CombatEngine([a, d1, d2], [e], { registry: REGISTRY });
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
       { team: 0, idx: 0, actionIdx: 0 },
       { team: 0, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
@@ -474,7 +474,7 @@ describe('fatigue level', () => {
     const a = makeChar('A', 20, [atkDef()]);
     a.setFatigue(FATIGUE_MAX_LEVEL);
     const enemy = sac(50);
-    const engine = new CombatEngine([a], [enemy], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [enemy], { registry: theRegistry(), actionChooser: firstLegalChooser });
     expect(engine.canPlayActionIdx(a, 0)).toBe(true);
     runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
     expect(a.fatigue).toBe(FATIGUE_MAX_LEVEL);
@@ -485,7 +485,7 @@ describe('fatigue level', () => {
 
     a.setFatigue(2);
     const enemy = sac(50);
-    const engine = new CombatEngine([a], [enemy], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [enemy], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
     expect(enemy.currentPV).toBe(46); // 6 − 2
   });
@@ -497,7 +497,7 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
     // Flat 3d1, so the doubling is the only thing being measured.
     const lluitador = makeChar('Lluitador', 20, [atkDef('hit', { dice: new DiceRoll(3, 1) })]);
     const enemy = sac(50);
-    const engine = new CombatEngine([metge, lluitador], [enemy], { registry: REGISTRY });
+    const engine = new CombatEngine([metge, lluitador], [enemy], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     const injIdx = metge.actions.findIndex(x => x.def.id === 'injeccio-adrenalina');
     runRound(engine, [
@@ -515,7 +515,7 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
     const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
     const ferit = makeChar('Ferit', 20, [focusDef()]);
     const enemy = sac(50);
-    const engine = new CombatEngine([metge, ferit], [enemy], { registry: REGISTRY });
+    const engine = new CombatEngine([metge, ferit], [enemy], { registry: theRegistry(), actionChooser: firstLegalChooser });
     ferit.currentPV = 5;
 
     const curesIdx = metge.actions.findIndex(x => x.def.id === 'cures-de-camp');
@@ -548,7 +548,7 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
     const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: defBonus }), focusDef()]);
     const e1 = makeChar('E1', 50, [atkDef('obre', { speed: 3 })]);
     const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: flankBonus, effects: [{ type: 'flanking' }] })]);
-    const engine = new CombatEngine([d], [e1, e2], { registry: REGISTRY });
+    const engine = new CombatEngine([d], [e1, e2], { registry: theRegistry(), actionChooser: firstLegalChooser });
     return { d, engine };
   }
   const bothAtD = [
@@ -569,7 +569,7 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
     // Same numbers, but E2 attacks alone: 4 vs 6 → blocked.
     const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: 5 })]);
     const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: 3, effects: [{ type: 'flanking' }] })]);
-    const engine = new CombatEngine([d], [e2], { registry: REGISTRY });
+    const engine = new CombatEngine([d], [e2], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
@@ -600,7 +600,7 @@ describe('combat cloning (the lookahead primitive)', () => {
   it('a clone plays forward without touching the original', () => {
     const a = makeChar('A', 20, [atkDef('cop', { rollBonus: 5 })]);
     const b = sac(30);
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     const copy = engine.clone();
     const [copyA] = copy.teams[0];
@@ -622,7 +622,7 @@ describe('combat cloning (the lookahead primitive)', () => {
     const BEHAVIOR: StatusBehavior = { modifySpeed() { return 0; } };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac();
-    const engine = new CombatEngine([a], [b], { registry: REGISTRY });
+    const engine = new CombatEngine([a], [b], { registry: theRegistry(), actionChooser: firstLegalChooser });
     a.setStatus('prova', 3, 5, { n: 1 }, BEHAVIOR);
 
     const copy = engine.clone();
@@ -642,7 +642,7 @@ describe('combat cloning (the lookahead primitive)', () => {
     const a = makeChar('A', 20, [defenseDef('g', { dice: new DiceRoll(1, 1) })]);
     const ally = makeChar('B', 20, [focusDef()]);
     const foe = sac();
-    const engine = new CombatEngine([a, ally], [foe], { registry: REGISTRY });
+    const engine = new CombatEngine([a, ally], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
     ally.guards = [{ defender: a, action: a.actions[0].def }];
     ally.setStatus('lligat', 1, -1, { binder: foe }, LINK);
 
@@ -678,7 +678,7 @@ describe('standing wall: the wall has life', () => {
     const caster = makeChar('Terra', 30, [wallDef(), focusDef()]);
     const attacker = makeChar('Attacker', 20, [atkDef('cop', { rollBonus: 12 })]);
     attacker.aiControlled = true;
-    const engine = new CombatEngine([caster], [attacker], { registry: REGISTRY });
+    const engine = new CombatEngine([caster], [attacker], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
     // Round 1: the caster raises the wall on themselves and guards normally, so
     // this breach hits the caster, not the stone.
@@ -704,5 +704,47 @@ describe('standing wall: the wall has life', () => {
     runRound(engine, [{ idx: 0, actionIdx: 1 }]);
     expect(caster.hasStatus('mur-de-pedra')).toBe(false);
     expect(caster.currentPV).toBe(25);
+  });
+});
+
+describe('the rules themselves — resolution.ts, exactly', () => {
+  /*
+   * MOVED HERE FROM `balance.test.ts` ON 2026-09-22, and the move is the point.
+   *
+   * These are millisecond assertions on pure functions, but they were sitting
+   * in a file that also runs solved encounters and mirror sweeps — 35 seconds
+   * — so they could not join the mutation harness's kill set, which is fast
+   * files only (`src/mutation.ts`). The consequence was measured rather than
+   * guessed: the mutant "armour stops reducing damage" SURVIVED a 15-mutant
+   * run. Deleting armour from the damage rule outright changed nothing any
+   * affordable test could see, because the one test that checks it was locked
+   * inside a slow file.
+   *
+   * The rule this encodes: a test of a PURE FUNCTION belongs with the fast
+   * tests, whatever subject it is about. Mixing tempos in one file makes the
+   * fast half unusable.
+   */
+
+  it('the loser levels a skill only on a close loss (≤2)', () => {
+    expect(checkSkillUp(0)).toBe(true);   // tie: the attacker lost by 0
+    expect(checkSkillUp(1)).toBe(true);
+    expect(checkSkillUp(2)).toBe(true);
+    expect(checkSkillUp(3)).toBe(false);  // lost by too much to learn
+    expect(checkSkillUp(-1)).toBe(false); // winners never level
+  });
+
+  it('damage is the margin: defended hits deal attack − defense, undefended the full roll', () => {
+    expect(resolveAttack(10, 7)).toEqual({ hit: true, margin: 3 });
+    expect(resolveAttack(7, 7)).toEqual({ hit: false, margin: 0 });  // tie: defense holds
+    expect(resolveAttack(5, 9)).toEqual({ hit: false, margin: -4 });
+    expect(resolveAttack(6, null)).toEqual({ hit: true, margin: 6 }); // undefended: full roll
+  });
+
+  it('subtracts armour from the margin, floored at zero', () => {
+    // THE MUTANT THAT SURVIVED until this moved. Armour is a bounded lever the
+    // whole equipment design rests on; removing it should never be quiet.
+    expect(resolveDamage(7, 3)).toBe(4);
+    expect(resolveDamage(2, 5)).toBe(0);
+    expect(resolveDamage(5, 0)).toBe(5);
   });
 });

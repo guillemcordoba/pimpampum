@@ -18,9 +18,12 @@ import {
   type PoolSpec, type FieldedGroup, type SolvedEncounter,
 } from '@pimpampum/enemies';
 import type { PartySpec } from '@pimpampum/skills';
-import { referenceParty } from './bench/reference.js';
-import { exact } from './bench/report.js';
-import { games, searchGames, SMOKE } from './bench/games.js';
+import { referenceParty, FANTASY } from '@pimpampum/set-fantasy';
+import { exact, games, searchGames, SMOKE, useSet } from '@pimpampum/bench';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 // --- The party a GM would have entered --------------------------------------
 // Four heroes on four different MAIN kits at level 5, PV 12, leather + shield,

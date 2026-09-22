@@ -1,7 +1,7 @@
 import type { Character, StatusEntry } from './character.js';
 import type { ActionDefinition, ActionType } from './types.js';
 import type { EngineApi } from './effects.js';
-import type { AIView } from './ai.js';
+import type { AIView } from './policy.js';
 
 /**
  * Status behaviours: the second half of the content system. Where an

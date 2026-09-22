@@ -1,87 +1,67 @@
-import { Character } from './character.js';
-import { skillLevelBonus } from './resolution.js';
-import { random } from './rng.js';
-import { ActionInstance } from './action.js';
-import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
-import { EffectRegistry, AIContext } from './effects.js';
-
-/** Reveal-level summary of one queued action this round. */
-export interface PendingSummary {
-  actor: Character;
-  actionType: ActionType;
-  speed: number;
-  resolved: boolean;
-  cancelled: boolean;
-}
-
-/** Minimal engine view the AI needs. CombatEngine implements this. */
-export interface AIView {
-  readonly registry: EffectRegistry;
-  readonly round: number;
-  /** Decisiveness exponent applied to action weights (1 = old soft sampling,
-   *  higher = greedier, human-like play). */
-  readonly aiSharpness: number;
-  alliesOf(c: Character, includeSelf?: boolean): Character[];
-  enemiesOf(c: Character): Character[];
-  /** This round's queue as revealed to everyone (empty before planActions). */
-  pendingSummary(): readonly PendingSummary[];
-}
-
-export interface PlannedAction {
-  actionIdx: number;
-}
+/**
+ * THE POLICY — how a character decides what to play.
+ *
+ * Moved out of `@pimpampum/engine` on 2026-09-22. The engine is the GAME; this
+ * is an INSTRUMENT used to measure it, and the two are verified in completely
+ * different ways: a fault in `resolution.ts` is a broken game, a fault here is
+ * a broken measurement. While the AI lived inside the engine that distinction
+ * could not even be stated, and the engine could not be tested without one.
+ *
+ * Depth 0 is this file: score each card where it stands and sample. Depth >= 1
+ * is `lookahead.ts`, which plays the round out. Both are handed to an engine
+ * through `CombatEngineOptions.actionChooser`; the engine itself contains no
+ * policy at all.
+ */
+import {
+  Character, ActionInstance, ActionDefinition, ActionType, TargetRequirement,
+  EffectRegistry, AIContext, AIView, PlannedAction, DiceRoll, expectedExcess,
+  skillLevelBonus, random, availableActionIndices,
+} from '@pimpampum/engine';
 
 /** Fraction of a character's PV remaining (0..1). */
 function pvFraction(c: Character): number {
   return c.maxPV > 0 ? c.currentPV / c.maxPV : 0;
 }
 
-/** Whether every effect on an action permits playing it now (resource gates)
- *  and no status on the actor blocks the action's type. */
-export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
-  for (const ref of actor.statusRefs()) {
-    if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
-  }
-  for (const eff of action.def.effects) {
-    const fn = registry.getHandler(eff.type)?.canPlay;
-    if (fn && !fn(actor, eff.params ?? {})) return false;
-  }
-  return true;
+
+/**
+ * Expected attack total for an action: dice average (a modest default when
+ * diceless) + the action's roll bonus + the actor's roll bonuses + the best
+ * equipped weapon modifier (an estimate — content effects decide whether the
+ * weapon actually applies). The attack total IS the damage basis.
+ *
+ * EXPORTED so it can be differentially tested against the blow the engine
+ * actually throws (`tests/ai-rules.test.ts`). It is a PREDICTION, the engine is
+ * ground truth for it, and two of the three AI bugs this project has ever found
+ * lived right here — the missing `skillLevelBonus` below, and the AoE scaling
+ * in `estimateExpectedDamage`. Neither is findable from a winrate.
+ */
+export function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
+  const { dice, flat } = attackParts(actor, def);
+  return Math.max(0, (dice?.average() ?? 3) + flat);
 }
 
-/** Indices of actions a character may legally play this round. Pass the registry
- *  to also enforce per-effect availability gates (e.g. resource costs).
- *  Last-resort actions (desperation fallbacks) only surface when nothing
- *  else is playable. */
-export function availableActionIndices(actor: Character, registry?: EffectRegistry): number[] {
-  const out: number[] = [];
-  const lastResort: number[] = [];
-  actor.actions.forEach((a, i) => {
-    if (!a.isAvailable()) return;
-    if (actor.isActionSetAside(i)) return;
-    if ((actor.skills.get(a.def.skillId) ?? 0) < a.def.unlockLevel) return;
-    if (registry && !canPlayAction(a, actor, registry)) return;
-    (a.def.lastResort ? lastResort : out).push(i);
-  });
-  return out.length > 0 ? out : lastResort;
-}
-
-/** Expected attack total for an action: dice average (a modest default when
- *  diceless) + the action's roll bonus + the actor's roll bonuses + the best
- *  equipped weapon modifier (an estimate — content effects decide whether the
- *  weapon actually applies). The attack total IS the damage basis. */
-function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
+/**
+ * The attack total split into its RANDOM and FIXED halves, because the exact
+ * damage expectation needs the distribution and not just its mean.
+ *
+ * `flat` is everything the engine adds around the dice at the contest site:
+ * the action's roll bonus, the actor's equipment roll bonuses, the best weapon
+ * modifier (an estimate — content effects decide whether the weapon actually
+ * applies), and `skillLevelBonus`, which is part of every roll the engine makes
+ * and whose absence here once had the AI pricing a level-5 2d6 attack at ~7
+ * when the engine threw ~12.
+ */
+function attackParts(actor: Character, def: ActionDefinition): { dice: DiceRoll | undefined; flat: number } {
   let weapon = 0;
   for (const e of actor.equipment) {
     if (e.attackBonus !== undefined) weapon = Math.max(weapon, e.attackBonus);
   }
-  // `skillLevelBonus` is part of every roll the engine makes, so leaving it out
-  // here made the AI's model of a blow disagree with the blow. At level 5 a 2d6
-  // attack really totals ~12; this estimated ~7, and against 2 armour that is
-  // 10 damage predicted as 5 — half. It cancelled for same-level contests and
-  // did not for anything else, including every player-versus-enemy comparison.
-  return Math.max(0, (def.dice?.average() ?? 3) + (def.rollBonus ?? 0)
-    + weapon + actor.getRollBonus(def.skillId, 'attack') + skillLevelBonus(actor, def));
+  return {
+    dice: def.dice,
+    flat: (def.rollBonus ?? 0) + weapon
+      + actor.getRollBonus(def.skillId, 'attack') + skillLevelBonus(actor, def),
+  };
 }
 
 /** Best attack total a character can be expected to throw (threat proxy). */
@@ -94,37 +74,44 @@ function bestAttackAverage(c: Character): number {
   return best;
 }
 
-/** Best expected defense total among a character's defense actions, or -1 if
- *  they have none. */
-function bestDefenseTotal(e: Character): number {
-  let best = -1;
+/** The best defense a character could throw, split like `attackParts`, or null
+ *  if they hold no defense action at all. Ranked by mean, contested exactly. */
+function bestDefenseParts(e: Character): { dice: DiceRoll | undefined; flat: number } | null {
+  let best: { dice: DiceRoll | undefined; flat: number } | null = null;
+  let bestAvg = -1;
   for (const a of e.actions) {
     if (a.def.actionType !== ActionType.Defensa) continue;
-    const d = (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0)
+    const flat = (a.def.rollBonus ?? 0)
       + e.getRollBonus(a.def.skillId, 'defense') + skillLevelBonus(e, a.def);
-    best = Math.max(best, d);
+    const avg = (a.def.dice?.average() ?? 0) + flat;
+    if (avg > bestAvg) { bestAvg = avg; best = { dice: a.def.dice, flat }; }
   }
   return best;
 }
 
 /**
- * Expected PV an attack removes, averaged over the living enemies. Undefended
- * the damage is the full attack total minus armour; defended it's the margin
- * (attack − defense) when the attack wins the contest. `pWin` is a linear
- * average-gap stand-in for P(attack > defense) — slope pending recalibration.
+ * Expected PV an attack removes, averaged over the living enemies.
+ *
+ * DAMAGE IS THE MARGIN, so this is `E[max(0, attack − defense − armour)]` and
+ * it is computed over the two totals' REAL DISTRIBUTIONS (`expectedExcess`),
+ * not at their means. It used to blend `pWin × (meanA − meanD − armour)` with
+ * `pWin = 0.5 + 0.08 × gap`, a linear stand-in whose own comment admitted the
+ * slope was uncalibrated — and evaluating at the means is wrong in the
+ * direction that matters: 2d6 against 1d12 and 2d6 against a flat 6.5 have the
+ * same average gap and very different odds of getting through. The dice were
+ * always right there.
  */
-function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies: Character[]): number {
+export function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies: Character[]): number {
   if (enemies.length === 0) return 0;
   const P_DEFEND = 0.3; // how often a capable enemy actually picks a defense
-  const A = expectedAttackTotal(actor, def);
+  const atk = attackParts(actor, def);
   let acc = 0;
   for (const e of enemies) {
     const armor = e.getPassiveArmor();
-    const undefended = Math.max(0, A - armor);
-    const bestDef = bestDefenseTotal(e);
-    if (bestDef < 0) { acc += undefended; continue; } // no defense action ever
-    const pWin = Math.min(0.95, Math.max(0.05, 0.5 + 0.08 * (A - bestDef)));
-    const defended = pWin * Math.max(0, A - bestDef - armor);
+    const undefended = expectedExcess(atk.dice, atk.flat, undefined, 0, armor);
+    const guard = bestDefenseParts(e);
+    if (!guard) { acc += undefended; continue; } // no defense action ever
+    const defended = expectedExcess(atk.dice, atk.flat, guard.dice, guard.flat, armor);
     acc += (1 - P_DEFEND) * undefended + P_DEFEND * defended;
   }
   // SCALED BY HOW MANY IT HITS. `acc / enemies.length` is the damage a
@@ -137,10 +124,18 @@ function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies
   return (acc / enemies.length) * hits;
 }
 
-function actionWeight(view: AIView, actor: Character, action: ActionInstance): number {
+/**
+ * `allies` and `enemies` are passed IN, not re-derived. `alliesOf` and
+ * `enemiesOf` each filter a team array, and this runs once per card in the
+ * hand, per actor, per rollout — so a six-card hand was building twelve
+ * throwaway arrays to weigh one decision. The lists cannot change between the
+ * cards of a single choice.
+ */
+function actionWeight(
+  view: AIView, actor: Character, action: ActionInstance,
+  allies: Character[], enemies: Character[],
+): number {
   const def = action.def;
-  const allies = view.alliesOf(actor, false);
-  const enemies = view.enemiesOf(actor);
   const woundedAllies = allies.filter(a => pvFraction(a) < 0.5).length;
   const woundedEnemies = enemies.filter(e => pvFraction(e) < 0.4).length;
   const selfHurt = pvFraction(actor) < 0.5;
@@ -170,13 +165,29 @@ function actionWeight(view: AIView, actor: Character, action: ActionInstance): n
       break;
     }
     case ActionType.Defensa: {
-      // A FLAT constant beside an attack weight that scales with damage. That
-      // is knowably wrong — three action types priced in three currencies
-      // cannot be right — and it is deliberately left alone: the fix has no
-      // ground truth, and tuning it moved requirement 3 from 1/6 failing to
-      // 6/6 and back again without the game changing at all. The AI may be
-      // corrected where it DISAGREES WITH THE RULES; it may not be tuned until
-      // the tests go green. See NEXT-STEPS §17.
+      // A FLAT constant beside an attack weight that scales with damage. Still
+      // knowably odd — three action types in three currencies cannot all be
+      // right — and still here, now for a MEASURED reason rather than a
+      // cautious one.
+      //
+      // §17 left it alone because the obvious fix had no ground truth to judge
+      // it by. It does now — the AI's strength against fixed baselines it
+      // cannot influence — so the fix was tried properly on 2026-09-22:
+      // `w = 1 + 1.5 × estimatePreventedDamage(...)`, expected PV saved, the
+      // exact mirror of what an attack is worth.
+      //
+      //   depth-0 heuristic vs firstLegal   47.7% → 72.8%   (much better alone)
+      //   depth-1 PRODUCTION vs spam        93.3% → 78.0%   (15pp WORSE)
+      //
+      // The heuristic played visibly better and the search that consumes it got
+      // visibly worse, which is the whole lesson: with `topK` gone this
+      // function is no longer choosing production's cards. Its remaining job is
+      // to be the OPPONENT MODEL inside every rollout, and a model that defends
+      // like a good player is a worse predictor of the field than one that
+      // mostly swings. Accuracy of the model, not quality of the play.
+      //
+      // So: do not "fix" this weight without measuring the SEARCH. See
+      // NEXT-STEPS §20.8.
       w = 1.5;
       if (woundedAllies > 0) w += 2 * woundedAllies;
       if (selfHurt) w += 1.5;
@@ -278,8 +289,10 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   const indices = availableActionIndices(actor, view.registry);
   if (indices.length === 0) return { actionIdx: -1 };
 
+  const allies = view.alliesOf(actor, false);
+  const enemies = view.enemiesOf(actor);
   const weights = indices.map(i =>
-    Math.pow(actionWeight(view, actor, actor.actions[i]), view.aiSharpness));
+    Math.pow(actionWeight(view, actor, actor.actions[i], allies, enemies), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = random() * total;
   let chosen = indices[0];
@@ -291,8 +304,3 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   return { actionIdx: chosen };
 }
 
-/** Hand every character in `team` over to the AI (the engine picks their cards
- *  and targets). Human seats are left alone — they get prompted instead. */
-export function setAIControlled(team: Character[], value = true): void {
-  for (const c of team) c.aiControlled = value;
-}

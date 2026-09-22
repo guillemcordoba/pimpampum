@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { CombatEngine, setAIControlled, withSeed } from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
 import { buildReferenceParty, PartySpec } from '@pimpampum/skills';
 import {
-  ENEMY_DEFINITIONS, SOLVE_MISS_EPSILON, generateEncounter, solveEncounter, buildSolvedEncounter,
+  buildSolvedEncounter, ENEMY_DEFINITIONS, generateEncounter, SOLVE_MISS_EPSILON,
+  solveEncounter,
 } from '@pimpampum/enemies';
-import { REGISTRY } from './helpers.js';
-import { bodiesFor } from '../bench/shapes.js';
-import { gamesFor } from '../bench/report.js';
+import { gamesFor, theRegistry } from '@pimpampum/bench';
+import { bodiesFor } from '@pimpampum/set-fantasy';
 
 /**
  * Balancer v3 guard. The solver no longer predicts a winrate from fitted
@@ -45,7 +46,7 @@ function verify(solvedGroups: () => ReturnType<typeof buildSolvedEncounter>, par
       setAIControlled(players);
       const enemies = solvedGroups();
       const w = new CombatEngine(players, enemies, {
-        registry: REGISTRY, maxRounds: 40, aiDepth: REPLAY_DEPTH,
+        registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: REPLAY_DEPTH }),
       }).runCombat().winner;
       if (w === 0) wins++;
       else if (w === null) wins += 0.5;

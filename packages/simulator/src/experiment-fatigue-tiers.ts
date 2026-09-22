@@ -6,12 +6,17 @@
  *
  * Run: pnpm --filter @pimpampum/simulator exec tsx src/experiment-fatigue-tiers.ts
  */
-import { Character, CombatEngine, newCombatStats, setAIControlled, withSeed } from '@pimpampum/engine';
-import { solveEncounter, TARGET_WINRATES } from '@pimpampum/enemies';
-import { buildSolvedEncounter } from '@pimpampum/enemies';
-import { REGISTRY, randomTeam } from './bench/arena.js';
-import { exact, pct, pctCoarse } from './bench/report.js';
-import { games, SMOKE } from './bench/games.js';
+import {
+  Character, CombatEngine, newCombatStats, setAIControlled, withSeed,
+} from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
+import { buildSolvedEncounter, solveEncounter, TARGET_WINRATES } from '@pimpampum/enemies';
+import { exact, games, pct, pctCoarse, randomTeam, SMOKE, theRegistry, useSet } from '@pimpampum/bench';
+import { FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 const GAMES = games(500);
 
@@ -37,7 +42,7 @@ for (const [name, target] of (SMOKE ? Object.entries(TARGET_WINRATES).slice(0, 1
         const party = randomTeam('P', 4, 7);
         const enemies = buildSolvedEncounter(enc);
         setAIControlled(party); setAIControlled(enemies);
-        const engine = new CombatEngine(party, enemies, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+        const engine = new CombatEngine(party, enemies, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
         penalize(party, x);
         if (engine.runCombat(stats).winner === 0) wins++;
       }
@@ -56,7 +61,7 @@ for (let x = 0; x <= 5; x++) {
     for (let i = 0; i < GAMES; i++) {
       const A = randomTeam('A', 3, 6), B = randomTeam('B', 3, 6);
       setAIControlled(A); setAIControlled(B);
-      const engine = new CombatEngine(A, B, { registry: REGISTRY, maxRounds: 40, aiDepth: 1 });
+      const engine = new CombatEngine(A, B, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
       penalize(A, x); penalize(B, x);
       const w = engine.runCombat(stats).winner;
       if (w === null) draws++;

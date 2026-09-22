@@ -24,8 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ActionDefinition } from '@pimpampum/engine';
-import { ALL_SKILLS } from '@pimpampum/skills';
-import { getEnemy } from '@pimpampum/enemies';
+import { theSet } from './gameset.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = path.resolve(HERE, '../../.bench-cache');
@@ -48,7 +47,7 @@ function sha(...parts: string[]): string {
  * back numbers for the card as it used to be — the worst failure this module
  * could have.
  */
-function actionPrint(a: ActionDefinition): string {
+export function actionPrint(a: ActionDefinition): string {
   return JSON.stringify([
     a.id, a.unlockLevel, a.actionType, a.speed, a.rollBonus ?? 0,
     a.dice ? [a.dice.numDice, a.dice.sides, (a.dice as { bonus?: number }).bonus ?? 0] : null,
@@ -57,28 +56,34 @@ function actionPrint(a: ActionDefinition): string {
   ]);
 }
 
-const skillPrints = new Map<string, string>();
-export function skillPrint(skillId: string): string {
-  let p = skillPrints.get(skillId);
-  if (!p) {
-    const s = ALL_SKILLS.find(x => x.id === skillId);
-    p = s ? `${s.id}:${s.actions.map(actionPrint).join('|')}` : `${skillId}:?`;
-    skillPrints.set(skillId, p);
+/**
+ * ONE KIT'S / ONE CREATURE'S FINGERPRINT.
+ *
+ * The bytes come from the SET — only it knows which actions hang off an id —
+ * and the memo lives here because the cache is what asks for them, over and
+ * over, inside a solve. Keyed by set id as well as content id: two sets in one
+ * process (a test installing a synthetic set after a real one) must not read
+ * each other's prints.
+ */
+const prints = new Map<string, string>();
+
+function memoPrint(kind: 'skill' | 'enemy', id: string): string {
+  const set = theSet();
+  const k = `${set.id}:${kind}:${id}`;
+  let p = prints.get(k);
+  if (p === undefined) {
+    p = kind === 'skill' ? set.skillPrint(id) : set.enemyPrint(id);
+    prints.set(k, p);
   }
   return p;
 }
 
-const enemyPrints = new Map<string, string>();
+export function skillPrint(skillId: string): string {
+  return memoPrint('skill', skillId);
+}
+
 export function enemyPrint(enemyId: string): string {
-  let p = enemyPrints.get(enemyId);
-  if (!p) {
-    const e = getEnemy(enemyId);
-    p = e
-      ? `${e.id}:${e.bulk ?? 1}:${e.skills.flatMap(s => s.actions).map(actionPrint).join('|')}`
-      : `${enemyId}:?`;
-    enemyPrints.set(enemyId, p);
-  }
-  return p;
+  return memoPrint('enemy', enemyId);
 }
 
 /**
@@ -106,9 +111,16 @@ export function enginePrint(): string {
   return enginePrintCache;
 }
 
-/** Build a cache key from the engine plus whatever the caller says it depends on. */
+/**
+ * Build a cache key from the engine, the SET, and whatever the caller says it
+ * depends on.
+ *
+ * The set id is not optional. Two sets ask structurally identical questions —
+ * "the neutral baseline of company row 0 on shape 0" — and without the id in
+ * the key the second set to run would be served the first set's answer.
+ */
 export function key(...parts: string[]): string {
-  return sha(enginePrint(), ...parts);
+  return sha(enginePrint(), theSet().id, ...parts);
 }
 
 /**

@@ -12,7 +12,8 @@
     "@pimpampum/skills": "workspace:*",
     "@pimpampum/enemies": "workspace:*",
     "vue": "^3.4.0",
-    "vue-router": "^5.0.2"
+    "vue-router": "^5.0.2",
+    "@pimpampum/ai": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

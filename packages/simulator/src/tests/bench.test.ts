@@ -16,34 +16,64 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  FULL_KIT, MAIN_KITS, REFERENCE_KITS, REFERENCE_SIGMA,
-  hero, referenceParty, sigmaOf,
-} from '../bench/reference.js';
-import { deltaStderr, gamesFor, maxOfKBias, pct, significant, stderr } from '../bench/report.js';
-import {
-  CALIBRATION_KITS, COMPANY, FAIR, FIELDED, SATURATION, SHAPES, UNFIELDED_ENEMIES,
-  UNLISTED_BODIES, calibrationKit,
-} from '../bench/shapes.js';
+  CALIBRATION_KITS, calibrationKit, COMPANY, FAIR, FIELDED, FULL_KIT, hero, MAIN_KITS,
+  REFERENCE_KITS, REFERENCE_SIGMA, referenceParty, SATURATION, SHAPES, sigmaOf,
+  UNFIELDED_ENEMIES, UNLISTED_BODIES,
+} from '@pimpampum/set-fantasy';
 import { ALL_SKILLS } from '@pimpampum/skills';
 import {
   MINDLESS_MARGIN, MINDLESS_GAMES, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, ONE_TRICK_GAMES,
 } from '../kit-analyzer-lib.js';
 import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
+import { deltaStderr, gamesFor, maxOfKBias, pct, significant, stderr } from '@pimpampum/bench';
 
-const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+const SRC = path.join(REPO, 'packages', 'simulator', 'src');
 
-/** Every .ts file under src/, with its path relative to src/. */
+/**
+ * THE SOURCE THESE RULES GOVERN — every package that produces a number someone
+ * will make a content decision on.
+ *
+ * It used to be `simulator/src` alone, which was the whole repo's measurement
+ * code at the time. It is not any more: the instrument moved to
+ * `@pimpampum/bench`, the calibration to `packages/sets/*`, the policies to
+ * `@pimpampum/ai`. A convention suite that still scanned only `simulator`
+ * would have quietly stopped watching the code the conventions are ABOUT —
+ * the exact failure mode these rules exist to prevent, applied to the rules.
+ *
+ * `rel` is package-qualified (`bench/cells.ts`, `sets/fantasy/shapes.ts`) so a
+ * failure names a file you can open.
+ */
+const ROOTS: [prefix: string, dir: string][] = (() => {
+  const out: [string, string][] = [
+    ['simulator', path.join(REPO, 'packages', 'simulator', 'src')],
+    ['bench', path.join(REPO, 'packages', 'bench', 'src')],
+    ['ai', path.join(REPO, 'packages', 'ai', 'src')],
+  ];
+  const setsDir = path.join(REPO, 'packages', 'sets');
+  for (const e of fs.readdirSync(setsDir, { withFileTypes: true })) {
+    if (e.isDirectory()) out.push([`sets/${e.name}`, path.join(setsDir, e.name, 'src')]);
+  }
+  return out;
+})();
+
 function sources(): { rel: string; text: string }[] {
   const out: { rel: string; text: string }[] = [];
-  const walk = (dir: string): void => {
+  const walk = (prefix: string, dir: string): void => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name);
-      if (e.isDirectory()) walk(full);
-      else if (e.name.endsWith('.ts')) out.push({ rel: path.relative(SRC, full), text: fs.readFileSync(full, 'utf8') });
+      if (e.isDirectory()) walk(prefix, full);
+      else if (e.name.endsWith('.ts')) out.push({ rel: `${prefix}/${path.relative(path.join(REPO, 'packages', prefix.startsWith('sets/') ? prefix : prefix, 'src'), full)}`, text: fs.readFileSync(full, 'utf8') });
     }
   };
-  walk(SRC);
+  for (const [prefix, dir] of ROOTS) walk(prefix, dir);
   return out;
+}
+
+/** A top-level harness: a script someone runs, as opposed to a library module
+ *  it imports. Only harnesses print reports or choose sample sizes. */
+function isHarness(rel: string): boolean {
+  return /^simulator\/[^/]+\.ts$/.test(rel) && !rel.endsWith('.d.ts');
 }
 
 /** Source with comments stripped, so a rule about CODE is not tripped by prose
@@ -77,7 +107,7 @@ function subjectTo(rule: string): { files: { rel: string; text: string }[]; reas
   const files: { rel: string; text: string }[] = [];
   const reasons: [string, string][] = [];
   for (const s of sources()) {
-    if (s.rel === 'tests/bench.test.ts') continue;     // this file states the rules
+    if (s.rel === 'simulator/tests/bench.test.ts') continue;     // this file states the rules
     const why = exemption(s.text, rule);
     if (why) reasons.push([s.rel, why]);
     else files.push(s);
@@ -87,11 +117,44 @@ function subjectTo(rule: string): { files: { rel: string; text: string }[]; reas
 
 describe('the escape hatch cannot be used silently', () => {
   it('every exemption gives a substantive reason', () => {
-    for (const rule of ['seeded', 'depth', 'interval']) {
+    for (const rule of ['seeded', 'depth', 'interval', 'sample']) {
       for (const [rel, why] of subjectTo(rule).reasons) {
         expect(why.length, `${rel}: bench-exempt(${rule}) needs a real reason, got "${why}"`)
           .toBeGreaterThanOrEqual(MIN_REASON);
       }
+    }
+  });
+});
+
+describe('every harness can be turned down to nothing', () => {
+  /*
+   * THE RULE WAS WRITTEN DOWN, NEVER ENFORCED, AND DRIFTED.
+   *
+   * CLAUDE.md calls it a non-negotiable — "every harness reads its sample size
+   * through bench/games.ts, never a hardcoded const" — because a harness nobody
+   * can run cheaply is one nobody runs, and one nobody runs rots in silence:
+   * `experiment-berserk` and `experiment-balance-pass` both CRASHED on a
+   * renamed card for months before anyone noticed.
+   *
+   * Every OTHER rule on this page has a test. This one did not, and two
+   * harnesses quietly stopped obeying it — the two most expensive entries in
+   * the smoke run by a wide margin. `__wolf.ts` hardcoded 300 games and cost
+   * 33s (deleted 2026-09-22: it hand-rolled a body count for a fair wolf
+   * fight, which is exactly what `solveEncounter` now answers on demand, and
+   * this design has no fixed encounters). `probe-shapes.ts` hardcoded 400
+   * check games and cost 23s; it reads `games()` now. Nearly a minute of every
+   * smoke run that the `GAMES=2` switch could not reach.
+   */
+  it('reads its sample size through bench/games.ts, or says why not', () => {
+    for (const s of subjectTo('sample').files) {
+      // Top-level harnesses only. `bench`, `ai` and the sets are libraries,
+      // and `kit-analyzer-lib.ts` takes its budget from whoever calls it.
+      if (!isHarness(s.rel) || s.rel === 'simulator/kit-analyzer-lib.ts') continue;
+      expect(
+        /bench\/games\.js|@pimpampum\/bench/.test(s.text),
+        `${s.rel}: hardcodes its sample size. Read it through @pimpampum/bench so GAMES=2 can turn `
+        + 'it down, or add a bench-exempt(sample) line saying why it has no sample to turn down.',
+      ).toBe(true);
     }
   });
 });
@@ -103,7 +166,7 @@ describe('the reference party is one thing, and says so when it moves', () => {
     // out from under every number in the package, silently.
     expect(REFERENCE_KITS).toEqual(['enginyer-explosius', 'mestre-armes', 'nigromant', 'berserk']);
     for (const s of sources()) {
-      if (s.rel === 'tests/bench.test.ts') continue;
+      if (s.rel === 'simulator/tests/bench.test.ts') continue;
       expect(
         code(s.text),
         `${s.rel}: re-derives the reference party positionally. Import referenceParty() from bench/reference.ts.`,
@@ -154,7 +217,7 @@ describe('randomness is seeded', () => {
 });
 
 describe('AI depth is never implicit', () => {
-  it('every CombatEngine states its aiDepth or supplies an actionChooser', () => {
+  it('every CombatEngine is handed an explicit policy', () => {
     // The engine defaults aiDepth to 0. The balancer prices at 1. A harness
     // that omits the option therefore measures weaker play than the number it
     // is checking was made with — which is exactly how main.ts came to grade
@@ -163,11 +226,16 @@ describe('AI depth is never implicit', () => {
     const offenders: string[] = [];
     for (const s of subjectTo('depth').files) {
       const stripped = code(s.text);
-      // Match the option object of each `new CombatEngine(...)` construction.
-      for (const m of stripped.matchAll(/new CombatEngine\([^;]*?\{([^{}]*)\}/g)) {
-        const opts = m[1];
-        if (!/aiDepth/.test(opts) && !/actionChooser/.test(opts)) {
-          offenders.push(`${s.rel}: ${m[0].replace(/\s+/g, ' ').slice(0, 90)}`);
+      // SCAN A WINDOW, NOT A BRACE GROUP. This used to match the first
+      // `{...}` after `new CombatEngine(`, which worked while the option was a
+      // flat `aiDepth: 1`. Once the policy arrived as `...aiPolicy({ depth: 1 })`
+      // the inner braces made that regex capture the WRONG object — the
+      // `{ depth: 1 }` — and every correct call site read as an offender. A
+      // window is clumsier and cannot be fooled by nesting.
+      for (const m of stripped.matchAll(/new CombatEngine\(/g)) {
+        const window = stripped.slice(m.index, m.index + 260);
+        if (!/aiPolicy|actionChooser/.test(window)) {
+          offenders.push(`${s.rel}: ${window.replace(/\s+/g, ' ').slice(0, 90)}`);
         }
       }
     }
@@ -182,7 +250,7 @@ describe('no winrate is printed without its error bar', () => {
     // games read as a finding.
     const offenders: string[] = [];
     for (const s of subjectTo('interval').files) {
-      if (s.rel.startsWith('bench/') || s.rel.startsWith('tests/')) continue;
+      if (!isHarness(s.rel)) continue;
       for (const m of code(s.text).matchAll(/toFixed\(\d\)[^`'"\n]{0,12}%/g)) {
         offenders.push(`${s.rel}: ${m[0]}`);
       }
@@ -358,7 +426,7 @@ describe('the fight matrix', () => {
  */
 describe('a card is judged by what it does, not by the AI picking it', () => {
   const lib = fs.readFileSync(path.join(SRC, 'kit-analyzer-lib.ts'), 'utf8');
-  const regret = fs.readFileSync(path.join(SRC, 'bench/regret.ts'), 'utf8');
+  const regret = fs.readFileSync(path.join(REPO, 'packages/bench/src/regret.ts'), 'utf8');
   const block = (): string => lib.slice(lib.indexOf('// 4/5.'), lib.indexOf('// 7.'));
 
   it('the 4/5 verdict is computed from per-decision counterfactuals', () => {
@@ -386,12 +454,31 @@ describe('a card is judged by what it does, not by the AI picking it', () => {
     // chance null has no such problem.
     const cond = block().match(/if \(([^)]*)\) dead\.push/);
     expect(cond, 'no dead.push(...) guarded by a condition in the 4/5 block').not.toBeNull();
+    // FOLLOW ONE LEVEL OF INDIRECTION.
+    //
+    // The guard is allowed to read `if (deadIn === seen.length)`: since the
+    // robustness check (§20.11) it has to name the MODELS a card died under,
+    // and the statistic lives one line up in `deadIn`'s definition. Demanding
+    // the literal expression here made this fail on a refactor that preserved
+    // the property exactly — a test asserting code SHAPE rather than
+    // behaviour. Expanding the identifiers keeps it honest without freezing
+    // the code.
+    let expr = cond![1];
+    for (const name of cond![1].match(/[A-Za-z_$][\w$]*/g) ?? []) {
+      const def = block().match(new RegExp(`const ${name} = ([^;]*);`));
+      if (def) expr += ` ${def[1]}`;
+    }
     expect(
-      cond![1].includes('bestShare') && cond![1].includes('nullShare'),
-      `4/5 fails on "${cond![1]}". The verdict must be "was it ever the best play, against the `
-      + 'share chance alone would give it". Anything built on the value column is a within-hand '
-      + 'ranking that sums to zero.',
+      expr.includes('bestShare') && expr.includes('nullShare'),
+      `4/5 fails on "${cond![1]}", which does not trace to the absolute statistic. The verdict `
+      + 'must be "was it ever the best play, against the share chance alone would give it".',
     ).toBe(true);
+    // The other half, and what the comment above is really guarding.
+    expect(
+      /\.value\b/.test(expr),
+      `4/5 reaches the value column in "${cond![1]}". Values are a within-hand ranking summing to `
+      + '~zero by arithmetic, so failing on them would flag half of every kit however good it is.',
+    ).toBe(false);
   });
 
   it("the null is each card's own, and self-calibrating", () => {

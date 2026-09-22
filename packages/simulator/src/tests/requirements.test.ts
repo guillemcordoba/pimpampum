@@ -21,11 +21,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  marginVerdict, classifyStep, durationVerdict, correlatesWithLosing,
+  marginVerdict, classifyStep, durationVerdict, correlatesWithLosing, isDeadCard,
   MINDLESS_MARGIN, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, REGRESSION_PP,
 } from '../kit-analyzer-lib.js';
-import { gamesFor } from '../bench/report.js';
-import { roundPercentiles } from '../bench/cells.js';
+import { gamesFor, roundPercentiles } from '@pimpampum/bench';
 
 /** A sample big enough that a 1pp effect is resolvable — so these tests are
  *  about the RULE, not about noise. */
@@ -239,5 +238,45 @@ describe('fight-length percentiles — what requirement 2 reads', () => {
     const rounds = [5, 1, 3];
     roundPercentiles(rounds);
     expect(rounds).toEqual([5, 1, 3]);
+  });
+});
+
+describe('requirement 4/5: a card is dead only CLEARLY below its own null', () => {
+  /*
+   * The rule was inline in `analyze` until 2026-09-22, and that is exactly why
+   * it was the ONE mutant to survive the first mutation run (`src/mutation.ts`):
+   * deleting its error term — `bestShare + 2σ < nullShare` → `bestShare <
+   * nullShare` — changed nothing any fast test could see, because no fast test
+   * could reach it.
+   *
+   * §17.5 records what that costs when it happens for real: `DEAD_VALUE` spent
+   * a session naming cards against a noise floor nobody had measured. A ❌ here
+   * has to mean "go and look at this card", never "this card drew badly".
+   */
+
+  it('flags a card clearly under the null', () => {
+    // 5% best-share against a 25% null, tight interval: not an accident.
+    expect(isDeadCard(0.05, 0.02, 0.25)).toBe(true);
+  });
+
+  it('does NOT flag a card that is merely measured low', () => {
+    // THE MUTANT THAT SURVIVED. Same point estimate as above and the same null,
+    // but an interval wide enough to reach it: the sample cannot tell. Drop the
+    // 2σ and this reads dead.
+    expect(isDeadCard(0.20, 0.08, 0.25)).toBe(false);
+  });
+
+  it('does not flag a card at or above its null', () => {
+    expect(isDeadCard(0.30, 0.02, 0.25)).toBe(false);
+    expect(isDeadCard(0.25, 0.00, 0.25)).toBe(false);
+  });
+
+  it('a wider sample can only make it harder to call a card dead', () => {
+    // Monotone in the error bar — the property that makes "clearly" mean
+    // something. A noisier measurement must never flag MORE.
+    const tight = isDeadCard(0.10, 0.01, 0.25);
+    const loose = isDeadCard(0.10, 0.10, 0.25);
+    expect(tight, 'a tight interval below the null is dead').toBe(true);
+    expect(loose, 'the same estimate, too noisy to tell, is not').toBe(false);
   });
 });

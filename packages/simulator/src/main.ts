@@ -5,15 +5,20 @@
  * Run: pnpm --filter @pimpampum/simulator start
  */
 import { newCombatStats, Character, CombatEngine, setAIControlled, withSeed } from '@pimpampum/engine';
+import { aiPolicy } from '@pimpampum/ai';
 import { getAction, buildReferenceParty } from '@pimpampum/skills';
 import {
   ENEMY_DEFINITIONS, TARGET_WINRATES, generateEncounter,
   createEnemyFrom, getEnemy,
 } from '@pimpampum/enemies';
-import { MIRROR_DEPTH, REGISTRY, randomTeam, runMatch } from './bench/arena.js';
-import { bodiesFor } from './bench/shapes.js';
-import { deltaPP, exact, pct, pctCoarse } from './bench/report.js';
-import { games, searchGames } from './bench/games.js';
+import {
+  deltaPP, exact, games, MIRROR_DEPTH, pct, pctCoarse, randomTeam, theRegistry, runMatch, searchGames,
+ useSet } from '@pimpampum/bench';
+import { bodiesFor, FANTASY } from '@pimpampum/set-fantasy';
+
+// THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
+// parameter and throws rather than guess, so every entry point says so once.
+useSet(FANTASY);
 
 /** One seed for the whole report, so two runs of this script are comparable
  *  and a change in a printed number means a change in the GAME. Teams are drawn
@@ -115,7 +120,7 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
             }));
           setAIControlled(players);
           const engine = new CombatEngine(players, enemies, {
-            registry: REGISTRY, maxRounds: 40, aiDepth: REPLAY_DEPTH,
+            registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: REPLAY_DEPTH }),
           });
           const w = engine.runCombat().winner;
           if (w === 0) wins++; else if (w === null) wins += 0.5;
