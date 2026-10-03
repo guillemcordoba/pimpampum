@@ -3775,5 +3775,17 @@ Cuir at +3/−1 works cleanly; ferro has no clean point at whole-number speeds.
 **Caution:** the armour fights are solved to 65% but now replay at 84.5% bare
 (72–75% before the AI's non-attack targeting change) — near the 80%
 saturation line the kit cells already refuse, where differences compress.
-Check why the solve no longer transfers before retuning armour on these
-numbers.
+Checked: the solver is honest and the armour test ignores it. Solving the
+three armour fights for a bare drawn party at 65%:
+
+| fight | solver's own report | replay |
+|---|---|---|
+| escamot (4 bone devils) | `searchMissed`, predicted 85.7%, PV 17 | 85.9% |
+| cap (basilisk) | `searchMissed`, predicted 94.0%, PV 61 | 92.1% |
+| elit (3 golems) | `durationCapped`, predicted 76.3%, PV 22 | 75.6% |
+
+`set.work.ts` skips only `clamped` solves, so the armour verdicts are read in
+fights the solver says it could not price. Decision needed: skip or flag
+missed solves (two of three fights would drop out), or pick armour fights the
+solver can hit. Until then the armour sweet-spot verdicts — and the variant
+table above — are measured near saturation.
