@@ -3405,3 +3405,70 @@ parallel warm they now run in 40 s.
    measure from the cells, and it would have named each culprit at once.
 5. Wider shapes: bone devils' company rows still split 93% vs 41%, so row 1
    is saturated and drops out of every kit's measurement.
+
+---
+
+## 27. Card-by-card review of the §26 tuning (in progress, started 2026-10-03)
+
+The user is reviewing each of the 26 content changes of §26 one at a time —
+approve, revert or tweak — with the kit re-measured after every tweak
+(`kit-analyzer.ts --player X`, ~3 min against the cached baselines). Enemy and
+armour changes (22–26) move the calibration, so they are batched; the review
+ends with a `pnpm calibration:refresh` and a full sweep (tweaked kits also sit
+in the other kits' company rows).
+
+Order: berserk 1–4 (Cop d'espatlla, Aguantar el cop, Entrar en Fúria, Rugit de
+guerra); earthbender 5–8 (Cop de roca, Mur de pedra, Columna de terra, Presó
+de terra); enginyer 9–13 (Granada, Bomba de fum, Camp minat, Traca final, the
+bandolier reload); nigromant 14–18 (Marca, Mà de la tomba, Putrefacció,
+Xuclar la vida, Invocar l'ombra); 19 Desaparèixer en l'ombra; 20 Riu de lava;
+21 Atac encadenat; 22 Amagar-se; 23 Defensa esquelètica; 24 Fibló verinós;
+25–26 cuir and ferro.
+
+### 27.1 Cop d'espatlla — REMOVED (user's call)
+
+Berserk is a 5-card kit now: Atac temerari, Aguantar el cop, Entrar en Fúria
+and Rugit de guerra each unlock one level earlier (Fúria at 4). Re-measured:
+berserk passes every requirement, +15.4 vs neutral. **At the next
+`calibration:refresh` the reference party drops from Σ22 to Σ21** (berserk is
+in it at full kit) — `REFERENCE_SIGMA` will throw at import and must be
+updated, with the docs that quote it.
+
+### 27.2 Aguantar el cop — UNDER REVIEW
+
+The user wants the original gamble back ("take the hit, get angrier"), with a
+payoff that makes it worth it. Every shape measured (berserk, card value vs
+the rest of the hand; "best" = share of its decisions it was the best play,
+chance ≈ 21%):
+
+| version | value | best | verdict |
+|---|---|---|---|
+| §26: guard 3d6, permanent {A} = 3× damage through | +0.6 | 24% | alive |
+| original gamble (no guard, all damage), permanent 3× | −8.1 | 8% | dead |
+| no guard, all damage, next attack only +3× ("Descàrrega") | −8.7 | 7% | dead |
+| … plus provocation (enemies must attack him) | −8.1 | 11% | dead |
+| no guard, HALF damage, next attack only +2× | −5.0 | 5% | dead |
+| guard 2d6, next attack only +2× | −2.6 | 14% | dead |
+| no guard, half damage, permanent +1× | −4.1 | 8% | dead |
+| **no guard, half damage, permanent +2× (in the tree now)** | **−3.9** | **8%** | dead |
+| no guard, −3 per blow, permanent +2× | −5.8 | 10% | dead |
+
+What the measurements say:
+- With provocation, the berserker charged 56 times and released 9: taking
+  several full blows killed him before the payoff. Survivability, not the size
+  of the payoff, was the binding constraint.
+- **Every no-guard-roll version is dead, and the reason is structural**: every
+  hero also carries the shield card (Escut de fusta), which ROLLS and often
+  blocks a blow outright. An uncontested defense — even at half damage — is
+  dominated by it whenever defending is right, and attacking is better when it
+  is not. Only the versions with their own guard roll came alive.
+- Berserk itself is healthy in every version: +10 to +11 vs neutral (off the
+  band edge now), all other requirements pass.
+
+Open question for the user: keep the no-roll identity (then it needs something
+the shield cannot do — e.g. reacting AFTER the roll, or guarding allies the
+shield does not reach), or let it roll a guard (the alive shape). Berserk's
+known.ts entry marks it under review.
+
+Next in the review: 3 Entrar en Fúria (the card that keeps berserk strongest:
++17 PV, the kit's best one-card strategy).

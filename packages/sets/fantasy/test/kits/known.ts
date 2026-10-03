@@ -11,6 +11,9 @@
 import type { Requirement } from '@pimpampum/playtest/vitest';
 
 export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
+  berserk: {
+    cardUse: "Aguantar el cop is UNDER REVIEW (NEXT-STEPS §27): every no-guard-roll version measured dead — the shield every hero carries rolls and often blocks outright; current version (half damage, permanent {A} = 2× damage taken) −3.9 PV; measured 2026-10-03",
+  },
   'enginyer-explosius': {
     cardUse: "Camp minat is never the best play (−0.6 PV) — a marginal card, not a costly one; measured 2026-09-23, NEXT-STEPS §26",
   },
