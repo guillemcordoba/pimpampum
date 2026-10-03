@@ -6,8 +6,11 @@
  */
 import { ALL_SKILLS, ENEMY_DEFINITIONS, getEnemy } from '@pimpampum/set-fantasy';
 import { calibrationDrift, FAIR, MAIN_KITS, REFRESHED, SATURATION, SHAPES, FANTASY } from '@pimpampum/set-fantasy/bench';
-import { saturatedCells, usableCells, cacheStatus, exact, games, gamesFor, lanes, pct, pp, share, SMOKE, stderr, useSet, solvedShape, flag } from '@pimpampum/bench';
-import { analyze, prepare, REGRESSION_PP, MINDLESS_MARGIN, type KitReport, type Subject, type Verdict } from '@pimpampum/playtest';
+import { saturatedCells, usableCells, cacheStatus, exact, games, lanes, pct, share, SMOKE, stderr, useSet, solvedShape, flag } from '@pimpampum/bench';
+import {
+  analyze, measureTriangle, prepare,
+  type KitReport, type Subject, type TriangleReport, type Verdict,
+} from '@pimpampum/playtest';
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
@@ -29,6 +32,39 @@ function subjectName(s: Subject): string {
     : getEnemy(s.id)!.displayName;
 }
 
+/**
+ * THE CARD RANKING — every number read off the same per-decision rollouts:
+ * at each of the subject's decisions the fight is copied once per legal card,
+ * each copy plays its card and the fight out, and the end is scored as our
+ * health left minus theirs. Read, never judged (requirement 3 judges the kit).
+ *
+ *  - VAL VS. LA MÀ: a card's score minus the mean of the other cards at the
+ *    same moment, averaged. RELATIVE: it sums to about zero across the hand,
+ *    so beside two stars a solid card reads negative.
+ *  - MILLOR JUGADA: the share of its moments where it scored highest.
+ *  - QUAN ÉS LA MILLOR, GUANYA: in those moments, its lead over the runner-up
+ *    (cross-fitted). Low share + big lead = rarely right, decisive when it is.
+ *  - LA IA LA TRIA: how often the production AI actually played it when legal.
+ */
+function printCardRanking(r: KitReport): void {
+  const top = r.fullKit;
+  const byId = new Map(r.cards.map(c => [c.id, c]));
+  console.log('  rànquing de cartes (millor → pitjor)');
+  console.log(`  ${'#'.padStart(2)}  ${'carta'.padEnd(24)} ${'val vs. la mà'.padStart(13)}  ${'millor jugada'.padStart(13)}  ${'quan és la millor, guanya'.padStart(25)}  ${'la IA la tria'.padStart(13)}`);
+  r.cardValues.forEach((v, i) => {
+    const name = byId.get(v.id)?.name ?? v.id;
+    const legal = top.counters.legal[v.id] ?? 0;
+    const picked = legal ? share(top.counters.played[v.id] ?? 0, legal).trim() : 'n/d';
+    const gain = v.gainWhenBest === null ? '—' : `${v.gainWhenBest >= 0 ? '+' : ''}${v.gainWhenBest.toFixed(1)} PV`;
+    console.log(
+      `  ${String(i + 1).padStart(2)}  ${name.padEnd(24)} ${`${v.value >= 0 ? '+' : ''}${v.value.toFixed(1)} PV`.padStart(13)}`
+      + `  ${exact(v.bestShare).padStart(13)}  ${gain.padStart(25)}  ${picked.padStart(13)}`,
+    );
+  });
+  console.log('      val vs. la mà = PV de més que una altra carta qualsevol de la mà, en aquell moment (relatiu: suma ~0)');
+  console.log('      millor jugada = cops que va ser la millor opció · quan és la millor, guanya = avantatge sobre la segona');
+}
+
 function printReport(r: KitReport): void {
   // Three states, not two: a requirement the harness cannot currently TEST is
   // neither passed nor failed, and rendering it ✅ would claim a check that did
@@ -38,44 +74,17 @@ function printReport(r: KitReport): void {
   // The DELTA is the headline: "how much better than a neutral kit, in the same
   // seats". The raw winrate is kept beside it because it is what a reader has
   // in their head — but it is the column that moves when a shape drifts.
-  console.log('  nivell   vs neutre        (brut)      combats  mediana  p90   taules');
-  for (const { level, run } of r.levels) {
-    const d = run.delta * 100;
-    console.log(
-      `  ${String(level).padStart(6)}   ${(d >= 0 ? '+' : '') + d.toFixed(1)}pp±${(run.deltaStderr * 100).toFixed(1)}`.padEnd(29)
-      + `  ${pct(run.winrate, run.games)}   ${String(run.games).padStart(6)}`
-      + `  ${String(run.medianRounds).padStart(7)}  ${String(run.p90Rounds).padStart(3)}`
-      + `   ${(run.drawRate * 100).toFixed(1).padStart(5)}%`,
-    );
-  }
-  console.log(`  ${mark(r.monotonicity)} 1. nivell superior = millor kit — ${r.monotonicity.detail}`);
-  console.log(`  ${mark(r.duration)} 2. els combats no s'allarguen — ${r.duration.detail}`);
-  console.log(`  ${mark(r.spam)} 3. pensar bat qualsevol estratègia sense pensar — ${r.spam.detail}`);
-  console.log(`  ${mark(r.strategySpace)} 3b. l'espai d'estratègia importa — ${r.strategySpace.detail}`);
-  console.log(`  ${mark(r.oneTrick)} 3c. una sola carta repetida no basta — ${r.oneTrick.detail}`);
-  console.log(`  ${mark(r.cardUse)} 4/5. cap carta morta (valor per decisió) — ${r.cardUse.detail}`);
-  // The whole table, not just the failures: the SHAPE of a kit's card values is
-  // the design finding, and a pass/fail line hides it. Printed once per kit,
-  // strongest first, so a kit carried by one card is visible at a glance even
-  // when every card clears the line.
-  const cardName = new Map(r.cards.map(c => [c.id, c.name]));
-  for (const v of r.cardValues) {
-    // Two columns, two different claims. `valor` RANKS a card inside its own
-    // hand and the column sums to ~zero by arithmetic, so a negative entry
-    // means "worse than the other things available", never "bad card". "millor
-    // opció" against its own chance null is the one that can say dead.
-    console.log(
-      `        ${(cardName.get(v.id) ?? v.id).padEnd(24)} ${v.value.toFixed(1).padStart(6)} PV`
-      // Its own error bar — clustered by fight, which is wider than the
-      // binomial one a share of `observations` would quote.
-      + `   millor ${exact(v.bestShare)}±${exact(v.bestStderr)} vs atzar ${exact(v.nullShare)}`,
-    );
-  }
-  console.log(`  ${mark(r.autoInclude)} 5. cap carta fa desaparèixer la decisió — ${r.autoInclude.detail}`);
-  console.log(`  ${mark(r.strength)} 8. dins de la banda de poder — ${r.strength.detail}`);
-  console.log(`  ${mark(r.correlation)} 7. cap carta correlaciona amb perdre — ${r.correlation.detail}`);
+  const top = r.fullKit;
+  const d = top.delta * 100;
+  console.log(
+    `  kit complet: ${(d >= 0 ? '+' : '') + d.toFixed(1)}pp±${(top.deltaStderr * 100).toFixed(1)} vs neutre`
+    + ` (brut ${pct(top.winrate, top.games).trim()}, ${top.games} combats)`,
+  );
+  console.log(`  ${mark(r.duration)} 1. els combats acaben — ${r.duration.detail}`);
+  console.log(`  ${mark(r.strength)} 2. dins de la banda de poder — ${r.strength.detail}`);
+  console.log(`  ${mark(r.choices)} 3. triar importa — ${r.choices.detail}`);
+  printCardRanking(r);
 
-  const top = r.levels[r.levels.length - 1].run;
   // The spread across cells: a kit with no bad matchup is as much a problem as
   // one with no good matchup (§7.1 #10). Deltas, so the seat is already out.
   if (top.byCell.length > 1) {
@@ -87,26 +96,20 @@ function printReport(r: KitReport): void {
       + ` (obertura ${((hi - lo) * 100).toFixed(0)}pp, ±${(stderr(0.5, perCell) * 100 * 1.41).toFixed(0)} per cel·la)`,
     );
   }
-  console.log('  ús per carta (jugades / cops que era legal):');
-  for (const c of r.cards) {
-    const legal = top.counters.legal[c.id] ?? 0;
-    console.log(`      ${c.name.padEnd(24)} ${legal ? share(top.counters.played[c.id] ?? 0, legal) : '     n/d'}`
-      + `   (legal ${legal} cops)`);
-  }
 }
 
 const argv = process.argv.slice(2);
 const arg = flag;
 
 /**
- * Default sample size FOR THE LEVEL SWEEP — `--games` means this and only this.
+ * Default sample for the FULL-KIT RUN — `--games` means this; the card value
+ * derives its own fights from it.
  *
- * Sized by the tightest claim on the card, requirement 1: resolving a 3pp level
- * step at 2σ needs ~2,200 combats (`gamesFor(3)`). Every other requirement is
- * sized by its own threshold (`MINDLESS_GAMES`) or rides this sweep's combats
- * for free, which is what keeps a kit at ~90 seconds rather than ~8 minutes.
+ * Sized by requirement 2: 800 combats put the kit's delta at about ±2pp, far
+ * inside a ±15pp band, and give the duration's 2% stall bar a σ under half a
+ * point.
  */
-const DEFAULT_GAMES = 2_400;
+const DEFAULT_GAMES = 800;
 const GAMES = games(DEFAULT_GAMES);
 
 const subjects: Subject[] = [];
@@ -126,18 +129,12 @@ if (subjects.length === 0) {
   }
 }
 
-console.log(`ANALITZADOR DE KITS · ~${GAMES} combats per nivell, repartits per la matriu`);
+console.log(`ANALITZADOR DE KITS · ~${GAMES} combats al kit complet, repartits per la matriu`);
 console.log(
   'Cada forma es resol contra una colla amb la MATEIXA FORMA que una cel·la i després es MESURA'
   + ' contra totes les companyies. Les puntuacions són DELTES respecte d\'aquesta línia de base,'
   + ' així que la dificultat de la cel·la i el seient s\'anul·len.',
 );
-if (GAMES < gamesFor(REGRESSION_PP * 100)) {
-  console.log(
-    `⚠️  ${GAMES} combats/nivell no resolen un pas de ${REGRESSION_PP * 100}pp (calen ~${gamesFor(REGRESSION_PP * 100)}).`
-    + ' Els veredictes de nivell d\'aquesta passada són indicatius, no concloents.',
-  );
-}
 console.log('');
 
 // WARM FIRST, ACROSS THE CORES, THEN MEASURE SERIALLY — the same `prepare`
@@ -181,30 +178,27 @@ console.log(
 );
 
 // --- The roll-up ------------------------------------------------------------
-// Folded in from the old `measure-verdict.ts`, which asked the same question at
-// party level with its own setup and its own sample size — a second answer to
-// requirement 3 that could disagree with this one. One measurement, one answer.
 if (reports.length > 1) {
   console.log('\n━━ RESUM ━━');
-  console.log('  kit                    vs neutre    1.nivell  2.durada  3.pensar  3b.espai  3c.1carta  4.mortes  5.autom.  8.banda   7.correl');
+  console.log('  kit                    vs neutre    1.durada  2.banda  3.triar');
   for (const r of reports) {
-    const top = r.levels[r.levels.length - 1].run;
-    const d = top.delta * 100;
+    const d = r.fullKit.delta * 100;
     const m = (v: Verdict) => (v.inconclusive ? '   ➖   ' : v.ok ? '   ✅   ' : '   ❌   ');
     console.log(
       `  ${subjectName(r.subject).padEnd(22)} ${((d >= 0 ? '+' : '') + d.toFixed(1) + 'pp').padStart(8)}    `
-      + `${m(r.monotonicity)}  ${m(r.duration)}  ${m(r.spam)}  ${m(r.strategySpace)} ${m(r.oneTrick)}   ${m(r.cardUse)} ${m(r.autoInclude)} ${m(r.strength)}  ${m(r.correlation)}`,
+      + `${m(r.duration)} ${m(r.strength)} ${m(r.choices)}`,
     );
   }
-  const failsSpam = reports.filter(r => !r.spam.ok).map(r => subjectName(r.subject));
-  console.log('');
-  if (failsSpam.length === 0) {
-    console.log('  VEREDICT: pensar bat qualsevol estratègia sense pensar, a tots els kits.');
-    console.log('  → el triangle d\'estratègia no és decoració.');
-  } else {
-    console.log(`  VEREDICT: ${failsSpam.length}/${reports.length} kits no superen una estratègia sense pensar`);
-    console.log(`  per ${MINDLESS_MARGIN * 100}pp — ${failsSpam.join(', ')}.`);
-    console.log('  → en aquests kits, les decisions amb prou feines importen.');
+}
+
+// --- Requirement 4: the set's triangle, on request ---------------------------
+// Set-level and costly (three duels of depth-1 mirrors), so opt-in here; the
+// asserting copy is `sets/fantasy/test/triangle.slow.test.ts`.
+if (argv.includes('--triangle')) {
+  const t: TriangleReport = measureTriangle();
+  console.log(`\n━━ 4. TRIANGLE D'ESTRATÈGIA ${t.ok ? '✅' : '❌'} ━━`);
+  for (const e of t.edges) {
+    console.log(`  ${(e.winner + ' > ' + e.loser).padEnd(20)} ${pct(e.winrate, e.games)}${t.broken.includes(`${e.winner} > ${e.loser}`) ? '  ✗ no es compleix' : ''}`);
   }
 }
 console.log('');

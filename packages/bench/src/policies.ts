@@ -134,17 +134,43 @@ export const firstLegal: Chooser = (engine, actor) => {
   return legal.length ? legal[0] : null;
 };
 
-/** Every policy by name, worst expected first. */
-export const POLICIES: Record<string, Chooser> = {
-  firstLegal, feeble, uniform, spam, heuristic, depth1, depth1x,
-};
+// --- Play styles: the corners of the strategy triangle ----------------------
 
-/** The fixed strategies the AI must beat. Deliberately NOT derived from the
- *  AI — see the file comment. */
-export const BASELINES = ['firstLegal', 'feeble', 'uniform', 'spam'] as const;
+/**
+ * Production play LEANING towards one action type: each round, a seeded coin
+ * decides per side whether it commits to the style — the lookahead restricted
+ * to `type` (falling back to the whole hand when nothing of that type is
+ * legal) — or plays freely.
+ *
+ * A LEAN, NOT A RESTRICTION. A side that may only ever defend or only ever
+ * focus never deals damage, so two of the three corners met each other in
+ * stalls and the "triangle" was really a measurement of who stalls whom
+ * (NEXT-STEPS §22.1 measured the hard restriction). Per ROUND, not per seat,
+ * because the lookahead plans a side jointly and a style is a side's choice.
+ */
+export function leaning(type: ActionType, share: number): Chooser {
+  const styled = lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [type] });
+  let coin: { engine: CombatEngine; round: number; team: number; styled: boolean } | null = null;
+  return (engine, actor) => {
+    if (!coin || coin.engine !== engine || coin.round !== engine.round || coin.team !== actor.team) {
+      coin = { engine, round: engine.round, team: actor.team, styled: random() < share };
+    }
+    return (coin.styled ? styled : depth1)(engine, actor);
+  };
+}
 
-/** The same AI at increasing budget, weakest first. */
-export const LADDER = ['heuristic', 'depth1', 'depth1x'] as const;
+/** How much a style leans: the share of rounds it commits to its type. */
+export const STYLE_SHARE = 0.5;
+
+/** intentions.md's three strategies, in the order the triangle claims each
+ *  beats the next: Power > Protect > Aggro > Power. */
+export function triangleStyles(share = STYLE_SHARE): { name: string; chooser: Chooser }[] {
+  return [
+    { name: 'Power', chooser: leaning(ActionType.Focus, share) },
+    { name: 'Protect', chooser: leaning(ActionType.Defensa, share) },
+    { name: 'Aggro', chooser: leaning(ActionType.Atac, share) },
+  ];
+}
 
 // --- Mirror matches ---------------------------------------------------------
 
@@ -194,4 +220,19 @@ export function headToHead(x: Chooser, y: Chooser, games: number, seed = MIRROR_
     return wins / half;
   };
   return { winrate: (play(x, y) + (1 - play(y, x))) / 2, games: half * 2 };
+}
+
+/** One edge of a cycle: `winner` is claimed to beat `loser`. */
+export interface CycleEdge { winner: string; loser: string; duel: HeadToHead }
+
+/**
+ * Each style against the NEXT one, wrapping round: [a, b, c] plays a–b, b–c
+ * and c–a, each read as the first style's winrate. Content-agnostic, so the
+ * controls can hand it styles whose order is known by construction.
+ */
+export function cycleDuels(styles: { name: string; chooser: Chooser }[], games: number, seed = MIRROR_SEED): CycleEdge[] {
+  return styles.map((w, i) => {
+    const l = styles[(i + 1) % styles.length];
+    return { winner: w.name, loser: l.name, duel: headToHead(w.chooser, l.chooser, games, seed) };
+  });
 }

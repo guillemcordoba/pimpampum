@@ -32,27 +32,26 @@ export {
 
 // --- Measuring in cells -----------------------------------------------------
 export {
-  chooserFor, instrument, newCardCounters,
+  instrument, newCardCounters,
   cellResult, cellKey, matrixCell, runMatrix, roundPercentiles,
-  CELL_SEED,
-  CELL_AI, THOUGHTLESS_POLICIES, RESTRICTED_POLICIES,
+  CELL_AI,
 } from './cells.js';
-export type { CellPolicy, CellSetup, CellRun, CachedCell, CardCounters, MatrixResult } from './cells.js';
+export type { CellSetup, CachedCell, CardCounters, MatrixResult } from './cells.js';
 
 // --- Alternative policies, and honest duels between them --------------------
 export {
   heuristic, depth1, depth1x, spam, uniform, feeble, firstLegal, split, headToHead,
-  mirrorParty, MIRROR_SEED, POLICIES, BASELINES, LADDER,
+  mirrorParty, MIRROR_SEED, leaning, STYLE_SHARE, triangleStyles, cycleDuels,
 } from './policies.js';
-export type { Chooser, HeadToHead } from './policies.js';
+export type { Chooser, HeadToHead, CycleEdge } from './policies.js';
 
 // --- Per-decision card value ------------------------------------------------
 export * from './regret.js';
 
 // --- Caching the fixed cost of a run ----------------------------------------
-export { cached, countedCached, key, enginePrint, actionPrint, skillPrint, enemyPrint, cacheStatus } from './cache.js';
+export { cached, countedCached, key, enginePrint, fingerprintedSources, actionPrint, skillPrint, enemyPrint, cacheStatus } from './cache.js';
 export {
-  stderr, pct, pctCoarse, deltaPP, pp, deltaStderr, significant, gamesFor, maxOfKBias, exact, share,
+  stderr, pct, pctCoarse, deltaPP, pp, deltaStderr, significant, gamesFor, exact, share,
 } from './report.js';
 export { flag, games, searchGames, calibrationGames, SMOKE } from './games.js';
 export { lanes, warm } from './parallel.js';

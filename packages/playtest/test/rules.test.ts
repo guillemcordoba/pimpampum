@@ -4,8 +4,8 @@
  * A verdict rule that is only ever exercised by real data is a rule nobody has
  * checked. Real data never tells you whether a ❌ fired because the kit is
  * broken or because the rule is — the numbers look equally plausible either
- * way, which is how requirement 3c spent a session reporting which seed it had
- * been given (NEXT-STEPS §19.1) and how `DEAD_VALUE` spent one flagging cards
+ * way, which is how the one-card requirement spent a session reporting which seed
+ * it had been given (NEXT-STEPS §19.1) and how `DEAD_VALUE` spent one flagging cards
  * against a floor nobody had measured (§17.5).
  *
  * So each rule is fed inputs whose answer is known WITHOUT measuring anything:
@@ -20,112 +20,16 @@
  * could not resolve.
  */
 import { describe, it, expect } from 'vitest';
-import { marginVerdict, classifyStep, durationVerdict, correlatesWithLosing, isDeadCard, isAutoInclude, strengthVerdict, sweetSpotVerdict, KIT_BAND, MINDLESS_MARGIN, STRATEGY_SPACE_MARGIN, ONE_TRICK_MARGIN, REGRESSION_PP } from '../src/index.js';
-import { gamesFor } from '@pimpampum/bench';
+import {
+  choiceMattersVerdict, durationVerdict, edgeHolds, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
+  MIN_CHOICE_COST, strengthVerdict, sweetSpotVerdict, TRIANGLE_GAMES, triangleVerdict,
+} from '../src/index.js';
 
 /** A sample big enough that a 1pp effect is resolvable — so these tests are
  *  about the RULE, not about noise. */
 const BIG = 100_000;
 
-describe('requirement 3 / 3b / 3c — the margin rule', () => {
-  it('passes a margin clearly above the bar', () => {
-    // 60% vs 20% is a 40pp margin against a 20pp bar, with n large.
-    const v = marginVerdict(0.6, BIG, 0.2, BIG, MINDLESS_MARGIN);
-    expect(v.ok).toBe(true);
-    expect(v.borderline).toBe(false);
-    expect(v.armWins).toBe(false);
-  });
-
-  it('fails a margin clearly below the bar', () => {
-    // 5pp against a 20pp bar, resolved to well under a point.
-    const v = marginVerdict(0.55, BIG, 0.50, BIG, MINDLESS_MARGIN);
-    expect(v.ok).toBe(false);
-    expect(v.armWins).toBe(false);
-  });
-
-  it('THE NULL: two identical arms do not clear a positive bar', () => {
-    // The rule must not manufacture a margin out of nothing. This is the case
-    // a bare `margin >= bar` also gets right — it is the next one it does not.
-    const v = marginVerdict(0.5, BIG, 0.5, BIG, MINDLESS_MARGIN);
-    expect(v.ok).toBe(false);
-    expect(v.margin).toBe(0);
-    expect(v.armWins).toBe(false);
-  });
-
-  it('does NOT fail a margin that misses only inside its own noise', () => {
-    // 4pp measured against a 5pp bar on a SMALL sample: the interval reaches
-    // the bar, so the honest verdict is "not shown", not "broken". A ❌ here
-    // means go look, and a false one costs a session. This is exactly what 3c
-    // got wrong: `trickMargin >= ONE_TRICK_MARGIN` with no error term.
-    const v = marginVerdict(0.54, 300, 0.50, 300, ONE_TRICK_MARGIN);
-    expect(v.ok).toBe(true);
-    expect(v.borderline).toBe(true);
-  });
-
-  it('reports when the arm BEATS the policy, which is not a content finding', () => {
-    // An impoverished side outplaying the real one says something about the
-    // POLICY. Reporting it as a kit failure sends the reader to the wrong file.
-    const v = marginVerdict(0.45, BIG, 0.55, BIG, ONE_TRICK_MARGIN);
-    expect(v.armWins).toBe(true);
-    expect(v.ok).toBe(false);
-  });
-
-  it('knows when its own sample cannot resolve its own bar', () => {
-    // The §19.1 bug, as a rule-level check: 300 combats against a 5pp bar.
-    expect(marginVerdict(0.5, 300, 0.5, 300, ONE_TRICK_MARGIN).resolvable).toBe(false);
-    expect(marginVerdict(0.5, gamesFor(ONE_TRICK_MARGIN * 100), 0.5, gamesFor(ONE_TRICK_MARGIN * 100), ONE_TRICK_MARGIN).resolvable).toBe(true);
-    // ...and that a 20pp bar IS resolvable at the same sample, which is why the
-    // three requirements cannot share one budget.
-    expect(marginVerdict(0.5, 300, 0.5, 300, MINDLESS_MARGIN).resolvable).toBe(true);
-  });
-
-  it('is monotone in the bar: one rule, three thresholds', () => {
-    // 3, 3b and 3c differ ONLY in their bar. If a margin clears the strictest,
-    // it clears the others — and the day that stops being true, the rules have
-    // drifted apart again.
-    const near = (bar: number): boolean => marginVerdict(0.62, BIG, 0.40, BIG, bar).ok;
-    expect(near(MINDLESS_MARGIN)).toBe(true);
-    expect(near(STRATEGY_SPACE_MARGIN)).toBe(true);
-    expect(near(ONE_TRICK_MARGIN)).toBe(true);
-    expect(MINDLESS_MARGIN).toBeGreaterThan(STRATEGY_SPACE_MARGIN);
-    expect(STRATEGY_SPACE_MARGIN).toBeGreaterThan(ONE_TRICK_MARGIN);
-  });
-});
-
-describe('requirement 1 — the level-step rule', () => {
-  const TIGHT = 0.005;   // 0.5pp of error: a 3pp step is far outside it
-
-  it('calls a clear gain a gain', () => {
-    expect(classifyStep(+0.10, TIGHT, REGRESSION_PP)).toBe('gain');
-  });
-
-  it('calls a clear drop a regression', () => {
-    expect(classifyStep(-0.10, TIGHT, REGRESSION_PP)).toBe('regression');
-  });
-
-  it('THE NULL: a step of exactly zero is FLAT, never a regression', () => {
-    // A level that buys nothing is a finding worth printing, and it is not the
-    // same finding as a level that makes the kit worse.
-    expect(classifyStep(0, TIGHT, REGRESSION_PP)).toBe('flat');
-  });
-
-  it('does NOT call a drop inside the noise a regression', () => {
-    // At the old default a genuinely flat level read as a regression about one
-    // time in four, and over four steps most kits printed a false ❌. A drop
-    // bigger than the bar but smaller than its own error bar is 'noisy'.
-    const WIDE = 0.05;
-    expect(classifyStep(-0.04, WIDE, REGRESSION_PP)).toBe('noisy');
-  });
-
-  it('needs the drop to beat BOTH the bar and the noise', () => {
-    // Big error bar, big drop: still not a regression until the drop clears the
-    // bar by more than 2σ.
-    expect(classifyStep(-0.09, 0.05, REGRESSION_PP)).toBe('noisy');
-    expect(classifyStep(-0.11, 0.05, REGRESSION_PP)).toBe('regression');
-  });
-});
-
-describe('requirement 2 — the duration rule', () => {
+describe('requirement 1 — the duration rule', () => {
   const OK = { median: 3, p90: 6, draws: 0.01 };
   const BARS = [5, 8, 0.02] as const;
   const check = (m: number, p: number, d: number) => durationVerdict(m, p, d, ...BARS);
@@ -167,110 +71,8 @@ describe('requirement 2 — the duration rule', () => {
   });
 });
 
-describe('requirement 7 — the win-correlation flag', () => {
-  const MIN = 100;
-  const FLOOR = 0.4;
-  const check = (wins: number, plays: number) => correlatesWithLosing(wins, plays, MIN, FLOOR);
 
-  it('refuses to judge a card it barely saw', () => {
-    // A card played nine times has no win rate worth the name, and flagging it
-    // would send a designer to look at a card the harness never watched.
-    const v = check(0, 9);
-    expect(v.judged).toBe(false);
-    expect(v.flagged).toBe(false);
-  });
-
-  it('flags a card that clearly correlates with losing', () => {
-    expect(check(100, 1000).flagged).toBe(true);   // 10%, far under the floor
-  });
-
-  it('does NOT flag a healthy card', () => {
-    expect(check(600, 1000).flagged).toBe(false);  // 60%
-  });
-
-  it('THE NULL: a card exactly at the floor is not flagged', () => {
-    // The claim is "CLEARLY below", not "measured below". At exactly 40% the
-    // interval straddles the line and there is nothing to report.
-    expect(check(400, 1000).flagged).toBe(false);
-  });
-
-  it('does not flag on a small sample what it would flag on a large one', () => {
-    // Same 35% rate, two sample sizes. The rule must need the EVIDENCE, not
-    // just the point estimate — the shape of mistake that cost requirement 3c
-    // a session (NEXT-STEPS §19.1).
-    //
-    // 35% is chosen because it sits in the ambiguous band: at n=100 its 2 sigma
-    // interval still reaches the 40% floor, at n=10,000 it does not. A first
-    // draft used 30%, which at n=100 is ALREADY clearly under the floor — the
-    // control would have passed for the wrong reason and then kept passing
-    // after the error term was removed.
-    expect(check(35, 100).flagged).toBe(false);
-    expect(check(3_500, 10_000).flagged).toBe(true);
-  });
-});
-
-describe('requirement 4/5: a card is dead only CLEARLY below its own null', () => {
-  /*
-   * The rule was inline in `analyze` until 2026-09-22, and that is exactly why
-   * it was the ONE mutant to survive the first mutation run (`src/mutation.ts`):
-   * deleting its error term — `bestShare + 2σ < nullShare` → `bestShare <
-   * nullShare` — changed nothing any fast test could see, because no fast test
-   * could reach it.
-   *
-   * §17.5 records what that costs when it happens for real: `DEAD_VALUE` spent
-   * a session naming cards against a noise floor nobody had measured. A ❌ here
-   * has to mean "go and look at this card", never "this card drew badly".
-   */
-
-  it('flags a card clearly under the null', () => {
-    // 5% best-share against a 25% null, tight interval: not an accident.
-    expect(isDeadCard(0.05, 0.02, 0.25)).toBe(true);
-  });
-
-  it('does NOT flag a card that is merely measured low', () => {
-    // THE MUTANT THAT SURVIVED. Same point estimate as above and the same null,
-    // but an interval wide enough to reach it: the sample cannot tell. Drop the
-    // 2σ and this reads dead.
-    expect(isDeadCard(0.20, 0.08, 0.25)).toBe(false);
-  });
-
-  it('does not flag a card at or above its null', () => {
-    expect(isDeadCard(0.30, 0.02, 0.25)).toBe(false);
-    expect(isDeadCard(0.25, 0.00, 0.25)).toBe(false);
-  });
-
-  it('a wider sample can only make it harder to call a card dead', () => {
-    // Monotone in the error bar — the property that makes "clearly" mean
-    // something. A noisier measurement must never flag MORE.
-    const tight = isDeadCard(0.10, 0.01, 0.25);
-    const loose = isDeadCard(0.10, 0.10, 0.25);
-    expect(tight, 'a tight interval below the null is dead').toBe(true);
-    expect(loose, 'the same estimate, too noisy to tell, is not').toBe(false);
-  });
-});
-
-describe('requirement 5 — a card that erases the decision', () => {
-  it('flags a card clearly best almost every time', () => {
-    expect(isAutoInclude(0.97, 0.01)).toBe(true);
-  });
-
-  it('does NOT flag a card that is merely measured high', () => {
-    // 89% but ±3: its interval reaches the bar, so the claim is not made.
-    expect(isAutoInclude(0.89, 0.03)).toBe(false);
-  });
-
-  it('THE NULL: a card best half the time is a real choice', () => {
-    expect(isAutoInclude(0.5, 0.01)).toBe(false);
-  });
-
-  it('a wider sample can only make it harder to call a card auto-include', () => {
-    for (let se = 0.001; se < 0.1; se += 0.005) {
-      if (isAutoInclude(0.95, se + 0.005)) expect(isAutoInclude(0.95, se)).toBe(true);
-    }
-  });
-});
-
-describe('requirement 8 — the power band', () => {
+describe('requirement 2 — the power band', () => {
   it('passes a kit near the neutral stand-in', () => {
     expect(strengthVerdict(0.03, 0.02, KIT_BAND)).toEqual({ ok: true, side: null });
   });
@@ -287,6 +89,80 @@ describe('requirement 8 — the power band', () => {
 
   it('THE NULL: exactly zero is in band at any sample size', () => {
     for (const se of [0, 0.01, 0.2]) expect(strengthVerdict(0, se, KIT_BAND).ok).toBe(true);
+  });
+});
+
+
+describe('requirement 3 — choosing must matter', () => {
+  it('passes a kit where a random pick clearly costs more than the bar', () => {
+    expect(choiceMattersVerdict(MIN_CHOICE_COST * 3, 0.1, MIN_CHOICE_COST)).toBe(true);
+  });
+
+  it('fails a kit where a random pick clearly costs too little', () => {
+    expect(choiceMattersVerdict(MIN_CHOICE_COST / 4, 0.05, MIN_CHOICE_COST)).toBe(false);
+  });
+
+  it('THE NULL: a kit that never offers a choice — zero decisions, zero cost — fails', () => {
+    expect(choiceMattersVerdict(0, 0, MIN_CHOICE_COST)).toBe(false);
+  });
+
+  it('does NOT fail a kit that is under the bar only inside its own noise', () => {
+    expect(choiceMattersVerdict(MIN_CHOICE_COST * 0.8, MIN_CHOICE_COST * 0.2, MIN_CHOICE_COST)).toBe(true);
+  });
+});
+
+describe('requirement 3 — a card is never the right play', () => {
+  const N = 500;
+
+  it('fails a card whose runner-up is clearly better even where it looks best', () => {
+    expect(isNeverRight(-2.8, 0.5, N)).toBe(true);
+  });
+
+  it('THE NULL: a card tied with the alternative when best is a real choice — workhorses and twins', () => {
+    expect(isNeverRight(0, 0.3, N)).toBe(false);
+    expect(isNeverRight(0.3, 0.3, N)).toBe(false);
+  });
+
+  it('does NOT fail a card that is negative only inside its own noise', () => {
+    expect(isNeverRight(-0.5, 0.5, N)).toBe(false);
+  });
+
+  it('a card never picked as the best at all is never right', () => {
+    expect(isNeverRight(null, null, N)).toBe(true);
+  });
+
+  it('a card with too few decisions is not judged at all', () => {
+    expect(isNeverRight(-10, 0.1, MIN_CARD_DECISIONS - 1)).toBe(false);
+    expect(isNeverRight(null, null, MIN_CARD_DECISIONS - 1)).toBe(false);
+  });
+});
+
+describe('requirement 4 — the triangle', () => {
+  const N = TRIANGLE_GAMES;
+
+  it('an edge holds when its winner clearly beats an even duel', () => {
+    expect(edgeHolds(0.60, N)).toBe(true);
+  });
+
+  it('THE NULL: an even duel holds no edge, at any sample size', () => {
+    for (const n of [50, N, 100_000]) expect(edgeHolds(0.5, n)).toBe(false);
+  });
+
+  it('does NOT claim an edge inside its own noise', () => {
+    // 54% over 100 duels: σ ≈ 5pp, the interval reaches 50%.
+    expect(edgeHolds(0.54, 100)).toBe(false);
+  });
+
+  it('a losing edge never holds', () => {
+    expect(edgeHolds(0.30, N)).toBe(false);
+  });
+
+  it('the triangle needs EVERY edge, and names the ones that break', () => {
+    const edge = (winner: string, loser: string, winrate: number) => ({ winner, loser, winrate, games: N });
+    expect(triangleVerdict([edge('A', 'B', 0.6), edge('B', 'C', 0.6), edge('C', 'A', 0.6)]))
+      .toEqual({ ok: true, broken: [] });
+    expect(triangleVerdict([edge('A', 'B', 0.6), edge('B', 'C', 0.3), edge('C', 'A', 0.5)]))
+      .toEqual({ ok: false, broken: ['B > C', 'C > A'] });
   });
 });
 

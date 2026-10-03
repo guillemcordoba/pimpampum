@@ -2,10 +2,9 @@
  * WARM A WHOLE ANALYSIS ACROSS THE CORES — then `analyze` reads it.
  *
  * `analyze` is serial by design: one process, one seeded sequence, numbers that
- * mean the same thing every run. Its cost is a few hundred independent CELLS —
- * the level sweep, the screens, the verify arms, card value — and a kit's report
- * card used to measure them one after another on one core, for as long as an
- * hour. The kit test suites did not warm anything at all.
+ * mean the same thing every run. Its cost is dozens of independent CELLS —
+ * the full-kit run and the card value, per cell — and a kit's report card used
+ * to measure them one after another on one core, for as long as an hour.
  *
  * `prepare` fills the cache first, across bench's lanes, through the SAME
  * per-cell functions `analyze` calls (`analysisJobs` / `runAnalysisJob`), so
@@ -13,9 +12,8 @@
  * guarantees are bench/parallel.ts's: the numbers are bit-identical to a serial
  * run, and a worker that fails costs time, never correctness.
  *
- * Three waves, because each needs the one before in the cache: the calibration
- * (shapes, then baselines); everything the plan knows up front; then the verify
- * arms, which the screens choose.
+ * Two waves, because the second needs the first in the cache: the calibration
+ * (shapes, then baselines), then the analysis itself.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,6 +71,5 @@ export async function prepare(ctx: RunContext, subject: Subject, games: number):
       kind: 'baseline' as const, shapeIdx, companyIdx,
     }))), worker);
   }
-  await warm(analysisJobs(subject, games, budget, 'upfront'), worker);
-  await warm(analysisJobs(subject, games, budget, 'verify'), worker);
+  await warm(analysisJobs(subject, games, budget), worker);
 }

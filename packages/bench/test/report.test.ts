@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import {
-  deltaPP, deltaStderr, exact, gamesFor, maxOfKBias, pct, pctCoarse, pp, share, significant, stderr,
+  deltaPP, deltaStderr, exact, gamesFor, pct, pctCoarse, pp, share, significant, stderr,
 } from '../src/index.js';
 
 const rate = fc.double({ min: 0.02, max: 0.98, noNaN: true });
@@ -67,7 +67,7 @@ describe('sample sizes', () => {
     }));
   });
 
-  it('agrees with the sample size the docs quote for a 3pp level step', () => {
+  it('agrees with the closed form at a 3pp bar', () => {
     expect(gamesFor(3)).toBe(2223);
   });
 
@@ -75,21 +75,6 @@ describe('sample sizes', () => {
     fc.assert(fc.property(fc.double({ min: 0.5, max: 40, noNaN: true }), bar => {
       expect(gamesFor(bar / 2)).toBeGreaterThanOrEqual(gamesFor(bar));
     }));
-  });
-});
-
-describe("winner's curse", () => {
-  it('matches the expected maximum of k standard normals', () => {
-    // E[max of k iid N(0,1)] — tabulated values (Harter 1961).
-    const table: [number, number][] = [[2, 0.5642], [3, 0.8463], [5, 1.1630], [10, 1.5388], [20, 1.8675]];
-    // Blom's approximation is worst at k=2 (0.589 against 0.564); 0.03σ is far
-    // below anything a report could resolve.
-    for (const [k, want] of table) expect(Math.abs(maxOfKBias(k) - want)).toBeLessThan(0.03);
-    expect(maxOfKBias(1)).toBe(0);
-  });
-
-  it('grows with k', () => {
-    for (let k = 2; k < 40; k++) expect(maxOfKBias(k + 1)).toBeGreaterThan(maxOfKBias(k));
   });
 });
 

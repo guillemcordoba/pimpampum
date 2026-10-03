@@ -5,6 +5,37 @@ left to do. Written as the hand-off for the next session.
 
 ---
 
+## Backlog — the ONLY open list (updated 2026-10-03)
+
+Every open item lives here; the sections below are history. Nothing here
+blocks the build: each one is either a design decision or recorded as a known
+failure that its test asserts still fails.
+
+1. **The card-by-card review (§27).** Aguantar el cop's design is open: keep
+   the no-roll identity or give it a guard roll (§27.2); the measured lever is
+   how much damage it takes, not the size of its buff (§27.3). Then, in order:
+   Entrar en Fúria, Rugit de guerra; earthbender (Cop de roca, Mur de pedra,
+   Columna de terra, Presó de terra); enginyer (Granada, Bomba de fum, Camp
+   minat, Traca final, the bandolier reload); nigromant (Marca, Mà de la
+   tomba, Putrefacció, Xuclar la vida, Invocar l'ombra); Desaparèixer en
+   l'ombra; Riu de lava; Atac encadenat; Amagar-se; Defensa esquelètica; Fibló
+   verinós; cuir and ferro. Each change re-measured with the kit analyzer.
+2. **The strategy triangle holds on one edge of three** (requirement 4,
+   `KNOWN_BROKEN` in `sets/fantasy/test/triangle.slow.test.ts`): Power beats
+   Protect (84%), but Power also beats Aggro (77%), and since the calibration
+   refresh Aggro edges Protect (Protect 47%). Per `intentions.md`, buff the
+   corner that beats the winner — Aggro against slow focuses — rather than
+   weakening Power.
+3. **Cuir has no sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
+   `set.slow.test.ts`, §26.13): one armour exploration and a recalibration.
+4. **The unpriced "esgotadora" cards (§11):** choose a cost per card, or decide
+   they stay free.
+5. Optional measurement work: a stall probe (one card dominating the plays of
+   fights past round 30, §26.11), and wider fight shapes (bone-devil company
+   row 1 is saturated and drops out of every kit's measurement, §26.14).
+
+---
+
 ## 1. What was done
 
 100 encounters were requested exactly the way a GM requests them in the
@@ -241,6 +272,9 @@ at it, and get back a pass/fail report card. Same tool for player skills and
 enemy kits; only the reference opposition differs.
 
 ### 7.1 Requirements a kit must satisfy
+
+> **Superseded 2026-10-03 by §27.3** — four requirements, one intention each.
+> The list below is the history the code comments still cite by number.
 
 Each one is a measurable predicate, not a vibe. Ordered by how load-bearing it
 is for the design.
@@ -2372,7 +2406,8 @@ that ratings collapse exactly the intransitivity that makes such a design
 interesting.) So it is read off the pairwise matrix of the three restricted
 policies, which are precisely those three strategies.
 
-It is REPORTED, not asserted. §15.6 already measured that the triangle does not
+(Since 2026-10-03 it IS asserted — set-level requirement 4, on LEANING
+styles rather than hard restrictions; see §27.3.) It was REPORTED, not asserted. §15.6 already measured that the triangle does not
 hold — restricting a side to attacks costs it nothing — and a test insisting on
 it would be arguing with its own measurement. The harness prints which of the
 three relations exist and whether they close into a cycle, so the design's
@@ -3392,6 +3427,10 @@ parallel warm they now run in 40 s.
 
 ### 26.14 What next
 
+> Replaced by the Backlog at the top (2026-10-03): items 2 and 3 are closed
+> (berserk sits at +10.9 inside the band; the dead-card verdict they named was
+> replaced, §27.3), the rest moved there.
+
 1. **Cuir's sweet spot** — one armour exploration (the variant harness was
    deleted as a one-off; the method is in §26.6) and a recalibration.
 2. **Berserk sits on the band edge** (+15.8 ±1.0, passing only because the
@@ -3472,3 +3511,144 @@ known.ts entry marks it under review.
 
 Next in the review: 3 Entrar en Fúria (the card that keeps berserk strongest:
 +17 PV, the kit's best one-card strategy).
+
+### 27.3 The requirements cut to four, and two measurement faults (2026-10-03)
+
+The card review stopped at Aguantar el cop because the requirement judging it
+was wrong: "dead" meant "clearly less often the best play than chance", and
+since exactly one card is best at each decision the shares AVERAGE to chance —
+any kit with a star card had to push another card under the line. Aguantar el
+cop at 13% sat beside Rugit de guerra at 38%. Reviewing that rule turned into
+reviewing all of them against `intentions.md`. They overlapped (three were
+anti-spam from different angles), one was a tautology (level N+1 holds a
+superset of level N's cards; the anti-spam requirements already catch a trap
+card) and the level sweep was most of the cost.
+
+**The four requirements, one intention each** (`playtest/src/rules.ts`):
+
+| # | requirement | bar | measured on |
+|---|---|---|---|
+| 1 | fights end | median ≤ 5, p90 ≤ 8, stalls < 2% | the full-kit run |
+| 2 | inside the power band | within ±15pp of the neutral stand-in | the full-kit run |
+| 3 | choosing matters | a random legal pick costs ≥ 1 PV per decision against the best, cross-fitted | per-decision card value |
+| 4 | the strategy triangle | Power > Protect > Aggro > Power, every edge clearly above 50% | set-level mirror fights, leaning styles |
+
+Removed: the level sweep (1), thinking vs mindless (3), strategy space (3b),
+one card (3c), the win-correlation flag (7), the dead/automatic card tails
+(4/5) — with the screens, verify passes, winner's-curse correction, the
+impoverished cell policies, `exploitability.ts` (its triangle half is
+requirement 4; its exploitability finding is §22.1) and the ladder, trap,
+losing-only, flat-side, dead-card and dominant-card controls.
+
+**Why no per-card verdict.** Re-based on a fixed floor (5% best, 85% ceiling),
+the tails failed their own controls: a card that does NOTHING was the best
+play in 25% of its control's decisions at six rollouts, 30% at twenty-four.
+Not noise — the control's fight barely depends on one seat's choice (a random
+pick there costs 1–2 PV), and when nothing matters much every card, even an
+empty one, is sometimes best. A best-share cannot tell useless from harmless.
+Each card's value and share are printed on the report card; the kit is judged
+on whether choosing matters at all.
+
+**Two faults found on the way:**
+
+- **The cache fingerprint was blind from the package refactor (af533c1) until
+  today.** It resolved the repo one directory too high, found no source, and
+  hashed four "missing" markers: no engine, AI, bench or balancer change
+  invalidated a cached number. Fixed, a missing package now throws, and a test
+  names a file from each package. Recalibrating from scratch reproduced the
+  sweep's full-kit numbers exactly, so the six kits had not in fact been
+  served stale cells — but nothing guaranteed it.
+- **The random-pick cost took a max over noisy rollouts.** "Top minus mean"
+  reads a choice between cards worth the same; the first sweep put every kit
+  at 10–14 PV. Cross-fitted (choose on half the samples, price on the other):
+
+| | random pick costs (PV / decision) |
+|---|---|
+| control: identical cards (must fail) | 0.00 |
+| control: twins differing by noise only (must fail) | −0.11 ±0.13 |
+| control: two-card combo (must pass) | 1.57 ±0.23 |
+| berserk | 8.55 ±0.51 |
+| nigromant | 5.90 ±0.40 |
+| enginyer | 4.99 ±0.36 |
+| earthbender | 4.40 ±0.33 |
+| volcanic | 4.30 ±0.31 |
+| mestre-armes | 4.24 ±0.30 |
+
+The bar is 1 PV — a point of health per decision, between the controls.
+
+**Sweep (2026-10-03, calibration recomputed from scratch, 8 min for six kits
+plus the triangle):** every kit passes 1–3. Deltas: berserk +10.9, nigromant
++4.5, mestre-armes −1.9, enginyer −2.0, earthbender −3.1, volcanic −9.6.
+
+**The triangle (requirement 4), first assertion:**
+
+| edge | winner's winrate |
+|---|---|
+| Power > Protect | 79.8% ±1.4 ✅ |
+| Protect > Aggro | 58.0% ±1.7 ✅ |
+| Aggro > Power | 24.1% ±1.5 ❌ |
+
+Power beats both other corners — §22.1's finding, now on leaning styles. On
+the leaning styles Protect > Aggro HOLDS (it was reversed under hard
+restrictions). Aggro > Power is `KNOWN_BROKEN` in `triangle.slow.test.ts`. Per
+`intentions.md`, the answer is to buff the corner that beats the winner:
+make Aggro punish slow focuses harder, not nerf Power.
+
+**Cost:** a kit's plain combats went from ~16,000 to 800; the card value is
+now nearly all of a sweep.
+
+**Back to the card review.** Aguantar el cop measured −3.9 PV with the best
+play in 8% of decisions; under the new requirements it fails nothing, and
+berserk passes all three. The open design question from §27.2 stands on its
+own merits (no-roll identity vs a guard roll). Its parameters are now
+`divisor` / `multiplier` / `duration` / `fromBlow` (the tree holds divisor 2,
+×2, permanent: the §27.2 shape). The user's last direction: less damage taken
+(a third or less) and a buff on the next attacks — the sweep in progress
+(divisor 3–5, ×2–4, 2 turns or permanent) moved value from −3.9 to about 0
+only through the divisor; buff size and duration changed nothing. Next in the
+review after it: 3 Entrar en Fúria.
+
+**The card ranking (report card, 2026-10-03).** Each kit now prints its cards
+ranked, four numbers off the same rollouts: value against the rest of the hand,
+share of moments as the best play, the lead over the runner-up WHEN it is the
+best play (cross-fitted — a naive lead is the winner's own luck), and how often
+the AI plays it. The third column is what finds a card that is rarely right but
+decisive. Berserk:
+
+| card | vs. the hand | best play | when best, gains | AI plays it |
+|---|---|---|---|---|
+| Entrar en Fúria | +17.0 | 30% | +6.6 | 22% |
+| Rugit de guerra | +10.3 | 38% | +2.9 | 20% |
+| Atac temerari | −3.3 | 22% | +0.0 | 31% |
+| Aguantar el cop | −3.9 | 8% | **−2.8** | 3.5% |
+| Embat sagnant | −4.5 | 21% | +0.3 | 26% |
+
+**Retracted the same day:** the −2.8 was a bias. The lead was averaged per
+fight, and a card picked as the best on both halves of a position's samples
+adds two (winning) observations where a lucky pick adds one (losing) — twin
+cards worth exactly the same read −2 PV. Averaged per observation (a clustered
+ratio), the twins read zero. The noisy-twins control caught it.
+
+**Requirement 3 gains a per-card half: a card is NEVER THE RIGHT PLAY** when its
+lead over the runner-up, in the moments it looks best, is clearly below zero
+(2σ), under every opponent model; never picked at all, after 30 decisions,
+counts too. Workhorses tied with the alternative read ~0 and pass; twins pass.
+Its must-fail control had to be rebuilt: beside two 2d6 attacks in one seat of
+four, doing nothing really was about as good as attacking (gain −0.5, +0.5,
+−0.2 ±0.8 across the models) — the choice barely moved that fight. Beside two
+heavy, fastest, every-target attacks it is flagged, and the attacks are not.
+
+**Sweep with the per-card half (2026-10-03):** every kit passes requirements
+1–3; no card is never-right under all three opponent models. Lowest leads when
+best: Marca de la perdició −2.4, Aguantar el cop −1.7 (both negative, neither
+clearly so under every model). The column also shows the pattern it was added
+for — Erupció is −3.0 against its hand but leads by +5.1 when it is the right
+play; Presó de terra −0.4 / +4.6. Controls 28/28, fast tier 305/305, kit and
+triangle suites 30/30, mutation 26/26.
+
+**Calibration refreshed (2026-10-03, end of day).** Snapshot re-pinned to the
+live kits (berserk without Cop d'espatlla): the reference party is Σ21
+(`REFERENCE_SIGMA`). Re-measured from scratch: every kit passes 1–3; deltas
+berserk +14.8 (near the band edge again), nigromant +8.2, enginyer +0.4,
+mestre-armes −0.2, earthbender −2.9, volcanic −4.0. The triangle lost Protect >
+Aggro (58% → 47%); now known-broken with Aggro > Power.

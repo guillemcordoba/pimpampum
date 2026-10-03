@@ -70,8 +70,74 @@ export function pvDifferential(engine: CombatEngine, team: number): number {
   return sum(team) - sum(1 - team);
 }
 
-/** One card's score at one position, and whether that branch went on to win. */
-interface Branch { actionIdx: number; cardId: string; score: number; won: number }
+/** One card's score at one position, and whether that branch went on to win.
+ *  `samples` keeps every rollout's score, for the cross-fitted choice cost. */
+export interface Branch { actionIdx: number; cardId: string; score: number; won: number; samples: number[] }
+
+/**
+ * What a random pick loses against the best card, CROSS-FITTED.
+ *
+ * The plain "top score minus the mean" is biased upwards: the top is a MAX
+ * over noisy rollouts, so two cards worth exactly the same still show a cost
+ * — winner's curse, at every decision. Choosing the best on one half of the
+ * samples and pricing that choice on the other half (then the reverse) is
+ * unbiased: equal cards cost zero on average. With one sample there is
+ * nothing to split; the smoke run falls back to the biased form, since it
+ * measures nothing anyway.
+ */
+/** The mean of every other rollout sample, starting at `parity` — one of the
+ *  two independent halves a cross-fit splits the samples into. */
+function half(b: { samples: number[] }, parity: number): number {
+  const xs = b.samples.filter((_, i) => i % 2 === parity);
+  return xs.reduce((a, x) => a + x, 0) / xs.length;
+}
+
+export function crossFittedCost(branches: Pick<Branch, 'score' | 'samples'>[]): number {
+  const n = branches[0]?.samples.length ?? 0;
+  const plain = (scores: number[]) => Math.max(...scores) - scores.reduce((a, b) => a + b, 0) / scores.length;
+  if (n < 2) return plain(branches.map(b => b.score));
+  const priced = (pick: number, price: number): number => {
+    const chooser = branches.map(b => half(b, pick));
+    const judge = branches.map(b => half(b, price));
+    const top = Math.max(...chooser);
+    const best = judge.filter((_, i) => chooser[i] === top);
+    return best.reduce((a, x) => a + x, 0) / best.length - judge.reduce((a, x) => a + x, 0) / judge.length;
+  };
+  return (priced(0, 1) + priced(1, 0)) / 2;
+}
+
+/**
+ * WHEN a card is the best play, by how much it beats the runner-up —
+ * cross-fitted: per branch, one observation for each way round in which it
+ * was picked as the best (zero, one or two).
+ *
+ * The question a best-play share cannot answer: a card that is rarely right
+ * but decisive when it is. Measured naively (the winner's score minus the
+ * second's, on the samples that picked the winner) every winner's lead is
+ * inflated by its own luck. So the winner AND its runner-up are picked on one
+ * half of the samples and the gap is measured on the other half, both ways
+ * round. The two ways stay SEPARATE observations: averaging them per card
+ * keeps a card's second pick only when it is also high on the half the first
+ * pick is priced on — measured, +0.9 PV of lead between cards worth the same.
+ */
+export function crossFittedGainsWhenBest(branches: Pick<Branch, 'score' | 'samples'>[]): number[][] {
+  const gains = (chooser: number[], judge: number[]): (number | null)[] => {
+    const top = Math.max(...chooser);
+    return chooser.map((c, i) => {
+      if (c < top) return null;
+      let runnerUp = -1;
+      for (let j = 0; j < chooser.length; j++) {
+        if (j !== i && (runnerUp < 0 || chooser[j] > chooser[runnerUp])) runnerUp = j;
+      }
+      return judge[i] - judge[runnerUp];
+    });
+  };
+  const ways = (branches[0]?.samples.length ?? 0) < 2
+    ? [gains(branches.map(b => b.score), branches.map(b => b.score))]
+    : [gains(branches.map(b => half(b, 0)), branches.map(b => half(b, 1))),
+      gains(branches.map(b => half(b, 1)), branches.map(b => half(b, 0)))];
+  return branches.map((_, i) => ways.map(w => w[i]).filter((g): g is number => g !== null));
+}
 
 /**
  * What one position yielded: every legal card, priced.
@@ -86,14 +152,31 @@ interface Branch { actionIdx: number; cardId: string; score: number; won: number
  * never the right play is dead however good it looks on paper.
  */
 export interface PositionValues {
+  /**
+   * What playing a RANDOM legal card here costs against the best one: the best
+   * card's score minus the mean of every legal card's, cross-fitted so noise
+   * alone costs nothing on average (`crossFittedCost`). Zero when every card
+   * scores the same — a decision whose choice did not matter, which is
+   * exactly what this number exists to count. Averaged over a kit's decisions
+   * it says how much choosing matters at all.
+   */
+  choiceCost: number;
+  /** Every legal card, priced. EMPTY when they all tied: such a position says
+   *  nothing about which card is right, so it is no sample for `wasBest`. */
   cards: {
-    id: string; value: number; valueVsBest: number; score: number; won: number;
+    id: string; value: number; score: number; won: number;
+    /** Its lead over the runner-up, once per way round it was picked as the
+     *  best play (`crossFittedGainsWhenBest`). */
+    gainsWhenBest: number[];
     /** The SAME value computed on win probability instead of PV — the surrogate
      *  check. PV differential is only worth using if it agrees with the thing
      *  it stands in for, and that has to be measured rather than assumed. */
     winValue: number;
     /**
-     * Was this the best-scoring card at this position? The ABSOLUTE statistic:
+     * Was this the best-scoring card at this position? REPORTED, never judged:
+     * with a handful of rollouts per card it cannot tell a useless card from a
+     * harmless one in a fight the choice barely moves (NEXT-STEPS §27.3).
+     * Still the ABSOLUTE statistic:
      * `value` is relative to the rest of the hand and sums to ~zero across it,
      * so it can rank cards and can never call one dead. "Never the right play"
      * can.
@@ -103,25 +186,7 @@ export interface PositionValues {
      * best is. See the note at the computation.
      */
     wasBest: number;
-    /**
-     * How many cards were credited at the top HERE, and out of how many.
-     *
-     * These give the card's own chance null: if m of k cards reach the top at a
-     * position, a card picked at random is among them with probability m/k. A
-     * flat 1/k is only right when exactly one card can win, and ties are
-     * credited in full — so with m averaging 1.5 on a four-card hand, 1/k
-     * understates what chance alone hands out by half again, and every card
-     * gets compared to a line that is too low to catch anything.
-     *
-     * Computed rather than assumed, so the null stays correct if the tie rule
-     * ever changes again.
-     */
-    topCount: number;
-    candidates: number;
   }[];
-  /** How many cards were on offer — `valueVsBest` is a max over this many
-   *  noisy estimates, so the winner's curse scales with it. */
-  alternatives: number;
 }
 
 export interface RegretOptions {
@@ -264,41 +329,40 @@ export function valuePosition(
 
   const seed = Math.floor(random() * 1e9);
   const branches: Branch[] = legal.map(actionIdx => {
-    let score = 0, won = 0;
+    let won = 0;
+    const samples: number[] = [];
     for (let s = 0; s < opts.samples; s++) {
       const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts));
-      score += r.score;
+      samples.push(r.score);
       won += r.won;
     }
     return {
       actionIdx, cardId: actor.actions[actionIdx].def.id,
-      score: score / opts.samples, won: won / opts.samples,
+      score: samples.reduce((a, x) => a + x, 0) / opts.samples, won: won / opts.samples, samples,
     };
   });
 
-  // A POSITION WHERE EVERY CARD SCORES THE SAME IS NOT A DECISION.
-  //
-  // Short fights reach plenty of them: once the outcome is settled, every
-  // branch plays out to the same board and all candidates tie. A tie is SHARED
-  // (see `wasBest`), so each card collects 1/k from a position that told us
-  // nothing — and 1/k is exactly the chance null. Decided positions therefore
-  // drag every card's best-share toward the very line it is tested against,
-  // and a card that is NEVER worth playing stops looking like one.
-  //
-  // Caught by a control kit holding a card that does literally nothing
-  // (`playtest/src/control-kits.ts`): the no-op ranked dead last by value, as it must,
-  // and still cleared its null. Dropping these positions is not throwing away
-  // data — there was none in them.
   const top = Math.max(...branches.map(b => b.score));
   const bottom = Math.min(...branches.map(b => b.score));
-  if (top === bottom) return null;
+  const choiceCost = crossFittedCost(branches);
+  // A POSITION WHERE EVERY CARD SCORES THE SAME SAYS NOTHING ABOUT WHICH CARD
+  // IS RIGHT. Short fights reach plenty of them: once the outcome is settled,
+  // every branch plays out to the same board. Every card would collect a full
+  // `wasBest` from a position that told us nothing, so it is no sample for the
+  // best-share — but it IS a decision whose choice cost nothing, and
+  // `choiceCost` counts it as exactly that.
+  //
+  // Caught by a control kit holding a card that does literally nothing
+  // (`playtest/src/control-kits.ts`): with decided positions counted, the no-op
+  // ranked dead last by value, as it must, and still read alive.
+  if (top === bottom) return { choiceCost: 0, cards: [] };
 
+  const gainsWhenBest = crossFittedGainsWhenBest(branches);
   return {
-    alternatives: branches.length - 1,
+    choiceCost,
     cards: branches.map((b, i) => {
       const others = branches.filter((_, j) => j !== i);
       const mean = others.reduce((n, o) => n + o.score, 0) / others.length;
-      const best = Math.max(...others.map(o => o.score));
       const wonMean = others.reduce((n, o) => n + o.won, 0) / others.length;
       // A TIE FOR BEST IS CREDITED IN FULL TO EVERY CARD THAT REACHES IT.
       //
@@ -315,21 +379,17 @@ export function valuePosition(
       // already settled and every card scores the same. Those are now dropped
       // above as the non-decisions they are, and the inflation goes with them.
       const isBest = b.score >= top ? 1 : 0;
-      const topCount = branches.filter(o => o.score >= top).length;
       return {
         id: b.cardId,
-        // AGAINST THE MEAN ALTERNATIVE is the headline, because it is
-        // UNBIASED. `valueVsBest` takes a max over noisy estimates and is
-        // therefore inflated by the winner's curse — which here pushes every
-        // card's value DOWN, since the max sits on the subtracting side.
+        // AGAINST THE MEAN ALTERNATIVE, because it is UNBIASED: a value
+        // against the best alternative takes a max over noisy estimates and
+        // inherits the winner's curse.
         value: b.score - mean,
-        valueVsBest: b.score - best,
         score: b.score,
         won: b.won,
         winValue: b.won - wonMean,
         wasBest: isBest,
-        candidates: branches.length,
-        topCount,
+        gainsWhenBest: gainsWhenBest[i],
       };
     }),
   };
@@ -337,7 +397,7 @@ export function valuePosition(
 
 // --- Running it over a whole kit ---------------------------------------------
 // ONE implementation, used by both the `card-value.ts` CLI and the kit
-// analyzer's requirement 4/5. The last time this package had two ways to
+// analyzer's requirement 3. The last time this package had two ways to
 // compute one measurement it had three, and they disagreed (`cells.ts`,
 // `instrument`). It takes a `setupFor` rather than importing the analyzer's,
 // so it stays content-agnostic and nothing here points back at the analyzer.
@@ -351,13 +411,16 @@ import { SMOKE } from './games.js';
 /** Every observation of one card: what it was worth at a position, and which
  *  FIGHT that position came from — positions inside a fight are not
  *  independent, so the fight is the cluster the error bar is built on. */
-export interface CardObs {
-  value: number; winValue: number; wasBest: number;
-  candidates: number; topCount: number; fight: number;
-}
+export interface CardObs { value: number; winValue: number; wasBest: number; gainsWhenBest: number[]; fight: number }
+
+/** One decision's `choiceCost`, and the fight it came from (the cluster). */
+export interface DecisionCost { cost: number; fight: number }
 
 export interface KitValues {
   byCard: Map<string, CardObs[]>;
+  /** Every decision the subject faced with two or more legal cards. */
+  costs: DecisionCost[];
+  /** Decisions that separated the cards — the best-share's sample. */
   positions: number;
   fights: number;
 }
@@ -383,18 +446,21 @@ export function measureKit(
   subjectPrint?: string,
 ): KitValues {
   const byCard = new Map<string, CardObs[]>();
+  const costs: DecisionCost[] = [];
   let positions = 0, fights = 0;
   for (let i = 0; i < cells.length; i++) {
     const r = measureKitCell(cells, i, setupFor, games, opts, subjectPrint);
+    // Fight ids are per cell; offset them so clusters never merge across cells.
     for (const [id, list] of r.obs) {
       const all = byCard.get(id) ?? [];
-      for (const o of list) all.push({ ...o, fight: o.fight + fights });   // fight ids are per cell
+      for (const o of list) all.push({ ...o, fight: o.fight + fights });
       byCard.set(id, all);
     }
+    for (const c of r.costs) costs.push({ cost: c.cost, fight: c.fight + fights });
     positions += r.positions;
     fights += r.fights;
   }
-  return { byCard, positions, fights };
+  return { byCard, costs, positions, fights };
 }
 
 /**
@@ -424,13 +490,13 @@ export function measureKitCell(
   // phase of a kit analysis, which a sweep otherwise re-paid on every run.
   const compute = (): CellValues => measureCell(cell, setupFor(cell), per, opts);
   return subjectPrint
-    ? countedCached<CellValues>('regret', key('regret', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
+    ? countedCached<CellValues>('regret', key('regret-v2', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
       String(per), JSON.stringify(opts)), compute)
     : compute();
 }
 
 /** One cell's observations, JSON-shaped so the cache can hold them. */
-export interface CellValues { obs: [string, CardObs[]][]; positions: number; fights: number }
+export interface CellValues { obs: [string, CardObs[]][]; costs: DecisionCost[]; positions: number; fights: number }
 
 /**
  * Who gets hit in a card-value fight: the production AI's choice, as in every
@@ -442,6 +508,7 @@ const TARGETS = aiPolicy(CELL_AI).targetChooser;
 
 function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<RegretOptions, 'team'>): CellValues {
   const byCard = new Map<string, CardObs[]>();
+  const costs: DecisionCost[] = [];
   let positions = 0, fights = 0;
   withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
     for (let g = 0; g < per; g++) {
@@ -456,14 +523,12 @@ function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<Regre
       while (!engine.isOver() && engine.round < engine.maxRounds && guard++ < 40) {
         if (subject?.isAlive()) {
           const priced = valuePosition(engine, subject, { ...opts, team: setup.subjectTeam });
-          if (priced) {
+          if (priced) costs.push({ cost: priced.choiceCost, fight });
+          if (priced?.cards.length) {
             positions++;
             for (const c of priced.cards) {
               const list = byCard.get(c.id) ?? [];
-              list.push({
-                value: c.value, winValue: c.winValue,
-                wasBest: c.wasBest, candidates: c.candidates, topCount: c.topCount, fight,
-              });
+              list.push({ value: c.value, winValue: c.winValue, wasBest: c.wasBest, gainsWhenBest: c.gainsWhenBest, fight });
               byCard.set(c.id, list);
             }
           }
@@ -472,7 +537,7 @@ function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<Regre
       }
     }
   });
-  return { obs: [...byCard], positions, fights };
+  return { obs: [...byCard], costs, positions, fights };
 }
 
 /**
@@ -481,8 +546,8 @@ function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<Regre
  * error by the root of a number far larger than the real one. The cluster is
  * the fight; the observation is its mean.
  */
-export function clusteredStderr(
-  obs: CardObs[], pick: (o: CardObs) => number = o => o.value,
+export function clusteredStderr<T extends { fight: number }>(
+  obs: T[], pick: (o: T) => number,
 ): { mean: number; stderr: number; clusters: number } {
   const byFight = new Map<number, number[]>();
   for (const o of obs) byFight.set(o.fight, [...(byFight.get(o.fight) ?? []), pick(o)]);
@@ -494,6 +559,37 @@ export function clusteredStderr(
   return { mean, stderr: Math.sqrt(variance / n), clusters: n };
 }
 
+/**
+ * A mean over observations whose NUMBER per fight depends on the noise — a
+ * ratio Σx / Σn, with its 1σ still clustered by fight (the linearised ratio
+ * variance).
+ *
+ * `clusteredStderr` averages per-fight means, which weights every fight
+ * equally. That is right when a fight's observation count has nothing to do
+ * with their values, and wrong for `gainsWhenBest`: a card picked as the best
+ * on BOTH halves of a position's samples contributes two observations, and
+ * those are the replicated wins; one picked on a single half contributes one,
+ * usually a loss. Averaged per fight, twin cards worth exactly the same read
+ * −2 PV; per observation, zero (NEXT-STEPS §27.3).
+ */
+export function clusteredRatio<T extends { fight: number }>(
+  obs: T[], pick: (o: T) => number,
+): { mean: number; stderr: number; clusters: number } {
+  const byFight = new Map<number, { sum: number; n: number }>();
+  for (const o of obs) {
+    const f = byFight.get(o.fight) ?? { sum: 0, n: 0 };
+    f.sum += pick(o); f.n += 1;
+    byFight.set(o.fight, f);
+  }
+  const fights = [...byFight.values()];
+  const total = fights.reduce((a, f) => a + f.n, 0);
+  const mean = fights.reduce((a, f) => a + f.sum, 0) / Math.max(1, total);
+  const k = fights.length;
+  if (k < 2) return { mean, stderr: Infinity, clusters: k };
+  const resid = fights.reduce((a, f) => a + (f.sum - mean * f.n) ** 2, 0);
+  return { mean, stderr: Math.sqrt((k / (k - 1)) * resid) / total, clusters: k };
+}
+
 /** One card's verdict-ready summary. */
 export interface CardScore {
   id: string;
@@ -501,12 +597,15 @@ export interface CardScore {
    *  summing to ~zero across it. Never a verdict on its own. */
   value: number;
   stderr: number;
-  /** Share of positions where it was the best play, and what chance alone
-   *  would have given it. The ABSOLUTE statistic: clearly under its own null
-   *  means the game never wants it played. */
+  /** Share of the positions that separated the cards where it was the best
+   *  play. The ABSOLUTE statistic: judged against fixed bars, never against
+   *  the rest of the hand. */
   bestShare: number;
-  nullShare: number;
   bestStderr: number;
+  /** Its mean lead over the runner-up in the positions where it was the best
+   *  play, and that mean's 1σ; null when it never was. */
+  gainWhenBest: number | null;
+  gainWhenBestStderr: number | null;
   /** The same value on win probability — the surrogate check. */
   winValue: number;
   observations: number;
@@ -515,15 +614,26 @@ export interface CardScore {
 export function scoreCards(kit: KitValues): CardScore[] {
   const out: CardScore[] = [];
   for (const [id, list] of kit.byCard) {
-    const v = clusteredStderr(list);
+    const v = clusteredStderr(list, o => o.value);
     const w = clusteredStderr(list, o => o.winValue);
     const b = clusteredStderr(list, o => o.wasBest);
+    const whenBest = list.flatMap(o => o.gainsWhenBest.map(gain => ({ gain, fight: o.fight })));
+    const g = whenBest.length ? clusteredRatio(whenBest, o => o.gain) : null;
     out.push({
       id, value: v.mean, stderr: v.stderr,
       bestShare: b.mean, bestStderr: b.stderr,
-      nullShare: list.reduce((a, o) => a + o.topCount / o.candidates, 0) / list.length,
+      gainWhenBest: g ? g.mean : null, gainWhenBestStderr: g ? g.stderr : null,
       winValue: w.mean, observations: list.length,
     });
   }
   return out.sort((a, b) => b.value - a.value);
+}
+
+/** How much choosing matters for this kit: the mean `choiceCost` over every
+ *  decision, clustered by fight. Zero decisions is a mean of zero — a kit that
+ *  never offers a choice is one where choosing never mattered. */
+export function kitChoiceCost(kit: KitValues): { mean: number; stderr: number; decisions: number } {
+  if (!kit.costs.length) return { mean: 0, stderr: 0, decisions: 0 };
+  const c = clusteredStderr(kit.costs, o => o.cost);
+  return { mean: c.mean, stderr: c.stderr, decisions: kit.costs.length };
 }

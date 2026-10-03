@@ -208,7 +208,7 @@ export interface Calibration {
    * The average fight length, in rounds, a shape may be solved up to. The
    * cells every kit is measured in inherit it, so it must sit inside the
    * set's own duration requirement: solved to a looser budget (the solver's
-   * default is 6), the calibration fights alone broke requirement 2's p90 for
+   * default is 6), the calibration fights alone broke requirement 1's p90 for
    * every kit, and no kit could pass it (NEXT-STEPS §26).
    */
   maxAvgRounds: number;
@@ -218,9 +218,9 @@ export interface Calibration {
   /** Kits a "for each kit in turn" sweep iterates. */
   mainKits: string[];
   /**
-   * Cards the AI STRUCTURALLY cannot use, id → why. Neither arm of a card-value
-   * experiment can extract their value, so they ablate to exactly zero and
-   * would read as dead. Hard to add to on purpose: a card belongs here only
+   * Cards the AI STRUCTURALLY cannot use, id → why. No branch of a card-value
+   * rollout can extract their value, so they would read as dead and are left
+   * out of requirement 3. Hard to add to on purpose: a card belongs here only
    * when the AI cannot use it, never when it merely plays it badly.
    */
   aiBlindCards: Record<string, string>;

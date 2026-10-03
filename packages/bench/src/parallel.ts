@@ -1,8 +1,9 @@
 /**
  * FILLING THE CACHE IN PARALLEL.
  *
- * A kit's report card is a few hundred independent CELL measurements — one per
- * (level, policy, cell) — and a machine has many cores doing one at a time. The
+ * A kit's report card is dozens of independent CELL measurements — the
+ * full-kit run and the card values, per cell — and a machine has many cores
+ * doing one at a time. The
  * obvious fix is to run them at once, and the obvious risk is putting
  * concurrency inside a measurement layer whose whole value is being trusted.
  *

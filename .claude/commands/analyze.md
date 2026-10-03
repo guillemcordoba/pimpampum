@@ -19,13 +19,15 @@ For the printed report card of one kit (every number, with its error bar):
 pnpm --filter @pimpampum/tools exec tsx src/kit-analyzer.ts --player <kit>
 ```
 
-3. If the change touched creatures or anything a fight's difficulty rests on, also run the set-level checks:
+3. Run the set-level requirement 4, the strategy triangle, after any content change. If the change touched creatures, armour or anything a fight's difficulty rests on, also run the other set-level checks:
 ```bash
-SLOW=1 npx vitest run test/balancer.slow.test.ts test/ai-strength.slow.test.ts
+SLOW=1 npx vitest run test/triangle.slow.test.ts
+SLOW=1 npx vitest run test/set.slow.test.ts test/balancer.slow.test.ts test/ai-strength.slow.test.ts
 ```
+The kit analyzer prints the triangle too with `--triangle`.
 
-4. Read the output. Each requirement is a test (`@pimpampum/playtest/vitest`, `kitSuite`):
-   1 level ramp · 2 duration · 3 thinking beats not thinking · 3b the strategy space matters · 3c no one card carries the kit · 4 no dead cards · 5 no auto-include · 8 inside the power band. Requirement 7 (cards that correlate with losing) is a FLAG, printed, never failed on.
+4. Read the output. Four requirements, one intention each (`@pimpampum/playtest` `rules.ts`; per kit through `kitSuite`):
+   1 fights end (median ≤ 5, p90 ≤ 8, stalls < 2%) · 2 inside the power band (±15pp of neutral) · 3 choosing matters (a random legal card costs at least `MIN_CHOICE_COST` PV per decision against the best one, cross-fitted so noise costs nothing; and no card is NEVER the right play — even where it looks best, the runner-up is clearly better on fresh rollouts). The report card ranks the cards: value against the hand, share as the best play, lead over the runner-up when best, how often the AI plays it · 4 the strategy triangle, set-level (Power > Protect > Aggro > Power).
    - A test named `— KNOWN to fail: …` is a recorded finding (`test/kits/known.ts`). If it now FAILS, the finding was fixed: delete its entry.
    - For every other failure explain: **what** the requirement checks, the **numbers** behind the verdict (the verdict's `detail` and the recorded JSON), the **root cause**, and a **suggested fix** (card, handler, or AI — remember a card the AI never plays is usually a blind EVALUATOR, not a weak card: check `positionValue` first).
 

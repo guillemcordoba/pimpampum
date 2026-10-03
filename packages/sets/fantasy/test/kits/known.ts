@@ -4,20 +4,11 @@
  * known failure is asserted to STILL fail, so the day it is fixed its test
  * turns red and the entry gets deleted.
  *
- * Filled from the confirming sweep of 2026-09-23 (NEXT-STEPS §26), after the
- * day's tuning — every requirement verdict is seeded and cached, so it moves
- * only when content, AI or rules do — never by guessing.
+ * Filled from the sweep that introduced the four requirements (NEXT-STEPS
+ * §27.3) — every verdict is seeded and cached, so it moves only when content,
+ * AI or rules do — never by guessing.
  */
 import type { Requirement } from '@pimpampum/playtest/vitest';
 
 export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
-  berserk: {
-    cardUse: "Aguantar el cop is UNDER REVIEW (NEXT-STEPS §27): every no-guard-roll version measured dead — the shield every hero carries rolls and often blocks outright; current version (half damage, permanent {A} = 2× damage taken) −3.9 PV; measured 2026-10-03",
-  },
-  'enginyer-explosius': {
-    cardUse: "Camp minat is never the best play (−0.6 PV) — a marginal card, not a costly one; measured 2026-09-23, NEXT-STEPS §26",
-  },
-  nigromant: {
-    cardUse: "Marca de la perdició is never the best play (−2.8 PV) — each nigromant retune moved the bottom card rather than removing it; measured 2026-09-23, NEXT-STEPS §26",
-  },
 };

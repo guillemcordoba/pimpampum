@@ -9,7 +9,7 @@
  * scored in PV on my side minus PV on theirs — one currency by the rules, since
  * damage IS the margin applied to PV — from a position both branches share
  * exactly. The measurement lives in `bench/regret.ts`; this is its CLI, and the
- * kit analyzer's requirement 4/5 reads the same functions, so the report card
+ * kit analyzer's requirement 3 reads the same functions, so the report card
  * and this cannot print different numbers for one card.
  *
  *   npx tsx src/card-value.ts                       # every main kit
@@ -21,7 +21,7 @@
 import { ALL_SKILLS, getEnemy } from '@pimpampum/set-fantasy';
 import { MAIN_KITS, FANTASY } from '@pimpampum/set-fantasy/bench';
 import { cardsOf, cellsFor, setupFor, type Subject } from '@pimpampum/playtest';
-import { DEFAULT_REGRET, exact, games, measureKit, pp, scoreCards, share, useSet, flag } from '@pimpampum/bench';
+import { DEFAULT_REGRET, games, kitChoiceCost, measureKit, pp, scoreCards, share, useSet, flag } from '@pimpampum/bench';
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
@@ -45,22 +45,18 @@ function report(subject: Subject): void {
   const scored = scoreCards(kit);
   const byId = new Map(scored.map(s => [s.id, s]));
 
-  console.log(`\n━━ ${subject.id} · ${kit.fights} combats · ${kit.positions} decisions valorades ━━`);
-  console.log('  carta                     valor (PV)   valor (victòria)   millor opció (atzar)   cops legal');
+  const cost = kitChoiceCost(kit);
+  console.log(`\n━━ ${subject.id} · ${kit.fights} combats · ${cost.decisions} decisions · triar a l'atzar costa ${cost.mean.toFixed(2)}±${(2 * cost.stderr).toFixed(2)} PV ━━`);
+  console.log('  carta                     valor (PV)   valor (victòria)   millor opció   quan és la millor   cops legal');
   for (const c of cards) {
     const s = byId.get(c.id);
     if (!s) { console.log(`  ${c.name.padEnd(24)} mai legal`); continue; }
-    // ✅ / ❌ mark the ABSOLUTE statistic, not the ranking: a card clearly under
-    // the share chance alone would give it is one the game never wants played.
-    // The `value` column is a ranking whose entries sum to ~zero, so marking it
-    // would flag half of every hand by arithmetic.
-    const dead = s.bestShare + 2 * s.bestStderr < s.nullShare;
-    const alive = s.bestShare - 2 * s.bestStderr > s.nullShare;
     console.log(
       `  ${c.name.padEnd(24)} ${s.value.toFixed(2).padStart(6)}±${(s.stderr * 2).toFixed(2).padStart(5)}`
       + `   ${pp(s.winValue).padStart(8)}`
-      + `   ${share(s.bestShare * s.observations, s.observations)} (${exact(s.nullShare)})`
-      + `   ${String(s.observations).padStart(6)}${dead ? ' ❌' : alive ? ' ✅' : ''}`,
+      + `   ${share(s.bestShare * s.observations, s.observations)}`
+      + `   ${(s.gainWhenBest === null ? '—' : `${s.gainWhenBest >= 0 ? '+' : ''}${s.gainWhenBest.toFixed(1)} PV`).padStart(17)}`
+      + `   ${String(s.observations).padStart(6)}`,
     );
   }
 
@@ -80,7 +76,7 @@ function report(subject: Subject): void {
     console.log(`  [PV vs victòria: Spearman ρ=${(1 - (6 * d2) / (n * (n * n - 1))).toFixed(2)} sobre ${n} cartes — si baixa, el substitut ha deixat de valer]`);
   }
   console.log(`  [valor = PV meu − PV seu, contra l'alternativa MITJANA — RANKING dins la mà, suma ~0; no diu "dolenta"]`);
-  console.log(`  ["millor opció" = cops que va ser la millor jugada, contra el que en donaria l'atzar. Clarament per sota = mai val la pena]`);
+  console.log(`  ["millor opció" = cops que va ser la millor jugada — per llegir, no és veredicte: en un combat on triar gairebé no importa, fins i tot una carta buida hi surt]`);
 }
 
 const player = flag('--player');

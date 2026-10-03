@@ -72,7 +72,7 @@ const CONVERGENCE_PP = 8;
  * saying what was tried and where the ceiling turned out to be. The case for
  * lowering it is a measurement, not a shrug: if search budget stops buying
  * strength well below the bar, then "spam is hard to beat" is a fact about the
- * GAME (`intentions.md`'s triangle, NEXT-STEPS §15.6) rather than about the
+ * GAME (`intentions.md`'s triangle, NEXT-STEPS §22.1) rather than about the
  * search, and the bar should say so.
  */
 const STRENGTH_BAR = 0.70;

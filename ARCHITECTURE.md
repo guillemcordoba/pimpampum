@@ -63,7 +63,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── players/              # skills/ (one file per kit), effects/ (generic only), equipment, potions, party, build
 │   │   ├── enemies/              # creatures/ (one file per creature), catalog, factory
 │   │   └── bench/                # @pimpampum/set-fantasy/bench — the FANTASY GameSet + calibration data (Node-only)
-│   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), balancer, ai-strength
+│   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), triangle (set-level requirement 4), balancer, ai-strength
 ├── tools/                        # @pimpampum/tools — the harnesses (see its README)
 │   ├── src/                      # kit-analyzer, ai-benchmark, card-value, probe-shapes, mutation, play, …
 │   └── test/                     # conventions (repo-wide source rules + layering), harness smoke test
@@ -384,9 +384,9 @@ that prices encounters has to have.
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
 - **Depth ≥2** — measured at ~500× depth 1. Offline study only.
 
-`LookaheadOptions.restrictTo` limits the AI to a subset of card types, which is
-how "is attack-spam actually optimal?" gets asked fairly: both sides think
-equally hard, one merely has a smaller strategy space.
+`LookaheadOptions.restrictTo` limits the AI to a subset of card types. It is
+how the strategy triangle's corners are built (bench `leaning`): each side
+thinks equally hard, and on half its rounds commits to one action type.
 
 **The balancer prices at depth 1** (`BALANCER_DEPTH` in `simulate.ts`), and the
 web app's enemies run at depth 1 too, so a fight plays out at the strength it
@@ -442,7 +442,7 @@ fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
   `sweep` served the experiments deleted on 2026-09-20 and went on 2026-09-23.) It drew from bare `Math.random()` before, so `withSeed`
   did not bind and no mirror sweep shared random numbers with the arm it was
   compared against.
-- **`bench/cells.ts` — running one cell.** The impoverished policies, the ONE
+- **`bench/cells.ts` — running one cell.** The thinking policy over a cell, the ONE
   legality-conditioned play-rate instrument (it had three independent
   implementations), and `runMatrix`, which sweeps the usable cells and subtracts
   the baseline.
@@ -465,7 +465,7 @@ fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
   ±8pp of 60% excluded three of four shapes and could not be fixed by
   re-probing, yet nothing was ever compared to 60% — every requirement was
   already a delta. 4 usable cells became 15. **An empty matrix throws**, because
-  the averages would otherwise report 0% at every level, which reads exactly
+  the averages would otherwise report 0% everywhere, which reads exactly
   like a catastrophic kit rather than a broken harness.
 - **`bench/cache.ts` / `bench/parallel.ts` — why a run is fast.** A full sweep
   went from eleven minutes to ninety seconds. The cache key is a hash of exactly
@@ -479,8 +479,8 @@ fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
   `BENCH_NO_CACHE=1`). A failed child costs time, never correctness.
 - **`bench/report.ts` — no percentage is formatted by hand.** `pct(rate, n)`,
   `deltaPP(...)`, `share(n, total)`, and `exact(rate)` for a number that is
-  KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs),
-  `significant(...)`, and `maxOfKBias(k)` for winner’s curse.
+  KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs) and
+  `significant(...)`.
 
 **`tests/bench.test.ts` enforces four of these by scanning the source**, because
 every defect they prevent was silent — the harnesses kept printing numbers, the
@@ -490,14 +490,14 @@ numbers were simply about something else. One reference party (never
 `bench/report.ts`. A file may opt out with `// bench-exempt(<rule>): <reason>`,
 and the reason’s length is asserted so the hatch cannot become a silent disable.
 
-**Two statistical rules the thresholds now follow.** Every verdict is a
-difference of two samples, so a fixed constant alone is not a threshold — the
-kit analyzer’s flat 3pp level check read a genuinely flat level as a regression
-about one time in four at its old default, which is most of what the first
-report card’s wall of ❌ was. And picking the best of *k* noisy candidates and
-reporting that same sample is winner’s curse (`maxOfKBias`, ~1.7σ at k=14), so
-requirement 3 screens cheap and re-measures the winner on a fresh seed — the
-same select-then-verify shape `simulate.ts` uses.
+**The statistical rule every threshold follows.** A verdict is a sample, so a
+fixed constant alone is not a threshold: every requirement fails only when its
+whole 2σ interval is past the bar. The level check that used to compare steps
+to a flat 3pp read a genuinely flat level as a regression one time in four,
+which is most of what the first report card’s wall of ❌ was. And no
+requirement picks the best of several noisy arms any more, so none carries a
+winner’s-curse correction (the screens that needed one were removed with their
+requirements on 2026-10-03, NEXT-STEPS §27.3).
 
 **AI depth is never implicit.** The engine has no default policy at all (an AI
 seat with no chooser throws) and the balancer prices at depth 1, so a harness
@@ -528,18 +528,24 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   there is nothing left to go stale, since the one AI carries no per-card table.
 - `kit-analyzer.ts` — the KIT REGRESSION HARNESS (NEXT-STEPS §7): library +
   CLI, one code path, two modes (`--player <skill>` / `--enemy <id>`; no flag
-  sweeps every main kit). Per kit it reports level monotonicity under common
-  random numbers, fight length (median/p90/draws), the attack-spam comparison
-  (the subject side replayed with a "biggest attack always" chooser), per-card
-  value by **per-decision counterfactual**, and per-card win correlation. Its
-  scenarios are the SOLVED shapes of the set's calibration, so they re-price
+  sweeps every main kit; `--triangle` adds the set's requirement 4). Per kit
+  it judges the three kit requirements from two measurements: the FULL-KIT RUN
+  (requirement 1, fight length — median/p90/stalls; requirement 2, the power
+  band against the neutral stand-in) and the **per-decision counterfactual**
+  card value (requirement 3: choosing matters).
+  Its scenarios are the SOLVED shapes of the set's calibration, so they re-price
   themselves rather than needing hand-calibration — and an out-of-band shape is
   dropped from the headline and reported loudly instead of averaged over.
   **The dead-card verdict is a PER-DECISION COUNTERFACTUAL** (see
-  `card-value.ts` below), not a play rate and no longer an ablation. A card
-  clearly less often the best play than chance alone would make it is dead —
-  and since nothing in these rules costs anything to play or gates a replay, a
-  card never worth playing is a card not worth holding. Asking instead "did the
+  `card-value.ts` below), not a play rate and no longer an ablation. The kit is
+  judged on the mean PV a RANDOM legal pick loses against the best one —
+  cross-fitted, so cards worth the same cost nothing however noisy their
+  rollouts — and a card fails when it is NEVER the right play: even in the
+  moments it looks best, the runner-up is clearly better on fresh rollouts
+  (its cross-fitted lead when best, averaged per observation). A card's share
+  of decisions as the best play is printed but not judged: it cannot tell a
+  useless card from a harmless one in a fight the choice barely moves
+  (NEXT-STEPS §27.3). Asking instead "did the
   AI choose it" made the evaluator the judge of the content it exists to serve;
   the same eleven cards read dead, then alive, then dead again across three
   sessions in which no die changed. The leave-one-out ablation that replaced it
@@ -559,7 +565,8 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   of the cost. Two statistics, and only the second can say "dead": `value` is a
   RANKING whose values sum to ~zero across a hand by arithmetic (half a hand is
   always below its own average), while `millor opció` — how often the card was
-  the best play, against a 1/k null — is absolute. Quoted AT A DEPTH: the
+  the best play — is absolute. Each decision also records what a random pick
+  costs against the best one (`choiceCost`; zero when every card ties). Quoted AT A DEPTH: the
   continuation policy cancels in level but not in ordering (NEXT-STEPS §18.3).
 - `playtest/src/control-kits.ts` + `playtest/test/controls-*.slow.test.ts` —
   **control experiments for the requirements themselves**, run on the SYNTHETIC
@@ -567,14 +574,14 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   never from the content it judges. Real content can never tell you
   whether a ❌ fired because the kit is broken or because the REQUIREMENT is:
   both look equally plausible on the page. So subjects are built whose verdict
-  follows from their CONSTRUCTION — a kit of identical cards (levels and
-  thinking cannot matter), a kit holding a card that does nothing (4/5 must name
-  it and must not name the working attacks), a ladder kit that only improves —
-  registered through `registerSkill` and run through the real `analyze`. Two
-  layers: the decision RULES are controlled as pure functions in
-  `playtest/test/rules.test.ts` (requirements 3, 3b and 3c share ONE
-  `marginVerdict` with three bars, since computing it three times is how 3c lost
-  its error term), and the whole pipeline is controlled here. Its first run
+  follows from their CONSTRUCTION — a fight nobody can win and one that ends
+  on round one (requirement 1), kits strictly above, below and equal to the
+  stand-in (2), a kit of identical cards, twin cards whose dice drift apart
+  and a two-card combo (3), and for the triangle (4) styles
+  whose order is known: thinking against random cards, the same duel read
+  backwards, and an A/A duel — run through the real `analyze` and
+  `measureCycle`. Two layers: the decision RULES are controlled as pure
+  functions in `playtest/test/rules.test.ts`, and the whole pipeline here. Its first run
   found three real faults in the measurement plus one in itself — see NEXT-STEPS
   §19.5.
 - `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
@@ -584,7 +591,8 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   FOR. Re-run after any content or AI change.
 - `measure-verdict.ts` and `measure-mix.ts` were DELETED (2026-09-20): both asked
   a question the kit analyzer already answers — "does restricting a strong player
-  to attacks cost anything" is requirement 3's `onlyAttacks` arm, and the action
+  to attacks cost anything" was the analyzer's `onlyAttacks` arm (removed with it on
+  2026-10-03), and the action
   mix / per-card legality table is `ai-benchmark` §1 and §3. Three
   implementations of one metric is three numbers that can disagree. The
   party-level verdict is now the analyzer's roll-up; `--shape` on the benchmark

@@ -19,8 +19,8 @@ The measuring itself lives in libraries; this package is what you RUN.
 ## The five rules
 
 Each one exists because it was violated, silently, and the wrong number was
-believed for a while. Four are enforced by `src/tests/bench.test.ts`, which
-scans the source (`tools/test/conventions.test.ts`) — a convention you cannot
+believed for a while. Four are enforced by `tools/test/conventions.test.ts`,
+which scans the source — a convention you cannot
 break by accident beats a convention written down.
 
 ### 1. There is ONE reference party, and it is named, not positional
@@ -92,33 +92,33 @@ Every verdict in this package is a difference of two samples. A fixed constant
 alone is not a threshold — it is a coin flip whose bias depends on the sample
 size.
 
-The kit analyzer's level check used a flat 3pp. At its old default a genuinely
-flat level read as a regression about one time in four, so over four or five
-steps **most kits printed a false ❌** — which is most of what the first report
-card said.
+The kit analyzer's old level check used a flat 3pp. At its old default a
+genuinely flat level read as a regression about one time in four, so over four
+or five steps **most kits printed a false ❌** — which is most of what the first
+report card said. Every requirement now fails only when its whole 2σ interval
+is past its bar.
 
-**Sample size is per requirement.** The thresholds differ by an order of
-magnitude — requirement 1 asks about a 3pp level step (~2,200 combats),
-requirement 3 about a 20pp margin (~50) — so running everything at the tightest
-one spends most of a run buying precision no verdict can use. `--games` sizes
-the level sweep; everything else is sized by its own threshold or rides the
-sweep's combats for free.
+**Sample size is per requirement.** `--games` sizes the full-kit run
+(requirements 1 and 2: 800 combats put a kit's delta at ±2pp inside a ±15pp
+band); the card value derives its fights from it; the triangle has its own
+(`TRIANGLE_GAMES`, sized so a 5pp edge clears an even duel).
 
 Three corollaries that keep coming up:
 
-- **Select cheap, verify honestly.** Picking the best of *k* noisy candidates
-  and reporting that same sample is winner's curse, worth `maxOfKBias(k)` × σ
-  (~1.7σ at k=14). Screen, then re-measure the winner on a fresh seed.
+- **Never report the sample you selected on.** Picking the best of *k* noisy
+  candidates and quoting that same sample is winner's curse (~1.7σ at k=14).
+  The requirements no longer select at all; a harness that does must re-measure
+  the winner on a fresh seed.
 - **Subtract like for like.** Two arms of a comparison must sweep the same
   matrix, AND handicap the same number of seats. A three-company average minus a
   one-company average is not a margin; neither is a whole-side restriction
-  minus a one-seat one. Requirement 3 was doing the second and reading "thinking
-  is worth −0.5pp" as a result (NEXT-STEPS §12.7).
-- **A line against a distribution has to scale with it.** "Never chosen" means
-  something different in a 5-card kit than a 30-card one, because neutral play
-  is `1/N`. The dead-card line is a fraction of neutral; auto-include stays
-  absolute, because a card taken 85% of the time it is legal has removed the
-  decision however many rivals it had.
+  minus a one-seat one (NEXT-STEPS §12.7).
+- **A max over noisy estimates is biased, every time it is taken.** "The best
+  card's score minus the mean" reads a choice between cards worth exactly the
+  same; the random-pick cost is cross-fitted (choose on half the rollouts,
+  price on the other half). And a per-card "how often was it best" cannot be
+  saved by more rollouts when the fight barely depends on the choice — so it
+  is printed, not judged (NEXT-STEPS §27.3).
 
 ---
 
@@ -160,8 +160,8 @@ worth up to 66pp between company rows and was burying the kit under the seat.
 Which is why a cell no longer has to be *fair*, only **unsaturated**
 (`SATURATION`, 20-80%). Demanding ±8pp of 60% excluded three of four shapes and
 could not be fixed by re-probing — adjacent body counts are 20-35pp apart and
-the band was 16pp wide. But nothing was ever compared to 60%: walk the
-requirements and every one is already a delta. A cell only has to not be pinned
+the band was 16pp wide. But nothing was ever compared to 60%: every kit
+requirement is already a delta. A cell only has to not be pinned
 against an edge, where every arm reads the same and differences compress to
 nothing. The band went from 4 usable cells to 15.
 
@@ -178,7 +178,7 @@ nothing said so. Adding content now fails CI until someone decides where it gets
 measured.
 
 **An empty matrix throws.** If every cell saturates there is nothing left to
-measure, and the averages would quietly report 0% at every level — which reads
+measure, and the averages would quietly report 0% everywhere — which reads
 exactly like a catastrophic kit.
 
 A **capped** solve (the solver ran out of PV or hit the round budget) is
@@ -199,18 +199,16 @@ pnpm --filter @pimpampum/tools exec tsx src/<file>.ts
 | file | question |
 |---|---|
 | `main.ts` | the standing report: mirror balance + a replay check on the balancer |
-| `kit-analyzer.ts` | **the report card** — every requirement, every number (the per-kit TESTS are `sets/fantasy/test/kits/`) |
+| `kit-analyzer.ts` | **the report card** — the three kit requirements, every number; `--triangle` adds the set's fourth (the TESTS are `sets/fantasy/test/kits/` and `triangle.slow.test.ts`) |
 | `card-value.ts` | per-decision value of every card in a kit |
 | `probe-shapes.ts` | which body counts make a usable cell |
 | `experiment-kit-threat.ts` | can each creature carry a fight, and is its kit finished |
 | `ai-benchmark.ts` | how strong is the AI we measure with, and what each policy plays (`--shape`) |
-| `exploitability.ts` | best response over the simple policy class; is the strategy triangle a cycle |
 | `measure-swing.ts` | is a read worth anything; how hard does being caught hurt |
 | `experiment-defense-vs-attack.ts` | the defense premium, solved exactly from the dice |
 | `profile-lookahead.ts` | where a depth-1 decision spends its time — a dev tool |
 | `mutation.ts` | can the fast tier actually fail — see its header |
 | `play.ts` | hand-play harness — not a measurement |
-| `warm-one.ts` | the parallel cache-warming worker; not run by hand |
 
 ### The lifecycle of a harness
 
@@ -272,7 +270,7 @@ a measurement. The run itself is the same single-threaded code it always was and
 simply finds its answers already computed, so the numbers are bit-identical to a
 serial run — verified by diffing a cached run against `BENCH_NO_CACHE=1`. A
 child that fails, hangs or is killed costs nothing but time — and is REPORTED:
-the worker is the caller's (`warm-one.ts`), and when a package move deleted the
+the worker is the caller's (playtest's `warm-worker.ts`), and when a package move deleted the
 old one, every sweep silently ran serially for as long as nobody timed one. `BENCH_SERIAL=1`
 turns it off when a crash needs a readable stack.
 
@@ -299,8 +297,8 @@ Named so it is chosen rather than discovered:
   Two gaps are declared in `UNFIELDED_ENEMIES`: no caster-horde shape and no
   armoured-elite shape, so nothing tests a kit against either.
 - **Runtime.** ~20 ms/combat at depth 1, linear in kits and in cards-per-kit.
-  Per-requirement sizing bought back roughly half; a sweep is still minutes, not
-  seconds.
+  Cutting the requirements to four (§27.3) took a kit's plain combats from
+  ~16,000 to 800; the card value is now nearly all of a sweep's cost.
 - **`FIELDED`** (`sets/fantasy/src/bench/shapes.ts`) is a hand-picked body count
   per creature; the calibration test fails if a creature is missing from it.
 - **`COMPLEMENTARY_SKILLS`** (in `sets/fantasy/src/players/party.ts`) is a

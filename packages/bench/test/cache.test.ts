@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { ActionType, DiceRoll, type ActionDefinition } from '@pimpampum/engine';
-import { actionPrint, enginePrint, key, useSet, type GameSet } from '../src/index.js';
+import { actionPrint, enginePrint, fingerprintedSources, key, useSet, type GameSet } from '../src/index.js';
 import { FINGERPRINTED } from '../src/cache.js';
 import { SYNTHETIC } from '../src/testing.js';
 
@@ -85,5 +85,17 @@ describe('the rules-and-instrument fingerprint', () => {
     // invalidating cached baselines. Whatever a package ends up called, the
     // rules, the policy, the measuring and the solver must all be in here.
     expect([...FINGERPRINTED].sort()).toEqual(['ai', 'bench', 'combat-balancer', 'engine']);
+  });
+
+  it('actually READS their source — a list of names hashes nothing', () => {
+    // From the package refactor until 2026-10-03 the walk looked one directory
+    // above the repo, found nothing, and hashed "missing" four times: the list
+    // above was right and the fingerprint was a constant. Name a file from
+    // each package, including this very module.
+    const files = fingerprintedSources();
+    expect(files.bench).toContain('packages/bench/src/cache.ts');
+    expect(files.engine).toContain('packages/engine/src/combat.ts');
+    expect(files.ai.length).toBeGreaterThan(0);
+    expect(files['combat-balancer'].length).toBeGreaterThan(0);
   });
 });

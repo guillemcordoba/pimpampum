@@ -71,7 +71,7 @@ for (const family of CANDIDATES.filter(f => !only || f.label.includes(only))) {
     // measurement wearing the same number.
     const byCompany = COMPANY.map((_, i) => cellResult(
       () => ({ party: calibrationParty(i), enemies: groups, subjectTeam: 0 }),
-      { shapeIdx: 0, companyIdx: i, label: 'probe', baseline: 0, baselineGames: 0, context: '' }, CHECK_GAMES, 'policy', 616_000,
+      { shapeIdx: 0, companyIdx: i, label: 'probe', baseline: 0, baselineGames: 0, context: '' }, CHECK_GAMES, 616_000,
     ).winrate);
     const mean = byCompany.reduce((a, b) => a + b, 0) / byCompany.length;
     const spread = Math.max(...byCompany) - Math.min(...byCompany);

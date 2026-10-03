@@ -160,7 +160,7 @@ export function baselineFor(shapeIdx: number, companyIdx: number): number {
   const cell: Cell = { shapeIdx, companyIdx, label: 'baseline', baseline: 0, baselineGames: 0, context: '' };
   return countedCached<number>('baseline', k, () => cellResult(
     () => ({ party: calibrationParty(companyIdx), enemies: groups, subjectTeam: 0 }),
-    cell, games, 'policy', BASELINE_OFFSET,
+    cell, games, BASELINE_OFFSET,
   ).winrate);
 }
 

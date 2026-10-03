@@ -1,5 +1,5 @@
 /**
- * REQUIREMENT 8 — the power band, with a control on each side of it and one
+ * REQUIREMENT 2 — the power band, with a control on each side of it and one
  * inside: the neutral stand-in itself, which is also the analyzer's A/A test.
  */
 import { describe, it, expect, beforeAll } from 'vitest';

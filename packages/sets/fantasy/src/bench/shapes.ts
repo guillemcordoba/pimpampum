@@ -105,9 +105,9 @@ export const FAIR = 0.6;
 
 /**
  * The average fight length the shapes are solved up to: intentions.md's
- * "about five rounds", and inside requirement 2's median bar
+ * "about five rounds", and inside requirement 1's median bar
  * (`test/calibration.test.ts` holds the two together). The solver's own
- * default is 6, and calibration fights solved to it broke requirement 2's p90
+ * default is 6, and calibration fights solved to it broke requirement 1's p90
  * for every kit measured in them.
  */
 export const MAX_AVG_ROUNDS = 5;
@@ -120,10 +120,9 @@ export const MAX_AVG_ROUNDS = 5;
  * fixed by re-probing because adjacent body counts are 20-35pp apart and the
  * band was 16pp wide (NEXT-STEPS §12.4).
  *
- * That demand was never load-bearing. Walk the requirements: level ramps
- * compare a level to the level below it, the mindless bar compares a policy to
- * a restricted policy on the same cells, card use is plays over legality.
- * EVERY VERDICT IS ALREADY A DELTA, and a delta does not care where the cell
+ * That demand was never load-bearing: the power band subtracts the neutral
+ * baseline measured in the same cell, and a card's value is a difference
+ * between branches of the same position. EVERY VERDICT IS ALREADY A DELTA, and a delta does not care where the cell
  * sits — only that it is not pinned against an edge, where every arm reads the
  * same and differences compress to nothing.
  *

@@ -161,7 +161,7 @@ describe('the fight matrix', () => {
 
   it('solves the shapes inside the duration requirement every kit is held to', () => {
     // The cells inherit the shapes' length. Solved to a looser budget than
-    // requirement 2's median bar, the calibration alone fails that requirement
+    // requirement 1's median bar, the calibration alone fails that requirement
     // for every kit measured in it — which it did, at the solver's default of 6.
     expect(FANTASY.calibration.maxAvgRounds).toBe(MAX_AVG_ROUNDS);
     expect(MAX_AVG_ROUNDS).toBeLessThanOrEqual(MAX_MEDIAN_ROUNDS);

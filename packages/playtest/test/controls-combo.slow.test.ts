@@ -1,24 +1,25 @@
 /**
- * A TWO-CARD COMBO — requirement 3c's must-PASS control: no single card is
- * right every turn, so repeating either loses to playing the kit.
+ * A TWO-CARD COMBO — requirement 3's must-PASS control: each card is right at
+ * its own moment and the wrong one throws the shot away, so neither card is
+ * dead or automatic and choosing clearly matters.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import type { KitReport } from '../src/index.js';
-import { expectWellFormed, FOR_3C, GAMES, run, SMOKE } from './budgets.js';
+import { MIN_CHOICE_COST, type KitReport } from '../src/index.js';
+import { expectWellFormed, FOR_CARDS, GAMES, run, SMOKE } from './budgets.js';
 
-describe('a two-card COMBO — no single card is right every turn', () => {
+describe('a two-card COMBO — each card right at its own moment', () => {
   let r: KitReport;
-  beforeAll(async () => { r = await run('comboKit', [], GAMES, FOR_3C); });
+  beforeAll(async () => { r = await run('comboKit', [], GAMES, FOR_CARDS); });
 
   it('produces a whole report', () => expectWellFormed(r, 2));
 
-  it.skipIf(SMOKE)('requirement 3c passes a kit no one card can carry', () => {
-    expect(r.oneTrick.ok, r.oneTrick.detail).toBe(true);
+  it.skipIf(SMOKE)('passes requirement 3 — neither card is never right', () => {
+    expect(r.choices.ok, r.choices.detail).toBe(true);
+    expect(r.choices.neverRight, r.choices.detail).toEqual([]);
   });
 
-  it.skipIf(SMOKE)('passes for the RIGHT reason — a real margin, not a wide error bar', () => {
-    const m = r.oneTrick.margin!;
-    expect(m.margin, r.oneTrick.detail).toBeGreaterThan(2 * m.stderr);
-    expect(m.borderline).toBe(false);
+  it.skipIf(SMOKE)('passes for the RIGHT reason — choosing clearly matters, not a wide error bar', () => {
+    const c = r.choiceCost!;
+    expect(c.mean - 2 * c.stderr, r.choices.detail).toBeGreaterThan(MIN_CHOICE_COST);
   });
 });

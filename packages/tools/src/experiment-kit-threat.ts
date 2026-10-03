@@ -27,7 +27,7 @@
  */
 import { ENEMY_DEFINITIONS, fullKitLevel, solveEncounter, DEFAULT_MAX_AVG_ROUNDS, type PartySpec } from '@pimpampum/set-fantasy';
 import { referenceParty, games, pct, searchGames, SMOKE, useSet } from '@pimpampum/bench';
-import { FANTASY } from '@pimpampum/set-fantasy/bench';
+import { FANTASY, REFERENCE_SIGMA } from '@pimpampum/set-fantasy/bench';
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
@@ -135,7 +135,7 @@ function trend(r: KitReport): 'truncat' | 'pla' | 'mai' {
 reports.sort((a, b) => (cheapest(a) ?? 999) - (cheapest(b) ?? 999));
 
 console.log('\n' + '='.repeat(86));
-console.log(`SCOREBOARD — dins de ${DEFAULT_MAX_AVG_ROUNDS} rondes, contra 4 herois equipats (Σ20 nivells)`);
+console.log(`SCOREBOARD — dins de ${DEFAULT_MAX_AVG_ROUNDS} rondes, contra 4 herois equipats (Σ${REFERENCE_SIGMA} nivells)`);
 console.log('='.repeat(86));
 console.log('  CRIATURA               cossos per empatar   sostre   kit');
 for (const r of reports) {

@@ -33,7 +33,11 @@ const DEFAULT_CACHE_DIR = path.resolve(HERE, '../../.bench-cache');
  *  inherit the environment) still share their results with it. Read per call,
  *  like `BENCH_NO_CACHE`. */
 const cacheDir = (): string => process.env.BENCH_CACHE_DIR || DEFAULT_CACHE_DIR;
-const REPO = path.resolve(HERE, '../../../..');
+/** The repo root, from `packages/bench/{src,dist}`. It was one level too high
+ *  after the package refactor (af533c1): the fingerprint then hashed four
+ *  "missing" markers, never changed, and no rules or AI change invalidated a
+ *  cached number until 2026-10-03 (NEXT-STEPS §27.3). */
+const REPO = path.resolve(HERE, '../../..');
 
 /** Disable with `BENCH_NO_CACHE=1` when you suspect the cache rather than the game.
  *  Read on every call, not once at import: a test setup file that sets it after
@@ -117,20 +121,36 @@ export function enemyPrint(enemyId: string): string {
  * listed here.
  */
 export const FINGERPRINTED = ['engine', 'ai', 'bench', 'combat-balancer'];
+/** Every source file the fingerprint hashes, repo-relative, per package. */
+export function fingerprintedSources(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const pkg of FINGERPRINTED) {
+    const files: string[] = [];
+    const walk = (d: string): void => {
+      if (!fs.existsSync(d)) return;
+      for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith('.ts')) files.push(path.relative(REPO, full));
+      }
+    };
+    walk(path.join(REPO, 'packages', pkg, 'src'));
+    // LOUD, never a placeholder: a package the walk cannot find makes the
+    // fingerprint a constant, and a constant fingerprint serves every old
+    // number as if the rules had never changed.
+    if (!files.length) throw new Error(`bench/cache: no source found for '${pkg}' under ${REPO}/packages — the cache fingerprint would be blind to it.`);
+    out[pkg] = files;
+  }
+  return out;
+}
+
 let enginePrintCache: string | null = null;
 export function enginePrint(): string {
   if (enginePrintCache) return enginePrintCache;
   const parts: string[] = [];
-  const walk = (d: string): void => {
-    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const full = path.join(d, e.name);
-      if (e.isDirectory()) walk(full);
-      else if (e.name.endsWith('.ts')) parts.push(e.name, fs.readFileSync(full, 'utf8'));
-    }
-  };
-  for (const pkg of FINGERPRINTED) {
+  for (const [pkg, files] of Object.entries(fingerprintedSources())) {
     parts.push(pkg);
-    try { walk(path.join(REPO, 'packages', pkg, 'src')); } catch { parts.push('missing'); }
+    for (const f of files) parts.push(f, fs.readFileSync(path.join(REPO, f), 'utf8'));
   }
   enginePrintCache = sha(...parts);
   return enginePrintCache;

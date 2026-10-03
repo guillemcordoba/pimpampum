@@ -25,7 +25,7 @@ import { SYNTHETIC_MODULE } from './budgets.js';
 const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'prepare.work.ts');
 const SET = { module: SYNTHETIC_MODULE, export: 'SYNTHETIC' };
 const GAMES = games(80);
-const SMALL = { mindlessGames: games(80), oneTrickGames: games(80), cardValueGames: games(24) };
+const SMALL = { cardValueGames: games(24) };
 
 type Run = { report: KitReport; misses: number };
 const analysed = (ctx: RunContext, serial = false) => isolated<Run>(WORK, 'analysed', [ctx, GAMES, serial]);
@@ -37,7 +37,7 @@ describe('prepare', () => {
   });
 
   it('leaves analyze nothing to compute — a control kit under a budget', async () => {
-    const { misses } = await analysed({ set: SET, subject: { control: 'ladderKit', args: [] }, budget: { ...SMALL, allSeats: true } });
+    const { misses } = await analysed({ set: SET, subject: { control: 'comboKit', args: [] }, budget: { ...SMALL, allSeats: true } });
     expect(misses).toBe(0);
   });
 

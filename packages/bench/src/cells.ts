@@ -13,7 +13,7 @@
  * measurement. `instrument()` below is now the only one.
  */
 import {
-  ActionType, Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, random, setAIControlled, withSeed,
+  Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { aiPolicy, lookaheadChooser } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
@@ -29,23 +29,18 @@ export const CELL_SEED = 515_000;
  * How hard both sides think in a cell.
  *
  * Depth 1 is what the balancer prices encounters at, so a report card and a
- * difficulty number mean the same thing. The mindless policies below fall back
- * to it whenever their own rule has nothing legal to offer — they are a smaller
- * STRATEGY SPACE, not a weaker brain, which is the only fair form of the
- * question "does thinking matter".
+ * difficulty number mean the same thing.
  */
 export const CELL_AI = { depth: 1, samples: 4, passes: 1, topK: 0 } as const;
 
 /**
- * WHO GETS HIT — the production AI's target chooser, for EVERY arm.
+ * WHO GETS HIT — the production AI's target chooser.
  *
- * The arms of a cell vary which CARD is chosen; none of them is a question
- * about targeting. Cells used to pass an `actionChooser` only, so every arm
- * fell through to the engine's deliberately-not-a-policy default (the first
- * eligible targets), while the neutral baseline those arms were subtracted
- * from was measured with the real AI's targeting — and every kit's headline
- * delta carried the difference between smart and first-in-line targeting as a
- * constant bias.
+ * Cells used to pass an `actionChooser` only, so the subject fell through to
+ * the engine's deliberately-not-a-policy default (the first eligible
+ * targets), while the neutral baseline it was subtracted from was measured
+ * with the real AI's targeting — and every kit's headline delta carried the
+ * difference as a constant bias.
  */
 const CELL_TARGETS = aiPolicy(CELL_AI).targetChooser;
 
@@ -103,127 +98,6 @@ export function instrument(
   };
 }
 
-// --- The impoverished policies ----------------------------------------------
-
-/** Uniformly random over legal cards — the "no decisions at all" floor. A kit
- *  whose thought-out play barely beats this is not asking the player anything.
- *
- *  Draws from the engine's SEEDED `random()`. Using `Math.random()` here — as
- *  this once did — makes the arm that DEFINES the bar irreproducible and leaves
- *  it sharing no random numbers with the arm it is subtracted from, inside a
- *  `withSeed` block that makes it look deterministic. */
-function uniformChooser(team: number, fallback: (e: CombatEngine, a: Character) => number | null) {
-  return (engine: CombatEngine, actor: Character): number | null => {
-    if (actor.team !== team) return fallback(engine, actor);
-    const legal = availableActionIndices(actor, engine.registry);
-    return legal.length ? legal[Math.floor(random() * legal.length)] : null;
-  };
-}
-
-/**
- * "Always this one card, whenever it is legal" — the one-trick strategy.
- *
- * SCOPE: effectively ONE SEAT, not the whole side. It is written against the
- * team, but a companion does not own the subject's card, so `legal.find` misses
- * and the companion falls back to playing properly. That asymmetry is the
- * point — it asks whether this KIT is better used as a one-trick role — but it
- * makes the result incomparable with `uniform` and the `onlyX` restrictions,
- * which impoverish all four seats. Three quarters of the party still playing
- * well means the winrate barely moves, so this family can never lose much, and
- * scoring it against the whole-side bar caps the margin near zero by
- * construction. `kit-analyzer.ts` therefore keeps the two families apart.
- */
-function oneCardChooser(team: number, cardId: string, fallback: (e: CombatEngine, a: Character) => number | null) {
-  return (engine: CombatEngine, actor: Character): number | null => {
-    if (actor.team !== team) return fallback(engine, actor);
-    const legal = availableActionIndices(actor, engine.registry);
-    const pick = legal.find(i => actor.actions[i].def.id === cardId);
-    return pick ?? (legal.length ? fallback(engine, actor) : null);
-  };
-}
-
-/**
- * "Always the biggest attack", with NO lookahead at all — the thinking-free
- * floor, and the one §7.1 actually asks for.
- *
- * It is a different question from `onlyAttacks`, and conflating them cost this
- * requirement its meaning. `onlyAttacks` still THINKS, a round ahead, inside a
- * smaller strategy space; this does not think at all. One asks "does the
- * strategy triangle matter", the other asks "does thinking matter", and only
- * the second is what "thinking must beat not thinking" means.
- */
-function spamChooser(team: number, fallback: (e: CombatEngine, a: Character) => number | null) {
-  return (engine: CombatEngine, actor: Character): number | null => {
-    if (actor.team !== team) return fallback(engine, actor);
-    const legal = availableActionIndices(actor, engine.registry);
-    const attacks = legal.filter(i => actor.actions[i].def.actionType === ActionType.Atac
-      && !actor.actions[i].def.lastResort);
-    if (!attacks.length) return legal.length ? legal[0] : null;
-    let best = attacks[0], bestAvg = -1;
-    for (const i of attacks) {
-      const def = actor.actions[i].def;
-      const avg = (def.dice?.average() ?? 0) + (def.rollBonus ?? 0);
-      if (avg > bestAvg) { bestAvg = avg; best = i; }
-    }
-    return best;
-  };
-}
-
-/**
- * How the SUBJECT SIDE plays a cell.
- *
- *  - `policy`   — the real thing: the one AI, thinking a round ahead.
- *  - `uniform`  — nobody thinks at all: random legal cards, whole side.
- *  - `onlyX`    — the whole side restricted to one action type, still thinking
- *                 as hard as ever inside it (the lookahead's `restrictTo`).
- *                 `onlyDefenses` is the TURTLE, and it is the strategy
- *                 triangle's own test: Power is supposed to beat Protect, so a
- *                 side that never advances the win condition should lose.
- *  - `oneCard`  — ONE SEAT repeats a single card while the rest play on. A
- *                 weaker claim than the others, and NOT COMPARABLE with them:
- *                 it handicaps one seat of four rather than the whole side, so
- *                 it asks whether the kit is better used as a one-trick role,
- *                 not whether thinking matters. See `oneCardChooser`.
- */
-export type CellPolicy =
-  | 'policy' | 'uniform' | 'spam'
-  | 'onlyAttacks' | 'onlyDefenses' | 'onlyFocus'
-  | { oneCard: string };
-
-/**
- * THREE FAMILIES, THREE QUESTIONS. They are not comparable and must never be
- * maxed together — doing so is what cost requirement 3 its meaning.
- *
- *  - THOUGHTLESS: no lookahead at all. "Does thinking matter?" Measured
- *    2026-09-20: the full policy beats these by +30-40pp (uniform) and
- *    +2.6-12.6pp (spam). Thinking matters enormously; attack-spam is a strong
- *    strategy.
- *  - RESTRICTED: still thinking a round ahead, inside a smaller strategy space.
- *    "Does the Atac/Defensa/Focus triangle matter?" The answer is currently
- *    NO: `onlyAttacks` ties free play within ~2.7pp on every kit.
- *  - one-card: one SEAT repeats a card while the rest play on (see
- *    kit-analyzer's 3c). A quarter of a side, so a quarter of the effect.
- */
-export const THOUGHTLESS_POLICIES: CellPolicy[] = ['uniform', 'spam'];
-export const RESTRICTED_POLICIES: CellPolicy[] = ['onlyAttacks', 'onlyDefenses', 'onlyFocus'];
-
-/** Build the subject side's chooser for a policy. */
-export function chooserFor(policy: CellPolicy, subjectTeam: number) {
-  const real = lookaheadChooser(CELL_AI);
-  const restricted = (types: ActionType[]) => {
-    const mine = lookaheadChooser({ ...CELL_AI, restrictTo: types }, [subjectTeam]);
-    return (e: CombatEngine, a: Character) =>
-      (a.team === subjectTeam ? mine(e, a) ?? real(e, a) : real(e, a));
-  };
-  return policy === 'policy' ? real
-    : policy === 'uniform' ? uniformChooser(subjectTeam, real)
-    : policy === 'spam' ? spamChooser(subjectTeam, real)
-    : policy === 'onlyAttacks' ? restricted([ActionType.Atac])
-    : policy === 'onlyDefenses' ? restricted([ActionType.Defensa])
-    : policy === 'onlyFocus' ? restricted([ActionType.Focus])
-    : oneCardChooser(subjectTeam, policy.oneCard, real);
-}
-
 // --- Running --------------------------------------------------------------
 
 /** What a side is, for the purposes of running it: a party, an opposition, and
@@ -251,25 +125,22 @@ export interface CellRun {
 /**
  * Play one cell `games` times.
  *
- * COMMON RANDOM NUMBERS: the seed depends on the CELL, never on the level or
- * the policy, so two levels — or a policy and its impoverished baseline — meet
- * the same dice and differ by their cards. The correlation is partial, since
- * the streams desynchronise the moment a different card is chosen, so it
- * tightens a comparison without making it exact; error bars are still quoted
- * the conservative, independent way.
+ * COMMON RANDOM NUMBERS: the seed depends on the CELL, never on the subject,
+ * so a kit and the neutral baseline meet the same dice and differ by their
+ * cards. The correlation is partial, since the streams desynchronise the
+ * moment a different card is chosen; error bars are still quoted the
+ * conservative, independent way.
  *
- * `seedOffset` buys FRESH numbers on purpose: re-measuring a candidate that was
- * SELECTED on a sample must not re-use that sample, or the selection's luck
- * gets reported as the candidate's merit.
+ * `seedOffset` buys FRESH numbers: the baselines are measured on their own
+ * offset so a cell is never subtracted from its own sample.
  */
 /** Everything one cell's result depends on, besides the content the caller
  *  names. */
-export function cellKey(
-  subjectPrint: string, cell: Cell, games: number, policy: CellPolicy, seedOffset: number,
-): string {
-  const policyPrint = typeof policy === 'string' ? policy : `one:${policy.oneCard}`;
+export function cellKey(subjectPrint: string, cell: Cell, games: number, seedOffset: number): string {
+  // 'policy' is a fossil of the removed impoverished arms, kept so the keys —
+  // and every cell already cached under them — stay valid.
   return key('cell', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
-    String(games), policyPrint, String(seedOffset));
+    String(games), 'policy', String(seedOffset));
 }
 
 /** What a cached cell holds: its outcome plus the instrumentation the report
@@ -288,14 +159,13 @@ export function cellResult(
   setup: () => CellSetup,
   cell: Cell,
   games: number,
-  policy: CellPolicy,
   seedOffset: number,
   cacheKey?: string,
 ): CachedCell {
   const compute = (): CachedCell => {
     const stats = newCombatStats();
     const counters = newCardCounters();
-    const r = runOneCell(setup(), cell, games, policy, stats, counters, seedOffset);
+    const r = runOneCell(setup(), cell, games, stats, counters, seedOffset);
     return { winrate: r.winrate, drawRate: r.drawRate, stallRate: r.stallRate, rounds: r.rounds, stats, counters };
   };
   return cacheKey ? countedCached<CachedCell>('cell', cacheKey, compute) : compute();
@@ -308,12 +178,11 @@ function runOneCell(
   setup: CellSetup,
   cell: Cell,
   games: number,
-  policy: CellPolicy,
   stats: CombatStats,
   counters: CardCounters,
   seedOffset = 0,
 ): CellRun {
-  const actionChooser = instrument(chooserFor(policy, setup.subjectTeam), setup.subjectTeam, counters);
+  const actionChooser = instrument(lookaheadChooser(CELL_AI), setup.subjectTeam, counters);
   let wins = 0, draws = 0, stalls = 0;
   const rounds: number[] = [];
   withSeed(CELL_SEED + seedOffset + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
@@ -381,38 +250,23 @@ export function matrixCell(
   cellIdx: number,
   setupFor: (cell: Cell) => CellSetup,
   games: number,
-  policy: CellPolicy = 'policy',
-  seedOffset = 0,
   subjectPrint?: string,
 ): CachedCell {
   const cell = cells[cellIdx];
   const perCell = perCellGames(games, cells.length);
   return cellResult(
-    () => setupFor(cell), cell, perCell, policy, seedOffset,
-    subjectPrint ? cellKey(subjectPrint, cell, perCell, policy, seedOffset) : undefined,
+    () => setupFor(cell), cell, perCell, 0,
+    subjectPrint ? cellKey(subjectPrint, cell, perCell, 0) : undefined,
   );
 }
 
+/** The MATRIX is not cached — its CELLS are (`matrixCell`). A matrix is just
+ *  their sum, and caching at the cell is what lets a run fan out across the
+ *  width of the matrix. */
 export function runMatrix(
   cells: Cell[],
   setupFor: (cell: Cell) => CellSetup,
   games: number,
-  policy: CellPolicy = 'policy',
-  seedOffset = 0,
-  cacheKey?: string,
-): MatrixResult {
-  // The MATRIX is not cached — its CELLS are (`cellResult`). A matrix is just
-  // their sum, and caching at the cell is what lets a run fan out across the
-  // width of the matrix instead of one process per level.
-  return runMatrixUncached(cells, setupFor, games, policy, seedOffset, cacheKey);
-}
-
-function runMatrixUncached(
-  cells: Cell[],
-  setupFor: (cell: Cell) => CellSetup,
-  games: number,
-  policy: CellPolicy = 'policy',
-  seedOffset = 0,
   subjectPrint?: string,
 ): MatrixResult {
   if (cells.length === 0) {
@@ -431,7 +285,7 @@ function runMatrixUncached(
   let winSum = 0, drawSum = 0, stallSum = 0, deltaSum = 0, baselineVar = 0;
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
-    const r = matrixCell(cells, i, setupFor, games, policy, seedOffset, subjectPrint);
+    const r = matrixCell(cells, i, setupFor, games, subjectPrint);
     mergeCombatStats(stats, r.stats);
     for (const k of Object.keys(r.counters.legal)) counters.legal[k] = (counters.legal[k] ?? 0) + r.counters.legal[k];
     for (const k of Object.keys(r.counters.played)) counters.played[k] = (counters.played[k] ?? 0) + r.counters.played[k];
@@ -475,7 +329,7 @@ function runMatrixUncached(
  *
  * An off-by-one in a percentile is the quietest bug there is: it moves a
  * reported number by one fight's worth and nothing ever looks wrong. These
- * feed requirement 2 directly, which is otherwise judged on numbers no test
+ * feed requirement 1 (fights end) directly, which is otherwise judged on numbers no test
  * has ever checked against a hand-computed answer.
  *
  * NOTE `p90` uses the nearest-rank convention, so on ten sorted fights it is

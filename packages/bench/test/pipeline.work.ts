@@ -39,7 +39,7 @@ export function measure(kitId: string): Measured {
     const setup = (cell: (typeof cells)[number]): CellSetup => ({
       party: subjectParty(kitId, full, cell.companyIdx), enemies: shapeEnemies(cell.shapeIdx), subjectTeam: 0,
     });
-    const r = runMatrix(cells, setup, games(1200), 'policy', 0);
+    const r = runMatrix(cells, setup, games(1200));
     return { cells: cells.length, delta: r.delta, deltaStderr: r.deltaStderr, winrate: r.winrate, games: r.games };
   } finally {
     uninstall();

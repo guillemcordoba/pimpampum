@@ -68,46 +68,10 @@ function packageOf(file: string): string {
 
 const MUTANTS: Mutant[] = [
   {
-    label: 'marginVerdict: drop the error term (§19.1 — how 3c came to report its seed)',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'ok: margin + 2 * se >= bar,',
-    replace: 'ok: margin >= bar,',
-  },
-  {
-    label: 'marginVerdict: ignore the bar entirely',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'ok: margin + 2 * se >= bar,',
-    replace: 'ok: margin + 2 * se >= 0,',
-  },
-  {
-    label: 'classifyStep: drop the noise floor (§12 — flat levels read as regressions)',
-    file: 'packages/playtest/src/rules.ts',
-    find: "if (step < -Math.max(regressionPP, 2 * se)) return 'regression';",
-    replace: "if (step < -regressionPP) return 'regression';",
-  },
-  {
     label: 'durationVerdict: the stall bar can never fire',
     file: 'packages/playtest/src/rules.ts',
     find: 'if (stallRate >= maxStalls)',
     replace: 'if (stallRate >= 1.1)',
-  },
-  {
-    label: 'correlatesWithLosing: judge a card on any sample at all (§19 — the play gate)',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'if (plays < minPlays) return { judged: false, flagged: false, rate: 0 };',
-    replace: 'if (plays < 0) return { judged: false, flagged: false, rate: 0 };',
-  },
-  {
-    label: 'correlatesWithLosing: flag on the point estimate, no error bar',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'flagged: rate + 2 * stderr(rate, plays) < floor',
-    replace: 'flagged: rate < floor',
-  },
-  {
-    label: 'dead cards: call a card dead on the point estimate (§17.5 — the noise floor)',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'return bestShare + 2 * bestStderr < nullShare;',
-    replace: 'return bestShare < nullShare;',
   },
   {
     label: 'stderr: every error bar becomes zero',
@@ -122,28 +86,16 @@ const MUTANTS: Mutant[] = [
     replace: 'return 1;',
   },
   {
-    label: "regret: decided positions are not dropped (\u00a719.5 fault 3 \u2014 every card dragged to its null)",
+    label: "regret: decided positions count towards the best-share (\u00a719.5 fault 3 \u2014 a no-op reads alive)",
     file: 'packages/bench/src/regret.ts',
-    find: "if (top === bottom) return null;",
-    replace: "if (false) return null;",
+    find: "if (top === bottom) return { choiceCost: 0, cards: [] };",
+    replace: "if (false) return { choiceCost: 0, cards: [] };",
   },
   {
     label: "regret: a tie for best is split, not credited (\u00a719.5 fault 4 \u2014 duplicates read dead)",
     file: 'packages/bench/src/regret.ts',
-    // BOTH LINES, SWAPPED, rather than just the first. `topCount` is declared
-    // after `isBest`, so patching `isBest` alone produces source that does not
-    // COMPILE — and since a bench mutant is only visible after `pnpm build`,
-    // an uncompilable mutant is not a survivor or a kill, it is a crash.
-    find: `const isBest = b.score >= top ? 1 : 0;
-      const topCount = branches.filter(o => o.score >= top).length;`,
-    replace: `const topCount = branches.filter(o => o.score >= top).length;
-      const isBest = b.score >= top ? 1 / topCount : 0;`,
-  },
-  {
-    label: "regret: the null stops self-calibrating (\u00a719.7 \u2014 a flat 1/k understates chance)",
-    file: 'packages/bench/src/regret.ts',
-    find: "nullShare: list.reduce((a, o) => a + o.topCount / o.candidates, 0) / list.length,",
-    replace: "nullShare: list.reduce((a, o) => a + 1 / o.candidates, 0) / list.length,",
+    find: 'const isBest = b.score >= top ? 1 : 0;',
+    replace: 'const isBest = b.score >= top ? 1 / branches.filter(o => o.score >= top).length : 0;',
   },
   {
     label: "ENGINE resolution: a tie no longer holds for the defense",
@@ -201,22 +153,65 @@ const MUTANTS: Mutant[] = [
     replace: "export const FINGERPRINTED = ['engine', 'bench', 'combat-balancer'];",
   },
   {
-    label: 'requirement 5: call a card auto-include on the point estimate',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'return bestShare - 2 * bestStderr > AUTO_INCLUDE_SHARE;',
-    replace: 'return bestShare > AUTO_INCLUDE_SHARE;',
-  },
-  {
-    label: 'requirement 8: fail a kit that is out of band only inside its noise',
+    label: 'requirement 2: fail a kit that is out of band only inside its noise',
     file: 'packages/playtest/src/rules.ts',
     find: "if (delta - 2 * se > band) return { ok: false, side: 'above' };",
     replace: "if (delta > band) return { ok: false, side: 'above' };",
+  },
+  {
+    label: 'cache: the fingerprint looks above the repo and hashes nothing (af533c1 — every rules change served stale numbers)',
+    file: 'packages/bench/src/cache.ts',
+    find: "const REPO = path.resolve(HERE, '../../..');",
+    replace: "const REPO = path.resolve(HERE, '../../../..');",
   },
   {
     label: "balancer: the search AI's clamp goes out unchecked at the real depth (§26 — bone devils at PV 1)",
     file: 'packages/combat-balancer/src/index.ts',
     find: '  if (clamped && depth !== searchDepth) {',
     replace: '  if (false && clamped && depth !== searchDepth) {',
+  },
+  // --- The four-requirement rules (NEXT-STEPS §27.3) -------------------------
+  {
+    label: 'requirement 3: choosing matters on the point estimate, no error bar',
+    file: 'packages/playtest/src/rules.ts',
+    find: 'return meanCost + 2 * se >= bar;',
+    replace: 'return meanCost >= bar;',
+  },
+  {
+    label: 'regret: the choice cost forgets to cross-fit (winner\'s curse — noise reads as choice)',
+    file: 'packages/bench/src/regret.ts',
+    find: '  if (n < 2) return plain(branches.map(b => b.score));',
+    replace: '  return plain(branches.map(b => b.score));',
+  },
+  {
+    label: "regret: the gain when best is the winner's own lead (winner's curse — every best play looks decisive)",
+    file: 'packages/bench/src/regret.ts',
+    find: '  const ways = (branches[0]?.samples.length ?? 0) < 2',
+    replace: '  const ways = true',
+  },
+  {
+    label: 'requirement 3: call a card never right on the point estimate',
+    file: 'packages/playtest/src/rules.ts',
+    find: '  return gain + 2 * se < 0;',
+    replace: '  return gain < 0;',
+  },
+  {
+    label: 'regret: the gain when best is averaged per fight (twins read −2 PV)',
+    file: 'packages/bench/src/regret.ts',
+    find: '    const g = whenBest.length ? clusteredRatio(whenBest, o => o.gain) : null;',
+    replace: '    const g = whenBest.length ? clusteredStderr(whenBest, o => o.gain) : null;',
+  },
+  {
+    label: 'requirement 4: an edge holds on the point estimate',
+    file: 'packages/playtest/src/rules.ts',
+    find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',
+    replace: 'return winrate > 0.5;',
+  },
+  {
+    label: 'requirement 4: the triangle holds when ANY edge does',
+    file: 'packages/playtest/src/rules.ts',
+    find: 'return { ok: broken.length === 0, broken };',
+    replace: 'return { ok: broken.length < edges.length, broken };',
   },
   {
     label: 'armour sweet spot: only ask that a few wearers beat nobody',
@@ -305,8 +300,11 @@ for (const m of chosen) {
   const text = fs.readFileSync(abs, 'utf8');
   const hits = text.split(m.find).length - 1;
   if (hits !== 1) {
-    // A mutant that does not apply is not a passing mutant. Loudly.
-    console.log(`⚠️  SKIPPED (${hits} matches, need exactly 1): ${m.label}`);
+    // A mutant that does not apply is not a passing mutant — and printing a
+    // skip let two of them silently leave the score when their code moved.
+    // It is an INVALID mutant: fix it or delete it.
+    console.log(`⚠️  INVALID (${hits} matches, need exactly 1): ${m.label}`);
+    invalid.push(m.label);
     continue;
   }
   originals.set(m.file, text);
@@ -327,3 +325,4 @@ if (survivors.length) {
   console.log('\nSURVIVORS — each one is a fault the suite would not notice:');
   for (const s of survivors) console.log(`  · ${s}`);
 }
+if (survivors.length || invalid.length) process.exitCode = 1;

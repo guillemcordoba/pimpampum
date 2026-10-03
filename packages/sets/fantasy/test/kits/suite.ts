@@ -12,5 +12,5 @@ export const SET = {
   export: 'FANTASY',
 };
 
-/** Combats per level, as `tools/src/kit-analyzer.ts` runs it. */
-export const KIT_GAMES = games(2400);
+/** Combats in the full-kit run, as `tools/src/kit-analyzer.ts` runs it by default. */
+export const KIT_GAMES = games(800);
