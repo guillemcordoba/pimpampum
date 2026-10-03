@@ -3727,3 +3727,53 @@ drawn parties, and with his guard card gone and Aguantar taking every blow
 uncontested, iron's speed cost outweighs its armour. Ferro is now
 \`KNOWN_WITHOUT_SWEET_SPOT\` beside cuir. It moves with backlog item 1
 (Aguantar el cop's open design) and item 3 (the armour pass).
+
+### 27.6 Overnight findings, for decision (2026-10-04)
+
+Measurements only — nothing here is merged; every option is a decision.
+
+**The strategy triangle (backlog 2).** Read from 60 mirror fights per pairing:
+
+- The triangle is measured on ONE table: \`mirrorParty()\` is company row 0 —
+  berserk (the row's stand-in), mestre-armes, volcanic, metge. Its verdict is
+  a fact about that party. Option: pool the three duels over every company
+  row, as the kit cells do.
+- Power does not win the way \`intentions.md\` assumes (slow focuses that fast
+  attacks interrupt). Its most played focuses are fast or protective: Cures de
+  camp (195 plays in 60 fights), Entrar en Fúria (176), Riu de lava (158) and
+  **Rugit de guerra (144)** — the roar, at speed 2, cancels every enemy who
+  loses its d20 and has not acted. Against Aggro, Aggro's actions were
+  cancelled 182 times, Power's 42. "Buff Aggro against slow focuses" would
+  miss: the corner that needs an answer is the roar's mass cancel (and the
+  heal), not slowness.
+- Protect vs Aggro is even (48–51%): Protect blocks, but deals almost nothing.
+
+**The remaining weak cards (backlog 1)**, from their combat logs:
+
+- Marca de la perdició → Mà de la tomba is a two-turn combo in four-round
+  fights, and the nigromant often dies before it completes. September's
+  "Marca is an ATTACK (1d6) that condemns what it hits" measured alive.
+- Erupció works as designed: it hits allies too ("la muntanya no distingeix"),
+  so it averages −2.4 but leads by +8.3 when it is the right play.
+- Aguantar el cop is chosen rarely (7 times in 96 fights) and its rage works
+  when played. Possible bug for its review: used to BLOCK, it adds 4 to a
+  defense wall although it never rolls a defense.
+
+**Armour (backlog 3)** — curves depend only on the (armour, speed) pair:
+
+| armour / speed | sweet spot | inside ±15pp |
+|---|---|---|
+| +2 / −1 (cuir now) | ❌ falls | ✅ |
+| +3 / −2 (ferro now) | ❌ falls | ✅ |
+| **+3 / −1** | **✅ peaks at 3 wearers** | ✅ |
+| +4 / −2 | ❌ borderline (peak at 2, not clear) | ✅ |
+| +5 / −2 | ✅ peaks at 2 | ❌ one fight moves > 15pp |
+| +4 / −1 | ❌ keeps rising | ❌ |
+| +5 / −3 | ❌ falls | ✅ |
+
+Cuir at +3/−1 works cleanly; ferro has no clean point at whole-number speeds.
+**Caution:** the armour fights are solved to 65% but now replay at 84.5% bare
+(72–75% before the AI's non-attack targeting change) — near the 80%
+saturation line the kit cells already refuse, where differences compress.
+Check why the solve no longer transfers before retuning armour on these
+numbers.
