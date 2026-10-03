@@ -124,7 +124,7 @@ describe('drift', () => {
     const before = calibrationDrift(dir);
     expect(before).toEqual(calibrationDrift());
     // A kit whose file is named by its id, and that has not drifted already.
-    const edited = ['gel', 'metge', 'runes', 'ombres', 'berserk', 'volcanic', 'nigromant', 'earthbender'].find(k => !before.includes(k));
+    const edited = ['gel', 'metge', 'runes', 'berserk', 'volcanic', 'nigromant', 'earthbender'].find(k => !before.includes(k));
     let after = before;
     if (edited) {
       const file = path.join(dir, `${edited}.ts`);

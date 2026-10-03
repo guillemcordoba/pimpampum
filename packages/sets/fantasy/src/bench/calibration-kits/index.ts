@@ -7,7 +7,6 @@ import { ENGINYER_EXPLOSIUS } from './explosives-engineer.js';
 import { GEL } from './gel.js';
 import { METGE } from './metge.js';
 import { NIGROMANT } from './nigromant.js';
-import { OMBRES } from './ombres.js';
 import { RUNES } from './runes.js';
 import { VOLCANIC } from './volcanic.js';
 import { MESTRE_ARMES } from './weapon-master.js';
@@ -16,7 +15,7 @@ import type { SkillDefinition } from '../../players/types.js';
 /** When the snapshot was taken. */
 export const REFRESHED = '2026-10-03';
 
-export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, EARTHBENDER, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, OMBRES, RUNES, VOLCANIC, MESTRE_ARMES];
+export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, EARTHBENDER, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES];
 
 /** Live skill id → the file both copies live in, for the drift check. */
 export const PINNED_FILES: Record<string, string> = {
@@ -26,7 +25,6 @@ export const PINNED_FILES: Record<string, string> = {
   'gel': 'gel.ts',
   'metge': 'metge.ts',
   'nigromant': 'nigromant.ts',
-  'ombres': 'ombres.ts',
   'runes': 'runes.ts',
   'volcanic': 'volcanic.ts',
   'mestre-armes': 'weapon-master.ts',

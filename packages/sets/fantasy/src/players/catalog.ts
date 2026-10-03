@@ -6,7 +6,6 @@ import { NIGROMANT } from './skills/nigromant.js';
 import { BERSERK } from './skills/berserk.js';
 import { METGE } from './skills/metge.js';
 import { RUNES } from './skills/runes.js';
-import { OMBRES } from './skills/ombres.js';
 import { GEL } from './skills/gel.js';
 import { EARTHBENDER } from './skills/earthbender.js';
 import { VOLCANIC } from './skills/volcanic.js';
@@ -19,7 +18,6 @@ export const ALL_SKILLS: SkillDefinition[] = [
   BERSERK,
   METGE,
   RUNES,
-  OMBRES,
   GEL,
   EARTHBENDER,
   VOLCANIC,

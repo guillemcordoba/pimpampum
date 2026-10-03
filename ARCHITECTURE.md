@@ -644,7 +644,7 @@ was live in `main.ts`’s parametric check until 2026-09-20.
 - `tests/bench.test.ts` — the ANTI-DRIFT GUARD: the four structural rules above,
   enforced by scanning the source, plus the sampling maths in `bench/report.ts`.
 - `bench/arena.ts` models INTENDED play: `randomPlayer` picks a main skill first
-  (complementary kits — metge/runes/ombres/gel — only ever appear as second
+  (complementary kits — metge/runes/gel — only ever appear as second
   skills), guarantees weapon kits a mid weapon (destral), uses `PLAYER_PV` 12
   and ordinal budgets of ~6-7, and draws through the engine's SEEDED `random()`.
   `tests/helpers.ts` is now a thin alias for it.

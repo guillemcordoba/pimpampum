@@ -45,7 +45,7 @@ describe('the reference party is one thing, and says so when it moves', () => {
   });
 
   it('never builds a reference hero on a complementary kit alone', () => {
-    // Complementary kits (metge/runes/ombres/gel) are designed as SECOND
+    // Complementary kits (metge/runes/gel) are designed as SECOND
     // skills; a hero built on one alone is not a hero the game intends, and
     // every winrate measured against such a party is flattered.
     for (const id of REFERENCE_KITS) {
@@ -104,7 +104,7 @@ describe('the fight matrix', () => {
   it('measures every player kit as an ALLY, not only as a subject', () => {
     // A kit missing from every COMPANY row is scored when it is the subject and
     // never once beside anyone — which is most of what a complementary kit is
-    // FOR. `ombres` sat in that hole until a fourth row was added. Adding a
+    // FOR. A complementary kit once sat in that hole until a fourth row was added. Adding a
     // skill now fails here until someone says where it gets measured.
     const inCompany = new Set(COMPANY.flat());
     const orphans = ALL_SKILLS.filter(s => !inCompany.has(s.id)).map(s => s.id);

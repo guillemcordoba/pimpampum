@@ -14,7 +14,7 @@
  *    no concrete party exists (the simulator's sweeps and the balancer tests).
  *
  * The draw models INTENDED play rather than uniform randomness: the first
- * skill is always a MAIN kit, and the complementary kits (metge/runes/ombres/
+ * skill is always a MAIN kit, and the complementary kits (metge/runes/
  * gel) were designed as second skills and only ever appear as one. Weapon kits
  * are guaranteed a weapon, otherwise their cards roll flat zero.
  *
@@ -41,7 +41,7 @@ export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/be
 export const PLAYER_PV = 12;
 
 /** Skills DESIGNED as complementary second kits — never a lone main skill. */
-export const COMPLEMENTARY_SKILLS = new Set(['metge', 'runes', 'ombres', 'gel']);
+export const COMPLEMENTARY_SKILLS = new Set(['metge', 'runes', 'gel']);
 
 
 

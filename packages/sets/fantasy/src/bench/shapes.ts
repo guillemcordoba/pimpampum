@@ -38,16 +38,12 @@ export const COMPANY: string[][] = [
   ['mestre-armes', 'volcanic', 'metge'],
   ['berserk', 'earthbender', 'runes'],
   ['nigromant', 'enginyer-explosius', 'gel'],
-  // Row 4 exists so that EVERY kit is measured as an ally, not only as a
-  // subject. With three rows, `ombres` appeared in none of them — it was
-  // scored when it was the subject and never once as company, which is half of
-  // what a complementary kit is for. `test/calibration.test.ts` now fails if any kit
-  // falls out of this list, so the gap cannot reopen silently when a skill is
-  // added.
-  //
-  // It costs nothing: `runCell` divides its game budget across the matrix, so
-  // more rows buy finer coverage at the same total number of combats.
-  ['volcanic', 'nigromant', 'ombres'],
+  // Row 4 was added so that every kit is measured as an ally, not only as a
+  // subject (`ombres`, since deleted, appeared in no other row);
+  // `test/calibration.test.ts` fails if any kit falls out of this list. It
+  // stays because it costs nothing: `runCell` divides its game budget across
+  // the matrix, so more rows buy finer coverage at the same total combats.
+  ['volcanic', 'nigromant', 'runes'],
 ];
 
 /**
