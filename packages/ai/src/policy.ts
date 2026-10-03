@@ -267,7 +267,10 @@ export function pickResolveTargets(
   const pending = view.pendingSummary();
   const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackTotal(actor, def) : 0;
   const score = (e: Character): number => {
-    let s = 2 * (1 - pvFraction(e)); // focus fire the wounded
+    // An ATTACK focuses fire on the wounded; anything else aimed at an enemy —
+    // a swallow, a curse, a plague — is wasted on one about to die, so it goes
+    // to the healthy.
+    let s = def.actionType === ActionType.Atac ? 2 * (1 - pvFraction(e)) : 2 * pvFraction(e);
     s += Math.min(2, bestAttackAverage(e) / 6); // dangerous targets (heavy hitters) first
     if (def.actionType === ActionType.Atac) {
       if (Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {

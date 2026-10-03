@@ -5,31 +5,30 @@ left to do. Written as the hand-off for the next session.
 
 ---
 
-## Backlog — the ONLY open list (updated 2026-10-03)
+## Backlog — the ONLY open list (updated 2026-10-04)
 
 Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **The card-by-card review (§27).** Aguantar el cop's design is open: keep
-   the no-roll identity or give it a guard roll (§27.2); the measured lever is
-   how much damage it takes, not the size of its buff (§27.3). Then, in order:
-   Entrar en Fúria, Rugit de guerra; earthbender (Cop de roca, Mur de pedra,
-   Columna de terra, Presó de terra); enginyer (Granada, Bomba de fum, Camp
-   minat, Traca final, the bandolier reload); nigromant (Marca, Mà de la
-   tomba, Putrefacció, Xuclar la vida, Invocar l'ombra); Desaparèixer en
-   l'ombra; Riu de lava; Atac encadenat; Amagar-se; Defensa esquelètica; Fibló
-   verinós; cuir and ferro. Each change re-measured with the kit analyzer.
+1. **Weak cards (§27.4).** The September tuning was reverted and redone card
+   by card; every kit passes. Left weak: Aguantar el cop (its design is open:
+   no-roll identity or a guard roll, §27.2 — the lever is damage taken, not the
+   buff), Mà de la tomba (strong nigromant, weak card — the AI over-plays any
+   stronger version), Marca de la perdició, Erupció. Berserk sits on the band
+   edge (+17, inside only within its noise).
 2. **The strategy triangle holds on one edge of three** (requirement 4,
    `KNOWN_BROKEN` in `sets/fantasy/test/triangle.slow.test.ts`): Power beats
-   Protect (84%), but Power also beats Aggro (77%), and since the calibration
-   refresh Aggro edges Protect (Protect 47%). Per `intentions.md`, buff the
+   Protect (80%), but Power also beats Aggro (76%), and Protect and Aggro are
+   even (51%). Per `intentions.md`, buff the
    corner that beats the winner — Aggro against slow focuses — rather than
    weakening Power.
-3. **Cuir has no sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
-   `set.slow.test.ts`, §26.13): one armour exploration and a recalibration.
+3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
+   `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
+   (§27.5). One armour exploration and a recalibration — after Aguantar el
+   cop's design is settled, since that is what moved ferro.
 4. **The unpriced "esgotadora" cards (§11):** choose a cost per card, or decide
-   they stay free.
+   they stay free. Entrar en Fúria now costs a fatigue level (§27.4).
 5. Optional measurement work: a stall probe (one card dominating the plays of
    fights past round 30, §26.11), and wider fight shapes (bone-devil company
    row 1 is saturated and drops out of every kit's measurement, §26.14).
@@ -3652,3 +3651,79 @@ live kits (berserk without Cop d'espatlla): the reference party is Σ21
 berserk +14.8 (near the band edge again), nigromant +8.2, enginyer +0.4,
 mestre-armes −0.2, earthbender −2.9, volcanic −4.0. The triangle lost Protect >
 Aggro (58% → 47%); now known-broken with Aggro > Power.
+
+### 27.4 The September tuning, reverted and redone card by card (2026-10-04)
+
+The user's call: revert the 22 remaining §26 changes and see which cards the
+new requirements fail. Done on a branch, squashed into one commit.
+
+**What was kept, and why.** Changes that repaired a broken game rather than
+tuned a number stay: Amagar-se's "needs a goblin in view, not two rounds
+running" (a lone goblin hid forever), the stone wall's life (default 2d6 —
+the pre-September value, the 1d6 was balance), the bandolier reload (reverted
+at first; the enginyer's p90 went back to 10 — it is a fight-length fix) and
+September's bone devil (reverted, its fights saturated at 94–99% and four of
+twelve cells dropped out of every kit's measurement). Ombres, whose
+Desaparèixer had the same stall fix, was deleted outright.
+
+**The 18 balance reverts, measured alone: no card failed a requirement.**
+Several were weak — Atac encadenat 0% played, Putrefacció 0.7%, Riu de lava
+2.9% — but none "never right". The user asked for lore-keeping buffs.
+
+**Reading the combat logs found the cause** (48 fights per kit, the weak
+cards' rounds): the caster kits die in round 2–3 to a few fast goblin stabs,
+slow Focus cards are interrupted or never resolve (Riu de lava 1 of 3,
+Mà de la tomba 8 of 13), and delayed payoffs (rot over 3 turns, lava next
+turn, mines waiting for attacks, a reap needing a mark first) rarely arrive in
+4-round fights. Bigger numbers did nothing; the fixes target the cause.
+
+**The cards as merged** (pre-September → now):
+
+| card | change | why |
+|---|---|---|
+| Entrar en Fúria | re-enterable, 3 turns, but every rage costs a fatigue level and it cannot be played Esgotat | the berserkergang's crash; bounds the re-entry stall (rules.md/intentions.md/CLAUDE.md now allow a card whose text says so to cost fatigue) |
+| Rugit de guerra | speed 2 (reverted) | |
+| Presó de terra | September's grip (2 turns, Focus only, cracked ground) and **nobody can guard the held enemy** | every swallow variant read −9 to −10 (out of the party's reach too); a swallow that crushes 1d4/turn read −6.6; the grip +0.9 |
+| Cop de roca | 2d4, speed 2 | a thrown stone is quick |
+| Columna de terra | 2d6, speed 0 (reverted) | |
+| Mà de la tomba | 2d6, condemned only | an every-enemy version made the AI spam it and the nigromant fell from +9 to −4 |
+| Putrefacció | speed 1, 3/turn, first tick on infection, spreads on d20 < 7 | the rot bites at once |
+| Invocar l'ombra | speed 1, 3 turns | at −5 it was interrupted almost every time |
+| Marca, Xuclar la vida, Sudari | reverted | |
+| Riu de lava | 2d6, speed 0, arrives at the end of this round | delayed and slow, it never landed |
+| Granada | 1d6 | |
+| Traca final | 1d6 per charge | |
+| Bomba de fum | speed 3, this turn and the next, d20 ≤ 12 | smoke after the blow is no smoke |
+| Camp minat | 1 charge, 4 mines of 1d8, every attack trips one, speed 0 | its cost was the bandolier |
+| Atac encadenat | September's attack that starts the chain | as a Focus it was never played (rollouts agree: −3.5) |
+
+**AI change (instrument):** a non-attack card aimed at an enemy — a swallow, a
+curse, a plague — now goes to the healthy, dangerous enemy; the attack
+heuristic ("focus the wounded") wasted them on enemies about to die. Tested,
+with a mutant.
+
+**Final sweep (calibration re-pinned):** every kit passes 1–3 — berserk +17.0
+(inside only within its noise), nigromant +7.3, enginyer +1.3, mestre-armes
++1.3, earthbender +0.8, volcanic −5.8. Triangle unchanged: Power > Protect
+80%, Protect > Aggro 51%, Aggro > Power 24% (both still known-broken).
+
+Still weak, by choice or open: Mà de la tomba (the price of a strong
+nigromant), Marca de la perdició, Aguantar el cop (its own review), Erupció.
+
+### 27.5 Ferro lost its sweet spot with the berserk review (2026-10-04)
+
+The merged retune failed the armour test on ferro. Bisected with the cache
+off (the old commits still have the blind fingerprint, so cached numbers there
+mean nothing):
+
+| commit | ferro, pooled over 0–4 wearers | verdict |
+|---|---|---|
+| 4745e6c (September tuning) | 72.9 / 74.7 / **76.5** / 75.1 / 73.6 | ✅ peaks at two |
+| a5012ea (berserk review: Cop d'espatlla removed, Aguantar el cop without a guard roll) | 75.5 / 74.9 / 74.0 / 71.4 / 67.3 | ❌ falls with every wearer |
+| main before the retune, and after it | 74.6 → 67.4, 84.5 → 72.6 | ❌ |
+
+So it is the berserk review, not the retune: the berserker is common in the
+drawn parties, and with his guard card gone and Aguantar taking every blow
+uncontested, iron's speed cost outweighs its armour. Ferro is now
+\`KNOWN_WITHOUT_SWEET_SPOT\` beside cuir. It moves with backlog item 1
+(Aguantar el cop's open design) and item 3 (the armour pass).

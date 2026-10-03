@@ -18,6 +18,8 @@ import { num } from '../effects/helpers.js';
 // and it dragged fights long (NEXT-STEPS §26).
 const ENTERRAT: StatusBehavior = {
   blocksActionType(_ref, type) { return type !== ActionType.Focus; },
+  // Buried to the chest, it cannot be shielded either: no ally's guard reaches it.
+  preventsGuard() { return true; },
   /**
    * Being swallowed is a burden, so this is NEGATIVE for the holder — which is
    * how burying an enemy becomes visible to the lookahead at all. Before this,
@@ -73,14 +75,14 @@ export const EARTHBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'cop-de-roca', name: 'Cop de roca', skillId: 'earthbender',
-      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 6),
+      unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 4),
       desc: '',
       icon: 'delapouite/throwing-ball.svg',
     }),
-    standingCoverAction({ id: 'mur-de-pedra', skillId: 'earthbender', unlock: 2, life: d(1, 6) }),
+    standingCoverAction({ id: 'mur-de-pedra', skillId: 'earthbender', unlock: 2 }),
     action({
       id: 'columna-de-terra', name: 'Columna de terra', skillId: 'earthbender',
-      unlock: 3, type: ActionType.Atac, speed: -1, dice: d(3, 6),
+      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6),
       effects: [
         { type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } },
       ],
@@ -91,7 +93,7 @@ export const EARTHBENDER: SkillDefinition = {
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
       unlock: 4, type: ActionType.Focus, speed: 2,
       effects: [{ type: 'bury', params: { turns: 2 } }],
-      desc: "Tria un enemic. La terra l'atrapa durant 2 torns: només pot jugar cartes de Focus. No el pot tornar a atrapar fins 2 torns després.",
+      desc: "Tria un enemic. La terra l'atrapa durant 2 torns: només pot jugar cartes de Focus i ningú no el pot protegir. No el pot tornar a atrapar fins 2 torns després.",
       icon: 'lorc/sinking-trap.svg',
     }),
   ],

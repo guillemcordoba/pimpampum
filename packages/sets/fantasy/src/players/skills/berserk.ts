@@ -1,4 +1,4 @@
-import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, EffectHandler, FATIGUE_MAX_LEVEL, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num, diceParam, applyMod, durParam } from '../effects/helpers.js';
 
@@ -48,15 +48,19 @@ const AGUANTANT: StatusBehavior = {
 };
 
 const BERSERK_EFFECTS: Record<string, EffectHandler> = {
-  // Entrar en Fúria: enter the battle-trance, all in — ONCE per combat (a
-  // consumable). Re-enterable, a berserker already at 1 PV lost nothing by
-  // going again and stayed indestructible for the rest of the fight: 14% of
-  // his fights at the fury level ran to the round cap (NEXT-STEPS §26). Entering slams the body
-  // to 1 PV; while the rage lasts the holder's attack rolls get +value and
+  // Entrar en Fúria: enter the battle-trance, all in. The berserkergang is
+  // followed by exhaustion, so EVERY rage costs a fatigue level, and an
+  // exhausted (Esgotat) berserker cannot rage at all. Free to re-enter, a
+  // berserker already at 1 PV lost nothing by going again and stayed
+  // indestructible for the rest of the fight: 14% of his fights at the fury
+  // level ran to the round cap (NEXT-STEPS §26). Entering slams the body to
+  // 1 PV; while the rage lasts the holder's attack rolls get +value and
   // NOTHING can lower their PV (INDESTRUCTIBLE).
   enter_rage: {
     getTargetRequirement() { return 'none'; },
+    canPlay(actor) { return actor.fatigue < FATIGUE_MAX_LEVEL; },
     onResolve(ctx) {
+      ctx.source.setFatigue(ctx.source.fatigue + 1);
       const value = num(ctx.params, 'value', 5);
       const turns = num(ctx.params, 'turns', 3);
       applyMod(ctx.source, 'attack', value, turns, 'Fúria');
@@ -156,14 +160,14 @@ export const BERSERK: SkillDefinition = {
     }),
     action({
       id: 'entrar-en-furia', name: 'Entrar en Fúria', skillId: 'berserk',
-      unlock: 4, type: ActionType.Focus, speed: 2, consumable: true,
-      effects: [{ type: 'enter_rage', params: { value: 5, turns: 2 } }],
-      desc: 'Un cop per combat. Baixes a 1 PV. Durant 2 torns res et pot fer baixar PV, {A}+5 als teus atacs.',
+      unlock: 4, type: ActionType.Focus, speed: 2,
+      effects: [{ type: 'enter_rage', params: { value: 5, turns: 3 } }],
+      desc: 'Puges un nivell de fatiga i baixes a 1 PV. Durant 3 torns res et pot fer baixar PV, {A}+5 als teus atacs. Esgotat, no la pots jugar.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
       id: 'rugit-de-guerra', name: 'Rugit de guerra', skillId: 'berserk',
-      unlock: 5, type: ActionType.Focus, speed: 3, dice: d(1, 20),
+      unlock: 5, type: ActionType.Focus, speed: 2, dice: d(1, 20),
       effects: [{ type: 'fear_roar', params: { resist: d(1, 20) } }],
       desc: "Tira 1d20 + nivell de Berserk contra 1d20 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
       icon: 'lorc/screaming.svg',

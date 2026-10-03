@@ -25,7 +25,7 @@ const CONDEMNAT: StatusBehavior = {
 
 // Contagious decay: ticks `value` PV each round. Each round, every living
 // member of the holder's team who has never been infected rolls a d20 and
-// catches a fresh infection on < 9 — once infected, a character can never
+// catches a fresh infection on < 7 — once infected, a character can never
 // catch it again (tracked per combat in `everInfected`). Only the first
 // living infected member runs the contagion phase, so it happens once per
 // team per round.
@@ -52,7 +52,7 @@ const PUTREFACCIO: StatusBehavior = {
     const turns = (entry.data?.['turns'] as number) ?? entry.remaining;
     for (const victim of living) {
       if (everInfected.has(victim) || victim.hasStatus('putrefaccio')) continue;
-      if (engine.rollDie(20) >= 9) continue; // catches it on a d20 < 9
+      if (engine.rollDie(20) >= 7) continue; // catches it on a d20 < 7
       everInfected.add(victim);
       victim.setStatus('putrefaccio', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
       engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
@@ -78,18 +78,6 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Marca de la perdició: the mark rides a blow — it lands on what the blow
-  // lands on. As a Focus that marked and did nothing else, spending a turn to
-  // set up a 1d6 reap was never once the right play (NEXT-STEPS §26).
-  condemn_on_hit: {
-    onAttackHit(ctx) {
-      if (!ctx.target || !ctx.target.isAlive()) return;
-      ctx.target.setStatus('condemnat', 1, num(ctx.params, 'turns', 2), undefined, CONDEMNAT);
-      ctx.engine.log('attack', `La marca de la perdició s'encén sobre ${ctx.target.name}.`, ctx.source.team);
-    },
-    aiWeight(ctx) { return ctx.enemies.some(e => !e.hasStatus('condemnat')) ? 1 : 0.3; },
-  },
-
   // Sudari de tomba: the shroud is the kit's only guard, and it feeds the kit's
   // engine — whatever it turns away is marked for the reaping.
   condemn_on_block: {
@@ -109,18 +97,14 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
   reap: {
     modifyAttack(ctx) {
       if (!ctx.attackMods || !ctx.target) return;
-      // Every enemy is struck; the DOOMED cannot resist it, and the rest it only
-      // brushes. It used to skip the unmarked entirely (a card that did nothing
-      // in most positions, read as dead); striking them in full made it the
-      // kit's mindless best play (NEXT-STEPS §26).
-      if (!ctx.target.hasStatus('condemnat')) { ctx.attackMods.rollBonus -= 3; return; }
+      if (!ctx.target.hasStatus('condemnat')) { ctx.attackMods.skip = true; return; }
       ctx.attackMods.ignoreArmor = true;
       ctx.attackMods.ignoreDefense = true;
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight(ctx) {
       const doomed = ctx.enemies.filter(e => e.hasStatus('condemnat')).length;
-      return 1 + doomed * 1.5;
+      return doomed > 0 ? 2 + doomed * 1.5 : -10; // useless without doomed foes
     },
   },
 
@@ -133,6 +117,9 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
         everInfected.add(t);
         t.setStatus('putrefaccio', dmg, turns, { dot: dmg, turns }, PUTREFACCIO);
+        // The rot bites at once: the first loss lands on infection.
+        ctx.engine.log('poison', `${t.name} pateix ${dmg} de dany (putrefacció).`, t.team);
+        ctx.engine.applyPvLoss(t, dmg, ctx.source);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
@@ -150,16 +137,16 @@ export const NIGROMANT: SkillDefinition = {
   actions: [
     action({
       id: 'marca-de-la-perdicio', name: 'Marca de la perdició', skillId: 'nigromant',
-      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(1, 6),
-      effects: [{ type: 'condemn_on_hit', params: { turns: 2 } }],
-      desc: "Si impacta, l'enemic queda condemnat (2 torns): tira amb desavantatge i té −3 de velocitat.",
+      unlock: 2, type: ActionType.Focus, speed: 1,
+      effects: [{ type: 'condemn', params: { turns: 2 } }],
+      desc: 'Condemna un enemic (2 torns): tira amb desavantatge i té −3 de velocitat.',
       icon: 'lorc/cursed-star.svg',
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
       unlock: 3, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
-      desc: 'Afecta tots els enemics. Contra els no condemnats, {A}−3; els condemnats no s\'hi poden defensar i ignora la seva armadura.',
+      desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',
     }),
     action({
@@ -171,9 +158,9 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 5, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'plague', params: { damage: 4, turns: 3 } }, { type: 'condemn', params: { turns: 3 } }],
-      desc: "L'objectiu queda condemnat i perd 4 PV al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 9: queda infectat.",
+      unlock: 5, type: ActionType.Focus, speed: 1,
+      effects: [{ type: 'plague', params: { damage: 3, turns: 3 } }],
+      desc: "L'objectiu perd 3 PV en ser infectat i al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 7: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
@@ -189,13 +176,13 @@ export const NIGROMANT: SkillDefinition = {
       // still learnt in one step. 1d6 was the weakest workhorse in the game
       // (peers run 2d4-2d6 at the same job).
       unlock: 1, type: ActionType.Atac, speed: 0, dice: d(2, 6),
-      effects: [{ type: 'lifedrain', params: { ratio: 0.5 } }],
-      desc: 'Recuperes la meitat del mal infligit.',
+      effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
+      desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 6, type: ActionType.Focus, speed: 2, targetCount: 99,
+      unlock: 6, type: ActionType.Focus, speed: 1, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 3 } }],
       desc: 'Condemna tots els enemics (3 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

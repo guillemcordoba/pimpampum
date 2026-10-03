@@ -83,7 +83,7 @@ Només s'aprèn dels fracassos ajustats: quedar-te a un pèl de superar el repte
 
 ## Fatiga
 
-La fatiga és un **nivell** de 0 a 5 que porta cada jugador. Jugar cartes no cansa: és el **màster** qui decideix quan un personatge puja de nivell, segons la ficció — un segon combat sense respir, una marxa forçada, una nit sense dormir, fred o gana, una ferida sense curar, caure a 0 PV —, i pot fer-lo pujar més d'un nivell de cop. Un nivell mai és el càstig d'una tirada dolenta: és el pes del temps i del desgast.
+La fatiga és un **nivell** de 0 a 5 que porta cada jugador. Jugar cartes no cansa — llevat de les poques cartes que ho diuen al seu text (Entrar en Fúria: l'esgotament després de la fúria és el seu preu, i Esgotat no es pot jugar) —: és el **màster** qui decideix quan un personatge puja de nivell, segons la ficció — un segon combat sense respir, una marxa forçada, una nit sense dormir, fred o gana, una ferida sense curar, caure a 0 PV —, i pot fer-lo pujar més d'un nivell de cop. Un nivell mai és el càstig d'una tirada dolenta: és el pes del temps i del desgast.
 
 | Nivell | Nom | Efecte |
 |---|---|---|

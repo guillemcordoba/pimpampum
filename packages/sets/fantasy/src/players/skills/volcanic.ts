@@ -74,7 +74,7 @@ const VOLCANIC_EFFECTS: Record<string, EffectHandler> = {
   lava_flow: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      ctx.source.setStatus('riu-de-lava', 0, -1, { count: num(ctx.params, 'count', 1), sides: num(ctx.params, 'sides', 8) }, RIU_DE_LAVA);
+      ctx.source.setStatus('riu-de-lava', num(ctx.params, 'delay', 1), -1, { count: num(ctx.params, 'count', 1), sides: num(ctx.params, 'sides', 8) }, RIU_DE_LAVA);
       ctx.engine.log('focus', `${ctx.source.name} obre la terra: un riu de lava comença a fluir!`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 2 ? 1.6 : 0.6; },
@@ -166,12 +166,12 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'riu-de-lava', name: 'Riu de lava', skillId: VOLCANIC_SKILL_ID,
-      unlock: 4, type: ActionType.Focus, speed: -1,
+      unlock: 4, type: ActionType.Focus, speed: 0,
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
-        { type: 'lava_flow', params: { count: 3, sides: 6 } },
+        { type: 'lava_flow', params: { count: 2, sides: 6, delay: 0 } },
       ],
-      desc: 'Al final del torn, tots els enemics reben 3d6, ignorant defenses.',
+      desc: 'Al final del torn, tots els enemics reben 2d6, ignorant defenses.',
       icon: 'sbed/lava.svg',
     }),
     action({

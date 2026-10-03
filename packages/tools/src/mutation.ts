@@ -202,6 +202,12 @@ const MUTANTS: Mutant[] = [
     replace: '    const g = whenBest.length ? clusteredStderr(whenBest, o => o.gain) : null;',
   },
   {
+    label: 'AI: a curse or a swallow is aimed at the enemy about to die (wasted)',
+    file: 'packages/ai/src/policy.ts',
+    find: "let s = def.actionType === ActionType.Atac ? 2 * (1 - pvFraction(e)) : 2 * pvFraction(e);",
+    replace: "let s = 2 * (1 - pvFraction(e));",
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',

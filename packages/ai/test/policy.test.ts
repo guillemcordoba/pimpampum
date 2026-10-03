@@ -18,7 +18,7 @@ import {
   EffectRegistry, type StatusBehavior, withSeed,
 } from '@pimpampum/engine';
 import { armour, attackCard, defenseCard, fighter, focusCard } from '@pimpampum/engine/testing';
-import { aiPolicy, bestResponse, DEFAULT_LOOKAHEAD, positionScore } from '../src/index.js';
+import { aiPolicy, bestResponse, DEFAULT_LOOKAHEAD, pickResolveTargets, positionScore } from '../src/index.js';
 
 const at = (team: number, idx: number) => ({ team, idx });
 
@@ -197,5 +197,25 @@ describe('the evaluator', () => {
     expect(positionScore(even, 0)).toBeCloseTo(0, 9);
     expect(positionScore(hurtFoe, 0)).toBeGreaterThan(0);
     expect(positionScore(deadFoe, 0)).toBeGreaterThan(positionScore(hurtFoe, 0));
+  });
+});
+
+describe('aiming at an enemy: attacks finish the wounded, everything else spares them', () => {
+  function target(card: ReturnType<typeof attackCard>): string {
+    const hero = fighter('Hero', [card], { pv: 20 });
+    const hurt = fighter('Hurt', [attackCard('stab')], { pv: 20, ai: true });
+    const fresh = fighter('Fresh', [attackCard('stab')], { pv: 20, ai: true });
+    const engine = new CombatEngine([hero], [hurt, fresh], { registry: new EffectRegistry(), ...aiPolicy({ depth: 0 }) });
+    hurt.loseLife(15);
+    engine.prepareRound();
+    return pickResolveTargets(engine, hero, card, 'enemy', 1, [hurt, fresh], 5)[0].name;
+  }
+
+  it('an attack goes for the wounded enemy', () => {
+    expect(target(attackCard('hit'))).toBe('Hurt');
+  });
+
+  it('a non-attack card (a curse, a swallow) goes to the healthy one', () => {
+    expect(target(focusCard('curse'))).toBe('Fresh');
   });
 });

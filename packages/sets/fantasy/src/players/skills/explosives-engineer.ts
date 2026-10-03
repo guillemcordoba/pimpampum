@@ -22,7 +22,8 @@ function charges(actor: Character): number {
  * The bandolier RELOADS: at the end of a round in which no charge was spent,
  * one comes back (up to the full bandolier). A pause is a reload. Without it the
  * engineer ran dry in long fights and was left with barricades and smoke, so
- * those fights ran longer still — the kit's p90 sat at 11 rounds (NEXT-STEPS §26).
+ * those fights ran longer still — the kit's p90 sat at 11 rounds (NEXT-STEPS §26),
+ * and 10 again when it was reverted with the balance changes (§27.4).
  */
 const BANDOLER: StatusBehavior = {
   onRoundEnd(ctx) {
@@ -63,8 +64,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 1);
-      const below = num(ctx.params, 'below', 10);
-      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns, { below }, ENCEGAT);
+      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns, undefined, ENCEGAT);
       ctx.engine.log('focus', 'Una cortina de fum encega els enemics!', ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 2 ? 1.5 : 0.4; },
@@ -78,7 +78,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const mines = num(ctx.params, 'mines', 3);
       const sides = num(ctx.params, 'damageSides', 6);
-      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(1, sides), trip: num(ctx.params, 'trip', 10) }, CAMP_MINAT);
+      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(1, sides) }, CAMP_MINAT);
       ctx.engine.log('focus', `${ctx.source.name} sembra ${mines} mines al terreny.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.4 : 0; },
@@ -111,13 +111,13 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
   },
 };
 
-// Smoke: the blinded holder fires through the haze — on a d20 ≤ 10 the shot
+// Smoke: the blinded holder fires through the haze — on a d20 ≤ 12 the shot
 // lands on a random living combatant instead of its intended target. Holders
 // who perceive without sight (any ignoresConcealment status) aim true.
 const ENCEGAT: StatusBehavior = {
   redirectAttackTarget(ctx, intended) {
     if (ctx.holder.statusRefs().some(r => r.entry.behavior?.ignoresConcealment?.(r))) return intended;
-    if (ctx.engine.rollDie(20) > num(ctx.entry.data ?? {}, 'below', 10)) return intended;
+    if (ctx.engine.rollDie(20) > 12) return intended;
     const pool = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
     if (pool.length === 0) return intended;
     const pick = pool[Math.floor(random() * pool.length)];
@@ -127,8 +127,8 @@ const ENCEGAT: StatusBehavior = {
 };
 
 // Minefield pool on the layer (persists even if the layer has fallen): the
-// first live minefield gives each attacking enemy a d20 ≤ 10 chance to trip a
-// mine, take its blast (armour-ignored) and spend it. One check per attack.
+// first live minefield makes each attacking enemy step on a mine, take its
+// blast (armour-ignored) and spend it. One mine per attack.
 const CAMP_MINAT: StatusBehavior = {
   /**
    * Mines still in the ground are damage already paid for.
@@ -144,7 +144,7 @@ const CAMP_MINAT: StatusBehavior = {
   },
   onEnemyAttackAction(ctx, attacker) {
     if (ctx.entry.value <= 0) return false;
-    if (ctx.engine.rollDie(20) <= num(ctx.entry.data ?? {}, 'trip', 10)) {
+    {
       const dice = ctx.entry.data?.['damage'] as DiceRoll | undefined;
       const dmg = dice ? dice.roll() : 1;
       ctx.engine.log('trap', `${attacker.name} trepitja una mina! (${dmg} dany)`, attacker.team);
@@ -183,19 +183,19 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'bomba-de-fum', name: 'Bomba de fum', skillId: 'enginyer-explosius',
-      unlock: 3, type: ActionType.Focus, speed: 4,
-      effects: [{ type: 'smoke', params: { turns: 2, below: 14 } }],
-      desc: 'Cada enemic que ataca aquest torn i el següent tira un d20: amb 14 o menys, l’atac impacta un personatge a l’atzar.',
+      unlock: 3, type: ActionType.Focus, speed: 3,
+      effects: [{ type: 'smoke', params: { turns: 2 } }],
+      desc: 'Cada enemic que ataca aquest torn i el següent tira un d20: amb 12 o menys, l’atac impacta un personatge a l’atzar.',
       icon: 'darkzaitzev/smoke-bomb.svg',
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',
-      unlock: 4, type: ActionType.Focus, speed: 1,
+      unlock: 4, type: ActionType.Focus, speed: 0,
       effects: [
         { type: 'charge_cost', params: { amount: 1 } },
-        { type: 'lay_minefield', params: { mines: 4, damageSides: 10, trip: 20 } },
+        { type: 'lay_minefield', params: { mines: 4, damageSides: 8 } },
       ],
-      desc: "Sembra 4 mines. Cada cop que un enemic ataca n'activa una i rep 1d10, ignorant l'armadura.",
+      desc: "Sembra 4 mines. Cada enemic que ataqui en trepitja una i rep 1d8, ignorant l'armadura.",
       icon: 'skoll/minefield.svg',
     }),
     action({

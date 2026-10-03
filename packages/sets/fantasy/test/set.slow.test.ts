@@ -36,8 +36,12 @@ const NAME: Record<number, string> = { 1: 'cuir', 2: 'ferro' };
  * finding being forgotten. Cuir (+2, −1) had one when it was tuned, and lost
  * it narrowly when the bone devils changed after: it still peaks at three
  * wearers, but a whole party in it is not CLEARLY worse (NEXT-STEPS §26).
+ * Ferro (+3, −2) lost it with the berserk review of 2026-10-03 (Cop d'espatlla
+ * removed, Aguantar el cop without a guard roll): measured with the cache off,
+ * it peaks at two wearers on the September commit and falls monotonically
+ * from the review on (NEXT-STEPS §27.5).
  */
-const KNOWN_WITHOUT_SWEET_SPOT = new Set<number>([1]);
+const KNOWN_WITHOUT_SWEET_SPOT = new Set<number>([1, 2]);
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const show = (curve: ArmourPoint[]) => curve.map(p => `${p.worn}:${pct(p.winrate)}`).join(' ');
