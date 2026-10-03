@@ -3,7 +3,7 @@
 // baselines should follow it.
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../../players/types.js';
-import { num, diceParam, applyMod } from '../../players/effects/helpers.js';
+import { num, diceParam, applyMod, durParam } from '../../players/effects/helpers.js';
 
 /**
  * Berserk — a D&D-style barbarian whose power is raw, escalating wrath, not technique.
@@ -35,11 +35,26 @@ const INDESTRUCTIBLE: StatusBehavior = {
     return missing / Math.max(1, ref.holder.maxPV);
   },
 };
+/**
+ * Aguantar el cop: braced, not defenceless — no contest is rolled and every
+ * blow lands, but lighter: divided by `divisor` (rounded up), less a flat
+ * `soak`. `data` carries the card's params.
+ */
+const AGUANTANT: StatusBehavior = {
+  absorbsGuard() { return true; },
+  modifyIncomingDamage(ctx, damage) {
+    const d = ctx.entry.data ?? {};
+    d['blow'] = damage; // the full blow braced against, read back by onBlockFail
+    damage = Math.ceil(damage / Math.max(1, num(d, 'divisor', 1)));
+    return Math.max(0, damage - num(d, 'soak', 0));
+  },
+};
+
 const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   // Entrar en Fúria: enter the battle-trance, all in — ONCE per combat (a
   // consumable). Re-enterable, a berserker already at 1 PV lost nothing by
   // going again and stayed indestructible for the rest of the fight: 14% of
-  // his level-5 fights ran to the round cap (NEXT-STEPS §26). Entering slams the body
+  // his fights at the fury level ran to the round cap (NEXT-STEPS §26). Entering slams the body
   // to 1 PV; while the rage lasts the holder's attack rolls get +value and
   // NOTHING can lower their PV (INDESTRUCTIBLE).
   'enter_rage@cal': {
@@ -91,23 +106,26 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.5 : 0; },
   },
 
-  // Aguantar el cop: a real guard (the card's own dice); whatever gets through
-  // it he converts into a permanent +{A} (three times the damage, rest of combat,
-  // stacking). It used to raise NO guard and take every blow in full, and was
-  // never once the right play (NEXT-STEPS §26).
+  // Aguantar el cop: no guard roll; blows land lighter (AGUANTANT above) and
+  // what he takes becomes +{A} on his following attacks (stacking).
   'rage_from_pain@cal': {
     getTargetRequirement() { return 'none'; },
-    onBlockFail(ctx) {
-      const dmg = ctx.damageDealt ?? 0;
-      if (dmg <= 0) return;
-      const gain = dmg * num(ctx.params, 'multiplier', 2);
-      applyMod(ctx.source, 'attack', gain, 'restOfCombat', ctx.action.name);
-      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} la resta del combat.`, ctx.source.team);
+    onResolve(ctx) {
+      ctx.source.setStatus('aguantant', 1, 1, { divisor: num(ctx.params, 'divisor', 1), soak: num(ctx.params, 'soak', 0) }, AGUANTANT);
     },
-    // The payoff is a PERMANENT attack buff, which the leaf evaluator cannot
-    // see (it is a CombatModifier, not a status). At 0.6 the card was ranked
-    // out by the depth-0 heuristic before the search ever considered it. It is
-    // a guard with an upside, so it should be allowed in the room.
+    onBlockFail(ctx) {
+      const taken = ctx.damageDealt ?? 0;
+      const blow = num(ctx.source.getStatus('aguantant')?.data ?? {}, 'blow', taken);
+      const basis = ctx.params['fromBlow'] ? blow : taken;
+      if (basis <= 0) return;
+      const gain = basis * num(ctx.params, 'multiplier', 2);
+      const duration = durParam(ctx.params, 'duration', 'restOfCombat');
+      applyMod(ctx.source, 'attack', gain, duration, ctx.action.name);
+      const lasts = duration === 'restOfCombat' ? 'la resta del combat' : `${duration} torns`;
+      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} ${lasts}.`, ctx.source.team);
+    },
+    // A gamble, so not the favourite; but the depth-0 heuristic must let the
+    // search consider it at all.
     aiWeight() { return 1.1; },
   },
 
@@ -126,36 +144,29 @@ export const BERSERK: SkillDefinition = {
       icon: 'skoll/blood.svg',
     }),
     action({
-      id: 'cop-d-espatlla@cal', name: "Cop d'espatlla", skillId: 'berserk@cal',
-      unlock: 2, type: ActionType.Defensa, speed: 4, dice: d(3, 6),
-      effects: [{ type: 'buff_on_block', params: { kind: 'attack', amount: 4, duration: 'nextTurn' } }],
-      desc: 'Si bloqueges un atac, {A}+4 el proper torn.',
-      icon: 'delapouite/shield-bash.svg',
-    }),
-    action({
       id: 'atac-temerari@cal', name: 'Atac temerari', skillId: 'berserk@cal',
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(1, 10),
+      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(1, 10),
       effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 0, defense: 5, thisTurn: false } }],
       desc: 'El torn següent, {D}−5.',
       icon: 'lorc/axe-swing.svg',
     }),
     action({
       id: 'aguantar-el-cop@cal', name: 'Aguantar el cop', skillId: 'berserk@cal',
-      unlock: 4, type: ActionType.Defensa, speed: 3, dice: d(3, 6),
-      effects: [{ type: 'rage_from_pain@cal', params: { multiplier: 3 } }],
-      desc: 'Si el cop et fa mal, guanyes {A} permanent igual al triple del dany rebut.',
+      unlock: 3, type: ActionType.Defensa, speed: 2,
+      effects: [{ type: 'rage_from_pain@cal', params: { divisor: 2, multiplier: 2 } }],
+      desc: 'No tires defensa: reps la meitat del dany. Guanyes {A} permanent igual al doble del dany rebut.',
       icon: 'lorc/muscle-up.svg',
     }),
     action({
       id: 'entrar-en-furia@cal', name: 'Entrar en Fúria', skillId: 'berserk@cal',
-      unlock: 5, type: ActionType.Focus, speed: 2, consumable: true,
+      unlock: 4, type: ActionType.Focus, speed: 2, consumable: true,
       effects: [{ type: 'enter_rage@cal', params: { value: 5, turns: 2 } }],
       desc: 'Un cop per combat. Baixes a 1 PV. Durant 2 torns res et pot fer baixar PV, {A}+5 als teus atacs.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
       id: 'rugit-de-guerra@cal', name: 'Rugit de guerra', skillId: 'berserk@cal',
-      unlock: 6, type: ActionType.Focus, speed: 3, dice: d(1, 20),
+      unlock: 5, type: ActionType.Focus, speed: 3, dice: d(1, 20),
       effects: [{ type: 'fear_roar@cal', params: { resist: d(1, 20) } }],
       desc: "Tira 1d20 + nivell de Berserk contra 1d20 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
       icon: 'lorc/screaming.svg',

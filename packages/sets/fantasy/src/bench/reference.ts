@@ -55,7 +55,7 @@ export const FULL_KIT = Number.MAX_SAFE_INTEGER;
  * when they say how strong the benchmark table is. Asserted below.
  *
  * The balance principle (CLAUDE.md) puts a fair table at ~6-7 levels per
- * player, so Σ22 over four heroes is still a modest party. Read every kit
+ * player, so Σ21 over four heroes is still a modest party. Read every kit
  * verdict in this package with that in mind: a stronger table pushes every
  * enemy PV up and every kit verdict down.
  *
@@ -64,7 +64,7 @@ export const FULL_KIT = Number.MAX_SAFE_INTEGER;
  * guard below makes the move loud instead of silent, so the scoreboards get
  * re-run rather than compared across a change of unit.
  */
-export const REFERENCE_SIGMA = 22;
+export const REFERENCE_SIGMA = 21;
 
 /** The armour the reference heroes wear (cuir). */
 export const REFERENCE_ARMOR = 'armadura-de-cuir';

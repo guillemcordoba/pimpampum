@@ -1,6 +1,6 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
-import { num, diceParam, applyMod } from '../effects/helpers.js';
+import { num, diceParam, applyMod, durParam } from '../effects/helpers.js';
 
 /**
  * Berserk — a D&D-style barbarian whose power is raw, escalating wrath, not technique.
@@ -34,14 +34,15 @@ const INDESTRUCTIBLE: StatusBehavior = {
 };
 /**
  * Aguantar el cop: braced, not defenceless — no contest is rolled and every
- * blow lands, but lighter: at half (`halve`) or less a flat amount (`soak`).
- * `data` carries the card's params.
+ * blow lands, but lighter: divided by `divisor` (rounded up), less a flat
+ * `soak`. `data` carries the card's params.
  */
 const AGUANTANT: StatusBehavior = {
   absorbsGuard() { return true; },
   modifyIncomingDamage(ctx, damage) {
     const d = ctx.entry.data ?? {};
-    if (d['halve']) damage = Math.ceil(damage / 2);
+    d['blow'] = damage; // the full blow braced against, read back by onBlockFail
+    damage = Math.ceil(damage / Math.max(1, num(d, 'divisor', 1)));
     return Math.max(0, damage - num(d, 'soak', 0));
   },
 };
@@ -103,18 +104,22 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Aguantar el cop: no guard roll; blows land lighter (AGUANTANT above) and
-  // what he takes becomes permanent +{A} (rest of combat, stacking).
+  // what he takes becomes +{A} on his following attacks (stacking).
   rage_from_pain: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      ctx.source.setStatus('aguantant', 1, 1, { halve: !!ctx.params['halve'], soak: num(ctx.params, 'soak', 0) }, AGUANTANT);
+      ctx.source.setStatus('aguantant', 1, 1, { divisor: num(ctx.params, 'divisor', 1), soak: num(ctx.params, 'soak', 0) }, AGUANTANT);
     },
     onBlockFail(ctx) {
-      const dmg = ctx.damageDealt ?? 0;
-      if (dmg <= 0) return;
-      const gain = dmg * num(ctx.params, 'multiplier', 2);
-      applyMod(ctx.source, 'attack', gain, 'restOfCombat', ctx.action.name);
-      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} la resta del combat.`, ctx.source.team);
+      const taken = ctx.damageDealt ?? 0;
+      const blow = num(ctx.source.getStatus('aguantant')?.data ?? {}, 'blow', taken);
+      const basis = ctx.params['fromBlow'] ? blow : taken;
+      if (basis <= 0) return;
+      const gain = basis * num(ctx.params, 'multiplier', 2);
+      const duration = durParam(ctx.params, 'duration', 'restOfCombat');
+      applyMod(ctx.source, 'attack', gain, duration, ctx.action.name);
+      const lasts = duration === 'restOfCombat' ? 'la resta del combat' : `${duration} torns`;
+      ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} ${lasts}.`, ctx.source.team);
     },
     // A gamble, so not the favourite; but the depth-0 heuristic must let the
     // search consider it at all.
@@ -145,7 +150,7 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
       unlock: 3, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain', params: { halve: true, multiplier: 2 } }],
+      effects: [{ type: 'rage_from_pain', params: { divisor: 2, multiplier: 2 } }],
       desc: 'No tires defensa: reps la meitat del dany. Guanyes {A} permanent igual al doble del dany rebut.',
       icon: 'lorc/muscle-up.svg',
     }),
