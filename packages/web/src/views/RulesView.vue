@@ -77,6 +77,14 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <h2>Objectes i equipament</h2>
         <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana del dany a cada impacte), <strong>bonificacions de tirada</strong> (modificadors a les tirades d'atac o de defensa de certes accions) i <strong>penalització de velocitat</strong> (les armadures pesades alenteixen totes les accions). Només un objecte per ranura.</p>
       </section>
+
+      <section>
+        <h2>Fora de combat</h2>
+        <p>Qualsevol acció es pot fer servir per superar un repte fora de combat. El màster posa una dificultat. Qui l'intenta tira:</p>
+        <p class="formula">1d20 + els daus de l'acció + el seu nivell d'habilitat</p>
+        <p>Igualar-la o superar-la és un èxit. <strong>Sense cap habilitat que hi encaixi, tires només el 1d20.</strong> La fatiga hi resta, com a totes les tirades.</p>
+        <p><strong>Si falles per 1 o 2, l'habilitat puja un nivell.</strong> Si és una habilitat que no tenies, la comences a nivell 1.</p>
+      </section>
     </div>
 
     <h2 class="cards-heading no-print">Cartes de regles</h2>
