@@ -2,7 +2,7 @@
  * FILLING THE CACHE IN PARALLEL.
  *
  * A kit's report card is a few hundred independent CELL measurements — one per
- * (level, policy, cell) — and this box has 32 cores doing one at a time. The
+ * (level, policy, cell) — and a machine has many cores doing one at a time. The
  * obvious fix is to run them at once, and the obvious risk is putting
  * concurrency inside a measurement layer whose whole value is being trusted.
  *
@@ -20,82 +20,112 @@
  * of concurrency worth having here.
  */
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const PKG = path.resolve(HERE, '../..');
-const TSX = path.join(PKG, 'node_modules', '.bin', 'tsx');
-const ENTRY = path.join(HERE, 'warm-one.ts');
-
-/** One unit of work a child can do. Kept small and JSON-shaped so the child
- *  can reconstruct it without sharing anything but the content itself. */
+/**
+ * The calibration's units of work — the only jobs bench itself knows about. A
+ * caller warms its own measurements with its own job type (playtest's
+ * `AnalysisJob`); `warm` only needs them to be JSON, since a job crosses a
+ * process boundary and has to be rebuilt on the other side from the content.
+ */
 export type WarmJob =
-  | { kind: 'shape'; label: string }
-  | { kind: 'baseline'; label: string; companyIdx: number }
-  | {
-    kind: 'matrix';
-    mode: 'player' | 'enemy';
-    id: string;
-    count?: number;
-    level: number;
-    games: number;
-    policy: string;
-    seedOffset: number;
-    /** Warm ONE cell. The cell is the unit the cache stores and the unit that
-     *  parallelises: a whole-matrix job would pin a level to a single core, and
-     *  the level sweep is the dominant cost. */
-    cellIdx: number;
-  };
+  | { kind: 'shape'; shapeIdx: number }
+  | { kind: 'baseline'; shapeIdx: number; companyIdx: number };
+
+/**
+ * WHO RUNS A BATCH: an executable and its arguments, to which the JSON batch is
+ * appended. The worker is the CALLER's — it has to install the same set the
+ * caller measures (`useSet`) and pass each job to the matching function — so
+ * bench does not name one. It used to: a hard-coded `warm-one.ts` path that a
+ * package move deleted, after which every child failed at launch, every
+ * failure was swallowed as a cache miss, and every "parallel" sweep quietly ran
+ * serially for as long as nobody timed one.
+ */
+export type WarmWorker = string[];
 
 /** Leave a couple of cores for the machine; more children than cores just adds
  *  context switching to a CPU-bound job. */
 const LANES = Math.max(1, Math.min(os.cpus().length - 2, 24));
 
 /** Disable with `BENCH_SERIAL=1` when a crash needs a readable stack. */
-const ENABLED = process.env.BENCH_SERIAL !== '1' && process.env.BENCH_NO_CACHE !== '1';
+const enabled = (): boolean => process.env.BENCH_SERIAL !== '1' && process.env.BENCH_NO_CACHE !== '1';
 
 /**
  * One child, one BATCH of jobs.
  *
  * Batched rather than one child per job because a cell can be shorter than the
  * process that would host it: at one child per cell the startup — module load,
- * registry build, engine fingerprint — cost more CPU than the measurements did,
- * and wall time did not improve at all. One child per lane pays that once each.
+ * registry build, engine fingerprint — cost more CPU than the measurements did.
+ * A few batches per lane (see `batches`) pay it a few times each.
  */
-function runBatch(jobs: WarmJob[]): Promise<void> {
+function runBatch<J>(worker: WarmWorker, jobs: J[]): Promise<string | null> {
   return new Promise(resolve => {
     execFile(
-      TSX, [ENTRY, JSON.stringify(jobs)],
-      { cwd: PKG, timeout: 1_800_000, env: process.env, maxBuffer: 8 << 20 },
-      () => resolve(),   // a failed child is a cache miss, not an error
+      worker[0], [...worker.slice(1), JSON.stringify(jobs)],
+      // A guard against a HUNG worker, not a budget: at 30 minutes it killed
+      // real batches mid-measurement, and every killed batch was then computed
+      // again serially — slower than not warming at all. Same ceiling as
+      // `isolated()`.
+      { timeout: 14_400_000, env: process.env, maxBuffer: 8 << 20 },
+      (err, _stdout, stderr) => resolve(!err ? null
+        : err.killed ? `a worker was killed (${err.signal ?? 'timeout'}) after its time limit`
+          : (String(stderr).trim().split('\n').pop() || `worker exited with code ${err.code}`)),
     );
   });
 }
 
-/** Deal round-robin, so a lane that draws only cheap jobs is not left idle
- *  while another holds every expensive one. */
-function deal(jobs: WarmJob[], n: number): WarmJob[][] {
-  const out: WarmJob[][] = Array.from({ length: n }, () => []);
-  jobs.forEach((j, i) => out[i % n].push(j));
-  return out.filter(b => b.length > 0);
+/**
+ * Cut the jobs into SMALL batches for a pool, in the order given.
+ *
+ * It used to deal one batch per lane, round-robin, up front — and a lane that
+ * drew cheap cells finished and sat idle while the others ground through the
+ * expensive ones (measured: one of six lanes idle for most of a cold
+ * analysis). Several batches per lane, pulled by whichever lane is free, keeps
+ * every lane busy to the end; the extra process start-ups cost seconds against
+ * batches that run for minutes.
+ */
+const BATCHES_PER_LANE = 4;
+function batches<J>(jobs: J[], lanes: number): J[][] {
+  const size = Math.max(1, Math.ceil(jobs.length / (lanes * BATCHES_PER_LANE)));
+  const out: J[][] = [];
+  for (let i = 0; i < jobs.length; i += size) out.push(jobs.slice(i, i + size));
+  return out;
 }
 
 /**
- * Run `jobs` across the lanes, resolving when all have been attempted.
+ * Run `jobs` across the lanes, resolving when all have been attempted. Give
+ * them MOST EXPENSIVE FIRST where you can: the pool takes them in order, so a
+ * long job left to the end runs alone while every other lane idles.
  *
- * Nothing is returned and nothing is asserted: the caller carries on and reads
- * the cache, which either has the entry or does not.
+ * A failed batch still costs nothing but time — the serial run computes what is
+ * missing — but it is REPORTED, and a worker that does not exist is an error:
+ * silence here once hid the parallelism being switched off entirely.
  */
-export async function warm(jobs: WarmJob[], onProgress?: (done: number, total: number) => void): Promise<void> {
-  if (!ENABLED || jobs.length === 0) return;
-  const batches = deal(jobs, Math.min(LANES, jobs.length));
+export async function warm<J>(
+  jobs: J[], worker: WarmWorker, onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  if (!enabled() || jobs.length === 0) return;
+  const script = worker.find(a => a.endsWith('.ts') || a.endsWith('.js') || a.endsWith('.mjs'));
+  for (const f of [worker[0], script].filter((f): f is string => !!f && f.includes('/'))) {
+    if (!fs.existsSync(f)) throw new Error(`bench/parallel: warm worker ${f} does not exist.`);
+  }
+  const queue = batches(jobs, LANES);
+  const total = queue.length;
   let done = 0;
-  await Promise.all(batches.map(async b => {
-    await runBatch(b);
-    onProgress?.(done += b.length, jobs.length);
+  const failures: string[] = [];
+  // A pool of LANES runners, each pulling the next batch when it finishes one.
+  await Promise.all(Array.from({ length: Math.min(LANES, queue.length) }, async () => {
+    for (let b = queue.shift(); b; b = queue.shift()) {
+      const failed = await runBatch(worker, b);
+      if (failed) failures.push(failed);
+      onProgress?.(done += b.length, jobs.length);
+    }
   }));
+  if (failures.length) {
+    console.warn(`bench/parallel: ${failures.length} of ${total} warm batches failed; `
+      + `the run will compute those serially. First error: ${failures[0]}`);
+  }
 }
 
 export const lanes = LANES;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { SkillDefinition } from '@pimpampum/skills';
-import { ALL_SKILLS, COP_DESESPERAT } from '@pimpampum/skills';
+import { type SkillDefinition, ALL_SKILLS, COP_DESESPERAT } from '@pimpampum/set-fantasy';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';

@@ -30,10 +30,34 @@ import type { LogEntry } from '@pimpampum/engine';
 // "is the attack after I prepared bigger?" is a question about a character, not
 // about a round — so it is captured once here rather than by a second regex in
 // a second file.
-const UNDEFENDED = /^(.*?)«([^»]+)»: atac (?:[\d+]+=)?(\d+) — (.+?) no es defensa(?: \((\d+) armadura\))?/;
-const CONTESTED = /^(.*?)«([^»]+)»: atac (?:[\d+]+=)?(\d+) vs (.+?) «([^»]+)»: defensa (?:[\d+→+]*?)(\d+)/;
+//
+// A CONTEST SIDE is printed by the engine's `fmtContestSide` in one of six
+// shapes — `7`, `7+2=9`, `7−2=5`, `7→14`, `7+2→18`, `7−2→10` — where the
+// minus is U+2212, not ASCII. The first version allowed only `[\d+]+=`, so every
+// line with a NEGATIVE bonus — every fatigued attacker — failed to match and was
+// dropped. `assertParsed` could not see it, because it only fires when nothing
+// at all parses: a fight with half its blows missing looked fine.
+const SIDE = String.raw`(?:\d+(?:[+−]\d+)?[=→])?(\d+)`;
+const UNDEFENDED = new RegExp(String.raw`^(.*?)«([^»]+)»: atac ${SIDE} — (.+?) no es defensa(?: \((\d+) armadura\))?`);
+const CONTESTED = new RegExp(String.raw`^(.*?)«([^»]+)»: atac ${SIDE} vs (.+?) «([^»]+)»: defensa (\S+)(?: armadura=(\d+))?`);
 const HIT = /«([^»]+)» colpeja ([^:]+): (\d+) dany/;
 const BLOCKED = /atura l'atac/;
+
+/**
+ * The defender's contest total, from the defense side of a line.
+ *
+ * `fmtDefenseSide` folds passive armour into the DISPLAYED total so that
+ * atac − defensa = dany reads straight off the line: `5+1+2 armadura=8`. The
+ * contest itself was 6, so the armour comes back off. Without armour it is a
+ * plain contest side, and the total is the last number printed.
+ */
+function defenseTotal(side: string, shownWithArmour: string | undefined): number {
+  if (shownWithArmour !== undefined) {
+    const armour = Number(/\+(\d+)$/.exec(side)?.[1] ?? 0);
+    return Number(shownWithArmour) - armour;
+  }
+  return Number(side.split(/[=→]/).at(-1));
+}
 
 /** Strip the log's leading emoji/spaces from a captured actor name. */
 function cleanActor(raw: string): string {
@@ -93,7 +117,7 @@ export function parseAttacks(entries: readonly LogEntry[]): AttackEvent[] {
       close();
       pending = {
         actor: cleanActor(c[1]), card: c[2], roll: Number(c[3]), target: c[4].trim(),
-        defenseCard: c[5], defenseRoll: Number(c[6]), damage: 0, blocked: false, at,
+        defenseCard: c[5], defenseRoll: defenseTotal(c[6], c[7]), damage: 0, blocked: false, at,
       };
       return;
     }

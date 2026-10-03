@@ -1,5 +1,5 @@
 import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
-import { getEnemy, type SolvedEncounter } from '@pimpampum/enemies';
+import { getEnemy, type SolvedEncounter } from '@pimpampum/set-fantasy';
 
 /**
  * A COMBAT TRACKER session: the state a GM keeps while running a solved

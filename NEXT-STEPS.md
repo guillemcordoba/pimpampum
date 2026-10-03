@@ -14,8 +14,9 @@ supply the only thing it owns, the PV per body. Every solved encounter was then
 **replayed under an independent seed**, so its promised winrate was checked
 against a fresh measurement rather than the sample the search steered on.
 
-Harnesses (all under `packages/simulator/src/`, run with
-`pnpm --filter @pimpampum/simulator exec tsx src/<file>.ts`):
+Harnesses (then under `packages/simulator/src/`, now `packages/tools/src/`; of
+these only `experiment-kit-threat.ts` survives — the others answered their
+question and were deleted, their findings are below):
 
 | file | question |
 |---|---|
@@ -2670,3 +2671,737 @@ one position in eight comes back **decided** (every branch scores the same),
 which `valuePosition` correctly returns `null` for — and which reads as a flaky
 test rather than as the non-decision it is. Wrap in `withSeed`, and assert the
 premise (the position is a decision) rather than assuming it.
+
+
+---
+
+## 25. The refactor finished, every layer tested, and what testing it found (2026-09-23)
+
+Steps 3–6 of §23.6 landed in one pass, and then each layer got its own tests,
+built bottom-up so that every layer is verified on the layer beneath it before
+anything is asked of the content. Doing that found **twenty-three** faults — most
+of them silent, several in the measurement layer itself. They are listed in
+§25.3; read that before trusting any number measured before today.
+
+### 25.1 The layout
+
+```
+engine            rules only, no AI, no content                    → —
+ai                the policy                                       → engine
+combat-balancer   the PV solver, over EncounterContent<P>          → engine, ai
+bench             set-agnostic measurement (+ /testing: SYNTHETIC)  → engine, ai, combat-balancer
+playtest          requirement rules, analyze, control kits,
+                  /vitest: the assertion API (kitSuite)            → engine, bench
+sets/fantasy      the content; ./bench is its GameSet + calibration → engine, ai, bench, combat-balancer
+tools             the harnesses, conventions, mutation              → everything
+web               the app                                          → engine, ai, set-fantasy, combat-balancer
+```
+
+The direction is enforced (`tools/test/conventions.test.ts`): each package's
+declared dependencies, every import in its source, and the fantasy root entry
+staying browser-safe. Decisions that shaped it, and why:
+
+- **`skills` + `enemies` merged into `sets/fantasy`.** One content package, so
+  one `createRegistry()` registers player AND enemy handlers — the old
+  two-call registry (and the CLAUDE.md non-negotiable warning about it) is gone.
+  Two entry points: `.` is browser-safe (the web app bundles it); `./bench` is
+  the `GameSet` adapter, which pulls in Node-only bench.
+- **The balancer is content-agnostic** (`EncounterContent<P>`: registry, build
+  party, is it fixed, build encounter, creature bulk/level). The set binds it
+  (`encounters.ts`), so `solveEncounter(pool, party, target)` kept its
+  signature for the app.
+- **Calibration is DATA in the set, MACHINERY in bench.** Fantasy's `shapes.ts`
+  was 380 lines, most of it framework (solve each shape, measure each baseline,
+  drop saturated cells). A set now declares `GameSet.calibration` (reference
+  kits, shapes, company rows, stand-ins, fair, saturation band, main kits, AI-
+  blind cards) and bench's `positions.ts` does the rest — which is what made a
+  second set cheap enough to exist.
+- **A second set exists: `@pimpampum/bench/testing` (SYNTHETIC).** Plain-dice
+  kits (brawler, duelist, medic, neutral) and creatures (grunt, brute), three
+  shapes. The instrument is verified on it: the requirement controls, the
+  pipeline A/A test, the card-value control. A control whose verdict "follows
+  from its construction" used to follow from its construction PLUS the fantasy
+  set's goblin counts; it no longer can. It lives in bench rather than its own
+  package because it needs the balancer and bench needs it, and a package cycle
+  is the wrong price for a test fixture.
+- **Tests live in each package's `test/`**, import their own package from
+  `../src`, run as one root suite (vitest projects), and are typechecked by a
+  `tsconfig.test.json` per package (vitest never typechecks).
+- **Anything that measures for more than a minute runs in a child process**
+  (`bench` `isolated()`, `playtest` `analyzeIsolated()`). This is the fix for
+  the `Timeout calling "onTaskUpdate"` red in every full slow run (§24): the RPC
+  timeout is 60 s, hard-coded, and a vitest worker blocked by a synchronous
+  measurement misses it whatever the assertions say. No config fixes it.
+
+### 25.2 What each layer is tested for
+
+| layer | fast (`pnpm test`) | slow (`pnpm test:slow`) |
+|---|---|---|
+| engine | resolution checked against one-line oracles; dice/distributions against brute enumeration; fast-check fights: invariants (PV range, termination, fatigue untouched, levels never fall), determinism, name invariance, CLONE FIDELITY; metamorphic relations: seat A/A (a mirror is a coin flip), armour/dice/level/numbers help, fatigue hurts, equal training cancels; legality; flow (speed, simultaneity, interruption, learning, AoE one roll) | — |
+| ai | every choice legal and every target in the pool (fast-check, depth 0 and 1); pure given the seed; a solve leaves the fight untouched; known-answer positions (take the kill, guard to live, don't idle); evaluator zero-sum; `positionValue` reaches the score; the round-model checks from §16/§20 | — (strength lives with the set it measures) |
+| combat-balancer | the contract on tiny inline content: inputs, bulk sharing, PV bounds, clamping honesty, duration budget, `searchMissed` exactness, the reported winrate is its own sample | calibration on held-out dice across 4 compositions × 4 targets (no lean), metamorphic (harder target ⇒ tougher; stronger party ⇒ tougher), a production-depth solve |
+| bench | report maths vs closed forms (binomial σ, quadrature, `gamesFor` exact, E[max of k normals]); cache fingerprints as metamorphic relations (every behavioural field changes the print, presentation never does, set id separates keys, the fingerprint covers ai+bench+balancer); the log parser against the engine that writes the log; the sample-size seam; the set seam; positions on a stubbed solve | the DELTA PIPELINE A/A (the neutral stand-in scores zero) plus a positive and a negative control; the card-value control (20d6 first, no-op last) |
+| playtest | every verdict rule on inputs whose answer is known, both tails, the null and the under-powered case; the analyzer's source shape (what statistic 4/5 reads, the null, clustering) | the pipeline CONTROLS on SYNTHETIC, one file each: flat (1, 3c), side (3, 3b), cards (4), ladder/trap (1), duration (2 both ways), losing (7), combo (3c must-pass), dominant (5), band (8, both sides + A/A) |
+| fantasy | cards played exactly; calibration data (reference party, shapes, company rows, every kit an ally, every creature fielded or declared) | **the balance tests**: `test/kits/<kit>.slow.test.ts` — every requirement for every main kit (§25.5); the balancer on this set's creatures; AI strength on this set |
+| tools | the conventions (seeded, depth explicit, error bars, sample seam, layering, browser-safe content) | every harness still executes at `GAMES=2` |
+| web | a whole game played through `useGame` exactly as the screen does (every prompt answered), the creator→combat handoff, hero gear and builds | — |
+| fantasy (also) | content invariants: every effect type resolvable, unique ids, unlock levels 1..N, descriptions on non-vanilla cards, builds hold exactly their unlocked cards; set-level: mirror A/A, duration ceiling, all three action types played | the armour lever (§25.3 F18) |
+
+Smoke: `pnpm test:smoke` (`SLOW=1 BENCH_SMOKE=1 GAMES=2 SEARCH_GAMES=2 CALIBRATION_GAMES=4`).
+Every slow file has at least one assertion that runs under smoke (was it
+measured at all); the statistical ones `skipIf(SMOKE)` rather than fail on two
+combats — the old smoke could not tell a crash from a sample size.
+
+Mutation (`tools/src/mutation.ts`, reworked for the monorepo): **23/23 killed, 0 invalid**. The kill set is the whole fast tier; every mutant is rebuilt with its package and dependents, and a mutant that does not COMPILE is reported INVALID and scores nothing — closing §24.4's "a mutant that crashes is not a mutant that was caught". Eight of the mutants are tonight's faults (F4, F8, F9, F10, F11, F12, and the error terms of the two new requirements).
+
+### 25.3 What the testing found
+
+Numbered as found. **Bold** = a measurement (or the game) was wrong, not just code.
+
+1. **F1 — the balancer's duration search ran at the wrong depth.** The AI split
+   spread `...aiPolicy()` into `SimOptions`, which ignores it, so the duration
+   bisection fell through to depth 1 (~6× the cost) instead of the documented
+   depth 0; and `solveEncounter` ignored a caller's `aiDepth` altogether, though
+   its doc promised it. Both fixed; `aiDepth` is now honoured (search at
+   `min(0, depth)`).
+2. F2 — the control budgets were hard-coded, so `GAMES=2` did not reach them and
+   a "smoke" run of the controls took as long as a real one.
+3. F3 — `withControlKit` built the registry AFTER installing the kit; a set that
+   builds its registry from its catalogue then registered the control's handlers
+   twice and threw — but only for the FIRST control in a process.
+4. **F4 — the AI's damage distributions ignored the contest floors.** The engine
+   floors dice+modifier at 0 and roll+bonus at 0 again; `diceDistribution` did
+   neither, so a fatigued defender (negative flat) could "total" below zero and
+   the AI priced every blow against a tired hero as landing harder than it can.
+   Found by a fast-check property (shrunk to: attack 0 vs defense flat −1 priced
+   at 1 damage). An AI disagreement with the rules — §16.1 allows the fix.
+5. F5 — the parallel cache warmer spawned `warm-one.ts`, deleted in the package
+   move; every child failed at launch and every failure was swallowed as "a
+   cache miss", so every "parallel" kit sweep had run serially. The worker is
+   now the caller's (`tools/src/warm-one.ts`), a missing worker throws, and
+   failed batches are reported.
+6. F6 — `play.ts` patched `Math.random`, which the engine had already captured,
+   so "the same script replays the same game" was false.
+7. F7 — `solve-cost.ts` measured nothing (the same ignored-depth spread as F1).
+   Deleted.
+8. **F8 — speed ties were not simultaneous.** `rules.md:72`: on a speed tie both
+   blows land. A hazard check (`if (!actor.isAlive()) break`) also stopped an
+   attacker already felled by someone of its own speed, since `ad4f0d8` — every
+   same-speed trade was first-come-first-served. Only a death caused by the
+   hazard itself cancels the blow now. Found by the flow test.
+9. **F9 — the cache fingerprint had lost the AI.** It hashed `engine/src`, which
+   was complete while the AI lived there; after the split an AI (or bench, or
+   balancer) change served baselines measured with the previous code.
+10. F10 — the AI's defense targeting could name the actor when the actor was no
+    longer in the pool (felled in its own speed tier). Harmless in effect;
+    wrong by contract. Found by the legality property.
+11. **F11 — the combat-log parser dropped every line with a negative bonus** (the
+    engine prints `7−2=5` with U+2212) — every fatigued attacker — and read the
+    defense ROLL instead of the defense total. `assertParsed` could not see it:
+    it only fires when nothing parses. 4 of 8 attack lines in one sample fight.
+12. **F12 — the card fingerprint missed fields.** It read `dice.bonus` (the field
+    is `modifier`) and omitted `targetCount`, `rollPerTarget`, `isConsumable`
+    and `canReviveTarget`: turning a card into a sweep served the single-target
+    card's cached numbers. Handler CODE was never fingerprinted at all, nor enemy
+    equipment/natural armour. `actionPrint` now prints every field but the
+    presentational ones; fantasy's kit prints add the hash of the kit's own
+    source file plus all shared content.
+13. **F13 — every kit's delta carried a targeting bias.** Baselines were measured
+    with `aiPolicy` (the AI's target chooser); subject arms with an
+    `actionChooser` only, so the engine's non-policy default (first eligible
+    targets) chose their targets. Sized on the fantasy calibration party, N=400
+    per arm, first-in-line vs AI targeting: horde 42.9% / 35.5%, escamot 92.4 /
+    96.4, cap 82.3 / 71.0, mixt 57.5 / 60.5 — a cell-dependent bias of up to
+    11pp in every headline delta measured before today. Every arm now uses the
+    production target chooser, and baselines are measured by the same cell
+    runner as the arms they are subtracted from (so `GameSet.simulateEncounter`
+    had no caller left, and was removed). The pipeline A/A test guards it.
+    The per-decision card-value fights (`measureKit`) had the same omission and
+    now use the same chooser — and are cached per cell like every other seeded
+    measurement, which a kit sweep had been re-paying in full on every run.
+    Side finding, OPEN: against the one-PV horde the AI's own target chooser
+    does WORSE than first-in-line (35.5% vs 42.9%) — worth a look at
+    `pickResolveTargets` (spreading blows over 1-PV bodies?).
+14. F14 — the analyzer's screening floor was a hard-coded 40 games per arm; a
+    two-combat smoke still screened nine arms at forty fights each.
+15. F15 — the `onTaskUpdate` RPC timeout (§25.1): measurement now runs in
+    children.
+16. **F16 — `BENCH_NO_CACHE=1` recomputed every cached value on every call.**
+    Callers ask for the same solved shape once per cell per arm per level, so a
+    run with the disk cache off re-solved the same encounter hundreds of times
+    (98 s → 4 s on a smoke analysis). Values are now memoised in-process under
+    the disk cache.
+17. **F17 (CONTENT, open) — goblins can stall any fight.** `Amagar-se` is a
+    speed-2 focus that makes the goblin untargetable until the round ends ("Esquives
+    tots els atacs aquest torn" — the handler does what the card says). At depth 1
+    the goblins learn to hide EVERY round: 6 goblins at 1 PV, level 4, against a
+    drawn 4×6-level party in leather won 11/20 fights over 293 rounds (14.7 a
+    fight); all seven "65% for a realistic party" requests in the fantasy
+    balancer test came back duration-capped (6 goblins solve to 1 PV at 45%,
+    21.7 rounds). **Pre-existing** — on `af533c1` the same request solves to 1 PV
+    at 37.5% in 18.6 rounds. The `horda` calibration shape is 8 goblins at full
+    kit, so its cells are fights the goblins can refuse. A design decision, not
+    a code fix: counterplay faster than speed 2, a cost to hiding, or a limit on
+    how often it can be played.
+18. **F18 (CONTENT, open) — armour is not a small lever; it is often a large
+    NEGATIVE one.** Armour comes with a speed penalty (cuir +1/−1, ferro +2/−2),
+    and a slower party raises its guards after the blows they were for. Fights
+    solved at 65% for a drawn 4×6-level party WITHOUT armour, replayed with the
+    same draw (800 games, seed 31337) bare / leather / iron: 4 bone devils
+    82.6 / 66.8 / 50.6%; 1 basilisk 70.6 / 50.3 / 51.1%; 3 stone golems
+    63.4 / 70.7 / 71.1%; 3 goblins + a horned devil 74.4 / 48.3 / 49.4%. Only
+    against the slow golems does armour help. CLAUDE.md calls armour "a small
+    bounded lever (≤15% of outcome)"; it is neither small nor, mostly, a help.
+    The reference and calibration heroes all wear leather, so every benchmark
+    party carries this. Superseded by the armour sweet-spot requirement (§25.8),
+    which is where this is now asserted. A design decision.
+19. F19 — the standing wall's player and creature instances shared one id
+    (`mur-de-pedra`, earthbender and stone golem). Separate catalogues, so
+    lookups worked, but play statistics and card values are keyed by id; the
+    golem's instance is `mur-de-pedra-golem` now. Found by the content test.
+20. F20 — the fantasy set fingerprinted each kit's source by ABSOLUTE path, so
+    the same content keyed differently in every clone or worktree and a cache
+    could never be shared. Relative paths now.
+21. **F21 — `measure-swing`'s "value of a read" was measured against a
+    scripted enemy.** Its crude oracle/blind choosers answer only for the
+    players and return `null` for the enemies, and the engine turns a `null`
+    into the first legal card — so since the engine lost its silent default
+    policy, every enemy in that table played its first card. The oracle's
+    probe cleared the chooser outright and crashed. Found by the smoke tier;
+    the enemies are now driven by `aiPolicy(CELL_AI)`, targeting too. Any
+    read-value number quoted from before 2026-09-23 is void.
+22. F22 — the smoke tier was not cheap. `card-value` exceeded its 10-minute
+    harness timeout at `GAMES=2`: the fight floor is one per cell, but each
+    decision is still priced by 6 rollout samples per legal card, and nothing
+    scaled that down. `measureKit` takes one sample under `BENCH_SMOKE` now:
+    the whole smoke tier went from 15.5 min (red) to ~4 min (green), measured
+    2026-09-23.
+23. F23 — `calibrationGames`' test assumed smoke was off, so it failed only
+    under `test:smoke` — the tier the fast suite never runs. It states the
+    smoke rule now.
+
+### 25.4 The two requirements that were never built
+
+Both from §7.1, both now rules + verdicts + controls:
+
+- **Requirement 5 — no auto-include.** A card clearly the best play in more
+  than 85% of the decisions it is legal in, under EVERY opponent model, erases
+  the decision. Judged on the same per-decision statistic as dead cards, never
+  on play rate. 85 rather than 90: a card built to be the only answer measured
+  94%±1.6 on SYNTHETIC — the rest are positions where any card wins — so a 90%
+  bar sat two sigma from a dominant-by-construction card and its control
+  flapped.
+- **Requirement 8 — the power band.** The full-kit delta against the neutral
+  stand-in must not be CLEARLY outside ±15pp (§7.1's "no kit above ~65% against
+  the field"). Controls: an overwhelming kit (clearly above), a feeble one
+  (clearly below), and the set's own stand-in relabelled (in band, delta zero —
+  the analyzer's A/A test).
+
+Verdicts now carry structured data (`margin`, `cards`, `sensitive`, `reasons`,
+`regressions`, `gain`, `band`). The controls used to regex the Catalan
+`detail` — one slice cut inside a card's own text and passed for the wrong
+reason.
+
+Control-kit changes: `situationalKit` was only situational in a set with a
+one-PV horde (on SYNTHETIC, repeating its heavy card played as well as the kit)
+and is replaced by `comboKit` (Aim readies a heavy shot; either card alone is
+weak) — situations from the CARDS, not the host set. `trapKit` carries its own
+self-damage handler instead of borrowing the host set's. The flat-kit 3c
+control needed 5,000 games an arm: its true margin is zero, the arms
+desynchronise into near-independent samples, and at 800 and 2,000 it read
++1.4±2.5 and +2.5±1.6 — both "passing" a 5pp bar a zero margin cannot clear.
+
+### 25.5 The balance tests — the fantasy kits, measured
+
+Every main kit, measured at the analyzer's default budget (2,400 combats per
+level; card value over 594 fights and three opponent models), on the code of
+this section. Each failing verdict is a KNOWN entry in
+`sets/fantasy/test/kits/known.ts` — asserted to still fail, so fixing one turns
+its test red. A cold sweep takes hours; with the cache warm the whole ratchet
+replays in seconds.
+
+| kit | 1 levels | 2 duration | 3 thinking | 3b space | 3c one card | 4 dead cards | 5 auto | 8 band |
+|---|---|---|---|---|---|---|---|---|
+| berserk | ❌ 2→3 −3.8±1.4 (total +14.2) | ❌ | ✅ +22.2 | ✅ +18.2 | ✅ +11.4 | ❌ 5 cards | ✅ | ✅ +4.5 |
+| earthbender | ❌ 3→4 −9.1±1.4 (total −5.4) | ❌ | ❌ +5.7 | ❌ −6.2 | ❌ −10.7 (the card WINS) | ❌ 2 | ✅ | ❌ −18.5±1.2 |
+| enginyer-explosius | ✅ +14.0 | ❌ | ✅ +16.3 (just) | ✅ +10.4 | ✅ +1.7 | ❌ 2 | ✅ | ✅ −10.8 |
+| mestre-armes | ✅ +7.5 | ❌ | ✅ +24.2 | ✅ +3.7 | ✅ +0.7 | ❌ 1 | ✅ | ✅ −1.5 |
+| nigromant | ✅ +5.7 | ❌ | ❌ +8.1 | ✅ +5.6 | ✅ +1.9 | ❌ 4 | ✅ | ✅ −4.0 |
+| volcanic | ❌ total +4.8 | ❌ | ✅ +20.4 | ❌ −4.2 | ❌ −3.2 | ❌ 2 | ✅ | ✅ −8.4 |
+
+(Margins in pp; 3/3b/3c pass unless CLEARLY under their bar, per `marginVerdict`.)
+
+Dead under every opponent model: berserk — Embat sagnant, Cop d'espatlla, Atac
+temerari, Aguantar el cop, Rugit de guerra; earthbender — Cop de roca, Presó de
+terra; enginyer — Barricada, Bomba de fum; mestre-armes — Atac encadenat;
+nigromant — Marca de la perdició, Mà de la tomba, Putrefacció, Invocar l'ombra
+de l'infern; volcanic — Riu de lava, Erupció. The §20.11 caution still applies
+to the evaluator, but these now survive three opponent models, production
+targeting and structured verdicts.
+
+What stands out:
+
+- **Duration fails for EVERY kit, the same way**: medians of 5–9 are near
+  the bar, but p90 is the 40-round cap and 19–36% of fights are draws. A shared
+  cause, not six kit problems — F17 (goblins hiding in the `horda` cells) is
+  the leading suspect; fix it and re-measure before touching any kit for this.
+- **Earthbender is the outlier**: below the band (−18.5pp), its level 4 is a
+  regression, and repeating Columna de terra BEATS playing the kit (−10.7pp) —
+  §7.1's "look at the policy, not the kit" warning fires there.
+- **No card is auto-include**, and requirement 5's control shows the check can
+  fire; the kits' problem is the other tail.
+- Full numbers per requirement: `PLAYTEST_RECORD_DIR=<dir>` on a kit run
+  writes each kit's verdicts and card values as JSON.
+
+### 25.6 Chaff removed
+
+- Eight one-off scripts (`experiment-kit-levels`, `-gm-encounters`, `-level`,
+  `-seat`, `-fatigue-penalty`, `-fatigue-tiers`, `solve-cost`, `sanity`) — each
+  finding already written down; `solve-cost` was measuring nothing (F7).
+- bench's mirror-sweep cluster (`runMatchup`, `mirrorSweep`, `mutate`,
+  `restoreAll`), `SIDE_POLICIES`, `matrixKey`, `matrixDeltaStderr`; cell
+  internals un-exported.
+- Duplicate implementations folded into one: the party/build spec types (bench's
+  `gameset.ts` is the one declaration), `Cell`, composition building
+  (`buildComposition`/`buildSolvedEncounter`), `duel` → `headToHead`, a private
+  dice pmf → the engine's `diceDistribution`, `probe-shapes`' private baseline →
+  the cell runner, the `node-shims.d.ts` files → `@types/node`.
+- `.claude/commands/calibrate.md` (difficulty factors, removed 2026-08-01);
+  `analyze.md` and `create-skill.md` rewritten for today's layout.
+
+### 25.7 What next
+
+1. **Decide F17** (goblin hide-stall) and **F18** (armour speed penalty) —
+   both contaminate the calibration every kit is measured in (`horda` cells;
+   leather on every benchmark hero).
+2. Work through the known findings in `sets/fantasy/test/kits/known.ts` —
+   each one is a failing requirement with its numbers in §25.5.
+3. The F13 side finding: `pickResolveTargets` loses to first-in-line against
+   a one-PV horde.
+4. §23's still-open items: the metamorphic relations on the fantasy set itself
+   (mirror parity, armour swing ≤15pp, the triangle as a set-level test).
+
+### 25.8 Armour has a sweet spot — the requirement, and where each armour stands (2026-09-23)
+
+The design intention (now in `intentions.md`): armour is right on **a few**
+members of a party and wrong on **all** of them. Tuned through the armour value
+against its speed penalty, once the requirement exists — so it exists first.
+
+**The rule** (`sweetSpotVerdict`, `playtest/src/rules.ts`): a fight is solved
+for an unarmoured party, then replayed on the same seed with 0, 1, …, 4 members
+in the armour (the first k seats; seats are drawn independently, so a random
+k). Some interior count must CLEARLY (2σ) beat both nobody and everybody, per
+armour, on the curve pooled over the three fights of the old armour test
+(bone devils, basilisk, golems; the goblin horde stays out, F17). Controls in
+`rules.test.ts`: hump passes; monotone up, monotone down, flat and
+under-sampled humps fail; a sampled flat null passes <5% despite looking at
+three interior counts. Two mutants added, both killed. Asserted in
+`sets/fantasy/test/set.slow.test.ts`, which prints both curves every run.
+
+**Measured** (800 games per point, seed 31337, win% by wearers 0/1/2/3/4):
+
+| | pooled | bone devils | basilisk | golems |
+|---|---|---|---|---|
+| cuir (+1 armour, −1 speed) | 72.2 / 71.5 / 67.0 / 65.0 / 62.6 ❌ | 82.6 / 79.3 / 74.9 / 71.6 / 66.8 | 70.6 / 69.8 / 59.9 / 56.1 / 50.3 | 63.4 / 65.4 / 66.1 / 67.3 / 70.7 |
+| ferro (+2, −2) | 72.2 / **75.5** / 71.7 / 64.1 / 57.6 ✅ | 82.6 / 81.3 / 69.0 / 60.3 / 50.6 | 70.6 / 77.6 / 73.9 / 65.3 / 51.1 | 63.4 / 67.8 / 72.2 / 66.6 / 71.1 |
+
+- **Ferro passes, narrowly**: one wearer is best (+3.3pp over bare against a
+  ~2.6pp 2σ bar); a whole party in iron is clearly worst (−14.6pp). The shape
+  asked for, but on a thin edge — a small nudge either way can lose it.
+- **Cuir fails**: every wearer added costs the party, except against the slow
+  golems, where armour is monotone GOOD — the per-fight curves disagree in
+  sign, so "even across enemy types" (intentions.md) is not met either, for
+  either armour. Cuir is a KNOWN failure in the test (it turns red when fixed).
+- Curious and unexplained: one wearer of ferro beats one wearer of cuir by
+  ~8pp against the basilisk (≈2.5σ). Worth a look when tuning — a −1 vs −2
+  speed step can cross different speed ties.
+- Side observation, not armour: every "65%" solve here plays at 63–83% for the
+  bare party it was solved for. The solve is duration-capped (F17 territory),
+  so the curves are around those points, not around 65%.
+
+**Next**: tune cuir's (+armour, −speed) until it passes without losing ferro's
+pass; the test is the loop — ~3 min per run.
+
+
+
+---
+
+## 26. A still ruler, a fast loop, and the stall that was one card (2026-09-23, day)
+
+### 26.1 The calibration is a snapshot
+
+Every baseline (reference party, stand-ins, company rows) was measured with the
+LIVE kits, and `COMPANY` names every player kit — so editing any kit re-solved
+the shapes and re-measured every baseline, and the next analysis of ANY kit
+recalibrated from scratch. It also meant an edit moved the ruler it was being
+measured with.
+
+The calibration now fields PINNED copies (`sets/fantasy/src/bench/calibration-kits/`,
+generated by `pnpm calibration:refresh`, ids suffixed `@cal`). A live edit
+re-measures that kit's own rows and nothing else — checked end to end: editing
+live berserk changed berserk's fingerprint and left the calibration's and
+earthbender's identical. Choices, and why:
+
+- **Renamed at the source, not at runtime.** Handlers look ids up by literal
+  (`EXPLOSIVE_SKILL_ID`); a runtime rename would have fielded a pinned
+  enginyer with a 2-charge bandolier. Effect maps' bare keys are renamed too.
+  Anything the rename cannot reach (a shared factory's default id — the
+  earthbender wall's, now passed explicitly) throws at import.
+- **Registered UNLISTED** (`registerSkill(def, false)`): they resolve by id but
+  are not in `ALL_SKILLS`, or the drawn party would field them.
+- **Drift is compared forward**: re-pin the live file with the same function
+  and compare bytes. Reported by the analyzer and the fast tier, never failed;
+  a kit missing from the snapshot does fail (the calibration cannot field it).
+
+### 26.2 The feedback loop
+
+Measured on this machine (8 cores, ~78% of a core per worker):
+
+- `pnpm test` ~19 s → ~15 s: builds the libraries only (it built the web app,
+  running vue-tsc twice). `pnpm test:watch` for edit-and-rerun.
+- **The kit test suites had no parallelism at all** — `runIsolated` called
+  `analyze` on one core. The CLI warmed only the matrix, and computed the
+  whole calibration serially BEFORE its parallel warm (a table printed first),
+  so on a cold cache the warm found nothing to do.
+- Now one `prepare` (playtest) warms every cell `analyze` reads — calibration,
+  level sweep, screens, card value, then the verify arms the screens pick —
+  through the same per-cell entry points `analyze` uses (`matrixCell`,
+  `measureKitCell`, `screenArms`). Used by the CLI and every isolated analysis.
+  `tools/src/warm-one.ts` is gone; playtest owns the worker.
+- Guarded by `playtest/test/prepare.slow.test.ts`: after `prepare`, `analyze`
+  computes NOTHING (a set kit, and a control kit under `allSeats`), and a
+  warmed report equals a serial one. Checked that it fails: skipping the verify
+  wave → 20 misses.
+- Found on the way: warm batches were dealt one per lane, round-robin — a lane
+  that drew cheap cells idled — and killed after 30 min, after which the main
+  process recomputed them serially (4 of 6 batches, on the first timing run).
+  Now a pool of small batches, most expensive first, 4 h guard.
+- The control suites ran with the cache OFF (so no stale numbers), which also
+  switched the warm off. They now get a fresh empty cache per file
+  (`BENCH_CACHE_DIR`): same guarantee, all cores.
+
+Measured (2026-09-23, this 8-core machine): the old path had not finished ONE
+kit after 69 min cold (it had spent 45 of them single-threaded in the verify
+arms and card value). The new path: a full cold sweep — six kits plus the
+whole calibration — in **26.6 min**; one kit against cached baselines in
+**3–5 min**; the report itself then computes nothing (2653 cache hits, 0
+computations).
+
+### 26.3 F17 closed: the stall was one goblin card
+
+Every kit failed requirement 2 the same way (p90 = the 40-round cap, 19–36%
+draws). Diagnosed on the calibration fights themselves:
+
+| calibration fight (as solved) | with Amagar-se | without it |
+|---|---|---|
+| horde (8 goblins, PV 1), company rows 1–4 | draws 0–68%, median to 40 rounds, hiding 16–79% of goblin plays | draws 0%, median 1–3 rounds |
+| mixed (3 goblins + horned devil, all PV 1) | draws 20–65%, p90 40, hiding 74–90% | draws 0–6%, p90 2–15 |
+
+(200 fights per arm, 2026-09-23, before the fix.) After the fix: hiding 1–39%
+of goblin plays, draws 0–7%, p90 ≤ 9 — and the mixed shape solved to goblins
+at PV 8 and the devil at PV 20 instead of 1 and 1.
+
+Every drawn board was healthy heroes against ONE goblin at 1 PV, hiding every
+round: `Amagar-se` made it untargetable, cost nothing, and a lone goblin's
+best play was always to hide again. With draws counting half, the solver could
+not raise the party above ~50% at ANY PV and pinned the goblins at 1.
+
+Fix, from the fiction — goblins hide IN THE HORDE (moved from the generic
+effects into `goblin.ts`, its only user):
+
+- no ally in view → nothing to hide behind; the card does nothing;
+- not two rounds running (a `descobert` status gates `canPlay`).
+
+Card text: "Cal un aliat a la vista; no dos torns seguits."
+
+### 26.4 The solver's unchecked clamp (a measurement fault)
+
+The solver steers with the depth-0 AI and reports at depth 1. When the depth-0
+search found that no PV reached the target, it CLAMPED — and the depth-1
+verify skipped clamped solves, so the proxy's verdict went out unchecked.
+Bone devils showed it: four of them clamped at PV 1 while the depth-1 party
+won 96–100% of those fights (the depth-0 party wins ~31% of a fight the
+depth-1 party wins ~72%). Every clamped solve before 2026-09-23 — including
+the old PV-1 goblin shapes — was decided this way.
+
+Fix: a clamp is re-checked at the real depth; if the real AI disagrees, the
+whole bracket is bisected at the real depth (costlier, only where the proxy is
+wrong). Regression test `combat-balancer/test/solver-depth.test.ts` (fast
+tier): a party holding BAIT — a do-nothing card with a huge AI hint — loses at
+any PV under depth 0 and wins under depth 1; without the fix it reports PV 1
+at 100%. Also a mutation-harness mutant.
+
+### 26.5 The shapes, re-chosen
+
+Probe (`probe-shapes.ts`, now `--family` to run families in parallel), after
+the goblin and solver fixes:
+
+- horde: 4× PV14 74% (3/4 cells) · **5× PV10 55% (4/4, spread 10pp)** · 6×+ back at PV 1.
+- mixed: 2× 65% (3/4) · **3× PV8 + devil PV20, 67% (4/4)** · 4× 62% · 6× PV 1.
+- basilisk: **1× PV68 60% (4/4)** · 2× PV 1.
+- bone devils (Fibló 3d6, self-only defense): 3× PV17 83% (2/4) · **4× PV16 65% (2/4)** · 5× PV14 · 6× PV13.
+
+Chosen: horde 5, bone devils 4, basilisk 1, mixed 3+1.
+
+Bone devils: their only attack (Fibló, 2d6) was small for their bulk and
+their defense heals on every block, so at a fair PV the fight outran the round
+budget. Fibló is 3d6 now; Defensa esquelètica guards only its holder (a new
+generic engine seam: a defense effect may narrow the card to 'self' — and
+explicit selections are now held to a card's target rule, which they never
+were). The self-guard alone changed nothing measurable; the solver fix is what
+unlocked the shape.
+
+A finding for the kit pass: against bone devils the company rows split
+90–96% (rows 1, 2) vs 23–43% (rows 3, 4 — both hold nigromant).
+
+### 26.6 Armour, after the enemy changes
+
+F18 (armour a net loss) was measured before today's bone-devil and solver
+changes, and it no longer holds against the current bone devils. Direct experiment (300 fights, 4 bone devils at PV 16, drawn level-6 party,
+cuir with NO speed penalty): armour helps at both AI depths — +7pp at depth 0,
++6pp at depth 1, less damage taken. The balancer's simulator agrees (68.8% →
+77.5% all in cuir). An earlier set of variant runs said armour cost 31pp; they
+were a launch-script bug (zsh does not word-split `set -- $v`), which fed NaN
+into the speed penalty. The content test now requires whole, non-negative
+equipment numbers — the engine plays a NaN speed silently.
+
+Variants (3 fights, 800 games a point, win % by wearers 0/1/2/3/4, pooled):
+
+| cuir / ferro (armour, speed) | cuir | ferro |
+|---|---|---|
+| 1,1 / 2,2 (old) | 67.5 / 66.4 / 61.8 / 60.1 / 58.0 ❌ | 67.5 / 67.7 / 68.8 / 61.7 / 56.1 ❌ |
+| 1,0 / 2,1 | 67.5 / 70.6 / 72.1 / 72.4 / 73.3 ❌ (no cost) | 67.5 / 68.7 / 69.1 / 70.6 / 64.4 ✅ |
+| **2,1 / 3,2** | **67.5 / 68.7 / 69.1 / 70.6 / 64.4 ✅** | **67.5 / 70.3 / 70.5 / 68.3 / 63.0 ✅** |
+| 2,2 / 3,3 | 67.5 / 67.7 / 68.8 / 61.7 / 56.1 ❌ | 67.5 / 69.4 / 69.5 / 62.3 / 44.3 ❌ |
+
+Chosen: **cuir +2 armour −1 speed, ferro +3 −2.** Both have a sweet spot, and
+they differ the way the fiction wants: light armour is right on most of a
+party (best at 3 of 4), heavy on a tank or two (best at 1–2); a whole party in
+either is clearly worst. Four in iron moves a fight 4.5pp (the ≤15pp lever
+holds). The speed penalty is the lever that makes the sweet spot: with no cost
+armour is simply best on everyone. rules.md, CLAUDE.md and the equipment
+comment are updated; the reference heroes' leather changed with it.
+
+### 26.7 The second stall: Ombres
+
+After the goblin fix, draws were still 2–4% for every kit (the bar is 2%), and
+per cell they sat almost entirely in company row 4 (volcanic, nigromant,
+ombres): 14–25% draws, p90 at the cap, against bone devils and the basilisk.
+`Desaparèixer en l'ombra` hid its target for two rounds, recastable at will —
+the goblin stall on the players' side (its own comment warned "overplaying this
+stalls fights into draws"). Same fix from the fiction: shadows hide you only
+while the enemy has someone else to look at (another ally in view), and a
+vanished character is exposed for a round before vanishing again. Snapshot
+refreshed (a rules fix, not polish). Draws fell to 0.5–1.2%; mestre-armes and
+volcanic pass requirement 2 outright.
+
+### 26.8 The sweep before tuning (snapshot of 2026-09-23 after both stall fixes)
+
+Full cold sweep, all six kits, calibration included: **26.6 min**, every cell
+warmed in parallel — the report computed nothing itself (2653 cache hits, 0
+computations).
+
+| kit | vs neutral | failing |
+|---|---|---|
+| enginyer | −5.8 | 1 (4→5), 2 (p90 10), 3 (+11 vs 20), 4 (Bomba de fum, Camp minat), 7 |
+| mestre-armes | +0.8 | 3c, 4 (Atac encadenat) |
+| nigromant | +4.8 | 2 (p90 9), 3b, 3c, 4 (Marca, Mà de la tomba, Putrefacció, Invocar), 7 |
+| berserk | +13.7 | 2 (p90 9), 4 (Aguantar el cop, Rugit de guerra) |
+| earthbender | −15.6 | 1 (3→4 −8.3), 2 (median 6, p90 14), 3, 3b, 3c, 4 (Presó de terra), 7 |
+| volcanic | −5.6 | 4 (Riu de lava) |
+
+### 26.9 Tuning, iteration 1
+
+Card-value rollouts play the fight OUT, so "dead" there means never the best
+play even when played to the end — a verdict on the card, not on the
+evaluator. So these are content changes:
+
+- berserk: Entrar en Fúria 3 → 2 turns (it alone was +25pp at level 5);
+  Aguantar el cop raises a real 2d6 guard and converts what gets through (it
+  took every blow in full); Rugit de guerra speed 2 → 5 (a war cry that lands
+  after the enemy acted cancels nothing).
+- earthbender: Presó de terra pins (Focus only, 2 turns) and leaves the enemy
+  THERE to be hit (it swallowed them out of reach for 3 — unwinnable rounds,
+  long fights); Cop de roca 2d4 → 2d6.
+- nigromant: Mà de la tomba 1d6 → 2d6 (the mark → reap combo paid a turn for
+  1d6); Putrefacció 2 → 3 per turn.
+- enginyer: Granada 1d4 → 1d6; Traca final 1d6 per charge (was 1d4); Camp
+  minat mines 1d10 (was 1d6); Bomba de fum lasts this turn and the next.
+- mestre-armes: Atac encadenat is an ATTACK that starts the chain (1d6 +
+  weapon, ×1 now, ×2 next) — as a Focus it spent a turn on a stance.
+- volcanic: Riu de lava 2d6 (was 1d10).
+
+### 26.10 Iteration 1 → 2 → 3
+
+Iteration 1 (sweep 3): earthbender −15.6 → +0.7 and passes everything but p90
+(levels, thinking, space, one-card, no dead cards); enginyer's levels and
+thinking pass; Atac encadenat alive but now carries mestre-armes on its own
+(3c); **berserk +23.9 with 14% draws at level 5** — a third stall: Entrar en
+Fúria could be re-entered, and a berserker already at 1 PV lost nothing by
+going again, so he stayed indestructible. Rugit de guerra at speed 5
+cancelled most enemy actions every round (repeating it alone won 83%).
+
+Iteration 2 (sweep 4): Entrar en Fúria once per combat (consumable); Rugit
+speed 3; the chain climbs by halves; Xuclar la vida heals half (it outclassed
+every other nigromant card); Invocar l'ombra −5 → −1 and Putrefacció −1 → 1
+(slow focuses are interrupted); Camp minat costs 1 charge (was 3); Bomba de
+fum blinds on 14 or less (was 10); Riu de lava arrives this round, speed −1.
+Result: berserk +8.9 and passes all but p90; earthbender all but p90;
+mestre-armes 3c still; enginyer thinking +11, Bomba de fum / Camp minat dead;
+nigromant four dead; volcanic −9.0, Riu de lava still dead.
+
+**The p90 failures were the calibration's.** The solver lets a fight average 6
+rounds; requirement 2 wants median ≤ 5 and p90 ≤ 8. Per cell, the long tail
+sat in the basilisk (median 6–8, p90 10–14 — one body at PV 84) and one horde
+row. The shapes are now solved to `calibration.maxAvgRounds` = 5, the same
+standard the kits are held to (`calibration.test.ts` ties the two together).
+
+Iteration 3 (sweep 5): chain capped at ×2; Marca de la perdició is an ATTACK
+(1d6) that condemns what it hits; Mà de la tomba 3d6; Camp minat trips on every
+enemy attack; Bomba de fum speed 4 (smoke after the attack is no smoke); Riu de
+lava 3d6.
+
+Sweep 5 (calibration at 5 rounds + iteration 3): **mestre-armes (−0.3) and
+volcanic (−8.7) pass every requirement.** Berserk +9.9: only Cop d'espatlla
+(−1.1) and Aguantar el cop (−1.4) dead. Earthbender −1.6: only p90 10.
+Enginyer +4.6: p90 11, Camp minat dead. Nigromant +4.3: p90 9, Mà de la
+tomba / Putrefacció / Invocar dead (Marca, now an attack, is alive).
+
+Iteration 4 (sweep 6): the engineer's bandolier RELOADS one charge after a
+round without spending one (it ran dry in long fights, which then ran longer
+— p90 11); Mà de la tomba strikes every enemy for 2d6 and the condemned cannot
+defend or armour against it (skipping the unmarked made it a card that did
+nothing in most positions); Putrefacció spreads on d20 < 9 (was < 5); Cop
+d'espatlla +4 on a block (was +2); Aguantar el cop guards with 3d6; Columna
+de terra 3d6.
+
+Sweep 6 (iteration 4): **enginyer and nigromant pass requirement 2** (the
+reload and the new reap shortened their fights); mestre-armes and volcanic
+still pass everything. Left: enginyer Camp minat dead (−3.8); nigromant
+Putrefacció dead (−3.4); berserk Aguantar el cop dead (−1.2); earthbender —
+Columna at 3d6 overshot (repeating it alone beats the kit, −4.3), Presó dead
+again, p90 9.
+
+Iteration 5 (sweep 7) — the common thread was slow focuses, interrupted
+before they land: Columna de terra keeps 3d6 at speed −1; Presó de terra speed
+2 (the earth grabs before they move); Camp minat speed 1 and 4 mines;
+Putrefacció 4 a turn at speed 2; Aguantar el cop guards at speed 3 and converts
+3× the damage.
+
+Sweep 7 (iteration 5): **enginyer passes everything** (with mestre-armes and
+volcanic). Nigromant now fails 3 (+10.7 vs 20: the new AoE reap made "always
+the biggest attack" nearly as good as thinking) and Putrefacció is still dead
+(−2.3); berserk's Cop d'espatlla reads dead (−0.9 — Aguantar el cop displaced
+it); earthbender only p90 9.
+
+Iteration 6 (sweep 8): Mà de la tomba strikes the unmarked at {A}−3 (the
+doomed still cannot resist it) — marking matters again; Putrefacció also
+condemns its target (rot feeds the reap); Cop d'espatlla guards with 3d6; the
+earthbender's wall has 1d6 life (a wall that outlasts everything is what
+stretched its fights).
+
+Sweep 8 (iteration 6): **enginyer, mestre-armes, earthbender and volcanic pass
+every requirement.** Nigromant (+12.3): Invocar l'ombra dead (−4.0 —
+Putrefacció now condemns, so a slow condemn-all lost its job). Berserk
+(+10.4): Cop d'espatlla dead (−0.8).
+
+Iteration 7: Invocar l'ombra speed 2 and 3 turns; Cop d'espatlla speed 4 (the
+QUICK guard, apart from Aguantar el cop's heavy one). Both came alive — and
+each kit's next-weakest card took their place at the bottom (nigromant: Marca
+de la perdició −1.8, Sudari de tomba −0.6; berserk: Aguantar el cop at +0.2).
+Tuning stopped there, on purpose: these are cards worth about nothing, not
+cards that cost anything, in six-card hands where one is always last; lifting
+them further means adding power to the two kits already highest in the band.
+They are recorded as known (below) rather than chased.
+
+### 26.11 The confirming sweep, and a fourth stall
+
+Snapshot refreshed so the calibration fields the tuned kits; full cold sweep.
+Fights got SHORT (median 4, p90 6–7 for every kit) but four kits drew 2.0–2.6%
+(the bar is 2%), in the bone-devil and mixed cells. The drawn boards (200
+fights, earthbender in the bone-devil cell, 12 drawn) were all healthy heroes
+against ONE bone devil, and after round 30 the plays were Presó de terra ×108
+and Udol de terror ×120: the earthbender companion re-pinned the last enemy
+every round (the pin prices itself, so the AI kept renewing it), the pinned
+devil could only howl, and nobody attacked. I made this one — iteration 1 made
+Presó de terra a pin instead of a swallow. Fix from the fiction: the earth
+cannot grip the same foe again at once — freed, a target stands on cracked
+ground for two rounds. (The mixed-cell "draws" were mostly mutual wipes, a
+legitimate draw.)
+
+The four stalls of the day share one shape — a card that lets one side make
+itself or its target permanently unable to be hit or to act, recastable at no
+cost: goblin hide, shadow vanish, fury re-entry, earth pin. Each is now
+bounded (needs an ally in view / cannot repeat at once / once per combat).
+A requirement worth adding later: a per-card stall probe that flags any card
+dominating the plays of fights past round 30.
+
+### 26.12 Two measurement faults the confirming sweeps found
+
+- **Requirement 2 counted mutual wipes as stalls.** After the pin fix, the
+  last "draws" (2.0–2.6% for four kits, just over the 2% bar) had no stalled
+  fights behind them at all: 300 fights in each drawing cell, 0 stalls, 14–15
+  mutual wipes (both sides fall in one simultaneous speed tier — a draw that
+  ENDED). The bar exists for "combats que no acaben MAI". Cells now count
+  `stallRate` — unresolved at the round cap — and requirement 2 judges that;
+  the draw rate is still reported beside it.
+- **A cell's cache key did not say what the cell was.** It held the subject,
+  the cell's label and its baseline NUMBER — nothing about the company's kits
+  or the enemies fielded. A companion or creature changed, and a re-measured
+  baseline that landed on the same value to four decimals, would have served
+  the old cell silently. Cells now carry a `context` fingerprint (company row +
+  fielded enemies) in every cell and card-value key.
+
+### 26.13 Where the set stands (confirming sweep, 2026-09-23 evening)
+
+Snapshot refreshed to the tuned kits; all cache keys new; full cold sweep in
+19 min (six kits + calibration; the report computed nothing itself). Shapes as
+solved: horde 5 goblins PV 11, bone devils 4 at PV 37, basilisk PV 87, mixed 3
+goblins PV 12 + horned devil PV 30; 12 usable cells.
+
+| kit | vs neutral | 1 | 2 (median / p90 / stalls) | 3 margin | 3b | 3c | 4 dead | 5 | 8 | 7 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| berserk | +15.8 ±1.0 | ✅ | ✅ 4 / 6 / 0.0% | +59.7 | ✅ | ✅ | ✅ | ✅ | ✅ (edge) | ✅ |
+| mestre-armes | −1.1 | ✅ | ✅ 4 / 6 / 0.0% | +48.7 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| earthbender | −1.8 | ✅ | ✅ 4 / 7 / 0.0% | +43.2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| volcanic | −7.7 | ✅ | ✅ 4 / 6 / 0.0% | +41.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| nigromant | +3.6 | ✅ | ✅ 4 / 6 / 0.0% | +43.7 | ✅ | ✅ | ❌ Marca de la perdició | ✅ | ✅ | ✅ |
+| enginyer | −2.1 | ✅ | ✅ 4 / 7 / 0.0% | +26.7 | ✅ | ✅ | ❌ Camp minat (−0.6) | ✅ | ✅ | ✅ |
+
+(At the start of the day every kit failed requirement 2 — p90 at the 40-round
+cap, 19–36% drawn — and five of six failed dead cards.) The two remaining dead
+cards are `known.ts` entries; the kit suites replay the sweep and pass.
+
+Armour on the final content: **ferro keeps its sweet spot** (pooled
+72.9 / 74.7 / **76.5** / 75.1 / 73.6); **cuir lost it narrowly** — it still
+peaks at three wearers (72.9 / 74.3 / 77.0 / **78.0** / 76.7) but a whole
+party in cuir is not CLEARLY worse (−1.3pp, inside the noise). It had one when
+tuned; the bone-devil changes after moved it. Recorded as known in
+`set.slow.test.ts`. The basilisk armour fight is solved far off target (95%
+bare) — its solve hits the round budget; worth a look with the armour retune.
+
+Verification at the end of the day: fast tier 313/313; slow tier green
+(controls, balancer calibration, AI strength, harnesses, the six kit suites
+replaying the sweep); mutation 26/26 (three new mutants: the unchecked clamp
+and the two sweet-spot rule faults). Two card-value controls had gone
+under-powered since F13 put production targeting into card-value fights (the
+do-nothing card read dead under 2 of 3 models at 240 fights) — ruled out, in
+order: the solver fix (synthetic shapes identical), the parallel warm (warm =
+serial), the cache (uncached = cached); their sample is tripled, and with the
+parallel warm they now run in 40 s.
+
+### 26.14 What next
+
+1. **Cuir's sweet spot** — one armour exploration (the variant harness was
+   deleted as a one-off; the method is in §26.6) and a recalibration.
+2. **Berserk sits on the band edge** (+15.8 ±1.0, passing only because the
+   band verdict needs it CLEARLY out). Entrar en Fúria at level 5 is still the
+   big step.
+3. The two marginal dead cards (Camp minat, Marca de la perdició). Each
+   nigromant retune moved the bottom card rather than removing it; the next
+   step is a design look at the condemn loop, not another number.
+4. **A stall probe as a requirement**: all four of today's stalls had the same
+   signature — one card dominating the plays of fights past round 30. Cheap to
+   measure from the cells, and it would have named each culprit at once.
+5. Wider shapes: bone devils' company rows still split 93% vs 41%, so row 1
+   is saturated and drops out of every kit's measurement.

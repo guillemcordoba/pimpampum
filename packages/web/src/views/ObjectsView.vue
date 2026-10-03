@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ALL_EQUIPMENT, ALL_POTIONS } from '@pimpampum/skills';
+import { ALL_EQUIPMENT, ALL_POTIONS } from '@pimpampum/set-fantasy';
 import { equipmentToDisplayProps, actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';

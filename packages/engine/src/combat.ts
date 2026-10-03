@@ -550,6 +550,20 @@ export class CombatEngine implements EngineApi, AIView {
   private resolveRef(ref: TargetRef): Character { return this.teams[ref.team][ref.idx]; }
   private refOf(c: Character): TargetRef { return { team: c.team, idx: this.teams[c.team].indexOf(c) }; }
 
+  /**
+   * An explicit selection's targets, held to the card's requirement — the AI's
+   * targets already come from `eligibleTargets`, and a seat that names its own
+   * must obey the same rule. Illegal ones are dropped; if none are left and the
+   * rule allows exactly one target (a defense narrowed to 'self'), that one;
+   * otherwise none, and the seat is asked at resolution.
+   */
+  private legalTargets(actor: Character, action: ActionInstance, named: Character[]): Character[] | null {
+    const eligible = this.eligibleTargets(actor, action.def, getActionTargetRequirement(action.def, this.registry));
+    const kept = named.filter(t => eligible.includes(t));
+    if (kept.length) return kept;
+    return eligible.length === 1 ? eligible : null;
+  }
+
   /** Eligible targets for an action's requirement (healing includes downed allies). */
   private eligibleTargets(actor: Character, def: ActionDefinition, req: TargetRequirement): Character[] {
     if (req === 'enemy') return this.enemiesOf(actor);
@@ -599,7 +613,7 @@ export class CombatEngine implements EngineApi, AIView {
       let targets: Character[] | null;
       if (sel) {
         action = c.actions[sel.actionIdx];
-        targets = sel.targets ? sel.targets.map(t => this.resolveRef(t)) : null;
+        targets = sel.targets && action ? this.legalTargets(c, action, sel.targets.map(t => this.resolveRef(t))) : null;
       } else {
         // NO SILENT FALLBACK. An AI seat with no chooser is a caller bug, and
         // a default policy here would quietly produce measurements about a
@@ -871,9 +885,15 @@ export class CombatEngine implements EngineApi, AIView {
         break;
       }
       case ActionType.Atac: {
-        // Stepping forward to attack may trip enemy hazards — possibly fatally.
+        // Stepping forward to attack may trip enemy hazards — possibly fatally,
+        // and a hazard that kills stops the blow. Only THAT death does: an
+        // attacker already felled by someone of the SAME speed still strikes,
+        // because a speed tie is simultaneous and both blows land (rules.md).
+        // Checking plain `isAlive()` here silently turned every same-speed
+        // trade into a first-come-first-served one.
+        const aliveBeforeHazards = actor.isAlive();
         this.triggerHazards(actor);
-        if (!actor.isAlive()) break;
+        if (aliveBeforeHazards && !actor.isAlive()) break;
         this.dispatchPlay(actor, action.def);
         // Generic attack-action status hooks (ladders, multipliers).
         const mods = this.collectAttackStatusMods(actor);

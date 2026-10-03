@@ -11,11 +11,27 @@
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*",
-    "@pimpampum/ai": "workspace:*"
+    "@pimpampum/ai": "workspace:*",
+    "@pimpampum/combat-balancer": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
     "vitest": "^3",
-    "@types/node": "^22"
+    "@types/node": "^22",
+    "fast-check": "^4"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./gameset": {
+      "types": "./dist/gameset.d.ts",
+      "import": "./dist/gameset.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
   }
 }

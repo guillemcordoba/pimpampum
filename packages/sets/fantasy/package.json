@@ -7,17 +7,30 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "calibration:refresh": "tsx scripts/refresh-calibration.ts"
   },
   "dependencies": {
     "@pimpampum/engine": "workspace:*",
     "@pimpampum/ai": "workspace:*",
     "@pimpampum/bench": "workspace:*",
-    "@pimpampum/skills": "workspace:*",
-    "@pimpampum/enemies": "workspace:*"
+    "@pimpampum/combat-balancer": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "vitest": "^3"
+    "vitest": "^3",
+    "fast-check": "^4",
+    "@pimpampum/playtest": "workspace:*",
+    "@types/node": "^22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./bench": {
+      "types": "./dist/bench/index.d.ts",
+      "import": "./dist/bench/index.js"
+    }
   }
 }

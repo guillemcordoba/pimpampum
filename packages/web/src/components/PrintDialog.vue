@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
-import { ALL_SKILLS, ALL_EQUIPMENT } from '@pimpampum/skills';
-import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
+import { ALL_SKILLS, ALL_EQUIPMENT, ENEMY_DEFINITIONS } from '@pimpampum/set-fantasy';
 import type { ActionDefinition } from '@pimpampum/engine';
 import { actionToDisplayProps, equipmentToDisplayProps } from '../composables/useActionDisplay';
 import { printDialogOpen, printingAll, closePrintDialog } from '../composables/usePrintDialog';

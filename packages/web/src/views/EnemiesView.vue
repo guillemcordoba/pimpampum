@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ENEMY_DEFINITIONS } from '@pimpampum/enemies';
+import { ENEMY_DEFINITIONS } from '@pimpampum/set-fantasy';
 import { actionToDisplayProps } from '../composables/useActionDisplay';
 import PrintableCard from '../components/cards/PrintableCard.vue';
 import CardGrid from '../components/cards/CardGrid.vue';

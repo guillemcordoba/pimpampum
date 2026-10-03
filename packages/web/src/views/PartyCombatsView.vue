@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getEnemy } from '@pimpampum/enemies';
+import { getEnemy } from '@pimpampum/set-fantasy';
 import {
   listTrackerSessions, deleteTrackerSession, sessionLabel, type TrackerSession,
 } from '../composables/combatTracker';

@@ -70,7 +70,13 @@ export class DiceRoll {
 const distributionCache = new WeakMap<DiceRoll, Map<number, ReadonlyMap<number, number>>>();
 
 export function diceDistribution(roll: DiceRoll | undefined, flat = 0): ReadonlyMap<number, number> {
-  if (!roll || roll.numDice === 0) return new Map([[(roll?.modifier ?? 0) + flat, 1]]);
+  // THE ENGINE'S TOTAL, NOT THE TEXTBOOK SUM: `DiceRoll.roll()` floors dice +
+  // modifier at 0, and every contest floors roll + bonus at 0 again. Without
+  // the floors a fatigued defender (negative flat) could total below nothing,
+  // and the AI priced every blow against a tired hero as landing harder than
+  // the rules let it. Both floors are applied to each outcome below.
+  const total = (sum: number) => Math.max(0, Math.max(0, sum) + flat);
+  if (!roll || roll.numDice === 0) return new Map([[total(roll?.modifier ?? 0), 1]]);
   // KEYED ON THE DiceRoll OBJECT, not on a string. This runs inside the AI's
   // hottest loop — once per enemy per candidate action per rollout — and
   // building a `2d6+3` key there cost more than the convolution it was caching.
@@ -79,17 +85,22 @@ export function diceDistribution(roll: DiceRoll | undefined, flat = 0): Readonly
   const hit = byFlat.get(flat);
   if (hit) return hit;
 
-  let dist = new Map<number, number>([[roll.modifier + flat, 1]]);
+  let sums = new Map<number, number>([[roll.modifier, 1]]);
   const per = 1 / roll.sides;
   for (let d = 0; d < roll.numDice; d++) {
     const next = new Map<number, number>();
-    for (const [total, p] of dist) {
+    for (const [s, p] of sums) {
       for (let face = 1; face <= roll.sides; face++) {
-        const t = total + face;
+        const t = s + face;
         next.set(t, (next.get(t) ?? 0) + p * per);
       }
     }
-    dist = next;
+    sums = next;
+  }
+  const dist = new Map<number, number>();
+  for (const [s, p] of sums) {
+    const t = total(s);
+    dist.set(t, (dist.get(t) ?? 0) + p);
   }
   byFlat.set(flat, dist);
   return dist;

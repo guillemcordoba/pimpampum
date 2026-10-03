@@ -14,22 +14,28 @@
 // --- The contract a content set implements, and the set in play -------------
 export type {
   GameSet, PartySpec, DrawnPartySpec, ExplicitPartySpec, CharacterBuildSpec,
-  FieldedGroup, Shape, Cell, SubjectKit,
+  FieldedGroup, Shape, Cell, SubjectKit, KitInfo, Calibration, SolveOutcome, EncounterOptions,
 } from './gameset.js';
 export { useSet, theSet, isExplicitParty, partyKits } from './gameset.js';
 
+// --- Where a subject is measured: the set's calibration, computed ---------
+export {
+  referenceParty, calibrationParty, subjectParty, companyCount, companyPrint, groupsPrint, standInFor,
+  shapeEnemies, baselineFor, solvedShape, isSaturated, usableCells, saturatedCells,
+} from './positions.js';
+export type { SolvedShape } from './positions.js';
+
 // --- Playing fights ---------------------------------------------------------
 export {
-  theRegistry, randomTeam, runMatch, runMatchup, mirrorSweep, mutate, restoreAll, MIRROR_DEPTH,
+  theRegistry, randomTeam, runMatch, MIRROR_DEPTH,
 } from './arena.js';
-export type { MatchupResult, SweepArm, SweepOptions } from './arena.js';
 
 // --- Measuring in cells -----------------------------------------------------
 export {
-  chooserFor, uniformChooser, oneCardChooser, instrument, newCardCounters,
-  cellResult, cellKey, runOneCell, runMatrix, matrixKey, matrixDeltaStderr, roundPercentiles,
+  chooserFor, instrument, newCardCounters,
+  cellResult, cellKey, matrixCell, runMatrix, roundPercentiles,
   CELL_SEED,
-  CELL_AI, THOUGHTLESS_POLICIES, RESTRICTED_POLICIES, SIDE_POLICIES,
+  CELL_AI, THOUGHTLESS_POLICIES, RESTRICTED_POLICIES,
 } from './cells.js';
 export type { CellPolicy, CellSetup, CellRun, CachedCell, CardCounters, MatrixResult } from './cells.js';
 
@@ -43,18 +49,13 @@ export type { Chooser, HeadToHead } from './policies.js';
 // --- Per-decision card value ------------------------------------------------
 export * from './regret.js';
 
-// --- Control subjects: kits whose verdict is known before measuring ---------
-export {
-  withControlKit, flatKit, deadCardKit, ladderKit, trapKit, situationalKit,
-  defenceOnlyKit, blitzKit, losingOnlyKit,
-} from './control-kits.js';
-
 // --- Caching the fixed cost of a run ----------------------------------------
 export { cached, countedCached, key, enginePrint, actionPrint, skillPrint, enemyPrint, cacheStatus } from './cache.js';
 export {
   stderr, pct, pctCoarse, deltaPP, pp, deltaStderr, significant, gamesFor, maxOfKBias, exact, share,
 } from './report.js';
-export { games, searchGames, calibrationGames, SMOKE } from './games.js';
+export { flag, games, searchGames, calibrationGames, SMOKE } from './games.js';
 export { lanes, warm } from './parallel.js';
-export type { WarmJob } from './parallel.js';
+export type { WarmJob, WarmWorker } from './parallel.js';
 export { assertParsed, parseAttacks } from './combatlog.js';
+export { isolated } from './isolate.js';

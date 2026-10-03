@@ -1,3 +1,4 @@
+import { needsWeapon } from '@pimpampum/set-fantasy';
 import { ACTION_TYPE_DISPLAY_NAMES, ACTION_TYPE_CSS, ActionType, STAT_ICONS } from '@pimpampum/engine';
 import type { ActionDefinition, EquipmentDefinition } from '@pimpampum/engine';
 
@@ -71,8 +72,8 @@ export function actionStats(def: ActionDefinition): CardStat[] {
 
 export function actionToDisplayProps(def: ActionDefinition, classCss: string, skillName?: string): CardDisplayProps {
   // Weapon actions declare their requirement on the card.
-  const needsWeapon = def.effects.some(e => e.type === 'weapon_damage');
-  const effectText = [def.description, needsWeapon ? 'Necessita arma equipada.' : '']
+  const weaponCard = needsWeapon(def);
+  const effectText = [def.description, weaponCard ? 'Necessita arma equipada.' : '']
     .filter(Boolean).join(' ') || undefined;
   return {
     name: def.name,

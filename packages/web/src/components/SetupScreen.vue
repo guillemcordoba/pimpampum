@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
-import { ALL_EQUIPMENT } from '@pimpampum/skills';
-import { ENEMY_DEFINITIONS, fullKitLevel } from '@pimpampum/enemies';
+import { ALL_EQUIPMENT, ENEMY_DEFINITIONS, fullKitLevel } from '@pimpampum/set-fantasy';
 import type { Game } from '../composables/useGame';
 import PartyRoster from './party/PartyRoster.vue';
 

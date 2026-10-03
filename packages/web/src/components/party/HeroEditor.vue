@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { PLAYER_SKILLS, ALL_EQUIPMENT, ALL_POTIONS, getSkill, getPotion } from '@pimpampum/skills';
+import { ALL_SKILLS, ALL_EQUIPMENT, ALL_POTIONS, getSkill, getPotion, standardGear } from '@pimpampum/set-fantasy';
 import type { HeroSpec } from '../../composables/party';
 
 /**
@@ -60,12 +60,12 @@ const canSave = computed(() => draftSkillIds.value.length > 0);
  *  available skills below, filtered by search. */
 const skillCatalogRows = computed(() => {
   const picked = draftSkillIds.value
-    .map(id => PLAYER_SKILLS.find(s => s.id === id))
-    .filter((s): s is (typeof PLAYER_SKILLS)[number] => !!s)
+    .map(id => ALL_SKILLS.find(s => s.id === id))
+    .filter((s): s is (typeof ALL_SKILLS)[number] => !!s)
     .map(skill => ({ skill, picked: true as const }));
 
   const q = skillSearch.value.trim().toLowerCase();
-  const available = PLAYER_SKILLS
+  const available = ALL_SKILLS
     .filter(s => !(s.id in draftSkills.value))
     .filter(s => !q || s.displayName.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
     .map(skill => ({ skill, picked: false as const }));
@@ -110,10 +110,8 @@ function addSkill(id: string) {
   // piece stays removable; this only stops "I never chose" from silently
   // meaning "nothing".
   if (first && draftEquip.value.length === 0) {
-    const skill = PLAYER_SKILLS.find(s => s.id === id);
-    const gear = ['escut', 'armadura-de-cuir'];
-    if (skill?.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))) gear.push('destral');
-    draftEquip.value = gear.filter(g => ALL_EQUIPMENT.some(e => e.id === g));
+    const skill = ALL_SKILLS.find(s => s.id === id);
+    draftEquip.value = standardGear(skill ? [skill] : [], 1).filter(g => ALL_EQUIPMENT.some(e => e.id === g));
   }
   scrollRowIntoView(skillCatalogEl.value, id);
 }
@@ -155,7 +153,7 @@ const levelSum = computed(() =>
 function save() {
   if (!canSave.value) return;
   // The first skill gives the hero its colour and icon, as it does everywhere.
-  const first = PLAYER_SKILLS.find(s => s.id === draftSkillIds.value[0]);
+  const first = ALL_SKILLS.find(s => s.id === draftSkillIds.value[0]);
   emit('save', {
     name: draftName.value.trim() || 'Heroi',
     classCss: first?.classCss ?? 'guerrer',

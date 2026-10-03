@@ -14,7 +14,7 @@ The user drives the creative decisions; you ground them in the system and do the
 ## Guiding principles
 
 - **Lore first, mechanics second.** Read the design principle in `CLAUDE.md` ("Adding or changing content"). When *designing* actions, disregard the current mechanics entirely — do not let existing effect handlers or ease of implementation shape the design. Design the action the character *should* have; build whatever new mechanic that requires. Originality + faithfulness to the character beat implementation effort every time.
-- **Don't duplicate.** Skim the existing skills (`packages/skills/src/skills/*.ts`) so the new skill carves out unclaimed fantasy and doesn't re-tread another skill's mechanics. Name the overlaps explicitly to the user.
+- **Don't duplicate.** Skim the existing skills (`packages/sets/fantasy/src/players/skills/*.ts`) so the new skill carves out unclaimed fantasy and doesn't re-tread another skill's mechanics. Name the overlaps explicitly to the user.
 - **Card descriptions are authoritative and in Catalan.** Each action's `description` defines what it does; the handler must match it.
 - **Descriptions are brief, mechanical, non-standard effects only — no lore.** State *only* what deviates from a vanilla action (AoE, dots, debuffs, drains, armour-ignore…). Never restate what the card already shows: the d20+skill roll, damage dice, speed, or the resource/charge cost (shown in the card corner). Drop all flavour prose — the lore drives the *design*, not the card text.
 - **Use the d20-native idiom.** Express chances as d20 rolls (e.g. "d20 ≤ 10"), not "50%", to match the rest of the game.
@@ -23,7 +23,7 @@ The user drives the creative decisions; you ground them in the system and do the
 ## Phase 0 — Frame & ground (read before talking)
 
 1. Read `CLAUDE.md` (architecture + the lore-first design principle), `intentions.md` (balance goals), and `rules.md` if any new mechanic touches combat resolution.
-2. Skim `packages/skills/src/skills/*.ts` to calibrate the power curve (damage dice, speeds, resource costs, unlock levels) and to spot adjacent skills the new one must not duplicate.
+2. Skim `packages/sets/fantasy/src/players/skills/*.ts` to calibrate the power curve (damage dice, speeds, resource costs, unlock levels) and to spot adjacent skills the new one must not duplicate.
 
 ## Phase 1 — Research for inspiration
 
@@ -76,11 +76,11 @@ At the end, confirm the **unlock-level curve** (1–100) and the **card theme**.
 
 Build the whole kit. Default to the registry pattern; touch the engine only when a mechanic genuinely needs it.
 
-- **Effect handlers** live in `packages/skills/src/effects/*.ts` (new file per skill is fine, e.g. `<skill>-effects.ts`). Register by spreading into `ALL_EFFECTS` in `effects/index.ts`. Content handlers MAY hardcode the skill's own id.
+- **Effect handlers** live on the skill's own `SkillDefinition.effects`, in its own file, with the `StatusBehavior` consts they attach (co-location — CLAUDE.md). Only genuinely generic, parameterised handlers reused by several skills go in `packages/sets/fantasy/src/players/effects/`. Content handlers MAY hardcode the skill's own id.
 - **Reuse existing handlers** where they already fit (`piercing`, `bonus_damage`, `extra_dice`, `heal`, `stun`, `skill_mod`, `lifedrain`, `dot`, `debuff_on_hit`, etc. — see the list in CLAUDE.md). Only write a new handler when none fits.
 - **Resource/cost mechanics** use the generic engine hooks that already exist: `onCombatStart` (init pool), `canPlay(actor, params)` (availability gate), `onPlay(ctx)` (spend, fires only when the action actually goes off — an interrupted focus does NOT spend). Pattern: store the pool as a rest-of-combat status; a content handler computes max from skill level. See `charge_cost` / the bandolier in `explosive-effects.ts` for the reference implementation.
-- **New named-status mechanics in the engine** are the established pattern, not a violation: `combat.ts` already reads content status keys inline in `resolveAttackOnTarget` / `resolveOne` / `activeGuard` (`condemnat`, `marca-objectiu`, `arma-enverinada`, `indefensable`, `encegat`, `camp-minat`). Add new ones there the same way (e.g. attack redirection, on-attack triggers, damage absorption).
-- **Skill definition:** new `packages/skills/src/skills/<theme>-skills.ts` using the `action()` and `d()` helpers; export an array; add it to `ALL_SKILLS` in `skills/index.ts` (this auto-wires it into the simulator's random teams).
+- **The engine never names content.** A new mechanic that no seam supports gets a *generic, parameterised* seam in the engine (a `StatusBehavior` hook, an `EffectHandler` hook), and the content itself stays in the set. Never read a status key or card id inside `combat.ts`.
+- **Skill definition:** new `packages/sets/fantasy/src/players/skills/<skill>.ts` using the `action()` and `d()` helpers; export the `SkillDefinition`; add it to `ALL_SKILLS` in `players/catalog.ts` (this wires it into drawn parties, the web app and every sweep). A MAIN kit also gets `packages/sets/fantasy/test/kits/<skill>.slow.test.ts` — one `kitSuite(...)` call; the coverage test fails until it exists.
 - **Web gate:** if there's a resource, gate human play in `useGame.ts:selectCard` via `engine.canPlayActionIdx(c, actionIdx)`.
 - **Icons:** search `packages/web/public/icons` (`find ... -iname '*term*'`) for fitting game-icons; pass the tail after `ICON_PREFIX`.
 - **Display polish** (do unless told otherwise): a dedicated `classCss` theme — add `--class-<x>` in `assets/style.css`, plus `.portrait.<x>` and `.print-card.<x>` border rules in `assets/cards.css`, and add the name to the theme list in `CLAUDE.md`; a resource badge on cards via a `STAT_ICONS` entry consumed in `actionStats()` (`useActionDisplay.ts`); a resource counter on `CharacterPortrait.vue` (exclude the resource status from the generic badges and render it properly).
@@ -88,10 +88,10 @@ Build the whole kit. Default to the registry pattern; touch the engine only when
 ## Phase 6 — Verify (always)
 
 1. `pnpm build` — topological (engine → skills → enemies → web) must be clean. **The skills package imports the engine's built `dist/`,** so rebuild the engine before trusting any skills-side type error; stale "property does not exist" errors clear after the engine builds.
-2. **Targeted smoke-test:** write a throwaway `tsx` script in `packages/simulator/src/` that builds the character and drives each action, asserting the mechanic fires (bandolier-style resource scales/spends/gates; AoE hits the right set; new statuses apply). For slow Focus payoffs that keep getting interrupted, give the actor a guarding ally or set `foe.skipTurns = 1` on the payoff round to isolate it. **Delete the script when done.**
-3. `pnpm --filter @pimpampum/simulator test` (11 balance tests must pass) and `pnpm simulate`. Report the new skill's **win-correlation** (mid-pack ≈ balanced; the field roughly spans 15–42%) and that mirror balance stays ~50/50. Flag any conflict with `intentions.md`.
+2. **Exact card tests:** add cases to `packages/sets/fantasy/test/cards.test.ts` — hand-built one-round positions with `1d1` dice and scripted choices (`@pimpampum/engine/testing`), asserting each card does what its description says, to the PV. For slow Focus payoffs, give the actor a guarding ally or set `foe.skipTurns = 1` on the payoff round to isolate it.
+3. `pnpm test` (the fast tier must stay green), then the new kit's own suite: `SLOW=1 npx vitest run packages/sets/fantasy/test/kits/<skill>.slow.test.ts`, and `pnpm --filter @pimpampum/tools exec tsx src/kit-analyzer.ts --player <skill>` for the report card. Report every requirement verdict, and flag any conflict with `intentions.md`.
 4. Update the memory file to **IMPLEMENTED & VERIFIED** with the file list, and note any lightly-tested edges (e.g. high-unlock capstones rarely reached at sim budgets) plus buff/nerf levers.
 
 ## Reference: the Enginyer d'Explosius (built with this process)
 
-A worked example lives in `packages/skills/src/skills/explosive-skills.ts` + `effects/explosive-effects.ts`: a finite **bandolier** resource (generic hooks), a frag AoE, a smoke screen that redirects blinded enemy attacks (engine `encegat`), an armour-ignoring shaped charge (reused `piercing`), a persistent minefield (engine `camp-minat`), and a resource-scaled capstone blast. Read it for the patterns before building a new one.
+A worked example lives in `packages/sets/fantasy/src/players/skills/explosives-engineer.ts`: a finite **bandolier** resource (generic hooks), a frag AoE, a smoke screen that redirects blinded enemy attacks (a `redirectAttackTarget` status), an armour-ignoring shaped charge (reused `piercing`), a persistent minefield (an `onEnemyAttackAction` hazard status), and a resource-scaled capstone blast. Read it for the patterns before building a new one.

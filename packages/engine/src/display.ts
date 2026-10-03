@@ -28,21 +28,7 @@ export const STAT_ICONS = {
   pressure: 'icons/000000/transparent/1x1/delapouite/smoking-volcano.svg',
 } as const;
 
-export const STAT_DISPLAY_NAMES = {
-  pv: 'PV',
-  speed: 'Velocitat',
-  damage: 'Dany',
-  armor: 'Armadura',
-  defense: 'Defensa',
-  fatigue: 'Fatiga',
-} as const;
 
-/** Equipment slot Catalan labels. */
-export const SLOT_LABELS: Record<string, string> = {
-  Armor: 'Armadura',
-  Weapon: 'Arma',
-  Shield: 'Escut',
-};
 
 export interface RulesSection {
   title: string;

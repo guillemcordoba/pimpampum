@@ -16,7 +16,7 @@
  *
  * Binomial. Two caveats the callers own rather than this function:
  *  - A DRAWN party is redrawn per game, which makes games non-iid and the real
- *    spread ~25% wider (measured — see `simulate.ts`). Inflate at the call
+ *    spread ~25% wider (measured — see `@pimpampum/combat-balancer`). Inflate at the call
  *    site, as the balancer does; an EXPLICIT party needs no inflation.
  *  - Draws counted as ½ are not Bernoulli either. With draws rare the error is
  *    small; a harness with a fat draw tail should say so rather than lean on
@@ -120,7 +120,7 @@ function probit(p: number): number {
  * This is winner's curse, and it is why any harness that picks the best of
  * several samples must RE-MEASURE the winner before quoting it: choosing on a
  * sample and reporting that same sample is biased by roughly this much. The
- * balancer documents the same trap at ~4pp (`simulate.ts`); a report card that
+ * balancer documents the same trap at ~4pp (`@pimpampum/combat-balancer`); a report card that
  * takes the toughest of 14 baselines is doing it at ~1.7σ.
  */
 export function maxOfKBias(k: number): number {

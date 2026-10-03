@@ -31,7 +31,7 @@ function pvFraction(c: Character): number {
  * weapon actually applies). The attack total IS the damage basis.
  *
  * EXPORTED so it can be differentially tested against the blow the engine
- * actually throws (`tests/ai-rules.test.ts`). It is a PREDICTION, the engine is
+ * actually throws (`ai/test/model.test.ts`). It is a PREDICTION, the engine is
  * ground truth for it, and two of the three AI bugs this project has ever found
  * lived right here — the missing `skillLevelBonus` below, and the AoE scaling
  * in `estimateExpectedDamage`. Neither is findable from a winrate.
@@ -253,7 +253,11 @@ export function pickResolveTargets(
     if (attackers.length > 0) {
       return [...attackers].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
     }
-    return [actor]; // nothing to block, nobody hurt: guard yourself
+    // Nothing to block, nobody hurt: guard yourself — if you are still a legal
+    // target. An actor felled earlier in their own speed tier still resolves
+    // (ties are simultaneous) but is no longer in the pool; the engine's
+    // self-guard covers them either way, so choosing nobody is the honest answer.
+    return pool.includes(actor) ? [actor] : [];
   }
 
   if (req !== 'enemy') {

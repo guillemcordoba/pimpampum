@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { clampFatigue, FATIGUE_LEVEL_NAMES } from '@pimpampum/engine';
-import { getSkill, getPotion, getEquipment } from '@pimpampum/skills';
+import { getSkill, getPotion, getEquipment, kitNeedsWeapon } from '@pimpampum/set-fantasy';
 import { useParties, type HeroSpec } from '../../composables/party';
 import HeroEditor from './HeroEditor.vue';
 
@@ -105,8 +105,10 @@ function gearSummary(hero: HeroSpec): string {
  * six goblins to 1 PV each), so the roster has to say it out loud.
  */
 function missingWeapon(hero: HeroSpec): boolean {
-  const needsWeapon = Object.keys(hero.skills).some(id =>
-    getSkill(id)?.actions.some(a => a.effects.some(e => e.type === 'weapon_damage')));
+  const needsWeapon = Object.keys(hero.skills).some(id => {
+    const skill = getSkill(id);
+    return !!skill && kitNeedsWeapon(skill);
+  });
   if (!needsWeapon) return false;
   return !hero.equipment.some(id => getEquipment(id)?.attackBonus !== undefined);
 }

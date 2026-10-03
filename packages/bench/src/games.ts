@@ -11,12 +11,17 @@
  * — were exactly the ones with a `GAMES` override.
  *
  * So: every harness reads its sample size through here, and
- * `tests/harnesses.test.ts` runs all of them at `GAMES=2`. It checks nothing
+ * `tools/test/harnesses.slow.test.ts` runs all of them at `GAMES=2`. It checks nothing
  * about the NUMBERS — two combats measure nothing — only that each harness
  * still runs against today's content. A renamed card, a deleted skill or a
  * changed log format then breaks the build the day it happens.
  */
-declare const process: { env: Record<string, string | undefined>; argv: string[] };
+/** The value after a command-line flag (`--player berserk`), or undefined. One
+ *  reader, because three harnesses each carried their own. */
+export function flag(name: string): string | undefined {
+  const i = process.argv.indexOf(name);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
 
 /**
  * The sample size, from `--games`, then `GAMES`, then the harness's own
@@ -27,9 +32,7 @@ declare const process: { env: Record<string, string | undefined>; argv: string[]
  * quick.
  */
 export function games(fallback: number): number {
-  const i = process.argv.indexOf('--games');
-  const flag = i >= 0 ? process.argv[i + 1] : undefined;
-  const n = Number(flag ?? process.env.GAMES ?? fallback);
+  const n = Number(flag('--games') ?? process.env.GAMES ?? fallback);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
@@ -56,4 +59,3 @@ export function calibrationGames(fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-/* `SMOKE` is declared above, before the readers that consult it. */

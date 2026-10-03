@@ -13,9 +13,6 @@ export function isAttack(t: ActionType): boolean {
 export function isDefenseAction(t: ActionType): boolean {
   return t === ActionType.Defensa;
 }
-export function isFocusAction(t: ActionType): boolean {
-  return t === ActionType.Focus;
-}
 
 /** Equipment slots — one item per slot. Deliberately minimal: a character
  *  carries at most one armour, one weapon and one shield. No body-part
@@ -123,23 +120,4 @@ export interface EquipmentDefinition {
   description: string;
   /** Catalan label for the slot, for display. */
   slotLabel?: string;
-}
-
-/**
- * A complete character definition. Both player builds (created on the fly) and
- * enemy templates (instantiated with runtime skill levels) reduce to this shape.
- */
-export interface CharacterDefinition {
-  id: string;
-  displayName: string;
-  /** CSS class used by the web app for theming. */
-  classCss: string;
-  iconPath: string;
-  category: 'player' | 'enemy';
-  basePV: number;
-  skills: SkillInstance[];
-  /** ActionDefinition ids forming the active "hand". */
-  actions: string[];
-  /** Equipment ids the character starts with. */
-  equipment?: string[];
 }

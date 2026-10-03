@@ -4,15 +4,21 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "concurrently -k \"pnpm --filter engine exec tsc --watch --preserveWatchOutput\" \"pnpm --filter web dev\"",
-    "simulate": "pnpm --filter @pimpampum/simulator start"
+    "simulate": "pnpm --filter @pimpampum/tools start",
+    "test": "pnpm build:libs && pnpm typecheck:tests && vitest run",
+    "test:slow": "pnpm build:libs && SLOW=1 vitest run .slow.test",
+    "test:all": "pnpm build:libs && pnpm typecheck:tests && SLOW=1 vitest run",
+    "typecheck:tests": "pnpm -r --filter '!@pimpampum/web' exec tsc -p tsconfig.test.json && pnpm --filter @pimpampum/web exec vue-tsc --noEmit -p tsconfig.test.json",
+    "test:smoke": "pnpm build:libs && SLOW=1 BENCH_SMOKE=1 GAMES=2 SEARCH_GAMES=2 CALIBRATION_GAMES=4 vitest run",
+    "calibration:refresh": "pnpm --filter @pimpampum/set-fantasy calibration:refresh",
+    "build:libs": "pnpm -r --filter '!@pimpampum/web' build",
+    "test:watch": "pnpm build:libs && vitest"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "typescript": "^5.4.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
+    "fast-check": "^4.10.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.4"
   }
 }

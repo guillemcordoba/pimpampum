@@ -10,63 +10,69 @@ Read the relevant section before touching the subsystem it describes.
 ## Package layout, file by file
 
 ```
-packages/
-├── engine/                    # @pimpampum/engine — generic combat system, NO game content
-│   └── src/
-│       ├── index.ts           # Public API
-│       ├── dice.ts            # DiceRoll
-│       ├── types.ts           # ActionType, ActionDefinition (dice, unlockLevel), SkillInstance, EquipmentDefinition, TargetRequirement
-│       ├── resolution.ts      # resolveAttack (margin), resolveDamage, checkSkillUp, SKILL_UP_MARGIN
-│       ├── fatigue.ts         # FATIGUE_MAX_LEVEL, level names, the −1/level roll penalty
-│       ├── effects.ts         # EffectRegistry, EffectHandler, EffectContext, EngineApi, AttackModifiers, AIContext
-│       ├── status.ts          # StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind
-│       ├── action.ts          # ActionInstance, getActionTargetRequirement/Count
-│       ├── modifier.ts        # CombatModifier, ModifierDuration
-│       ├── character.ts       # Character (PV + skills Map + statuses + guards + blockedBy + fatigue), createCharacter
-│       ├── combat.ts          # CombatEngine — step-by-step state machine + AI driver
-│       ├── ai.ts              # depth 0: selectAction (weighted pick) + pickResolveTargets, AIView
-│       ├── lookahead.ts       # depth ≥1: positionScore + iterated best response (the depth knob)
-│       └── display.ts         # ACTION_TYPE_*, STAT_ICONS, SLOT_LABELS, RULES_SUMMARY
-├── skills/                    # @pimpampum/skills — PLAYER game content
-│   └── src/
-│       ├── types.ts           # SkillDefinition + the action() / d() helpers
-│       ├── setup.ts           # registerSkills(registry), createRegistry()
-│       ├── catalog.ts         # ALL_SKILLS / ALL_ACTIONS / unlockedActions
-│       ├── build.ts           # buildCharacter(spec) — resolve skill/action/equipment ids → Character
-│       ├── party.ts           # PartySpec (explicit | drawn), buildReferenceParty, isExplicitParty
-│       ├── effects/           # GENERIC parameterised handlers only + shared DOT/REGEN behaviours
-│       ├── skills/            # One file per skill: SkillDefinition + its own effects/StatusBehaviors
-│       ├── equipment/         # ALL_EQUIPMENT (armour + weapons)
-│       └── potions/           # ALL_POTIONS (consumable, skill-less cards)
-├── enemies/                   # @pimpampum/enemies — enemy content + encounter balancer
-│   └── src/
-│       ├── index.ts           # buildSolvedEncounter(), re-exports
-│       ├── types.ts           # EnemyDefinition (name, icon, kit, bulk) + fullKitLevel
-│       ├── catalog.ts         # ENEMY_DEFINITIONS, ENEMY_SKILLS, registerEnemySkills(registry)
-│       ├── factory.ts         # createEnemyFrom(def, { pv, level?, name?, equipment? })
-│       ├── simulate.ts        # Encounter balancer v3 (SIMULATED)
-│       └── enemies/           # One EnemyDefinition per creature
-├── simulator/                 # @pimpampum/simulator — balance testing (tsx + vitest)
-│   ├── README.md              # THE FIVE RULES a harness here has to obey
-│   └── src/
-│       ├── bench/             # THE FOUNDATION — import it, never re-derive it
-│       │   ├── reference.ts   # the ONE reference party (named kits, asserted Σ)
-│       │   ├── arena.ts       # shared REGISTRY, SEEDED team generation, runMatch
-│       │   ├── shapes.ts      # solved fight SHAPES + what "a fair cell" means
-│       │   └── report.ts      # pct/deltaPP/share/exact + the sampling maths
-│       ├── main.ts            # Mirror-match balance + parametric balancer check
-│       ├── kit-analyzer.ts    # the kit report card (run after every kit edit)
-│       ├── probe-shapes.ts    # which body counts make a fair cell
-│       ├── play.ts            # MANUAL play harness (seeded; play a fight by hand)
-│       ├── sanity.ts          # Quick smoke run + step-API demo
-│       ├── experiment-*.ts    # one-off experiment harnesses
-│       └── tests/             # bench.test.ts (ANTI-DRIFT GUARD), balance, seams, enemy-threat
-└── web/                       # @pimpampum/web — Vue 3 SPA
+packages/                         # each layer only looks DOWN (tools/test/conventions.test.ts)
+├── engine/                       # @pimpampum/engine — the RULES. No AI, no content
+│   ├── src/
+│   │   ├── index.ts              # Public API
+│   │   ├── dice.ts               # DiceRoll, diceDistribution/expectedExcess (the engine's exact totals, floors included)
+│   │   ├── rng.ts                # random(), seededRng, withSeed — the only randomness
+│   │   ├── types.ts              # ActionType, ActionDefinition, EquipmentDefinition, TargetRequirement
+│   │   ├── resolution.ts         # resolveAttack (margin), resolveDamage, checkSkillUp, skillLevelBonus
+│   │   ├── fatigue.ts            # FATIGUE_MAX_LEVEL, level names, the −1/level roll penalty
+│   │   ├── effects.ts            # EffectRegistry, EffectHandler, EffectContext, EngineApi, AttackModifiers
+│   │   ├── status.ts             # StatusBehavior, StatusRef, StatusHookContext
+│   │   ├── character.ts          # Character, createCharacter
+│   │   ├── combat.ts             # CombatEngine — the step-by-step state machine (takes an INJECTED chooser)
+│   │   ├── policy.ts             # the policy SEAM: AIView, legality (availableActionIndices), firstLegalChooser
+│   │   ├── display.ts            # ACTION_TYPE_*, STAT_ICONS, RULES_SUMMARY
+│   │   └── testing.ts            # @pimpampum/engine/testing — content-free fixtures for every package's tests
+│   └── test/                     # resolution oracles, properties (fast-check), metamorphic relations, seams, flow
+├── ai/                           # @pimpampum/ai — the policy. An INSTRUMENT
+│   ├── src/                      # aiPolicy(), policy.ts (depth 0), lookahead.ts (depth ≥1, positionScore)
+│   └── test/                     # legality, purity, no side effects, known-answer positions, evaluator symmetry
+├── combat-balancer/              # @pimpampum/combat-balancer — solves PV for a target winrate
+│   ├── src/index.ts              # simulateEncounter/solveEncounter over EncounterContent<P>
+│   └── test/                     # the solver's contract (fast) + calibration on held-out dice (slow)
+├── bench/                        # @pimpampum/bench — set-agnostic MEASUREMENT
+│   ├── src/
+│   │   ├── gameset.ts            # the GameSet contract + useSet/theSet (throws when unset)
+│   │   ├── positions.ts          # reference party, calibration party, solved shapes, neutral baselines, usable cells
+│   │   ├── cells.ts              # runOneCell/runMatrix, the policy arms, the legality instrument
+│   │   ├── regret.ts             # per-decision card value (valuePosition, measureKit, scoreCards)
+│   │   ├── policies.ts           # alternative policies + headToHead duels
+│   │   ├── report.ts             # pct/deltaPP/share/exact + the sampling maths
+│   │   ├── cache.ts              # content-fingerprinted cache (+ in-process memo)
+│   │   ├── parallel.ts           # cache warming in child processes (caller-supplied worker)
+│   │   ├── isolate.ts            # isolated(): run a long measurement in a child process
+│   │   ├── combatlog.ts          # reading attacks out of the combat log
+│   │   └── testing.ts            # @pimpampum/bench/testing — SYNTHETIC, a small second set
+│   └── test/                     # report maths vs closed forms, cache fingerprints, parser vs engine, pipeline A/A
+├── playtest/                     # @pimpampum/playtest — the REQUIREMENTS
+│   ├── src/
+│   │   ├── rules.ts              # every verdict as a pure function + its bar
+│   │   ├── analyze.ts            # the kit analyzer (verdicts carry structured data, not just prose)
+│   │   ├── control-kits.ts       # kits whose verdict is known by construction
+│   │   ├── isolated.ts           # analyzeIsolated()
+│   │   └── vitest.ts             # @pimpampum/playtest/vitest — kitSuite(), the known-findings ratchet
+│   └── test/                     # rule controls (fast), pipeline controls on SYNTHETIC (slow, one file each)
+├── sets/fantasy/                 # @pimpampum/set-fantasy — THE CONTENT
+│   ├── src/
+│   │   ├── index.ts              # browser-safe root: players + enemies + encounters + createRegistry
+│   │   ├── registry.ts           # createRegistry(): EVERY handler, player and enemy
+│   │   ├── encounters.ts         # the balancer bound to this set (solveEncounter(pool, party, target)…)
+│   │   ├── players/              # skills/ (one file per kit), effects/ (generic only), equipment, potions, party, build
+│   │   ├── enemies/              # creatures/ (one file per creature), catalog, factory
+│   │   └── bench/                # @pimpampum/set-fantasy/bench — the FANTASY GameSet + calibration data (Node-only)
+│   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), balancer, ai-strength
+├── tools/                        # @pimpampum/tools — the harnesses (see its README)
+│   ├── src/                      # kit-analyzer, ai-benchmark, card-value, probe-shapes, mutation, play, …
+│   └── test/                     # conventions (repo-wide source rules + layering), harness smoke test
+└── web/                          # @pimpampum/web — Vue 3 SPA
     └── src/
-        ├── composables/       # useGame.ts, party.ts, combatTracker.ts, pendingEncounter.ts, useActionDisplay.ts
-        ├── components/party/  # PartyRoster.vue (compact) + HeroEditor.vue (modal builder)
-        ├── components/cards/  # PrintableCard.vue, CharacterSheet.vue, …
-        └── views/             # one per route
+        ├── composables/          # useGame.ts, party.ts, combatTracker.ts, pendingEncounter.ts, useActionDisplay.ts
+        ├── components/party/     # PartyRoster.vue (compact) + HeroEditor.vue (modal builder)
+        ├── components/cards/     # PrintableCard.vue, CharacterSheet.vue, …
+        └── views/                # one per route
 ```
 
 ---
@@ -124,7 +130,7 @@ that target this round.
    grant extra full passes (re-rolled).
 4. `finishRound()` — postRound effect hooks, status `onRoundEnd` (dots/regen
    tick), `advanceTurn`.
-5. The simulator drives all of this via `runRound()` / `runCombat(stats)`.
+5. Harnesses and tests drive all of this via `runRound()` / `runCombat(stats)`.
 
 ### Effect handler catalogue
 
@@ -133,7 +139,7 @@ Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onCombatStart`, `canPlay`, `onPlay`. They touch the engine only through
 `EngineApi`.
 
-Generic parameterised handlers (`packages/skills/src/effects`, authoritative
+Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, authoritative
 list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `extra_dice`, `pack`, `crossfire`, `reckless`, `frenzy`, `lifedrain`,
 `debuff_on_hit`, `poison_on_hit`, `stun_on_hit`, `mark_on_hit`,
@@ -220,7 +226,9 @@ attacks fly past a standing wall.
 **Focus interrupts.** Cancelled if the actor takes DAMAGE before it resolves; a
 hit fully absorbed by armour does NOT interrupt (rule changed 2026-07-18).
 
-**Speed ties** resolve simultaneously (per-tier alive/interrupt snapshots); the
+**Speed ties** resolve simultaneously (per-tier alive/interrupt snapshots) — an
+attacker felled earlier in its own tier still strikes (fixed 2026-09-23: a
+hazard check had made ties first-come-first-served); the
 engine shuffles the queue before the speed sort so no seat holds tie priority —
 this fixed a measured seat bias.
 
@@ -230,14 +238,14 @@ Fatigat, Extenuat, Exhaust, Esgotat), set by the DM — `setFatigue()` from a
 The whole mechanic is one line: `getRollBonus()` adds `fatigueRollPenalty()`
 (−1 per level), and every attack, defense, extra-attack and heal roll already
 routes through it. Cards cost none; `rest()` (a 4h+ rest) clears it. Measured
-2026-09-13 (`simulator/src/experiment-fatigue-tiers.ts`, `-penalty.ts`): one
+2026-09-13 (two one-off experiments, since deleted): one
 level ≈ one difficulty tier, one-sided penalties SHORTEN fights, symmetric ones
 double them — so enemies never carry fatigue (see `intentions.md`). The
 balancer prices the party at its fatigue level like any other party input.
 The cards the old budget priced above 1 are listed in `NEXT-STEPS.md` §11 and
 carry no cost at all until that is decided. Nobody is ever
 action-less: every combatant holds **Cop desesperat** (universal, 1d4 slow
-attack, 1 PV self-damage hit or miss — `skills/src/desperation.ts`), playable
+attack, 1 PV self-damage hit or miss — `sets/fantasy/src/players/desperation.ts`), playable
 ONLY when nothing else is (the generic `ActionDefinition.lastResort` flag).
 
 **Equipment** (simplified 2026-07-19 to three slots, one item each — no
@@ -407,12 +415,16 @@ from another because its CARDS differ.
 
 ---
 
-## The measurement layer (`simulator/src/bench/`, 2026-09-20)
+## The measurement layer (`@pimpampum/bench`, 2026-09-20; its own package since 2026-09-22)
 
-Everything in the simulator package produces a number someone makes a content
-decision on, so the package has a FOUNDATION that every harness imports rather
-than re-deriving. Full rules in `packages/simulator/README.md`; the load-bearing
-ones:
+Every measurement produces a number someone makes a content decision on, so
+there is a FOUNDATION that every harness imports rather than re-deriving. Since
+2026-09-23 it is set-agnostic: the content arrives as a `GameSet`, the
+calibration DATA lives with the set (`sets/fantasy/src/bench/`), and what is
+done with it lives in bench's `positions.ts`. Full rules in
+`packages/tools/README.md`; the load-bearing ones (file names as they were when
+each was written — `bench/reference.ts` and `bench/shapes.ts` are now the
+fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
 
 - **`bench/reference.ts` — one reference party, named and asserted.** Four kits
   by id, built at FULL KIT, and a `REFERENCE_SIGMA` that THROWS AT IMPORT if the
@@ -425,9 +437,9 @@ ones:
   every number in the package, and the level sum was emergent rather than chosen
   (Σ20 only because those four kits happen to have ≥5 cards each — earthbender
   has 4, which is where the docs’ long-standing "Σ19" came from).
-- **`bench/arena.ts` — seeded team generation.** The shared `REGISTRY`,
-  `randomTeam`, `runMatch`, `runMatchup`, and `sweep()` for common random
-  numbers across arms. It drew from bare `Math.random()` before, so `withSeed`
+- **`bench/arena.ts` — seeded team generation.** The shared registry
+  (`theRegistry()`), `randomTeam`, `runMatch`. (`runMatchup` and the mirror
+  `sweep` served the experiments deleted on 2026-09-20 and went on 2026-09-23.) It drew from bare `Math.random()` before, so `withSeed`
   did not bind and no mirror sweep shared random numbers with the arm it was
   compared against.
 - **`bench/cells.ts` — running one cell.** The impoverished policies, the ONE
@@ -457,9 +469,11 @@ ones:
   like a catastrophic kit rather than a broken harness.
 - **`bench/cache.ts` / `bench/parallel.ts` — why a run is fast.** A full sweep
   went from eleven minutes to ninety seconds. The cache key is a hash of exactly
-  what a CELL depends on — the cards in it, the enemies in its shape, and the
-  engine's own SOURCE — so editing one kit invalidates the rows that seat it and
-  nothing else. The parallel layer only ever WARMS that cache: children take no
+  what a CELL depends on — the cards in it (every behavioural field, and their
+  kit's own source file), the enemies in its shape, the set, and the SOURCE of
+  the rules and the instrument (engine, ai, bench, combat-balancer; the AI was
+  missing from it after the split until 2026-09-23) — so editing one kit
+  invalidates the rows that seat it and nothing else. The parallel layer only ever WARMS that cache: children take no
   part in a measurement, the run stays single-threaded, and the output is
   bit-identical to a serial one (verified by diffing against
   `BENCH_NO_CACHE=1`). A failed child costs time, never correctness.
@@ -485,11 +499,12 @@ reporting that same sample is winner’s curse (`maxOfKBias`, ~1.7σ at k=14), s
 requirement 3 screens cheap and re-measures the winner on a fresh seed — the
 same select-then-verify shape `simulate.ts` uses.
 
-**AI depth is never implicit.** The engine defaults `aiDepth` to 0 and the
-balancer prices at 1, so a harness that omits it grades strong play with weak
-play. That was live in `main.ts`’s parametric check until 2026-09-20.
+**AI depth is never implicit.** The engine has no default policy at all (an AI
+seat with no chooser throws) and the balancer prices at depth 1, so a harness
+that hands the engine a weaker policy grades strong play with weak play. That
+was live in `main.ts`’s parametric check until 2026-09-20.
 
-## Simulator harnesses
+## The harnesses (`packages/tools/src/`)
 
 - `main.ts` — mirror-match balance (equal-budget random teams should win ~50/50,
   draws included), per-skill and per-action win correlation, action-type play
@@ -497,9 +512,9 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
 - `play.ts` — the MANUAL play harness: a seeded RNG plus a per-round script, so
   you can play a fight by hand (cards chosen blind, targets after the reveal)
   and read what actually happens. This is how the 6-goblin diagnosis was done.
-- `experiment-level.ts` — sweeps enemy LEVEL against solved PV at a fixed target
-  winrate, reporting the fight length each choice buys. It established that
-  level is a real length lever (6 goblins at 65%: 20.5 rounds at level 1, 9.1 at
+- `experiment-level.ts` (deleted 2026-09-23, finding kept here) — swept enemy
+  LEVEL against solved PV at a fixed target winrate, reporting the fight length
+  each choice buys. It established that level is a real length lever (6 goblins at 65%: 20.5 rounds at level 1, 9.1 at
   level 4) but that the long fights come from compositions that cannot threaten
   the party at all (4 wolves need 91 PV each, 22 rounds, because a level-2 wolf
   attacks with 1d2).
@@ -517,7 +532,7 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   random numbers, fight length (median/p90/draws), the attack-spam comparison
   (the subject side replayed with a "biggest attack always" chooser), per-card
   value by **per-decision counterfactual**, and per-card win correlation. Its
-  scenarios are the SOLVED shapes in `bench/shapes.ts`, so they re-price
+  scenarios are the SOLVED shapes of the set's calibration, so they re-price
   themselves rather than needing hand-calibration — and an out-of-band shape is
   dropped from the headline and reported loudly instead of averaged over.
   **The dead-card verdict is a PER-DECISION COUNTERFACTUAL** (see
@@ -546,8 +561,10 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   always below its own average), while `millor opció` — how often the card was
   the best play, against a 1/k null — is absolute. Quoted AT A DEPTH: the
   continuation policy cancels in level but not in ordering (NEXT-STEPS §18.3).
-- `bench/control-kits.ts` + `tests/requirement-controls.test.ts` — **control
-  experiments for the requirements themselves**. Real content can never tell you
+- `playtest/src/control-kits.ts` + `playtest/test/controls-*.slow.test.ts` —
+  **control experiments for the requirements themselves**, run on the SYNTHETIC
+  set since 2026-09-23 so a control's verdict follows from its construction and
+  never from the content it judges. Real content can never tell you
   whether a ❌ fired because the kit is broken or because the REQUIREMENT is:
   both look equally plausible on the page. So subjects are built whose verdict
   follows from their CONSTRUCTION — a kit of identical cards (levels and
@@ -555,13 +572,14 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   it and must not name the working attacks), a ladder kit that only improves —
   registered through `registerSkill` and run through the real `analyze`. Two
   layers: the decision RULES are controlled as pure functions in
-  `tests/requirements.test.ts` (requirements 3, 3b and 3c share ONE
+  `playtest/test/rules.test.ts` (requirements 3, 3b and 3c share ONE
   `marginVerdict` with three bars, since computing it three times is how 3c lost
   its error term), and the whole pipeline is controlled here. Its first run
   found three real faults in the measurement plus one in itself — see NEXT-STEPS
   §19.5.
 - `probe-shapes.ts` — which body counts make a fair cell. Judges a count exactly
-  the way the analyzer will (solve against one company, measure against all), so
+  the way the analyzer will (solve against one company, measure against all,
+  through the same cell runner), so
   the tool that CHOOSES the counts cannot disagree with the tool the counts are
   FOR. Re-run after any content or AI change.
 - `measure-verdict.ts` and `measure-mix.ts` were DELETED (2026-09-20): both asked
@@ -577,10 +595,13 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   target in `intentions.md`. It found the premium was only 72% on average with
   52% of pairs below target (2026-08-08), which drove the defense dice up to
   3d4 / 3d6 / 4d6 by level. Re-run after touching any contest dice.
-- Standing one-offs: `experiment-seat.ts` (seat bias),
-  `experiment-fatigue-penalty.ts` / `experiment-fatigue-tiers.ts` (the fatigue
-  ladder's numbers), `experiment-level.ts` (level as a length lever). Run any
-  with `pnpm --filter @pimpampum/simulator exec tsx src/<file>.ts`.
+- **Eight more were DELETED on 2026-09-23** — `experiment-seat` (seat fairness
+  is now the engine's own A/A test), `experiment-fatigue-penalty` /
+  `-fatigue-tiers` (numbers in intentions.md), `experiment-level` (above),
+  `experiment-kit-levels` and `experiment-gm-encounters` (NEXT-STEPS §1, §5.1),
+  `solve-cost` (it had been measuring nothing: its depth knob was ignored) and
+  `sanity` (the engine's property tests). Run any harness with
+  `pnpm --filter @pimpampum/tools exec tsx src/<file>.ts`.
 - **Eight one-offs were DELETED on 2026-09-20** — `experiment-berserk`,
   `-balance-pass`, `-tuning`, `-objects`, `-heal`, `-horde-armour`,
   `-armour-absorption`, `-pv-curve`. Each had answered its question, and the
@@ -588,23 +609,27 @@ play. That was live in `main.ts`’s parametric check until 2026-09-20.
   kept past its use. Two of them had been *crashing* on a renamed berserk card
   for an unknown length of time, unnoticed, because checking them cost
   thousands of combats. See NEXT-STEPS §14 and the three rules in CLAUDE.md.
-- `tests/harnesses.test.ts` — THE SMOKE TEST: runs every script in `src/` at
+- `tools/test/harnesses.slow.test.ts` — THE SMOKE TEST: runs every script in `src/` at
   `GAMES=2`. It asserts nothing about the numbers, only that each harness still
   executes against today's content, so a renamed card, a deleted skill or a
   moved log format breaks the build the day it happens. The list is discovered
   from the directory, so a new harness is covered the moment it is added.
-- `bench/games.ts` — the sample-size reader every harness uses (`--games`,
-  `GAMES`, then its own default). A hardcoded sample size is what made the two
+- bench's `games.ts` — the sample-size reader every harness and every slow test
+  uses (`--games`, `GAMES`, then its own default). A hardcoded sample size is what made the two
   dead harnesses impossible to check cheaply.
 - `bench/combatlog.ts` — ONE combat-log parser. Two harnesses held their own
   near-identical regexes, and a regex that stops matching prints an empty table
   rather than an error; `assertParsed` throws when a run played combats and read
-  nothing out of them.
-- `tests/balance.test.ts` — resolution math (`checkSkillUp`, `resolveAttack`,
-  `resolveDamage`), engine sanity (terminates, valid winner, PV in range),
-  mirror balance ~50%, combat length.
-- `tests/seams.test.ts` — every generic StatusBehavior seam, deterministically,
-  with inline behaviours (1d1 dice → exact-PV assertions).
+  nothing out of them. (It was not enough: every line with a NEGATIVE bonus —
+  every fatigued attacker — failed to match and was dropped, and the defense
+  total read the roll instead. `bench/test/combatlog.test.ts` now checks the
+  parser against the engine that writes the log, line for line.)
+- The tests now live with the package they test (each `packages/*/test/`):
+  `engine/test/` holds the resolution oracles, fast-check invariants on
+  generated fights, the metamorphic relations (seat A/A, armour/dice/level/
+  fatigue monotone), and every generic StatusBehavior seam with inline
+  behaviours (1d1 dice → exact-PV assertions); `sets/fantasy/test/cards.test.ts`
+  holds the fantasy cards played exactly.
 - `tests/enemy-threat.test.ts` — the balancer guard: every solved encounter is
   REPLAYED with an independent seed and must land near the winrate it reported,
   plus determinism, arbitrary body counts and mixed comps.

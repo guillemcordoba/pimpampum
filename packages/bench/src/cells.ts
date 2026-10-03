@@ -2,7 +2,7 @@
  * RUNNING A CELL — the shared machinery for measuring one side of a fight.
  *
  * A CELL is one measurable position: a solved fight shape, a company row, and
- * the neutral baseline that was measured there (`bench/shapes.ts`). Everything
+ * the neutral baseline that was measured there (`positions.ts`). Everything
  * this package reports about a kit is a delta from that baseline, so this is
  * where the subtraction happens.
  *
@@ -15,9 +15,7 @@
 import {
   ActionType, Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, random, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import {
-  lookaheadChooser,
-} from '@pimpampum/ai';
+import { aiPolicy, lookaheadChooser } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { theSet, type Cell, type FieldedGroup, type PartySpec } from './gameset.js';
 import { countedCached, key } from './cache.js';
@@ -37,6 +35,19 @@ export const CELL_SEED = 515_000;
  * question "does thinking matter".
  */
 export const CELL_AI = { depth: 1, samples: 4, passes: 1, topK: 0 } as const;
+
+/**
+ * WHO GETS HIT — the production AI's target chooser, for EVERY arm.
+ *
+ * The arms of a cell vary which CARD is chosen; none of them is a question
+ * about targeting. Cells used to pass an `actionChooser` only, so every arm
+ * fell through to the engine's deliberately-not-a-policy default (the first
+ * eligible targets), while the neutral baseline those arms were subtracted
+ * from was measured with the real AI's targeting — and every kit's headline
+ * delta carried the difference between smart and first-in-line targeting as a
+ * constant bias.
+ */
+const CELL_TARGETS = aiPolicy(CELL_AI).targetChooser;
 
 // --- Instrumentation --------------------------------------------------------
 
@@ -101,7 +112,7 @@ export function instrument(
  *  this once did — makes the arm that DEFINES the bar irreproducible and leaves
  *  it sharing no random numbers with the arm it is subtracted from, inside a
  *  `withSeed` block that makes it look deterministic. */
-export function uniformChooser(team: number, fallback: (e: CombatEngine, a: Character) => number | null) {
+function uniformChooser(team: number, fallback: (e: CombatEngine, a: Character) => number | null) {
   return (engine: CombatEngine, actor: Character): number | null => {
     if (actor.team !== team) return fallback(engine, actor);
     const legal = availableActionIndices(actor, engine.registry);
@@ -122,7 +133,7 @@ export function uniformChooser(team: number, fallback: (e: CombatEngine, a: Char
  * scoring it against the whole-side bar caps the margin near zero by
  * construction. `kit-analyzer.ts` therefore keeps the two families apart.
  */
-export function oneCardChooser(team: number, cardId: string, fallback: (e: CombatEngine, a: Character) => number | null) {
+function oneCardChooser(team: number, cardId: string, fallback: (e: CombatEngine, a: Character) => number | null) {
   return (engine: CombatEngine, actor: Character): number | null => {
     if (actor.team !== team) return fallback(engine, actor);
     const legal = availableActionIndices(actor, engine.registry);
@@ -195,8 +206,6 @@ export type CellPolicy =
  */
 export const THOUGHTLESS_POLICIES: CellPolicy[] = ['uniform', 'spam'];
 export const RESTRICTED_POLICIES: CellPolicy[] = ['onlyAttacks', 'onlyDefenses', 'onlyFocus'];
-/** @deprecated kept for callers that predate the split. */
-export const SIDE_POLICIES: CellPolicy[] = [...THOUGHTLESS_POLICIES, ...RESTRICTED_POLICIES];
 
 /** Build the subject side's chooser for a policy. */
 export function chooserFor(policy: CellPolicy, subjectTeam: number) {
@@ -229,6 +238,13 @@ export interface CellRun {
   /** Raw winrate of the subject side in this cell (draws count as half). */
   winrate: number;
   drawRate: number;
+  /**
+   * Fights still unresolved at the round cap — the ones that never end. NOT
+   * the draw rate: a mutual wipe (both sides fall in one simultaneous tier) is
+   * a draw that ENDED, and counting those as stalls failed four kits on a
+   * requirement about stalemates with no stalemate in sight (NEXT-STEPS §26).
+   */
+  stallRate: number;
   rounds: number[];
 }
 
@@ -252,7 +268,7 @@ export function cellKey(
   subjectPrint: string, cell: Cell, games: number, policy: CellPolicy, seedOffset: number,
 ): string {
   const policyPrint = typeof policy === 'string' ? policy : `one:${policy.oneCard}`;
-  return key('cell', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`,
+  return key('cell', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
     String(games), policyPrint, String(seedOffset));
 }
 
@@ -261,6 +277,7 @@ export function cellKey(
 export interface CachedCell {
   winrate: number;
   drawRate: number;
+  stallRate: number;
   rounds: number[];
   stats: CombatStats;
   counters: CardCounters;
@@ -279,12 +296,15 @@ export function cellResult(
     const stats = newCombatStats();
     const counters = newCardCounters();
     const r = runOneCell(setup(), cell, games, policy, stats, counters, seedOffset);
-    return { winrate: r.winrate, drawRate: r.drawRate, rounds: r.rounds, stats, counters };
+    return { winrate: r.winrate, drawRate: r.drawRate, stallRate: r.stallRate, rounds: r.rounds, stats, counters };
   };
   return cacheKey ? countedCached<CachedCell>('cell', cacheKey, compute) : compute();
 }
 
-export function runOneCell(
+/** The round cap every cell fight is played to; a fight still going at it is a stall. */
+export const CELL_MAX_ROUNDS = 40;
+
+function runOneCell(
   setup: CellSetup,
   cell: Cell,
   games: number,
@@ -294,21 +314,24 @@ export function runOneCell(
   seedOffset = 0,
 ): CellRun {
   const actionChooser = instrument(chooserFor(policy, setup.subjectTeam), setup.subjectTeam, counters);
-  let wins = 0, draws = 0;
+  let wins = 0, draws = 0, stalls = 0;
   const rounds: number[] = [];
   withSeed(CELL_SEED + seedOffset + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
     for (let i = 0; i < games; i++) {
       const players = theSet().buildParty(setup.party);
       setAIControlled(players);
       const res = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
-        registry: theRegistry(), maxRounds: 40, actionChooser,
+        registry: theRegistry(), maxRounds: CELL_MAX_ROUNDS, actionChooser, targetChooser: CELL_TARGETS,
       }).runCombat(stats);
       rounds.push(res.rounds);
       if (res.winner === setup.subjectTeam) wins++;
-      else if (res.winner === null) { draws++; wins += 0.5; }
+      else if (res.winner === null) {
+        draws++; wins += 0.5;
+        if (res.rounds >= CELL_MAX_ROUNDS) stalls++;
+      }
     }
   });
-  return { winrate: wins / games, drawRate: draws / games, rounds };
+  return { winrate: wins / games, drawRate: draws / games, stallRate: stalls / games, rounds };
 }
 
 export interface MatrixResult {
@@ -323,6 +346,8 @@ export interface MatrixResult {
   /** Combats behind `winrate` (the baselines carry their own, larger, n). */
   games: number;
   drawRate: number;
+  /** Fights that hit the round cap unresolved — see `CellRun.stallRate`. */
+  stallRate: number;
   medianRounds: number;
   p90Rounds: number;
   /** Delta per cell — the SPREAD is evidence in its own right: a kit should
@@ -339,24 +364,33 @@ export interface MatrixResult {
  * `setupFor` builds the party and opposition for one cell — the caller owns
  * that, because a player subject and an enemy subject differ only there.
  */
+/** Ten per cell is the floor for a MEASUREMENT — below it a cell says nothing.
+ *  The smoke run is not a measurement, so it is allowed one. */
+function perCellGames(games: number, cells: number): number {
+  return Math.max(SMOKE ? 1 : 10, Math.round(games / cells));
+}
+
 /**
- * Cache key for a whole matrix run.
- *
- * It has to name everything the numbers depend on: the cells (which carry the
- * baselines and the solved shapes behind them), the SUBJECT's own cards, the
- * cards of everyone sitting beside it, the policy, the sample and the seed.
- * The caller owns the subject/company half, since only it knows what it built.
+ * ONE CELL of `runMatrix` — its own entry point so a warm worker can fill the
+ * very cache entry the matrix will read (bench/parallel.ts). Same arguments as
+ * `runMatrix` plus the cell's index: the per-cell sample is derived from the
+ * whole cell list, and deriving it anywhere else would key an entry nothing reads.
  */
-export function matrixKey(
-  subjectPrint: string,
+export function matrixCell(
   cells: Cell[],
+  cellIdx: number,
+  setupFor: (cell: Cell) => CellSetup,
   games: number,
-  policy: CellPolicy,
-  seedOffset: number,
-): string {
-  const cellPrint = cells.map(c => `${c.label}@${c.baseline.toFixed(4)}`).join(',');
-  const policyPrint = typeof policy === 'string' ? policy : `one:${policy.oneCard}`;
-  return key('matrix', subjectPrint, cellPrint, String(games), policyPrint, String(seedOffset));
+  policy: CellPolicy = 'policy',
+  seedOffset = 0,
+  subjectPrint?: string,
+): CachedCell {
+  const cell = cells[cellIdx];
+  const perCell = perCellGames(games, cells.length);
+  return cellResult(
+    () => setupFor(cell), cell, perCell, policy, seedOffset,
+    subjectPrint ? cellKey(subjectPrint, cell, perCell, policy, seedOffset) : undefined,
+  );
 }
 
 export function runMatrix(
@@ -390,18 +424,14 @@ function runMatrixUncached(
   }
   const stats = newCombatStats();
   const counters = newCardCounters();
-  // Ten per cell is the floor for a MEASUREMENT — below it a cell says nothing.
-  // The smoke run is not a measurement, so it is allowed one.
-  const perCell = Math.max(SMOKE ? 1 : 10, Math.round(games / cells.length));
+  const perCell = perCellGames(games, cells.length);
 
   const byCell: { label: string; delta: number }[] = [];
   const allRounds: number[] = [];
-  let winSum = 0, drawSum = 0, deltaSum = 0, baselineVar = 0;
-  for (const cell of cells) {
-    const r = cellResult(
-      () => setupFor(cell), cell, perCell, policy, seedOffset,
-      subjectPrint ? cellKey(subjectPrint, cell, perCell, policy, seedOffset) : undefined,
-    );
+  let winSum = 0, drawSum = 0, stallSum = 0, deltaSum = 0, baselineVar = 0;
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    const r = matrixCell(cells, i, setupFor, games, policy, seedOffset, subjectPrint);
     mergeCombatStats(stats, r.stats);
     for (const k of Object.keys(r.counters.legal)) counters.legal[k] = (counters.legal[k] ?? 0) + r.counters.legal[k];
     for (const k of Object.keys(r.counters.played)) counters.played[k] = (counters.played[k] ?? 0) + r.counters.played[k];
@@ -410,6 +440,7 @@ function runMatrixUncached(
     counters.decisions += r.counters.decisions;
     winSum += r.winrate;
     drawSum += r.drawRate;
+    stallSum += r.stallRate;
     deltaSum += r.winrate - cell.baseline;
     baselineVar += stderr(cell.baseline, cell.baselineGames) ** 2;
     allRounds.push(...r.rounds);
@@ -430,6 +461,7 @@ function runMatrixUncached(
     stderr: stderr(winrate, n),
     games: n,
     drawRate: drawSum / cells.length,
+    stallRate: stallSum / cells.length,
     medianRounds: pct.median,
     p90Rounds: pct.p90,
     byCell,
@@ -460,9 +492,4 @@ export function roundPercentiles(rounds: number[]): { median: number; p90: numbe
   };
 }
 
-/** 1σ on the difference of two matrix results, treating them as INDEPENDENT.
- *  Conservative under common random numbers; see `pairedMatrixDelta`. */
-export function matrixDeltaStderr(a: MatrixResult, b: MatrixResult): number {
-  return deltaStderr(a.winrate, a.games, b.winrate, b.games);
-}
 

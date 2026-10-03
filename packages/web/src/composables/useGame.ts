@@ -2,8 +2,7 @@ import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
 import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
-import { createRegistry, buildCharacter } from '@pimpampum/skills';
-import { createEnemyFrom, getEnemy, registerEnemySkills } from '@pimpampum/enemies';
+import { createRegistry, buildCharacter, createEnemyFrom, getEnemy } from '@pimpampum/set-fantasy';
 import { takePendingEncounter } from './pendingEncounter';
 import { useParties, heroBuildSpec, type HeroSpec } from './party';
 
@@ -24,7 +23,6 @@ export interface EnemySpec {
 }
 
 const registry = createRegistry();
-registerEnemySkills(registry);
 
 export function useGame() {
   const gamePhase = ref<GamePhase>('setup');

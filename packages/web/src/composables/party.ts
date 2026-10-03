@@ -1,5 +1,5 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import { PLAYER_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_PV, getSkill, type CharacterBuildSpec } from '@pimpampum/skills';
+import { ALL_SKILLS, COMPLEMENTARY_SKILLS, PLAYER_PV, getSkill, standardGear, type CharacterBuildSpec } from '@pimpampum/set-fantasy';
 
 /**
  * The GM's PARTIES — the players who sit at their table.
@@ -99,25 +99,12 @@ function readAll(): StoredParty[] {
 
 // --- the default party -------------------------------------------------------
 
-/** Passive-armour value → the Armor item that provides it (mirrors party.ts). */
-const ARMOR_BY_VALUE: Record<number, string | null> = {
-  0: null,
-  1: 'armadura-de-cuir',
-  2: 'armadura-de-ferro',
-};
-
 const DEFAULT_HERO_LEVEL = 5;
 
 /** Build one hero around a single skill, geared so its cards actually work. */
 export function heroFromSkill(name: string, skillId: string, level = DEFAULT_HERO_LEVEL, armor = 1): HeroSpec {
-  const skill = getSkill(skillId) ?? PLAYER_SKILLS[0];
-  const equipment = ['escut'];
-  const armorId = ARMOR_BY_VALUE[Math.max(0, Math.min(2, Math.round(armor)))];
-  if (armorId) equipment.push(armorId);
-  // Weapon cards roll their own dice PLUS the wielded weapon's modifier and
-  // require a weapon at all — an unarmed weapon kit is a dead hand.
-  const usesWeapon = skill.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'));
-  if (usesWeapon) equipment.push('destral');
+  const skill = getSkill(skillId) ?? ALL_SKILLS[0];
+  const equipment = standardGear([skill], armor);
   return {
     name,
     classCss: skill.classCss,
@@ -135,9 +122,9 @@ export function heroFromSkill(name: string, skillId: string, level = DEFAULT_HER
  * first visit — every part of it is meant to be overwritten.
  */
 function defaultHeroes(): HeroSpec[] {
-  const mains = PLAYER_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
+  const mains = ALL_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
   return Array.from({ length: 4 }, (_, i) =>
-    heroFromSkill(`Heroi ${i + 1}`, (mains[i % mains.length] ?? PLAYER_SKILLS[0]).id));
+    heroFromSkill(`Heroi ${i + 1}`, (mains[i % mains.length] ?? ALL_SKILLS[0]).id));
 }
 
 // --- the reactive store ------------------------------------------------------

@@ -6,10 +6,9 @@
  * of four hours or more clears it, all of it at once (Character.rest()).
  *
  * Each level subtracts 1 from EVERY roll the character makes — attack,
- * defense, focus contests, out-of-combat contests. Measured 2026-09-13
- * (`simulator/src/experiment-fatigue-tiers.ts`): one point is worth roughly one
- * difficulty tier — a 65% ("hard") fight is 49% at Cansat, 31% at Fatigat, 6%
- * at Esgotat — so a level is handed out like a tier, never as flavour.
+ * defense, focus contests, out-of-combat contests. One level was measured to be
+ * worth roughly one difficulty tier (2026-09-13; the numbers are in
+ * intentions.md), so a level is handed out like a tier, never as flavour.
  *
  * The penalty is PLAYER-SIDE ONLY. Enemies never carry fatigue: since damage
  * is the margin, a symmetric penalty cancels out and only the min-0 floor
@@ -33,7 +32,7 @@ export function clampFatigue(level: number): number {
 
 /** Flat modifier a fatigue level applies to every roll (−1 per level). */
 export function fatigueRollPenalty(level: number): number {
-  return -clampFatigue(level);
+  return 0 - clampFatigue(level);   // not `-x`: level 0 must be 0, not -0
 }
 
 /** Catalan label for a fatigue level. */

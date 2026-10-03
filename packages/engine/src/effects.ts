@@ -192,7 +192,7 @@ export class EffectRegistry {
   /**
    * Remove a handler again.
    *
-   * For CONTROL KITS (simulator/bench/control-kits.ts): synthetic content whose
+   * For CONTROL KITS (playtest/src/control-kits.ts): synthetic content whose
    * verdict is known by construction, registered for one test and removed
    * after. A control kit that leaked its handlers into the shared registry
    * would make the next `register` of the same type throw, and the failure

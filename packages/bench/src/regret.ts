@@ -1,7 +1,7 @@
 /**
  * WHAT A CARD IS WORTH, MEASURED AT THE MOMENT IT IS PLAYED.
  *
- * The leave-one-out ablation (`kit-analyzer-lib.ts`, requirement 4/5) asks what
+ * The leave-one-out ablation (the analyzer's old requirement 4/5) asks what
  * a KIT loses without a card and answers it in party winrate. It was calibrated
  * (NEXT-STEPS §17.5) and it is underpowered, for four compounding reasons:
  *
@@ -170,10 +170,10 @@ export interface RegretOptions {
    * position, so it needs the ranking WITHIN that position to be reliable —
    * and a noisy score lets a worthless card take the top spot by luck, which
    * drags its share up toward the 1/k null it is tested against. At 2 samples
-   * a card that does literally nothing (`bench/control-kits.ts`) scored 21.2%
+   * a card that does literally nothing (`playtest/src/control-kits.ts`) scored 21.2%
    * against a 25% null and escaped the dead-card check; at 6 it scored 17.7%
    * and was caught. Lowering this re-opens that hole, and
-   * `requirement-controls.test.ts` will say so.
+   * `playtest/test/controls-cards.slow.test.ts` will say so.
    *
    * Costs linearly. It is affordable because fights are three rounds at the
    * median and a rollout is cheap.
@@ -286,7 +286,7 @@ export function valuePosition(
   // and a card that is NEVER worth playing stops looking like one.
   //
   // Caught by a control kit holding a card that does literally nothing
-  // (`bench/control-kits.ts`): the no-op ranked dead last by value, as it must,
+  // (`playtest/src/control-kits.ts`): the no-op ranked dead last by value, as it must,
   // and still cleared its null. Dropping these positions is not throwing away
   // data — there was none in them.
   const top = Math.max(...branches.map(b => b.score));
@@ -343,8 +343,10 @@ export function valuePosition(
 // so it stays content-agnostic and nothing here points back at the analyzer.
 
 import { theRegistry } from './arena.js';
+import { countedCached, key } from './cache.js';
 import { CELL_AI, type CellSetup } from './cells.js';
 import { theSet, type Cell } from './gameset.js';
+import { SMOKE } from './games.js';
 
 /** Every observation of one card: what it was worth at a position, and which
  *  FIGHT that position came from — positions inside a fight are not
@@ -377,44 +379,100 @@ export function measureKit(
   setupFor: (cell: Cell) => CellSetup,
   games: number,
   opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET,
+  /** What the subject is, for the cache key (`subjectPrintFor`); omit to measure uncached. */
+  subjectPrint?: string,
 ): KitValues {
   const byCard = new Map<string, CardObs[]>();
-  const per = Math.max(1, Math.round(games / Math.max(1, cells.length)));
   let positions = 0, fights = 0;
-
-  for (const cell of cells) {
-    const setup = setupFor(cell);
-    withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
-      for (let g = 0; g < per; g++) {
-        const players = theSet().buildParty(setup.party);
-        _setAI(players);
-        const engine = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
-          registry: theRegistry(), maxRounds: 40, actionChooser: _look(CELL_AI),
-        });
-        const subject = engine.teams[setup.subjectTeam][0];
-        const fight = fights++;
-        let guard = 0;
-        while (!engine.isOver() && engine.round < engine.maxRounds && guard++ < 40) {
-          if (subject?.isAlive()) {
-            const priced = valuePosition(engine, subject, { ...opts, team: setup.subjectTeam });
-            if (priced) {
-              positions++;
-              for (const c of priced.cards) {
-                const list = byCard.get(c.id) ?? [];
-                list.push({
-                  value: c.value, winValue: c.winValue,
-                  wasBest: c.wasBest, candidates: c.candidates, topCount: c.topCount, fight,
-                });
-                byCard.set(c.id, list);
-              }
-            }
-          }
-          engine.runRound();
-        }
-      }
-    });
+  for (let i = 0; i < cells.length; i++) {
+    const r = measureKitCell(cells, i, setupFor, games, opts, subjectPrint);
+    for (const [id, list] of r.obs) {
+      const all = byCard.get(id) ?? [];
+      for (const o of list) all.push({ ...o, fight: o.fight + fights });   // fight ids are per cell
+      byCard.set(id, all);
+    }
+    positions += r.positions;
+    fights += r.fights;
   }
   return { byCard, positions, fights };
+}
+
+/**
+ * ONE CELL of `measureKit` — its own entry point so a warm worker can fill the
+ * very cache entry `measureKit` will read (bench/parallel.ts). Same arguments
+ * as `measureKit` plus the cell's index: the per-cell sample is derived from
+ * the whole cell list, and deriving it anywhere else would key a different
+ * entry that nothing reads.
+ */
+export function measureKitCell(
+  cells: Cell[],
+  cellIdx: number,
+  setupFor: (cell: Cell) => CellSetup,
+  games: number,
+  opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET,
+  subjectPrint?: string,
+): CellValues {
+  // A smoke run measures nothing, it only has to EXECUTE — and the fight floor
+  // (one per cell) does not make that cheap: every decision is still valued by
+  // `samples` depth-1 rollouts per legal card, which kept a six-kit smoke over
+  // its timeout. One sample runs every line of the same code.
+  if (SMOKE) opts = { ...opts, samples: 1 };
+  const per = Math.max(1, Math.round(games / Math.max(1, cells.length)));
+  const cell = cells[cellIdx];
+  // PER CELL, and CACHED like a cell run: it is seeded per cell, so the same
+  // content measures the same observations — and this is the most expensive
+  // phase of a kit analysis, which a sweep otherwise re-paid on every run.
+  const compute = (): CellValues => measureCell(cell, setupFor(cell), per, opts);
+  return subjectPrint
+    ? countedCached<CellValues>('regret', key('regret', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
+      String(per), JSON.stringify(opts)), compute)
+    : compute();
+}
+
+/** One cell's observations, JSON-shaped so the cache can hold them. */
+export interface CellValues { obs: [string, CardObs[]][]; positions: number; fights: number }
+
+/**
+ * Who gets hit in a card-value fight: the production AI's choice, as in every
+ * cell arm. The forced card is what varies; targeting must not — the first
+ * version used the engine's first-in-line default here, the same mismatch
+ * that biased every kit delta (NEXT-STEPS §25.3, F13).
+ */
+const TARGETS = aiPolicy(CELL_AI).targetChooser;
+
+function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<RegretOptions, 'team'>): CellValues {
+  const byCard = new Map<string, CardObs[]>();
+  let positions = 0, fights = 0;
+  withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
+    for (let g = 0; g < per; g++) {
+      const players = theSet().buildParty(setup.party);
+      _setAI(players);
+      const engine = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
+        registry: theRegistry(), maxRounds: 40, actionChooser: _look(CELL_AI), targetChooser: TARGETS,
+      });
+      const subject = engine.teams[setup.subjectTeam][0];
+      const fight = fights++;
+      let guard = 0;
+      while (!engine.isOver() && engine.round < engine.maxRounds && guard++ < 40) {
+        if (subject?.isAlive()) {
+          const priced = valuePosition(engine, subject, { ...opts, team: setup.subjectTeam });
+          if (priced) {
+            positions++;
+            for (const c of priced.cards) {
+              const list = byCard.get(c.id) ?? [];
+              list.push({
+                value: c.value, winValue: c.winValue,
+                wasBest: c.wasBest, candidates: c.candidates, topCount: c.topCount, fight,
+              });
+              byCard.set(c.id, list);
+            }
+          }
+        }
+        engine.runRound();
+      }
+    }
+  });
+  return { obs: [...byCard], positions, fights };
 }
 
 /**

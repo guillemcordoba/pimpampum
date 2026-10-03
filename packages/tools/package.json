@@ -1,0 +1,28 @@
+{
+  "name": "@pimpampum/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "mutation": "tsx src/mutation.ts",
+    "exploitability": "tsx src/exploitability.ts",
+    "test:slow": "SLOW=1 vitest run src/tests/*.slow.test.ts",
+    "test:all": "SLOW=1 vitest run"
+  },
+  "dependencies": {
+    "@pimpampum/engine": "workspace:*",
+    "@pimpampum/ai": "workspace:*",
+    "@pimpampum/bench": "workspace:*",
+    "@pimpampum/set-fantasy": "workspace:*",
+    "@pimpampum/combat-balancer": "workspace:*",
+    "@pimpampum/playtest": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3",
+    "@types/node": "^22"
+  }
+}

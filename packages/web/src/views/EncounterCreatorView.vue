@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import {
-  ENEMY_DEFINITIONS, getEnemy, fullKitLevel, solveEncounter, TARGET_WINRATES,
-  type PoolSpec, type SolvedEncounter,
-} from '@pimpampum/enemies';
-import type { PartySpec } from '@pimpampum/skills';
+import { ENEMY_DEFINITIONS, getEnemy, fullKitLevel, solveEncounter, TARGET_WINRATES, type PoolSpec, type SolvedEncounter, type PartySpec } from '@pimpampum/set-fantasy';
 import type { SolveRequest, SolveReply } from '../workers/solve-worker';
 import { setPendingEncounter } from '../composables/pendingEncounter';
 import { createTrackerSession } from '../composables/combatTracker';

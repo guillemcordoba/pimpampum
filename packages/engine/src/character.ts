@@ -413,9 +413,3 @@ export function createCharacter(opts: CreateCharacterOptions): Character {
   return c;
 }
 
-/** Total skill levels across a character — used for skill-sum balancing. */
-export function characterSkillSum(c: Character): number {
-  let total = 0;
-  for (const level of c.skills.values()) total += level;
-  return total;
-}

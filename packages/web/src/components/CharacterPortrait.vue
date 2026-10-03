@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { Character } from '@pimpampum/engine';
 import { STAT_ICONS } from '@pimpampum/engine';
-import { maxCharges } from '@pimpampum/skills';
+import { maxCharges } from '@pimpampum/set-fantasy';
 
 const base = import.meta.env.BASE_URL;
 

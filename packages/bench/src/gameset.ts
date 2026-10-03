@@ -9,16 +9,15 @@
  * gets the same rules and must answer the same requirements, on ITS cards.
  *
  * So the set is a PARAMETER. Everything here takes a `GameSet` and asks it for
- * the four things measurement actually needs: a registry to play with, a way to
- * build a party, a way to build an opposition, and a fingerprint so the cache
- * can tell one set's numbers from another's.
+ * what measurement actually needs: a registry to play with, ways to build a
+ * party and an opposition, its encounter solver, its calibration data, and a
+ * fingerprint so the cache can tell one set's numbers from another's.
  *
- * WHAT IS DELIBERATELY NOT HERE: the reference party and the fight shapes.
- * Which kits make a fair benchmark, and which creatures make a fair fight, are
- * properties of a SET — its own calibration — not of measurement. They live
- * with the content and arrive through `referenceParty()` and `shapes()`.
- * Keeping them in bench is exactly why bench could never have served a second
- * set.
+ * THE SPLIT OF CALIBRATION. Which kits make a fair benchmark, which creatures
+ * make a fair fight and who sits beside a subject are properties of a SET, so
+ * the set DECLARES them (`Calibration`). What is done with that data — solve
+ * the shapes, measure the neutral baselines, drop the saturated cells — is the
+ * same for every set and lives here, in `positions.ts`.
  */
 import type {
   ActionDefinition, Character, EffectHandler, EffectRegistry,
@@ -138,9 +137,7 @@ export interface Shape {
  * subject's winrate on its own says more about which fight it was handed than
  * about the subject.
  *
- * Producing cells is the SET's job — it owns the solver that decides how tough
- * a shape has to be, and the neutral kit the baseline is measured with. Bench
- * only ever consumes them.
+ * Computed by `positions.ts` from the set's declared calibration.
  */
 export interface Cell {
   shapeIdx: number;
@@ -149,6 +146,14 @@ export interface Cell {
   /** Neutral subject's winrate in this seat — subtracted from every subject's. */
   baseline: number;
   baselineGames: number;
+  /**
+   * What the cell's fight is made of besides the subject — the company row's
+   * kits and the enemies fielded, fingerprinted. Part of every cell's cache
+   * key: without it a cell was keyed by its label and its baseline NUMBER, so
+   * a changed companion or creature whose re-measured baseline happened to land
+   * on the same value would be served the old cell, silently (NEXT-STEPS §26).
+   */
+  context: string;
 }
 
 /**
@@ -166,10 +171,81 @@ export interface SubjectKit {
   effects?: Record<string, EffectHandler>;
 }
 
+/** One kit — a player skill or a creature's — as measurement sees it. */
+export interface KitInfo {
+  id: string;
+  side: 'player' | 'enemy';
+  /** Every card, in unlock order. */
+  actions: ActionDefinition[];
+  /** The level at which the whole kit is known. */
+  fullLevel: number;
+}
+
+/**
+ * A SET'S CALIBRATION — declared as data, computed by bench.
+ *
+ * Which kits make a fair benchmark, which creatures make a fair fight and who
+ * sits beside a subject are properties of a set. What is done WITH them —
+ * solve each shape, measure the neutral baseline per company row, throw out
+ * the saturated cells — is the same for every set, so it lives once, in
+ * `positions.ts`. It used to live in the fantasy set as 380 lines of framework
+ * wearing content's clothes, which is exactly the code a second set would
+ * have had to copy.
+ */
+export interface Calibration {
+  /** The benchmark party's kits, by id. Changing it re-bases every number. */
+  referenceKits: string[];
+  /** The fights a kit is measured across. PV is solved, never written down. */
+  shapes: Shape[];
+  /** Ally rows a subject is measured beside, by kit id. */
+  company: string[][];
+  /** The neutral kit that stands in for the subject while a cell's baseline is
+   *  measured — one per company row (cycled), never a kit already in that row. */
+  standIns: string[];
+  /** The winrate shapes are solved toward. An aim, not a requirement. */
+  fair: number;
+  /**
+   * The average fight length, in rounds, a shape may be solved up to. The
+   * cells every kit is measured in inherit it, so it must sit inside the
+   * set's own duration requirement: solved to a looser budget (the solver's
+   * default is 6), the calibration fights alone broke requirement 2's p90 for
+   * every kit, and no kit could pass it (NEXT-STEPS §26).
+   */
+  maxAvgRounds: number;
+  /** A cell whose neutral baseline falls outside this band is pinned against an
+   *  edge and cannot separate two subjects; it is not measured in. */
+  saturation: { min: number; max: number };
+  /** Kits a "for each kit in turn" sweep iterates. */
+  mainKits: string[];
+  /**
+   * Cards the AI STRUCTURALLY cannot use, id → why. Neither arm of a card-value
+   * experiment can extract their value, so they ablate to exactly zero and
+   * would read as dead. Hard to add to on purpose: a card belongs here only
+   * when the AI cannot use it, never when it merely plays it badly.
+   */
+  aiBlindCards: Record<string, string>;
+}
+
+/** What a solve hands back — as much as measurement reads of it. */
+export interface SolveOutcome {
+  groups: FieldedGroup[];
+  /** The solver ran out of lever (PV bound or duration budget). */
+  clamped: boolean;
+  durationCapped: boolean;
+}
+
+export interface EncounterOptions {
+  games?: number;
+  searchGames?: number;
+  seed?: number;
+  /** Cap on the average fight length the solve may produce, in rounds. */
+  maxAvgRounds?: number;
+}
+
 export interface GameSet {
   /** Identifies the set in cache keys and report headers. */
   id: string;
-  /** Generic handlers plus this set's own — including its enemies'. A registry
+  /** Every handler this set's cards reach — player AND enemy. A registry
    *  missing the enemy handlers plays a different game, silently. */
   registry(): EffectRegistry;
   buildParty(spec: PartySpec): Character[];
@@ -178,23 +254,23 @@ export interface GameSet {
   randomParty(prefix: string, size: number, budget: number, equip?: boolean, pv?: number): Character[];
   /** Default PV for a player in this set. */
   playerPV: number;
-  /** This set's benchmark party — see the note at the top of this file. */
-  referenceParty(): PartySpec;
-  /** The calibration party for one company row. Rotating the company is how a
-   *  kit gets measured as an ALLY and not only as a subject. */
-  calibrationParty(companyIdx: number): PartySpec;
-  /** How many company rows this set defines. */
-  companyCount: number;
-  /** The fight shapes a kit is measured across. */
-  shapes(): Shape[];
-  /** Positions worth measuring in — shapes × companies, minus the ones whose
-   *  neutral baseline is pinned against an edge and so cannot separate two
-   *  subjects. Solving these is the expensive part of a run; the set is
-   *  expected to cache them (see `cached()`). */
-  cells(): Cell[];
-  /** The positions `cells()` rejected, so a report can name them rather than
-   *  silently measuring in fewer places than the reader assumes. */
-  saturatedCells(): Cell[];
+  /** A kit by id — player skill or creature — or undefined. */
+  kit(id: string): KitInfo | undefined;
+  /** Every kit on one side, by id. */
+  kitIds(side: 'player' | 'enemy'): string[];
+  /**
+   * One benchmark hero: `kitId` at `level` (full kit when omitted, clamped to
+   * the kit), EQUIPPED the way this set's benchmark heroes are. Equipment is
+   * not cosmetic — a weapon kit without its weapon rolls flat zero — which is
+   * why this is the set's job and not a generic spec.
+   */
+  hero(name: string, kitId: string, level?: number): CharacterBuildSpec;
+  /** This set's encounter solver: PV set so the party wins `target` of fights. */
+  solveEncounter(
+    pool: { enemyId: string; count: number; level?: number }[],
+    party: PartySpec, target: number, opts?: EncounterOptions,
+  ): SolveOutcome | null;
+  calibration: Calibration;
   /**
    * Make a synthetic kit resolvable by this set's builders, and hand back the
    * undo.

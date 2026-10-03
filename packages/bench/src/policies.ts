@@ -27,7 +27,7 @@
  * the honest form of "X plays better than Y", because the only thing that
  * differs between the sides is the decision-making.
  *
- * `ai-benchmark.ts` prints these; `tests/ai-strength.test.ts` asserts on them.
+ * `ai-benchmark.ts` prints these; `sets/fantasy/test/ai-strength.slow.test.ts` asserts on them.
  * One definition, so the report and the gate can never disagree about what the
  * policy under test actually is — the mistake `cells.ts` records for
  * "played out of the times it was legal", which had three implementations.
@@ -36,9 +36,14 @@ import {
   ActionType, availableActionIndices, type Character, CombatEngine, random, setAIControlled,
   withSeed,
 } from '@pimpampum/engine';
-import { DEFAULT_LOOKAHEAD, lookaheadChooser, selectAction } from '@pimpampum/ai';
+import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser, selectAction } from '@pimpampum/ai';
+
+/** Who gets hit, in every duel: the production AI's choice, for both seats.
+ *  The policies differ in what they PLAY; targeting is not what is compared. */
+const TARGETS = aiPolicy().targetChooser;
 import { theRegistry } from './arena.js';
 import { theSet, type PartySpec } from './gameset.js';
+import { calibrationParty } from './positions.js';
 
 /** A policy: pick an action index for `actor`, or null to leave it to the
  *  engine's own AI. Matches the engine's `actionChooser` seam. */
@@ -145,7 +150,7 @@ export const LADDER = ['heuristic', 'depth1', 'depth1x'] as const;
 
 /** The party both sides field. The CALIBRATION party, so a number here means
  *  the same thing as a number in a report-card cell. */
-export function mirrorParty(): PartySpec { return theSet().calibrationParty(0); }
+export function mirrorParty(): PartySpec { return calibrationParty(0); }
 
 /** Shared so the harness and the test meet the same dice. */
 export const MIRROR_SEED = 424242;
@@ -180,7 +185,7 @@ export function headToHead(x: Chooser, y: Chooser, games: number, seed = MIRROR_
         setAIControlled(teamA);
         setAIControlled(teamB);
         const res = new CombatEngine(teamA, teamB, {
-          registry: theRegistry(), maxRounds: 40, actionChooser: split(a, b),
+          registry: theRegistry(), maxRounds: 40, actionChooser: split(a, b), targetChooser: TARGETS,
         }).runCombat();
         if (res.winner === 0) wins++;
         else if (res.winner === null) wins += 0.5;

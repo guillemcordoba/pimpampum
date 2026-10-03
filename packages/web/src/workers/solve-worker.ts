@@ -10,8 +10,7 @@
  * `terminate()` it the instant an input changes, which is the only way to
  * genuinely STOP a synchronous solve mid-flight.
  */
-import { solveEncounter, type PoolSpec, type SolvedEncounter } from '@pimpampum/enemies';
-import type { PartySpec } from '@pimpampum/skills';
+import { solveEncounter, type PoolSpec, type SolvedEncounter, type PartySpec } from '@pimpampum/set-fantasy';
 
 export interface SolveRequest {
   /** Echoed back so the host can discard replies from a superseded job. */

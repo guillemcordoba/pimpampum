@@ -2,8 +2,7 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ACTION_TYPE_CSS } from '@pimpampum/engine';
-import { getEnemy, unlockedEnemyActions } from '@pimpampum/enemies';
-import { getEquipment } from '@pimpampum/skills';
+import { getEnemy, unlockedEnemyActions, getEquipment } from '@pimpampum/set-fantasy';
 import {
   useTrackerSession, deleteTrackerSession, groupName, defaultBodyName, bodyName,
   type TrackedBody, type TrackedGroup,

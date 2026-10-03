@@ -1,4 +1,4 @@
-import type { SolvedEncounter } from '@pimpampum/enemies';
+import { type SolvedEncounter } from '@pimpampum/set-fantasy';
 
 /**
  * One-shot hand-off from the encounter creator to the combat view: the

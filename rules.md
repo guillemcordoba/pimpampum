@@ -119,7 +119,7 @@ Només es pot portar un objecte per espai. Els objectes poden donar:
 - **Bonificacions de tirada**: modificadors que se sumen a les tirades d'atac o de defensa de certes accions.
 - **Penalització de velocitat**: les armadures pesades redueixen la velocitat de totes les accions del portador.
 
-La decisió entre armadura pesada (més protecció, més lent) i armadura lleugera (menys protecció, sense penalització) és una elecció tàctica important.
+La decisió entre armadura pesada (més protecció, més lenta) i armadura lleugera (menys protecció, menys penalització) és una elecció tàctica important — i també quants del grup la porten: en un grup sencer d'armadures, la lentitud pesa més que la protecció. Armadura de cuir: +2 d'armadura, −1 de velocitat. Armadura de ferro: +3 d'armadura, −2 de velocitat.
 
 ## Canvis d'equipament
 

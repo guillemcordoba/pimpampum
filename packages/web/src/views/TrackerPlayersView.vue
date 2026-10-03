@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { getEnemy } from '@pimpampum/enemies';
+import { getEnemy } from '@pimpampum/set-fantasy';
 import { useTrackerSession, bodyName } from '../composables/combatTracker';
 import PvTracker from '../components/tracker/PvTracker.vue';
 
