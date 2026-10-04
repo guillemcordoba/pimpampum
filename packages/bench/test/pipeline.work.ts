@@ -22,7 +22,9 @@ function scaled(id: string, dice: [string, string, string]): SubjectKit {
 }
 
 const KITS: Record<string, SubjectKit> = {
-  giant: scaled('giant', ['4d6', '4d6', '5d6']),
+  // Far bigger than the stand-in: with searched targets, enemies focus the
+  // biggest threat, which eats into a merely bigger kit's lead (NEXT-STEPS §31).
+  giant: scaled('giant', ['6d6', '6d6', '8d6']),
   weakling: scaled('weakling', ['1d4', '1d4', '1d6']),
 };
 

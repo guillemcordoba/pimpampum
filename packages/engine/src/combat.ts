@@ -849,7 +849,10 @@ export class CombatEngine implements EngineApi, AIView {
         if (count >= pool.length) {
           cur.targets = pool;
         } else if (cur.actor.aiControlled) {
-          cur.targets = this.autoTargets(cur.actor, cur.action.def, req, count, cur.speed);
+          // In the actor's own stream, like the action: a searched target draws
+          // its rollouts' seed, and on the shared stream that draw would shift
+          // every later target search in a paired branch.
+          cur.targets = this.inSeatStream(this.actStream(cur.actor), () => this.autoTargets(cur.actor, cur.action.def, req, count, cur.speed));
         } else {
           return {
             kind: 'target',

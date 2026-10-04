@@ -28,8 +28,9 @@
  */
 import {
   Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed,
+  type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
-import { selectAction } from './policy.js';
+import { selectAction, pickResolveTargets } from './policy.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
 export interface LookaheadOptions {
@@ -79,6 +80,11 @@ export interface LookaheadOptions {
    * (`CombatEngine.seatStreamSeed`). On by default; set false only to A/B it.
    */
   seatStreams?: boolean;
+  /**
+   * Rollouts per candidate when an action's single target is chosen at
+   * resolution (`searchTargets`); 0 keeps the resolution heuristic alone.
+   */
+  targetSamples?: number;
 }
 
 /**
@@ -152,7 +158,7 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  * value, four rollouts decided on noise and the AI fell under the strength bar
  * while bigger searches cleared it (NEXT-STEPS §29).
  */
-export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 1, topK: 0 };
+export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 1, topK: 0, targetSamples: 2 };
 
 /**
  * How good is this position for `team`? Hand-written on purpose (see the file
@@ -358,6 +364,9 @@ function evaluate(
       // itself once per sample per candidate and never returns. It gets the
       // depth-0 policy explicitly, because the engine has none of its own.
       sim.actionChooser = (e, a) => selectAction(e, a).actionIdx;
+      // Rollouts aim by the heuristic: searching targets inside a rollout would
+      // nest a search per target choice per sample per candidate.
+      sim.targetChooser = pickResolveTargets;
       if (opts.rolloutSharpness !== undefined) sim.aiSharpness = opts.rolloutSharpness;
       const mapped = new Map<Character, number>();
       for (const [pos, idx] of seats) mapped.set(sim.teams[team][pos], idx);
@@ -470,4 +479,58 @@ export function lookaheadChooser(opts: Partial<LookaheadOptions> = {}, teams: nu
     }
     return cache.choices.get(actor) ?? null;
   };
+}
+
+/**
+ * Choose an action's single target by playing the rest of the round out once
+ * per candidate, on paired rollouts, at the moment the action resolves.
+ *
+ * WHY: targets were never searched. The card is chosen by the lookahead, but
+ * who it hits came from `pickResolveTargets`, a fixed rule — which, for one,
+ * gives "interrupt a pending focus" the same bonus whatever the focus does, so
+ * beside a harmless focus it could hit the wrong foe and let a deadly one
+ * resolve. Searched, the same AI beat the rule ~77% of mirror fights
+ * (NEXT-STEPS §31).
+ *
+ * The heuristic's pick is the incumbent and a candidate must beat it outright,
+ * so a choice the rollouts cannot separate stays what it was. Multi-target
+ * choices keep the heuristic: their combinations grow too fast.
+ */
+export function searchTargets(
+  engine: CombatEngine, actor: Character, def: ActionDefinition, req: TargetRequirement,
+  count: number, pool: Character[], speed: number, samples: number,
+): Character[] {
+  const heuristic = pickResolveTargets(engine, actor, def, req, count, pool, speed);
+  if (count !== 1 || pool.length < 2 || samples < 1) return heuristic;
+  const pairSeed = Math.floor(random() * 1e9);
+  const team = actor.team;
+  const valueOf = (target: Character): number => {
+    const ref = { team: target.team, idx: engine.teams[target.team].indexOf(target) };
+    let total = 0;
+    for (let s = 0; s < samples; s++) {
+      total += withSeed(pairSeed + s * 7919, () => {
+        const sim = engine.clone();
+        sim.seatStreamSeed = pairSeed + s * 7919;
+        sim.actionChooser = (e, a) => selectAction(e, a).actionIdx;
+        sim.targetChooser = pickResolveTargets;
+        sim.setResolveTarget([ref]);
+        let step = sim.resolveNextAction();
+        for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
+          if (step.kind === 'target') sim.setResolveTarget([]);
+          step = sim.resolveNextAction();
+        }
+        sim.finishRound();
+        return positionScore(sim, team);
+      });
+    }
+    return total / samples;
+  };
+  let best = heuristic[0] ?? pool[0];
+  let bestValue = valueOf(best);
+  for (const candidate of pool) {
+    if (candidate === best) continue;
+    const v = valueOf(candidate);
+    if (v > bestValue) { best = candidate; bestValue = v; }
+  }
+  return [best];
 }

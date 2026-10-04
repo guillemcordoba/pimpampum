@@ -15,10 +15,8 @@ failure that its test asserts still fails.
    retune and the AI fix (§29). Cards still below the rest of their hand on
    average, but right when they are the right play: Entrar en Fúria (now a
    situational bomb), Marca de la perdició, Erupció.
-2. **Two AI blind spots (§30).** Presó de terra and Camp minat are often the
-   best play and almost never played: price their statuses for the evaluator
-   (`KNOWN_BLIND`). And targets are never searched, so an attack can interrupt
-   the wrong focus (the `aim` puzzle).
+2. **Camp minat is an AI blind spot (§30).** Often the best play, almost
+   never played: price its mines for the evaluator (`KNOWN_BLIND`).
 3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
    `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
    (§27.5). One armour exploration and a recalibration; Aguantar el cop,
@@ -3915,3 +3913,44 @@ the nine; the old fast tests caught four. Two mutants now guard the kept layers.
   a one-round evaluator cannot see unless their statuses price themselves
   (`StatusBehavior.positionValue`). Recorded in `KNOWN_BLIND`; every number
   measured through the AI undervalues them until fixed.
+
+## 31. The AI searches its targets (2026-10-04)
+
+Targets used to come from `pickResolveTargets`, a fixed rule, while only the
+card was searched. The rule gives "interrupt a pending focus" the same bonus
+whatever the focus does, so beside a harmless focus it could hit the wrong foe
+and let a deadly one resolve (the `aim` puzzle, §30).
+
+Now a single-target choice is searched at resolution (`searchTargets`): the
+rest of the round is played out per candidate on paired rollouts, and a
+candidate must beat the rule's pick outright. Measured in mirror fights against
+the same AI with the rule:
+
+| rollouts per target | win rate vs the rule | cost per fight |
+|---|---|---|
+| 6 | 79.3% ±1.4 | +37% |
+| 3 | 76.3% ±1.5 | +19% |
+| **2 (production)** | **76.9% ±1.5** | **+13%** |
+
+The largest gain the AI has had. Solves stay under 3 s (horde ~2.5 s, mixed
+~2.5 s on 8 cores). Also fixed on the way: a target choice draws from the
+acting seat's own stream (on the shared one each search shifted every later
+search's seed in a paired branch), and the kit cells now play exactly the
+production AI (`CELL_AI = DEFAULT_LOOKAHEAD`; it had stayed at four rollouts).
+
+**What moved:** Presó de terra is no longer a blind spot. Four synthetic
+controls failed the same way — differences between kits SHRANK, because both
+sides now focus whoever threatens most: a giant draws all the fire, a weakling
+is left alone, and a slow heavy blow tends to get its wielder killed before it
+lands. Confirmed without the card-value instrument: swapping the synthetic
+brawler's slow Smash for a do-nothing card leaves its winrate unchanged. The
+controls were rebuilt so their premises hold: a far bigger giant (6d6/6d6/8d6),
+a weakling at 1d1 and speed 0, a combo whose aimed shot adds 12d6, and the
+do-nothing card asserted below the kit's average card rather than last.
+
+**A flaky red slow tier, fixed.** Cold full runs ended with vitest's
+"Timeout calling onTaskUpdate" though every test passed. The one slow file
+measuring in-process (`combat-balancer/test/calibration.slow.test.ts`) ran
+sixteen solves synchronously at collection time and a depth-1 solve in one
+block; the slower AI pushed those blocks past vitest's one-minute RPC deadline.
+They now run in hooks that yield between requests and chunks.

@@ -12,11 +12,14 @@
  * bodies), so a request is met when it lands within 3σ plus a few points —
  * unless the solver SAID it could not (clamped, duration-capped, missed).
  */
-import { describe, it, expect } from 'vitest';
-import { simulateEncounter, solveEncounter, type PoolSpec } from '../src/index.js';
+import { describe, it, expect, beforeAll } from 'vitest';
+import {
+  chunkJobs, type ChunkRunner, mergeChunks, playChunk, simulateEncounter, solveEncounter, solveEncounterAsync, type PoolSpec,
+} from '../src/index.js';
 import { CONTENT, FAST, type TestParty } from './content.js';
 
 declare const process: { env: Record<string, string | undefined> };
+declare function setTimeout(callback: () => void, ms: number): unknown;
 const SMOKE = process.env.BENCH_SMOKE === '1';
 const HELD_OUT_GAMES = SMOKE ? 20 : 2000;
 
@@ -29,11 +32,21 @@ const REQUESTS: { pool: PoolSpec[]; party: TestParty }[] = [
 const TARGETS = [0.5, 0.65, 0.8, 0.9];
 
 describe('solved encounters, re-measured on held-out dice', () => {
-  const results = REQUESTS.flatMap(req => TARGETS.map(target => {
-    const solved = solveEncounter(CONTENT, req.pool, req.party, target, { ...FAST, maxAvgRounds: Infinity })!;
-    const replay = simulateEncounter(CONTENT, solved.groups, req.party, { ...FAST, games: HELD_OUT_GAMES, seed: 99_000 + Math.round(target * 100) });
-    return { req, target, solved, replay };
-  }));
+  type Result = { req: (typeof REQUESTS)[number]; target: number; solved: ReturnType<typeof solveEncounter> & object; replay: ReturnType<typeof simulateEncounter> };
+  const results: Result[] = [];
+  // In a hook, one request at a time with a yield between them, not in the
+  // describe body: sixteen solves in one synchronous block at collection time
+  // can hold the test process past vitest's RPC deadline under a loaded run.
+  beforeAll(async () => {
+    for (const req of REQUESTS) {
+      for (const target of TARGETS) {
+        const solved = solveEncounter(CONTENT, req.pool, req.party, target, { ...FAST, maxAvgRounds: Infinity })!;
+        const replay = simulateEncounter(CONTENT, solved.groups, req.party, { ...FAST, games: HELD_OUT_GAMES, seed: 99_000 + Math.round(target * 100) });
+        results.push({ req, target, solved, replay });
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+  });
 
   it.skipIf(SMOKE)('each lands on its target — or says why not', () => {
     for (const { req, target, solved, replay } of results) {
@@ -77,10 +90,23 @@ describe('metamorphic relations of the solver', () => {
 });
 
 describe('at the depth the app solves at', () => {
-  it.skipIf(SMOKE)('a default solve (depth-1 verification) lands on its target at depth 1', () => {
+  it.skipIf(SMOKE)('a default solve (depth-1 verification) lands on its target at depth 1', async () => {
     const party: TestParty = { heroes: 4 };
-    const solved = solveEncounter(CONTENT, [{ enemyId: 'rat', count: 4 }], party, 0.65, { searchGames: 80, maxAvgRounds: Infinity })!;
-    const replay = simulateEncounter(CONTENT, solved.groups, party, { games: SMOKE ? 20 : 800, seed: 4242 });
+    // Chunk by chunk, yielding between them: played in one synchronous block
+    // this is over a minute of depth-1 fights, and a test process that blocks
+    // that long misses vitest's RPC deadline and fails the run as an
+    // unhandled error, whatever the assertion says. Same answer as the
+    // synchronous solve (the parallel solve's parity test).
+    const yielding: ChunkRunner = async jobs => {
+      const out = [];
+      for (const job of jobs) {
+        out.push(playChunk(CONTENT, party, job));
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+      return out;
+    };
+    const solved = (await solveEncounterAsync(CONTENT, [{ enemyId: 'rat', count: 4 }], party, 0.65, { searchGames: 80, maxAvgRounds: Infinity }, yielding))!;
+    const replay = mergeChunks(CONTENT, party, await yielding(chunkJobs(solved.groups, { games: SMOKE ? 20 : 800, seed: 4242 })));
     if (!solved.clamped && !solved.searchMissed) {
       expect(Math.abs(replay.winrate - 0.65), `delivered ${replay.winrate.toFixed(3)}`).toBeLessThan(3 * replay.stderr + 0.04);
     }

@@ -21,7 +21,7 @@
  */
 import type { CombatEngine, Character, ActionDefinition, TargetRequirement } from '@pimpampum/engine';
 import { selectAction, pickResolveTargets } from './policy.js';
-import { bestResponse, DEFAULT_LOOKAHEAD, type LookaheadOptions } from './lookahead.js';
+import { bestResponse, DEFAULT_LOOKAHEAD, searchTargets, type LookaheadOptions } from './lookahead.js';
 
 export {
   selectAction, pickResolveTargets, expectedAttackTotal, estimateExpectedDamage,
@@ -67,7 +67,8 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
       // has to act: fall back to the depth-0 opinion rather than to nothing.
       return pick ?? selectAction(engine, actor).actionIdx;
     },
-    targetChooser: (engine, actor, def, req, count, pool, speed) =>
-      pickResolveTargets(engine, actor, def, req, count, pool, speed),
+    targetChooser: (engine, actor, def, req, count, pool, speed) => depth >= 1
+      ? searchTargets(engine as CombatEngine, actor, def, req, count, pool, speed, full.targetSamples ?? 0)
+      : pickResolveTargets(engine, actor, def, req, count, pool, speed),
   };
 }

@@ -108,18 +108,16 @@ describe('puzzles with one right play', () => {
     expect(chosen.every(c => c === 'hit'), `picked ${chosen}`).toBe(true);
   });
 
-  // KNOWN TO FAIL (2026-10-04, NEXT-STEPS §30). Targets are not searched: they
-  // come from `pickResolveTargets`, which gives "interrupt a pending focus" the
-  // same bonus whatever the focus does, so beside a harmless focus it may hit
-  // the wrong one. `it.fails` turns red the day this is fixed.
-  it.fails('aim: the one hit you have goes to the foe whose focus would end the fight', () => {
+  // Searched at resolution (`searchTargets`): the targeting rule alone gives
+  // "interrupt a pending focus" the same bonus whatever the focus does.
+  it('aim: the one hit you have goes to the foe whose focus would end the fight', () => {
     let survived = 0;
     for (let s = 0; s < 20; s++) {
       withSeed(s, () => {
         const hero = fighter('Hero', [attackCard('stab', { speed: 5, rollBonus: 5 })], { pv: 10, ai: true });
         const doomsayer = fighter('Doomsayer', [doom(2)], { pv: 3, ai: true });
         const bystander = fighter('Bystander', [focusCard('wait')], { pv: 3, ai: true });
-        const engine = engineOf([hero], [bystander, doomsayer]);
+        const engine = new CombatEngine([hero], [bystander, doomsayer], { registry: registry(), maxRounds: 12, ...aiPolicy({ depth: 1 }) });
         playRound(engine, []);
         if (hero.isAlive()) survived++;
       });

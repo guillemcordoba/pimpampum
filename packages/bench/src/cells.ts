@@ -15,7 +15,7 @@
 import {
   Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, setAIControlled, withSeed,
 } from '@pimpampum/engine';
-import { aiPolicy, lookaheadChooser } from '@pimpampum/ai';
+import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { theSet, type Cell, type FieldedGroup, type PartySpec } from './gameset.js';
 import { countedCached, key } from './cache.js';
@@ -28,10 +28,11 @@ export const CELL_SEED = 515_000;
 /**
  * How hard both sides think in a cell.
  *
- * Depth 1 is what the balancer prices encounters at, so a report card and a
- * difficulty number mean the same thing.
+ * Production, which is what the balancer prices encounters with, so a report
+ * card and a difficulty number mean the same thing. It was a copy of the
+ * settings, and silently stayed at four rollouts when production went to six.
  */
-export const CELL_AI = { depth: 1, samples: 4, passes: 1, topK: 0 } as const;
+export const CELL_AI = DEFAULT_LOOKAHEAD;
 
 /**
  * WHO GETS HIT — the production AI's target chooser.

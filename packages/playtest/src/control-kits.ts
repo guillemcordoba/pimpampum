@@ -202,7 +202,7 @@ const AIM: EffectHandler = {
 const LOOSE: EffectHandler = {
   modifyAttack(ctx) {
     if (!ctx.source.hasStatus(AIMED_KEY) || !ctx.attackMods) return;
-    ctx.attackMods.extraDamageDice.push(new DiceRoll(8, 6));
+    ctx.attackMods.extraDamageDice.push(new DiceRoll(12, 6));
     ctx.source.clearStatus(AIMED_KEY);
   },
 };
@@ -273,10 +273,15 @@ export function strongKit(): SubjectKit {
   return k;
 }
 
-/** Strictly smaller dice: requirement 2 must call it below the band. */
+/**
+ * Strictly smaller dice, and last on the table: requirement 2 must call it
+ * below the band. 1d3 at the usual speeds stopped being clearly below once the
+ * AI searched its targets (NEXT-STEPS §31): enemies focus the threats and leave
+ * a feeble seat alone, so a merely small kit costs its party less.
+ */
 export function weakKit(): SubjectKit {
   const k = plainKit('weak', [1, 1, 1]);
-  for (const a of k.actions) (a as { dice?: DiceRoll }).dice = new DiceRoll(1, 3);
+  for (const a of k.actions) Object.assign(a, { dice: new DiceRoll(1, 1), speed: 0 });
   return k;
 }
 

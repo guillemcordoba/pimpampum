@@ -238,6 +238,12 @@ const MUTANTS: Mutant[] = [
     replace: '&& playRate >= 0;',
   },
   {
+    label: 'AI: targets come from the rule alone, never searched (a deadly focus left to resolve)',
+    file: 'packages/ai/src/lookahead.ts',
+    find: 'samples: 6, passes: 1, topK: 0, targetSamples: 2 };',
+    replace: 'samples: 6, passes: 1, topK: 0, targetSamples: 0 };',
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',

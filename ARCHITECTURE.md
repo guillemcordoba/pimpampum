@@ -436,6 +436,11 @@ human sees after the reveal: take lethal kills, interrupt enemies whose slower
 focus is still pending, prefer dangerous and wounded targets, avoid active
 guards. Defenses use a guard-vs-block heuristic (guard wounded allies, else
 block the scariest enemy whose attack is still pending, else self-guard).
+At depth ≥ 1 that rule is only the starting pick: a single-target choice is
+**searched** (`searchTargets`) by playing the rest of the round out for each
+candidate on paired rollouts (`targetSamples`, 2), and a candidate must beat
+the rule's pick outright. Inside rollouts the rule alone aims. Multi-target
+choices keep the rule.
 Calibration counts draws as ½.
 
 **Deleted 2026-08-08, deliberately:** the distilled lean policy
