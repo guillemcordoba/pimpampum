@@ -20,5 +20,4 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
  * evaluator cannot see unless their statuses price themselves.
  */
 export const KNOWN_BLIND: Record<string, string[]> = {
-  'enginyer-explosius': ['camp-minat'],
 };

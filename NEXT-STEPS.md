@@ -15,8 +15,9 @@ failure that its test asserts still fails.
    retune and the AI fix (§29). Cards still below the rest of their hand on
    average, but right when they are the right play: Entrar en Fúria (now a
    situational bomb), Marca de la perdició, Erupció.
-2. **Camp minat is an AI blind spot (§30).** Often the best play, almost
-   never played: price its mines for the evaluator (`KNOWN_BLIND`).
+2. **Four game findings from playing the AI by hand (§32)**, each a design
+   decision: revival by healing, Aguantar el cop's unbounded bonus, the chain
+   multiplier's fractional damage, and fury losing a turn at speed −1.
 3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
    `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
    (§27.5). One armour exploration and a recalibration; Aguantar el cop,
@@ -3954,3 +3955,57 @@ measuring in-process (`combat-balancer/test/calibration.slow.test.ts`) ran
 sixteen solves synchronously at collection time and a depth-1 solve in one
 block; the slower AI pushed those blocks past vitest's one-minute RPC deadline.
 They now run in hooks that yield between requests and chunks.
+
+## 32. Ten games by hand against the AI (2026-10-04)
+
+Claude played one side of the mirror party (berserk, mestre-armes, volcanic,
+metge) by hand, seeing every legal card and the reveal before choosing
+targets; the production AI (depth 1, six rollouts, searched targets) played
+the other. **The AI won 7–3.** Its play was strong, not merely legal:
+
+- it killed an adrenaline-boosted attacker before its second strike, and hit
+  lava casters to break their focus;
+- it blocked my main attacker with Aguantar el cop round after round, walled
+  that berserker with two guards, entered fury, then struck for 45;
+- its medic revived the fallen, every game.
+
+Where it was weak: it used Injecció d'adrenalina offensively once in ten
+games (it is the strongest opener: a doubled Atac llampec killed a 12 PV hero
+on round one five times), and a hopeless berserker chained fury to stall
+(one game ran 12 rounds).
+
+**Game findings, for decision:**
+
+1. **Healing revives the dead, and the revived act that round.** Healing cards
+   may target downed allies (`canReviveTarget` for heal effects); a hero
+   killed early in a round and healed at speed −1 still takes a slower
+   pending action. It decided five of the AI's seven wins. `rules.md` never
+   mentions revival.
+2. **Aguantar el cop's bonus stacks without limit when used as a block.** Each
+   quartered blow banks +2×damage for the rest of the combat; one berserker
+   banked over +20 and hit for 45.
+3. **The weapon master's chain multiplies any attack**, so Tall precís (3d4,
+   slow) lands for 26–28, and damage goes fractional (13.5 dealt, 0.5 PV
+   left) because the ×1.5 is never rounded.
+4. **Entrar en Fúria at speed −1 loses a turn**: cast at the end of a round,
+   that round counts as one of its two.
+
+## 33. Camp minat priced for the AI (2026-10-04)
+
+The last blind spot (§30). Its minefield status priced itself at a flat 0.15
+a mine, capped at 0.6 — about a quarter of the blasts' worth — so the card was
+the best play in 24% of its decisions and played on 3.4% of the turns it was
+legal. Now each mine is its average blast against a body's health, discounted
+to 0.8. Measured on the explosives kit:
+
+| mine value | AI plays it | best play | kit |
+|---|---|---|---|
+| flat 0.15, cap 0.6 (was) | 3.4% | 24% | — |
+| 0.3 × blast | 3.0% | 29% | +2.5pp |
+| 0.5 × blast | 3.7% | 26% | +3.5pp |
+| **0.8 × blast** | **6.1%** | **27%** | **+1.9pp** |
+| 1.2 × blast | 6.5% | 26% | +3.0pp |
+
+The play rate stops responding past 0.8, so something else holds the card
+back (likely the shared charges Granada and Traca final spend); 0.8 clears the
+blind-spot bar and keeps the estimate conservative. `KNOWN_BLIND` is empty.

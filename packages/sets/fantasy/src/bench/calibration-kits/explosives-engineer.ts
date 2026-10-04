@@ -135,16 +135,18 @@ const ENCEGAT: StatusBehavior = {
 // blast (armour-ignored) and spend it. One mine per attack.
 const CAMP_MINAT: StatusBehavior = {
   /**
-   * Mines still in the ground are damage already paid for.
+   * Mines still in the ground are damage already paid for: each one's average
+   * blast against a body's health (the holder's, the only body a status can
+   * see), discounted to 0.8 because a mine only pays if someone steps on it.
    *
-   * `positionScore` sees only PV, bodies and fatigue, so a laid minefield read
-   * as nothing at all and Camp minat was played on 1.9% of the turns it was
-   * legal. Priced at roughly one mine's average blast per charge left, against
-   * a body's health, and deliberately shy of what they WILL do: a mine only
-   * pays if someone steps on it.
+   * It was a flat 0.15 a mine capped at 0.6, about a quarter of the blasts'
+   * worth: the card was the best play in 24% of its decisions and played on
+   * 3.4% of the turns it was legal — a blind spot (`isBlindSpot`, NEXT-STEPS
+   * §33). Higher discounts barely moved the play rate further.
    */
   positionValue(ref) {
-    return Math.min(0.6, 0.15 * Math.max(0, ref.entry.value));
+    const blast = (ref.entry.data?.['damage'] as DiceRoll | undefined)?.average() ?? 1;
+    return 0.8 * Math.max(0, ref.entry.value) * blast / Math.max(1, ref.holder.maxPV);
   },
   onEnemyAttackAction(ctx, attacker) {
     if (ctx.entry.value <= 0) return false;
