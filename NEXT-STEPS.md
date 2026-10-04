@@ -5,28 +5,16 @@ left to do. Written as the hand-off for the next session.
 
 ---
 
-## Backlog — the ONLY open list (updated 2026-10-04, evening)
+## Backlog — the ONLY open list (updated 2026-10-05)
 
 Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **Weak cards.** Every kit passes all its requirements since the berserk
-   retune and the AI fix (§29). Cards still below the rest of their hand on
-   average, but right when they are the right play: Entrar en Fúria (now a
-   situational bomb), Marca de la perdició, Erupció.
-2. **Four game findings from playing the AI by hand (§32)**, each a design
-   decision: revival by healing, Aguantar el cop's unbounded bonus, the chain
-   multiplier's fractional damage, and fury losing a turn at speed −1.
-3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
-   `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
-   (§27.5). One armour exploration and a recalibration; Aguantar el cop,
-   which moved ferro, is settled since §29.
-4. **The unpriced "esgotadora" cards (§11):** choose a cost per card, or decide
-   they stay free. Entrar en Fúria now costs a fatigue level (§27.4).
-5. Optional measurement work: a stall probe (one card dominating the plays of
-   fights past round 30, §26.11), and wider fight shapes (bone-devil company
-   row 1 is saturated and drops out of every kit's measurement, §26.14).
+1. **Six design decisions, each with measured options and a recommendation
+   (§35):** revival by healing, Aguantar el cop's bonus, rounding multiplied
+   damage, the armour requirement, the free esgotadora cards, and the even
+   Aggro > Power edge.
 
 ---
 
@@ -4009,3 +3997,102 @@ to 0.8. Measured on the explosives kit:
 The play rate stops responding past 0.8, so something else holds the card
 back (likely the shared charges Granada and Traca final spend); 0.8 clears the
 blind-spot bar and keeps the estimate conservative. `KNOWN_BLIND` is empty.
+
+## 34. Entrar en Fúria lasts its two turns (2026-10-05)
+
+The user's call on §32 finding 4. A status counts down at the end of the round
+it was set in, so the rage's two statuses (`furia`, `indestructible`), set to
+2, protected for one round after the rage resolved, while its +5 (a modifier
+that skips its first tick) ran for both. They now start one tick higher;
+`cards.test.ts` plays it exactly (untouchable in rounds 2 and 3, felled in
+round 4), and a mutant guards it.
+
+Measured: berserk +3.7pp, every requirement passes. The strategy triangle's
+Aggro > Power edge went from ~57% to 52.4%±1.8 (a stronger rage strengthens the
+focus corner) and is recorded in `KNOWN_BROKEN`.
+
+The asymmetry is general: any status set mid-round loses its first round, while
+`NextNTurns` modifiers do not. Only the rage was changed.
+
+## 35. Decisions waiting, with measured options (2026-10-05)
+
+Everything else is done. Each item below is a design call; the measurements
+are on today's main (fury fix included), one kit report each, ~800 combats.
+
+### 35.1 Revival by healing (§32 finding 1)
+
+Healing cards may target downed allies and the revived act that round. With
+heals limited to the living, the six main kits measure (delta vs neutral):
+
+| kit | revival on | revival off |
+|---|---|---|
+| berserk | +5.1 | −0.3 |
+| earthbender | +3.7 | +5.0 |
+| enginyer-explosius | +4.3 | +4.6 |
+| mestre-armes | +5.5 | +5.9 |
+| nigromant | +15.8 | +16.8 |
+| volcanic | +0.2 | +2.4 |
+
+All stay inside the band. **Recommendation: heals heal the living only** — the
+rules never mention revival, and it decided five of the AI's seven hand-played
+wins. (Alternative not measured: revive allowed, but the revived lose their
+action that round.)
+
+### 35.2 Aguantar el cop's unbounded bonus (§32 finding 2)
+
+| variant | berserk | Aguantar el cop value |
+|---|---|---|
+| bonus for the rest of combat (now) | +5.1 | −0.6 |
+| **bonus lasts 2 turns** | +3.6 | −0.5 |
+| bonus lasts 3 turns | +4.1 | −0.6 |
+| bonus equal to the damage, not double | +4.3 | −0.7 |
+
+The kit cells barely see the exploit (it needs a mirror that keeps attacking
+the blocker); every cap costs the card nothing measurable. **Recommendation:
+2 turns** — pain fuels the rage for a moment, and it caps the 45-point blow.
+
+### 35.3 Fractional damage from multipliers (§32 finding 3)
+
+Rounding a multiplied attack total down changes nothing measurable (mestre-
+armes +5.5 either way). **Recommendation: round down**, so PV stay whole.
+
+### 35.4 Armour has no sweet spot under today's AI
+
+The curves depend only on the (armour, speed) pair. Pooled player winrate by
+wearers (0 → 4):
+
+| armour / speed | curve | shape |
+|---|---|---|
+| +2 / 0 | 75 → 78 → 80 → 81 → 83 | always better |
+| +2 / −1 (cuir now) | 75 → 72 → 69 → 66 → 64 | always worse |
+| +3 / −1 | 75 → 74 → 72 → 70 → 70 | always worse |
+| +3 / −2 (ferro now) | 75 → 70 → 65 → 56 → 49 | always worse |
+
+With target search the AI punishes slowness hard enough that one point of
+speed outweighs every armour value tried; without a speed cost armour is free
+value. Options: relax the requirement (armour is a bounded lever with no
+dominant choice — none of these move more than 15pp), or redesign armour so its
+cost is not speed. **Recommendation: relax it**, and revisit if armour becomes a
+design focus.
+
+### 35.5 The free "esgotadora" cards (§11)
+
+Making them free moved nothing measurable in 2026-09; Entrar en Fúria is priced
+since §27.4. **Recommendation: they stay free**, and the item closes.
+
+### 35.6 Strategy triangle: Aggro > Power is even (§34)
+
+52.4%±1.8 since the rage lasts its full two turns. **Recommendation: accept
+for now** (recorded in `KNOWN_BROKEN`); if Power should lose to Aggro, the lever
+is the rage, not Aggro.
+
+### 35.7 For information, no decision needed
+
+- **Weak cards:** with today's AI every kit passes every requirement. The
+  nigromant sits at +15.8pp, at the band's edge but inside its noise.
+- **The encounter creator works in a real browser** (headless Chromium via
+  DevTools): a solve answers ~3.3 s after a click, of which 350 ms is the
+  deliberate debounce, with no console errors.
+- **Closed without action:** the stall probe and the wider fight shapes (§26).
+  Every kit passes "fights end", and the one stall seen by hand (a hopeless
+  berserker chaining fury, §32) ends by exhaustion.

@@ -244,6 +244,12 @@ const MUTANTS: Mutant[] = [
     replace: 'samples: 6, passes: 1, topK: 0, targetSamples: 0 };',
   },
   {
+    label: 'content: Entrar en Fúria protects for one round after it resolves, not two',
+    file: 'packages/sets/fantasy/src/players/skills/berserk.ts',
+    find: "ctx.source.setStatus('indestructible', 1, turns + 1, undefined, INDESTRUCTIBLE);",
+    replace: "ctx.source.setStatus('indestructible', 1, turns, undefined, INDESTRUCTIBLE);",
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',

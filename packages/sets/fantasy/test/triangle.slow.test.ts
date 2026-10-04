@@ -23,9 +23,10 @@ const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.w
  * holds its test turns red and it leaves this list rather than the finding
  * being forgotten. Filled from the measurement, never by guessing.
  */
-// Empty since 2026-10-04: the berserk retune (Entrar en Fúria at speed 0) made
-// Aggro > Power and Protect > Aggro hold (NEXT-STEPS §29).
-const KNOWN_BROKEN = new Set<string>([]);
+// Aggro > Power: held at ~57% after the berserk retune (§29); 52.4% since
+// Entrar en Fúria protects for its full two rounds (2026-10-05, §34) — a
+// stronger rage strengthens the focus corner. Even, not reversed.
+const KNOWN_BROKEN = new Set<string>(['Aggro > Power']);
 
 describe('the strategy triangle', () => {
   let t: TriangleReport;

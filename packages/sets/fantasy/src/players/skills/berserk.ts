@@ -64,11 +64,15 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
       const value = num(ctx.params, 'value', 5);
       const turns = num(ctx.params, 'turns', 3);
       applyMod(ctx.source, 'attack', value, turns, 'Fúria');
-      ctx.source.setStatus('furia', value, turns, undefined, FURIA_ESTAT);
+      // One tick more than the card's turns: a status counts down at the end of
+      // the round it was set in, so set to `turns` the rage protected for one
+      // round after it resolved, while the +5 above (a modifier that skips
+      // that first tick) ran for both.
+      ctx.source.setStatus('furia', value, turns + 1, undefined, FURIA_ESTAT);
       // The all-in: the rage burns the body down to its last breath (a direct
       // set — no hit is recorded, so it interrupts nothing).
       ctx.source.currentPV = 1;
-      ctx.source.setStatus('indestructible', 1, turns, undefined, INDESTRUCTIBLE);
+      ctx.source.setStatus('indestructible', 1, turns + 1, undefined, INDESTRUCTIBLE);
       ctx.engine.log('focus', `${ctx.source.name} entra en fúria: 1 PV, intocable ${turns} torns i +${value} a l'atac!`, ctx.source.team);
     },
     // The lower the berserker already is, the less the all-in costs.

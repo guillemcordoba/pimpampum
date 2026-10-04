@@ -168,3 +168,27 @@ describe('standing wall: the wall has life', () => {
   });
 });
 
+
+describe('Berserk: Entrar en Fúria', () => {
+  it('protects for the two whole rounds after it resolves, not one', () => {
+    // "Durant 2 torns res et pot fer baixar PV": cast late in round 1, the
+    // rage must hold through rounds 2 and 3. A status's countdown ticks at the
+    // end of the round it was set in, so set to 2 it held for round 2 only,
+    // while the card's +5 (a modifier that skips its first tick) ran on.
+    const berserker = buildCharacter({ name: 'Berserker', pv: 12, skills: { berserk: 4 }, equipment: ['destral'] });
+    // Slower than the rage, which a blow landing first would interrupt.
+    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 5, speed: -5 })], { pv: 500, ai: true });
+    const engine = new CombatEngine([berserker], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
+    const rage = berserker.actions.findIndex(a => a.def.id === 'entrar-en-furia');
+    const swing = berserker.actions.findIndex(a => a.def.id === 'atac-temerari');
+    const strike = [{ idx: 0, actionIdx: swing, targets: [{ team: 1, idx: 0 }] }];
+
+    runRound(engine, [{ idx: 0, actionIdx: rage }]);
+    expect(berserker.currentPV).toBe(1);
+    runRound(engine, strike);
+    runRound(engine, strike);
+    expect(berserker.currentPV, 'untouchable through rounds 2 and 3').toBe(1);
+    runRound(engine, strike);
+    expect(berserker.isAlive(), 'the rage is over in round 4').toBe(false);
+  });
+});
