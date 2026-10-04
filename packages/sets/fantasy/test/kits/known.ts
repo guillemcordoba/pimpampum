@@ -12,3 +12,14 @@ import type { Requirement } from '@pimpampum/playtest/vitest';
 
 export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 };
+
+/**
+ * Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,
+ * almost never played. Measured 2026-10-04 (NEXT-STEPS §30). Both pay off in
+ * later rounds — a grip that holds, mines that wait — which a one-round
+ * evaluator cannot see unless their statuses price themselves.
+ */
+export const KNOWN_BLIND: Record<string, string[]> = {
+  earthbender: ['preso-de-terra'],
+  'enginyer-explosius': ['camp-minat'],
+};

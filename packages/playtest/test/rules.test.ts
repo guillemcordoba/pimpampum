@@ -21,7 +21,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  choiceMattersVerdict, durationVerdict, edgeHolds, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
+  choiceMattersVerdict, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
   MIN_CHOICE_COST, strengthVerdict, sweetSpotVerdict, TRIANGLE_GAMES, triangleVerdict,
 } from '../src/index.js';
 
@@ -222,5 +222,19 @@ describe('the armour sweet spot', () => {
 
   it('needs nobody, somebody and everybody', () => {
     expect(sweetSpotVerdict(curve(0.6, 0.7)).ok).toBe(false);
+  });
+});
+
+describe('a blind spot: often the best play, almost never played', () => {
+  // Shares measured 2026-10-04 (NEXT-STEPS §30), as fixtures for the rule.
+  it('flags a card the AI plays far less than it is right', () => {
+    expect(isBlindSpot(0.21, 0.02, 0.026)).toBe(true);   // Presó de terra
+    expect(isBlindSpot(0.20, 0.02, 0.036)).toBe(true);   // Marca, with the AI blind to statuses
+  });
+
+  it('passes a card played in proportion, or rarely right to begin with', () => {
+    expect(isBlindSpot(0.14, 0.02, 0.061)).toBe(false);  // Entrar en Fúria: rare, and played when right
+    expect(isBlindSpot(0.21, 0.02, 0.053)).toBe(false);  // Paisatge congelat: under-played, not blind
+    expect(isBlindSpot(0.11, 0.02, 0.0)).toBe(false);    // best share not clearly above the floor
   });
 });

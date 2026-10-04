@@ -15,9 +15,10 @@ failure that its test asserts still fails.
    retune and the AI fix (§29). Cards still below the rest of their hand on
    average, but right when they are the right play: Entrar en Fúria (now a
    situational bomb), Marca de la perdició, Erupció.
-2. **An AI test suite** aimed at decision quality, not just strength: the
-   faults of §29 (unpaired comparisons, decisions dominated by noise) were
-   invisible to every AI test there was. Proposed to the user 2026-10-04.
+2. **Two AI blind spots (§30).** Presó de terra and Camp minat are often the
+   best play and almost never played: price their statuses for the evaluator
+   (`KNOWN_BLIND`). And targets are never searched, so an attack can interrupt
+   the wrong focus (the `aim` puzzle).
 3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
    `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
    (§27.5). One armour exploration and a recalibration; Aguantar el cop,
@@ -3729,11 +3730,11 @@ Measurements only — nothing here is merged; every option is a decision.
 
 **The strategy triangle (backlog 2).** Read from 60 mirror fights per pairing:
 
-- The triangle is measured on ONE table: \`mirrorParty()\` is company row 0 —
+- The triangle is measured on ONE table: `mirrorParty()` is company row 0 —
   berserk (the row's stand-in), mestre-armes, volcanic, metge. Its verdict is
   a fact about that party. Option: pool the three duels over every company
   row, as the kit cells do.
-- Power does not win the way \`intentions.md\` assumes (slow focuses that fast
+- Power does not win the way `intentions.md` assumes (slow focuses that fast
   attacks interrupt). Its most played focuses are fast or protective: Cures de
   camp (195 plays in 60 fights), Entrar en Fúria (176), Riu de lava (158) and
   **Rugit de guerra (144)** — the roar, at speed 2, cancels every enemy who
@@ -3884,3 +3885,33 @@ capped near saturation and the pipeline's positive control failed.
 
 Speed test (8 cores), seconds per solve at 65%: horde ~2.4, bone devils ~1.9,
 basilisk ~1.6, mixed ~1.7.
+
+## 30. An AI test suite, kept only where it measured useful (2026-10-04)
+
+Four candidate layers were built and each was run against nine injected AI
+faults (two rollouts, streams off, an evaluator blind to statuses or to
+bodies, opponents playing their first card, area priced as one body, attacks
+aimed at the healthiest, no search pass, racing that cuts on no evidence). A
+layer stayed only if it caught something the existing tests did not.
+
+| layer | caught | kept |
+|---|---|---|
+| metamorphic (a strictly worse twin, an exact duplicate) | nothing | no |
+| puzzle bank, fast (`ai/test/puzzles.test.ts`) | blind to bodies (no other fast test did), no search pass | **yes** |
+| decision quality against a 32-rollout reference | two rollouts only, which the strength suite also catches; blind to anything that breaks the reference too | no |
+| blind-spot check per kit (`isBlindSpot`, in `kitSuite`) | the status-blind AI (flags Invocar l'ombra and Marca on nigromant) | **yes** |
+
+The existing slow strength suite (`ai-strength.slow.test.ts`) caught seven of
+the nine; the old fast tests caught four. Two mutants now guard the kept layers.
+
+**What the kept layers found on today's AI:**
+
+- **Targets are never searched.** `pickResolveTargets` gives "interrupt a
+  pending focus" the same bonus whatever the focus does, so beside a harmless
+  focus it can hit the wrong foe and let a deadly one resolve. Recorded as a
+  known failure (the `aim` puzzle, `it.fails`).
+- **Two cards are blind spots:** Presó de terra (best play 21% of the time,
+  played 2.6%) and Camp minat (24%, 3.4%). Both pay off in later rounds, which
+  a one-round evaluator cannot see unless their statuses price themselves
+  (`StatusBehavior.positionValue`). Recorded in `KNOWN_BLIND`; every number
+  measured through the AI undervalues them until fixed.

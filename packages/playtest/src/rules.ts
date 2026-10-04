@@ -123,6 +123,31 @@ export function isNeverRight(gain: number | null, se: number | null, decisions: 
 /** Decisions a card must have been legal in before it is judged at all. */
 export const MIN_CARD_DECISIONS = 30;
 
+// --- The AI's blind spots ---------------------------------------------------------
+
+/**
+ * A card that is often the best play but that the AI almost never plays.
+ *
+ * Not a requirement on the CARD: on the instrument. The card-value rollouts
+ * play the whole fight out, while the AI scores one round ahead with an
+ * evaluator that sees only PV, bodies, fatigue and the statuses that price
+ * themselves — so a card whose worth lands later, or lives in an unpriced
+ * status, is right in the rollouts and invisible to the search. Every number
+ * measured through that AI then undervalues it. It used to be a rule of thumb
+ * in CLAUDE.md ("a card the AI never plays is usually a blind evaluator");
+ * eleven cards were once found by hand this way.
+ *
+ * Flagged when the card is the best play in at least `BLIND_MIN_BEST_SHARE`
+ * of its decisions (clearly, at 2σ) and the AI plays it on fewer than
+ * `BLIND_MAX_PLAY_RATIO` of that share of the turns it is legal. The two
+ * shares have different denominators, so the ratio is deliberately loose.
+ */
+export function isBlindSpot(bestShare: number, bestStderr: number, playRate: number): boolean {
+  return bestShare - 2 * bestStderr >= BLIND_MIN_BEST_SHARE && playRate < BLIND_MAX_PLAY_RATIO * bestShare;
+}
+export const BLIND_MIN_BEST_SHARE = 0.1;
+export const BLIND_MAX_PLAY_RATIO = 0.2;
+
 // --- 4. The strategy triangle ----------------------------------------------------
 
 /**

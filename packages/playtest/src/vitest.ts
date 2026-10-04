@@ -22,6 +22,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { SMOKE } from '@pimpampum/bench';
 import type { AnalyzeBudget, KitReport, Verdict } from './analyze.js';
 import { analyzeIsolated } from './isolated.js';
+import { isBlindSpot } from './rules.js';
 
 /** The requirements a KIT is judged on (`rules.ts`). Requirement 4, the
  *  strategy triangle, is the set's, not a kit's (`triangle.ts`). */
@@ -42,6 +43,21 @@ export interface KitSuiteOptions {
   /** Requirements this kit is KNOWN to fail today → why, and where it is
    *  written down. See the ratchet above. */
   known?: Partial<Record<Requirement, string>>;
+  /** Cards the AI is KNOWN to be blind to today (`isBlindSpot`), by id. The
+   *  same ratchet: each must still be flagged, and nothing else may be. */
+  knownBlind?: string[];
+}
+
+/** The cards of a measured kit the AI is blind to (`isBlindSpot`), with the
+ *  two shares that flagged them. */
+export function blindCards(r: KitReport): { id: string; bestShare: number; playRate: number }[] {
+  const counters = r.fullKit.counters;
+  return r.cardValues.flatMap(v => {
+    const legal = counters.legal[v.id] ?? 0;
+    if (!legal) return [];
+    const playRate = (counters.played[v.id] ?? 0) / legal;
+    return isBlindSpot(v.bestShare, v.bestStderr, playRate) ? [{ id: v.id, bestShare: v.bestShare, playRate }] : [];
+  });
 }
 
 /** Declare one kit's requirement tests. Call at the top level of a test file. */
@@ -59,6 +75,16 @@ export function kitSuite(opts: KitSuiteOptions): void {
       expect(r.cards.length).toBeGreaterThan(0);
       expect(r.fullKit.games).toBeGreaterThan(0);
       expect(r.choiceCost, 'the card value was not measured').not.toBeNull();
+    });
+
+    it.skipIf(SMOKE)('the AI plays the cards that are right (no blind evaluator)', () => {
+      const flagged = blindCards(r);
+      const show = flagged.map(f => `${f.id}: best ${(100 * f.bestShare).toFixed(0)}%, played ${(100 * f.playRate).toFixed(1)}%`).join('; ');
+      const known = new Set(opts.knownBlind ?? []);
+      for (const id of known) {
+        expect(flagged.map(f => f.id), `${id} is no longer a blind spot. Delete it from knownBlind. ${show}`).toContain(id);
+      }
+      expect(flagged.filter(f => !known.has(f.id)), `the AI is blind to: ${show}`).toEqual([]);
     });
 
     for (const [req, label] of Object.entries(REQUIREMENTS) as [Requirement, string][]) {

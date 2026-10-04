@@ -226,6 +226,18 @@ const MUTANTS: Mutant[] = [
     replace: '    void decided;',
   },
   {
+    label: 'AI: the evaluator ignores bodies standing (a guard that saves an ally is worthless)',
+    file: 'packages/ai/src/lookahead.ts',
+    find: 'w.bodies * bodyDiff',
+    replace: '0 * bodyDiff',
+  },
+  {
+    label: 'blind spot: a card is blind whatever the AI plays',
+    file: 'packages/playtest/src/rules.ts',
+    find: '&& playRate < BLIND_MAX_PLAY_RATIO * bestShare;',
+    replace: '&& playRate >= 0;',
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',
