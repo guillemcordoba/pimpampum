@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import { ENEMY_DEFINITIONS, getEnemy, fullKitLevel, solveEncounter, TARGET_WINRATES, type PoolSpec, type SolvedEncounter, type PartySpec } from '@pimpampum/set-fantasy';
-import type { SolveRequest, SolveReply } from '../workers/solve-worker';
+import { ENEMY_DEFINITIONS, getEnemy, fullKitLevel, solveEncounter, solveEncounterAsync, TARGET_WINRATES, type PoolSpec, type SolvedEncounter, type PartySpec } from '@pimpampum/set-fantasy';
+import { ChunkPool } from '../composables/chunkPool';
 import { setPendingEncounter } from '../composables/pendingEncounter';
 import { createTrackerSession } from '../composables/combatTracker';
 import { useParties, heroBuildSpec } from '../composables/party';
@@ -62,27 +62,27 @@ function bumpLevel(row: PoolRow, delta: number): void {
 }
 
 // --- The solve --------------------------------------------------------------
-// The balancer PLAYS the encounter a few hundred times rather than predicting
-// it from a formula, so a solve costs ~1-2s of solid CPU. That runs in a
-// WORKER: on the main thread it froze the page, and — worse — a synchronous
-// solve cannot be interrupted, so bumping the enemy count during one meant
-// waiting for it to finish before anything responded.
+// The balancer PLAYS the encounter a few thousand times rather than predicting
+// it from a formula. The search runs here on the page and only hands out the
+// fights, which a pool of workers plays in parallel (`ChunkPool`): the page
+// stays live, and a solve comes back inside the 3-second budget a DM needs to
+// try a few compositions in a row.
 //
-// Cancellation is `terminate()`. There is no cooperative abort to ask for: the
-// solve is one long synchronous call inside the worker, so killing the worker
-// outright is the only thing that actually stops the work.
+// Cancellation is cooperative: a newer solve bumps the token, and the old one
+// stops at its next step. Fights already handed out finish and are ignored.
 const solved = ref<SolvedEncounter | null>(null);
 const solving = ref(false);
 let solveToken = 0;
 let solveTimer: ReturnType<typeof setTimeout> | undefined;
-let worker: Worker | null = null;
+let workers: ChunkPool | null = null;
 
-function disposeWorker(): void {
-  worker?.terminate();
-  worker = null;
+function workerPool(): ChunkPool | null {
+  if (workers) return workers;
+  try { workers = new ChunkPool(); } catch { workers = null; }
+  return workers;
 }
 
-function runSolve(): void {
+async function runSolve(): Promise<void> {
   const token = ++solveToken;
   const specs: PoolSpec[] = pool.value.map(p =>
     ({ enemyId: p.enemyId, count: p.count, level: p.level }));
@@ -92,34 +92,20 @@ function runSolve(): void {
     solved.value = null; solving.value = false; return;
   }
   solving.value = true;
-
-  // A previous solve may still be burning CPU — kill it before starting another.
-  disposeWorker();
+  const stale = () => token !== solveToken;
+  const pool2 = workerPool();
+  let result: SolvedEncounter | null;
   try {
-    worker = new Worker(new URL('../workers/solve-worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (event: MessageEvent<SolveReply>) => {
-      const reply = event.data;
-      if (reply.id !== token) return;          // a newer solve superseded this one
-      solved.value = reply.ok ? reply.result : null;
-      solving.value = false;
-      disposeWorker();
-    };
-    worker.onerror = () => {
-      // Fall back to solving inline rather than leaving the panel spinning.
-      disposeWorker();
-      if (token !== solveToken) return;
-      solved.value = solveEncounter(specs, partySpec, target);
-      solving.value = false;
-    };
-    const request: SolveRequest = { id: token, pool: specs, party: partySpec, target };
-    worker.postMessage(request);
+    result = pool2
+      ? await solveEncounterAsync(specs, partySpec, target, jobs => pool2.run(partySpec, jobs), {}, stale)
+      // No worker support: solve inline. The page will hitch, but it still works.
+      : solveEncounter(specs, partySpec, target);
   } catch {
-    // No worker support: solve inline. The page will hitch, but it still works.
-    const result = solveEncounter(specs, partySpec, target);
-    if (token !== solveToken) return;
-    solved.value = result;
-    solving.value = false;
+    result = null;
   }
+  if (stale()) return;
+  solved.value = result;
+  solving.value = false;
 }
 
 watch(
@@ -128,7 +114,6 @@ watch(
     // Invalidate and STOP whatever is in flight, so a run of rapid clicks does
     // not queue up solves behind each other.
     solveToken++;
-    disposeWorker();
     solving.value = true;
     clearTimeout(solveTimer);
     solveTimer = setTimeout(runSolve, 350);
@@ -136,10 +121,12 @@ watch(
   { deep: true, immediate: true },
 );
 
-// Leaving the page mid-solve must not leave a worker chewing CPU.
+// Leaving the page must not leave workers chewing CPU.
 onBeforeUnmount(() => {
   clearTimeout(solveTimer);
-  disposeWorker();
+  solveToken++;
+  workers?.dispose();
+  workers = null;
 });
 
 const predictedPct = computed(() =>

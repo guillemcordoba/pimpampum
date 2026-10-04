@@ -3789,3 +3789,33 @@ fights the solver says it could not price. Decision needed: skip or flag
 missed solves (two of three fights would drop out), or pick armour fights the
 solver can hit. Until then the armour sweet-spot verdicts — and the variant
 table above — are measured near saturation.
+
+## 28. The encounter creator answers in under 3 seconds (2026-10-04)
+
+The user's bar: a GM runs three or four iterations per encounter and must not
+wait more than ~10 s in total, so one solve gets **3 s**. That is now a test,
+`sets/fantasy/test/encounter-speed.test.ts`: four realistic requests (a goblin
+horde, three bone devils, a lone basilisk, goblins with a horned devil) at a
+65% target against a four-hero explicit party, each under 3 s, plus an
+assertion that the parallel answer equals the serial one.
+
+Measured on this machine (8 cores), seconds per solve:
+
+| request | before | one thread, after | 8 workers |
+|---|---|---|---|
+| 5 goblins | 22.5 | 15.1 | 2.6–2.75 |
+| 3 goblins + horned devil | 12.4 | 8.9 | ~1.9 |
+| 3 bone devils | 6.8 | 4.4 | ~1.0 |
+| basilisk | 3.4 | 2.2 | ~0.44 |
+
+Where the time went: depth-1 fights are 97% of a solve, and a `Set` built per
+roll in `getRollBonus` was 17% of all CPU. Three changes, see ARCHITECTURE
+"Speed": the roll-bonus sum no longer allocates; accept/reject checks stop
+early once the answer is three standard errors clear; and every simulation is
+split into seeded chunks that a worker pool plays in parallel, with answers
+identical to the serial ones.
+
+Open: the horde is the tightest request (≈2.7 s against 3 s), and a machine
+with fewer cores is proportionally slower. The reserve lever, if it is needed,
+is fewer final-verification fights. The web creator was type-checked and
+bundled but not exercised in a real browser.

@@ -8,9 +8,9 @@
  */
 import type { Character, EffectRegistry } from '@pimpampum/engine';
 import {
-  simulateEncounter as simulateWith, solveEncounter as solveWith,
-  type EncounterContent, type FieldedGroup, type PoolSpec, type SimOptions, type SimResult,
-  type SolvedEncounter, type SolveOptions,
+  playChunk, simulateEncounter as simulateWith, solveEncounter as solveWith, solveEncounterAsync as solveWithAsync,
+  type ChunkJob, type ChunkRunner, type ChunkTotals, type EncounterContent, type FieldedGroup, type PoolSpec,
+  type SimOptions, type SimResult, type SolvedEncounter, type SolveOptions,
 } from '@pimpampum/combat-balancer';
 import { buildReferenceParty, isExplicitParty, type PartySpec } from './players/party.js';
 import { buildComposition } from './enemies/factory.js';
@@ -23,7 +23,7 @@ export {
 } from '@pimpampum/combat-balancer';
 export type {
   PoolSpec, SolvedGroup, SolvedEncounter, FieldedGroup,
-  SimOptions, SimResult, SolveOptions,
+  SimOptions, SimResult, SolveOptions, ChunkJob, ChunkTotals, ChunkRunner,
 } from '@pimpampum/combat-balancer';
 
 let registry: EffectRegistry | null = null;
@@ -61,4 +61,22 @@ export function generateEncounter(
 /** Instantiate every enemy of a solved encounter. */
 export function buildSolvedEncounter(solved: SolvedEncounter): Character[] {
   return buildComposition(solved.groups);
+}
+
+/**
+ * Solve with every simulation's fights spread over `run` — a pool of workers
+ * each calling `playEncounterChunk`. The same answer as `solveEncounter`,
+ * several times sooner: the encounter creator has a 3-second budget
+ * (`test/encounter-speed.test.ts`) that one thread cannot meet.
+ */
+export function solveEncounterAsync(
+  pool: PoolSpec[], party: PartySpec, targetWinrate: number, run: ChunkRunner,
+  opts: SolveOptions = {}, cancelled?: () => boolean,
+): Promise<SolvedEncounter | null> {
+  return solveWithAsync(FANTASY_ENCOUNTERS, pool, party, targetWinrate, opts, run, cancelled);
+}
+
+/** What a worker runs: one chunk of fights of this set. */
+export function playEncounterChunk(party: PartySpec, job: ChunkJob): ChunkTotals {
+  return playChunk(FANTASY_ENCOUNTERS, party, job);
 }

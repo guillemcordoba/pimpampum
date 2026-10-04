@@ -343,6 +343,26 @@ per-round threat (3× basilisk at 10 PV / 3.5 rounds; 6× goblin shaman at 10 PV
 - PV is an integer lever, so some targets are genuinely unreachable; the solver
   reports what it achieved (`clamped`).
 
+**Speed: a solve must answer in under 3 s** (`sets/fantasy/test/encounter-speed.test.ts`,
+four realistic requests on an explicit four-hero party). A GM iterates three or
+four times per encounter, so the creator has to feel instant. How it gets there:
+
+- The search is a **generator**, `solveSteps`: it yields each simulation it
+  needs as a `SimRequest` and is resumed with the result. `solveEncounter`
+  drives it synchronously; `solveEncounterAsync` drives it over a
+  `ChunkRunner`, which plays the chunks wherever it likes (the web app's worker
+  pool, a test's `worker_threads` pool).
+- A simulation is split into **seeded chunks** of `CHUNK_GAMES` fights
+  (`chunkJobs` → `playChunk` → `mergeChunks`). Each chunk's seed derives from
+  the simulation's seed and the chunk's index, so the serial and parallel
+  answers are IDENTICAL (the speed test asserts it) and common random numbers
+  still hold.
+- Accept/reject checks **stop early** (`aboveTargetAt`, `fitsBudgetAt`): they
+  play in blocks and stop once the answer is several standard errors clear of
+  the threshold. Only close calls pay the full sample.
+- Depth-1 fights are ~97% of a solve, so the solve's speed is the AI's speed;
+  the engine's roll-bonus sum allocates nothing per call for that reason.
+
 **The AI defines difficulty.** Every number is the winrate of AI play, so AI
 quality is balance quality. The balancer plays the one AI at `aiDepth` 1 (see
 The AI, below).
@@ -686,7 +706,9 @@ what lets those screens size to the window rather than the viewport); the
   at. Each species carries **how many** and at **what level** — level is a LORE
   input (a green scout vs a war-leader), not something the solver optimises. The
   result panel reads back the two numbers the GM tunes against: measured winrate
-  and average rounds, with a warning past 6 rounds. Two start buttons: **Combat
+  and average rounds, with a warning past 6 rounds. The solve runs on a pool of Web Workers
+  (`composables/chunkPool.ts`, one per core up to 8, each playing chunks via
+  `workers/chunk-worker.ts`); a newer request makes an in-flight solve stale. Two start buttons: **Combat
   contra la IA** and **Combat contra els jugadors**.
 - `/combats/jugadors` — the parties, not the fights. Combats are filed under the
   party that fought them, so this is one level up. Each row shows the heroes,

@@ -7,7 +7,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  PV_MAX, PV_MIN, simulateEncounter, solveEncounter, SOLVE_MISS_EPSILON, TARGET_WINRATES,
+  chunkJobs, type ChunkJob, playChunk, PV_MAX, PV_MIN, simulateEncounter, solveEncounter, solveEncounterAsync,
+  SOLVE_MISS_EPSILON, TARGET_WINRATES,
 } from '../src/index.js';
 import { CONTENT, FAST, type TestParty } from './content.js';
 
@@ -15,7 +16,7 @@ const FOUR: TestParty = { heroes: 4 };
 
 describe('simulateEncounter', () => {
   it('an empty encounter is a certain win and costs nothing', () => {
-    expect(simulateEncounter(CONTENT, [], FOUR, FAST)).toEqual({ winrate: 1, games: 0, avgRounds: 0, stderr: 0 });
+    expect(simulateEncounter(CONTENT, [], FOUR, FAST)).toEqual({ winrate: 1, games: 0, avgRounds: 0, roundsStderr: 0, stderr: 0 });
   });
 
   it('is deterministic for a seed', () => {
@@ -101,5 +102,30 @@ describe('solveEncounter — what it reports', () => {
     expect(r.games).toBe(FAST.games);
     const replay = simulateEncounter(CONTENT, r.groups, FOUR, { ...FAST, seed: 20260801 + 977 });
     expect(r.predictedWinrate).toBe(replay.winrate);
+  });
+});
+
+describe('the parallel solve', () => {
+  it('chunks a simulation into seeded pieces whose sum is the whole', () => {
+    const jobs = chunkJobs([{ enemyId: 'rat', count: 3, pv: 10 }], { ...FAST, games: 23, seed: 5 });
+    expect(jobs.reduce((n, j) => n + j.games, 0)).toBe(23);
+    expect(new Set(jobs.map(j => j.seed)).size).toBe(jobs.length);
+  });
+
+  it('gives exactly the synchronous answer, whatever order the chunks come back in', async () => {
+    const pool = [{ enemyId: 'rat', count: 3 }];
+    const backwards = async (jobs: ChunkJob[]) =>
+      [...jobs].reverse().map(job => playChunk(CONTENT, FOUR, job)).reverse();
+    const sync = solveEncounter(CONTENT, pool, FOUR, 0.6, { searchGames: 20, steps: 4, games: 40 });
+    const parallel = await solveEncounterAsync(CONTENT, pool, FOUR, 0.6, { searchGames: 20, steps: 4, games: 40 }, backwards);
+    expect(parallel).toEqual(sync);
+  });
+
+  it('stops when cancelled', async () => {
+    let calls = 0;
+    const run = async (jobs: ChunkJob[]) => { calls++; return jobs.map(job => playChunk(CONTENT, FOUR, job)); };
+    const out = await solveEncounterAsync(CONTENT, [{ enemyId: 'rat', count: 3 }], FOUR, 0.6, { searchGames: 20 }, run, () => calls >= 1);
+    expect(out).toBeNull();
+    expect(calls).toBe(1);
   });
 });

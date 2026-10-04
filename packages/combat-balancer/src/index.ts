@@ -89,6 +89,10 @@ const BALANCER_DEPTH: number = 1;
 const SEARCH_DEPTH: number = 0;
 /** Local bisection steps at the real depth, around the depth-0 answer. */
 const VERIFY_STEPS = 4;
+/** Real-depth yes/no checks play in chunks of this many fights… */
+const DECIDE_CHUNK = 40;
+/** …and stop once the running winrate is this many σ from the target. */
+const DECIDE_SIGMAS = 3;
 /** How far off the depth-0 answer can be; the measured gap was ~17%. */
 const VERIFY_BRACKET = 1.6;
 /** Games behind the depth-1 numbers. Fewer than the depth-0 report used —
@@ -129,9 +133,95 @@ export interface SimResult {
   winrate: number;
   games: number;
   avgRounds: number;
+  /** 1σ sampling error on `avgRounds`. */
+  roundsStderr: number;
   /** 1σ sampling error in winrate points, for honest UI rounding. */
   stderr: number;
 }
+
+/**
+ * Fights are played in CHUNKS of this many, each on its own seed derived from
+ * the request's seed and the chunk's index. A result is then the same whether
+ * the chunks run one after another (`simulateEncounter`) or spread over any
+ * number of workers (`solveEncounterAsync`): parallelism changes the wall
+ * clock, never the answer.
+ */
+export const CHUNK_GAMES = 5;
+const CHUNK_SEED_STRIDE = 104_729;
+
+/** One chunk of fights: everything a worker needs besides the content and the party. */
+export interface ChunkJob {
+  groups: FieldedGroup[];
+  games: number;
+  seed: number;
+  aiDepth?: number;
+  aiLookahead?: SimOptions['aiLookahead'];
+  maxRounds?: number;
+}
+
+/** What a chunk of fights produced. Draws count ½ in `wins`. */
+export interface ChunkTotals { games: number; wins: number; rounds: number; roundsSq: number }
+
+/** Split one simulation into its seeded chunks. */
+export function chunkJobs(groups: FieldedGroup[], opts: SimOptions = {}): ChunkJob[] {
+  const games = opts.games ?? DEFAULT_GAMES;
+  const seed = opts.seed ?? DEFAULT_SEED;
+  const jobs: ChunkJob[] = [];
+  for (let i = 0, left = games; left > 0; i++, left -= CHUNK_GAMES) {
+    jobs.push({
+      groups, games: Math.min(CHUNK_GAMES, left), seed: seed + i * CHUNK_SEED_STRIDE,
+      aiDepth: opts.aiDepth, aiLookahead: opts.aiLookahead, maxRounds: opts.maxRounds,
+    });
+  }
+  return jobs;
+}
+
+/** Play one chunk. Pure in its inputs, so any worker can run any chunk. */
+export function playChunk<P>(content: EncounterContent<P>, party: P, job: ChunkJob, registry?: EffectRegistry): ChunkTotals {
+  const reg = registry ?? content.registry();
+  return withSeed(job.seed, () => {
+    let wins = 0, rounds = 0, roundsSq = 0;
+    for (let i = 0; i < job.games; i++) {
+      const players = content.buildParty(party);
+      setAIControlled(players);
+      const enemies = content.buildEncounter(job.groups);
+      const result = new CombatEngine(players, enemies, {
+        registry: reg, maxRounds: job.maxRounds ?? 40,
+        ...aiPolicy({ depth: job.aiDepth ?? BALANCER_DEPTH, ...job.aiLookahead }),
+      }).runCombat();
+      if (result.winner === 0) wins += 1;
+      else if (result.winner === null) wins += 0.5;
+      rounds += result.rounds;
+      roundsSq += result.rounds * result.rounds;
+    }
+    return { games: job.games, wins, rounds, roundsSq };
+  });
+}
+
+/** Combine a simulation's chunks into its result. */
+export function mergeChunks<P>(content: EncounterContent<P>, party: P, totals: ChunkTotals[]): SimResult {
+  const games = totals.reduce((n, t) => n + t.games, 0);
+  if (games === 0) return { winrate: 1, games: 0, avgRounds: 0, roundsStderr: 0, stderr: 0 };
+  const winrate = totals.reduce((n, t) => n + t.wins, 0) / games;
+  const avgRounds = totals.reduce((n, t) => n + t.rounds, 0) / games;
+  const roundsVar = Math.max(0, totals.reduce((n, t) => n + t.roundsSq, 0) / games - avgRounds * avgRounds);
+  // A DRAWN party makes games not quite iid Bernoulli: the party is redrawn
+  // each time and party composition matters a lot against some kits, so the
+  // observed spread runs ~25% wider than the binomial figure (measured on the
+  // basilisk: 4.4pp vs a predicted 3.5pp). Inflate rather than quote an error
+  // bar we beat. An EXPLICIT party is the same characters every game, so that
+  // source of spread is gone and the binomial figure is the honest one.
+  const HETEROGENEITY = content.isFixedParty(party) ? 1 : 1.25;
+  return {
+    winrate,
+    games,
+    avgRounds,
+    roundsStderr: Math.sqrt(roundsVar / games),
+    stderr: HETEROGENEITY * Math.sqrt(Math.max(0.0001, winrate * (1 - winrate)) / games),
+  };
+}
+
+const noEnemies = (groups: FieldedGroup[]): boolean => groups.reduce((n, g) => n + Math.max(0, g.count), 0) === 0;
 
 /**
  * Play the encounter `games` times and report how often the players win.
@@ -143,43 +233,8 @@ export function simulateEncounter<P>(
   party: P,
   opts: SimOptions = {},
 ): SimResult {
-  const games = opts.games ?? DEFAULT_GAMES;
-  const registry = opts.registry ?? content.registry();
-  const maxRounds = opts.maxRounds ?? 40;
-  const enemyCount = groups.reduce((n, g) => n + Math.max(0, g.count), 0);
-  if (enemyCount === 0) return { winrate: 1, games: 0, avgRounds: 0, stderr: 0 };
-
-  const { wins, rounds } = withSeed(opts.seed ?? DEFAULT_SEED, () => {
-    let wins = 0, rounds = 0;
-    for (let i = 0; i < games; i++) {
-      const players = content.buildParty(party);
-      setAIControlled(players);
-      const enemies = content.buildEncounter(groups);
-      const result = new CombatEngine(players, enemies, {
-        registry, maxRounds,
-        ...aiPolicy({ depth: opts.aiDepth ?? BALANCER_DEPTH, ...opts.aiLookahead }),
-      }).runCombat();
-      if (result.winner === 0) wins += 1;
-      else if (result.winner === null) wins += 0.5;
-      rounds += result.rounds;
-    }
-    return { wins, rounds };
-  });
-
-  const winrate = wins / games;
-  // A DRAWN party makes games not quite iid Bernoulli: the party is redrawn
-  // each time and party composition matters a lot against some kits, so the
-  // observed spread runs ~25% wider than the binomial figure (measured on the
-  // basilisk: 4.4pp vs a predicted 3.5pp). Inflate rather than quote an error
-  // bar we beat. An EXPLICIT party is the same characters every game, so that
-  // source of spread is gone and the binomial figure is the honest one.
-  const HETEROGENEITY = content.isFixedParty(party) ? 1 : 1.25;
-  return {
-    winrate,
-    games,
-    avgRounds: rounds / games,
-    stderr: HETEROGENEITY * Math.sqrt(Math.max(0.0001, winrate * (1 - winrate)) / games),
-  };
+  if (noEnemies(groups)) return { winrate: 1, games: 0, avgRounds: 0, roundsStderr: 0, stderr: 0 };
+  return mergeChunks(content, party, chunkJobs(groups, opts).map(job => playChunk(content, party, job, opts.registry)));
 }
 
 // --------------------------------------------------------------- the solver
@@ -333,19 +388,27 @@ export interface SolveOptions extends SimOptions {
  * returns the hardest encounter inside the budget and flags `durationCapped`,
  * leaving the GM to change the composition instead.
  */
-export function solveEncounter<P>(
+/** One simulation the solver needs played: a composition and its options. */
+export interface SimRequest { groups: FieldedGroup[]; opts: SimOptions }
+
+/**
+ * The solver, as a sequence of simulations it needs played. It yields each
+ * request and receives the result, so the same search can be driven
+ * synchronously (`solveEncounter`) or with its fights spread over workers
+ * (`solveEncounterAsync`) — one copy of the logic, identical answers.
+ */
+export function* solveSteps<P>(
   content: EncounterContent<P>,
   pool: PoolSpec[],
   party: P,
   targetWinrate: number,
   opts: SolveOptions = {},
-): SolvedEncounter | null {
+): Generator<SimRequest, SolvedEncounter | null, SimResult> {
+  void party;
   const entries = pool
     .map(spec => ({ spec, def: content.creature(spec.enemyId) }))
     .filter((e): e is { spec: PoolSpec; def: CreatureInfo } => !!e.def)
     .filter(e => e.spec.count > 0);
-  const simulate = (groups: FieldedGroup[], o: SimOptions): SimResult =>
-    simulateEncounter(content, groups, party, o);
   if (entries.length === 0) return null;
 
   const seed = opts.seed ?? DEFAULT_SEED;
@@ -378,13 +441,54 @@ export function solveEncounter<P>(
   // last bracket away, and that discarded information is worth more than the
   // final decision (see the fit below).
   const samples: { scale: number; winrate: number; games: number }[] = [];
-  const winrateAt = (scale: number, games: number, aiDepth = searchDepth): number => {
-    const winrate = simulate(groupsAt(scale), { ...opts, games, seed, aiDepth }).winrate;
+  function* winrateAt(scale: number, games: number, aiDepth = searchDepth): Generator<SimRequest, number, SimResult> {
+    const winrate = (yield { groups: groupsAt(scale), opts: { ...opts, games, seed, aiDepth } }).winrate;
     // Only depth-0 samples feed the fit below: mixing two AI strengths into one
     // regression would fit a curve neither of them follows.
     if (aiDepth === searchDepth) samples.push({ scale, winrate, games });
     return winrate;
-  };
+  }
+
+  /**
+   * Is the winrate at `scale` above the target? — answered with as few
+   * real-depth fights as the answer needs. Played in chunks of
+   * `DECIDE_CHUNK`, each on its own fixed seed (the same chunk seeds at every
+   * scale, so comparisons stay on common random numbers), stopping once the
+   * running winrate is `DECIDE_SIGMAS` standard errors from the target. Far
+   * from the crossing one chunk settles it; near it, the full `games` are
+   * played as before. A depth-1 fight costs up to ~16 ms in a horde, and these
+   * yes/no checks were most of a solve's time.
+   */
+  function* aboveTargetAt(scale: number, games: number, aiDepth: number): Generator<SimRequest, boolean, SimResult> {
+    let wins = 0, played = 0;
+    for (let chunk = 0; played < games; chunk++) {
+      const n = Math.min(DECIDE_CHUNK, games - played);
+      const r = yield { groups: groupsAt(scale), opts: { ...opts, games: n, seed: seed + chunk * 7919, aiDepth } };
+      wins += r.winrate * n; played += n;
+      const p = wins / played;
+      const se = Math.sqrt(Math.max(p * (1 - p), 0.01) / played);
+      if (Math.abs(p - target) > DECIDE_SIGMAS * se) break;
+    }
+    return wins / played > target;
+  }
+
+  /** Does the fight at `scale` fit the duration budget at `aiDepth`? Played
+   *  in the same seeded segments as `aboveTargetAt`, stopping once the mean
+   *  length is `DECIDE_SIGMAS` standard errors from the budget. */
+  function* fitsBudgetAt(scale: number, games: number, aiDepth: number): Generator<SimRequest, boolean, SimResult> {
+    let sum = 0, sumSq = 0, played = 0;
+    for (let chunk = 0; played < games; chunk++) {
+      const n = Math.min(DECIDE_CHUNK, games - played);
+      const r = yield { groups: groupsAt(scale), opts: { ...opts, games: n, seed: seed + chunk * 7919, aiDepth } };
+      sum += r.avgRounds * n;
+      sumSq += n * (r.roundsStderr ** 2 * n + r.avgRounds ** 2);
+      played += n;
+      const mean = sum / played;
+      const se = Math.sqrt(Math.max(0.01, sumSq / played - mean * mean) / played);
+      if (Math.abs(mean - maxAvgRounds) > DECIDE_SIGMAS * se) break;
+    }
+    return sum / played <= maxAvgRounds;
+  }
 
   const logit = (p: number): number => Math.log(p / (1 - p));
 
@@ -436,15 +540,15 @@ export function solveEncounter<P>(
   let lo = loBound, hi = hiBound;
   let clamped = false;
   let solvedScale: number;
-  if (winrateAt(lo, searchGames) <= target) {
+  if ((yield* winrateAt(lo, searchGames)) <= target) {
     solvedScale = lo; clamped = true;        // even flimsy bodies beat the target
-  } else if (winrateAt(hi, searchGames) >= target) {
+  } else if ((yield* winrateAt(hi, searchGames)) >= target) {
     solvedScale = hi; clamped = true;        // even the toughest aren't enough
   } else {
     for (let i = 0; i < steps; i++) {
       const mid = Math.sqrt(lo * hi);     // geometric: PV scales multiplicatively
       const games = Math.round(searchGames * (1 + (2 * i) / Math.max(1, steps - 1)));
-      if (winrateAt(mid, games) > target) lo = mid; else hi = mid;
+      if ((yield* winrateAt(mid, games)) > target) lo = mid; else hi = mid;
     }
     // Prefer the fit. It must NOT be clamped to the final bracket — that
     // bracket's position is the very thing that is noisy, so the corrections
@@ -481,7 +585,7 @@ export function solveEncounter<P>(
       let best = solvedScale, bestGap = Infinity;
       for (const candidate of candidates) {
         // Fights this small are cheap to play, so buy precision here.
-        const gap = Math.abs(winrateAt(candidate, searchGames * 4) - target);
+        const gap = Math.abs((yield* winrateAt(candidate, searchGames * 4)) - target);
         if (gap < bestGap) { bestGap = gap; best = candidate; }
       }
       solvedScale = best;
@@ -498,14 +602,14 @@ export function solveEncounter<P>(
   // real depth; if it disagrees, bisect the whole bracket there instead.
   let solvedAtDepth = false;
   if (clamped && depth !== searchDepth) {
-    const atBound = winrateAt(solvedScale, searchGames, depth);
-    const contradicted = solvedScale === loBound ? atBound > target : atBound < target;
+    const aboveAtBound = yield* aboveTargetAt(solvedScale, searchGames, depth);
+    const contradicted = solvedScale === loBound ? aboveAtBound : !aboveAtBound;
     if (contradicted) {
-      if (solvedScale === hiBound || winrateAt(hiBound, searchGames, depth) < target) {
+      if (solvedScale === hiBound || !(yield* aboveTargetAt(hiBound, searchGames, depth))) {
         let lo3 = loBound, hi3 = hiBound;
         for (let i = 0; i < steps; i++) {
           const mid = Math.sqrt(lo3 * hi3);
-          if (winrateAt(mid, searchGames, depth) > target) lo3 = mid; else hi3 = mid;
+          if (yield* aboveTargetAt(mid, searchGames, depth)) lo3 = mid; else hi3 = mid;
         }
         solvedScale = Math.sqrt(lo3 * hi3);
         clamped = false;
@@ -526,19 +630,20 @@ export function solveEncounter<P>(
   // bisected is deterministic rather than noisy.
   let durationCapped = false;
   if (Number.isFinite(maxAvgRounds)) {
-    const roundsAt = (scale: number, games: number): number =>
-      simulate(groupsAt(scale), { ...opts, games, seed, aiDepth: searchDepth }).avgRounds;
+    function* roundsAt(scale: number, games: number): Generator<SimRequest, number, SimResult> {
+      return (yield { groups: groupsAt(scale), opts: { ...opts, games, seed, aiDepth: searchDepth } }).avgRounds;
+    }
 
-    if (roundsAt(solvedScale, searchGames) > maxAvgRounds) {
+    if ((yield* roundsAt(solvedScale, searchGames)) > maxAvgRounds) {
       durationCapped = true;
-      if (roundsAt(loBound, searchGames) > maxAvgRounds) {
+      if ((yield* roundsAt(loBound, searchGames)) > maxAvgRounds) {
         // Even the flimsiest bodies outlast the budget — nothing to search.
         solvedScale = loBound;
       } else {
         let short = loBound, long = solvedScale;
         for (let i = 0; i < steps; i++) {
           const mid = Math.sqrt(short * long);
-          if (roundsAt(mid, searchGames) <= maxAvgRounds) short = mid; else long = mid;
+          if ((yield* roundsAt(mid, searchGames)) <= maxAvgRounds) short = mid; else long = mid;
         }
         solvedScale = short;                 // the hardest fight inside the budget
       }
@@ -557,7 +662,7 @@ export function solveEncounter<P>(
     if (hi2 > lo2) {
       for (let i = 0; i < VERIFY_STEPS; i++) {
         const mid = Math.sqrt(lo2 * hi2);
-        if (winrateAt(mid, searchGames, depth) > target) lo2 = mid; else hi2 = mid;
+        if (yield* aboveTargetAt(mid, searchGames, depth)) lo2 = mid; else hi2 = mid;
       }
       solvedScale = Math.min(ceiling, Math.sqrt(lo2 * hi2));
     }
@@ -569,16 +674,12 @@ export function solveEncounter<P>(
   // walk it down if it overran; cheap, because it starts from an answer that is
   // already nearly right.
   if (depth !== searchDepth && Number.isFinite(maxAvgRounds)) {
-    const realRounds = (scale: number): number =>
-      simulate(groupsAt(scale), {
-        ...opts, games: searchGames, seed, aiDepth: depth,
-      }).avgRounds;
-    if (realRounds(solvedScale) > maxAvgRounds) {
+    if (!(yield* fitsBudgetAt(solvedScale, searchGames, depth))) {
       durationCapped = true;
       let short = loBound, long = solvedScale;
       for (let i = 0; i < VERIFY_STEPS; i++) {
         const mid = Math.sqrt(short * long);
-        if (realRounds(mid) <= maxAvgRounds) short = mid; else long = mid;
+        if (yield* fitsBudgetAt(mid, searchGames, depth)) short = mid; else long = mid;
       }
       solvedScale = short;
     }
@@ -597,9 +698,7 @@ export function solveEncounter<P>(
   // reads and trusts, and at 320 games its ±3pp was large enough to make a
   // correctly-placed encounter look mis-solved. It costs ~25% of a solve.
   const groups = groupsAt(solvedScale);
-  const final = simulate(groups, {
-    ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, aiDepth: depth,
-  });
+  const final: SimResult = yield { groups, opts: { ...opts, games: opts.games ?? VERIFY_GAMES, seed: seed + 977, aiDepth: depth } };
 
   // A miss the solver did not CHOOSE. `clamped` and `durationCapped` are
   // deliberate, reported refusals; this is the case where the solver believed
@@ -631,4 +730,49 @@ export function solveEncounter<P>(
 
 
 /** Handy target-winrate presets for UIs. The solver takes any winrate. */
+/** Solve an encounter, playing every fight on this thread. */
+export function solveEncounter<P>(
+  content: EncounterContent<P>,
+  pool: PoolSpec[],
+  party: P,
+  targetWinrate: number,
+  opts: SolveOptions = {},
+): SolvedEncounter | null {
+  const steps = solveSteps(content, pool, party, targetWinrate, opts);
+  let step = steps.next();
+  while (!step.done) step = steps.next(simulateEncounter(content, step.value.groups, party, step.value.opts));
+  return step.value;
+}
+
+/** Plays a batch of chunk jobs — on workers, typically — in any order. */
+export type ChunkRunner = (jobs: ChunkJob[]) => Promise<ChunkTotals[]>;
+
+/**
+ * Solve an encounter with each simulation's chunks spread over `run` (a pool
+ * of workers). Same search, same chunks, same seeds as `solveEncounter`: the
+ * answer is identical, only the wall clock changes. `cancelled` is polled
+ * between simulations so a superseded solve stops promptly.
+ */
+export async function solveEncounterAsync<P>(
+  content: EncounterContent<P>,
+  pool: PoolSpec[],
+  party: P,
+  targetWinrate: number,
+  opts: SolveOptions,
+  run: ChunkRunner,
+  cancelled: () => boolean = () => false,
+): Promise<SolvedEncounter | null> {
+  const steps = solveSteps(content, pool, party, targetWinrate, opts);
+  let step = steps.next();
+  while (!step.done) {
+    if (cancelled()) return null;
+    const { groups, opts: o } = step.value;
+    const result = noEnemies(groups)
+      ? { winrate: 1, games: 0, avgRounds: 0, roundsStderr: 0, stderr: 0 }
+      : mergeChunks(content, party, await run(chunkJobs(groups, o)));
+    step = steps.next(result);
+  }
+  return step.value;
+}
+
 export const TARGET_WINRATES = { easy: 0.90, medium: 0.80, hard: 0.65, boss: 0.50 } as const;
