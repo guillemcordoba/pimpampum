@@ -1,5 +1,5 @@
 import { DiceRoll, rollDie } from './dice.js';
-import { random } from './rng.js';
+import { random, seededRng, withRng } from './rng.js';
 import { Character, Guard, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
@@ -160,6 +160,34 @@ export class CombatEngine implements EngineApi, AIView {
    * and the hot call sites skip the string interpolation entirely.
    */
   silent = false;
+  /**
+   * Gives every seat its own random stream, seeded from this, instead of the
+   * one stream the whole round shares. Unset in real play.
+   *
+   * WHY: the lookahead compares cards on PAIRED rollouts — the same seed for
+   * every candidate, so they meet the same dice and differ only by the card.
+   * On one shared stream that pairing breaks at the first card that draws a
+   * different number of dice: every later roll in the round shifts, and the
+   * candidates are compared on effectively independent dice. Per seat, a
+   * different card only changes its own seat's draws (NEXT-STEPS §29).
+   */
+  seatStreamSeed?: number;
+  private seatStreams?: Map<number, () => number>;
+
+  private inSeatStream<T>(key: number, fn: () => T): T {
+    if (this.seatStreamSeed === undefined) return fn();
+    this.seatStreams ??= new Map();
+    let gen = this.seatStreams.get(key);
+    if (!gen) {
+      gen = seededRng((Math.imul(this.seatStreamSeed ^ key, 2654435761) ^ key) >>> 0);
+      this.seatStreams.set(key, gen);
+    }
+    return withRng(gen, fn);
+  }
+
+  private static readonly TIE_ORDER_STREAM = 0;
+  private chooseStream(c: Character): number { return 1000 + c.team * 100 + this.teams[c.team].indexOf(c); }
+  private actStream(c: Character): number { return 2000 + c.team * 100 + this.teams[c.team].indexOf(c); }
   /** Every action that actually resolved this combat, in order (EngineApi.history). */
   readonly history: ActionEvent[] = [];
 
@@ -624,7 +652,8 @@ export class CombatEngine implements EngineApi, AIView {
             + `Pass one from @pimpampum/ai (aiPolicy()), or drive the seat with an explicit selection.`,
           );
         }
-        const chosen = this.actionChooser(this, c);
+        const chooser = this.actionChooser;
+        const chosen = this.inSeatStream(this.chooseStream(c), () => chooser(this, c));
         const idx = chosen !== null && this.canPlayActionIdx(c, chosen)
           ? chosen
           : this.firstLegalActionIdx(c);
@@ -641,10 +670,12 @@ export class CombatEngine implements EngineApi, AIView {
     // queue is built team A first, so a stable sort alone would hand team A
     // every tie (defenses up before same-speed enemy attacks, etc. — a
     // measured ~52/48 seat bias). Shuffle before sorting so tie order is fair.
-    for (let i = built.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [built[i], built[j]] = [built[j], built[i]];
-    }
+    this.inSeatStream(CombatEngine.TIE_ORDER_STREAM, () => {
+      for (let i = built.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [built[i], built[j]] = [built[j], built[i]];
+      }
+    });
     built.sort((a, b) => b.speed - a.speed);
     this.pending = built;
     this.pendingIndex = 0;
@@ -837,7 +868,7 @@ export class CombatEngine implements EngineApi, AIView {
     }
 
     const before = this.logEntries.length;
-    this.resolveOne(cur);
+    this.inSeatStream(this.actStream(cur.actor), () => this.resolveOne(cur));
     this.pendingIndex++;
     return {
       kind: 'resolved',
@@ -1245,17 +1276,23 @@ export class CombatEngine implements EngineApi, AIView {
    *  the whole wall; each member adjusts their own share), the weak link
    *  (lowest raw individual total, earliest on ties), and a log detail. */
   private rollWall(source: Character, wall: Guard[], attackTotal: number): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
+    // An ABSORBING member (absorbsGuard: takes the blow, rolls nothing) adds
+    // nothing to the wall and is the one hit if it breaks. Rolled like any
+    // other member, a no-roll defense used to lend the wall its skill level
+    // and, behind a wall that held, never took the blow it exists to take.
+    const absorbs = (g: Guard) => g.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref));
     const rolls = wall.map(g => {
+      if (absorbs(g)) return { g, total: 0, absorbing: true };
       const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
       const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
-      return { g, total: Math.max(0, roll + bonus) };
+      return { g, total: Math.max(0, roll + bonus), absorbing: false };
     });
     const rawSum = rolls.reduce((s, r) => s + r.total, 0);
     const adjustedAttacker = this.adjustContestTotal(source, attackTotal, rawSum, 'attack');
-    const sum = rolls.reduce((s, r) => s + this.adjustContestTotal(r.g.defender, r.total, adjustedAttacker, 'defense'), 0);
-    const weak = rolls.reduce((a, b) => (b.total < a.total ? b : a));
+    const sum = rolls.reduce((s, r) => s + (r.absorbing ? 0 : this.adjustContestTotal(r.g.defender, r.total, adjustedAttacker, 'defense')), 0);
+    const weak = rolls.find(r => r.absorbing) ?? rolls.reduce((a, b) => (b.total < a.total ? b : a));
     const sumStr = sum === rawSum ? `${sum}` : `${rawSum}→${sum}`;
-    const detail = `defensa ${rolls.map(r => `${r.g.defender.name} «${r.g.action.name}» ${r.total}`).join(' + ')} = ${sumStr}`;
+    const detail = `defensa ${rolls.map(r => `${r.g.defender.name} «${r.g.action.name}» ${r.absorbing ? 'aguanta' : r.total}`).join(' + ')} = ${sumStr}`;
     return { adjustedAttacker, sum, weak, detail };
   }
 

@@ -23,12 +23,9 @@ const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.w
  * holds its test turns red and it leaves this list rather than the finding
  * being forgotten. Filled from the measurement, never by guessing.
  */
-// Aggro > Power: Power (focus-leaning) wins 77% (2026-10-03, NEXT-STEPS §27.3)
-// — focus play beats both other corners, as §22.1 found with hard restrictions.
-// Protect > Aggro: held at 58% until the calibration refresh of the same day
-// fielded the reviewed berserk (no Cop d'espatlla); 47% after, 51% since the
-// card-by-card retune (§27.4) — an even duel, not an edge.
-const KNOWN_BROKEN = new Set<string>(['Aggro > Power', 'Protect > Aggro']);
+// Empty since 2026-10-04: the berserk retune (Entrar en Fúria at speed 0) made
+// Aggro > Power and Protect > Aggro hold (NEXT-STEPS §29).
+const KNOWN_BROKEN = new Set<string>([]);
 
 describe('the strategy triangle', () => {
   let t: TriangleReport;

@@ -360,6 +360,15 @@ four times per encounter, so the creator has to feel instant. How it gets there:
 - Accept/reject checks **stop early** (`aboveTargetAt`, `fitsBudgetAt`): they
   play in blocks and stop once the answer is several standard errors clear of
   the threshold. Only close calls pay the full sample.
+- The real-depth refinement asks **one question per step** (`judgeAt`): too
+  long, above target or below. Rounds rise with PV, so a clearly-too-long fight
+  stops the climb at once instead of the winrate search climbing past the
+  budget and the duration walk bisecting back down from the bottom.
+- Its bracket **moves** when the answer lies outside it (`VERIFY_MOVES`): the
+  depth-0 answer is only a guess at where depth 1 crosses, and bisecting
+  inside a bracket that misses the crossing pins to its edge and reports a miss.
+- Every seeded real-depth chunk is **played at most once per solve**
+  (`decideChunk`): two midpoints can round to the same PV per body.
 - Depth-1 fights are ~97% of a solve, so the solve's speed is the AI's speed;
   the engine's roll-bonus sum allocates nothing per call for that reason.
 
@@ -402,6 +411,11 @@ that prices encounters has to have.
   is the only way a defense can be valued next to the focus it protects.
   `topK` prunes candidates by the depth-0 opinion. ~6× the cost, and it beats
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
+  Production is six rollouts per card, one pass, no pruning (`DEFAULT_LOOKAHEAD`).
+  Candidates are compared on PAIRED rollouts, and each rollout gives every seat
+  its own random stream (`CombatEngine.seatStreamSeed`): on the one shared
+  stream, a card that rolls a different number of dice shifts every later roll
+  of the round, and the pairing silently stops pairing (NEXT-STEPS §29).
 - **Depth ≥2** — measured at ~500× depth 1. Offline study only.
 
 `LookaheadOptions.restrictTo` limits the AI to a subset of card types. It is

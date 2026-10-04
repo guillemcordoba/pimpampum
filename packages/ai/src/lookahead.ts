@@ -74,6 +74,11 @@ export interface LookaheadOptions {
    * saving is free rather than paid for in decision quality.
    */
   race?: boolean;
+  /**
+   * Give every seat its own random stream inside a rollout
+   * (`CombatEngine.seatStreamSeed`). On by default; set false only to A/B it.
+   */
+  seatStreams?: boolean;
 }
 
 /**
@@ -142,8 +147,12 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  * Cost is the honest trade: 6.0 ms against the old 2.3. Worth it — at 53%
  * against a one-line strategy the instrument was measuring its own blind spot
  * rather than the game.
+ *
+ * SIX SAMPLES, not four, since 2026-10-04: with a kit whose cards are close in
+ * value, four rollouts decided on noise and the AI fell under the strength bar
+ * while bigger searches cleared it (NEXT-STEPS §29).
  */
-export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 4, passes: 1, topK: 0 };
+export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 1, topK: 0 };
 
 /**
  * How good is this position for `team`? Hand-written on purpose (see the file
@@ -341,6 +350,7 @@ function evaluate(
     }
     const one = withSeed(pairSeed + s * 7919, () => {
       const sim = engine.clone();
+      if (opts.seatStreams !== false) sim.seatStreamSeed = pairSeed + s * 7919;
       // Rollouts think at depth 0 — otherwise the search recurses into itself
       // once per sample per candidate and never returns. The clone also drops any
       // external chooser, which may be a lookahead wrapper for the same reason.

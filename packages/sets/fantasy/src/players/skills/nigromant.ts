@@ -137,14 +137,14 @@ export const NIGROMANT: SkillDefinition = {
   actions: [
     action({
       id: 'marca-de-la-perdicio', name: 'Marca de la perdició', skillId: 'nigromant',
-      unlock: 2, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'condemn', params: { turns: 2 } }],
-      desc: 'Condemna un enemic (2 torns): tira amb desavantatge i té −3 de velocitat.',
+      unlock: 2, type: ActionType.Focus, speed: 3,
+      effects: [{ type: 'condemn', params: { turns: 3 } }],
+      desc: 'Condemna un enemic (3 torns): tira amb desavantatge i té −3 de velocitat.',
       icon: 'lorc/cursed-star.svg',
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(3, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',

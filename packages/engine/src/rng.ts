@@ -42,3 +42,14 @@ export function withSeed<T>(seed: number, fn: () => T): T {
     current = previous;
   }
 }
+
+/** Run `fn` drawing from `gen`, restoring the previous generator afterwards. */
+export function withRng<T>(gen: () => number, fn: () => T): T {
+  const previous = current;
+  current = gen;
+  try {
+    return fn();
+  } finally {
+    current = previous;
+  }
+}

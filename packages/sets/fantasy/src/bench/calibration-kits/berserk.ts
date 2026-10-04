@@ -81,25 +81,20 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // Rugit de guerra: a terrifying war cry. The roar's own contest, card logic:
-  // the berserker rolls the card's dice + their skill level (printed on the
-  // card) against each enemy's resist dice;
-  // losers with a still-pending action lose it (engine `cancelPendingAction`,
-  // speed-gated — the roar wants high speed).
+  // Rugit de guerra: a terrifying war cry. Each enemy rolls a d20; below
+  // `below` it freezes, and loses its action if it has not acted yet
+  // (engine `cancelPendingAction`, speed-gated — the roar wants high speed).
+  // A flat chance, not a contest: as a contest it added the berserker's level
+  // and not the enemy's, cowed ~70% of the field at level 5 and decided the
+  // strategy triangle on its own (NEXT-STEPS §27.6).
   'fear_roar@cal': {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const resist = diceParam(ctx.params, 'resist');
-      const bonus = (ctx.action.rollBonus ?? 0) + ctx.source.getRollBonus(ctx.action.skillId)
-        + ctx.source.getSkillLevel(ctx.action.skillId);
+      const below = num(ctx.params, 'below', 10);
       for (const t of ctx.engine.enemiesOf(ctx.source)) {
-        const roarTotal = Math.max(0, ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'save') + bonus);
-        const resistRoll = Math.max(0, ctx.engine.rollDiceFor(t, resist, 'save'));
-        // Clutch statuses may adjust either side, seeing both totals.
-        const attacker = ctx.engine.adjustContestTotal(ctx.source, roarTotal, resistRoll, 'save');
-        const defender = ctx.engine.adjustContestTotal(t, resistRoll, attacker, 'save');
-        const ok = attacker > defender;
-        ctx.engine.log('focus', `🎲 Rugit de guerra contra ${t.name}: ${attacker} vs ${defender} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
+        const roll = ctx.engine.rollDie(20);
+        const ok = roll < below;
+        ctx.engine.log('focus', `🎲 Rugit de guerra: ${t.name} treu ${roll} → ${ok ? 'aterrit' : 'resisteix'}.`, ctx.source.team);
         if (!ok) continue;
         const cancelled = ctx.engine.cancelPendingAction(t);
         ctx.engine.log('focus', cancelled
@@ -157,22 +152,22 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'aguantar-el-cop@cal', name: 'Aguantar el cop', skillId: 'berserk@cal',
       unlock: 3, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain@cal', params: { divisor: 2, multiplier: 2 } }],
-      desc: 'No tires defensa: reps la meitat del dany. Guanyes {A} permanent igual al doble del dany rebut.',
+      effects: [{ type: 'rage_from_pain@cal', params: { divisor: 4, multiplier: 2 } }],
+      desc: 'No tires defensa: reps un quart del dany. Guanyes {A} permanent igual al doble del dany rebut.',
       icon: 'lorc/muscle-up.svg',
     }),
     action({
       id: 'entrar-en-furia@cal', name: 'Entrar en Fúria', skillId: 'berserk@cal',
-      unlock: 4, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'enter_rage@cal', params: { value: 5, turns: 3 } }],
-      desc: 'Puges un nivell de fatiga i baixes a 1 PV. Durant 3 torns res et pot fer baixar PV, {A}+5 als teus atacs. Esgotat, no la pots jugar.',
+      unlock: 4, type: ActionType.Focus, speed: 0,
+      effects: [{ type: 'enter_rage@cal', params: { value: 5, turns: 2 } }],
+      desc: 'Puges un nivell de fatiga i baixes a 1 PV. Durant 2 torns res et pot fer baixar PV, {A}+5 als teus atacs. Esgotat, no la pots jugar.',
       icon: 'delapouite/enrage.svg',
     }),
     action({
       id: 'rugit-de-guerra@cal', name: 'Rugit de guerra', skillId: 'berserk@cal',
-      unlock: 5, type: ActionType.Focus, speed: 2, dice: d(1, 20),
-      effects: [{ type: 'fear_roar@cal', params: { resist: d(1, 20) } }],
-      desc: "Tira 1d20 + nivell de Berserk contra 1d20 de cada enemic; qui perdi i encara no hagi actuat perd l'acció.",
+      unlock: 5, type: ActionType.Focus, speed: 2,
+      effects: [{ type: 'fear_roar@cal', params: { below: 10 } }],
+      desc: "Cada enemic tira un d20: amb menys de 10, si encara no ha actuat, perd l'acció.",
       icon: 'lorc/screaming.svg',
     }),
   ],

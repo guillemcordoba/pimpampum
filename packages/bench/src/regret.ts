@@ -279,9 +279,12 @@ function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: nu
 
 /** Play one candidate card from this position and score where the fight ends. */
 function rollout(
-  engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions,
+  engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions, streamSeed: number,
 ): { score: number; won: number } {
   const sim = engine.clone();
+  // Per-seat streams, or the pairing below holds only until the first card
+  // that draws a different number of dice (`CombatEngine.seatStreamSeed`).
+  sim.seatStreamSeed = streamSeed;
   // THE CLONE PLAYS ON ITS OWN POLICY, NOT THE HARNESS'S — the continuation
   // after the forced card has to be the policy `opts.rolloutDepth` names, or
   // the price of a card is the price of a card followed by whatever the
@@ -332,7 +335,7 @@ export function valuePosition(
     let won = 0;
     const samples: number[] = [];
     for (let s = 0; s < opts.samples; s++) {
-      const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts));
+      const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts, seed + s * 7919));
       samples.push(r.score);
       won += r.won;
     }

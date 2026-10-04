@@ -370,6 +370,38 @@ describe('bloqueig conjunt (summed wall)', () => {
     expect(d2.currentPV).toBe(11);
   });
 
+  /** A blocker whose card BRACES (absorbsGuard): it rolls nothing and takes
+   *  the blow. Its card carries a big roll bonus, so a wall that still rolled
+   *  it would visibly hold. */
+  function bracedWallSetup(atkBonus: number, d1Bonus: number) {
+    const r = new EffectRegistry();
+    const BRACED: StatusBehavior = { absorbsGuard() { return true; } };
+    r.register('brace', { onResolve(ctx) { ctx.source.setStatus('braced', 1, 1, undefined, BRACED); } });
+    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus })]);
+    const d2 = makeChar('D2', 20, [defenseDef('brace', { dice: undefined, rollBonus: 5, effects: [{ type: 'brace' }] })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus })]);
+    e.aiControlled = true;
+    return { d1, d2, engine: new CombatEngine([d1, d2], [e], { registry: r, actionChooser: firstLegalChooser }) };
+  }
+
+  it('a bracing member adds NOTHING to the wall, whatever its card says', () => {
+    // attack 4 vs D1's 3 + nothing → breach by 1. Rolling the brace would
+    // have added its +5 and held the wall.
+    const { d1, d2, engine } = bracedWallSetup(3, 2);
+    runRound(engine, blockE);
+    expect(d2.currentPV, 'the brace takes the breach').toBe(19);
+    expect(d1.currentPV).toBe(20);
+  });
+
+  it('a breach always lands on the bracing member, not on the lowest roll', () => {
+    // D1 rolls 1, the brace nothing: the weak link would be either; the
+    // brace is the one standing in front.
+    const { d1, d2, engine } = bracedWallSetup(9, 0);
+    runRound(engine, blockE);
+    expect(d1.currentPV).toBe(20);
+    expect(d2.currentPV).toBe(11); // attack 10 vs 1 → margin 9
+  });
+
   /** Round runner that accepts raw selections for BOTH teams. */
   function runRoundRaw(engine: CombatEngine, selections: { team: number; idx: number; actionIdx: number; targets?: { team: number; idx: number }[] }[]): void {
     engine.prepareRound();

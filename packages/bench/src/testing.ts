@@ -228,8 +228,11 @@ export const SYNTHETIC: GameSet = {
     company: [['brawler', 'duelist', 'medic'], ['duelist', 'medic', 'brawler']],
     standIns: ['neutral'],
     fair: 0.6,
-    // The solver's own default: this set's controls were calibrated at it.
-    maxAvgRounds: 6,
+    // Above the solver's default of 6. A stronger AI needs tougher enemies to
+    // reach `fair`, so at 6 two of the three shapes came out duration-capped
+    // near saturation, where a stronger kit has no room to show and the
+    // pipeline's positive control failed (NEXT-STEPS §29).
+    maxAvgRounds: 8,
     saturation: { min: 0.2, max: 0.8 },
     mainKits: ['brawler', 'duelist', 'neutral'],
     aiBlindCards: {},

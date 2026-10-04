@@ -208,6 +208,24 @@ const MUTANTS: Mutant[] = [
     replace: "let s = 2 * (1 - pvFraction(e));",
   },
   {
+    label: 'ENGINE wall: a bracing member is rolled like any other (lends its level, dodges the breach)',
+    file: 'packages/engine/src/combat.ts',
+    find: '      if (absorbs(g)) return { g, total: 0, absorbing: true };',
+    replace: '      if (false) return { g, total: 0, absorbing: true };',
+  },
+  {
+    label: 'ENGINE streams: an action resolves on the shared stream (the lookahead pairs nothing)',
+    file: 'packages/engine/src/combat.ts',
+    find: '    this.inSeatStream(this.actStream(cur.actor), () => this.resolveOne(cur));',
+    replace: '    this.resolveOne(cur);',
+  },
+  {
+    label: 'balancer: a real-depth fight already played is played again (the horde paid twice)',
+    file: 'packages/combat-balancer/src/index.ts',
+    find: '    decided.set(key, r);',
+    replace: '    void decided;',
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',

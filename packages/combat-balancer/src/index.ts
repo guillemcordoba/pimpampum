@@ -95,6 +95,8 @@ const DECIDE_CHUNK = 40;
 const DECIDE_SIGMAS = 3;
 /** How far off the depth-0 answer can be; the measured gap was ~17%. */
 const VERIFY_BRACKET = 1.6;
+/** How many times the real-depth bracket may move when the answer lies outside it. */
+const VERIFY_MOVES = 3;
 /** Games behind the depth-1 numbers. Fewer than the depth-0 report used —
  *  ±2.9pp instead of ±1.7pp — because each game costs ~7× more. */
 const VERIFY_GAMES = 300;
@@ -450,6 +452,23 @@ export function* solveSteps<P>(
   }
 
   /**
+   * One seeded chunk of a real-depth yes/no check, played at most once per
+   * solve. Two bisection midpoints can round to the same PV per body, and the
+   * checks share chunk seeds, so the same fight would otherwise be replayed on
+   * the same dice for the same answer.
+   */
+  const decided = new Map<string, SimResult>();
+  function* decideChunk(scale: number, chunk: number, n: number, aiDepth: number): Generator<SimRequest, SimResult, SimResult> {
+    const groups = groupsAt(scale);
+    const key = `${aiDepth}|${chunk}|${n}|${groups.map(g => g.pv).join('/')}`;
+    const known = decided.get(key);
+    if (known) return known;
+    const r = yield { groups, opts: { ...opts, games: n, seed: seed + chunk * 7919, aiDepth } };
+    decided.set(key, r);
+    return r;
+  }
+
+  /**
    * Is the winrate at `scale` above the target? — answered with as few
    * real-depth fights as the answer needs. Played in chunks of
    * `DECIDE_CHUNK`, each on its own fixed seed (the same chunk seeds at every
@@ -463,7 +482,7 @@ export function* solveSteps<P>(
     let wins = 0, played = 0;
     for (let chunk = 0; played < games; chunk++) {
       const n = Math.min(DECIDE_CHUNK, games - played);
-      const r = yield { groups: groupsAt(scale), opts: { ...opts, games: n, seed: seed + chunk * 7919, aiDepth } };
+      const r = yield* decideChunk(scale, chunk, n, aiDepth);
       wins += r.winrate * n; played += n;
       const p = wins / played;
       const se = Math.sqrt(Math.max(p * (1 - p), 0.01) / played);
@@ -479,7 +498,7 @@ export function* solveSteps<P>(
     let sum = 0, sumSq = 0, played = 0;
     for (let chunk = 0; played < games; chunk++) {
       const n = Math.min(DECIDE_CHUNK, games - played);
-      const r = yield { groups: groupsAt(scale), opts: { ...opts, games: n, seed: seed + chunk * 7919, aiDepth } };
+      const r = yield* decideChunk(scale, chunk, n, aiDepth);
       sum += r.avgRounds * n;
       sumSq += n * (r.roundsStderr ** 2 * n + r.avgRounds ** 2);
       played += n;
@@ -488,6 +507,44 @@ export function* solveSteps<P>(
       if (Math.abs(mean - maxAvgRounds) > DECIDE_SIGMAS * se) break;
     }
     return sum / played <= maxAvgRounds;
+  }
+
+  /**
+   * Which way should the real-depth bisection move from `scale`? Down if the
+   * fight is too long or the party wins too little, up otherwise.
+   *
+   * WHY ONE CHECK FOR BOTH: rounds rise with PV, so a scale whose fight is
+   * clearly over the budget can never be the answer, whatever its winrate.
+   * The winrate bisection used to climb through such scales chasing the
+   * target — a goblin horde went 13 → 20 PV — only for the duration walk to
+   * bisect back down from the bottom of the range. The fights that answer the
+   * winrate question already measure the length, so the length is read off
+   * the same chunks, and a clearly-long fight stops the climb at once.
+   */
+  function* judgeAt(scale: number, games: number, aiDepth: number): Generator<SimRequest, 'long' | 'above' | 'below', SimResult> {
+    let wins = 0, played = 0, rounds = 0, roundsSq = 0;
+    const longBy = () => {
+      const mean = rounds / played;
+      const se = Math.sqrt(Math.max(0.01, roundsSq / played - mean * mean) / played);
+      return { mean, settled: Math.abs(mean - maxAvgRounds) > DECIDE_SIGMAS * se };
+    };
+    for (let chunk = 0; played < games; chunk++) {
+      const n = Math.min(DECIDE_CHUNK, games - played);
+      const r = yield* decideChunk(scale, chunk, n, aiDepth);
+      wins += r.winrate * n;
+      rounds += r.avgRounds * n;
+      roundsSq += n * (r.roundsStderr ** 2 * n + r.avgRounds ** 2);
+      played += n;
+      const length = longBy();
+      if (length.settled && length.mean > maxAvgRounds) return 'long';
+      const p = wins / played;
+      const winSettled = Math.abs(p - target) > DECIDE_SIGMAS * Math.sqrt(Math.max(p * (1 - p), 0.01) / played);
+      // Below target goes down whatever the length; above target goes up only
+      // once the length is known to fit.
+      if (winSettled && (p <= target || length.settled)) break;
+    }
+    if (rounds / played > maxAvgRounds) return 'long';
+    return wins / played > target ? 'above' : 'below';
   }
 
   const logit = (p: number): number => Math.log(p / (1 - p));
@@ -653,18 +710,49 @@ export function* solveSteps<P>(
   // --- verify at the real depth --------------------------------------------
   // Everything above ran at searchDepth. The winrate curve at depth
   // sits elsewhere, so re-cross it with a short local bisection rather than a
-  // fresh search: a handful of expensive evaluations instead of thirty. The
-  // duration cap is a hard ceiling and is never refined upward through.
+  // fresh search: a handful of expensive evaluations instead of thirty.
+  // The largest scale the real depth has already shown to fit the budget.
+  let fitsAtDepth = loBound;
   if (depth !== searchDepth && !clamped && !solvedAtDepth) {
-    const ceiling = durationCapped ? solvedScale : hiBound;
+    // The search depth's duration cap is where to START, not a ceiling: the
+    // cheap AI plays longer fights than the real one, so its cap can sit far
+    // below where the real fight runs out of rounds — a boss "capped" at 2.7
+    // rounds of a 6-round budget. `judgeAt` reads the length at the real depth.
+    const ceiling = hiBound;
+    durationCapped = false;
     let lo2 = Math.max(loBound, solvedScale / VERIFY_BRACKET);
     let hi2 = Math.min(ceiling, solvedScale * VERIFY_BRACKET);
     if (hi2 > lo2) {
-      for (let i = 0; i < VERIFY_STEPS; i++) {
-        const mid = Math.sqrt(lo2 * hi2);
-        if (yield* aboveTargetAt(mid, searchGames, depth)) lo2 = mid; else hi2 = mid;
+      const judge = function* (scale: number): Generator<SimRequest, 'long' | 'above' | 'below', SimResult> {
+        return Number.isFinite(maxAvgRounds)
+          ? yield* judgeAt(scale, searchGames, depth)
+          : ((yield* aboveTargetAt(scale, searchGames, depth)) ? 'above' : 'below');
+      };
+      let cappedByLength = false;
+      // A bracket the answer is not inside gets moved, not trusted. The depth-0
+      // answer is only a guess at where depth 1 crosses, and a stronger depth-1
+      // AI can cross well outside ×VERIFY_BRACKET of it: bisection inside the
+      // bracket then pins to its edge and reports a miss.
+      for (let moves = 0; moves < VERIFY_MOVES; moves++) {
+        const loEdge = lo2, hiEdge = hi2;
+        let rose = false, fell = false;
+        for (let i = 0; i < VERIFY_STEPS; i++) {
+          const mid = Math.sqrt(lo2 * hi2);
+          const verdict = yield* judge(mid);
+          if (verdict === 'above') { lo2 = mid; rose = true; fitsAtDepth = Math.max(fitsAtDepth, mid); }
+          else { hi2 = mid; fell = true; cappedByLength = verdict === 'long'; }
+        }
+        if (!fell && hiEdge < ceiling && (yield* judge(hiEdge)) === 'above') {
+          lo2 = hiEdge; hi2 = Math.min(ceiling, hiEdge * VERIFY_BRACKET);
+        } else if (!rose && loEdge > loBound) {
+          const verdict = yield* judge(loEdge);
+          if (verdict === 'above') break;
+          cappedByLength = verdict === 'long';
+          hi2 = loEdge; lo2 = Math.max(loBound, loEdge / VERIFY_BRACKET);
+        } else break;
       }
       solvedScale = Math.min(ceiling, Math.sqrt(lo2 * hi2));
+      if (cappedByLength) durationCapped = true;
     }
   }
 
@@ -676,7 +764,9 @@ export function* solveSteps<P>(
   if (depth !== searchDepth && Number.isFinite(maxAvgRounds)) {
     if (!(yield* fitsBudgetAt(solvedScale, searchGames, depth))) {
       durationCapped = true;
-      let short = loBound, long = solvedScale;
+      // From what is already known to fit, not from the bottom of the range:
+      // four steps across the whole range land far below the answer.
+      let short = Math.min(fitsAtDepth, solvedScale), long = solvedScale;
       for (let i = 0; i < VERIFY_STEPS; i++) {
         const mid = Math.sqrt(short * long);
         if (yield* fitsBudgetAt(mid, searchGames, depth)) short = mid; else long = mid;

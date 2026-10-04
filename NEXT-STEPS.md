@@ -5,28 +5,23 @@ left to do. Written as the hand-off for the next session.
 
 ---
 
-## Backlog — the ONLY open list (updated 2026-10-04)
+## Backlog — the ONLY open list (updated 2026-10-04, evening)
 
 Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **Weak cards (§27.4).** The September tuning was reverted and redone card
-   by card; every kit passes. Left weak: Aguantar el cop (its design is open:
-   no-roll identity or a guard roll, §27.2 — the lever is damage taken, not the
-   buff), Mà de la tomba (strong nigromant, weak card — the AI over-plays any
-   stronger version), Marca de la perdició, Erupció. Berserk sits on the band
-   edge (+17, inside only within its noise).
-2. **The strategy triangle holds on one edge of three** (requirement 4,
-   `KNOWN_BROKEN` in `sets/fantasy/test/triangle.slow.test.ts`): Power beats
-   Protect (80%), but Power also beats Aggro (76%), and Protect and Aggro are
-   even (51%). Per `intentions.md`, buff the
-   corner that beats the winner — Aggro against slow focuses — rather than
-   weakening Power.
+1. **Weak cards.** Every kit passes all its requirements since the berserk
+   retune and the AI fix (§29). Cards still below the rest of their hand on
+   average, but right when they are the right play: Entrar en Fúria (now a
+   situational bomb), Marca de la perdició, Erupció.
+2. **An AI test suite** aimed at decision quality, not just strength: the
+   faults of §29 (unpaired comparisons, decisions dominated by noise) were
+   invisible to every AI test there was. Proposed to the user 2026-10-04.
 3. **Neither armour has a sweet spot** (`KNOWN_WITHOUT_SWEET_SPOT` in
    `set.slow.test.ts`): cuir since §26.13, ferro since the berserk review
-   (§27.5). One armour exploration and a recalibration — after Aguantar el
-   cop's design is settled, since that is what moved ferro.
+   (§27.5). One armour exploration and a recalibration; Aguantar el cop,
+   which moved ferro, is settled since §29.
 4. **The unpriced "esgotadora" cards (§11):** choose a cost per card, or decide
    they stay free. Entrar en Fúria now costs a fatigue level (§27.4).
 5. Optional measurement work: a stall probe (one card dominating the plays of
@@ -3819,3 +3814,73 @@ Open: the horde is the tightest request (≈2.7 s against 3 s), and a machine
 with fewer cores is proportionally slower. The reserve lever, if it is needed,
 is fewer final-verification fights. The web creator was type-checked and
 bundled but not exercised in a real browser.
+
+## 29. Berserk retune, and the AI decisions that were mostly noise (2026-10-04)
+
+### 29.1 Content
+
+Tuned with the user card by card, numbers before mechanics:
+
+| card | now | was |
+|---|---|---|
+| Rugit de guerra | each enemy rolls a d20, under 10 loses its pending action | a contest the berserker's level dominated |
+| Entrar en Fúria | 2 turns, costs a fatigue level, **speed 0** | 3 turns, free, speed 2 |
+| Aguantar el cop | takes **a quarter** of the blow; adds nothing to a wall and takes its breach | half; lent its level to a wall |
+| Marca de la perdició / Mà de la tomba | speed 3, 3 turns / 3d6 | |
+| Camp minat | 3d4, speed 1 | |
+| Riu de lava | **2d4**, speed 1 | 2d6, speed 0 |
+
+Riu de lava at speed 1 with 2d6 was the strongest volcanic card and broke two
+calibration tests through the pinned copy; 2d4 keeps the speed and passes.
+Entrar en Fúria at speed 2 dominated every berserk decision (+12 PV against the
+hand) and held the kit at +14pp; at speed 0 the rage can be broken by a blow
+that lands first, the kit sits near neutral and every card passes. Its fatigue
+cost and bonus barely mattered — the speed did. With it, **the strategy triangle
+holds on all three edges** (`KNOWN_BROKEN` emptied).
+
+### 29.2 The AI compared cards on unpaired luck
+
+Fúria at speed 0 broke two AI-quality checks: a bigger search beat production
+by 8.1pp, and production beat "always play your smallest attack" only 62.7%.
+Forbidding any berserk card did not help — the AI was not misjudging a card.
+
+**Root cause: the pairing did not pair.** The lookahead compares candidates on
+common random numbers, but a whole round draws from ONE stream, so the first
+card that rolls a different number of dice shifts every later roll and the
+candidates meet independent dice. Production disagreed with a 32-rollout
+reference on ~50% of decisions, for every hero. Fixes:
+
+- **Per-seat random streams** (`CombatEngine.seatStreamSeed`, set only inside
+  rollouts; real fights are untouched): bigger search's lead 8.1 → 4.2pp, +2.9pp
+  at equal budget. Engine test `seat-streams.test.ts`, plus a mutant.
+- **Six rollouts per card, not four**: against the smallest-attack baseline,
+  s4 65.6% · s6 70.0% · s8 71.9% · s16p2 78.0% — the AI had more to give, at
+  ~+40% cost per depth-1 fight.
+- **Card-value rollouts** (`bench/regret.ts`) carry the same streams: the
+  "choosing matters" error bar tightens (berserk 3.31±0.32 → 3.86±0.28 PV).
+
+Tried and NOT kept, because they measured as no gain: a paired racing cutoff
+(agreement with the reference 55.5% → 55.7%), streams in the AI head-to-heads,
+and streams in the solver's own fights (answer spread across seeds unchanged).
+
+### 29.3 The solver, for the new AI's speed and strength
+
+The stronger AI made every solve ~40% slower and exposed three solver faults:
+
+- The real-depth refinement climbed PV past the duration budget and the
+  duration walk then bisected back from the bottom of the range. Now one check
+  per step reads both (`judgeAt`), and a repeated seeded chunk is never replayed
+  (`decideChunk`; two midpoints can round to the same PV).
+- The refinement only searched ×1.6 around the depth-0 answer; the stronger AI
+  crosses outside it, so it pinned to the edge and reported misses. Its bracket
+  now moves (`VERIFY_MOVES`).
+- The depth-0 duration cap was a hard ceiling, but the depth-0 AI plays longer
+  fights: a synthetic boss was "capped" at 2.7 rounds of a 6-round budget. It is
+  now only where the refinement starts, and the final length walk starts from
+  the largest PV already shown to fit, not from the bottom of the range.
+
+The synthetic fixture's `maxAvgRounds` went 6 → 8: at 6 its shapes came out
+capped near saturation and the pipeline's positive control failed.
+
+Speed test (8 cores), seconds per solve at 65%: horde ~2.4, bone devils ~1.9,
+basilisk ~1.6, mixed ~1.7.

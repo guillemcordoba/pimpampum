@@ -78,7 +78,8 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const mines = num(ctx.params, 'mines', 3);
       const sides = num(ctx.params, 'damageSides', 6);
-      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(1, sides) }, CAMP_MINAT);
+      const count = num(ctx.params, 'damageCount', 1);
+      ctx.source.setStatus('camp-minat', mines, -1, { damage: new DiceRoll(count, sides) }, CAMP_MINAT);
       ctx.engine.log('focus', `${ctx.source.name} sembra ${mines} mines al terreny.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.4 : 0; },
@@ -190,12 +191,12 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'camp-minat', name: 'Camp minat', skillId: 'enginyer-explosius',
-      unlock: 4, type: ActionType.Focus, speed: 0,
+      unlock: 4, type: ActionType.Focus, speed: 1,
       effects: [
         { type: 'charge_cost', params: { amount: 1 } },
-        { type: 'lay_minefield', params: { mines: 4, damageSides: 8 } },
+        { type: 'lay_minefield', params: { mines: 4, damageCount: 3, damageSides: 4 } },
       ],
-      desc: "Sembra 4 mines. Cada enemic que ataqui en trepitja una i rep 1d8, ignorant l'armadura.",
+      desc: "Sembra 4 mines. Cada enemic que ataqui en trepitja una i rep 3d4, ignorant l'armadura.",
       icon: 'skoll/minefield.svg',
     }),
     action({

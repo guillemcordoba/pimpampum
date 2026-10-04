@@ -169,12 +169,12 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'riu-de-lava@cal', name: 'Riu de lava', skillId: VOLCANIC_SKILL_ID,
-      unlock: 4, type: ActionType.Focus, speed: 0,
+      unlock: 4, type: ActionType.Focus, speed: 1,
       effects: [
         { type: 'pressure_gain@cal', params: { amount: 1 } },
-        { type: 'lava_flow@cal', params: { count: 2, sides: 6, delay: 0 } },
+        { type: 'lava_flow@cal', params: { count: 2, sides: 4, delay: 0 } },
       ],
-      desc: 'Al final del torn, tots els enemics reben 2d6, ignorant defenses.',
+      desc: 'Al final del torn, tots els enemics reben 2d4, ignorant defenses.',
       icon: 'sbed/lava.svg',
     }),
     action({

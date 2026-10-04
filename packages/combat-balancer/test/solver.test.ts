@@ -129,3 +129,23 @@ describe('the parallel solve', () => {
     expect(calls).toBe(1);
   });
 });
+
+describe('the solve never pays twice for the same answer', () => {
+  it('plays each seeded real-depth fight at most once, even when two midpoints round to the same PV', async () => {
+    const seen = new Map<string, number>();
+    const record = async (jobs: ChunkJob[]) => {
+      for (const job of jobs) {
+        if (!job.aiDepth) continue;   // the depth-0 search revisits its one seed on purpose, and cheaply
+        const key = JSON.stringify([job.groups, job.seed, job.games, job.aiDepth]);
+        seen.set(key, (seen.get(key) ?? 0) + 1);
+      }
+      return jobs.map(job => playChunk(CONTENT, FOUR, job));
+    };
+    for (const target of [0.3, 0.6, 0.9]) {
+      seen.clear();
+      await solveEncounterAsync(CONTENT, [{ enemyId: 'rat', count: 3 }], FOUR, target, { ...FAST, aiDepth: 1, searchGames: 40, games: 80 }, record);
+      const replayed = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
+      expect(replayed, `target ${target}`).toEqual([]);
+    }
+  });
+});
