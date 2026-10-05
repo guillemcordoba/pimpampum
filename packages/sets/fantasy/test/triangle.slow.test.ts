@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { isolated, pct, SMOKE } from '@pimpampum/bench';
-import type { TriangleReport } from '@pimpampum/playtest';
+import { type Culprit, showCulprits, type TriangleReport } from '@pimpampum/playtest';
 
 const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.work.ts');
 
@@ -23,10 +23,9 @@ const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.w
  * holds its test turns red and it leaves this list rather than the finding
  * being forgotten. Filled from the measurement, never by guessing.
  */
-// Aggro > Power: held at ~57% after the berserk retune (§29); 52.4% since
-// Entrar en Fúria protects for its full two rounds (2026-10-05, §34) — a
-// stronger rage strengthens the focus corner. Even, not reversed.
-const KNOWN_BROKEN = new Set<string>(['Aggro > Power']);
+// Empty since 2026-10-05: Rugit de guerra on a d20 under 7 gave Aggro back
+// its edge over Power (NEXT-STEPS §36).
+const KNOWN_BROKEN = new Set<string>([]);
 
 describe('the strategy triangle', () => {
   let t: TriangleReport;
@@ -38,12 +37,17 @@ describe('the strategy triangle', () => {
 
   for (const edge of ['Power > Protect', 'Protect > Aggro', 'Aggro > Power']) {
     const known = KNOWN_BROKEN.has(edge);
-    it.skipIf(SMOKE)(`${known ? 'KNOWN to fail: ' : ''}${edge}`, () => {
+    it.skipIf(SMOKE)(`${known ? 'KNOWN to fail: ' : ''}${edge}`, async () => {
       const e = t.edges.find(x => `${x.winner} > ${x.loser}` === edge)!;
       const detail = `${edge}: ${pct(e.winrate, e.games)} over ${e.games} mirror fights`;
       console.log(`${t.broken.includes(edge) ? '❌' : '✅'} ${detail}`);
       if (known) expect(t.broken, `${edge} now HOLDS — remove it from KNOWN_BROKEN. ${detail}`).toContain(edge);
-      else expect(t.broken, detail).not.toContain(edge);
+      else if (t.broken.includes(edge)) {
+        // A broken edge names its culprits: each of the losing style's cards
+        // out of hand in turn, ranked by how much the winner then gains.
+        const culprits = await isolated<Culprit[]>(WORK, 'blame', [e.winner, e.loser]);
+        expect(t.broken, `${detail} · held up by: ${showCulprits(culprits, 3, '%')}`).not.toContain(edge);
+      }
     });
   }
 });

@@ -97,9 +97,10 @@ const DECIDE_SIGMAS = 3;
 const VERIFY_BRACKET = 1.6;
 /** How many times the real-depth bracket may move when the answer lies outside it. */
 const VERIFY_MOVES = 3;
-/** Games behind the depth-1 numbers. Fewer than the depth-0 report used —
- *  ±2.9pp instead of ±1.7pp — because each game costs ~7× more. */
-const VERIFY_GAMES = 300;
+/** Games behind the reported depth-1 winrate: ±3.4pp at a 65% target. The
+ *  most expensive single step of a solve, so it is what keeps a solve inside
+ *  the creator's 3 s once the AI thinks harder (NEXT-STEPS §38). */
+const VERIFY_GAMES = 200;
 
 /** A concrete fielded group (what actually stands on the table). */
 export interface FieldedGroup {

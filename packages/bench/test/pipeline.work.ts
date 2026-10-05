@@ -9,22 +9,23 @@ import {
 import { SYNTHETIC } from '../src/testing.js';
 
 /** The neutral stand-in's shape, with other dice. */
-function scaled(id: string, dice: [string, string, string]): SubjectKit {
+function scaled(id: string, dice: [string, string, string], faster = 0): SubjectKit {
   const mk = (i: number, name: string, type: ActionType, d: string, speed: number): ActionDefinition => ({
     id: `${id}-${i}`, name, skillId: id, unlockLevel: i, actionType: type, speed,
     dice: DiceRoll.parse(d), effects: [], description: '', iconPath: '',
   });
   return { id, actions: [
-    mk(1, 'Strike', ActionType.Atac, dice[0], 2),
-    mk(2, 'Block', ActionType.Defensa, dice[1], 3),
-    mk(3, 'Heavy', ActionType.Atac, dice[2], 1),
+    mk(1, 'Strike', ActionType.Atac, dice[0], 2 + faster),
+    mk(2, 'Block', ActionType.Defensa, dice[1], 3 + faster),
+    mk(3, 'Heavy', ActionType.Atac, dice[2], 1 + faster),
   ] };
 }
 
 const KITS: Record<string, SubjectKit> = {
-  // Far bigger than the stand-in: with searched targets, enemies focus the
-  // biggest threat, which eats into a merely bigger kit's lead (NEXT-STEPS §31).
-  giant: scaled('giant', ['6d6', '6d6', '8d6']),
+  // Bigger AND faster than the stand-in. Bigger alone stopped reading clearly:
+  // with searched targets, enemies focus the biggest threat and a slow giant is
+  // killed before its dice speak (NEXT-STEPS §31, §38).
+  giant: scaled('giant', ['6d6', '6d6', '8d6'], 4),
   weakling: scaled('weakling', ['1d4', '1d4', '1d6']),
 };
 

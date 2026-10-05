@@ -107,7 +107,9 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Aguantar el cop: no guard roll; blows land lighter (AGUANTANT above) and
-  // what he takes becomes +{A} on his following attacks (stacking).
+  // what he takes becomes +{A} on his attacks NEXT TURN only. For the rest of
+  // combat it stacked without limit: a berserker blocking round after round
+  // banked over +20 and hit for 45 (NEXT-STEPS §32, §36).
   rage_from_pain: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -121,7 +123,8 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
       const gain = basis * num(ctx.params, 'multiplier', 2);
       const duration = durParam(ctx.params, 'duration', 'restOfCombat');
       applyMod(ctx.source, 'attack', gain, duration, ctx.action.name);
-      const lasts = duration === 'restOfCombat' ? 'la resta del combat' : `${duration} torns`;
+      const lasts = duration === 'restOfCombat' ? 'la resta del combat'
+        : duration === 'nextTurn' ? 'el torn següent' : `${duration} torns`;
       ctx.engine.log('defense', `${ctx.source.name} canalitza el dolor: +${gain} {A} ${lasts}.`, ctx.source.team);
     },
     // A gamble, so not the favourite; but the depth-0 heuristic must let the
@@ -153,8 +156,8 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
       unlock: 3, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain', params: { divisor: 4, multiplier: 2 } }],
-      desc: 'No tires defensa: reps un quart del dany. Guanyes {A} permanent igual al doble del dany rebut.',
+      effects: [{ type: 'rage_from_pain', params: { divisor: 4, multiplier: 2, duration: 'nextTurn' } }],
+      desc: 'No tires defensa: reps un quart del dany. El torn següent, {A} igual al doble del dany rebut.',
       icon: 'lorc/muscle-up.svg',
     }),
     action({
@@ -167,8 +170,8 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'rugit-de-guerra', name: 'Rugit de guerra', skillId: 'berserk',
       unlock: 5, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'fear_roar', params: { below: 10 } }],
-      desc: "Cada enemic tira un d20: amb menys de 10, si encara no ha actuat, perd l'acció.",
+      effects: [{ type: 'fear_roar', params: { below: 7 } }],
+      desc: "Cada enemic tira un d20: amb menys de 7, si encara no ha actuat, perd l'acció.",
       icon: 'lorc/screaming.svg',
     }),
   ],

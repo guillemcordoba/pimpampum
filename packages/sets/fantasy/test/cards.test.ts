@@ -192,3 +192,22 @@ describe('Berserk: Entrar en Fúria', () => {
     expect(berserker.isAlive(), 'the rage is over in round 4').toBe(false);
   });
 });
+
+describe('Berserk: Aguantar el cop', () => {
+  it('turns the pain into attack for the next turn only', () => {
+    // Banked for the rest of combat, a berserker blocking round after round
+    // stacked the bonus without limit and hit for 45 (NEXT-STEPS §32).
+    const berserker = buildCharacter({ name: 'Berserker', pv: 30, skills: { berserk: 3 }, equipment: ['destral'] });
+    // Slower than the brace, so the blow lands on a braced body: 8, quartered to 2.
+    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 7, speed: -5 })], { pv: 500, ai: true });
+    const engine = new CombatEngine([berserker], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
+    const brace = berserker.actions.findIndex(a => a.def.id === 'aguantar-el-cop');
+    const swing = berserker.actions.findIndex(a => a.def.id === 'atac-temerari');
+
+    runRound(engine, [{ idx: 0, actionIdx: brace, targets: [{ team: 0, idx: 0 }] }]);
+    expect(berserker.currentPV).toBe(28);
+    expect(berserker.getRollBonus('berserk', 'attack'), 'twice the 2 taken, ready for round 2').toBe(4);
+    runRound(engine, [{ idx: 0, actionIdx: swing, targets: [{ team: 1, idx: 0 }] }]);
+    expect(berserker.getRollBonus('berserk', 'attack'), 'gone after round 2').toBe(0);
+  });
+});

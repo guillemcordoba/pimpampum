@@ -18,7 +18,10 @@ export type { RunContext } from './prepare.js';
 export type { SubjectKit } from '@pimpampum/bench';
 export {
   withControlKit, flatKit, deadCardKit, noisyTwinKit, comboKit,
-  defenceOnlyKit, blitzKit, strongKit, weakKit, standInCopyKit,
+  defenceOnlyKit, blitzKit, strongKit, weakKit, plantedKit, standInCopyKit,
 } from './control-kits.js';
-export { analyzeIsolated } from './isolated.js';
+export { analyzeIsolated, blameIsolated } from './isolated.js';
 export type { IsolatedRun, ControlName } from './isolated.js';
+
+export { blameEdge, blameKit, showCulprits } from './blame.js';
+export type { Culprit, BlameRequirement } from './blame.js';

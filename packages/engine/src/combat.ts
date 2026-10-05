@@ -329,12 +329,20 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Whether any status on `c` makes it unreachable by its enemies. */
   private isUntargetable(c: Character): boolean {
-    return c.statusRefs().some(ref => ref.entry.behavior?.untargetable?.(ref));
+    // Walks the statuses rather than `statusRefs()`: asked for every enemy on
+    // every targeting query, and the snapshot array was measurable allocation.
+    for (const [key, entry] of c.statuses) {
+      if (entry.behavior?.untargetable?.({ holder: c, key, entry })) return true;
+    }
+    return false;
   }
 
   /** Whether `c` perceives concealed/untargetable enemies (seismic senses…). */
   private sensesConcealed(c: Character): boolean {
-    return c.statusRefs().some(ref => ref.entry.behavior?.ignoresConcealment?.(ref));
+    for (const [key, entry] of c.statuses) {
+      if (entry.behavior?.ignoresConcealment?.({ holder: c, key, entry })) return true;
+    }
+    return false;
   }
   rollDie(sides: number): number { return rollDie(sides); }
 

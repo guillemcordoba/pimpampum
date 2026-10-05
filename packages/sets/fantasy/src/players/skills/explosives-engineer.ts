@@ -134,7 +134,8 @@ const CAMP_MINAT: StatusBehavior = {
   /**
    * Mines still in the ground are damage already paid for: each one's average
    * blast against a body's health (the holder's, the only body a status can
-   * see), discounted to 0.8 because a mine only pays if someone steps on it.
+   * see). Undiscounted since 2026-10-05: at 0.8 the two-pass AI again played it
+   * under a fifth as often as it was the best play (NEXT-STEPS §38).
    *
    * It was a flat 0.15 a mine capped at 0.6, about a quarter of the blasts'
    * worth: the card was the best play in 24% of its decisions and played on
@@ -143,7 +144,7 @@ const CAMP_MINAT: StatusBehavior = {
    */
   positionValue(ref) {
     const blast = (ref.entry.data?.['damage'] as DiceRoll | undefined)?.average() ?? 1;
-    return 0.8 * Math.max(0, ref.entry.value) * blast / Math.max(1, ref.holder.maxPV);
+    return Math.max(0, ref.entry.value) * blast / Math.max(1, ref.holder.maxPV);
   },
   onEnemyAttackAction(ctx, attacker) {
     if (ctx.entry.value <= 0) return false;

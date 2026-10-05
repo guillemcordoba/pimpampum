@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { KitReport } from './analyze.js';
 import type { RunContext } from './prepare.js';
+import type { BlameRequirement, Culprit } from './blame.js';
 
 export type { ControlName } from './prepare.js';
 
@@ -35,5 +36,28 @@ export async function runIsolated(run: IsolatedRun): Promise<KitReport> {
   return withSubject(run.subject, async subject => {
     await prepare(run, subject, run.games);
     return analyze(subject, run.games, run.budget);
+  });
+}
+
+/**
+ * `blameKit` in a child: warm the full kit and every one-card-removed variant
+ * across the cores first (each is a whole analysis), then rank.
+ */
+export function blameIsolated(run: IsolatedRun, requirement: BlameRequirement): Promise<Culprit[]> {
+  return isolated<Culprit[]>(SELF, 'runBlameIsolated', [run, requirement]);
+}
+
+export async function runBlameIsolated(run: IsolatedRun, requirement: BlameRequirement): Promise<Culprit[]> {
+  const { cardsOf } = await import('./analyze.js');
+  const { blameKit } = await import('./blame.js');
+  const { installSet, prepare, withSubject } = await import('./prepare.js');
+  await installSet(run.set);
+  return withSubject(run.subject, async subject => {
+    const cheap = { ...run.budget, skip: ['cardValue' as const] };
+    await prepare({ ...run, budget: cheap }, subject, run.games);
+    for (const card of cardsOf(subject)) {
+      await prepare({ ...run, budget: { ...cheap, withoutCard: card.id } }, subject, run.games);
+    }
+    return blameKit(subject, requirement, run.games, run.budget);
   });
 }

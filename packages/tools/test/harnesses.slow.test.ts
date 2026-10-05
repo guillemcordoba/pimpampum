@@ -54,8 +54,11 @@ function harnesses(): string[] {
  * person, plays a fixed scripted round, and has no sample size to turn down.
  * Running it proves it still executes, which is all we want from it.
  */
+// CALIBRATION_GAMES as in `pnpm test:smoke`: without it a harness run right
+// after a calibration re-pin recomputed every baseline at full size, and two
+// scripts that take seconds alone ran past the ten-minute limit.
 const SIZES: Record<string, Record<string, string>> = {
-  default: { GAMES: '2', SEARCH_GAMES: '10' },
+  default: { GAMES: '2', SEARCH_GAMES: '10', CALIBRATION_GAMES: '4' },
 };
 
 describe('every harness still runs against today\'s content', () => {

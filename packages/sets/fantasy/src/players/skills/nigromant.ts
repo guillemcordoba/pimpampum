@@ -144,7 +144,7 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(3, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',

@@ -263,8 +263,8 @@ export class Character {
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
     let statusSpeed = 0;
-    for (const ref of this.statusRefs()) {
-      if (ref.entry.behavior?.modifySpeed) statusSpeed += ref.entry.behavior.modifySpeed(ref);
+    for (const [key, entry] of this.statuses) {
+      if (entry.behavior?.modifySpeed) statusSpeed += entry.behavior.modifySpeed({ holder: this, key, entry });
     }
     return base - this.getEquipmentSpeedPenalty()
       + sumModifiers(this.modifiers, 'speed') + statusSpeed;

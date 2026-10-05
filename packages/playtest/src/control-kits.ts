@@ -202,7 +202,7 @@ const AIM: EffectHandler = {
 const LOOSE: EffectHandler = {
   modifyAttack(ctx) {
     if (!ctx.source.hasStatus(AIMED_KEY) || !ctx.attackMods) return;
-    ctx.attackMods.extraDamageDice.push(new DiceRoll(12, 6));
+    ctx.attackMods.extraDamageDice.push(new DiceRoll(16, 6));
     ctx.source.clearStatus(AIMED_KEY);
   },
 };
@@ -211,7 +211,7 @@ export function comboKit(): SubjectKit {
   const id = `control-combo-${seq++}`;
   return kit(id, [
     card(id, 1, { name: 'Aim', actionType: ActionType.Focus, dice: undefined, speed: 3, effects: [{ type: `${id}-aim` }] }),
-    card(id, 2, { name: 'Loose', dice: new DiceRoll(1, 6), speed: 2, effects: [{ type: `${id}-loose` }] }),
+    card(id, 2, { name: 'Loose', dice: new DiceRoll(1, 2), speed: 2, effects: [{ type: `${id}-loose` }] }),
   ], { [`${id}-aim`]: AIM, [`${id}-loose`]: LOOSE });
 }
 
@@ -280,8 +280,24 @@ export function strongKit(): SubjectKit {
  * a feeble seat alone, so a merely small kit costs its party less.
  */
 export function weakKit(): SubjectKit {
-  const k = plainKit('weak', [1, 1, 1]);
-  for (const a of k.actions) Object.assign(a, { dice: new DiceRoll(1, 1), speed: 0 });
+  // Two 1d1 attacks and no block: with a block it sat a hair inside the band's
+  // noise once the AI searched its targets.
+  const id = `control-weak-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Strike', dice: new DiceRoll(1, 1), speed: 0 }),
+    card(id, 2, { name: 'Heavy', dice: new DiceRoll(1, 1), speed: 0 }),
+  ]);
+}
+
+/**
+ * An ordinary kit with ONE planted card that wins the fight on its own: the
+ * culprit search's control (`blameKit`). The kit must land above the band,
+ * and taking the planted card out must move it furthest back.
+ */
+export function plantedKit(): SubjectKit {
+  const k = plainKit('planted', [2, 2, 3]);
+  const id = k.id;
+  k.actions.push(card(id, 4, { name: 'Planted', speed: 9, dice: new DiceRoll(20, 6), targetCount: 99 }));
   return k;
 }
 

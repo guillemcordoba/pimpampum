@@ -13,7 +13,7 @@ import { MESTRE_ARMES } from './weapon-master.js';
 import type { SkillDefinition } from '../../players/types.js';
 
 /** When the snapshot was taken. */
-export const REFRESHED = '2026-10-04';
+export const REFRESHED = '2026-10-05';
 
 export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, EARTHBENDER, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES];
 

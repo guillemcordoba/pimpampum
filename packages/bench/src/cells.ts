@@ -107,6 +107,10 @@ export interface CellSetup {
   party: PartySpec;
   enemies: FieldedGroup[];
   subjectTeam: number;
+  /** A card taken out of every hand on the subject team, to ask how a verdict
+   *  moves without it (playtest `blameKit`). Its holder keeps its skill and
+   *  level; it just does not hold the card. */
+  withoutCard?: string;
 }
 
 export interface CellRun {
@@ -175,6 +179,11 @@ export function cellResult(
 /** The round cap every cell fight is played to; a fight still going at it is a stall. */
 export const CELL_MAX_ROUNDS = 40;
 
+/** Take one card out of every hand on a team. */
+export function dropCard(team: Character[], cardId: string): void {
+  for (const c of team) c.actions = c.actions.filter(a => a.def.id !== cardId);
+}
+
 function runOneCell(
   setup: CellSetup,
   cell: Cell,
@@ -190,7 +199,9 @@ function runOneCell(
     for (let i = 0; i < games; i++) {
       const players = theSet().buildParty(setup.party);
       setAIControlled(players);
-      const res = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
+      const enemies = theSet().buildEncounter(setup.enemies);
+      if (setup.withoutCard) dropCard(setup.subjectTeam === 0 ? players : enemies, setup.withoutCard);
+      const res = new CombatEngine(players, enemies, {
         registry: theRegistry(), maxRounds: CELL_MAX_ROUNDS, actionChooser, targetChooser: CELL_TARGETS,
       }).runCombat(stats);
       rounds.push(res.rounds);

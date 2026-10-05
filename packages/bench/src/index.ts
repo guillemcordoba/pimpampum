@@ -33,7 +33,7 @@ export {
 // --- Measuring in cells -----------------------------------------------------
 export {
   instrument, newCardCounters,
-  cellResult, cellKey, matrixCell, runMatrix, roundPercentiles,
+  cellResult, cellKey, matrixCell, runMatrix, roundPercentiles, dropCard,
   CELL_AI,
 } from './cells.js';
 export type { CellSetup, CachedCell, CardCounters, MatrixResult } from './cells.js';

@@ -11,10 +11,8 @@ Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **Six design decisions, each with measured options and a recommendation
-   (§35):** revival by healing, Aguantar el cop's bonus, rounding multiplied
-   damage, the armour requirement, the free esgotadora cards, and the even
-   Aggro > Power edge.
+1. **Three design decisions, each measured (§35.1, §35.3, §38):** revival by
+   healing, rounding multiplied damage, and what armour should cost.
 
 ---
 
@@ -4096,3 +4094,139 @@ is the rage, not Aggro.
 - **Closed without action:** the stall probe and the wider fight shapes (§26).
   Every kit passes "fights end", and the one stall seen by hand (a hopeless
   berserker chaining fury, §32) ends by exhaustion.
+
+## 36. Aguantar el cop, Rugit de guerra, and failing checks that name their culprits (2026-10-05)
+
+**Decided by the user on §35:**
+
+- **Aguantar el cop's bonus lasts the next turn only** (was the rest of combat;
+  it stacked to +20 and a 45-point blow). Berserk +3.9pp, every requirement
+  passes; an exact card test and a mutant guard it.
+- **The free esgotadora cards stay free.** The item is closed.
+- **Rugit de guerra cancels on a d20 under 7** (was 10). The triangle's
+  Aggro > Power edge had gone even (52–56%). Taking each Power card out of hand
+  in turn showed what held it up — Rugit de guerra (Aggro 55.8% → 70.9%
+  without it) and Cures de camp (→ 68.4%); Entrar en Fúria barely mattered
+  (57.5%). The roar is a FAST focus that cancels attacks, the reverse of the
+  slow, interruptible focus the triangle assumes. Measured fixes:
+
+  | roar | Aggro vs Power | triangle | berserk | roar |
+  |---|---|---|---|---|
+  | speed 0 | 68.5% | holds | +3.2pp | ❌ never the right play |
+  | **under 7** | **65.1%** | **holds** | **+1.2pp, all pass** | best play 19% |
+
+  `KNOWN_BROKEN` is empty again.
+
+**Failing checks name their culprits** (the user's option 2). That search is
+now automatic (`playtest/src/blame.ts`):
+
+- `blameEdge(winner, loser)`: each of the losing style's cards out of every
+  hand on its side, the edge re-measured, ranked by the winner's gain. The
+  triangle test attaches the top three to a broken edge's failure. On the
+  pre-fix content it named Rugit de guerra (+17.0pp) and Cures de camp
+  (+14.9pp) of 18 cards, in 89 s.
+- `blameKit(subject, 'strength' | 'duration')`: each of the kit's cards out of
+  hand (`CellSetup.withoutCard`, keyed into the cache), the kit re-measured,
+  ranked by how far the failing number moves back. The kit suite attaches it
+  to a failing power band or fights-end verdict.
+- Control: `controls-blame.slow.test.ts` plants one overwhelming card in a
+  plain synthetic kit; the search must rank it first, by a margin.
+
+## 37. Armour bumped until it was worth wearing — and reverted (2026-10-05)
+
+The user's call on §35.4. With targets searched, acting later cost more than
+armour bought back. Swept upward with the speed costs kept (pooled player
+winrate by wearers, 0 → 4, in the armour test's fights only):
+
+| armour / speed | curve |
+|---|---|
+| +2 / −1 (cuir was) | 75 → 72 → 69 → 66 → 64 |
+| +4 / −1 | 75 → 73 → 75 → 72 → 75 |
+| **+5 / −1 (cuir now)** | **75.1 → 75.2 → 77.1 → 77.6 → 78.0** |
+| +6 / −1 | 75 → 76 → 81 → 80 → 84 |
+| +3 / −2 (ferro was) | 75 → 70 → 65 → 56 → 49 |
+| +7 / −2 | 75 → 72 → 76 → 72 → 72 |
+| **+8 / −2 (ferro now)** | **75.1 → 75.9 → 79.5 → 78.6 → 78.7** |
+| +9 / −2 | 75 → 76 → 83 → 87 → 89 |
+
+Cuir +5/−1 and ferro +8/−2 were the smallest values worth wearing, and were
+applied. **The rest of the game broke**, and was not in the sweep: the
+nigromant went to +42.3pp (culprit search: Invocar l'ombra de l'infern),
+Power > Protect fell to 46.1% (held up by Pell d'obsidiana and Erupció), both
+AI-quality checks failed, Bomba de fum read as a blind spot, and two
+encounter solves passed 3 s. **Reverted.**
+
+Why: damage is the margin minus armour, so armour is not linear. Five or eight
+points erase a weakened blow entirely — a condemned enemy (disadvantage, −3
+speed) or an attack into Pell d'obsidiana does nothing at all. Armour cannot
+be made worth wearing by its points; its COST has to change (the speed).
+
+## 38. The AI thinks harder within the 3 s budget; Mà de la tomba back to 2d6; armour's cost (2026-10-05)
+
+**A second pass** (the user approved eight rollouts; two passes did the job
+better and cheaper — below). With today's cards
+both AI-quality checks sat just under their bars (65.8% against "always play
+your smallest attack", bar 70%; a bigger search +5.0±1.8pp ahead, bar 8 with
+noise), and a bigger search measurably plays better. Paid for first:
+
+- Profiling depth-1 fights: the opponent model recomputed the actor's facts
+  (who is wounded, which enemies hold an interruptible focus, each enemy's best
+  defence) once per CARD, and the targeting rule re-scored both candidates on
+  every sort comparison. Both now compute once per decision. Hot read-only
+  status queries (visibility, speed, the evaluator's status prices) no longer
+  build a snapshot array per call. A seeded fight fingerprint is identical
+  before and after; ~38% less time per fight.
+- The solve's single most expensive step is its final, reported measurement:
+  300 → 200 fights (±3.4pp at a 65% target instead of ±2.8).
+- Then the search itself, against "always play your smallest attack" with
+  today's cards (800 mirror fights each):
+
+  | search | vs the baseline | time per fight |
+  |---|---|---|
+  | 6 rollouts, 1 pass (was) | ~66% | — |
+  | 8 rollouts, 1 pass | 66.1% | 7.2 ms |
+  | 4 rollouts, 2 passes | 62.7% | 5.8 ms |
+  | **6 rollouts, 2 passes** | **69.7%** | **8.4 ms** |
+  | 8 rollouts, 2 passes | 74.4% | 11.3 ms |
+  | 16 rollouts, 1 pass | 72.4% | 13.0 ms |
+
+  More rollouts barely helped; a second pass — each hero reconsidering once
+  its teammates have chosen — did, since today's cards reward coordination.
+  Production is now 6 rollouts and 2 passes; every AI-strength check passes
+  (the bigger rung is now 12 rollouts and 3 passes), and the nigromant is back
+  inside its band with it.
+- The creator's four test solves: horde ~2.7–2.8 s, mixed ~2.7–2.9, basilisk
+  ~1.8, bone devils ~1.3 — inside 3 s, though the margin is thin.
+
+**Mà de la tomba back to 2d6** (was 3d6), the user's call: after the berserk
+retune the nigromant read +18.7pp; the culprit search named Mà de la tomba
+first. At 2d6 it reads +16.2pp±1.6 — inside the band within its noise.
+
+**Armour by its cost, not its points** (the user's call after §37), each
+variant against the whole slow tier:
+
+| variant | cuir by wearers 0→4 | ferro by wearers 0→4 | other failures |
+|---|---|---|---|
+| cuir +2/0, ferro +3/−2 | 75 → 77 → 79 → 81 → 84 | 75 → 70 → 65 → 58 → 49 | Rugit de guerra and Bomba de fum read blind; berserk p90 9 rounds |
+| cuir +2/0, ferro +3/−1 | as above | 75 → 72 → 72 → 70 → 70 | the same |
+
+Cuir with no speed cost is worth wearing (always, so no sweet spot) but tips
+three other checks; ferro at −1 is still not worth it. Armour stays as it was
+pending a decision.
+
+**What the two-pass AI moved, and the margin it needed.** Five checks sat a
+hair past their bars once the AI coordinated better; each got margin from the
+cause, not a looser bar:
+
+- The pipeline's bigger kit read *lower* with bigger dice (5.8pp at 8d6 vs
+  6.8 at 6d6): enemies focus the biggest threat, and a slow giant dies before
+  its dice speak. It is now also faster (+4 speed) on 6d6/6d6/8d6.
+- The band's smaller kit is two 1d1 attacks acting last, fielded in all four
+  seats: alone in one seat a kit that barely acts costs its party only ~18pp
+  now (teammates cover, enemies ignore it), never CLEARLY past a 15pp band.
+- The combo's unaimed shot is 1d2 (was 1d6): the cost of playing the pair out
+  of order is what the control reads, and extra aimed dice were overkill.
+- Camp minat's mines are priced undiscounted (was 0.8 of their blast).
+- `harnesses.slow.test.ts` now gives scripts `CALIBRATION_GAMES=4`, as
+  `pnpm test:smoke` does: right after a re-pin, scripts that take 13 s alone
+  recomputed every baseline at full size and ran past ten minutes.

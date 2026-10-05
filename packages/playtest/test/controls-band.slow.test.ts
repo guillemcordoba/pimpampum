@@ -4,18 +4,18 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import type { KitReport } from '../src/index.js';
-import { expectWellFormed, GAMES, run, SMOKE } from './budgets.js';
+import { CHEAP, expectWellFormed, GAMES, NO_CARDS, run, SMOKE } from './budgets.js';
 
 describe('the power band', () => {
   let strong: KitReport, weak: KitReport, copy: KitReport;
   beforeAll(async () => {
     [strong, weak, copy] = await Promise.all([
-      run('strongKit', [], GAMES), run('weakKit', [], GAMES), run('standInCopyKit', [], GAMES),
+      run('strongKit', [], GAMES), run('weakKit', [], GAMES, { ...CHEAP, skip: [...NO_CARDS], allSeats: true }), run('standInCopyKit', [], GAMES),
     ]);
   });
 
   it('produces whole reports', () => {
-    expectWellFormed(strong, 3); expectWellFormed(weak, 3);
+    expectWellFormed(strong, 3); expectWellFormed(weak, 2);
     expect(copy.cards.length).toBeGreaterThan(0);
   });
 
@@ -24,6 +24,9 @@ describe('the power band', () => {
     expect(strong.strength.band!.delta).toBeGreaterThan(0);
   });
 
+  // In ALL FOUR seats: alone in one, a kit that barely acts costs its party only
+  // ~18pp once the AI searches targets (the others cover, enemies ignore it),
+  // which no affordable sample reads as CLEARLY past a 15pp band.
   it.skipIf(SMOKE)('a strictly smaller kit is clearly BELOW it', () => {
     expect(weak.strength.ok, weak.strength.detail).toBe(false);
     expect(weak.strength.band!.delta).toBeLessThan(0);

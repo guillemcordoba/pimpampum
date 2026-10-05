@@ -101,7 +101,10 @@ function bestDefenseParts(e: Character): { dice: DiceRoll | undefined; flat: num
  * same average gap and very different odds of getting through. The dice were
  * always right there.
  */
-export function estimateExpectedDamage(actor: Character, def: ActionDefinition, enemies: Character[]): number {
+export function estimateExpectedDamage(
+  actor: Character, def: ActionDefinition, enemies: Character[],
+  guardsOf: (e: Character) => ReturnType<typeof bestDefenseParts> = bestDefenseParts,
+): number {
   if (enemies.length === 0) return 0;
   const P_DEFEND = 0.3; // how often a capable enemy actually picks a defense
   const atk = attackParts(actor, def);
@@ -109,7 +112,7 @@ export function estimateExpectedDamage(actor: Character, def: ActionDefinition, 
   for (const e of enemies) {
     const armor = e.getPassiveArmor();
     const undefended = expectedExcess(atk.dice, atk.flat, undefined, 0, armor);
-    const guard = bestDefenseParts(e);
+    const guard = guardsOf(e);
     if (!guard) { acc += undefended; continue; } // no defense action ever
     const defended = expectedExcess(atk.dice, atk.flat, guard.dice, guard.flat, armor);
     acc += (1 - P_DEFEND) * undefended + P_DEFEND * defended;
@@ -131,14 +134,47 @@ export function estimateExpectedDamage(actor: Character, def: ActionDefinition, 
  * throwaway arrays to weigh one decision. The lists cannot change between the
  * cards of a single choice.
  */
+/**
+ * What every card of one decision reads about the table. Computed once per
+ * decision rather than once per card: these were most of the opponent model's
+ * time, and it runs inside every rollout.
+ */
+interface DecisionFacts {
+  woundedAllies: number;
+  woundedEnemies: number;
+  selfHurt: boolean;
+  /** Per enemy, the speed of its slowest interruptible focus (Infinity: none). */
+  enemyFocusSpeeds: number[];
+  guardsOf: (e: Character) => ReturnType<typeof bestDefenseParts>;
+}
+
+function decisionFacts(actor: Character, allies: Character[], enemies: Character[]): DecisionFacts {
+  const guards = new Map<Character, ReturnType<typeof bestDefenseParts>>();
+  return {
+    woundedAllies: allies.filter(a => pvFraction(a) < 0.5).length,
+    woundedEnemies: enemies.filter(e => pvFraction(e) < 0.4).length,
+    selfHurt: pvFraction(actor) < 0.5,
+    enemyFocusSpeeds: enemies.map(e => {
+      let lowest = Infinity;
+      for (const a of e.actions) {
+        if (a.def.actionType === ActionType.Focus && a.isAvailable()
+          && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel) lowest = Math.min(lowest, a.def.speed);
+      }
+      return lowest;
+    }),
+    guardsOf: e => {
+      if (!guards.has(e)) guards.set(e, bestDefenseParts(e));
+      return guards.get(e)!;
+    },
+  };
+}
+
 function actionWeight(
   view: AIView, actor: Character, action: ActionInstance,
-  allies: Character[], enemies: Character[],
+  allies: Character[], enemies: Character[], facts: DecisionFacts,
 ): number {
   const def = action.def;
-  const woundedAllies = allies.filter(a => pvFraction(a) < 0.5).length;
-  const woundedEnemies = enemies.filter(e => pvFraction(e) < 0.4).length;
-  const selfHurt = pvFraction(actor) < 0.5;
+  const { woundedAllies, woundedEnemies, selfHurt } = facts;
 
   let w = 1;
   switch (def.actionType) {
@@ -147,17 +183,13 @@ function actionWeight(
       // projects, blended over defended/undefended outcomes and armour.
       // TODO(balance): constants recalibrated for the dice era — attacks must
       // stay the default plan or fights stall into draws.
-      w = 1 + 1.5 * estimateExpectedDamage(actor, def, enemies);
+      w = 1 + 1.5 * estimateExpectedDamage(actor, def, enemies, facts.guardsOf);
       w += woundedEnemies * 1.5; // finish wounded foes
       // Interrupt value: an undefended hit cancels a slower pending Focus,
       // so an attack that outspeeds enemies' focus cards is worth playing
       // even when its dice are tiny (disruptor jabs). Strong enough to make
       // the fast knife a real choice next to bigger dice.
-      const disruptable = enemies.filter(e => e.actions.some(a =>
-        a.def.actionType === ActionType.Focus
-        && a.isAvailable()
-        && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel
-        && a.def.speed < def.speed)).length;
+      const disruptable = facts.enemyFocusSpeeds.filter(speed => speed < def.speed).length;
       w += Math.min(3.6, 1.2 * disruptable);
       // First-strike prior: a fast attack lands before retaliation — and
       // before same-round deaths can void it.
@@ -251,7 +283,8 @@ export function pickResolveTargets(
     const attackers = enemies.filter(e => pending.some(p =>
       p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac));
     if (attackers.length > 0) {
-      return [...attackers].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
+      const threat = new Map(attackers.map(e => [e, bestAttackAverage(e)]));
+      return [...attackers].sort((a, b) => threat.get(b)! - threat.get(a)!).slice(0, count);
     }
     // Nothing to block, nobody hurt: guard yourself — if you are still a legal
     // target. An actor felled earlier in their own speed tier still resolves
@@ -284,8 +317,9 @@ export function pickResolveTargets(
     if (e.guards.some(g => g.defender.isAlive())) s -= 2; // don't feed active guards
     return s;
   };
+  const scores = new Map(pool.map(e => [e, score(e)]));
   return [...pool]
-    .sort((a, b) => score(b) - score(a) || a.currentPV - b.currentPV)
+    .sort((a, b) => scores.get(b)! - scores.get(a)! || a.currentPV - b.currentPV)
     .slice(0, count);
 }
 
@@ -298,8 +332,9 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
 
   const allies = view.alliesOf(actor, false);
   const enemies = view.enemiesOf(actor);
+  const facts = decisionFacts(actor, allies, enemies);
   const weights = indices.map(i =>
-    Math.pow(actionWeight(view, actor, actor.actions[i], allies, enemies), view.aiSharpness));
+    Math.pow(actionWeight(view, actor, actor.actions[i], allies, enemies, facts), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = random() * total;
   let chosen = indices[0];

@@ -154,11 +154,12 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  * against a one-line strategy the instrument was measuring its own blind spot
  * rather than the game.
  *
- * SIX SAMPLES, not four, since 2026-10-04: with a kit whose cards are close in
- * value, four rollouts decided on noise and the AI fell under the strength bar
- * while bigger searches cleared it (NEXT-STEPS §29).
+ * SIX SAMPLES AND TWO PASSES since 2026-10-05 (one pass before). With cards
+ * that reward coordination, a second pass — each hero reconsidering once its
+ * teammates have chosen — bought more than more samples did, and at less cost
+ * (NEXT-STEPS §29, §38).
  */
-export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 1, topK: 0, targetSamples: 2 };
+export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2 };
 
 /**
  * How good is this position for `team`? Hand-written on purpose (see the file
@@ -229,7 +230,10 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
     let acc = 0;
     for (const c of t) {
       if (!c.isAlive()) continue;
-      for (const ref of c.statusRefs()) acc += ref.entry.behavior?.positionValue?.(ref) ?? 0;
+      for (const [key, entry] of c.statuses) {
+        const price = entry.behavior?.positionValue;
+        if (price) acc += price({ holder: c, key, entry });
+      }
     }
     return acc / t.length;
   };

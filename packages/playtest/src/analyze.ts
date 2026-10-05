@@ -133,12 +133,13 @@ function enemyShape(subject: Subject): EnemyShape {
 
 /** How a subject is fielded at a level: the party and opposition for one
  *  cell — the ONLY thing the two modes differ by. */
-export function setupFor(subject: Subject, level: number, allSeats = false): (cell: Cell) => CellSetup {
+export function setupFor(subject: Subject, level: number, allSeats = false, withoutCard?: string): (cell: Cell) => CellSetup {
   if (subject.mode === 'player') {
     return cell => ({
       party: partyWith(subject.id, level, cell.companyIdx, allSeats),
       enemies: shapeEnemies(cell.shapeIdx),
       subjectTeam: 0,
+      withoutCard,
     });
   }
   const shape = enemyShape(subject);
@@ -146,6 +147,7 @@ export function setupFor(subject: Subject, level: number, allSeats = false): (ce
     party: calibrationParty(cell.companyIdx),
     enemies: shape.groups.map(g => ({ ...g, level })),
     subjectTeam: 1,
+    withoutCard,
   });
 }
 
@@ -221,6 +223,8 @@ export interface AnalyzeBudget {
    * not multiplied. See `DEFAULT_CARD_VALUE_MODELS`.
    */
   cardValueModels?: number[];
+  /** Measure the kit without this card in hand (`blameKit`). */
+  withoutCard?: string;
 }
 
 /**
@@ -268,8 +272,8 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   const cards = kit.actions;
   const level = kit.fullLevel;
   const cells = cellsFor(subject);
-  const setup = setupFor(subject, level, budget.allSeats);
-  const print = subjectPrintFor(subject, level, budget.allSeats);
+  const setup = setupFor(subject, level, budget.allSeats, budget.withoutCard);
+  const print = subjectPrintFor(subject, level, budget.allSeats, budget.withoutCard);
 
   const top = runMatrix(cells, setup, games, print);
 
@@ -347,14 +351,14 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
 /** The subject half of a cell key. Shared so the warmer and the real run
  *  cannot address the same measurement differently — a warmer that keyed
  *  differently would fill the cache with entries nothing ever reads. */
-export function subjectPrintFor(subject: Subject, level: number, allSeats = false): string {
+export function subjectPrintFor(subject: Subject, level: number, allSeats = false, withoutCard?: string): string {
   const base = subject.mode === 'player'
     ? skillPrint(subject.id)
     : `${enemyPrint(subject.id)}:${subject.count}:${enemyShape(subject).pv}`;
   // allSeats is part of the KEY: a four-seat run and a one-seat run of the
   // same kit are different experiments, and sharing a cache entry would serve
   // one as the other.
-  return `${base}@L${level}${allSeats ? ':all4' : ''}`;
+  return `${base}@L${level}${allSeats ? ':all4' : ''}${withoutCard ? `:without:${withoutCard}` : ''}`;
 }
 
 /** One unit a warm worker can compute — one CELL of one measurement. */
@@ -386,8 +390,8 @@ export function runAnalysisJob(subject: Subject, budget: AnalyzeBudget, job: Ana
   const cells = cellsFor(subject);
   if (!cells[job.cellIdx]) return;
   const level = kitOf(subject).fullLevel;
-  const setup = setupFor(subject, level, budget.allSeats);
-  const print = subjectPrintFor(subject, level, budget.allSeats);
+  const setup = setupFor(subject, level, budget.allSeats, budget.withoutCard);
+  const print = subjectPrintFor(subject, level, budget.allSeats, budget.withoutCard);
   if (job.kind === 'cardValue') {
     measureKitCell(cells, job.cellIdx, setup, job.games, { ...DEFAULT_REGRET, continuationSharpness: job.sharpness }, print);
     return;

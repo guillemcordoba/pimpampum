@@ -240,14 +240,20 @@ const MUTANTS: Mutant[] = [
   {
     label: 'AI: targets come from the rule alone, never searched (a deadly focus left to resolve)',
     file: 'packages/ai/src/lookahead.ts',
-    find: 'samples: 6, passes: 1, topK: 0, targetSamples: 2 };',
-    replace: 'samples: 6, passes: 1, topK: 0, targetSamples: 0 };',
+    find: 'samples: 6, passes: 2, topK: 0, targetSamples: 2 };',
+    replace: 'samples: 6, passes: 2, topK: 0, targetSamples: 0 };',
   },
   {
     label: 'content: Entrar en Fúria protects for one round after it resolves, not two',
     file: 'packages/sets/fantasy/src/players/skills/berserk.ts',
     find: "ctx.source.setStatus('indestructible', 1, turns + 1, undefined, INDESTRUCTIBLE);",
     replace: "ctx.source.setStatus('indestructible', 1, turns, undefined, INDESTRUCTIBLE);",
+  },
+  {
+    label: 'content: Aguantar el cop banks its bonus for the rest of combat (the 45-point blow)',
+    file: 'packages/sets/fantasy/src/players/skills/berserk.ts',
+    find: "params: { divisor: 4, multiplier: 2, duration: 'nextTurn' } }",
+    replace: "params: { divisor: 4, multiplier: 2 } }",
   },
   {
     label: 'requirement 4: an edge holds on the point estimate',

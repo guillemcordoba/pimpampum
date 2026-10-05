@@ -21,7 +21,8 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { SMOKE } from '@pimpampum/bench';
 import type { AnalyzeBudget, KitReport, Verdict } from './analyze.js';
-import { analyzeIsolated } from './isolated.js';
+import { analyzeIsolated, blameIsolated } from './isolated.js';
+import { showCulprits } from './blame.js';
 import { isBlindSpot } from './rules.js';
 
 /** The requirements a KIT is judged on (`rules.ts`). Requirement 4, the
@@ -89,12 +90,18 @@ export function kitSuite(opts: KitSuiteOptions): void {
 
     for (const [req, label] of Object.entries(REQUIREMENTS) as [Requirement, string][]) {
       const known = opts.known?.[req];
-      it.skipIf(SMOKE)(known ? `${label} — KNOWN to fail: ${known}` : label, () => {
+      it.skipIf(SMOKE)(known ? `${label} — KNOWN to fail: ${known}` : label, async () => {
         const v: Verdict = r[req];
         expect(v.inconclusive, `${label} was not measured: ${v.detail}`).toBeFalsy();
         if (known) {
           expect(v.ok, `${opts.kit} now PASSES ${label}. Delete its KNOWN entry — the finding is `
             + `fixed, and a known-failure list that outlives its failures is an excuse list. ${v.detail}`).toBe(false);
+        } else if (!v.ok && (req === 'strength' || req === 'duration')) {
+          // A failure names its culprits: each card out of hand in turn,
+          // ranked by how far that moves the kit toward passing.
+          const culprits = await blameIsolated(
+            { set: opts.set, subject: { mode: 'player', id: opts.kit }, games: opts.games, budget: opts.budget }, req);
+          expect(v.ok, `${opts.kit} fails ${label}: ${v.detail} · culprits: ${showCulprits(culprits)}`).toBe(true);
         } else {
           expect(v.ok, `${opts.kit} fails ${label}: ${v.detail}`).toBe(true);
         }

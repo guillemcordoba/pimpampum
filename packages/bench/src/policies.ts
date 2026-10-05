@@ -73,10 +73,10 @@ export const depth1: Chooser = lookaheadChooser(DEFAULT_LOOKAHEAD);
 /** The same AI with a bigger budget. Its only job is to be a rung ABOVE
  *  production: if it plays better, production is not converged, and every
  *  measurement made through production is a fact about a search budget rather
- *  than about the game. Doubled samples and a second pass — the two dials that
+ *  than about the game. Doubled samples and one more pass — the two dials that
  *  remain once `topK` is gone. */
 export const depth1x: Chooser = lookaheadChooser({
-  ...DEFAULT_LOOKAHEAD, samples: DEFAULT_LOOKAHEAD.samples * 2, passes: 2,
+  ...DEFAULT_LOOKAHEAD, samples: DEFAULT_LOOKAHEAD.samples * 2, passes: DEFAULT_LOOKAHEAD.passes + 1,
 });
 
 // --- The baselines: fixed, stupid, and defined without reference to the AI ---
@@ -198,9 +198,14 @@ export interface HeadToHead {
  * from each seat cancels it; taking `1 − play(y, x)` converts Y's winrate from
  * the second seat back into X's.
  */
-export function headToHead(x: Chooser, y: Chooser, games: number, seed = MIRROR_SEED): HeadToHead {
+export function headToHead(
+  x: Chooser, y: Chooser, games: number, seed = MIRROR_SEED,
+  /** Called on every fight's two teams, X's first, before it starts — how a
+   *  side is fielded without a card (playtest `blameEdge`). */
+  prepare?: (xTeam: Character[], yTeam: Character[]) => void,
+): HeadToHead {
   const half = Math.max(1, Math.round(games / 2));
-  const play = (a: Chooser, b: Chooser): number => {
+  const play = (a: Chooser, b: Chooser, xFirst: boolean): number => {
     let wins = 0;
     // COMMON RANDOM NUMBERS: the same seed for both seats, so the two halves
     // meet the same dice and differ only by which policy sat where.
@@ -210,6 +215,7 @@ export function headToHead(x: Chooser, y: Chooser, games: number, seed = MIRROR_
         const teamB = theSet().buildParty(mirrorParty());
         setAIControlled(teamA);
         setAIControlled(teamB);
+        if (prepare) { if (xFirst) prepare(teamA, teamB); else prepare(teamB, teamA); }
         const res = new CombatEngine(teamA, teamB, {
           registry: theRegistry(), maxRounds: 40, actionChooser: split(a, b), targetChooser: TARGETS,
         }).runCombat();
@@ -219,7 +225,7 @@ export function headToHead(x: Chooser, y: Chooser, games: number, seed = MIRROR_
     });
     return wins / half;
   };
-  return { winrate: (play(x, y) + (1 - play(y, x))) / 2, games: half * 2 };
+  return { winrate: (play(x, y, true) + (1 - play(y, x, false))) / 2, games: half * 2 };
 }
 
 /** One edge of a cycle: `winner` is claimed to beat `loser`. */
