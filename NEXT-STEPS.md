@@ -11,8 +11,8 @@ Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **Two design decisions, each measured (§35.3, §38):** rounding multiplied
-   damage, and what armour should cost.
+1. **One design decision, measured (§38):** what armour should cost. (Rounding
+   multiplied damage is gone with the multiplications, §40.)
 
 ---
 
@@ -4237,3 +4237,66 @@ The user's call on §35.1: it fits the lore, and a revived hero does not lose
 the turn. Nothing changes in the engine; `rules.md` now says it (Resolució de
 combat, step 6): a fallen hero's pending action does not resolve, a heal may
 target a fallen ally, and one revived before their turn comes plays it.
+
+## 40. No arithmetic at the table beyond adding (2026-10-05)
+
+The user's call: no card may ask a player to multiply or divide. Every card was
+read; only two did, Atac encadenat and Aguantar el cop. Every other "per" or
+"twice" is counting, or copying a number already on the table. This also
+closes §35.3: with no multiplied damage there is nothing to round.
+
+**An engine bug found on the way.** The engine combined a status's multipliers
+for the next attack but dropped its flat bonuses (`attackRollBonus`), so
+Estat de flux's "+6 to your next attack" had never done anything. A flat chain
+that measured the same at +3 and at +50 gave it away. Now fixed, with a seam
+test ("a status that adds a flat bonus to the next attack adds it to the
+total") and a mutant. With it, the weapon master measured +8.9pp, against
++6.2 before, well inside the band.
+
+**Atac encadenat: ×1.5 then ×2 became +5 then +10.** On a typical attack of
+about 10 that adds what the multipliers did. Measured with the fix, the
+weapon master's kit, in wins per 100 fights over a plain kit:
+
+| chain | kit | card vs the hand | best play | AI plays it |
+|---|---|---|---|---|
+| ×1.5, then ×2 (old) | +8.9 | +1.1 PV | | |
+| +3, then +6 | +8.0 | +1.1 PV | | |
+| +5, then +10 (chosen) | +8.3 ± 1.6 | +1.2 PV | 19% | 21.8% |
+| ×2, then ×3 | +9.6 ± 1.6 | +1.7 PV | 21% | 22.2% |
+
+×2/×3 was rejected for the table, not for the number: its third link landed 30
+to 45 in one blow, a wipe card that the report card hides because the solver
+pads enemy PV (see the "judge table feel" principle).
+
+**Aguantar el cop: "a quarter of the damage" became "the full blow, but you
+can't fall below 1 PV this turn; next turn {A} = twice the damage taken".**
+The card's lore is that the berserker always takes the blow. Five versions
+were measured first, each in one seat of a full party:
+
+| version | kit | right choice | AI uses it |
+|---|---|---|---|
+| full blow; next turn + the damage taken | +0.7 | 1 in 11 | 1 in 60 |
+| full blow; next turn +6 if hit | +0.7 | 1 in 10 | 1 in 60 |
+| full blow; +2 per blow taken | +0.7 | 1 in 11 | 1 in 60 |
+| full blow; next turn + twice the damage | +0.7 | 1 in 11 | 1 in 60 |
+| full blow, can't fall this turn; next turn +6 | +0.4 | 1 in 7 | 1 in 4 |
+
+The size of the reward made no difference; what killed a version was eating a
+full blow with nothing protecting you. Only refusing to fall (D&D 5e's
+Relentless Rage; Pathfinder's damage reduction, Daggerheart's armour slots and
+Slay the Spire's Rupture were also considered) made it worth playing. The user
+chose to combine that with the doubled damage. Measured on the full berserk
+kit:
+
+| | kit | card vs the hand | right choice | AI uses it |
+|---|---|---|---|---|
+| can't fall; next turn twice the damage taken | +1.9 ± 1.7 | −1.5 PV | 15% | 21.1% |
+
+Alive: chosen as often as Embat sagnant, right about one decision in seven. Its
+"vs the hand" is negative, like every situational card's. Doubling is the one
+multiplication left in the game, and it is doubling a number the player has just
+written down, so it was kept. The bonus lasts one turn and never stacks
+(§36). The card's test checks the full 8 taken and the 16 banked, and that a
+50-point blow leaves him at 1 PV; a mutant checks that the floor holds.
+
+Both kits were re-pinned (`pnpm calibration:refresh`).

@@ -216,6 +216,19 @@ describe('StatusBehavior query seams', () => {
 });
 
 describe('StatusBehavior engine seams', () => {
+  it('a status that adds a flat bonus to the next attack adds it to the total', () => {
+    // onAttackAction may return attackRollBonus as well as a multiplier. The
+    // engine used to collect only the multipliers, so every flat "+N to your
+    // next attack" status (Estat de flux's +6) silently did nothing.
+    const PRIMED: StatusBehavior = { onAttackAction: () => ({ attackRollBonus: 5 }) };
+    const a = makeChar('A', 20, [atkDef()]);
+    const b = sac(100);
+    const engine = new CombatEngine([a], [b], { registry: new EffectRegistry(), actionChooser: firstLegalChooser });
+    a.setStatus('primed', 1, -1, undefined, PRIMED);
+    runRound(engine, [{ idx: 0, actionIdx: 0 }]); // 1 (1d1) + 5, undefended
+    expect(b.currentPV).toBe(94);
+  });
+
   it('onAttackAction ladder: multiplier doubles per attacking round, onRoundEnd breaks it', () => {
     const CHAIN: StatusBehavior = {
       onAttackAction(ctx) {

@@ -252,8 +252,20 @@ const MUTANTS: Mutant[] = [
   {
     label: 'content: Aguantar el cop banks its bonus for the rest of combat (the 45-point blow)',
     file: 'packages/sets/fantasy/src/players/skills/berserk.ts',
-    find: "params: { divisor: 4, multiplier: 2, duration: 'nextTurn' } }",
-    replace: "params: { divisor: 4, multiplier: 2 } }",
+    find: "params: { multiplier: 2, duration: 'nextTurn' } }",
+    replace: "params: { multiplier: 2 } }",
+  },
+  {
+    label: "ENGINE: a status's flat bonus to the next attack is dropped (Estat de flux's +6 did nothing)",
+    file: 'packages/engine/src/combat.ts',
+    find: '      if (m.attackRollBonus !== undefined) mods.attackRollBonus = (mods.attackRollBonus ?? 0) + m.attackRollBonus;',
+    replace: '      void m.attackRollBonus;',
+  },
+  {
+    label: 'content: Aguantar el cop lets a blow fell the berserker',
+    file: 'packages/sets/fantasy/src/players/skills/berserk.ts',
+    find: '  clampPvLoss(ref, amount) { return Math.min(amount, Math.max(0, ref.holder.currentPV - 1)); },',
+    replace: '  clampPvLoss(_ref, amount) { return amount; },',
   },
   {
     label: 'requirement 4: an edge holds on the point estimate',

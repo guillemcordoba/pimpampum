@@ -9,13 +9,14 @@ import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
  * below: the `cadena` compounding-chain status behaviour and the `flux`
  * card-swap charges (spent by the engine's flowSwap).
  */
-// Atac encadenat: each attacking turn the chain multiplier climbs (×1, ×2,
-// ×3, ×4…), applied to the whole attack total (which is also the damage
-// margin). The chain breaks at round end unless the holder attacked (arming
-// round exempt).
+// Atac encadenat: each attacking turn the chain climbs, adding to the attack
+// total (which is also the damage margin). The chain breaks at round end
+// unless the holder attacked (arming round exempt).
+const CHAIN_BONUS = [0, 5, 10];
+
 const CADENA: StatusBehavior = {
   /**
-   * A live chain multiplies the NEXT attack, so holding one is worth something
+   * A live chain strengthens the NEXT attack, so holding one is worth something
    * before it is spent — which the evaluator could not see, since a chain moves
    * no PV until it fires. Scaled by how far the ladder has climbed, and capped:
    * a chain is only worth anything while you keep attacking, and any non-attack
@@ -26,10 +27,11 @@ const CADENA: StatusBehavior = {
   },
   onAttackAction(ctx) {
     ctx.entry.value += 1; // advance the ladder in place
-    // ×1, ×1.5, ×2 and there it holds. Doubling every attack, and then climbing
-    // by halves without a ceiling, made the one card carry the whole kit
-    // (repeating it alone matched playing the kit).
-    return { attackTotalMult: Math.min(2, 1 + 0.5 * (ctx.entry.value - 1)) };
+    // +0, +5, +10 and there it holds. ADDED, not multiplied: it was ×1.5 then
+    // ×2, which plays the same but asks the table for fractions (13.5 damage,
+    // 0.5 PV left; NEXT-STEPS §40). Uncapped doubling once made the one card
+    // carry the whole kit.
+    return { attackRollBonus: CHAIN_BONUS[Math.min(CHAIN_BONUS.length - 1, ctx.entry.value - 1)] };
   },
   onRoundEnd(ctx) {
     if (ctx.entry.data?.['armedRound'] === ctx.engine.round) return;
@@ -131,7 +133,7 @@ export const MESTRE_ARMES: SkillDefinition = {
       // never once the right play (NEXT-STEPS §26).
       unlock: 5, type: ActionType.Atac, speed: 1, dice: d(1, 6),
       effects: [{ type: 'weapon_damage' }, { type: 'chain_attack' }],
-      desc: "Encadena: cada torn següent que ataquis, l'atac es multiplica (×1,5, després ×2). Es trenca si no ataques.",
+      desc: "Encadena: cada torn següent que ataquis, {A}+5, després +10. Es trenca si no ataques.",
       icon: 'lorc/sword-spin.svg',
     }),
   ],

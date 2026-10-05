@@ -34,17 +34,15 @@ const INDESTRUCTIBLE: StatusBehavior = {
 };
 /**
  * Aguantar el cop: braced, not defenceless — no contest is rolled and every
- * blow lands, but lighter: divided by `divisor` (rounded up), less a flat
- * `soak`. `data` carries the card's params.
+ * blow lands in full, but this turn nothing drops the holder below 1 PV (the
+ * D&D barbarian's Relentless Rage). A lighter blow (a quarter, or a flat
+ * soak) asked the table to divide, or let a small blow do nothing at all,
+ * and every full-blow version without the floor measured as never the right
+ * play (NEXT-STEPS §40).
  */
 const AGUANTANT: StatusBehavior = {
   absorbsGuard() { return true; },
-  modifyIncomingDamage(ctx, damage) {
-    const d = ctx.entry.data ?? {};
-    d['blow'] = damage; // the full blow braced against, read back by onBlockFail
-    damage = Math.ceil(damage / Math.max(1, num(d, 'divisor', 1)));
-    return Math.max(0, damage - num(d, 'soak', 0));
-  },
+  clampPvLoss(ref, amount) { return Math.min(amount, Math.max(0, ref.holder.currentPV - 1)); },
 };
 
 const BERSERK_EFFECTS: Record<string, EffectHandler> = {
@@ -106,21 +104,20 @@ const BERSERK_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.5 : 0; },
   },
 
-  // Aguantar el cop: no guard roll; blows land lighter (AGUANTANT above) and
-  // what he takes becomes +{A} on his attacks NEXT TURN only. For the rest of
+  // Aguantar el cop: no guard roll; blows land in full but cannot fell him
+  // (AGUANTANT above), and what he takes, doubled, is +{A} on his attacks NEXT
+  // TURN only. For the rest of
   // combat it stacked without limit: a berserker blocking round after round
   // banked over +20 and hit for 45 (NEXT-STEPS §32, §36).
   rage_from_pain: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      ctx.source.setStatus('aguantant', 1, 1, { divisor: num(ctx.params, 'divisor', 1), soak: num(ctx.params, 'soak', 0) }, AGUANTANT);
+      ctx.source.setStatus('aguantant', 1, 1, undefined, AGUANTANT);
     },
     onBlockFail(ctx) {
       const taken = ctx.damageDealt ?? 0;
-      const blow = num(ctx.source.getStatus('aguantant')?.data ?? {}, 'blow', taken);
-      const basis = ctx.params['fromBlow'] ? blow : taken;
-      if (basis <= 0) return;
-      const gain = basis * num(ctx.params, 'multiplier', 2);
+      if (taken <= 0) return;
+      const gain = taken * num(ctx.params, 'multiplier', 2);
       const duration = durParam(ctx.params, 'duration', 'restOfCombat');
       applyMod(ctx.source, 'attack', gain, duration, ctx.action.name);
       const lasts = duration === 'restOfCombat' ? 'la resta del combat'
@@ -156,8 +153,8 @@ export const BERSERK: SkillDefinition = {
     action({
       id: 'aguantar-el-cop', name: 'Aguantar el cop', skillId: 'berserk',
       unlock: 3, type: ActionType.Defensa, speed: 2,
-      effects: [{ type: 'rage_from_pain', params: { divisor: 4, multiplier: 2, duration: 'nextTurn' } }],
-      desc: 'No tires defensa: reps un quart del dany. El torn següent, {A} igual al doble del dany rebut.',
+      effects: [{ type: 'rage_from_pain', params: { multiplier: 2, duration: 'nextTurn' } }],
+      desc: "No tires defensa: reps el cop sencer, però aquest torn no pots baixar d'1 PV. El torn següent, {A} igual al doble del dany rebut.",
       icon: 'lorc/muscle-up.svg',
     }),
     action({

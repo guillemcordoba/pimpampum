@@ -1047,13 +1047,14 @@ export class CombatEngine implements EngineApi, AIView {
     return bonus;
   }
 
-  /** onAttackAction over the attacker's statuses; multipliers combine. */
+  /** onAttackAction over the attacker's statuses; multipliers combine, flat bonuses add. */
   private collectAttackStatusMods(actor: Character): AttackStatusMods {
     const mods: AttackStatusMods = {};
     for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
       const m = behavior.onAttackAction?.(this.statusCtx(actor, key, entry));
       if (!m) continue;
       if (m.attackTotalMult !== undefined) mods.attackTotalMult = (mods.attackTotalMult ?? 1) * m.attackTotalMult;
+      if (m.attackRollBonus !== undefined) mods.attackRollBonus = (mods.attackRollBonus ?? 0) + m.attackRollBonus;
       if (m.damageMult !== undefined) mods.damageMult = (mods.damageMult ?? 1) * m.damageMult;
     }
     return mods;
