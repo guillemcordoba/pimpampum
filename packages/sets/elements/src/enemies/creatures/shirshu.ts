@@ -11,7 +11,7 @@ const SHIRSHU_SKILL: SkillDefinition = {
   description: "Cec, i no perd mai un rastre. Un toc de la llengua i el mestre queda estès al camí, rígid.",
   iconPath: ICON + 'lorc/mole.svg',
   actions: [
-    action({ id: 'urpada', name: 'Urpada', skillId: 'shirshu', unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 4), desc: '', icon: 'lorc/claw-slashes.svg' }),
+    action({ id: 'urpada', name: 'Urpada', skillId: 'shirshu', unlock: 1, type: ActionType.Atac, speed: 1, dice: d(3, 6), desc: '', icon: 'lorc/claw-slashes.svg' }),
     action({
       id: 'olfacte', name: 'Olfacte', skillId: 'shirshu',
       unlock: 2, type: ActionType.Focus, speed: 2,
@@ -21,7 +21,7 @@ const SHIRSHU_SKILL: SkillDefinition = {
     }),
     action({
       id: 'llengua-paralitzant', name: 'Llengua paralitzant', skillId: 'shirshu',
-      unlock: 3, type: ActionType.Atac, speed: 3, dice: d(1, 6),
+      unlock: 3, type: ActionType.Atac, speed: 3, dice: d(2, 6),
       effects: [{ type: 'stun_on_hit', params: { turns: 1 } }],
       desc: "Si encerta, l'objectiu perd el torn següent.",
       icon: 'lorc/tongue.svg',

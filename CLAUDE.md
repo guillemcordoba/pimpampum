@@ -12,6 +12,7 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 | `bench` | set-agnostic measurement: cells, positions (baselines), regret, report maths, cache, `isolated()`. `@pimpampum/bench/testing` is a small SYNTHETIC second set | engine, ai, combat-balancer |
 | `playtest` | the requirement rules, `analyze`, control kits; `@pimpampum/playtest/vitest` is the assertion API a set's tests use | engine, bench |
 | `sets/fantasy` | THE CONTENT: players, enemies, the bound balancer (browser-safe root); `./bench` is its `GameSet` adapter + calibration data | engine, ai, bench, combat-balancer |
+| `sets/elements` | A SECOND set, *Els Quatre Elements*: benders of water, earth, fire and air, and el Senyor de la Por (design in its `DESIGN.md`). Same shape as `sets/fantasy`; harnesses pick it with `--set elements` | engine, ai, bench, combat-balancer |
 | `tools` | CLI harnesses (kit analyzer, AI benchmark, probes…), the repo conventions, mutation testing | everything |
 | `web` | Vue 3 SPA | engine, ai, set-fantasy, combat-balancer |
 

@@ -1,6 +1,7 @@
 import { ActionType, EffectHandler, FATIGUE_MAX_LEVEL } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { turnOnAllies, warded } from '../effects/generic.js';
+import { num } from '../effects/helpers.js';
 
 /**
  * Mestre de l'aigua — waterbending is tai chi: it does not meet force, it
@@ -12,11 +13,13 @@ import { turnOnAllies, warded } from '../effects/generic.js';
 const AIGUA_EFFECTS: Record<string, EffectHandler> = {
   // Desviar el corrent: the blow is turned back on whoever threw it. The
   // margin by which the defense won IS the water that comes back — the better
-  // the read, the harder the return.
+  // the read, the harder the return — up to `max`. Uncapped, a wall of three
+  // blockers handed the water bender the WHOLE wall's margin, 25-34 a blow,
+  // three times a round against a sweep (probed 2026-10-06).
   redirect_current: {
     onDefend(ctx) {
       if (!ctx.target || !ctx.target.isAlive()) return;
-      const back = -(ctx.margin ?? 0);
+      const back = Math.min(num(ctx.params, 'max', 6), -(ctx.margin ?? 0));
       if (back <= 0) return;
       ctx.engine.log('defense', `${ctx.source.name} desvia el corrent: ${ctx.target.name} rep ${back}.`, ctx.source.team);
       ctx.engine.applyPvLoss(ctx.target, back, ctx.source);
@@ -60,8 +63,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'desviar-el-corrent', name: 'Desviar el corrent', skillId: 'waterbender',
       unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 4),
-      effects: [{ type: 'redirect_current' }],
-      desc: "Si bloqueges, l'atacant rep la diferència.",
+      effects: [{ type: 'redirect_current', params: { max: 6 } }],
+      desc: "Si bloqueges, l'atacant rep la diferència, com a màxim 6.",
       icon: 'lorc/wave-crest.svg',
     }),
     action({

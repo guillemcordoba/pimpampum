@@ -11,19 +11,19 @@ const SERP_SKILL: SkillDefinition = {
   description: "Escombra tota una coberta amb un doll d'aigua; quan la fereixen, se'n va on ningú no la pot seguir.",
   iconPath: ICON + 'lorc/sea-serpent.svg',
   actions: [
-    action({ id: 'mossegada-de-serp', name: 'Mossegada de serp', skillId: 'serp-de-les-marees', unlock: 1, type: ActionType.Atac, speed: 0, dice: d(2, 8), desc: '', icon: 'lorc/fangs.svg' }),
+    action({ id: 'mossegada-de-serp', name: 'Mossegada de serp', skillId: 'serp-de-les-marees', unlock: 1, type: ActionType.Atac, speed: 0, dice: d(3, 8), desc: '', icon: 'lorc/fangs.svg' }),
     action({
       id: 'doll-d-aigua', name: "Doll d'aigua", skillId: 'serp-de-les-marees',
-      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 3,
+      unlock: 2, type: ActionType.Atac, speed: 1, dice: d(3, 6), targetCount: 6,
       effects: [{ type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } }],
-      desc: 'Afecta tres enemics. Qui rebi dany, {V}−2 el torn següent.',
+      desc: 'Afecta tots els enemics. Qui rebi dany, {V}−2 el torn següent.',
       icon: 'lorc/water-fountain.svg',
     }),
     action({
       id: 'submergir-se', name: "Submergir-se", skillId: 'serp-de-les-marees',
       unlock: 3, type: ActionType.Focus, speed: 3,
       effects: [{ type: 'vanish', params: { heal: 6 } }],
-      desc: "Aquest torn ningú no t'ataca, i recuperes 6 PV.",
+      desc: "Aquest torn ningú no t'ataca, i recuperes 6 PV. No la pots jugar dos torns seguits.",
       icon: 'lorc/water-drop.svg',
     }),
   ],

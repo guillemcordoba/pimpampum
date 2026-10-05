@@ -12,8 +12,8 @@ const TITELLAIRE_SKILL: SkillDefinition = {
   description: "Va aprendre, en una presó sense aigua, que un cos és sobretot aigua. Sota la lluna plena, mou la gent com titelles.",
   iconPath: ICON + 'lorc/puppet.svg',
   actions: [
-    action({ id: 'fuet-de-gel', name: 'Fuet de gel', skillId: 'titellaire-de-sang', unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 4), desc: '', icon: 'lorc/water-bolt.svg' }),
-    action({ id: 'agulles-de-gel', name: 'Agulles de gel', skillId: 'titellaire-de-sang', unlock: 2, type: ActionType.Atac, speed: 0, dice: d(1, 6), targetCount: 2, desc: 'Afecta dos enemics.', icon: 'lorc/ice-spear.svg' }),
+    action({ id: 'fuet-de-gel', name: 'Fuet de gel', skillId: 'titellaire-de-sang', unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 6), desc: '', icon: 'lorc/water-bolt.svg' }),
+    action({ id: 'agulles-de-gel', name: 'Agulles de gel', skillId: 'titellaire-de-sang', unlock: 2, type: ActionType.Atac, speed: 0, dice: d(2, 4), targetCount: 6, desc: 'Afecta tots els enemics.', icon: 'lorc/ice-spear.svg' }),
     action({
       id: 'titella-de-sang', name: 'Titella de sang', skillId: 'titellaire-de-sang',
       unlock: 3, type: ActionType.Focus, speed: -2,

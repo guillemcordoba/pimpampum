@@ -34,7 +34,7 @@ const AGENT_SKILL: SkillDefinition = {
       id: 'fondre-s-a-la-paret', name: "Fondre's a la paret", skillId: 'agent-de-pedra',
       unlock: 2, type: ActionType.Focus, speed: 4,
       effects: [{ type: 'vanish', params: { attack: 3 } }],
-      desc: "Aquest torn ningú no t'ataca. El torn següent, {A}+3.",
+      desc: "Aquest torn ningú no t'ataca. El torn següent, {A}+3. No la pots jugar dos torns seguits.",
       icon: 'lorc/stone-wall.svg',
     }),
     action({

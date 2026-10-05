@@ -23,20 +23,26 @@ const KOH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // Robar el rostre: 2d6 to the chosen enemy; whoever attacked Koh this round
-  // also loses their next turn.
+  // Robar el rostre: every enemy who struck at Koh this round has shown him
+  // their face — 3d6 each, and they lose their next turn. A lone spirit with
+  // nothing a block wall could not stop measured as no threat at any PV
+  // (probed 2026-10-06); this is the threat, and it is the lore: show nothing.
   steal_face: {
-    getTargetRequirement() { return 'enemy'; },
+    getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const t = ctx.targets[0];
-      if (!t || !t.isAlive()) return;
-      const dmg = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'attack');
-      ctx.engine.applyPvLoss(t, dmg, ctx.source);
-      const shown = struckAtKoh(ctx, t);
-      if (shown && t.isAlive()) t.skipTurns += 1;
-      ctx.engine.log('focus', `Koh pren el rostre de ${t.name}: ${dmg} de dany${shown ? ' i perd el torn següent' : ''}.`, ctx.source.team);
+      const shown = ctx.engine.enemiesOf(ctx.source).filter(t => struckAtKoh(ctx, t));
+      if (!shown.length) {
+        ctx.engine.log('focus', 'Ningú no ha mostrat cap emoció: Koh no troba cap rostre.', ctx.source.team);
+        return;
+      }
+      for (const t of shown) {
+        const dmg = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'attack');
+        ctx.engine.applyPvLoss(t, dmg, ctx.source);
+        if (t.isAlive()) t.skipTurns += 1;
+        ctx.engine.log('focus', `Koh pren el rostre de ${t.name}: ${dmg} de dany i perd el torn següent.`, ctx.source.team);
+      }
     },
-    aiWeight() { return 1.2; },
+    aiWeight(ctx) { return ctx.enemies.length ? 1.2 : 0; },
   },
 };
 
@@ -45,7 +51,7 @@ const KOH_SKILL: SkillDefinition = {
   description: "Un esperit antic amb cos de centpeus. Si mostres cap emoció davant seu, et pren la cara.",
   iconPath: ICON + 'lorc/centipede.svg',
   actions: [
-    action({ id: 'mossegada-de-centpeus', name: 'Mossegada de centpeus', skillId: 'koh', unlock: 1, type: ActionType.Atac, speed: 0, dice: d(2, 6), desc: '', icon: 'lorc/fangs.svg' }),
+    action({ id: 'mossegada-de-centpeus', name: 'Mossegada de centpeus', skillId: 'koh', unlock: 1, type: ActionType.Atac, speed: 0, dice: d(3, 6), desc: '', icon: 'lorc/fangs.svg' }),
     action({
       id: 'rostre-impassible', name: 'Rostre impassible', skillId: 'koh',
       unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
@@ -55,9 +61,9 @@ const KOH_SKILL: SkillDefinition = {
     }),
     action({
       id: 'robar-el-rostre', name: 'Robar el rostre', skillId: 'koh',
-      unlock: 3, type: ActionType.Focus, speed: -2, dice: d(2, 6),
+      unlock: 3, type: ActionType.Focus, speed: -2, dice: d(3, 6),
       effects: [{ type: 'steal_face' }],
-      desc: "Tria un enemic: perd 2d6 PV. Si t'ha atacat aquest torn, també perd el torn següent.",
+      desc: "Cada enemic que t'hagi atacat aquest torn perd 3d6 PV i el torn següent.",
       icon: 'lorc/hood.svg',
     }),
   ],

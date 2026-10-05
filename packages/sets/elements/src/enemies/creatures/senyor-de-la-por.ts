@@ -50,8 +50,8 @@ const SENYOR_SKILL: SkillDefinition = {
     action({
       id: 'palmell-del-buit', name: 'Palmell del buit', skillId: 'senyor-de-la-por',
       unlock: 1, type: ActionType.Atac, speed: 4, dice: d(1, 6),
-      effects: [{ type: 'hidden_master' }, { type: 'lock_on_hit', params: { types: [ActionType.Defensa] } }],
-      desc: "Si encerta, l'objectiu no pot jugar Defenses el torn següent.",
+      effects: [{ type: 'hidden_master' }, { type: 'isolate_on_hit' }],
+      desc: "Si encerta, ningú no pot protegir l'objectiu el torn següent.",
       icon: PALMELL_D_AIRE_ICON,
     }),
     action({

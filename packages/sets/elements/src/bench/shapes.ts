@@ -7,13 +7,14 @@ import type { Shape } from '@pimpampum/bench';
 /**
  * The shapes a kit is measured across. PV is solved, never written down; the
  * COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts --set
- * elements`).
+ * elements`). Counts probed 2026-10-06 against the calibration party: each
+ * solved to 57-65% at 13-20 PV a body, inside the round budget.
  */
 export const SHAPES: Shape[] = [
-  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 4 }] },
-  { label: 'emboscada', pool: [{ enemyId: 'agent-de-pedra', count: 2 }, { enemyId: 'arquer-de-la-muralla', count: 2 }] },
-  { label: 'cap', pool: [{ enemyId: 'serp-de-les-marees', count: 1 }] },
-  { label: 'mixt', pool: [{ enemyId: 'artiller-del-tercer-ull', count: 1 }, { enemyId: 'soldat-del-foc', count: 3 }] },
+  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5 }] },
+  { label: 'emboscada', pool: [{ enemyId: 'agent-de-pedra', count: 3 }, { enemyId: 'arquer-de-la-muralla', count: 3 }] },
+  { label: 'cap', pool: [{ enemyId: 'serp-de-les-marees', count: 2 }] },
+  { label: 'mixt', pool: [{ enemyId: 'artiller-del-tercer-ull', count: 1 }, { enemyId: 'soldat-del-foc', count: 4 }] },
 ];
 
 /** Ally rows: two mains and one complementary kit each, every kit in some row. */
@@ -29,10 +30,10 @@ export const CALIBRATION_KITS = ['airbender', 'firebender', 'earthbender', 'wate
 
 /** Creatures no SHAPE fields, and why. */
 export const UNFIELDED_ENEMIES: Record<string, string> = {
-  'acrobata-del-chi': 'a shutdown support, measured in its own encounters for now; no shape has been probed for it.',
-  shirshu: 'a single beast between the patrol and the boss; no count has been probed for it yet.',
-  'titellaire-de-sang': 'a caster who works through the heroes themselves; no shape probed for her yet.',
-  koh: 'a lone spirit boss; the sea serpent holds the boss slot in the matrix.',
+  'acrobata-del-chi': 'fair at five bodies (61%, 13 PV, probed 2026-10-06), but the four shapes already cover a horde; not needed in the matrix.',
+  shirshu: 'no threat to four heroes at one or two bodies whatever its PV (82-98%, probed 2026-10-06); its kit needs teeth before it can form a shape.',
+  'titellaire-de-sang': 'no threat at two to four bodies whatever her PV (86-97%, probed 2026-10-06); the puppet card is control, not a kill.',
+  koh: 'no threat alone or as a pair whatever his PV (91-98%, probed 2026-10-06), even punishing every attacker; his kit needs another look.',
   'rostre-de-l-empenta': 'one of the Senyor de la Por\'s bodies — fought only together, in the villain encounter.',
   'rostre-de-ferro': 'one of the Senyor de la Por\'s bodies — fought only together, in the villain encounter.',
   'rostre-de-l-anima': 'one of the Senyor de la Por\'s bodies — fought only together, in the villain encounter.',
@@ -43,9 +44,26 @@ export const UNFIELDED_ENEMIES: Record<string, string> = {
   'bestia-de-la-por': 'never fielded: only the Rostre de les Bèsties calls it, mid-fight.',
 };
 
-/** The villain encounter: the six bodies and the Senyor himself. */
+/**
+ * The villain encounter: the Senyor and three of his bodies — the push, the
+ * soul and the one that brings the others back.
+ *
+ * A fight of about five rounds holds only so much enemy PV in total; spread
+ * over all seven bodies it solved to 4 PV each (probed 2026-10-06) — a goblin
+ * horde, not a villain. Difficulty is an input and the GM composes the fight,
+ * so the standard encounter fields three bodies and `NIGHTMARE` all six.
+ */
 export const VILLAIN: Shape = {
   label: 'senyor-de-la-por',
+  pool: [
+    { enemyId: 'rostre-de-l-empenta', count: 1 }, { enemyId: 'rostre-de-l-anima', count: 1 },
+    { enemyId: 'rostre-de-l-infern', count: 1 }, { enemyId: 'senyor-de-la-por', count: 1 },
+  ],
+};
+
+/** All six bodies at once — the nightmare. */
+export const NIGHTMARE: Shape = {
+  label: 'els-sis-rostres',
   pool: [
     { enemyId: 'rostre-de-l-empenta', count: 1 }, { enemyId: 'rostre-de-ferro', count: 1 },
     { enemyId: 'rostre-de-l-anima', count: 1 }, { enemyId: 'rostre-de-les-besties', count: 1 },

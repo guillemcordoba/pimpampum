@@ -35,7 +35,7 @@ export const AIRBENDER: SkillDefinition = {
       id: 'escuter-d-aire', name: "Escúter d'aire", skillId: 'airbender',
       unlock: 3, type: ActionType.Focus, speed: 5,
       effects: [{ type: 'vanish', params: { attack: 3 } }],
-      desc: "Aquest torn ningú no t'ataca. El torn següent, {A}+3.",
+      desc: "Aquest torn ningú no t'ataca. El torn següent, {A}+3. No la pots jugar dos torns seguits.",
       icon: 'lorc/wind-hole.svg',
     }),
     action({

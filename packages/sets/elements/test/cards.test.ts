@@ -45,6 +45,15 @@ describe("Mestre de l'aigua", () => {
     expect(foe.currentPV).toBe(24);
   });
 
+  it('Desviar el corrent: however far the defense wins by, at most 6 comes back', () => {
+    // Defense 30 against an attack of 4 would be 26; the card caps it.
+    const water = fighter('Aigua', [flat('desviar-el-corrent', 1, 29)], { pv: 30 });
+    const foe = fighter('Foe', [attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 3, speed: 0 })], { pv: 30 });
+    const engine = engineFor([water], [foe]);
+    playRound(engine, [sel(0, 0, 0, [{ team: 0, idx: 0 }]), sel(1, 0, 0, [{ team: 0, idx: 0 }])]);
+    expect(foe.currentPV).toBe(24);
+  });
+
   it("Domini de la sang: next turn the puppet's blow lands on its own ally, and the bender tires", () => {
     const water = fighter('Aigua', [getAction('domini-de-la-sang')!, wait], { pv: 30 });
     const puppet = fighter('Titella', [wait, attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 4 })], { pv: 30 });

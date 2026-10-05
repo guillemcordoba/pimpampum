@@ -9,7 +9,7 @@ const FERRO_SKILL: SkillDefinition = {
   iconPath: ICON + 'lorc/robot-grab.svg',
   actions: [
     action({ id: 'bracos-de-ferro', name: 'Braços de ferro', skillId: 'rostre-de-ferro', unlock: 1, type: ActionType.Atac, speed: 1, dice: d(1, 6), targetCount: 3, desc: 'Afecta tres enemics.', icon: 'lorc/mechanical-arm.svg' }),
-    action({ id: 'missil', name: 'Míssil', skillId: 'rostre-de-ferro', unlock: 2, type: ActionType.Atac, speed: -2, dice: d(3, 6), desc: '', icon: 'lorc/missile-swarm.svg' }),
+    action({ id: 'missil', name: 'Míssil', skillId: 'rostre-de-ferro', unlock: 2, type: ActionType.Atac, speed: -2, dice: d(2, 6), desc: '', icon: 'lorc/missile-swarm.svg' }),
   ],
 };
 

@@ -288,11 +288,15 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Focus: out of reach this round; then `attack` on the next turn's attacks
-  // and/or `heal` PV now.
+  // and/or `heal` PV now. Never two turns running: played every round it made
+  // its holder unreachable for good, and fights stalled at the round cap
+  // (stone agents and the sea serpent, probed 2026-10-06).
   vanish: {
     getTargetRequirement() { return 'none'; },
+    canPlay(actor) { return !actor.hasStatus('sense-ale'); },
     onResolve(ctx) {
       ctx.source.setStatus('fos', 1, 1, undefined, VANISHED);
+      ctx.source.setStatus('sense-ale', 1, 2);
       const bonus = num(ctx.params, 'attack', 0);
       if (bonus) applyMod(ctx.source, 'attack', bonus, 'nextTurn', ctx.action.name);
       const heal = num(ctx.params, 'heal', 0);
