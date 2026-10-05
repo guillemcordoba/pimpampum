@@ -72,7 +72,7 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'aigua-sanadora@cal', name: 'Aigua sanadora', skillId: 'waterbender@cal',
-      unlock: 3, type: ActionType.Focus, speed: 1, dice: d(2, 6),
+      unlock: 3, type: ActionType.Focus, speed: -1, dice: d(2, 6),
       effects: [{ type: 'heal' }],
       desc: 'Tria un aliat: recupera 2d6 PV.',
       icon: 'lorc/healing.svg',

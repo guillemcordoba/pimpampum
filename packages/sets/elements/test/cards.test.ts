@@ -128,7 +128,7 @@ describe('Els set chakres', () => {
     const monk = buildCharacter({ name: 'Monjo', pv: 30, skills: { chakra: 2 } });
     const heart = monk.actions.findIndex(a => a.def.id === 'obrir-el-chakra-del-cor');
     const ally = fighter('Aliat', [wait], { pv: 30 });
-    const foe = fighter('Foe', [attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 5, speed: 0 })], { pv: 30 });
+    const foe = fighter('Foe', [attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 5, speed: -1 })], { pv: 30 });
     const engine = engineFor([monk, ally], [foe]);
     playRound(engine, [sel(0, 0, heart, [{ team: 0, idx: 1 }]), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 1 }])]);
     expect(ally.currentPV).toBe(30);

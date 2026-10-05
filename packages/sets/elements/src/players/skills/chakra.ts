@@ -86,7 +86,7 @@ export const CHAKRA: SkillDefinition = {
     }),
     action({
       id: 'obrir-el-chakra-del-cor', name: 'Obrir el chakra del cor', skillId: 'chakra',
-      unlock: 2, type: ActionType.Focus, speed: 2,
+      unlock: 2, type: ActionType.Focus, speed: 0,
       effects: [{ type: 'open_heart_chakra' }],
       desc: 'Tria un aliat: aquest torn, el dany que rebi el reps tu.',
       icon: 'lorc/heart-inside.svg',
