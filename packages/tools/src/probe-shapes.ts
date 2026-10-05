@@ -62,14 +62,11 @@ const ELEMENTS_FAMILIES: Family[] = [
   { label: 'shirshu', pool: n => [{ enemyId: 'shirshu', count: n }], counts: [1, 2, 3] },
   { label: 'titellaire-de-sang', pool: n => [{ enemyId: 'titellaire-de-sang', count: n }], counts: [2, 3, 4] },
   { label: 'acrobata-del-chi', pool: n => [{ enemyId: 'acrobata-del-chi', count: n }], counts: [3, 4, 5] },
-  {
-    label: 'senyor-de-la-por (els sis rostres i ell)',
-    pool: () => [
-      'rostre-de-l-empenta', 'rostre-de-ferro', 'rostre-de-l-anima', 'rostre-de-les-besties',
-      'rostre-famolenc', 'rostre-de-l-infern', 'senyor-de-la-por',
-    ].map(enemyId => ({ enemyId, count: 1 })),
-    counts: [1],
-  },
+  // The villain, as the set composes him: three bodies, and the nightmare of all six.
+  ...['VILLAIN', 'NIGHTMARE'].map((key): Family => {
+    const shape = (SET.bench as unknown as Record<string, { label: string; pool: { enemyId: string; count: number }[] }>)[key];
+    return { label: shape.label, pool: () => shape.pool, counts: [1] };
+  }),
 ];
 
 const CANDIDATES = SET.id === 'elements' ? ELEMENTS_FAMILIES : FANTASY_FAMILIES;

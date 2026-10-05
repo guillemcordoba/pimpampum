@@ -96,9 +96,9 @@ export function isolate(target: Character): void {
   target.setStatus('aillat', 1, NEXT_TURN, { harm: 1 }, ISOLATED);
 }
 
-export function turnOnAllies(target: Character): void {
+export function turnOnAllies(target: Character, turns = 1): void {
   if (warded(target)) return;
-  target.setStatus('girat', 1, NEXT_TURN, { harm: 1 }, TURNED);
+  target.setStatus('girat', 1, turns + 1, { harm: 1 }, TURNED);
 }
 
 const TYPE_NAME: Record<string, string> = { Atac: 'Atacs', Defensa: 'Defenses', Focus: 'Focus' };
@@ -306,6 +306,21 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV * 0.5 ? 1.2 : 0.5; },
   },
 
+  // Through the guard: the blow finds the pressure point whatever defends it.
+  slip_guard: {
+    modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.ignoreDefense = true; },
+    aiWeight() { return 0.8; },
+  },
+
+  // Strike, then be gone: after the attack, out of reach for the rest of the
+  // round — and, like `vanish`, never two turns running.
+  hit_and_run: {
+    canPlay(actor) { return !actor.hasStatus('sense-ale'); },
+    onAttackHit(ctx) { away(ctx); },
+    onAttackMiss(ctx) { away(ctx); },
+    aiWeight() { return 0.8; },
+  },
+
   // Focus: a skill modifier on oneself or the whole side.
   skill_mod: {
     getTargetRequirement() { return 'none'; },
@@ -319,6 +334,13 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.9; },
   },
 };
+
+function away(ctx: EffectContext): void {
+  if (ctx.source.hasStatus('fos')) return;
+  ctx.source.setStatus('fos', 1, 1, undefined, VANISHED);
+  ctx.source.setStatus('sense-ale', 1, 2);
+  ctx.engine.log('attack', `${ctx.source.name} desapareix de l'abast.`, ctx.source.team);
+}
 
 function again(ctx: EffectContext): void {
   const t = ctx.target;

@@ -7,8 +7,8 @@ import { EnemyDefinition, ICON } from '../types.js';
  * he takes your face. In a fight, the emotion is the swing — whoever strikes
  * at him and fails has shown him everything.
  */
-function struckAtKoh(ctx: { engine: { round: number; history: ReadonlyArray<{ round: number; actor: unknown; targets: unknown[] }> }; source: unknown }, who: unknown): boolean {
-  return ctx.engine.history.some(e => e.round === ctx.engine.round && e.actor === who && e.targets.includes(ctx.source));
+function struckAtKoh(ctx: { engine: { round: number; history: ReadonlyArray<{ round: number; actor: unknown; targets: unknown[] }> }; source: unknown }, who: unknown, round: number): boolean {
+  return ctx.engine.history.some(e => e.round === round && e.actor === who && e.targets.includes(ctx.source));
 }
 
 const KOH_EFFECTS: Record<string, EffectHandler> = {
@@ -23,14 +23,16 @@ const KOH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // Robar el rostre: every enemy who struck at Koh this round has shown him
-  // their face — 3d6 each, and they lose their next turn. A lone spirit with
-  // nothing a block wall could not stop measured as no threat at any PV
-  // (probed 2026-10-06); this is the threat, and it is the lore: show nothing.
+  // Robar el rostre: every enemy who struck at Koh LAST round showed him their
+  // face — 3d6 each, and they lose their next turn. A lone spirit with nothing
+  // a block wall could not stop measured as no threat at any PV (probed
+  // 2026-10-06); this is the threat, and it is the lore: show nothing. Last
+  // round, not this one: reading this round it had to resolve after the blows,
+  // and a slow Focus is exactly what those blows cancel.
   steal_face: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const shown = ctx.engine.enemiesOf(ctx.source).filter(t => struckAtKoh(ctx, t));
+      const shown = ctx.engine.enemiesOf(ctx.source).filter(t => struckAtKoh(ctx, t, ctx.engine.round - 1));
       if (!shown.length) {
         ctx.engine.log('focus', 'Ningú no ha mostrat cap emoció: Koh no troba cap rostre.', ctx.source.team);
         return;
@@ -61,9 +63,9 @@ const KOH_SKILL: SkillDefinition = {
     }),
     action({
       id: 'robar-el-rostre', name: 'Robar el rostre', skillId: 'koh',
-      unlock: 3, type: ActionType.Focus, speed: -2, dice: d(3, 6),
+      unlock: 3, type: ActionType.Focus, speed: 3, dice: d(3, 6),
       effects: [{ type: 'steal_face' }],
-      desc: "Cada enemic que t'hagi atacat aquest torn perd 3d6 PV i el torn següent.",
+      desc: "Cada enemic que t'hagi atacat el torn anterior perd 3d6 PV i el torn següent.",
       icon: 'lorc/hood.svg',
     }),
   ],

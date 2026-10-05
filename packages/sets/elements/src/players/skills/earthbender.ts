@@ -110,7 +110,9 @@ function standingCoverAction(opts: {
   dice?: DiceRoll; life?: DiceRoll; speed?: number; icon?: string;
 }) {
   const key = opts.key ?? 'mur-de-pedra';
-  const life = opts.life ?? d(2, 6);
+  // 2d4, not the fantasy set's 2d6: in this set's short fights a 2d6 wall
+  // dragged the earthbender's past the p90 round bar (NEXT-STEPS §42).
+  const life = opts.life ?? d(2, 4);
   return action({
     id: opts.id ?? 'mur-de-pedra', name: opts.name ?? 'Mur de pedra', skillId: opts.skillId, unlock: opts.unlock,
     type: ActionType.Defensa, speed: opts.speed ?? 0, dice: opts.dice ?? d(3, 6),
@@ -217,8 +219,8 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'preso-de-terra', name: 'Presó de terra', skillId: 'earthbender',
       unlock: 4, type: ActionType.Focus, speed: 2,
-      effects: [{ type: 'bury', params: { turns: 2 } }],
-      desc: "Tria un enemic. La terra l'atrapa durant 2 torns: només pot jugar cartes de Focus i ningú no el pot protegir. No el pot tornar a atrapar fins 2 torns després.",
+      effects: [{ type: 'bury', params: { turns: 1 } }],
+      desc: "Tria un enemic. La terra l'atrapa durant 1 torn: només pot jugar cartes de Focus i ningú no el pot protegir. No el pot tornar a atrapar fins 2 torns després.",
       icon: 'lorc/sinking-trap.svg',
     }),
     action({

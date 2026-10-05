@@ -51,16 +51,18 @@ export const FIREBENDER: SkillDefinition = {
       desc: 'Afecta dos enemics.',
       icon: 'lorc/fire-arrow.svg',
     }),
+    // The breath IS the fire: a buff for later lost to attacking in fights of
+    // three or four rounds, whether +3 for the rest of combat or +6 next turn
+    // (played on 0.5-2% of its turns, NEXT-STEPS §42).
     action({
-      id: 'respiracio-de-foc@cal', name: 'Respiració de foc', skillId: 'firebender@cal',
-      unlock: 4, type: ActionType.Focus, speed: 1,
-      effects: [{ type: 'skill_mod', params: { kind: 'attack', amount: 3, duration: 'restOfCombat' } }],
-      desc: '{A}+3 la resta del combat.',
+      id: 'ale-de-drac@cal', name: 'Alè de drac', skillId: 'firebender@cal',
+      unlock: 4, type: ActionType.Atac, speed: -1, dice: d(2, 4), targetCount: 6,
+      desc: 'Afecta tots els enemics.',
       icon: 'lorc/fire-breath.svg',
     }),
     action({
       id: 'llamp@cal', name: 'Llamp', skillId: 'firebender@cal',
-      unlock: 5, type: ActionType.Focus, speed: -3, dice: d(3, 6),
+      unlock: 5, type: ActionType.Focus, speed: 2, dice: d(3, 6),
       effects: [{ type: 'lightning@cal' }],
       desc: "Tria un enemic: rep 3d6 de dany. No es pot defensar i ignora l'armadura.",
       icon: 'lorc/lightning-branches.svg',

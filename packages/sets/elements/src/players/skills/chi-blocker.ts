@@ -28,16 +28,16 @@ export const CHI_BLOCKER: SkillDefinition = {
     }),
     action({
       id: 'bloqueig-de-chi', name: 'Bloqueig de chi', skillId: 'chi-blocker',
-      unlock: 3, type: ActionType.Atac, speed: 3, dice: d(1, 6),
-      effects: [{ type: 'lock_on_hit', params: { types: [ActionType.Focus], turns: 2 } }],
-      desc: "Si encerta, l'objectiu no pot jugar Focus durant 2 torns.",
+      unlock: 3, type: ActionType.Atac, speed: 3, dice: d(2, 4),
+      effects: [{ type: 'slip_guard' }, { type: 'lock_on_hit', params: { types: [ActionType.Focus, ActionType.Defensa], turns: 2 } }],
+      desc: "No es pot defensar. Si encerta, l'objectiu no pot jugar Focus ni Defenses durant 2 torns.",
       icon: 'lorc/nerve.svg',
     }),
     action({
-      id: 'cama-adormida', name: 'Cama adormida', skillId: 'chi-blocker',
-      unlock: 4, type: ActionType.Atac, speed: 2, dice: d(2, 4),
-      effects: [{ type: 'lock_on_hit', params: { types: [ActionType.Defensa] } }],
-      desc: "Si encerta, l'objectiu no pot jugar Defenses el torn següent.",
+      id: 'cama-adormida', name: 'Braç adormit', skillId: 'chi-blocker',
+      unlock: 4, type: ActionType.Atac, speed: 2, dice: d(2, 6),
+      effects: [{ type: 'lock_on_hit', params: { types: [ActionType.Atac], turns: 2 } }],
+      desc: "Si encerta, l'objectiu no pot jugar Atacs durant 2 torns.",
       icon: 'lorc/leg.svg',
     }),
     action({

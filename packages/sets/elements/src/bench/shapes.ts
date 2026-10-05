@@ -12,7 +12,7 @@ import type { Shape } from '@pimpampum/bench';
  */
 export const SHAPES: Shape[] = [
   { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5 }] },
-  { label: 'emboscada', pool: [{ enemyId: 'agent-de-pedra', count: 3 }, { enemyId: 'arquer-de-la-muralla', count: 3 }] },
+  { label: 'emboscada', pool: [{ enemyId: 'agent-de-pedra', count: 2 }, { enemyId: 'arquer-de-la-muralla', count: 2 }] },
   { label: 'cap', pool: [{ enemyId: 'serp-de-les-marees', count: 2 }] },
   { label: 'mixt', pool: [{ enemyId: 'artiller-del-tercer-ull', count: 1 }, { enemyId: 'soldat-del-foc', count: 4 }] },
 ];

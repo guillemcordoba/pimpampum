@@ -13,4 +13,12 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 /** Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,
  *  almost never played. */
 export const KNOWN_BLIND: Record<string, string[]> = {
+  // Its payoff is +3 speed NEXT turn, a modifier the evaluator cannot see;
+  // the AI takes Esfera d'aire instead. Measured 2026-10-06: the right play in
+  // 36% of its decisions, played on 5% (NEXT-STEPS §42).
+  airbender: ['esquivar-en-espiral'],
+  // Burying a body buys tempo, not PV, and its status prices itself only a little
+  // (ENTERRAT.positionValue); the right play in 25% of its decisions, played
+  // on 2% (2026-10-06, NEXT-STEPS §42).
+  earthbender: ['preso-de-terra'],
 };

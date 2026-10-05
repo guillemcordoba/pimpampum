@@ -36,33 +36,33 @@ const sel = (team: number, idx: number, actionIdx: number, targets?: Selection['
 
 describe("Mestre de l'aigua", () => {
   it('Desviar el corrent: a blocked attacker takes the margin it lost by', () => {
-    // Defense 10 (flat) against an attack of 4: the water comes back for 6.
-    const water = fighter('Aigua', [flat('desviar-el-corrent', 1, 9)], { pv: 30 });
+    // Defense 7 (flat) against an attack of 4: the water comes back for 3.
+    const water = fighter('Aigua', [flat('desviar-el-corrent', 1, 6)], { pv: 30 });
     const foe = fighter('Foe', [attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 3, speed: 0 })], { pv: 30 });
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 0, idx: 0 }]), sel(1, 0, 0, [{ team: 0, idx: 0 }])]);
     expect(water.currentPV).toBe(30);
-    expect(foe.currentPV).toBe(24);
+    expect(foe.currentPV).toBe(27);
   });
 
-  it('Desviar el corrent: however far the defense wins by, at most 6 comes back', () => {
+  it('Desviar el corrent: however far the defense wins by, at most 4 comes back', () => {
     // Defense 30 against an attack of 4 would be 26; the card caps it.
     const water = fighter('Aigua', [flat('desviar-el-corrent', 1, 29)], { pv: 30 });
     const foe = fighter('Foe', [attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 3, speed: 0 })], { pv: 30 });
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 0, idx: 0 }]), sel(1, 0, 0, [{ team: 0, idx: 0 }])]);
-    expect(foe.currentPV).toBe(24);
+    expect(foe.currentPV).toBe(26);
   });
 
-  it("Domini de la sang: next turn the puppet's blow lands on its own ally, and the bender tires", () => {
+  it("Domini de la sang: next turn the puppet's blow lands on its own ally, and the bender bleeds for it", () => {
     const water = fighter('Aigua', [getAction('domini-de-la-sang')!, wait], { pv: 30 });
     const puppet = fighter('Titella', [wait, attackCard('hit', { dice: new DiceRoll(1, 1), rollBonus: 4 })], { pv: 30 });
     const friend = fighter('Amic', [wait], { pv: 30 });
     const engine = engineFor([water], [puppet, friend]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect(water.fatigue).toBe(1);
+    expect(water.currentPV, 'the taboo costs 2 PV').toBe(28);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, [{ team: 0, idx: 0 }]), sel(1, 1, 0)]);
-    expect(water.currentPV, 'the bender is spared').toBe(30);
+    expect(water.currentPV, 'the bender is spared').toBe(28);
     expect(friend.currentPV, 'the puppet struck its own ally').toBe(25);
   });
 

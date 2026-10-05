@@ -16,7 +16,7 @@ const TITELLAIRE_SKILL: SkillDefinition = {
     action({ id: 'agulles-de-gel', name: 'Agulles de gel', skillId: 'titellaire-de-sang', unlock: 2, type: ActionType.Atac, speed: 0, dice: d(2, 4), targetCount: 6, desc: 'Afecta tots els enemics.', icon: 'lorc/ice-spear.svg' }),
     action({
       id: 'titella-de-sang', name: 'Titella de sang', skillId: 'titellaire-de-sang',
-      unlock: 3, type: ActionType.Focus, speed: -2,
+      unlock: 3, type: ActionType.Focus, speed: 1,
       effects: [{ type: 'turn_on_allies' }],
       desc: 'Tria un enemic: el torn següent, els seus atacs van contra els seus aliats.',
       icon: 'lorc/puppet.svg',

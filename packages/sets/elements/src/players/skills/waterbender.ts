@@ -1,4 +1,4 @@
-import { ActionType, EffectHandler, FATIGUE_MAX_LEVEL } from '@pimpampum/engine';
+import { ActionType, EffectHandler } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { turnOnAllies, warded } from '../effects/generic.js';
 import { num } from '../effects/helpers.js';
@@ -28,21 +28,21 @@ const AIGUA_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // Domini de la sang: the forbidden art. The chosen enemy's blows land on
-  // their own side next turn. The taboo is paid in exhaustion, as Entrar en
-  // Fúria pays (a card whose text says so), and an Esgotat bender cannot.
+  // their own side next turn, and the taboo is paid in the bender's own blood.
+  // (It was a fatigue level, as Entrar en Fúria pays: a day-long −1 for one
+  // turn of control, and it was played on 0.4% of the turns it was legal.)
   bloodbend: {
     getTargetRequirement() { return 'enemy'; },
-    canPlay(actor) { return actor.fatigue < FATIGUE_MAX_LEVEL; },
     onResolve(ctx) {
       const t = ctx.targets[0];
-      ctx.source.setFatigue(ctx.source.fatigue + 1);
+      ctx.engine.applyPvLoss(ctx.source, num(ctx.params, 'cost', 2), ctx.source);
       if (!t || !t.isAlive()) return;
       if (warded(t)) {
         ctx.engine.log('focus', `${t.name} té el chakra obert: la sang no obeeix.`, ctx.source.team);
         return;
       }
-      turnOnAllies(t);
-      ctx.engine.log('focus', `${ctx.source.name} domina la sang de ${t.name}: el torn següent ataca els seus.`, ctx.source.team);
+      turnOnAllies(t, num(ctx.params, 'turns', 1));
+      ctx.engine.log('focus', `${ctx.source.name} domina la sang de ${t.name}: ataca els seus.`, ctx.source.team);
     },
     // Only worth it when there is someone for the puppet to hit.
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 1.3 : -3; },
@@ -63,8 +63,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'desviar-el-corrent', name: 'Desviar el corrent', skillId: 'waterbender',
       unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 4),
-      effects: [{ type: 'redirect_current', params: { max: 6 } }],
-      desc: "Si bloqueges, l'atacant rep la diferència, com a màxim 6.",
+      effects: [{ type: 'redirect_current', params: { max: 4 } }],
+      desc: "Si bloqueges, l'atacant rep la diferència, com a màxim 4.",
       icon: 'lorc/wave-crest.svg',
     }),
     action({
@@ -83,9 +83,9 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'domini-de-la-sang', name: 'Domini de la sang', skillId: 'waterbender',
-      unlock: 5, type: ActionType.Focus, speed: -2,
-      effects: [{ type: 'bloodbend' }],
-      desc: 'Tria un enemic: el torn següent, els seus atacs van contra els seus aliats. Puges un nivell de fatiga. Esgotat, no la pots jugar.',
+      unlock: 5, type: ActionType.Focus, speed: 0,
+      effects: [{ type: 'bloodbend', params: { cost: 2, turns: 2 } }],
+      desc: 'Tria un enemic: durant 2 torns, els seus atacs van contra els seus aliats. Perds 2 PV.',
       icon: 'lorc/bleeding-heart.svg',
     }),
   ],
