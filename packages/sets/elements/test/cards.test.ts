@@ -99,18 +99,20 @@ describe('Mestre del foc', () => {
 
 describe('Els set chakres', () => {
   it('Obrir el chakra de la terra: strips a lock, and the next one does not take hold', () => {
-    const monk = buildCharacter({ name: 'Monjo', pv: 30, skills: { chakra: 1 } });
+    const monk = fighter('Monjo', [getAction('obrir-el-chakra-de-la-terra')!, wait], { pv: 30 });
     const ally = fighter('Aliat', [wait], { pv: 30 });
-    const archer = fighter('Arquer', [flat('clavar-a-la-paret', 1, 5, { speed: 9 }), wait], { pv: 30 });
+    const pin = { ...enemyCard('arquer-de-la-muralla', 'clavar-a-la-paret'), dice: new DiceRoll(1, 1), rollBonus: 5, speed: 9 };
+    const archer = fighter('Arquer', [pin, wait], { pv: 30 });
     const engine = engineFor([monk, ally], [archer]);
     // Round 1: the archer pins the ally.
-    playRound(engine, [sel(0, 0, 1 /* Cop desesperat is idx 1; the monk waits */), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 1 }])].slice(1));
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 1 }])]);
     expect(ally.hasStatus('bloquejat')).toBe(true);
-    // Round 2: the monk opens the ally's earth chakra before the archer shoots again.
+    // Round 2: the monk opens the ally's earth chakra.
     playRound(engine, [sel(0, 0, 0, [{ team: 0, idx: 1 }]), sel(0, 1, 0), sel(1, 0, 1)]);
     expect(ally.hasStatus('bloquejat'), 'the lock is gone').toBe(false);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 1 }])].slice(1));
-    expect(ally.hasStatus('bloquejat'), 'the open chakra turns the next pin away').toBe(false);
+    // Round 3: the archer pins again, and the open chakra turns it away.
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 1 }])]);
+    expect(ally.hasStatus('bloquejat')).toBe(false);
   });
 
   it("Obrir el chakra del cor: the ally's wound lands on the carer", () => {

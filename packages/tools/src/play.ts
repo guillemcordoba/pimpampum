@@ -28,7 +28,7 @@ setRng(seededRng(Number(process.env.SEED ?? 12345)));
 // ------------------------------------------------------------------ the game
 const PLAYERS: { name: string; classCss: string; pv: number; skills: Record<string, number>; equipment: string[] }[] = [
   { name: 'Vera',  classCss: 'mestre-armes', pv: 12, skills: { 'mestre-armes': 4 },       equipment: ['destral', 'escut'] },
-  { name: 'Bran',  classCss: 'terra',        pv: 12, skills: { earthbender: 4 },          equipment: ['escut'] },
+  { name: 'Bran',  classCss: 'volcanic',     pv: 12, skills: { volcanic: 4 },             equipment: ['escut'] },
   { name: 'Cira',  classCss: 'metge',        pv: 12, skills: { metge: 3, gel: 3 },        equipment: [] },
   { name: 'Dell',  classCss: 'enginyer',     pv: 12, skills: { 'enginyer-explosius': 4 }, equipment: [] },
 ];

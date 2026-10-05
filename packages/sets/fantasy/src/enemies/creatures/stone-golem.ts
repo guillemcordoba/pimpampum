@@ -10,8 +10,8 @@ const STONE_GOLEM_SKILL: SkillDefinition = {
   actions: [
     action({ id: 'cop-de-pedra', name: 'Cop de pedra', skillId: 'stone-golem', unlock: 1, type: ActionType.Atac, speed: -1, dice: d(2, 6), desc: '', icon: 'lorc/fist.svg' }),
     action({ id: 'terratremol', name: 'Terratrèmol', skillId: 'stone-golem', unlock: 3, type: ActionType.Atac, speed: -2, dice: d(1, 8), targetCount: 3, desc: 'Colpeja el terra amb força, afectant fins a 3 enemics.', icon: 'lorc/quake-stomp.svg' }),
-    // Its own id: the Earthbender holds the same card, and stats and card values
-    // are keyed by id — sharing one would count two kits' plays as one card.
+    // Its own id: the engineer's Barricada is the same card, and stats and card
+    // values are keyed by id — sharing one would count two kits' plays as one.
     standingCoverAction({ skillId: 'stone-golem', unlock: 2, id: 'mur-de-pedra-golem' }),
     action({ id: 'enduriment', name: 'Enduriment', skillId: 'stone-golem', unlock: 4, type: ActionType.Focus, speed: -2, effects: [
       { type: 'skill_mod', params: { kind: 'defense', amount: 8, target: 'self', duration: 'restOfCombat' } },

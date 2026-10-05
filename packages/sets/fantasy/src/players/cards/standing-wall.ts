@@ -5,8 +5,8 @@ import { num, str, diceParam } from '../effects/helpers.js';
 
 /**
  * STANDING COVER — a SHARED CARD (see cards/index.ts): one mechanics+text
- * source, instantiated per skill via `standingCoverAction` (the Earthbender's
- * and the Gòlem's Mur de pedra, the Enginyer's Barricada…). A persistent cover
+ * source, instantiated per skill via `standingCoverAction` (the Gòlem's Mur
+ * de pedra, the Enginyer's Barricada…). A persistent cover
  * raised on the guarded ally: this round the caster guards normally; afterwards
  * the cover's own status takes over (the generic standingGuard seam) — every
  * attack on the protected is contested against the CASTER's roll of this card's

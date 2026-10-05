@@ -179,7 +179,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
       icon: 'lorc/grenade.svg',
     }),
     // Built, not bent: sandbags, crates and rubble hauled into the line of fire.
-    // The engineer's cover is cheaper and flimsier than the earthbender's stone
+    // The engineer's cover is cheaper and flimsier than the golem's stone
     // (3d6 behind 2d6 of life, one round to throw up) but needs no charges.
     standingCoverAction({
       skillId: 'enginyer-explosius@cal', unlock: 2,

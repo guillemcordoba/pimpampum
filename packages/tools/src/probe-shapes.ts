@@ -17,20 +17,24 @@
  * which meant the tool that chooses the counts could disagree with the tool the
  * counts are for, about the very thing being calibrated.
  *
- * Run: pnpm --filter @pimpampum/tools exec tsx src/probe-shapes.ts
+ * Run: pnpm --filter @pimpampum/tools exec tsx src/probe-shapes.ts [--set elements] [--family <label part>]
  */
-import { solveEncounter } from '@pimpampum/set-fantasy';
-import { COMPANY, FAIR, SATURATION, FANTASY } from '@pimpampum/set-fantasy/bench';
+import { chosenSet } from './sets.js';
 import { calibrationParty, cellResult, exact, flag, games, pct, searchGames, SMOKE, useSet, standInFor } from '@pimpampum/bench';
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
-useSet(FANTASY);
+const SET = await chosenSet();
+const { solveEncounter } = SET.root;
+const { COMPANY, FAIR, SATURATION } = SET.bench;
+useSet(SET.gameSet);
 
 const SEARCH_GAMES = searchGames(120);
 
-/** Candidate counts per shape family. */
-const CANDIDATES: { label: string; pool: (n: number) => { enemyId: string; count: number }[]; counts: number[] }[] = [
+type Family = { label: string; pool: (n: number) => { enemyId: string; count: number }[]; counts: number[] };
+
+/** Candidate counts per shape family, per set. */
+const FANTASY_FAMILIES: Family[] = [
   { label: 'horda (goblin)', pool: n => [{ enemyId: 'goblin', count: n }], counts: [4, 5, 6, 8, 10, 12] },
   { label: 'escamot (bone-devil)', pool: n => [{ enemyId: 'bone-devil', count: n }], counts: [3, 4, 5, 6, 8] },
   { label: 'cap (basilisk)', pool: n => [{ enemyId: 'basilisk', count: n }], counts: [1, 2] },
@@ -40,6 +44,35 @@ const CANDIDATES: { label: string; pool: (n: number) => { enemyId: string; count
     counts: [2, 3, 4, 6],
   },
 ];
+
+const ELEMENTS_FAMILIES: Family[] = [
+  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n }], counts: [3, 4, 5, 6] },
+  {
+    label: 'emboscada (agent-de-pedra + arquer)',
+    pool: n => [{ enemyId: 'agent-de-pedra', count: n }, { enemyId: 'arquer-de-la-muralla', count: n }],
+    counts: [1, 2, 3],
+  },
+  { label: 'cap (serp-de-les-marees)', pool: n => [{ enemyId: 'serp-de-les-marees', count: n }], counts: [1, 2] },
+  {
+    label: 'mixt (artiller + soldat-del-foc)',
+    pool: n => [{ enemyId: 'artiller-del-tercer-ull', count: 1 }, { enemyId: 'soldat-del-foc', count: n }],
+    counts: [2, 3, 4],
+  },
+  { label: 'koh', pool: n => [{ enemyId: 'koh', count: n }], counts: [1, 2] },
+  { label: 'shirshu', pool: n => [{ enemyId: 'shirshu', count: n }], counts: [1, 2, 3] },
+  { label: 'titellaire-de-sang', pool: n => [{ enemyId: 'titellaire-de-sang', count: n }], counts: [2, 3, 4] },
+  { label: 'acrobata-del-chi', pool: n => [{ enemyId: 'acrobata-del-chi', count: n }], counts: [3, 4, 5] },
+  {
+    label: 'senyor-de-la-por (els sis rostres i ell)',
+    pool: () => [
+      'rostre-de-l-empenta', 'rostre-de-ferro', 'rostre-de-l-anima', 'rostre-de-les-besties',
+      'rostre-famolenc', 'rostre-de-l-infern', 'senyor-de-la-por',
+    ].map(enemyId => ({ enemyId, count: 1 })),
+    counts: [1],
+  },
+];
+
+const CANDIDATES = SET.id === 'elements' ? ELEMENTS_FAMILIES : FANTASY_FAMILIES;
 
 /** Games per company when re-measuring a solved count. */
 const CHECK_GAMES = games(400);

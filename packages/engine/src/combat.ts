@@ -1223,7 +1223,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (!hit && guard) {
       this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» atura l'atac de ${source.name} «${def.name}».`, guard.defender.team);
       this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin });
-      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source });
+      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });
       return;
     }
 
@@ -1263,7 +1263,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${source.name} «${def.name}».`, wall[0].defender.team);
       this.dispatch('onAttackMiss', source, def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin });
-      for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source });
+      for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source, margin: res.margin });
       return;
     }
     // The wall breaks: everyone on it learns from a close breach.

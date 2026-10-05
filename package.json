@@ -10,7 +10,7 @@
     "test:all": "pnpm build:libs && pnpm typecheck:tests && SLOW=1 vitest run",
     "typecheck:tests": "pnpm -r --filter '!@pimpampum/web' exec tsc -p tsconfig.test.json && pnpm --filter @pimpampum/web exec vue-tsc --noEmit -p tsconfig.test.json",
     "test:smoke": "pnpm build:libs && SLOW=1 BENCH_SMOKE=1 GAMES=2 SEARCH_GAMES=2 CALIBRATION_GAMES=4 vitest run",
-    "calibration:refresh": "pnpm --filter @pimpampum/set-fantasy calibration:refresh",
+    "calibration:refresh": "pnpm --filter @pimpampum/set-fantasy --filter @pimpampum/set-elements calibration:refresh",
     "build:libs": "pnpm -r --filter '!@pimpampum/web' build",
     "test:watch": "pnpm build:libs && vitest"
   },

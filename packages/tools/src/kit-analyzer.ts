@@ -4,17 +4,20 @@
  * The analysis itself lives in `@pimpampum/playtest` (`analyze.ts`, warmed by
  * `prepare.ts`), shared with the kit test suites; this file only prints it.
  */
-import { ALL_SKILLS, ENEMY_DEFINITIONS, getEnemy } from '@pimpampum/set-fantasy';
-import { calibrationDrift, FAIR, MAIN_KITS, REFRESHED, SATURATION, SHAPES, FANTASY } from '@pimpampum/set-fantasy/bench';
 import { saturatedCells, usableCells, cacheStatus, exact, games, lanes, pct, share, SMOKE, stderr, useSet, solvedShape, flag } from '@pimpampum/bench';
 import {
   analyze, measureTriangle, prepare,
   type KitReport, type Subject, type TriangleReport, type Verdict,
 } from '@pimpampum/playtest';
+import { chosenSet } from './sets.js';
+
+const SET = await chosenSet();
+const { ALL_SKILLS, ENEMY_DEFINITIONS, getEnemy } = SET.root;
+const { calibrationDrift, FAIR, MAIN_KITS, REFRESHED, SATURATION, SHAPES } = SET.bench;
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
-useSet(FANTASY);
+useSet(SET.gameSet);
 {
   // The baselines are measured with the calibration SNAPSHOT, not the live
   // kits: say which live edits they do not reflect yet.
@@ -144,7 +147,7 @@ console.log('');
 // cell: the calibration table used to come first, and computing it solved
 // every shape and baseline serially here, so the parallel warm found nothing
 // left to do.
-const context = { set: { module: import.meta.resolve('@pimpampum/set-fantasy/bench'), export: 'FANTASY' } };
+const context = { set: SET.ref };
 for (const s of subjects) {
   process.stdout.write(`   escalfant ${s.id} en ${lanes} processos…`);
   await prepare({ ...context, subject: s }, s, GAMES);

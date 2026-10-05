@@ -268,6 +268,12 @@ const MUTANTS: Mutant[] = [
     replace: '  clampPvLoss(_ref, amount) { return amount; },',
   },
   {
+    label: "ENGINE: a defense's onDefend never learns the margin it won by (Desviar el corrent returns nothing)",
+    file: 'packages/engine/src/combat.ts',
+    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });",
+    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source });",
+  },
+  {
     label: 'requirement 4: an edge holds on the point estimate',
     file: 'packages/playtest/src/rules.ts',
     find: 'return winrate - 2 * stderr(winrate, games) > 0.5;',

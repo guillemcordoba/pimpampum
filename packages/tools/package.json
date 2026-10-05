@@ -16,7 +16,8 @@
     "@pimpampum/bench": "workspace:*",
     "@pimpampum/set-fantasy": "workspace:*",
     "@pimpampum/combat-balancer": "workspace:*",
-    "@pimpampum/playtest": "workspace:*"
+    "@pimpampum/playtest": "workspace:*",
+    "@pimpampum/set-elements": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

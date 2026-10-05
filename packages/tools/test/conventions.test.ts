@@ -217,6 +217,7 @@ const ALLOWED: Record<string, string[]> = {
   bench: ['engine', 'ai', 'combat-balancer'],
   playtest: ['engine', 'bench'],
   'sets/fantasy': ['engine', 'ai', 'bench', 'combat-balancer'],
+  'sets/elements': ['engine', 'ai', 'bench', 'combat-balancer'],
 };
 
 describe('the layers only look down', () => {

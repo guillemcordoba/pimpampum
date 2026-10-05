@@ -2,7 +2,6 @@
 // src/players/skills/. Do not edit: edit the live kit, then refresh when the
 // baselines should follow it.
 import { BERSERK } from './berserk.js';
-import { EARTHBENDER } from './earthbender.js';
 import { ENGINYER_EXPLOSIUS } from './explosives-engineer.js';
 import { GEL } from './gel.js';
 import { METGE } from './metge.js';
@@ -15,12 +14,11 @@ import type { SkillDefinition } from '../../players/types.js';
 /** When the snapshot was taken. */
 export const REFRESHED = '2026-10-05';
 
-export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, EARTHBENDER, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES];
+export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES];
 
 /** Live skill id → the file both copies live in, for the drift check. */
 export const PINNED_FILES: Record<string, string> = {
   'berserk': 'berserk.ts',
-  'earthbender': 'earthbender.ts',
   'enginyer-explosius': 'explosives-engineer.ts',
   'gel': 'gel.ts',
   'metge': 'metge.ts',

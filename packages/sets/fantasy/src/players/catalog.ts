@@ -7,7 +7,6 @@ import { BERSERK } from './skills/berserk.js';
 import { METGE } from './skills/metge.js';
 import { RUNES } from './skills/runes.js';
 import { GEL } from './skills/gel.js';
-import { EARTHBENDER } from './skills/earthbender.js';
 import { VOLCANIC } from './skills/volcanic.js';
 
 /** Every player skill. Enemy skills live in `../enemies/`. */
@@ -19,7 +18,6 @@ export const ALL_SKILLS: SkillDefinition[] = [
   METGE,
   RUNES,
   GEL,
-  EARTHBENDER,
   VOLCANIC,
 ];
 

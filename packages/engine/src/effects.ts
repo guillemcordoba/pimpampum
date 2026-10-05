@@ -123,7 +123,8 @@ export interface EffectContext {
   /** Post-armour PV damage the triggering attack dealt. */
   damageDealt?: number;
   /** Attacker-perspective margin (attack total − defense total; equals the
-   *  full attack total when undefended). */
+   *  full attack total when undefended). In `onDefend` it is the blocked
+   *  attack's, so ≤ 0: how far the defense out-rolled it. */
   margin?: number;
   /** Mutable attack modifiers, present only during the modifyAttack hook. */
   attackMods?: AttackModifiers;

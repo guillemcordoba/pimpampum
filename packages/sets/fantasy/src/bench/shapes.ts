@@ -36,7 +36,8 @@ export const SHAPES: Shape[] = [
  *  too. */
 export const COMPANY: string[][] = [
   ['mestre-armes', 'volcanic', 'metge'],
-  ['berserk', 'earthbender', 'runes'],
+  // The earthbender sat here until it moved to the elements set (2026-10-06).
+  ['berserk', 'mestre-armes', 'runes'],
   ['nigromant', 'enginyer-explosius', 'gel'],
   // Row 4 was added so that every kit is measured as an ally, not only as a
   // subject (`ombres`, since deleted, appeared in no other row);

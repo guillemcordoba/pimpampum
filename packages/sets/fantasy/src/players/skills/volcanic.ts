@@ -7,7 +7,7 @@ import { num, diceParam } from '../effects/helpers.js';
  * kit threads one resource, `pressio`: molten strikes and absorbed blows stoke
  * the mountain, the geyser vents it, and Erupció releases everything at once —
  * on friend and foe alike ("la muntanya no distingeix"). Never solid rock
- * (that's the Earthbender's); everything here stays molten.
+ * (that's the stone golem's); everything here stays molten.
  */
 export const VOLCANIC_SKILL_ID = 'volcanic';
 export const PRESSURE_STATUS = 'pressio';

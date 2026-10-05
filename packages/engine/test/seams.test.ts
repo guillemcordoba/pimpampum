@@ -641,6 +641,22 @@ describe('the rules themselves — resolution.ts, exactly', () => {
   });
 });
 
+describe('what a defense sees when it blocks', () => {
+  it('onDefend gets the blocked attack\'s margin — how far the defense out-rolled it', () => {
+    // A water-style redirect returns exactly this number, so it must be the
+    // margin of THIS contest: defense 10 against an attack of 4 is −6.
+    const seen: (number | undefined)[] = [];
+    const registry = new EffectRegistry();
+    registry.register('watch', { onDefend(ctx) { seen.push(ctx.margin); } });
+    const defender = makeChar('Defender', 20, [defenseDef('block', { dice: new DiceRoll(1, 1), rollBonus: 9, effects: [{ type: 'watch' }] })]);
+    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3, speed: 0 })]);
+    attacker.aiControlled = true;
+    const engine = new CombatEngine([defender], [attacker], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
+    expect(seen).toEqual([-6]);
+  });
+});
+
 describe('a defense narrowed to its holder (the self-guard seam)', () => {
   const registry = new EffectRegistry();
   registry.register('own_body', { getTargetRequirement: () => 'self' });
