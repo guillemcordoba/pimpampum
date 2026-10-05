@@ -279,18 +279,6 @@ const MUTANTS: Mutant[] = [
     find: 'return { ok: broken.length === 0, broken };',
     replace: 'return { ok: broken.length < edges.length, broken };',
   },
-  {
-    label: 'armour sweet spot: only ask that a few wearers beat nobody',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'const winner = interior.find(p => clearly(p, none) && clearly(p, all));',
-    replace: 'const winner = interior.find(p => clearly(p, none));',
-  },
-  {
-    label: 'armour sweet spot: judge the hump on point estimates',
-    file: 'packages/playtest/src/rules.ts',
-    find: 'a.winrate - b.winrate - 2 * deltaStderr(a.winrate, a.games, b.winrate, b.games) > 0;',
-    replace: 'a.winrate - b.winrate > 0;',
-  },
 ];
 
 /**

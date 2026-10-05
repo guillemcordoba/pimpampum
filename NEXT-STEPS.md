@@ -11,8 +11,8 @@ Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **One design decision, measured (§38):** what armour should cost. (Rounding
-   multiplied damage is gone with the multiplications, §40.)
+Empty. The last two decisions were settled on 2026-10-05: no card multiplies
+damage any more (§40), and armour stays as it is (§41).
 
 ---
 
@@ -4300,3 +4300,35 @@ written down, so it was kept. The bonus lasts one turn and never stacks
 50-point blow leaves him at 1 PV; a mutant checks that the floor holds.
 
 Both kits were re-pinned (`pnpm calibration:refresh`).
+
+## 41. Armour stays as it is; the sweet spot is no longer a requirement (2026-10-05)
+
+The user's call on the last open decision (§35.4, §37, §38): cuir stays +2
+armour / −1 speed and ferro +3 / −2. Armour need not pay off — whether to wear
+it is the player's call — so the requirement that it be "right on a few, wrong
+on all" is dropped: `sweetSpotVerdict`, its unit tests and mutants, and the two
+known-failing checks in `set.slow.test.ts` are gone. The small-lever check
+(the whole party in ferro moves a fight by at most fifteen points) stays, and
+still prints both curves.
+
+What the sweep found first, under the two-pass AI (party wins per 100 fights
+by number of wearers, pooled over the bone devils, the basilisk and the golems,
+in the armour test's fights):
+
+| armour / speed | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| cuir +2 / −1 (kept) | 77 | 77 | 72 | 68 | 66 |
+| cuir +4 / −1 | 77 | 77 | 77 | 78 | 78 |
+| cuir +6 / −1 | 77 | 81 | 83 | 85 | 87 |
+| ferro +3 / −2 (kept) | 77 | 74 | 69 | 59 | 50 |
+| ferro +7 / −2 | 77 | 78 | 79 | 77 | 73 |
+| ferro +8 / −3 | 77 | 77 | 80 | 81 | 78 |
+| ferro +10 / −3 | 77 | 81 | 91 | 94 | 96 |
+
+At −1 speed each wearer adds or costs about the same, so cuir's curve never
+bends: always wrong, neutral at +4, always right from +5. A steeper speed cost
+bends it, and ferro +8 / −3 was the one setting that passed the sweet-spot rule
+(and depended on the enemy: wrong against the bone devils, right against the
+basilisk). It was not adopted — the user prefers the armour as it is — and its
+whole-game run was stopped unfinished, so whether +8 again broke the rest of
+the game as in §37 is unknown.

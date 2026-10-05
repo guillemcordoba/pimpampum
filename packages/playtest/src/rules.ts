@@ -21,7 +21,7 @@
  * never the point estimate. A ❌ means "go and look", and a false one costs a
  * session.
  */
-import { deltaStderr, exact, stderr } from '@pimpampum/bench';
+import { exact, stderr } from '@pimpampum/bench';
 
 // --- 1. Fights end ------------------------------------------------------------
 
@@ -171,47 +171,3 @@ export function triangleVerdict(edges: { winner: string; loser: string; winrate:
   return { ok: broken.length === 0, broken };
 }
 
-// --- The armour sweet spot (set-level, not a kit requirement) ---------------------
-
-/**
- * THE ARMOUR SWEET SPOT (intentions.md): armour is worth carrying on SOME of
- * the party and not on all of it. What its bonus buys (fewer points through
- * every hit) and what it costs (speed — the wearer's guards and blows land
- * later) must balance so that a few members are right to wear it and a whole
- * party in it is wrong.
- *
- * `curve[k]` is the party's winrate with `k` members wearing the armour, the
- * rest bare, from `0` to the whole party. The rule passes when some INTERIOR
- * count — neither nobody nor everybody — CLEARLY beats both ends: its 2σ
- * interval clears zero against the bare party AND against the fully armoured
- * one. Flat curves fail, as they must: "armour makes no difference" is not a
- * sweet spot, however harmless.
- *
- * Several interior counts are looked at, so the best of them is favoured by
- * its noise (the winner's curse). `deltaStderr` treats the arms as independent
- * while they are played on common random numbers, which overstates the
- * difference's noise and pays that back; the controls in `rules.test.ts` hold
- * the null silent.
- */
-export interface ArmourPoint { worn: number; winrate: number; games: number }
-
-export function sweetSpotVerdict(curve: ArmourPoint[]): {
-  ok: boolean;
-  /** The interior count that does best, whether or not it clears the bar. */
-  best: number | null;
-  reasons: string[];
-} {
-  const sorted = [...curve].sort((a, b) => a.worn - b.worn);
-  if (sorted.length < 3) return { ok: false, best: null, reasons: ['cal almenys tres punts: ningú, alguns, tothom'] };
-  const none = sorted[0], all = sorted[sorted.length - 1];
-  const interior = sorted.slice(1, -1);
-  const clearly = (a: ArmourPoint, b: ArmourPoint) =>
-    a.winrate - b.winrate - 2 * deltaStderr(a.winrate, a.games, b.winrate, b.games) > 0;
-  const winner = interior.find(p => clearly(p, none) && clearly(p, all));
-  const best = interior.reduce((m, p) => (p.winrate > m.winrate ? p : m));
-  if (winner) return { ok: true, best: winner.worn, reasons: [] };
-  const reasons: string[] = [];
-  if (!clearly(best, none)) reasons.push(`${best.worn} amb armadura no supera clarament ningú amb armadura`);
-  if (!clearly(best, all)) reasons.push(`${best.worn} amb armadura no supera clarament tothom amb armadura`);
-  return { ok: false, best: best.worn, reasons };
-}

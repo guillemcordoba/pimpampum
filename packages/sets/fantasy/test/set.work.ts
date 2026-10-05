@@ -9,7 +9,6 @@
  * few, which is a floor on what a table that chooses its wearers would get.
  */
 import { games, searchGames, useSet } from '@pimpampum/bench';
-import type { ArmourPoint } from '@pimpampum/playtest';
 import { simulateEncounter, solveEncounter, type PoolSpec } from '../src/index.js';
 import { FANTASY } from '../src/bench/index.js';
 
@@ -17,6 +16,7 @@ export const PARTY = 4;
 /** Passive-armour values this set equips: cuir (1) and ferro (2). */
 export const ARMOURS = [1, 2] as const;
 
+export interface ArmourPoint { worn: number; winrate: number; games: number }
 export interface ArmourCurves { label: string; curves: Record<number, ArmourPoint[]> }
 
 export function armourCurves(label: string, pool: PoolSpec[]): ArmourCurves | null {

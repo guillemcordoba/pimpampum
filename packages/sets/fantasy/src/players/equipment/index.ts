@@ -15,10 +15,8 @@ const ESCUT_DE_FUSTA = action({
 });
 
 /** All equipment items. One armour, one weapon, one shield — small levers.
- *  Armour is a light durability nudge (intentions.md ≤15% of outcome) with a
- *  SWEET SPOT: what it buys and what its speed costs balance so that it is
- *  right on some of a party and wrong on all of it — light cuir on most, heavy
- *  ferro on a tank or two (sets/fantasy/test/set.slow.test.ts; NEXT-STEPS §26). */
+ *  Armour is a light durability nudge (intentions.md ≤15% of outcome); it need
+ *  not pay off for its speed (NEXT-STEPS §41). */
 export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   {
     id: 'armadura-de-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Armor,

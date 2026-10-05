@@ -22,7 +22,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   choiceMattersVerdict, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
-  MIN_CHOICE_COST, strengthVerdict, sweetSpotVerdict, TRIANGLE_GAMES, triangleVerdict,
+  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict,
 } from '../src/index.js';
 
 /** A sample big enough that a 1pp effect is resolvable — so these tests are
@@ -163,65 +163,6 @@ describe('requirement 4 — the triangle', () => {
       .toEqual({ ok: true, broken: [] });
     expect(triangleVerdict([edge('A', 'B', 0.6), edge('B', 'C', 0.3), edge('C', 'A', 0.5)]))
       .toEqual({ ok: false, broken: ['B > C', 'C > A'] });
-  });
-});
-
-describe('the armour sweet spot', () => {
-  const curve = (...w: number[]) => w.map((winrate, worn) => ({ worn, winrate, games: BIG }));
-
-  it('passes a hump: a few wearers beat both nobody and everybody', () => {
-    expect(sweetSpotVerdict(curve(0.60, 0.66, 0.68, 0.64, 0.58))).toMatchObject({ ok: true, best: 1 });
-  });
-
-  it('fails armour that is best on everyone — the lever it must not be', () => {
-    const v = sweetSpotVerdict(curve(0.50, 0.55, 0.60, 0.65, 0.70));
-    expect(v.ok).toBe(false);
-    expect(v.best).toBe(3);
-    expect(v.reasons.join()).toMatch(/tothom/);
-  });
-
-  it('fails armour that only ever hurts (F18, today)', () => {
-    const v = sweetSpotVerdict(curve(0.80, 0.75, 0.70, 0.62, 0.55));
-    expect(v.ok).toBe(false);
-    expect(v.reasons.join()).toMatch(/ningú/);
-  });
-
-  it('THE NULL: armour that changes nothing is not a sweet spot', () => {
-    expect(sweetSpotVerdict(curve(0.65, 0.65, 0.65, 0.65, 0.65)).ok).toBe(false);
-  });
-
-  it('does NOT pass a hump its sample cannot resolve', () => {
-    const thin = [0.60, 0.66, 0.68, 0.64, 0.58].map((winrate, worn) => ({ worn, winrate, games: 50 }));
-    expect(sweetSpotVerdict(thin).ok).toBe(false);
-  });
-
-  it('THE NULL, sampled: a flat curve read through binomial noise passes rarely', () => {
-    // The rule looks at several interior counts and keeps the best, so its
-    // false-positive rate is above a single 2σ test's. This is the claim in
-    // its doc comment, made executable: independent arms (no common random
-    // numbers to help), a realistic sample, a flat truth.
-    let seed = 12345;
-    const rand = () => {   // mulberry32
-      seed = (seed + 0x6d2b79f5) | 0;
-      let r = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-    const n = 800, trials = 2000;
-    let passes = 0;
-    for (let t = 0; t < trials; t++) {
-      const pts = [0, 1, 2, 3, 4].map(worn => {
-        let wins = 0;
-        for (let g = 0; g < n; g++) if (rand() < 0.65) wins++;
-        return { worn, winrate: wins / n, games: n };
-      });
-      if (sweetSpotVerdict(pts).ok) passes++;
-    }
-    expect(passes / trials).toBeLessThan(0.05);
-  });
-
-  it('needs nobody, somebody and everybody', () => {
-    expect(sweetSpotVerdict(curve(0.6, 0.7)).ok).toBe(false);
   });
 });
 
