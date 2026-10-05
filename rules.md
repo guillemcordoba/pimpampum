@@ -72,6 +72,7 @@ El combat consisteix en una sèrie de rondes:
 3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
 4. Cada acció de defensa tria el seu objectiu (aliat a defensar o enemic a bloquejar) quan es resol, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
 5. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
+6. **Caure i tornar.** Un personatge que arriba a 0 PV cau fora de combat i, si la seva acció encara no s'ha resolt, no la juga. Una curació pot triar un aliat caigut: el torna al combat amb els PV curats, i si arriba abans que li toqui actuar, juga la seva acció d'aquesta ronda.
 
 ## Pujar de nivell
 

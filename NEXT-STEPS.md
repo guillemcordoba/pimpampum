@@ -11,8 +11,8 @@ Every open item lives here; the sections below are history. Nothing here
 blocks the build: each one is either a design decision or recorded as a known
 failure that its test asserts still fails.
 
-1. **Three design decisions, each measured (§35.1, §35.3, §38):** revival by
-   healing, rounding multiplied damage, and what armour should cost.
+1. **Two design decisions, each measured (§35.3, §38):** rounding multiplied
+   damage, and what armour should cost.
 
 ---
 
@@ -4230,3 +4230,10 @@ cause, not a looser bar:
 - `harnesses.slow.test.ts` now gives scripts `CALIBRATION_GAMES=4`, as
   `pnpm test:smoke` does: right after a re-pin, scripts that take 13 s alone
   recomputed every baseline at full size and ran past ten minutes.
+
+## 39. Revival by healing stays (2026-10-05)
+
+The user's call on §35.1: it fits the lore, and a revived hero does not lose
+the turn. Nothing changes in the engine; `rules.md` now says it (Resolució de
+combat, step 6): a fallen hero's pending action does not resolve, a heal may
+target a fallen ally, and one revived before their turn comes plays it.
