@@ -4332,3 +4332,103 @@ bends it, and ferro +8 / −3 was the one setting that passed the sweet-spot rul
 basilisk). It was not adopted — the user prefers the armour as it is — and its
 whole-game run was stopped unfinished, so whether +8 again broke the rest of
 the game as in §37 is unknown.
+
+## 42. A second set: Els Quatre Elements (2026-10-06, on branch `elements-set`)
+
+The user's brief: a new set in a world like *Avatar*, where water, earth, fire
+and air have benders; its enemies researched from that world; its ultimate
+villain the Master of Fear, modelled on Pain (*Naruto*), who uses fear to
+divide the party and shut down what it can do, and who is secretly the fallen
+disciple of an air master — with Easter eggs that let players work it out. The
+earthbender moves from the fantasy set to this one. Concepts first, numbers
+second. **Not merged into main until the user accepts it.**
+
+The lore and the why of every card are in `packages/sets/elements/DESIGN.md`.
+What follows is what was built and measured.
+
+### 42.1 What it is
+
+- `packages/sets/elements` (`@pimpampum/set-elements`), the same shape as the
+  fantasy set: content root, a `./bench` `GameSet` adapter, pinned calibration
+  copies, its own tests (content, cards, calibration, snapshot, mirrors, the
+  triangle, one kit suite per main kit).
+- Five main kits (aigua, terra, foc, aire, bloquejador de chi), two
+  complementary (chakres, enginy); nine creatures; the villain as six bodies and
+  the Senyor himself.
+- Engine: one generic seam — a defense's `onDefend` now receives the margin it
+  won by (Desviar el corrent returns it). Seam test and mutant added.
+- Tools: `src/sets.ts` and `--set elements` for the kit analyzer and the shape
+  probe; the conventions test allows the new layer.
+- The fantasy set loses the earthbender: its company row 2 seats the weapon
+  master instead, the encounter-speed party fields the engineer, and the
+  calibration was re-pinned.
+
+### 42.2 Probes that changed the content
+
+- **Stalls.** Stone agents and the sea serpent made themselves unreachable
+  every round ("nobody can attack you this turn") and fights ran to the
+  40-round cap even at 1 PV a body. The effect now has a one-turn cooldown.
+- **Block walls.** Blocks sum, and Desviar el corrent returned the WHOLE wall's
+  margin: 25-34 back per blocked sweep. Capped (now 4).
+- **Lone monsters.** Against a block wall a lone creature never landed a blow;
+  the serpent's spout and the puppeteer's needles now hit every enemy (an attack
+  on everyone is not redirected by blocks, per the rules), and Koh punishes
+  everyone who struck him LAST turn — reading this turn made it a slow Focus
+  that the very blows it punished cancelled. Koh alone: from 97% for the heroes
+  to 56% at 28 PV.
+- **The villain.** All seven bodies solved to 4 PV each: a five-round fight
+  holds only so much enemy health. The standard encounter is the Senyor plus
+  three bodies (70% at 27 PV a body); all six is `NIGHTMARE`. Ablation at a
+  fixed 15 PV named the Míssil (3d6 → 2d6) and the Palmell del buit's
+  Defense-lock (now an isolation) as the lethal pieces.
+
+Shapes (probed against the calibration party, each solved inside the round
+budget): patrol 5 soldiers · ambush 2 stone agents + 2 archers · boss 2 sea
+serpents · mixed 1 artillerist + 4 soldiers. Unfielded with reasons: the chi
+acrobat (fair at 5, not needed), the shirshu and the puppeteer (still no threat
+alone), Koh (fixed late), and the villain's bodies.
+
+### 42.3 Four rounds of the kit analyzer
+
+Fights here last a median of 3-4 rounds, and every dead card was one that paid
+later. Changes, round by round:
+
+1. Respiració de foc +3 for the combat → +6 next turn → became **Alè de drac**
+   (2d4 at every enemy): a buff lost to attacking either way. Escúter d'aire
+   became a hit-and-run attack. The chi-blocker's locks got bigger dice. Domini
+   de la sang's price became 2 PV instead of a fatigue level.
+2. The locks were dominated by the stun: they now last two turns (long and
+   partial vs short and total). Llamp faster (−3 → 2). Presó de terra one turn.
+3. Bloqueig de chi cannot be defended (it breaks a wall — a job no other chi
+   card has). The earth wall's life 2d6 → 2d4 (earth's p90 was 9-10 rounds).
+4. The protective Focus cards slowed (Obrir el chakra del cor 2 → 0, Aigua
+   sanadora 1 → −1): the triangle's Aggro > Power edge was a coin flip (50.7%)
+   and the culprit search named them first.
+
+Round 4 (before step 4's re-timing), wins per 100 fights over a neutral kit:
+
+| kit | vs neutral | fights end | band | choosing matters |
+|---|---|---|---|---|
+| aigua | +8.4 | ✅ | ✅ | ✅ |
+| terra | −4.0 | ✅ | ✅ | ✅ |
+| foc | −6.0 | ✅ | ✅ | ✅ |
+| aire | +8.6 | ✅ | ✅ | ✅ |
+| bloquejador de chi | +4.1 | ✅ | ✅ | ✅ |
+
+Triangle after step 4: Power > Protect 56.9%, Protect > Aggro 68.7%,
+Aggro > Power 54.5% — all three hold.
+
+Known blind spots (`test/kits/known.ts`): Esquivar en espiral (its payoff is a
+speed modifier the evaluator cannot see) and Presó de terra (as in the fantasy
+set before its pricing).
+
+### 42.4 Open, for the user
+
+- **Accept or reshape the set**, then merge.
+- The calibration matrix keeps only 9 of 16 cells: the company rows are
+  lopsided (the row without the water bender and the chakra kit sits ~45%,
+  the others 75-98%), so the patrol and mixed shapes saturate. Probably the
+  complementary kits differ in strength; not yet measured.
+- The shirshu and the blood puppeteer still cannot threaten a party alone.
+- The web app imports the fantasy set directly (19 files); playing this set
+  there needs a set switch.

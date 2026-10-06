@@ -23,7 +23,9 @@ const PARTY = { characters: [
   hero('Berserker', { berserk: 3 }, ['armadura-de-cuir', 'destral', 'escut']),
   hero('Mag', { volcanic: 3, metge: 1 }, ['escut']),
   hero('Mestre', { 'mestre-armes': 3 }, ['armadura-de-cuir', 'destral', 'escut']),
-  hero('Enginyer', { 'enginyer-explosius': 3 }, ['armadura-de-ferro', 'escut']),
+  // The earthbender sat here until it moved to the elements set; the engineer
+  // took 3.5 s on the horde, the nigromant 2.7 (2026-10-06).
+  hero('Nigromant', { nigromant: 3 }, ['armadura-de-ferro', 'escut']),
 ] };
 
 const REQUESTS: [string, PoolSpec[]][] = [
