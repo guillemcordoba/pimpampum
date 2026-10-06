@@ -1,4 +1,4 @@
-import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, FATIGUE_MAX_LEVEL, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
 
 /**
@@ -121,9 +121,6 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
 
   // 6 · Gel del mestre: a block whose stopped blow, frozen whole, is thrown
   // at an enemy the bender chooses.
-  block_only: {
-    getTargetRequirement() { return 'enemy'; },
-  },
   freeze_and_throw: {
     onDefend(ctx) {
       const total = ctx.attackTotal ?? 0;
@@ -166,10 +163,8 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
   // round: both sides of a mirror cast it turn after turn, nothing landed, and
   // fights ran to ten rounds (water mirror at level 10, 2026-10-06).
   ocean_wrath: {
-    canPlay(actor) { return actor.fatigue < FATIGUE_MAX_LEVEL; },
     modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.skip = true; },
     onPlay(ctx) {
-      ctx.source.setFatigue(ctx.source.fatigue + OCEA_FATIGA);
       ctx.source.setStatus(MAREA_KEY, 0, 1, { dice: ctx.action.dice }, MAREA);
       for (const c of ctx.engine.alliesOf(ctx.source, true)) {
         c.setStatus('engolit-per-l-ocea', 1, 1, { source: ctx.source }, ENGOLIT);
@@ -182,10 +177,10 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
 
 function freeze(ctx: EffectContext): void {
   const t = ctx.target;
-  if (!t || !t.isAlive() || t.hasStatus('reixa-glacada')) return;
+  if (!t || !t.isAlive() || t.hasStatus('preso-de-gel-glacat')) return;
   if (!t.blockers.some(g => g.defender === ctx.source)) return;
   t.skipTurns += 2;
-  t.setStatus('reixa-glacada', 1, 1);
+  t.setStatus('preso-de-gel-glacat', 1, 1);
   ctx.engine.log('defense', `${t.name} queda glaçat a la reixa: perd les seves 2 accions següents.`, ctx.source.team);
 }
 
@@ -243,7 +238,7 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/heavy-rain.svg',
     }),
     action({
-      id: 'reixa-glacada', name: 'Reixa glaçada', skillId: SKILL_ID,
+      id: 'preso-de-gel', name: 'Presó de gel', skillId: SKILL_ID,
       unlock: 8, type: ActionType.Defensa, speed: 3, dice: d(3, 6),
       effects: [{ type: 'block_only' }, { type: 'grate' }],
       desc: "Bloqueja un enemic. Si t'ataca aquest torn, perd les seves 2 accions següents.",
@@ -259,7 +254,7 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'ira-de-l-ocea', name: "Ira de l'oceà", skillId: SKILL_ID,
       unlock: 10, type: ActionType.Atac, speed: 6, dice: d(3, 6), targetCount: 99,
-      effects: [{ type: 'ocean_wrath' }],
+      effects: [{ type: 'fatigue_cost', params: { levels: OCEA_FATIGA } }, { type: 'ocean_wrath' }],
       desc: "Puges 2 nivells de fatiga. Aquest torn, els atacs enemics no fereixen el teu bàndol. Al final del torn, afecta tots els enemics i suma al tir el dany que haurien fet.",
       icon: 'lorc/big-wave.svg',
     }),

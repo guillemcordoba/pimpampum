@@ -80,6 +80,12 @@ export interface EngineApi {
    *  enemy you choose": the same target policy that aims the seat's cards
    *  (the AI's, or the engine's deterministic fallback — pool order). */
   chooseTargets(actor: Character, def: ActionDefinition, pool: Character[], count: number): Character[];
+  /** Move `target`'s still-pending action to the very end of this round's
+   *  queue (it acts last). Returns false when it has already acted. */
+  delayPendingAction(target: Character): boolean;
+  /** This round's revealed plan — what everyone at the table sees once the
+   *  cards are flipped: who plays what, and whether it has resolved yet. */
+  plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean }>;
 }
 
 /** Mutable bundle gathered before an attack resolves; effects tweak it in place. */
@@ -98,6 +104,9 @@ export interface AttackModifiers {
   /** Skip this target entirely — no roll, no damage (e.g. an attack that only
    *  strikes marked targets passes over everyone else). */
   skip: boolean;
+  /** Only the target's OWN defense counts: its allies' guards are passed over
+   *  (a blow that comes over the line). Blocks still force the attacker. */
+  ignoreAllyGuards: boolean;
   /** Flat extra PV damage on a hit, added AFTER armour (not part of the
    *  contest total). */
   bonusDamage: number;
@@ -107,7 +116,7 @@ export interface AttackModifiers {
 }
 
 export function newAttackModifiers(): AttackModifiers {
-  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, defensePenalty: 0, skip: false, bonusDamage: 0, extraDamageDice: [] };
+  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, ignoreAllyGuards: false, defensePenalty: 0, skip: false, bonusDamage: 0, extraDamageDice: [] };
 }
 
 /** Context handed to an effect handler hook. Fields are populated per-hook. */
@@ -188,6 +197,9 @@ export interface EffectHandler {
    *  keep its printed type. The targets are the ones already chosen: an
    *  attack's enemy becomes the enemy a defense blocks. */
   resolveAs?(ctx: EffectContext): ActionType | void;
+  /** Run when the round's cards are revealed, before anything resolves (a
+   *  leap that takes its maker out of reach from the very start of the round). */
+  onReveal?(ctx: EffectContext): void;
 }
 
 /** Registry mapping effect type keys to their handlers. (Status behaviours

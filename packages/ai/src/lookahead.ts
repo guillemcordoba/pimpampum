@@ -280,7 +280,11 @@ function playRound(engine: CombatEngine, team: number, choices: Map<Character, n
       return idx < 0 || !actor.isAlive() ? null : { team, idx, actionIdx };
     })
     .filter((s): s is { team: number; idx: number; actionIdx: number } => s !== null);
-  engine.planActions(selections);
+  // A side that chooses after the reveal plays against the cards it SAW, not
+  // against a guess of them.
+  const seer = engine.teams[team].find(c => c.isAlive());
+  const revealed = seer ? engine.revealedPlanFor(seer) : [];
+  engine.planActions([...selections, ...revealed]);
   let step = engine.resolveNextAction();
   let guard = 0;
   while (step.kind !== 'done' && guard++ < 400) {

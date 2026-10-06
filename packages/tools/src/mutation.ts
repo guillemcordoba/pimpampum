@@ -298,6 +298,48 @@ const MUTANTS: Mutant[] = [
     replace: "      const forced = req === 'enemy'",
   },
   {
+    label: "ENGINE: an attack over the line still meets the target's allies' guards",
+    file: 'packages/engine/src/combat.ts',
+    find: '    const guard = bypass ? null : this.activeGuard(target, source, mods.ignoreAllyGuards);',
+    replace: '    const guard = bypass ? null : this.activeGuard(target, source);',
+  },
+  {
+    label: "ENGINE: a tracked target's allies still guard it against its hunter",
+    file: 'packages/engine/src/combat.ts',
+    find: '      if (attacker && ref.entry.behavior?.excludesAllyGuards?.(ref, attacker)) keepOwn = true;',
+    replace: '      if (false) keepOwn = true;',
+  },
+  {
+    label: "ENGINE: a status can never make its holder's attack undefendable",
+    file: 'packages/engine/src/combat.ts',
+    find: '    const ignoreDefense = mods.ignoreDefense || !!statusMods.ignoreDefense;',
+    replace: '    const ignoreDefense = mods.ignoreDefense;',
+  },
+  {
+    label: 'ENGINE: a side that chooses after the reveal never sees the cards',
+    file: 'packages/engine/src/combat.ts',
+    find: '      if (later(c) && !this.revealedPlan.length) {',
+    replace: '      if (false) {',
+  },
+  {
+    label: 'ENGINE: a delayed action is put back where it was',
+    file: 'packages/engine/src/combat.ts',
+    find: '    this.pending.push(p);',
+    replace: '    this.pending.splice(i, 0, p);',
+  },
+  {
+    label: 'ENGINE: onReveal never runs',
+    file: 'packages/engine/src/combat.ts',
+    find: "    for (const p of built) this.dispatch('onReveal', p.actor, p.action.def, { targets: p.targets ?? [] });",
+    replace: '',
+  },
+  {
+    label: 'ENGINE: onRoundStart never runs',
+    file: 'packages/engine/src/combat.ts',
+    find: '        if (c.statuses.has(key)) behavior.onRoundStart?.(this.statusCtx(c, key, entry));',
+    replace: '',
+  },
+  {
     label: "ENGINE: a defense can only be narrowed to its holder, never to a block",
     file: 'packages/engine/src/action.ts',
     find: "      if (req === 'self' || req === 'enemy') return req;",

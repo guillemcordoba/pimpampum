@@ -138,7 +138,7 @@ export interface CombatEngineOptions {
   targetChooser?: TargetChooser;
 }
 
-const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound'] as const;
+const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal'] as const;
 type HookName = typeof HOOKS[number];
 
 export class CombatEngine implements EngineApi, AIView {
@@ -200,6 +200,9 @@ export class CombatEngine implements EngineApi, AIView {
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
+  /** What the first choosers committed this round, by seat — read by those who
+   *  choose after the reveal (revealedPlanFor). */
+  private revealedPlan: { team: number; idx: number; actionIdx: number }[] = [];
   /**
    * A round has BEGUN and not yet finished — `prepareRound` has run and the
    * engine is waiting for cards.
@@ -293,6 +296,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierAlive = new Set([...this.tierAlive].map(at));
     e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
     e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
+    e.revealedPlan = this.revealedPlan.map(s => ({ ...s }));
     // Carried, or the clone cannot tell an already-begun round from a fresh
     // one — which is the whole point of the flag for the lookahead.
     e.roundPrepared = this.roundPrepared;
@@ -437,7 +441,7 @@ export class CombatEngine implements EngineApi, AIView {
     const atkRoll = this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
-    const guards = this.activeGuards(target);
+    const guards = this.activeGuards(target, source);
     const guard = guards.length === 1 ? guards[0] : null;
     let recipient = target;
     let hit = true;
@@ -488,25 +492,24 @@ export class CombatEngine implements EngineApi, AIView {
 
   // --- Helpers --------------------------------------------------------------
 
-  private activeGuard(target: Character): Character['guards'][number] | null {
-    for (const ref of target.statusRefs()) {
-      if (ref.entry.behavior?.preventsGuard?.(ref)) return null;
-    }
-    for (let i = target.guards.length - 1; i >= 0; i--) {
-      const g = target.guards[i];
-      if (g.defender.isAlive()) return g;
-    }
-    return null;
+  private activeGuard(target: Character, attacker?: Character, ownOnly = false): Character['guards'][number] | null {
+    const guards = this.activeGuards(target, attacker, ownOnly);
+    return guards.length ? guards[guards.length - 1] : null;
   }
 
   /** Every living guard covering `target` (self-guard included), in resolution
    *  order. Two or more form a defensa conjunta wall that contests with the
-   *  sum of their rolls. Empty when a status prevents being guarded. */
-  private activeGuards(target: Character): Guard[] {
+   *  sum of their rolls. Empty when a status prevents being guarded. Only the
+   *  target's OWN defense when `ownOnly` (an attack that comes over the line)
+   *  or when one of its statuses keeps its allies out against `attacker`. */
+  private activeGuards(target: Character, attacker?: Character, ownOnly = false): Guard[] {
+    let keepOwn = ownOnly;
     for (const ref of target.statusRefs()) {
       if (ref.entry.behavior?.preventsGuard?.(ref)) return [];
+      if (attacker && ref.entry.behavior?.excludesAllyGuards?.(ref, attacker)) keepOwn = true;
     }
-    return target.guards.filter(g => g.defender.isAlive());
+    const living = target.guards.filter(g => g.defender.isAlive());
+    return keepOwn ? living.filter(g => g.defender === target) : living;
   }
 
   /** Living blockers standing between `actor` and their targets. */
@@ -629,6 +632,12 @@ export class CombatEngine implements EngineApi, AIView {
         this.log('info', `${c.name} perd el torn.`, c.team);
       }
     }
+    // Round-start status hooks (after the reset, so a hit here counts this round).
+    for (const c of this.allLiving()) {
+      for (const { key, entry, behavior } of this.behaviorStatuses(c)) {
+        if (c.statuses.has(key)) behavior.onRoundStart?.(this.statusCtx(c, key, entry));
+      }
+    }
     this.pending = [];
     this.pendingIndex = 0;
     this.tierSpeed = null;
@@ -642,8 +651,16 @@ export class CombatEngine implements EngineApi, AIView {
     for (const sel of humanSelections) selByChar.set(this.resolveRef(sel), sel);
 
     const built: PendingAction[] = [];
-    for (const c of this.allLiving()) {
-      if (this.skippingThisRound.has(c)) continue;
+    // Whoever chooses after the reveal (choosesAfterReveal) chooses LAST, and
+    // may read everything the others committed (revealedPlanFor).
+    const choosers = this.allLiving().filter(c => !this.skippingThisRound.has(c));
+    const later = (c: Character) => c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
+    const ordered = [...choosers.filter(c => !later(c)), ...choosers.filter(later)];
+    this.revealedPlan = [];
+    for (const c of ordered) {
+      if (later(c) && !this.revealedPlan.length) {
+        this.revealedPlan = built.map(p => ({ team: p.actor.team, idx: this.teams[p.actor.team].indexOf(p.actor), actionIdx: p.actor.actions.indexOf(p.action) }));
+      }
       const sel = selByChar.get(c);
       let action: ActionInstance | undefined;
       let targets: Character[] | null;
@@ -688,8 +705,33 @@ export class CombatEngine implements EngineApi, AIView {
     this.pending = built;
     this.pendingIndex = 0;
     this.tierSpeed = null;
+    // The cards are face up: effects that act at the reveal act now.
+    for (const p of built) this.dispatch('onReveal', p.actor, p.action.def, { targets: p.targets ?? [] });
 
     return built.map(p => this.reveal(p));
+  }
+
+  /**
+   * What `c` saw before choosing, if it chose after the reveal: the cards its
+   * OPPOSING side committed this round, by seat. Empty for everyone else. Read
+   * by the AI so a side that waits for the reveal plays against the real cards.
+   */
+  revealedPlanFor(c: Character): ReadonlyArray<{ team: number; idx: number; actionIdx: number }> {
+    if (!c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref))) return [];
+    return this.revealedPlan.filter(s => s.team !== c.team);
+  }
+
+  delayPendingAction(target: Character): boolean {
+    const i = this.pending.findIndex((p, j) => j > this.pendingIndex && p.actor === target && !p.cancelled);
+    if (i < 0) return false;
+    const [p] = this.pending.splice(i, 1);
+    p.speed = Math.min(p.speed, ...this.pending.map(q => q.speed)) - 1;
+    this.pending.push(p);
+    return true;
+  }
+
+  plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean }> {
+    return this.pending.map((p, i) => ({ actor: p.actor, action: p.action.def, resolved: i < this.pendingIndex, cancelled: !!p.cancelled }));
   }
 
   private reveal(p: PendingAction): RevealedAction {
@@ -1080,6 +1122,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (m.attackTotalMult !== undefined) mods.attackTotalMult = (mods.attackTotalMult ?? 1) * m.attackTotalMult;
       if (m.attackRollBonus !== undefined) mods.attackRollBonus = (mods.attackRollBonus ?? 0) + m.attackRollBonus;
       if (m.damageMult !== undefined) mods.damageMult = (mods.damageMult ?? 1) * m.damageMult;
+      if (m.ignoreDefense) mods.ignoreDefense = true;
     }
     return mods;
   }
@@ -1165,9 +1208,12 @@ export class CombatEngine implements EngineApi, AIView {
 
     // Feints bypass the guard entirely (treated as undefended) — unless a
     // status on the target vetoes the bypass (seismic awareness & co.).
-    const feintBlocked = mods.ignoreDefense
+    // A status on the attacker can make the blow undefendable too (a beast that
+    // surfaces where nobody saw it dive).
+    const ignoreDefense = mods.ignoreDefense || !!statusMods.ignoreDefense;
+    const feintBlocked = ignoreDefense
       && target.statusRefs().some(ref => ref.entry.behavior?.preventsGuardBypass?.(ref));
-    const bypass = mods.ignoreDefense && !feintBlocked;
+    const bypass = ignoreDefense && !feintBlocked;
     // Defensa conjunta: when several defenses cover the same attack — a wall
     // of blockers this attack was forced onto, or 2+ guards on the target
     // (the target's own self-guard included) — they contest jointly with the
@@ -1177,13 +1223,13 @@ export class CombatEngine implements EngineApi, AIView {
       const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
       const wall = blockWall.length >= 2 && blockWall.some(g => g.defender === target)
         ? blockWall
-        : this.activeGuards(target);
+        : this.activeGuards(target, source, mods.ignoreAllyGuards);
       if (wall.length >= 2) {
         this.resolveAttackOnWall(source, action, wall, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus);
         return;
       }
     }
-    const guard = bypass ? null : this.activeGuard(target);
+    const guard = bypass ? null : this.activeGuard(target, source, mods.ignoreAllyGuards);
     let recipient = target;
     let hit: boolean;
     let margin: number;
@@ -1343,6 +1389,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.dispatchStatusRoundEnd();
     for (const c of this.allCombatants()) c.advanceTurn();
     this.pending = [];
+    this.revealedPlan = [];
     this.pendingIndex = 0;
     this.tierSpeed = null;
     this.roundPrepared = false;

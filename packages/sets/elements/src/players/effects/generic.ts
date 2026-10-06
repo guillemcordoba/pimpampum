@@ -1,4 +1,4 @@
-import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
+import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, FATIGUE_MAX_LEVEL, StatusBehavior, random } from '@pimpampum/engine';
 import { applyMod, diceParam, durParam, ModKind, num, str } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
@@ -73,6 +73,9 @@ const MARKED: StatusBehavior = {
 const VANISHED: StatusBehavior = {
   untargetable() { return true; },
 };
+
+/** Fatigue a card has cost and its holder pays at the end of the round. */
+const PRICE_KEY = 'fatiga-per-pagar';
 
 /** A ward: while it stands, no new harm takes hold of its holder. */
 export const WARD_KEY = 'protegit';
@@ -325,6 +328,111 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.8; },
   },
 
+  // The card's price: `levels` of fatigue (rules.md — the one brake a card
+  // carries; never a once-per-combat cap), paid at the END of the round it
+  // went off in, so the card's own rolls are not charged for it. Unplayable
+  // when already exhausted; an interrupted card costs nothing.
+  fatigue_cost: {
+    canPlay(actor) { return actor.fatigue < FATIGUE_MAX_LEVEL; },
+    onPlay(ctx) { ctx.source.setStatus(PRICE_KEY, ctx.source.getStatusValue(PRICE_KEY, 0) + num(ctx.params, 'levels', 1), 1); },
+    postRound(ctx) {
+      const owed = ctx.source.getStatusValue(PRICE_KEY, 0);
+      if (owed <= 0) return;
+      ctx.source.clearStatus(PRICE_KEY);
+      ctx.source.setFatigue(ctx.source.fatigue + owed);
+      ctx.engine.log('info', `${ctx.source.name} puja ${owed} nivell${owed > 1 ? 's' : ''} de fatiga.`, ctx.source.team);
+    },
+  },
+
+  // A defense that can only block an enemy, never guard an ally.
+  block_only: {
+    getTargetRequirement() { return 'enemy'; },
+  },
+
+  // Ignores the target's armour.
+  piercing: {
+    modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.ignoreArmor = true; },
+  },
+
+  // The defense against this attack counts `amount` less.
+  weaken_defense: {
+    modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.defensePenalty += num(ctx.params, 'amount', 2); },
+  },
+
+  // Comes over the line: the target's allies cannot guard it; only its own
+  // defense counts.
+  over_the_guard: {
+    modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.ignoreAllyGuards = true; },
+    aiWeight() { return 0.4; },
+  },
+
+  // The blow also lands, whole, on everyone who was defending the target —
+  // each defends against it on their own.
+  hits_defenders: {
+    onAttackHit(ctx) { hitDefenders(ctx); },
+    onAttackMiss(ctx) { hitDefenders(ctx); },
+    aiWeight() { return 0.4; },
+  },
+
+  // A target it wounds is hurled into another enemy, who takes the same
+  // damage. `pick` 'random' (default) or 'choose' (the attacker's choice).
+  hurl_into_another: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      const dmg = ctx.damageDealt ?? 0;
+      if (!t || dmg <= 0) return;
+      const others = ctx.engine.enemiesOf(ctx.source).filter(e => e !== t);
+      if (!others.length) {
+        // Nobody to be hurled into: `alone: 'twice'` slams it into the ground.
+        if (str(ctx.params, 'alone', '') === 'twice' && t.isAlive()) {
+          ctx.engine.log('attack', `${t.name} s'estavella contra el terra: ${dmg} dany.`, ctx.source.team);
+          ctx.engine.applyPvLoss(t, Math.max(0, dmg - t.getPassiveArmor()), ctx.source);
+        }
+        return;
+      }
+      const other = str(ctx.params, 'pick', 'random') === 'choose'
+        ? ctx.engine.chooseTargets(ctx.source, ctx.action, others, 1)[0]
+        : others[Math.floor(random() * others.length)];
+      if (!other) return;
+      ctx.engine.log('attack', `${t.name} sortiu llançat contra ${other.name}: ${dmg} dany.`, ctx.source.team);
+      ctx.engine.applyPvLoss(other, Math.max(0, dmg - other.getPassiveArmor()), ctx.source);
+    },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.6 : 0; },
+  },
+
+  // A target it wounds loses the action it has not played yet this round.
+  cancel_on_hit: {
+    onAttackHit(ctx) {
+      if (!ctx.target || (ctx.damageDealt ?? 0) <= 0) return;
+      if (ctx.engine.cancelPendingAction(ctx.target)) {
+        ctx.engine.log('attack', `${ctx.target.name} perd la seva acció d'aquest torn.`, ctx.source.team);
+      }
+    },
+    aiWeight() { return 0.6; },
+  },
+
+  // A target it wounds acts last this round.
+  delay_on_hit: {
+    onAttackHit(ctx) {
+      if (!ctx.target || (ctx.damageDealt ?? 0) <= 0) return;
+      if (ctx.engine.delayPendingAction(ctx.target)) {
+        ctx.engine.log('attack', `${ctx.target.name} actua l'últim aquest torn.`, ctx.source.team);
+      }
+    },
+    aiWeight() { return 0.3; },
+  },
+
+  // A target it wounds burns: `damage` PV at the end of each of the next
+  // `turns` rounds (1 = the end of the next round only).
+  burn_on_hit: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      if (!t || !t.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
+      burn(t, num(ctx.params, 'damage', 2), num(ctx.params, 'turns', 1), ctx.action.name, ctx.engine.round);
+    },
+    aiWeight() { return 0.4; },
+  },
+
   // Focus: a skill modifier on oneself or the whole side.
   skill_mod: {
     getTargetRequirement() { return 'none'; },
@@ -352,4 +460,38 @@ function again(ctx: EffectContext): void {
   const dice: DiceRoll | undefined = diceParam(ctx.params, 'dice') ?? ctx.action.dice;
   if (!dice) return;
   ctx.engine.performExtraAttack(ctx.source, t, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} torna a colpejar` });
+}
+
+/** The attack total of a fixed blow: zero dice, the total as modifier. */
+export function fixedBlow(total: number): DiceRoll {
+  return new DiceRoll(0, 1, Math.max(0, total));
+}
+
+function hitDefenders(ctx: EffectContext): void {
+  const t = ctx.targets[0];
+  const total = ctx.attackTotal ?? 0;
+  if (!t || total <= 0) return;
+  const defenders = [...new Set(t.guards.map(g => g.defender))].filter(d => d !== t && d.isAlive());
+  for (const d of defenders) {
+    ctx.engine.performExtraAttack(ctx.source, d, fixedBlow(total), { label: `${ctx.action.name} (${d.name}, que defensava)` });
+  }
+}
+
+/** Burning: `damage` PV at each of the next `turns` round ends, starting with
+ *  the NEXT round's end (a status set mid-round would otherwise tick at once). */
+const BURNING: StatusBehavior = {
+  onRoundEnd(ctx) {
+    const from = ctx.entry.data?.['fromRound'];
+    if (typeof from === 'number' && ctx.engine.round < from) return;
+    if (!ctx.holder.isAlive()) return;
+    ctx.engine.log('poison', `${ctx.holder.name} crema: ${ctx.entry.value} dany.`, ctx.holder.team);
+    ctx.engine.applyPvLoss(ctx.holder, ctx.entry.value, undefined);
+  },
+  positionValue(ref) { return -0.02 * ref.entry.value * Math.max(1, ref.entry.remaining - 1); },
+};
+
+/** Set `target` burning: `damage` PV at the end of each of the `turns` rounds
+ *  after `round` (the round it was set in does not tick). */
+export function burn(target: Character, damage: number, turns: number, label: string, round: number): void {
+  target.setStatus('cremant', damage, turns + 1, { harm: 1, label, fromRound: round + 1 }, BURNING);
 }

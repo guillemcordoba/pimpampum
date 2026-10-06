@@ -805,3 +805,104 @@ describe('a block-only defense (requirement enemy)', () => {
     expect(x.blockers).toEqual([]);
   });
 });
+
+describe('round-two seams for the elements kits', () => {
+  it("ignoreAllyGuards: only the target's own defense counts", () => {
+    const registry = new EffectRegistry();
+    registry.register('over', { modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.ignoreAllyGuards = true; } });
+    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 5, effects: [{ type: 'over' }] })]);
+    const target = makeChar('T', 20, [focusDef()]);
+    const tank = makeChar('Tank', 20, [defenseDef()]);
+    const engine = new CombatEngine([a], [target, tank], { registry, actionChooser: firstLegalChooser });
+    engine.prepareRound();
+    engine.planActions([{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') r = engine.resolveNextAction();
+    expect(target.currentPV).toBe(14);
+  });
+
+  it("excludesAllyGuards: a status keeps the holder's allies out against a chosen attacker", () => {
+    const registry = new EffectRegistry();
+    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 5 })]);
+    const target = makeChar('T', 20, [focusDef()]);
+    const tank = makeChar('Tank', 20, [defenseDef()]);
+    const engine = new CombatEngine([a], [target, tank], { registry, actionChooser: firstLegalChooser });
+    target.setStatus('tracked', 1, -1, undefined, { excludesAllyGuards: (_r, attacker) => attacker === a });
+    engine.prepareRound();
+    engine.planActions([{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') r = engine.resolveNextAction();
+    expect(target.currentPV).toBe(14);
+  });
+
+  it('a status can make the holder\'s attack undefendable (AttackStatusMods.ignoreDefense)', () => {
+    const registry = new EffectRegistry();
+    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 5, speed: 0 })]);
+    const d = makeChar('D', 20, [defenseDef()]);
+    d.aiControlled = true;
+    const engine = new CombatEngine([a], [d], { registry, actionChooser: firstLegalChooser });
+    a.setStatus('dive', 1, -1, undefined, { onAttackAction: () => ({ ignoreDefense: true }) });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(d.currentPV).toBe(14);
+  });
+
+  it('choosesAfterReveal: those holders choose last and can read the other side\'s cards', () => {
+    const registry = new EffectRegistry();
+    const seer = makeChar('Seer', 20, [focusDef()]);
+    const foe = makeChar('Foe', 20, [focusDef(), atkDef()]);
+    const engine = new CombatEngine([seer], [foe], { registry, actionChooser: firstLegalChooser });
+    seer.setStatus('sense', 1, -1, undefined, { choosesAfterReveal: () => true });
+    engine.prepareRound();
+    engine.planActions([{ team: 0, idx: 0, actionIdx: 0 }, { team: 1, idx: 0, actionIdx: 1, targets: [{ team: 0, idx: 0 }] }]);
+    expect(engine.revealedPlanFor(seer)).toEqual([{ team: 1, idx: 0, actionIdx: 1 }]);
+    expect(engine.revealedPlanFor(foe)).toEqual([]);
+  });
+
+  it('delayPendingAction: the target\'s unresolved action moves to the end of the round', () => {
+    const order: string[] = [];
+    const registry = new EffectRegistry();
+    registry.register('note', { onResolve(ctx) { order.push(ctx.source.name); } });
+    registry.register('push', { onResolve(ctx) { ctx.engine.delayPendingAction(ctx.engine.enemiesOf(ctx.source)[0]); } });
+    const a = makeChar('A', 20, [focusDef('push', { speed: 9, effects: [{ type: 'push' }] })]);
+    const slow = makeChar('Slow', 20, [focusDef('slow', { speed: -5, effects: [{ type: 'note' }] })]);
+    const b = makeChar('B', 20, [focusDef('fast', { speed: 5, effects: [{ type: 'note' }] })]);
+    const engine = new CombatEngine([a, slow], [b], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }]);
+    expect(order).toEqual(['Slow', 'B']);
+  });
+
+  it('plannedThisRound: the revealed plan, with what already resolved', () => {
+    const seen: { names: string[]; resolved: boolean[] }[] = [];
+    const registry = new EffectRegistry();
+    registry.register('look', { onResolve(ctx) { const p = ctx.engine.plannedThisRound(); seen.push({ names: p.map(x => x.actor.name), resolved: p.map(x => x.resolved) }); } });
+    const a = makeChar('A', 20, [focusDef('look', { speed: 0, effects: [{ type: 'look' }] })]);
+    const b = makeChar('B', 20, [focusDef('wait', { speed: 5 })]);
+    const engine = new CombatEngine([a], [b], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }]);
+    expect(seen).toEqual([{ names: ['B', 'A'], resolved: [true, false] }]);
+  });
+
+  it('onReveal: runs for every played card before anything resolves', () => {
+    const log: string[] = [];
+    const registry = new EffectRegistry();
+    registry.register('rev', { onReveal(ctx) { log.push(`reveal ${ctx.source.name}`); }, onResolve(ctx) { log.push(`resolve ${ctx.source.name}`); } });
+    const a = makeChar('A', 20, [focusDef('x', { speed: 9, effects: [{ type: 'rev' }] })]);
+    const b = makeChar('B', 20, [focusDef('y', { speed: 0, effects: [{ type: 'rev' }] })]);
+    b.aiControlled = true;
+    const engine = new CombatEngine([a], [b], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }]);
+    expect(log.slice(0, 2).sort()).toEqual(['reveal A', 'reveal B']);
+    expect(log.slice(2)).toEqual(['resolve A', 'resolve B']);
+  });
+
+  it('onRoundStart: runs as a round opens, and a hit there interrupts that round\'s Focus', () => {
+    const registry = new EffectRegistry();
+    const burnt = makeChar('Burnt', 20, [focusDef('f', { effects: [] })]);
+    const other = makeChar('O', 20, [focusDef()]);
+    const engine = new CombatEngine([burnt], [other], { registry, actionChooser: firstLegalChooser });
+    burnt.setStatus('ring', 3, 2, undefined, { onRoundStart(ctx) { ctx.engine.applyPvLoss(ctx.holder, 3); ctx.holder.clearStatus(ctx.key); } });
+    engine.prepareRound();
+    expect(burnt.currentPV).toBe(17);
+    expect(burnt.hitThisTurn).toBe(true);
+  });
+});

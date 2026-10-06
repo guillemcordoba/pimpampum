@@ -1,10 +1,16 @@
 import { ActionDefinition, EffectRegistry } from '@pimpampum/engine';
 import { SkillDefinition } from '../players/types.js';
 import { EnemyDefinition } from './types.js';
+import { SOLDAT_DEL_FOC } from './creatures/soldat-del-foc.js';
+import { SHIRSHU } from './creatures/shirshu.js';
+import { UNAGI } from './creatures/unagi.js';
+import { ARQUER_YUYAN } from './creatures/arquer-yuyan.js';
 
 // Every creature, in display order. Add a new enemy by creating a file in
 // `enemies/` and listing its definition here.
-export const ENEMY_DEFINITIONS: EnemyDefinition[] = [];
+export const ENEMY_DEFINITIONS: EnemyDefinition[] = [
+  SOLDAT_DEL_FOC, SHIRSHU, UNAGI, ARQUER_YUYAN,
+];
 
 const enemyIndex = new Map(ENEMY_DEFINITIONS.map(e => [e.id, e]));
 export function getEnemy(id: string): EnemyDefinition | undefined {

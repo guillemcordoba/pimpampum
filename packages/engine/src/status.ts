@@ -38,6 +38,8 @@ export interface AttackStatusMods {
   attackTotalMult?: number;
   /** Multiplies the margin damage before armour. */
   damageMult?: number;
+  /** The holder's attack cannot be defended (feint immunity still vetoes it). */
+  ignoreDefense?: boolean;
 }
 
 /** Which contested dice total is being adjusted (see modifyContestTotal). */
@@ -72,6 +74,12 @@ export interface StatusBehavior {
   attackRollAgainstHolder?(ref: StatusRef): number;
   /** The holder cannot benefit from any guard. */
   preventsGuard?(ref: StatusRef): boolean;
+  /** Against `attacker`, the holder's ALLIES cannot guard it — only its own
+   *  defense counts (a hunter that tracks one prey through any escort). */
+  excludesAllyGuards?(ref: StatusRef, attacker: Character): boolean;
+  /** The holder chooses its card AFTER the opposing side has committed theirs,
+   *  and may read them (`CombatEngine.revealedPlanFor`). */
+  choosesAfterReveal?(ref: StatusRef): boolean;
   /** The holder cannot play actions of this type right now (burials,
    *  silences…). Checked at every action-availability gate (AI and UI). */
   blocksActionType?(ref: StatusRef, type: ActionType): boolean;
@@ -133,6 +141,10 @@ export interface StatusBehavior {
   /** Extra full passes over the holder's (still-living) attack targets after
    *  the action resolves. May consume the status. */
   attackRepeats?(ctx: StatusHookContext): number;
+  /** Round-start hook, run for every LIVING holder once the new round begins,
+   *  before anyone chooses a card (a burn that bites as the round opens, and
+   *  so interrupts a Focus played in it). */
+  onRoundStart?(ctx: StatusHookContext): void;
   /** Round-end hook, run for EVERY combatant carrying the status — unlike an
    *  EffectHandler's postRound, which only runs for actions played this round.
    *  Runs before modifiers/statuses advance. Damage-over-time ticks live here. */

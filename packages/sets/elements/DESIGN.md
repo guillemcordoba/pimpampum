@@ -21,6 +21,24 @@ and when, lives in `NEXT-STEPS.md` §42.
 4. The agent reviews the final cards (text, crescendo, finishers).
 5. Build, then simulate (`/analyze`).
 
+## For the designer (`card-taste`): this set's sources and bar
+
+- **Sources.** Heroes and the world: *Avatar: The Last Airbender* (prefer
+  the original series; *The Legend of Korra* and later material, such as
+  lavabending, can read as off-lore unless the image is iconic on its own).
+  Villains: *Naruto* (Pain, the Six Paths, the Akatsuki) and the Sith of
+  *Star Wars*, rebuilt for this world. Check them on the web.
+- **The bar is the water kit** (below): Fuet d'aigua, Braços d'aigua, Pluja de
+  dagues, Forma del pop, Bàlsam de lluna, Ira de l'oceà — each title is the
+  element + the form it takes or what it does, a power a bender would want.
+- **What failed here** (2026-10-06), so it is not repeated: titles built on
+  characters or places (Propulsió d'Azula, Alè del drac de l'Oest, Tempesta
+  del Si Wong); titles that need the show explained (Xiulet de bisó, Còdol de
+  repte, Tui i La); one-off scenes as cards (Haru's pebble on the warden,
+  Bumi toppling Omashu's statue, Gyatso's last stand, an Agni Kai as a duel
+  situation). Each kit asks: what can a bender of this element DO, every
+  fight?
+
 ## The frame every kit follows
 
 - **One skill per hero.** No second or complementary skills.
@@ -31,7 +49,8 @@ and when, lives in `NEXT-STEPS.md` §42.
 - **Finishers.** The last cards are fight-ending set pieces (Shinra Tensei,
   Sozin's Comet).
 - **Card titles** are names that evoke the action, never sentences, never
-  with a leading article. Canon names are welcome.
+  with a leading article. Each title is the skill itself — a stranger reads it
+  and knows what the card does; names of people and places rarely manage that.
 - **Card text** is brief and mechanical; it says *fereix* (the attack deals
   damage, rules.md).
 - **Randomness is welcome.**
@@ -90,6 +109,6 @@ returned (10). Healing, ice and the moon sit around it. Concepts by the
 | 5 | Braços d'aigua | Ming-Hua's arms: a blade or a shield, chosen as it lands |
 | 6 | Gel del mestre | Pakku freezes the blow and throws it back whole |
 | 7 | Pluja de dagues | the rain stopped mid-air and turned to daggers |
-| 8 | Reixa glaçada | Katara freezes Azula to the grate |
+| 8 | Presó de gel | an attacker locked in ice the moment it strikes |
 | 9 | Sang sota la lluna | bloodbending under the full moon |
 | 10 | Ira de l'oceà | the ocean rises, swallows the round and breaks on everyone (costs 2 fatigue levels) |

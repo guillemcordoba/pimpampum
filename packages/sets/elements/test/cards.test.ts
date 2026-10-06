@@ -132,8 +132,8 @@ describe("Mestre de l'aigua", () => {
     expect([f1, f2, f3].map(f => f.currentPV)).toEqual([25, 25, 25]);
   });
 
-  it('Reixa glaçada: the blocked enemy that attacks the bender loses its next two actions', () => {
-    const water = fighter('Aigua', [flat('reixa-glacada', 1, 100), wait], { pv: 30 });
+  it('Presó de gel: the blocked enemy that attacks the bender loses its next two actions', () => {
+    const water = fighter('Aigua', [flat('preso-de-gel', 1, 100), wait], { pv: 30 });
     const foe = fighter('Foe', [blow(6)], { pv: 30 });
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0, [{ team: 0, idx: 0 }])]);
@@ -144,8 +144,8 @@ describe("Mestre de l'aigua", () => {
     expect(water.currentPV).toBe(30);
   });
 
-  it('Reixa glaçada: an enemy it did not block is not frozen', () => {
-    const water = fighter('Aigua', [flat('reixa-glacada', 1, 100)], { pv: 30 });
+  it('Presó de gel: an enemy it did not block is not frozen', () => {
+    const water = fighter('Aigua', [flat('preso-de-gel', 1, 100)], { pv: 30 });
     const blocked = fighter('Bloquejat', [wait], { pv: 30 });
     const free = fighter('Lliure', [blow(6)], { pv: 30 });
     const engine = engineFor([water], [blocked, free]);
