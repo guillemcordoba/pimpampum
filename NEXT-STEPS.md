@@ -4335,6 +4335,13 @@ the game as in §37 is unknown.
 
 ## 42. A second set: Els Quatre Elements (2026-10-06, on branch `elements-set`)
 
+> **Superseded the same day.** Every card and creature described below was
+> deleted (2026-10-06) to be redesigned from scratch: the complementary kits
+> (Chakres, Enginy) are gone for good, every hero carries one skill, and the
+> `card-taste` agent now designs each card's concept before it gets numbers
+> (`packages/sets/elements/DESIGN.md`). What follows is the history of the
+> first version — its measurements describe cards that no longer exist.
+
 The user's brief: a new set in a world like *Avatar*, where water, earth, fire
 and air have benders; its enemies researched from that world; its ultimate
 villain the Master of Fear, modelled on Pain (*Naruto*), who uses fear to
@@ -4354,7 +4361,7 @@ What follows is what was built and measured.
   triangle, one kit suite per main kit).
 - Five main kits (aigua, terra, foc, aire, bloquejador de chi), two
   complementary (chakres, enginy); nine creatures; the villain as six bodies and
-  the Senyor himself.
+  the Mestre himself.
 - Engine: one generic seam — a defense's `onDefend` now receives the margin it
   won by (Desviar el corrent returns it). Seam test and mutant added.
 - Tools: `src/sets.ts` and `--set elements` for the kit analyzer and the shape
@@ -4377,7 +4384,7 @@ What follows is what was built and measured.
   that the very blows it punished cancelled. Koh alone: from 97% for the heroes
   to 56% at 28 PV.
 - **The villain.** All seven bodies solved to 4 PV each: a five-round fight
-  holds only so much enemy health. The standard encounter is the Senyor plus
+  holds only so much enemy health. The standard encounter is the Mestre plus
   three bodies (70% at 27 PV a body); all six is `NIGHTMARE`. Ablation at a
   fixed 15 PV named the Míssil (3d6 → 2d6) and the Palmell del buit's
   Defense-lock (now an isolation) as the lethal pieces.
@@ -4421,10 +4428,10 @@ played on 4%). Final triangle: Power > Protect 58.6%, Protect > Aggro 68.6%,
 Aggro > Power 54.5-55.4% — all three hold.
 
 The villain, solved for the reference party at 65%: 22 PV a body and 18 for
-the Senyor, about 4.7 rounds. A logged fight reads as designed: Palmell del
+the Mestre, about 4.7 rounds. A logged fight reads as designed: Palmell del
 buit isolates a hero and the bodies focus him down, Atracció pulls one out of
 formation, Desconfiança turns another on his friends; the heroes win by
-killing the Rostre de l'Infern first and catching the Senyor once he is
+killing the Rostre de l'Infern first and catching the Mestre once he is
 exposed.
 
 Verified on the branch: fast 377/377; slow green (the new set 79/79 and the

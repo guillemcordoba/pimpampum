@@ -53,11 +53,12 @@ From the answers, propose: a **thematic identity** (skill name + `classCss` them
 
 Lock the *shape* of the kit before detailing a single action. The user wants to like the overall lore **and** the distribution of action types and the unlock arc up front.
 
-1. Propose the **full slate** as a compact table — one row per action with: **name** (Catalan), **one-line lore hook**, **type** (Atac/Defensa/Focus), and **rough unlock level** (the low→high arc). A skill of 1–7 actions is normal; recommend a cut of ~5.
+1. **The `card-taste` agent designs the concepts**, one card at a time with its own lore research, offering two or three options per slot — you do not invent them. Present its proposal as the **full slate**: a compact table — one row per action with: **name** (Catalan), **one-line lore hook**, **type** (Atac/Defensa/Focus), and **rough unlock level** (the low→high arc). A skill of 1–7 actions is normal; recommend a cut of ~5.
 2. Show the **type distribution** explicitly (e.g. "3 Atac / 1 Defensa / 1 Focus") so the spread is a deliberate, visible choice that fits the identity.
 3. Name the **signature action(s)** and any **new mechanics** the slate will require, and call out **overlaps** with existing skills.
-4. Iterate with the user — add/cut/rename/retype/reorder — until they **explicitly approve the whole list**. Expect several rounds; this is where the creative shape is set.
-5. Write the approved slate into the memory file (`memory/project_<skill>_skill.md`) before moving on.
+4. **Run the `card-taste` agent on the slate before showing it.** Present its verdict table beside the slate; never hide a card it failed — show its objection and its rewrite, and let the user overrule.
+5. Iterate with the user — add/cut/rename/retype/reorder — until they **explicitly approve the whole list**. Expect several rounds; this is where the creative shape is set.
+6. Write the approved slate into the memory file (`memory/project_<skill>_skill.md`) before moving on.
 
 Do **not** propose per-action stats (speed, damage dice, costs, design forks) in this phase. Only once the full list is approved do you proceed to Phase 4.
 
@@ -69,6 +70,8 @@ Go through the **approved** actions **individually, in order**. For each action:
 2. Propose **concrete stats**, grounded by citing comparable existing actions: `actionType` (Atac/Defensa/Focus), `speed`, damage `d(n, sides, mod)`, `targetCount` (1, N, or 99 = all), any **resource cost** (càrregues, pressió, a fatigue level for a true ultimate).
 3. Surface the **single real design fork** with `AskUserQuestion` (2–4 options, recommend one, "(Recommended)" first). Keep other knobs as proposed-but-tunable. If the user rejects to clarify, ask what they want to clarify and reshape.
 4. **Lock it — but ONLY when the user explicitly says it's good.** Never mark a card locked/approved on your own, and never move to the next card, until the user gives an explicit go-ahead (e.g. "good", "locked", "yes"). Proposing stats is not locking; expect back-and-forth on a single card before approval. In the memory file, track each card's status (`proposed` vs `LOCKED`) and only flip to `LOCKED` after the user's explicit approval. Re-state the running table after each change.
+
+Then run the `card-taste` agent on the **final cards** (names, types, descriptions, stats) before implementing, and resolve or surface every REWORK/CUT.
 
 At the end, confirm the **unlock-level curve** (1–100) and the **card theme**.
 

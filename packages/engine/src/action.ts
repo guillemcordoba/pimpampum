@@ -26,12 +26,15 @@ export class ActionInstance {
 export function getActionTargetRequirement(def: ActionDefinition, registry: EffectRegistry): TargetRequirement {
   if (isAttack(def.actionType)) return 'enemy';
   if (isDefenseAction(def.actionType)) {
-    // A defense may be NARROWED to its holder — a body's own guard, which
-    // cannot be lent to an ally or raised against an enemy's blow elsewhere.
-    // Only narrowing to 'self' is honoured: anything else a defense's effect
-    // asks for would change what a defense IS.
-    const self = def.effects.some(eff => registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {}) === 'self');
-    return self ? 'self' : 'defense';
+    // A defense may be NARROWED to one half of its dual choice: to its holder
+    // ('self' — a body's own guard, never lent to an ally) or to the enemy
+    // side ('enemy' — a block that can only be raised against a foe). Anything
+    // else a defense's effect asks for would change what a defense IS.
+    for (const eff of def.effects) {
+      const req = registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {});
+      if (req === 'self' || req === 'enemy') return req;
+    }
+    return 'defense';
   }
   for (const eff of def.effects) {
     const req = registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {});

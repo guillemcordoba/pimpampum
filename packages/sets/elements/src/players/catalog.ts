@@ -1,22 +1,10 @@
 import { ActionDefinition } from '@pimpampum/engine';
 import { SkillDefinition } from './types.js';
 import { WATERBENDER } from './skills/waterbender.js';
-import { EARTHBENDER } from './skills/earthbender.js';
-import { FIREBENDER } from './skills/firebender.js';
-import { AIRBENDER } from './skills/airbender.js';
-import { CHI_BLOCKER } from './skills/chi-blocker.js';
-import { CHAKRA } from './skills/chakra.js';
-import { ENGINY } from './skills/enginy.js';
 
 /** Every player skill. Enemy skills live in `../enemies/`. */
 export const ALL_SKILLS: SkillDefinition[] = [
   WATERBENDER,
-  EARTHBENDER,
-  FIREBENDER,
-  AIRBENDER,
-  CHI_BLOCKER,
-  CHAKRA,
-  ENGINY,
 ];
 
 

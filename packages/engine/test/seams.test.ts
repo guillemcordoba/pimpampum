@@ -661,14 +661,19 @@ describe('a defense narrowed to its holder (the self-guard seam)', () => {
   const registry = new EffectRegistry();
   registry.register('own_body', { getTargetRequirement: () => 'self' });
   registry.register('asks_enemy', { getTargetRequirement: () => 'enemy' });
+  registry.register('asks_ally', { getTargetRequirement: () => 'ally' });
 
   it("an effect asking for 'self' narrows a defense to its holder", () => {
     expect(getActionTargetRequirement(defenseDef('b', { effects: [{ type: 'own_body' }] }), registry)).toBe('self');
   });
 
+  it("an effect asking for 'enemy' narrows a defense to a block", () => {
+    expect(getActionTargetRequirement(defenseDef('b', { effects: [{ type: 'asks_enemy' }] }), registry)).toBe('enemy');
+  });
+
   it('any other request leaves the defense its dual choice', () => {
     expect(getActionTargetRequirement(defenseDef('b'), registry)).toBe('defense');
-    expect(getActionTargetRequirement(defenseDef('b', { effects: [{ type: 'asks_enemy' }] }), registry)).toBe('defense');
+    expect(getActionTargetRequirement(defenseDef('b', { effects: [{ type: 'asks_ally' }] }), registry)).toBe('defense');
   });
 
   it('in play, the narrowed defender joins no wall: an ally it could have guarded is hit undefended', () => {
@@ -687,5 +692,116 @@ describe('a defense narrowed to its holder (the self-guard seam)', () => {
     ]);
     expect(guard.currentPV).toBe(20);
     expect(ally.currentPV).toBeLessThan(20);
+  });
+});
+
+describe('what an effect sees of the whole blow (attackTotal)', () => {
+  it('onDefend and onAttackMiss get the attack total, not only the margin', () => {
+    // A blow frozen and thrown back whole needs the attack's total: 4 here,
+    // against a defense of 10 (margin −6).
+    const defended: (number | undefined)[] = [];
+    const missed: (number | undefined)[] = [];
+    const registry = new EffectRegistry();
+    registry.register('watch_defend', { onDefend(ctx) { defended.push(ctx.attackTotal); } });
+    registry.register('watch_miss', { onAttackMiss(ctx) { missed.push(ctx.attackTotal); } });
+    const defender = makeChar('Defender', 20, [defenseDef('block', { dice: new DiceRoll(1, 1), rollBonus: 9, effects: [{ type: 'watch_defend' }] })]);
+    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3, speed: 0, effects: [{ type: 'watch_miss' }] })]);
+    attacker.aiControlled = true;
+    const engine = new CombatEngine([defender], [attacker], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
+    expect(defended).toEqual([4]);
+    expect(missed).toEqual([4]);
+  });
+
+  it('onAttackHit gets the attack total of an undefended blow', () => {
+    const seen: (number | undefined)[] = [];
+    const registry = new EffectRegistry();
+    registry.register('watch_hit', { onAttackHit(ctx) { seen.push(ctx.attackTotal); } });
+    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 6, effects: [{ type: 'watch_hit' }] })]);
+    const engine = new CombatEngine([a], [sac()], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(seen).toEqual([7]);
+  });
+});
+
+describe('an effect that lets its player choose (chooseTargets)', () => {
+  const registry = new EffectRegistry();
+  const a = makeChar('A', 20, [atkDef()]);
+  const x = sac(); const y = sac(); const z = sac();
+
+  it('without a target policy, takes the pool in order', () => {
+    const engine = new CombatEngine([a], [x, y, z], { registry, actionChooser: firstLegalChooser });
+    expect(engine.chooseTargets(a, atkDef(), [y, z], 1)).toEqual([y]);
+  });
+
+  it("with one, asks the seat's policy", () => {
+    const engine = new CombatEngine([a], [x, y, z], {
+      registry, actionChooser: firstLegalChooser, targetChooser: (_e, _a, _d, _r, count, pool) => pool.slice(-count),
+    });
+    expect(engine.chooseTargets(a, atkDef(), [x, y, z], 1)).toEqual([z]);
+  });
+
+  it('a pool no bigger than the count is taken whole', () => {
+    const engine = new CombatEngine([a], [x, y], { registry, actionChooser: firstLegalChooser });
+    expect(engine.chooseTargets(a, atkDef(), [x, y], 2)).toEqual([x, y]);
+  });
+});
+
+describe('an action that decides what it is when it resolves (resolveAs)', () => {
+  it('an attack resolved as a defense blocks its target instead of striking it', () => {
+    // The card is printed as an attack on the enemy; at resolution it turns
+    // into a block on that same enemy, whose slower blow is then forced onto
+    // the blocker and stopped there. The ally it aimed at is untouched, and
+    // the enemy took no hit.
+    const registry = new EffectRegistry();
+    registry.register('arm', { resolveAs: () => ActionType.Defensa });
+    const arms = makeChar('Arms', 20, [atkDef('braç', { speed: 5, rollBonus: 1000, effects: [{ type: 'arm' }] })]);
+    const ally = makeChar('Ally', 20, [focusDef()]);
+    const e = makeChar('E', 20, [atkDef('cop', { speed: 0, rollBonus: 5 })]);
+    e.aiControlled = true;
+    const engine = new CombatEngine([ally, arms], [e], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [
+      { idx: 0, actionIdx: 0 },
+      { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
+    ]);
+    expect(e.currentPV).toBe(20);
+    expect(ally.currentPV).toBe(20);
+    expect(arms.currentPV).toBe(20);
+  });
+
+  it('returning nothing keeps the printed type', () => {
+    const registry = new EffectRegistry();
+    registry.register('arm', { resolveAs: () => undefined });
+    const arms = makeChar('Arms', 20, [atkDef('braç', { effects: [{ type: 'arm' }] })]);
+    const bag = sac(20);
+    const engine = new CombatEngine([arms], [bag], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(bag.currentPV).toBe(19);
+  });
+});
+
+describe('a block-only defense (requirement enemy)', () => {
+  it('is not forced onto its own blocker the way an attack is', () => {
+    // Both sides block each other. The block-only defense still blocks the
+    // enemy it chose; an attack would have been dragged onto the blocker.
+    const registry = new EffectRegistry();
+    registry.register('block_only', { getTargetRequirement: () => 'enemy' });
+    const a = makeChar('A', 20, [defenseDef('bloc', { speed: 1, dice: new DiceRoll(1, 1), effects: [{ type: 'block_only' }] })]);
+    const x = makeChar('X', 20, [defenseDef('mur', { speed: 9, dice: new DiceRoll(1, 1) })]);
+    const y = sac();
+    x.aiControlled = true;
+    a.aiControlled = true;
+    // X (faster) blocks A; A aims its block at the LAST enemy, Y.
+    const engine = new CombatEngine([a], [x, y], {
+      registry, actionChooser: firstLegalChooser,
+      targetChooser: (_e, actor, _d, _r, count, pool) => actor === x ? [a] : pool.slice(-count),
+    });
+    engine.prepareRound();
+    engine.planActions([]);
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') r = engine.resolveNextAction();
+    expect(a.blockers.map(g => g.defender)).toEqual([x]);
+    expect(y.blockers.map(g => g.defender)).toEqual([a]);
+    expect(x.blockers).toEqual([]);
   });
 });

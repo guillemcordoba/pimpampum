@@ -10,7 +10,7 @@ import { DOT } from './status-behaviors.js';
  * recur across players and creatures alike: a card type locked out of a hand,
  * a hero nobody can protect, and a hero whose blows land on their own friends.
  * Every one of them is short (it ends with the next round) and every status
- * it sets carries `harm`, which is what Obrir el chakra de la terra strips.
+ * it sets carries `harm`, so a cleanse can find it and a ward can refuse it.
  */
 
 /** "Next turn": the rest of this round plus the next one — a status counts
@@ -74,10 +74,10 @@ const VANISHED: StatusBehavior = {
   untargetable() { return true; },
 };
 
-/** The status Obrir el chakra de la terra leaves: no new harm takes hold. */
-export const WARD_KEY = 'chakra-obert';
+/** A ward: while it stands, no new harm takes hold of its holder. */
+export const WARD_KEY = 'protegit';
 
-/** Whether harm can take hold of `c` — the open earth chakra turns it away. */
+/** Whether harm can take hold of `c`, or a ward turns it away. */
 export function warded(c: Character): boolean {
   return c.hasStatus(WARD_KEY);
 }

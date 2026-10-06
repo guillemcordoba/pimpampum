@@ -297,6 +297,17 @@ export function pickResolveTargets(
     return [...pool].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
   }
 
+  // A block-only defense (narrowed to 'enemy'): block the scariest enemy
+  // whose attack is still pending, else the scariest one there is. Aimed like
+  // a curse, it went to the healthiest enemy and almost never met a blow.
+  if (def.actionType === ActionType.Defensa) {
+    const pendingNow = view.pendingSummary();
+    const attacking = pool.filter(e => pendingNow.some(p =>
+      p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac));
+    const candidates = attacking.length ? attacking : pool;
+    return [...candidates].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
+  }
+
   const pending = view.pendingSummary();
   const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackTotal(actor, def) : 0;
   const score = (e: Character): number => {

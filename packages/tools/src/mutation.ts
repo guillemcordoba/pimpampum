@@ -268,10 +268,40 @@ const MUTANTS: Mutant[] = [
     replace: '  clampPvLoss(_ref, amount) { return amount; },',
   },
   {
-    label: "ENGINE: a defense's onDefend never learns the margin it won by (Desviar el corrent returns nothing)",
+    label: "ENGINE: a defense's onDefend never learns the margin it won by (Cop desviat returns nothing)",
     file: 'packages/engine/src/combat.ts',
-    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });",
-    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source });",
+    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });",
+    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, attackTotal: contestAttack });",
+  },
+  {
+    label: "ENGINE: a defense's onDefend sees only the margin, never the whole blow (Gel del mestre throws nothing back)",
+    file: 'packages/engine/src/combat.ts',
+    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });",
+    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });",
+  },
+  {
+    label: "ENGINE: an effect's 'enemy you choose' ignores the seat's target policy",
+    file: 'packages/engine/src/combat.ts',
+    find: "      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool, actor.getEffectiveSpeed(def))",
+    replace: "      ? pool.slice(0, count)",
+  },
+  {
+    label: 'ENGINE: resolveAs is never asked — a card that blocks or strikes as the moment demands always strikes',
+    file: 'packages/engine/src/combat.ts',
+    find: '    switch (this.resolvedType(cur)) {',
+    replace: '    switch (cur.action.def.actionType) {',
+  },
+  {
+    label: "ENGINE: a block-only defense is dragged onto its own blocker like an attack",
+    file: 'packages/engine/src/combat.ts',
+    find: "      const forced = req === 'enemy' && cur.action.def.actionType === ActionType.Atac",
+    replace: "      const forced = req === 'enemy'",
+  },
+  {
+    label: "ENGINE: a defense can only be narrowed to its holder, never to a block",
+    file: 'packages/engine/src/action.ts',
+    find: "      if (req === 'self' || req === 'enemy') return req;",
+    replace: "      if (req === 'self') return req;",
   },
   {
     label: 'requirement 4: an edge holds on the point estimate',

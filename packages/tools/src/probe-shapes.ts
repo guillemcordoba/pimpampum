@@ -45,31 +45,9 @@ const FANTASY_FAMILIES: Family[] = [
   },
 ];
 
-// A function: the villain families read the elements set's own shapes, which
-// the fantasy set does not have.
-const elementsFamilies = (): Family[] => [
-  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n }], counts: [3, 4, 5, 6] },
-  {
-    label: 'emboscada (agent-de-pedra + arquer)',
-    pool: n => [{ enemyId: 'agent-de-pedra', count: n }, { enemyId: 'arquer-de-la-muralla', count: n }],
-    counts: [1, 2, 3],
-  },
-  { label: 'cap (serp-de-les-marees)', pool: n => [{ enemyId: 'serp-de-les-marees', count: n }], counts: [1, 2] },
-  {
-    label: 'mixt (artiller + soldat-del-foc)',
-    pool: n => [{ enemyId: 'artiller-del-tercer-ull', count: 1 }, { enemyId: 'soldat-del-foc', count: n }],
-    counts: [2, 3, 4],
-  },
-  { label: 'koh', pool: n => [{ enemyId: 'koh', count: n }], counts: [1, 2] },
-  { label: 'shirshu', pool: n => [{ enemyId: 'shirshu', count: n }], counts: [1, 2, 3] },
-  { label: 'titellaire-de-sang', pool: n => [{ enemyId: 'titellaire-de-sang', count: n }], counts: [2, 3, 4] },
-  { label: 'acrobata-del-chi', pool: n => [{ enemyId: 'acrobata-del-chi', count: n }], counts: [3, 4, 5] },
-  // The villain, as the set composes him: three bodies, and the nightmare of all six.
-  ...['VILLAIN', 'NIGHTMARE'].map((key): Family => {
-    const shape = (SET.bench as unknown as Record<string, { label: string; pool: { enemyId: string; count: number }[] }>)[key];
-    return { label: shape.label, pool: () => shape.pool, counts: [1] };
-  }),
-];
+// Empty while the elements set is redesigned from scratch (2026-10-06): its
+// creatures and villain are added back here as they land.
+const elementsFamilies = (): Family[] => [];
 
 const CANDIDATES = SET.id === 'elements' ? elementsFamilies() : FANTASY_FAMILIES;
 

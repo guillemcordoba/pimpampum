@@ -18,6 +18,6 @@ export type { CharacterBuildSpec } from './build.js';
 // Reference party generation (the balancer's player-side input)
 export {
   buildReferenceParty, buildReferencePlayer, isExplicitParty,
-  PLAYER_PV, COMPLEMENTARY_SKILLS,
+  PLAYER_PV,
 } from './party.js';
 export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from './party.js';

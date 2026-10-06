@@ -843,7 +843,9 @@ export class CombatEngine implements EngineApi, AIView {
     // Targeting.
     if (cur.targets === null) {
       const req = getActionTargetRequirement(cur.action.def, this.registry);
-      const forced = req === 'enemy'
+      // Only an attack is forced onto its blocker: a block-only defense
+      // (requirement 'enemy') still picks whom it blocks.
+      const forced = req === 'enemy' && cur.action.def.actionType === ActionType.Atac
         ? this.blockForcedTarget(cur.actor, getActionTargetCount(cur.action.def))
         : null;
       if (req === 'none') {
@@ -896,10 +898,32 @@ export class CombatEngine implements EngineApi, AIView {
       : pool.slice(0, count);   // deterministic, and deliberately not a policy
   }
 
+  chooseTargets(actor: Character, def: ActionDefinition, pool: Character[], count: number): Character[] {
+    if (count >= pool.length) return [...pool];
+    // The choice is where a blow lands, whatever card carries the effect (a
+    // defense that throws back what it stopped), so the seat aims it as an
+    // attack.
+    const aimed = def.actionType === ActionType.Atac ? def : { ...def, actionType: ActionType.Atac };
+    return this.targetChooser
+      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool, actor.getEffectiveSpeed(def))
+      : pool.slice(0, count);
+  }
+
+  /** The type an action resolves as: its printed one, unless an effect's
+   *  `resolveAs` decides otherwise at this moment. */
+  private resolvedType(cur: PendingAction): ActionType {
+    for (const eff of cur.action.def.effects) {
+      const fn = this.registry.getHandler(eff.type)?.resolveAs;
+      const t = fn?.(this.ctx(cur.actor, cur.action.def, eff.params ?? {}, { targets: cur.targets ?? [] }));
+      if (t) return t;
+    }
+    return cur.action.def.actionType;
+  }
+
   private resolveOne(cur: PendingAction): void {
     const { actor, action } = cur;
     const targets = cur.targets ?? [];
-    switch (action.def.actionType) {
+    switch (this.resolvedType(cur)) {
       case ActionType.Defensa: {
         this.dispatchPlay(actor, action.def);
         const allies = targets.filter(t => t.team === actor.team && t.isAlive());
@@ -1163,6 +1187,9 @@ export class CombatEngine implements EngineApi, AIView {
     let recipient = target;
     let hit: boolean;
     let margin: number;
+    // The attack total as it was finally contested (after clutch adjustments),
+    // handed to the effects that see this attack land or fail.
+    let contestAttack = attackTotal;
 
     const guardAbsorbs = guard
       ? guard.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref))
@@ -1181,6 +1208,7 @@ export class CombatEngine implements EngineApi, AIView {
       let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
+      contestAttack = adjustedAttacker;
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
       const armor = mods.ignoreArmor ? 0 : defender.getPassiveArmor();
       if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs ${defender.name} «${guard.action.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, armor)}`, source.team);
@@ -1198,6 +1226,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (standing) {
         const standingTotal = Math.max(0, standing.total - mods.defensePenalty);
         const adjustedAttacker = this.adjustContestTotal(source, attackTotal, standingTotal, 'attack');
+        contestAttack = adjustedAttacker;
         const armor = mods.ignoreArmor ? 0 : target.getPassiveArmor();
         const defStr = armor > 0 ? `${standingTotal}+${armor} armadura=${standingTotal + armor}` : `${standingTotal}`;
         if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(baseRoll + extraDice, atkBonus, adjustedAttacker)} vs «${standing.key}» de ${target.name}: defensa ${defStr}`, source.team);
@@ -1206,7 +1235,7 @@ export class CombatEngine implements EngineApi, AIView {
           // Only the attacker can learn from a wall — it has no skill to raise.
           if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
           this.log('defense', `🛡️ «${standing.key}» atura l'atac de ${source.name} «${def.name}».`, target.team);
-          this.dispatch('onAttackMiss', source, def, { targets: [target], target, hit: false, margin: res.margin });
+          this.dispatch('onAttackMiss', source, def, { targets: [target], target, hit: false, margin: res.margin, attackTotal: contestAttack });
           return;
         }
         standing.behavior.onStandingGuardBroken?.(this.statusCtx(target, standing.key, standing.entry));
@@ -1222,8 +1251,8 @@ export class CombatEngine implements EngineApi, AIView {
 
     if (!hit && guard) {
       this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» atura l'atac de ${source.name} «${def.name}».`, guard.defender.team);
-      this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin });
-      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });
+      this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin, attackTotal: contestAttack });
+      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });
       return;
     }
 
@@ -1241,7 +1270,7 @@ export class CombatEngine implements EngineApi, AIView {
     // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
-    this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin });
+    this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin, attackTotal: contestAttack });
     if (guard && recipient === guard.defender && dmg > 0) {
       this.dispatch('onBlockFail', guard.defender, guard.action, { targets: [target], target: source, damageDealt: dmg });
     }
@@ -1262,8 +1291,8 @@ export class CombatEngine implements EngineApi, AIView {
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${source.name} «${def.name}».`, wall[0].defender.team);
-      this.dispatch('onAttackMiss', source, def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin });
-      for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source, margin: res.margin });
+      this.dispatch('onAttackMiss', source, def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin, attackTotal: adjustedAttacker });
+      for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source, margin: res.margin, attackTotal: adjustedAttacker });
       return;
     }
     // The wall breaks: everyone on it learns from a close breach.
@@ -1277,7 +1306,7 @@ export class CombatEngine implements EngineApi, AIView {
     dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
     this.log('attack', `💥 ${source.name} «${def.name}» trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
-    this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin });
+    this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
     if (dmg > 0) {
       this.dispatch('onBlockFail', recipient, weak.g.action, { targets: [source], target: source, damageDealt: dmg });
     }

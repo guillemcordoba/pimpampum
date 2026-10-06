@@ -49,6 +49,8 @@ Del dany se'n resta l'**armadura passiva** de qui el rep (mínim 0), i el result
 
 No hi ha cap tirada de dany separada: els daus de la carta són alhora la precisió i la potència de l'atac.
 
+Quan una carta diu que un atac **fereix**, vol dir que fa dany: treu almenys 1 PV, un cop restada l'armadura. (Les cartes antigues que diuen «encerta» volen dir el mateix.)
+
 ### Accions de defensa
 
 Quan una acció de defensa es resol, el defensor tria un objectiu: un **aliat** (defensar) o un **enemic** (bloquejar). En tots dos casos, el defensor es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.

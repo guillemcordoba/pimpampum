@@ -33,7 +33,7 @@ describe('the calibration fields pinned kits, the subject is live', () => {
   });
 
   it('a subject is built from the live kit', () => {
-    expect(Object.keys(ELEMENTS.hero('x', 'firebender').skills)).toEqual(['firebender']);
+    expect(Object.keys(ELEMENTS.hero('x', 'waterbender').skills)).toEqual(['waterbender']);
     expect(ELEMENTS.calibration.mainKits.every(id => !id.endsWith(PIN))).toBe(true);
   });
 });
@@ -124,7 +124,7 @@ describe('drift', () => {
     const before = calibrationDrift(dir);
     expect(before).toEqual(calibrationDrift());
     // A kit whose file is named by its id, and that has not drifted already.
-    const edited = ['chakra', 'enginy', 'firebender', 'airbender', 'waterbender', 'earthbender'].find(k => !before.includes(k));
+    const edited = ALL_SKILLS.map(s => s.id).find(k => !before.includes(k));
     let after = before;
     if (edited) {
       const file = path.join(dir, `${edited}.ts`);

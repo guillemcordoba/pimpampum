@@ -1,6 +1,6 @@
 /**
  * THE ELEMENTS SET — Els Quatre Elements: a world where water, earth, fire and
- * air have benders, and where el Senyor de la Por rules through six borrowed
+ * air have benders, and where el Mestre de la Por rules through six borrowed
  * bodies. Design and inspirations: `DESIGN.md`.
  *
  * Everything a table needs, and nothing that measures it: player kits,

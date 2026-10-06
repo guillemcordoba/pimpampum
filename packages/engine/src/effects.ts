@@ -1,6 +1,6 @@
 import { DiceRoll } from './dice.js';
 import { Character } from './character.js';
-import { ActionDefinition, TargetRequirement } from './types.js';
+import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 
 /** One action that actually happened in this combat: who played what, at whom,
  *  in which round. Attacks record their FINAL target list (after redirects);
@@ -76,6 +76,10 @@ export interface EngineApi {
    *  total, seeing the opposing total. Content-side contests (saves) should
    *  route their totals through this so clutch statuses can fire there too. */
   adjustContestTotal(holder: Character, own: number, opposing: number, kind: import('./status.js').ContestKind): number;
+  /** Let `actor`'s seat pick `count` of `pool` for an effect that says "an
+   *  enemy you choose": the same target policy that aims the seat's cards
+   *  (the AI's, or the engine's deterministic fallback — pool order). */
+  chooseTargets(actor: Character, def: ActionDefinition, pool: Character[], count: number): Character[];
 }
 
 /** Mutable bundle gathered before an attack resolves; effects tweak it in place. */
@@ -126,6 +130,10 @@ export interface EffectContext {
    *  full attack total when undefended). In `onDefend` it is the blocked
    *  attack's, so ≤ 0: how far the defense out-rolled it. */
   margin?: number;
+  /** The attack total as finally contested (after clutch adjustments) — set
+   *  for onAttackHit, onAttackMiss and onDefend. The whole blow, where
+   *  `margin` is only what it won or lost by. */
+  attackTotal?: number;
   /** Mutable attack modifiers, present only during the modifyAttack hook. */
   attackMods?: AttackModifiers;
 }
@@ -175,6 +183,11 @@ export interface EffectHandler {
   /** Run once when the action actually goes off, before it resolves (spend
    *  resources). Not called for an interrupted focus. */
   onPlay?(ctx: EffectContext): void;
+  /** Resolve the action AS another type, decided when it resolves (a card
+   *  that is a strike or a block, as the moment demands). Return nothing to
+   *  keep its printed type. The targets are the ones already chosen: an
+   *  attack's enemy becomes the enemy a defense blocks. */
+  resolveAs?(ctx: EffectContext): ActionType | void;
 }
 
 /** Registry mapping effect type keys to their handlers. (Status behaviours

@@ -13,9 +13,8 @@
  *    they are — a representative party is drawn from those inputs. Used when
  *    no concrete party exists (the simulator's sweeps and the balancer tests).
  *
- * The draw models INTENDED play rather than uniform randomness: the first
- * skill is always a MAIN kit, and the complementary kits (chakra, enginy) were
- * designed as second skills and only ever appear as one.
+ * Each drawn hero carries ONE kit, drawn from the whole catalogue (the set has no second
+ * skills).
  *
  * Randomness flows through the engine's `random()`, so a seeded caller gets a
  * reproducible party (the solver relies on this for common random numbers).
@@ -39,9 +38,6 @@ export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/be
 /** Default PV pool for a player character (rules.md provisional default). */
 export const PLAYER_PV = 12;
 
-/** Skills DESIGNED as complementary second kits — never a lone main skill. */
-export const COMPLEMENTARY_SKILLS = new Set(['chakra', 'enginy']);
-
 
 
 function per(value: number | number[] | undefined, i: number, fallback: number): number {
@@ -59,24 +55,10 @@ function shuffled<T>(arr: readonly T[]): T[] {
   return a;
 }
 
-/** Spread `levels` total ordinals over 1-2 skills, main kit first. */
+/** One kit at `levels` — heroes in this set carry a single skill. */
 function drawSkills(levels: number): Record<string, number> {
-  const mains = ALL_SKILLS.filter(s => !COMPLEMENTARY_SKILLS.has(s.id));
-  const main = shuffled(mains)[0];
-  const chosen: SkillDefinition[] = [main];
-  // A second skill only when there are enough levels for it to mean anything.
-  if (levels >= 3 && random() < 0.5) {
-    chosen.push(shuffled(ALL_SKILLS.filter(s => s !== main))[0]);
-  }
-  const skills: Record<string, number> = {};
-  let remaining = Math.max(1, levels);
-  chosen.forEach((s, i) => {
-    const last = i === chosen.length - 1;
-    const want = last ? remaining : Math.round(remaining * (0.5 + random() * 0.3));
-    skills[s.id] = Math.max(1, Math.min(s.actions.length, want));
-    remaining -= skills[s.id];
-  });
-  return skills;
+  const kit: SkillDefinition | undefined = shuffled(ALL_SKILLS)[0];
+  return kit ? { [kit.id]: Math.max(1, Math.min(kit.actions.length, levels)) } : {};
 }
 
 /** Build one representative player with the given levels and armour. */
