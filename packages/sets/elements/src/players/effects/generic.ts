@@ -136,9 +136,13 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
       ctx.engine.heal(t, amount);
       ctx.engine.log('focus', `${ctx.source.name} ${wasDown ? 'torna' : 'cura'} ${t.name}: +${amount} PV.`, ctx.source.team);
     },
+    // A slow heal has to be cast before the wound is critical, so the search
+    // must consider it once anyone is scratched: gated at 60% it was the right
+    // play in 22% of its decisions and played on 4% (2026-10-06).
     aiWeight(ctx) {
-      const hurt = [ctx.actor, ...ctx.allies].some(a => a.currentPV < a.maxPV * 0.6);
-      return hurt ? 1.4 : -1;
+      const pvs = [ctx.actor, ...ctx.allies].map(a => a.currentPV / a.maxPV);
+      if (pvs.some(p => p < 0.6)) return 1.4;
+      return pvs.some(p => p < 0.9) ? 0.6 : -1;
     },
   },
 

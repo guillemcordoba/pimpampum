@@ -45,7 +45,9 @@ const FANTASY_FAMILIES: Family[] = [
   },
 ];
 
-const ELEMENTS_FAMILIES: Family[] = [
+// A function: the villain families read the elements set's own shapes, which
+// the fantasy set does not have.
+const elementsFamilies = (): Family[] => [
   { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n }], counts: [3, 4, 5, 6] },
   {
     label: 'emboscada (agent-de-pedra + arquer)',
@@ -69,7 +71,7 @@ const ELEMENTS_FAMILIES: Family[] = [
   }),
 ];
 
-const CANDIDATES = SET.id === 'elements' ? ELEMENTS_FAMILIES : FANTASY_FAMILIES;
+const CANDIDATES = SET.id === 'elements' ? elementsFamilies() : FANTASY_FAMILIES;
 
 /** Games per company when re-measuring a solved count. */
 const CHECK_GAMES = games(400);
