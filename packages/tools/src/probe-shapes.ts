@@ -45,9 +45,17 @@ const FANTASY_FAMILIES: Family[] = [
   },
 ];
 
-// Empty while the elements set is redesigned from scratch (2026-10-06): its
-// creatures and villain are added back here as they land.
-const elementsFamilies = (): Family[] => [];
+// A function so the families are only built for the set that has them.
+const elementsFamilies = (): Family[] => [
+  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n }], counts: [3, 4, 5, 6] },
+  { label: 'caçadors (shirshu)', pool: n => [{ enemyId: 'shirshu', count: n }], counts: [1, 2, 3] },
+  { label: 'bèstia (unagi)', pool: n => [{ enemyId: 'unagi', count: n }], counts: [1, 2] },
+  {
+    label: 'mixt (soldat-del-foc + arquer-yuyan)',
+    pool: n => [{ enemyId: 'soldat-del-foc', count: n }, { enemyId: 'arquer-yuyan', count: 1 }],
+    counts: [2, 3, 4, 5],
+  },
+];
 
 const CANDIDATES = SET.id === 'elements' ? elementsFamilies() : FANTASY_FAMILIES;
 

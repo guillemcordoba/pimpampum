@@ -68,14 +68,13 @@ describe('the fight matrix', () => {
     }
   });
 
-  it('every company row is a real table: mains plus a complementary kit', () => {
-    // And the calibration party must have this SAME shape, or the 60% it is
-    // priced to does not transfer to the cells that actually get fought.
+  it('every company row is a real table: three kits a hero can be', () => {
+    // The set has no second skills (one kit per hero), so a row is three main
+    // kits, and the calibration party must have this SAME shape, or the 60%
+    // it is priced to does not transfer to the cells that actually get fought.
     for (const row of COMPANY) {
       expect(row.length).toBe(3);
-      const mains = row.filter(id => MAIN_KITS.some(s => s.id === id)).length;
-      expect(mains, `${row.join('/')} has no complementary kit`).toBeLessThan(3);
-      expect(mains, `${row.join('/')} has too few mains`).toBeGreaterThan(0);
+      for (const id of row) expect(MAIN_KITS.some(s => s.id === id), `${id} is not a kit`).toBe(true);
     }
   });
 

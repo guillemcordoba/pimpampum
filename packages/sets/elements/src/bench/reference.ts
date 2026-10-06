@@ -1,6 +1,5 @@
 /**
  * THE REFERENCE PARTY — the four elements at full kit, asserted at import.
- * (Empty while the set's cards are redesigned from scratch, 2026-10-06.)
  *
  * Every harness measures against a party, so the party is the unit the whole
  * layer is denominated in. The kits are named literally (never a slice of the
@@ -12,14 +11,14 @@
 import { ALL_SKILLS, type CharacterBuildSpec, getSkill, type PartySpec, PLAYER_PV, type SkillDefinition, standardGear } from '../index.js';
 import { pin } from './pinned.js';
 
-/** The kits at the reference table, by id: the four elements, once they exist. */
-export const REFERENCE_KITS: readonly string[] = [];
+/** The four kits at the reference table, by id: the four elements. */
+export const REFERENCE_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender'] as const;
 
 /** Full kit: every card the kit has (`levelOf` clamps this sentinel). */
 export const FULL_KIT = Number.MAX_SAFE_INTEGER;
 
 /** Total skill levels across the reference party. Asserted below. */
-export const REFERENCE_SIGMA = 0;
+export const REFERENCE_SIGMA = 40;
 
 /** The armour the reference heroes wear. */
 export const REFERENCE_ARMOR = 'armadura-de-cuir';

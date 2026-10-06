@@ -1,21 +1,32 @@
 /**
  * THE ELEMENTS SET'S CALIBRATION DATA — fight shapes, company rows, stand-ins
  * and the bands. Data only; what is done with it is `@pimpampum/bench`'s.
- *
- * Empty: every card of the set was removed on 2026-10-06 to be redesigned from
- * scratch, kit by kit. Each kit and creature that lands fills its rows back in
- * (probed with `probe-shapes.ts --set elements`).
  */
 import type { Shape } from '@pimpampum/bench';
 
-/** The shapes a kit is measured across. PV is solved, never written down. */
-export const SHAPES: Shape[] = [];
+/**
+ * The shapes a kit is measured across, one per creature's role: the horde, the
+ * control pack, the lone beast, the mixed line. PV is solved, never written
+ * down; the COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts
+ * --set elements`).
+ */
+export const SHAPES: Shape[] = [
+  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5 }] },
+  { label: 'caçadors', pool: [{ enemyId: 'shirshu', count: 2 }] },
+  { label: 'bèstia', pool: [{ enemyId: 'unagi', count: 1 }] },
+  { label: 'mixt', pool: [{ enemyId: 'soldat-del-foc', count: 4 }, { enemyId: 'arquer-yuyan', count: 1 }] },
+];
 
-/** Ally rows, every kit in some row. */
-export const COMPANY: string[][] = [];
+/** Ally rows: three of the four kits each, every kit in three rows. */
+export const COMPANY: string[][] = [
+  ['earthbender', 'firebender', 'airbender'],
+  ['waterbender', 'firebender', 'airbender'],
+  ['waterbender', 'earthbender', 'airbender'],
+  ['waterbender', 'earthbender', 'firebender'],
+];
 
-/** The stand-in per company row — never a kit already in that row. */
-export const CALIBRATION_KITS: string[] = [];
+/** The stand-in per company row — the one kit that row leaves out. */
+export const CALIBRATION_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender'];
 
 /** Creatures no SHAPE fields, and why. */
 export const UNFIELDED_ENEMIES: Record<string, string> = {};
@@ -30,7 +41,9 @@ export const MAX_AVG_ROUNDS = 5;
 export const SATURATION = { min: 0.20, max: 0.80 };
 
 /** How many bodies a harness fields for "a natural fight" of one creature. */
-export const FIELDED: Record<string, number> = {};
+export const FIELDED: Record<string, number> = {
+  'soldat-del-foc': 4, shirshu: 2, unagi: 1, 'arquer-yuyan': 2,
+};
 
 export const UNLISTED_BODIES = 3;
 
