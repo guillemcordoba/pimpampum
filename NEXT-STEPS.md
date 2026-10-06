@@ -4415,8 +4415,24 @@ Round 4 (before step 4's re-timing), wins per 100 fights over a neutral kit:
 | aire | +8.6 | ✅ | ✅ | ✅ |
 | bloquejador de chi | +4.1 | ✅ | ✅ | ✅ |
 
-Triangle after step 4: Power > Protect 56.9%, Protect > Aggro 68.7%,
-Aggro > Power 54.5% — all three hold.
+After step 4 the heal's AI gate was softened too (the search wrote off a slow
+heal until someone was under 60% PV: the right play in 22% of its decisions,
+played on 4%). Final triangle: Power > Protect 58.6%, Protect > Aggro 68.6%,
+Aggro > Power 54.5-55.4% — all three hold.
+
+The villain, solved for the reference party at 65%: 22 PV a body and 18 for
+the Senyor, about 4.7 rounds. A logged fight reads as designed: Palmell del
+buit isolates a hero and the bodies focus him down, Atracció pulls one out of
+formation, Desconfiança turns another on his friends; the heroes win by
+killing the Rostre de l'Infern first and catching the Senyor once he is
+exposed.
+
+Verified on the branch: fast 377/377; slow green (the new set 79/79 and the
+fantasy set without its earthbender, re-pinned; `main.ts` and `probe-shapes.ts`
+pass alone — `main.ts` again ran past 600 s beside a cold recalibration, as on
+main); smoke 421 (one vitest RPC timeout under load, gone on rerun); mutation
+36/36. The encounter-speed party seats the nigromant where the earthbender sat
+(the engineer took 3.5 s on the goblin horde, the nigromant 2.7).
 
 Known blind spots (`test/kits/known.ts`): Esquivar en espiral (its payoff is a
 speed modifier the evaluator cannot see) and Presó de terra (as in the fantasy
@@ -4426,9 +4442,11 @@ set before its pricing).
 
 - **Accept or reshape the set**, then merge.
 - The calibration matrix keeps only 9 of 16 cells: the company rows are
-  lopsided (the row without the water bender and the chakra kit sits ~45%,
-  the others 75-98%), so the patrol and mixed shapes saturate. Probably the
-  complementary kits differ in strength; not yet measured.
+  lopsided — the rows with the chi-blocker crush the soldiers (93-98%), whose
+  whole kit is attacks it locks out, while earth + air + enginy sits ~45%. A
+  matchup, which intentions.md allows; harder-hitting soldiers did not close it
+  (the solver lowered their PV instead) and were reverted. Reshuffling the
+  company rows is the lever left.
 - The shirshu and the blood puppeteer still cannot threaten a party alone.
 - The web app imports the fantasy set directly (19 files); playing this set
   there needs a set switch.
