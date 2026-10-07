@@ -41,39 +41,50 @@ const TITELLA: StatusBehavior = {
 
 // --- 10 · Ira de l'oceà -----------------------------------------------------
 
-/** The ocean's maw over one of the bender's side: the blow lands in the sea,
- *  and what it would have done is added to the wave. */
+/** The ocean over one of the bender's side (its value is the ocean's roll): a
+ *  blow that does not beat it sinks, and what it would have done is owed back
+ *  to whoever threw it; a blow that beats it smashes through whole. (A wave
+ *  that swallowed EVERY blow made the party untouchable for a round, and that
+ *  alone carried most fights, 2026-10-07.) */
 const ENGOLIT: StatusBehavior = {
-  modifyIncomingDamage(ctx, damage) {
-    const source = ctx.entry.data?.['source'];
-    if (damage > 0 && source instanceof Character) {
-      const tide = source.getStatus(MAREA_KEY);
-      if (tide) tide.value += damage;
-      ctx.engine.log('defense', `L'oceà s'empassa el cop contra ${ctx.holder.name} (${damage}).`, ctx.holder.team);
+  modifyIncomingDamage(ctx, damage, attacker, attackTotal) {
+    if (damage <= 0 || !attacker) return damage;
+    if ((attackTotal ?? Infinity) > ctx.entry.value) {
+      ctx.engine.log('defense', `El cop de ${attacker.name} trenca l'oceà.`, ctx.holder.team);
+      return damage;
     }
+    attacker.setStatus(DEUTE_KEY, attacker.getStatusValue(DEUTE_KEY, 0) + damage, 1);
+    ctx.engine.log('defense', `L'oceà s'empassa el cop contra ${ctx.holder.name} (${damage}).`, ctx.holder.team);
     return 0;
   },
   positionValue() { return 0.1; },
 };
 
 const MAREA_KEY = 'ira-de-l-ocea@cal';
+/** What one enemy's swallowed blows will cost it when the wave breaks. */
+const DEUTE_KEY = 'deute-amb-l-ocea';
 /** Fatigue levels the ocean costs. */
 const OCEA_FATIGA = 2;
 
-/** The swallowed blows, summed on the bender; the wave breaks at round end. */
+/** The wave breaks at round end: every enemy takes it, plus its OWN swallowed
+ *  blows — never the others'. (The whole sum at every enemy grew with the
+ *  number of enemies squared: one cast swallowed 112 and dealt 127 to each of
+ *  five soldiers, 2026-10-07.) */
 const MAREA: StatusBehavior = {
   onRoundEnd(ctx) {
     const src = ctx.holder;
     if (!src.isAlive()) return;
     const dice = ctx.entry.data?.['dice'];
     const own = dice instanceof DiceRoll ? ctx.engine.rollDiceFor(src, dice, 'attack') : 0;
-    const total = own + src.getSkillLevel(SKILL_ID) + ctx.entry.value;
-    ctx.engine.log('attack', `L'oceà es desferma: ${total} contra tots els enemics (${ctx.entry.value} empassat).`, src.team);
+    const base = own + src.getSkillLevel(SKILL_ID);
+    ctx.engine.log('attack', `L'oceà es desferma contra tots els enemics.`, src.team);
     for (const e of ctx.engine.enemiesOf(src)) {
-      ctx.engine.performExtraAttack(src, e, fixed(total), { label: `Ira de l'oceà` });
+      const owed = e.getStatusValue(DEUTE_KEY, 0);
+      e.clearStatus(DEUTE_KEY);
+      ctx.engine.performExtraAttack(src, e, fixed(base + owed), { label: owed ? `Ira de l'oceà (+${owed} del seu cop)` : `Ira de l'oceà` });
     }
   },
-  positionValue(ref) { return 0.05 + 0.02 * ref.entry.value; },
+  positionValue() { return 0.1; },
 };
 
 const WATER_EFFECTS: Record<string, EffectHandler> = {
@@ -168,11 +179,13 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
   'ocean_wrath@cal': {
     modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.skip = true; },
     onPlay(ctx) {
+      // The ocean rolls ONCE: every blow at the party this round contests it.
+      const wall = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'defense') + ctx.source.getSkillLevel(SKILL_ID) + (ctx.action.rollBonus ?? 0);
       ctx.source.setStatus(MAREA_KEY, 0, 1, { dice: ctx.action.dice }, MAREA);
       for (const c of ctx.engine.alliesOf(ctx.source, true)) {
-        c.setStatus('engolit-per-l-ocea', 1, 1, { source: ctx.source }, ENGOLIT);
+        c.setStatus('engolit-per-l-ocea', wall, 1, undefined, ENGOLIT);
       }
-      ctx.engine.log('attack', `${ctx.source.name} alça l'oceà: cap cop enemic no arriba aquest torn.`, ctx.source.team);
+      ctx.engine.log('attack', `${ctx.source.name} alça l'oceà (${wall}): els cops que no el superin s'hi enfonsen.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 1 ? 1.5 : 0; },
   },
@@ -258,7 +271,7 @@ export const WATERBENDER: SkillDefinition = {
       id: 'ira-de-l-ocea@cal', name: "Ira de l'oceà", skillId: SKILL_ID,
       unlock: 10, type: ActionType.Atac, speed: 6, dice: d(3, 6), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: OCEA_FATIGA } }, { type: 'ocean_wrath@cal' }],
-      desc: "Puges 2 nivells de fatiga. Aquest torn, els atacs enemics no fereixen el teu bàndol. Al final del torn, afecta tots els enemics i suma al tir el dany que haurien fet.",
+      desc: "Puges 2 nivells de fatiga. Aquest torn, cada atac enemic contra el teu bàndol que no superi aquesta tirada no fereix i, al final del torn, fereix el seu atacant. Després, afecta tots els enemics.",
       icon: 'lorc/big-wave.svg',
     }),
   ],

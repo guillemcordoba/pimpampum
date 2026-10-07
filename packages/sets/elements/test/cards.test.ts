@@ -163,18 +163,19 @@ describe("Mestre de l'aigua", () => {
     expect(friend.currentPV).toBe(24);
   });
 
-  it("Ira de l'oceà: the round's enemy blows wound nobody, then break on every enemy with all they would have done", () => {
-    // Two blows of 5 and 7 swallowed (12), plus the wave's own 3: 15 at each
-    // enemy, undefended.
-    const water = fighter('Aigua', [flat('ira-de-l-ocea', 3)], { pv: 30 });
+  it("Ira de l'oceà: a blow that does not beat the ocean's roll sinks and is owed back; one that beats it lands whole; then the wave hits every enemy", () => {
+    // The ocean rolls 1 + 10 = 11 once. F1's 5 sinks (owed back); F2's 20
+    // beats it and lands on the ally whole. At round end the wave (its own 1)
+    // hits each enemy, F1 plus the 5 it owes.
+    const water = fighter('Aigua', [flat('ira-de-l-ocea', 1, 10)], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
     const f1 = fighter('F1', [blow(5)], { pv: 30 });
-    const f2 = fighter('F2', [blow(7)], { pv: 30 });
+    const f2 = fighter('F2', [blow(20)], { pv: 30 });
     const engine = engineFor([water, ally], [f1, f2]);
     playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 0 }]), sel(1, 1, 0, [{ team: 0, idx: 1 }])]);
     expect(water.currentPV).toBe(30);
-    expect(ally.currentPV).toBe(30);
-    expect([f1.currentPV, f2.currentPV]).toEqual([15, 15]);
+    expect(ally.currentPV).toBe(10);
+    expect([f1.currentPV, f2.currentPV]).toEqual([24, 29]);
     expect(water.fatigue).toBe(2);   // the ocean's price
   });
 });

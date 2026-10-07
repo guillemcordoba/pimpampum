@@ -46,6 +46,41 @@ const CUPULA: StatusBehavior = {
 };
 const CUPULA_KEY = 'cupula-de-pedra';
 
+// --- 10 · Partir la terra ---------------------------------------------------
+
+const ESQUERDA_KEY = 'esquerda';
+
+/**
+ * In the crack (value = the wound it took). As the round it fell in ends, the
+ * holder chooses for the next one: climb out (lose its action) or stay and
+ * take the same wound again as the earth closes. Climbing is the choice when
+ * the second wound would leave it under 40% (or kill it).
+ */
+const ESQUERDA: StatusBehavior = {
+  onRoundEnd(ctx) {
+    const data = ctx.entry.data ?? {};
+    if (data['decided']) return;
+    data['decided'] = true;
+    ctx.entry.data = data;
+    const h = ctx.holder;
+    if (!h.isAlive()) return;
+    if (h.currentPV - ctx.entry.value < h.maxPV * 0.4) {
+      if (h.skipTurns === 0) h.skipTurns = 1;
+      h.clearStatus(ctx.key);
+      ctx.engine.log('info', `${h.name} gasta el torn sortint de l'esquerda.`, h.team);
+    } else {
+      data['take'] = true;
+    }
+  },
+  onRoundStart(ctx) {
+    if (!ctx.entry.data?.['take']) return;
+    ctx.holder.clearStatus(ctx.key);
+    ctx.engine.log('attack', `La terra es tanca sobre ${ctx.holder.name}: ${ctx.entry.value} dany.`, ctx.holder.team);
+    ctx.engine.applyPvLoss(ctx.holder, ctx.entry.value, undefined);
+  },
+  positionValue(ref) { return -0.02 * ref.entry.value; },
+};
+
 const EARTH_EFFECTS: Record<string, EffectHandler> = {
   // 1 · Guant de pedra: after the punch the rock stays on the fist — it
   // defends the bender for the rest of the round with the card's dice.
@@ -115,6 +150,22 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
       ctx.engine.log('defense', `${ctx.source.name} alça una cúpula de pedra sobre el grup.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.actor.hasStatus(CUPULA_KEY) ? -1 : 0.9; },
+  },
+
+  // 10 · Partir la terra: every enemy it wounds falls into the crack, and next
+  // round each chooses — climb out (its action) or stay and take the same
+  // wound again when the earth closes. (Taking every wounded enemy's next
+  // two actions locked the whole side out; the fight was decided in round 1,
+  // 2026-10-07.)
+  crack_or_climb: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      const wound = ctx.damageDealt ?? 0;
+      if (!t || !t.isAlive() || wound <= 0) return;
+      t.setStatus(ESQUERDA_KEY, wound, 2, { harm: 1, decided: false, take: false }, ESQUERDA);
+      ctx.engine.log('attack', `${t.name} cau a l'esquerda.`, ctx.source.team);
+    },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.9 : 0.4; },
   },
 
   // 9 · Puny de la muntanya: +1 for every attack aimed at the bender this fight.
@@ -205,8 +256,8 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'partir-la-terra', name: 'Partir la terra', skillId: SKILL_ID,
       unlock: 10, type: ActionType.Atac, speed: -1, dice: d(3, 6), targetCount: 99,
-      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'stun_on_hit', params: { turns: 2 } }],
-      desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix perden les 2 accions següents.',
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'crack_or_climb' }],
+      desc: "Puges 2 nivells de fatiga. Afecta tots els enemics. El torn següent, cadascun dels que fereix o perd la seva acció o torna a rebre el mateix dany.",
       icon: 'lorc/earth-crack.svg',
     }),
   ],

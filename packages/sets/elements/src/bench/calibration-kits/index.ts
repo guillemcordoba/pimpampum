@@ -8,7 +8,7 @@ import { WATERBENDER } from './waterbender.js';
 import type { SkillDefinition } from '../../players/types.js';
 
 /** When the snapshot was taken. */
-export const REFRESHED = '2026-10-06';
+export const REFRESHED = '2026-10-07';
 
 export const PINNED_SKILLS: SkillDefinition[] = [AIRBENDER, EARTHBENDER, FIREBENDER, WATERBENDER];
 

@@ -62,7 +62,7 @@ export interface StatusBehavior {
   modifyOutgoingDamage?(ctx: StatusHookContext, damage: number): number;
   /** Transform damage the holder is about to receive (after armour; the
    *  engine floors the final result at 0). May consume the status. */
-  modifyIncomingDamage?(ctx: StatusHookContext, damage: number): number;
+  modifyIncomingDamage?(ctx: StatusHookContext, damage: number, attacker?: Character, attackTotal?: number): number;
   /** Adjust a contested dice total the holder just rolled, SEEING both final
    *  totals (clutch curses/blessings that fire only when they flip an
    *  outcome). Runs after the raw totals are logged; may consume the status.

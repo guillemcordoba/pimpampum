@@ -130,14 +130,21 @@ describe('Mestre de la terra', () => {
     expect(earth.fatigue).toBe(1);
   });
 
-  it('Partir la terra: every enemy, the wounded lose their next 2 actions, and it costs 2 fatigue levels', () => {
+  it('Partir la terra: every enemy wounded falls in; next round each climbs out (its action) or takes the wound again', () => {
+    // 3 to each. A (30) can afford it: stays, and the earth closes on it for 3
+    // more as the next round opens. B (8) cannot: it climbs out, losing its
+    // next action.
     const earth = fighter('Terra', [flat('partir-la-terra', 1, 2)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    playRound(engineFor([earth], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
-    expect([a.skipTurns, b.skipTurns]).toEqual([2, 2]);
+    const b = fighter('B', [wait], { pv: 8 });
+    const engine = engineFor([earth], [a, b]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([27, 5]);
+    expect(b.skipTurns).toBe(1);
     expect(earth.fatigue).toBe(2);
+    engine.prepareRound();
+    expect(a.currentPV).toBe(24);
+    expect(b.currentPV).toBe(5);
   });
 });
 
@@ -235,14 +242,16 @@ describe('Mestre del foc', () => {
     expect(fire.currentPV).toBe(30 - 2 - 1);
   });
 
-  it("Caiguda de cometa: every enemy, their allies cannot defend them, the wounded lose next round's action, 2 fatigue", () => {
+  it('Caiguda de cometa: called this round, it falls on every enemy as the next round opens, before any guard; 2 fatigue', () => {
     const fire = fighter('Foc', [flat('caiguda-de-cometa', 1, 3)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [guard(100, 0)], { pv: 30 });
-    playRound(engineFor([fire], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
-    expect(a.currentPV).toBe(26);
-    expect(a.skipTurns).toBe(1);
+    const engine = engineFor([fire], [a, b]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
+    expect([a.currentPV, b.currentPV]).toEqual([30, 30]);
     expect(fire.fatigue).toBe(2);
+    engine.prepareRound();
+    expect([a.currentPV, b.currentPV]).toEqual([26, 26]);
   });
 });
 
@@ -329,13 +338,20 @@ describe("Mestre de l'aire", () => {
     expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
   });
 
-  it("Ull de l'huracà: every enemy, the wounded lose this round's action, 2 fatigue", () => {
-    const air = fighter('Aire', [flat('ull-de-l-huraca', 1, 1)], { pv: 30 });
-    const a = fighter('A', [blow(9, 0)], { pv: 30 });
-    const b = fighter('B', [blow(9, 0)], { pv: 30 });
-    playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
-    expect(air.currentPV).toBe(30);
-    expect(air.fatigue).toBe(2);
+  it("Ull de l'huracà: every enemy, and this round the wounded strike random combatants; 2 fatigue", () => {
+    // Over many seeds, a dizzy enemy's blow lands on its own side at least once.
+    let ownSide = 0;
+    for (let s = 0; s < 20; s++) {
+      withSeed(s + 1, () => {
+        const air = fighter('Aire', [flat('ull-de-l-huraca', 1, 1)], { pv: 30 });
+        const a = fighter('A', [blow(3, 0)], { pv: 30 });
+        const b = fighter('B', [blow(3, 0)], { pv: 30 });
+        playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
+        expect(air.fatigue).toBe(2);
+        if (a.currentPV < 28 || b.currentPV < 28) ownSide++;
+      });
+    }
+    expect(ownSide).toBeGreaterThan(0);
   });
 
   it('Bosc de tornados: each wounded enemy is hurled into another, who takes the same damage', () => {

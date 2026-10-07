@@ -4541,3 +4541,25 @@ now and kills the mutant (re-checked by hand). The slow tier and the kit
 analyzer were NOT run: with the shapes saturated (§43.1) every cell would sit
 outside the measurement band, so their verdicts would mean nothing until the
 finishers are decided.
+
+### 43.4 The finishers, reworked by the designer (2026-10-07)
+
+The user asked for debuffs that keep each card's concept; my first, improvised
+ones (act last, one random enemy falls) were rejected, and the `card-taste`
+agent proposed the directions instead. The rule it gave: no finisher takes a
+whole side's round away; the enemies still act — badly, at the wrong targets,
+or at a price they choose. Built:
+- **Ira de l'oceà** — a contest: the ocean rolls once; a blow that does not
+  beat it sinks and is owed back to its thrower at round end; one that beats it
+  lands whole. Then the wave hits every enemy.
+- **Ull de l'huracà** — every enemy hit; this round the wounded strike a
+  random combatant.
+- **Partir la terra** — every enemy hit; next round each wounded one climbs out
+  (loses its action) or takes the same wound again.
+- **Caiguda de cometa** — now a Focus: called this round, it falls as the next
+  round opens, before any guard, on every enemy.
+
+Remeasured at full kit, creatures at level 10: patrol **59%**, 2 shirshus
+**58%**, mixed line **66%** — fair. The lone unagi is still 97% (a creature that
+acts once a round cannot threaten four heroes in time); its rework is with the
+designer.

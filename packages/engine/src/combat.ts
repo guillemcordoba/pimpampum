@@ -476,7 +476,7 @@ export class CombatEngine implements EngineApi, AIView {
     }
     const dmgBase = this.applyOutgoingDamage(source, margin);
     const armor = opts.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgBase - armor)));
+    const dmg = Math.max(0, this.applyIncomingDamage(recipient, Math.max(0, dmgBase - armor), source, attackTotal));
     this.log('attack', `💥 ${label} colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     // Only real damage interrupts a pending focus (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
@@ -1084,10 +1084,10 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   /** Chain modifyIncomingDamage across the recipient's statuses. */
-  private applyIncomingDamage(recipient: Character, dmg: number): number {
+  private applyIncomingDamage(recipient: Character, dmg: number, attacker?: Character, attackTotal?: number): number {
     for (const { key, entry, behavior } of this.behaviorStatuses(recipient)) {
       const f = behavior.modifyIncomingDamage;
-      if (f) dmg = f(this.statusCtx(recipient, key, entry), dmg);
+      if (f) dmg = f(this.statusCtx(recipient, key, entry), dmg, attacker, attackTotal);
     }
     return dmg;
   }
@@ -1310,7 +1310,7 @@ export class CombatEngine implements EngineApi, AIView {
     // Flat bonus damage lands after armour (not part of the contest).
     dmg += mods.bonusDamage;
     // Recipient statuses transform the incoming damage (marks, rages…).
-    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
+    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, contestAttack));
     this.log('attack', `💥 ${source.name} «${def.name}» colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     // Only real damage interrupts a pending focus (rules.md): a hit that the
     // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
@@ -1349,7 +1349,7 @@ export class CombatEngine implements EngineApi, AIView {
     const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
     dmg = Math.max(0, dmg - armor);
     dmg += mods.bonusDamage;
-    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg));
+    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, adjustedAttacker));
     this.log('attack', `💥 ${source.name} «${def.name}» trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });

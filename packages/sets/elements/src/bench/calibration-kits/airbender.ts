@@ -103,6 +103,18 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
+  // 9 · Ull de l'huracà: the storm throws their aim — this round every enemy
+  // it wounds strikes a random combatant. (Taking the whole side's action away
+  // decided the fight in round 1, 2026-10-07.)
+  'storm_aim@cal': {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      if (!t || !t.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
+      t.setStatus('mareig', 1, 1, { harm: 1 }, MAREIG);
+    },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.9 : 0.3; },
+  },
+
   // 7 · Cop i fuga: after the strike, attacks on the bender miss this round.
   'hit_and_vanish@cal': {
     onAttackHit(ctx) { vanish(ctx); },
@@ -189,8 +201,8 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'ull-de-l-huraca@cal', name: "Ull de l'huracà", skillId: SKILL_ID,
       unlock: 9, type: ActionType.Atac, speed: 7, dice: d(2, 6), targetCount: 99,
-      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'cancel_on_hit' }],
-      desc: "Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix perden la seva acció d'aquest torn.",
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'storm_aim@cal' }],
+      desc: "Puges 2 nivells de fatiga. Afecta tots els enemics. Aquest torn, els que fereix ataquen un combatent a l'atzar.",
       icon: 'lorc/whirlwind.svg',
     }),
     action({
