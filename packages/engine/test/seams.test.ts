@@ -731,14 +731,17 @@ describe('an effect that lets its player choose (chooseTargets)', () => {
 
   it('without a target policy, takes the pool in order', () => {
     const engine = new CombatEngine([a], [x, y, z], { registry, actionChooser: firstLegalChooser });
-    expect(engine.chooseTargets(a, atkDef(), [y, z], 1)).toEqual([y]);
+    expect(engine.chooseTargets(a, atkDef(), [y, z], 1)[0]).toBe(y);
   });
 
   it("with one, asks the seat's policy", () => {
     const engine = new CombatEngine([a], [x, y, z], {
       registry, actionChooser: firstLegalChooser, targetChooser: (_e, _a, _d, _r, count, pool) => pool.slice(-count),
     });
-    expect(engine.chooseTargets(a, atkDef(), [x, y, z], 1)).toEqual([z]);
+    // toBe, not toEqual: the three bags are structurally identical, so an
+    // equality check could not tell the first from the last (a mutant that
+    // ignored the policy survived it).
+    expect(engine.chooseTargets(a, atkDef(), [x, y, z], 1)[0]).toBe(z);
   });
 
   it('a pool no bigger than the count is taken whole', () => {

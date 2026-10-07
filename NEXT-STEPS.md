@@ -4531,3 +4531,13 @@ does:
 
 Creature dice were raised (fantasy range: attacks 2d6-4d6, defenses 3d6-4d6);
 measured above with the new dice.
+
+### 43.3 Verified (2026-10-07)
+
+Fast tier 442/442. Mutation 47/48 on the first run: the survivor ("an enemy
+you choose" ignoring the seat's target policy) slipped past a test comparing
+three structurally identical characters with `toEqual`; it compares identity
+now and kills the mutant (re-checked by hand). The slow tier and the kit
+analyzer were NOT run: with the shapes saturated (§43.1) every cell would sit
+outside the measurement band, so their verdicts would mean nothing until the
+finishers are decided.
