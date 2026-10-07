@@ -66,27 +66,48 @@ const UNAGI_SKILL: SkillDefinition = {
       icon: 'lorc/water-bolt.svg',
     }),
     action({
+      id: 'remoli', name: 'Remolí', skillId: SKILL_ID,
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
+      effects: [{ type: 'self_guard' }, { type: 'whirlpool' }],
+      desc: "Fereix tots els herois que l'ataquen aquest torn.",
+      icon: 'lorc/whirlwind.svg',
+    }),
+    action({
       id: 'capbussada', name: 'Capbussada', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(4, 6),
+      unlock: 3, type: ActionType.Defensa, speed: 3, dice: d(4, 6),
       effects: [{ type: 'dive' }],
       desc: 'El torn següent, els seus atacs no es poden defensar.',
       icon: 'delapouite/wave-surfer.svg',
     }),
     action({
       id: 'onada-de-cua', name: 'Onada de cua', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(3, 6), targetCount: 99,
+      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(3, 6), targetCount: 99,
       desc: 'Afecta tots els herois.',
       icon: 'lorc/big-wave.svg',
     }),
     action({
       id: 'engolir', name: 'Engolir', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Atac, speed: -1, dice: d(4, 6),
+      unlock: 5, type: ActionType.Atac, speed: -1, dice: d(4, 6),
       effects: [{ type: 'swallow' }],
       desc: `Si fereix, s'empassa l'objectiu (un alhora): no pot actuar ni ser atacat, perd ${DIGEST} PV al final de cada torn, i surt quan l'unagi perd ${SPIT_THRESHOLD} PV en un torn o cau.`,
       icon: 'delapouite/fish-monster.svg',
     }),
   ],
   effects: {
+    // Remolí: the eel coils and churns the bay — every hero whose blow it holds
+    // takes the margin back. Four heroes piling on a lone beast is its weapon:
+    // alone, acting once a round, it lost 97-100% whatever its PV (2026-10-07).
+    whirlpool: {
+      onDefend(ctx) {
+        const t = ctx.target;
+        const held = -(ctx.margin ?? 0);
+        if (!t || !t.isAlive() || held <= 0) return;
+        const dmg = Math.max(0, held - t.getPassiveArmor());
+        ctx.engine.log('defense', `El remolí arrossega ${t.name}: ${dmg} dany.`, ctx.source.team);
+        ctx.engine.applyPvLoss(t, dmg, ctx.source);
+      },
+      aiWeight(ctx) { return ctx.enemies.length >= 2 ? 0.8 : 0.3; },
+    },
     dive: {
       onResolve(ctx) { ctx.source.setStatus('capbussada', 1, 2, undefined, CAPBUSSADA); },
       aiWeight() { return 0.4; },

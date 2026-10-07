@@ -191,8 +191,8 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'salt-del-meteor', name: 'Salt del meteor', skillId: SKILL_ID,
       unlock: 8, type: ActionType.Atac, speed: -2, dice: d(2, 6), targetCount: 99,
-      effects: [{ type: 'meteor_leap' }],
-      desc: 'Afecta tots els enemics. Fins que es resol, els atacs contra tu fallen.',
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'meteor_leap' }],
+      desc: 'Puges 1 nivell de fatiga. Afecta tots els enemics. Fins que es resol, els atacs contra tu fallen.',
       icon: 'lorc/meteor-impact.svg',
     }),
     action({

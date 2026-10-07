@@ -448,6 +448,16 @@ describe('Unagi', () => {
     expect(tank.currentPV).toBe(24);
   });
 
+  it('Remolí: every hero whose blow it holds takes the margin back', () => {
+    // Defense 10 against blows of 4 and 6: the attackers take 6 and 4.
+    const eel = fighter('Unagi', [flat('remoli', 1, 9)], { pv: 50 });
+    const h1 = fighter('H1', [blow(4)], { pv: 30 });
+    const h2 = fighter('H2', [blow(6)], { pv: 30 });
+    playRound(engineFor([eel], [h1, h2]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
+    expect(eel.currentPV).toBe(50);
+    expect([h1.currentPV, h2.currentPV]).toEqual([24, 26]);
+  });
+
   it('Capbussada: next round its attacks cannot be defended', () => {
     const eel = fighter('Unagi', [flat('capbussada', 1, 100), blow(6)], { pv: 50 });
     const hero = fighter('Heroi', [guard(100)], { pv: 30 });
