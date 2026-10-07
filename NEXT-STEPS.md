@@ -4563,3 +4563,25 @@ Remeasured at full kit, creatures at level 10: patrol **59%**, 2 shirshus
 **58%**, mixed line **66%** — fair. The lone unagi is still 97% (a creature that
 acts once a round cannot threaten four heroes in time); its rework is with the
 designer.
+
+### 43.5 Where it was paused (2026-10-07)
+
+- **Unagi + Remolí** (a defense that wounds every hero whose blow it holds):
+  no change, the heroes still win ~98%. Its level is no danger dial either:
+  levels 10/13/16/19 all give ≥98%, and the fights get shorter. Built 2026-10-07 at full
+  kit: patrol 71% DUR, shirshus 59%, mixed 73% DUR (the duration cap binds;
+  re-check whether Salt del meteor's new cost caused the rise from 59/66%).
+- **Open question for the user:** is the unagi a boss (fought alone) or a big
+  creature in a mixed encounter? The designer's ★ for a boss is **Cap i cua**:
+  one body, two cards a round (head: Canó, Engolir; body: Onada, Remolí,
+  Capbussada), which needs a generic "cards per round" engine seam. The
+  alternatives were two linked bodies (expected to still fail) and Sota l'aigua (a dive
+  that buys time, not danger).
+- **Air**, after Salt del meteor costs 1 fatigue: +6.9pp (inside the band; was
+  +14.9pp), but requirement 1 fails worse: 15% of fights never end, p90 40
+  rounds. Salt del meteor is still picked 64.7%; Cop i fuga 1.0%. The designer's ★
+  for Cop i fuga: "Després de l'atac, els atacs contra tu i un aliat fallen la
+  resta del torn." (alternatives: gone until your next blow at 1 fatigue; the blows
+  aimed at you hit the one you struck). Not decided by the user yet.
+- Still to look at: Cop desviat (0.7%) and Sentit sísmic (0.4%) as likely AI
+  blind spots; Ira de l'oceà picked 64.6%.
