@@ -31,7 +31,7 @@ const ARCHER_SKILL: SkillDefinition = {
   actions: [
     action({
       id: 'fletxa-a-l-escletxa', name: "Fletxa a l'escletxa", skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 3, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, speed: 3, dice: d(2, 6),
       effects: [{ type: 'piercing' }],
       desc: "Ignora l'armadura.",
       icon: 'lorc/arrowhead.svg',
@@ -45,7 +45,7 @@ const ARCHER_SKILL: SkillDefinition = {
     }),
     action({
       id: 'clavar-a-l-arbre', name: "Clavar a l'arbre", skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Atac, speed: 2, dice: d(2, 6),
+      unlock: 3, type: ActionType.Atac, speed: 2, dice: d(3, 6),
       effects: [{ type: 'pin_to_tree' }],
       desc: "No fa dany. Si supera la defensa (o no n'hi ha), fins al final del torn següent ningú no pot defensar l'objectiu, ni ell mateix.",
       icon: 'lorc/pierced-body.svg',
@@ -60,7 +60,7 @@ const ARCHER_SKILL: SkillDefinition = {
         // A summon has no printed PV: the archer's own, scaled by the bulk
         // ratio — what the balancer would have given a soldier in this fight.
         const pv = Math.max(1, Math.round(ctx.source.maxPV * 1.05));
-        const soldier = createEnemy('soldat-del-foc', { pv, name: 'Soldat del foc (reforç)' });
+        const soldier = createEnemy('soldat-del-foc', { pv, level: ctx.source.getSkillLevel(SKILL_ID), name: 'Soldat del foc (reforç)' });
         if (!soldier) return;
         ctx.engine.addCombatant(ctx.source.team, soldier);
         ctx.source.setStatus('soldats-cridats', called + 1, -1);

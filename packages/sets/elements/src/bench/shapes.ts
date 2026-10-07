@@ -10,11 +10,20 @@ import type { Shape } from '@pimpampum/bench';
  * down; the COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts
  * --set elements`).
  */
+/**
+ * The level the creatures are fielded at in every shape: the reference heroes'
+ * own (full kit, 10). A level enters every roll, so equal levels cancel and the
+ * CARDS decide the fight. At their kit size (3-4) against heroes at 10, no
+ * shape could be made fair at any PV — the heroes won 98-100% everywhere
+ * (probed 2026-10-07).
+ */
+export const CREATURE_LEVEL = 10;
+
 export const SHAPES: Shape[] = [
-  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5 }] },
-  { label: 'caçadors', pool: [{ enemyId: 'shirshu', count: 2 }] },
-  { label: 'bèstia', pool: [{ enemyId: 'unagi', count: 1 }] },
-  { label: 'mixt', pool: [{ enemyId: 'soldat-del-foc', count: 4 }, { enemyId: 'arquer-yuyan', count: 1 }] },
+  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5, level: CREATURE_LEVEL }] },
+  { label: 'caçadors', pool: [{ enemyId: 'shirshu', count: 2, level: CREATURE_LEVEL }] },
+  { label: 'bèstia', pool: [{ enemyId: 'unagi', count: 1, level: CREATURE_LEVEL }] },
+  { label: 'mixt', pool: [{ enemyId: 'soldat-del-foc', count: 4, level: CREATURE_LEVEL }, { enemyId: 'arquer-yuyan', count: 1, level: CREATURE_LEVEL }] },
 ];
 
 /** Ally rows: three of the four kits each, every kit in three rows. */

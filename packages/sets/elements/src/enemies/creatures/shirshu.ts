@@ -40,14 +40,14 @@ const SHIRSHU_SKILL: SkillDefinition = {
   actions: [
     action({
       id: 'llengua-paralitzant', name: 'Llengua paralitzant', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 3, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, speed: 3, dice: d(2, 6),
       effects: [{ type: 'paralysing_tongue' }],
       desc: "Si fereix, l'objectiu perd la seva acció següent (les 2 següents si li treu 5 PV o més). No afecta qui ja ha de perdre una acció.",
       icon: 'delapouite/tongue.svg',
     }),
     action({
       id: 'bava-paralitzant', name: 'Bava paralitzant', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
       effects: [{ type: 'paralysing_slobber' }],
       desc: "Si aguanta, l'atacant perd la seva acció següent. No afecta qui ja ha de perdre una acció.",
       icon: 'lorc/dripping-goo.svg',
@@ -61,7 +61,7 @@ const SHIRSHU_SKILL: SkillDefinition = {
     }),
     action({
       id: 'llengotades-a-cegues', name: 'Llengotades a cegues', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(2, 6), targetCount: 3, rollPerTarget: true,
+      unlock: 4, type: ActionType.Atac, speed: 0, dice: d(3, 6), targetCount: 3, rollPerTarget: true,
       effects: [{ type: 'blind_lashes' }],
       desc: "Tres cops, cadascun contra un combatent a l'atzar. Els que fereix perden la seva acció següent. No afecta qui ja ha de perdre una acció.",
       icon: 'lorc/whiplash.svg',

@@ -4457,3 +4457,77 @@ set before its pricing).
 - The shirshu and the blood puppeteer still cannot threaten a party alone.
 - The web app imports the fantasy set directly (19 files); playing this set
   there needs a set switch.
+
+## 43. Els Quatre Elements, redesigned: four kits, four creatures, and a calibration that cannot yet be made fair (2026-10-07, branch `elements-set`)
+
+What landed (designed by the `card-taste` agent, picked by the user, mechanics
+reviewed by the agent; see `packages/sets/elements/DESIGN.md`): the water,
+earth, fire and air kits (ten cards each), four creatures (Soldat del foc,
+Shirshu, Unagi, Arquer yuyan), 59 exact card tests, and eight generic engine
+seams with seam tests and mutants (ignoreAllyGuards, excludesAllyGuards,
+status-granted ignoreDefense, choosesAfterReveal + revealedPlanFor,
+delayPendingAction, plannedThisRound, onReveal, onRoundStart). Fatigue costs
+are paid at the END of the round, so a card is not charged for its own price.
+
+### 43.1 The calibration does not solve at full kit
+
+Shapes probed against the reference party (the four benders at full kit,
+Σ40), creatures fielded at the heroes' level (10 — the analyzer fields enemies
+at the subject's level, `analyze.ts`):
+
+| shape | heroes win | PV/body | |
+|---|---|---|---|
+| 5 soldiers | 89-98% | 330-450 | duration-capped |
+| 2 shirshus | 81-88% | 330-350 | duration-capped |
+| 1 unagi | 100% | 570-600 | — |
+| 4 soldiers + archer | 94-96% | 330-420 | duration-capped |
+
+No count and no PV reaches 60%: PV buys durability, not danger, and the
+5-round budget caps it (ARCHITECTURE "Duration is a constraint").
+
+Probes, each changing one thing:
+- **Creatures at their kit size (level 3-4)** instead of 10: 98-100% everywhere
+  — a 6-7 point level gap makes every hero defense hold.
+- **Lower levels, matched (4/6/8)**: still 77-100%. Not a level-10 artefact.
+- **Heroes at 10 holding only cards 1-7** (no finishers): the shirshus become
+  fair (61%), the soldiers 87%, the unagi 100%.
+- **+1, +2, +3 dice on every creature attack**: no change (82-100%). Creature
+  damage is not the bottleneck — their blows do not LAND.
+- A logged fight: Esquivar-los a tots pulls every attack onto the airbender,
+  water guards him, and every blow meets a summed wall of 30-40 (each member
+  adds its level); the finishers then end round 1 (Ira de l'oceà swallowed 68
+  and returned 90 to every soldier).
+
+Creature dice were raised to the fantasy creatures' range (2d6-4d6 attacks,
+3d6-4d6 defenses) as the one numbers-only change; it moved level 4, not 10.
+
+### 43.2 The cause: four finishers decide the fight on their own
+
+Card ablation (patrol, level 10, one card removed at a time): no SINGLE card
+makes the shape fair (90-100% without any of the 40). Removing four together
+does:
+
+| party | patrol | 2 shirshus | mixed line | unagi |
+|---|---|---|---|---|
+| full kit | 89-98% | 81-88% | 94-96% | 100% |
+| without Ira de l'oceà, Ull de l'huracà, Partir la terra, Caiguda de cometa | **62%** | **54%** | **56%** | 100% |
+
+- **Ira de l'oceà scales with the enemy count squared.** It swallows every
+  blow aimed at the party and hits EACH enemy with the sum: one cast swallowed
+  112 and dealt 127 to each of five soldiers (635 damage). Stronger creatures
+  feed it more, so raising the creature level (12, 14, 16, 18) never helped.
+- **Ull de l'huracà, Partir la terra and Caiguda de cometa lock the whole enemy
+  side out of its turn** (every enemy, "lose its action"). A logged fight: Ull
+  in round 1 and again in round 2, the soldiers never act.
+- **Numbers do not brake them.** Fatigue costs of 3 and 4 (and Partir's stun
+  2 → 1) leave the patrol at 100%: one cast in round 1 decides before the
+  price is paid. These need a RULE change (the user's call; proposals in the
+  morning report): e.g. the ocean returns each blow to its own thrower; a
+  lockout lands only on the wounded by a margin, or on one enemy while the
+  damage hits all.
+- **The unagi** stays at 100% even without them — a lone creature's single
+  attack a round cannot threaten four full kits. Its kit needs more per-round
+  threat (a second action, or an area that cannot be guarded).
+
+Creature dice were raised (fantasy range: attacks 2d6-4d6, defenses 3d6-4d6);
+measured above with the new dice.

@@ -60,27 +60,27 @@ const UNAGI_SKILL: SkillDefinition = {
   actions: [
     action({
       id: 'cano-d-aigua', name: "Canó d'aigua", skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 6),
+      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(3, 6),
       effects: [{ type: 'hits_defenders' }],
       desc: "Afecta també tots els qui defensen l'objectiu.",
       icon: 'lorc/water-bolt.svg',
     }),
     action({
       id: 'capbussada', name: 'Capbussada', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 6),
+      unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(4, 6),
       effects: [{ type: 'dive' }],
       desc: 'El torn següent, els seus atacs no es poden defensar.',
       icon: 'delapouite/wave-surfer.svg',
     }),
     action({
       id: 'onada-de-cua', name: 'Onada de cua', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(2, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, speed: 0, dice: d(3, 6), targetCount: 99,
       desc: 'Afecta tots els herois.',
       icon: 'lorc/big-wave.svg',
     }),
     action({
       id: 'engolir', name: 'Engolir', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Atac, speed: -1, dice: d(3, 6),
+      unlock: 4, type: ActionType.Atac, speed: -1, dice: d(4, 6),
       effects: [{ type: 'swallow' }],
       desc: `Si fereix, s'empassa l'objectiu (un alhora): no pot actuar ni ser atacat, perd ${DIGEST} PV al final de cada torn, i surt quan l'unagi perd ${SPIT_THRESHOLD} PV en un torn o cau.`,
       icon: 'delapouite/fish-monster.svg',

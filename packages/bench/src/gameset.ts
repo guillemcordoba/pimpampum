@@ -125,7 +125,9 @@ export interface CharacterBuildSpec {
  *  tough each one ends up is the set's solver's business, not ours. */
 export interface Shape {
   label: string;
-  pool: { enemyId: string; count: number }[];
+  /** `level`: the creatures' kit ordinal — a level enters every roll, so it is
+   *  the fight's danger dial. Omitted, a creature fields its full kit. */
+  pool: { enemyId: string; count: number; level?: number }[];
 }
 
 /**

@@ -112,3 +112,70 @@ returned (10). Healing, ice and the moon sit around it. Concepts by the
 | 8 | Presó de gel | an attacker locked in ice the moment it strikes |
 | 9 | Sang sota la lluna | bloodbending under the full moon |
 | 10 | Ira de l'oceà | the ocean rises, swallows the round and breaks on everyone (costs 2 fatigue levels) |
+
+## Mestre de la terra — `earthbender` (landed 2026-10-07)
+
+*Hung gar: stand, take the blow, answer it with your own weight at the same
+attacker* (water sends the force elsewhere). Threads: stone on the body (1, 4,
+7), the answer (2, 9), the ground that holds the enemy (5, 8, 10), listening (3).
+
+| # | card | what it does |
+|---|---|---|
+| 1 | Guant de pedra | punch; the rock defends you for the rest of the round |
+| 2 | Mur ariet | block; if it holds, ram the attacker with the card's dice |
+| 3 | Sentit sísmic | next round your side chooses after the enemies reveal |
+| 4 | Armadura de roca | +1 armour for the fight, up to +3 |
+| 5 | Sorra movedissa | a wounded target can't play Defenses next turn |
+| 6 | Doblegar el metall | ignores armour; a wound strips it for good |
+| 7 | Cúpula de pedra | a dome over the party that holds until beaten |
+| 8 | Mà de la terra | the target is hurled into another enemy of your choice |
+| 9 | Puny de la muntanya | +1 per attack aimed at you this fight; 1 fatigue |
+| 10 | Partir la terra | every enemy; the wounded lose 2 actions; 2 fatigue |
+
+## Mestre del foc — `firebender` (landed 2026-10-07)
+
+*Northern shaolin: fire uses only its own force and keeps raising it, and
+whatever touches it burns.* One Defensa only: fire does not step back.
+
+| # | card | what it does |
+|---|---|---|
+| 1 | Punys encesos | +2 if you attacked last round |
+| 2 | Escut roent | every attack on whoever you defend costs the attacker 2 PV |
+| 3 | Atiar les brases | your next attack +5 |
+| 4 | Anell de flames | a wounded target burns 3 as the next round opens |
+| 5 | Vol propulsat | the target's allies can't defend it |
+| 6 | Foc blau | ignores armour; the defense −3 |
+| 7 | Esclat del tercer ull | also hits everyone defending the target |
+| 8 | Alè de drac | every enemy, burning next round; 1 fatigue |
+| 9 | Llamp de sang freda | undefendable; wounded first, it strikes you; 1 fatigue |
+| 10 | Caiguda de cometa | fastest; every enemy, no ally guards, the wounded lose next round's action; 2 fatigue |
+
+## Mestre de l'aire — `airbender` (landed 2026-10-07)
+
+*Baguazhang: circle, never meet force, never be where the blow lands.* Threads:
+throwing (1, 5, 9, 10) and evading (3, 4, 7, 8). Card 1 twins the Mestre de la
+Por's first card.
+
+| # | card | what it does |
+|---|---|---|
+| 1 | Palmell d'aire | very fast; a wounded target acts last |
+| 2 | Coixí de vent | the defended ally (and you) can't drop below 1 PV this round |
+| 3 | Patinet d'aire | next round you act first and the first attack on you misses |
+| 4 | Esquivar-los a tots | block every enemy |
+| 5 | Catapulta de vent | a wounded target loses this round's action |
+| 6 | Remolí del mareig | block; the enemy's attacks go at random combatants |
+| 7 | Cop i fuga | after the strike, attacks on you miss this round |
+| 8 | Salt del meteor | untouchable until it lands, then every enemy |
+| 9 | Ull de l'huracà | every enemy; the wounded lose this round's action; 2 fatigue |
+| 10 | Bosc de tornados | every enemy hurled into another; alone, into the ground; 2 fatigue |
+
+## Creatures (landed 2026-10-07)
+
+Each takes a different thing away from a hero.
+
+| creature | shape | takes away | how the heroes beat it |
+|---|---|---|---|
+| Soldat del foc | horde (4-6) | PV, by numbers | kill fast; meet the volley with a wall; interrupt Calar foc |
+| Shirshu | control (2-3) | actions (paralysis) | interrupt the scent; hit hard or not at all (its slobber) |
+| Unagi | lone beast | the guard (its jet goes through) | don't stack guards; 6 PV in one round frees the swallowed |
+| Arquer yuyan | support (1-2 in the line) | defense (pins) | reach the back line; interrupt the signal arrow |

@@ -116,7 +116,7 @@ function partyPrint(companyIdx: number): string {
 }
 
 function poolPrint(shape: Shape): string {
-  return shape.pool.map(p => `${p.count}x${enemyPrint(p.enemyId)}`).join('+');
+  return shape.pool.map(p => `${p.count}x${enemyPrint(p.enemyId)}${p.level !== undefined ? `@L${p.level}` : ''}`).join('+');
 }
 
 /**

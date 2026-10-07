@@ -31,7 +31,7 @@ useSet(SET.gameSet);
 
 const SEARCH_GAMES = searchGames(120);
 
-type Family = { label: string; pool: (n: number) => { enemyId: string; count: number }[]; counts: number[] };
+type Family = { label: string; pool: (n: number) => { enemyId: string; count: number; level?: number }[]; counts: number[] };
 
 /** Candidate counts per shape family, per set. */
 const FANTASY_FAMILIES: Family[] = [
@@ -47,12 +47,12 @@ const FANTASY_FAMILIES: Family[] = [
 
 // A function so the families are only built for the set that has them.
 const elementsFamilies = (): Family[] => [
-  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n }], counts: [3, 4, 5, 6] },
-  { label: 'caçadors (shirshu)', pool: n => [{ enemyId: 'shirshu', count: n }], counts: [1, 2, 3] },
-  { label: 'bèstia (unagi)', pool: n => [{ enemyId: 'unagi', count: n }], counts: [1, 2] },
+  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n, level: 10 }], counts: [3, 4, 5, 6] },
+  { label: 'caçadors (shirshu)', pool: n => [{ enemyId: 'shirshu', count: n, level: 10 }], counts: [1, 2, 3] },
+  { label: 'bèstia (unagi)', pool: n => [{ enemyId: 'unagi', count: n, level: 10 }], counts: [1, 2] },
   {
     label: 'mixt (soldat-del-foc + arquer-yuyan)',
-    pool: n => [{ enemyId: 'soldat-del-foc', count: n }, { enemyId: 'arquer-yuyan', count: 1 }],
+    pool: n => [{ enemyId: 'soldat-del-foc', count: n, level: 10 }, { enemyId: 'arquer-yuyan', count: 1, level: 10 }],
     counts: [2, 3, 4, 5],
   },
 ];
