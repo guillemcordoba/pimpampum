@@ -364,7 +364,7 @@ describe('Soldat del foc', () => {
     expect(hero.currentPV).toBe(30 - 1 - 4);
   });
 
-  it('Calar foc: every hero loses 1 PV at the end of the next two rounds; a second torch does not stack', () => {
+  it('Calar foc: every hero loses 2 PV at the end of the next two rounds; a second torch does not stack', () => {
     const s1 = fighter('S1', [getAction('calar-foc') ?? flat('calar-foc', 0), wait], { pv: 30 });
     const s2 = fighter('S2', [flat('calar-foc', 0), wait], { pv: 30 });
     const hero = fighter('Heroi', [wait], { pv: 30 });
@@ -372,7 +372,7 @@ describe('Soldat del foc', () => {
     playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
     expect(hero.currentPV).toBe(30);
     for (let i = 0; i < 3; i++) playRound(engine, [sel(0, 0, 1), sel(0, 1, 1), sel(1, 0, 0)]);
-    expect(hero.currentPV).toBe(28);
+    expect(hero.currentPV).toBe(26);
   });
 
   it('Foc en formació: +2 for every other soldier playing it this round (+6 at most)', () => {
