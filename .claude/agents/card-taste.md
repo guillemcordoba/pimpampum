@@ -72,6 +72,13 @@ the rubric below, and rewrite whatever fails.
 - **Not vanilla.** The concept is specific and surprising, not the first thing
   anyone would put in the deck (a plain wave, bolt, fireball, rock punch, gust,
   sword slash). A vanilla concept with a clever rule still fails.
+- **The scene test.** Read the title and the card text, then close your
+  eyes: can you SEE the move, and does the effect obviously follow from
+  what you saw? The user rejected Llançar un aliat ("defend an ally; its
+  card resolves first with +N"), Pirueta d'esquer ("a spin; the beaten can
+  only attack you") and Cavalcar l'enemic ("ride it; attacks on you may hit
+  it") because the effect needed explaining. A card whose scene must be
+  narrated to make sense of its rule fails, however clever the rule.
 - **The rule IS the image.** The mechanic acts the fiction out: a push really
   throws someone out of formation, a stolen heart really takes away a power.
   A cool name on a generic effect ("+2 damage") fails.

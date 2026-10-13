@@ -206,3 +206,41 @@ came and the drill grew forever). Verdict: all three kits ready to pick.
   on-wound locks included (net + Urpa could take a whole side's round, §43.4).
 - *For the implementer:* sleep, hanging, the net, riding and the devices all
   need `positionValue`, or the AI measures them as dead.
+
+**Scene-test pass (2026-10-14).** The user could not picture Llançar un
+aliat, Pirueta d'esquer or Cavalcar l'enemic, though they survived four review
+rounds: every card must now pass the scene test (card-taste.md). Redesigns:
+
+*Acrobàcia v5* — the acrobat floors bodies and plays on them. Kit rule **A
+terra**: until the end of next round, attacks against it get +2.
+Escombrada (A: if it wounds, on the ground) · Esquiva i traveta (D: if it
+holds, the attacker on the ground) · Trampolí de mans (F, fast: an ally's next
+attack this round +4) · Puntada d'espagat (A: two enemies) · Tombarella de
+rescat (D: the first ally attacked) · Cavalcar l'enemic (A: if it wounds, next
+round it can't attack you) · Trepitjar caps (A: every enemy; the last, chosen,
+on the ground) · Salt mortal (A, 1 fatiga: height +2/+4/+6; if it's still
+standing you lose that) · Malabars a puntades (A, 1 fatiga: while it wounds,
+again, up to 4; then on the ground) · Capbussó suïcida (A, 2 fatiga: every
+enemy; the wounded on the ground, and you too).
+
+*Punts de pressió v5* — Cop al nervi (A: its next attack half damage) ·
+Tancar la ferida (D: at round's end recover half the PV lost in it) ·
+Despertar la força (F: an ally's or your next attack double damage) · Poder
+apagat (A) · Abraçada paralitzant (D) · Ràfega de dits (A: three attacks; its
+cards only roll dice one round per wound) · Cos titella (A: if it wounds, you
+choose its next attack's target, itself included) · Cop de vida (F) · Toc de
+la mort (A, 1 fatiga: at the end of next round it falls if under half PV) ·
+Tempesta de son (A, 2 fatiga). Cut: Adormir el dolor, Ofegar l'atac.
+
+*Artífex v5* — Bumerang (A) · Parany de molla (D) · Autòmat de corda (F) ·
+Escut viu (A, fast: if it wounds, you haul it in front of you; the next attack
+of another enemy on you this round hits it) · Paraigua d'acer (D: defends every
+ally, but only from attacks that hit you all) · Ballesta sentinella (F: covers
+an ally; shoots its first attacker each round, before the blow; three bolts) ·
+Urpa elevadora (A) · Trepant incansable (A, 1 fatiga: jams on a 1 in 1d6) ·
+Baldufa de ganivets (A, 1 fatiga: every enemy; it passes again each round's
+end with one die less, until it falls) · Colós de butxaca (A, 2 fatiga: lands
+on an enemy and stands before the group, taking every attack on you until it
+falls, then crushes a random enemy). Cut: Escut mastegador, Xarxa de cadenes.
+Device rules cut to two lines: the card stays face up while it works; one of
+each device.
