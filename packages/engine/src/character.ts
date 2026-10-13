@@ -1,6 +1,6 @@
 import { CombatModifier, ModifierDuration } from './modifier.js';
 import { ActionInstance } from './action.js';
-import { ActionDefinition, EquipmentDefinition, SkillInstance } from './types.js';
+import { ActionDefinition, EquipmentDefinition, EquipmentSlot, SkillInstance } from './types.js';
 import { clampFatigue, fatigueRollPenalty, fatigueStateName } from './fatigue.js';
 import type { StatusBehavior, StatusRef } from './status.js';
 
@@ -27,6 +27,13 @@ export interface Guard {
   defender: Character;
   /** The defense action providing the guard (for skill/rollBonus/effects). */
   action: ActionDefinition;
+  /** A defense already rolled: this total contests every attack the guard
+   *  covers, instead of a fresh roll of the action's dice per attack (a blow
+   *  whose one roll is both its attack and its parry). */
+  fixedTotal?: number;
+  /** The guard covers only attacks by this character — raised against one
+   *  opponent's blows, not against everyone's. */
+  onlyAgainst?: Character;
 }
 
 /** Copy a modifier duration (the object form carries mutable countdown state). */
@@ -178,7 +185,11 @@ export class Character {
    */
   remapRefs(source: Character, map: Map<Character, Character>): void {
     const remapGuards = (guards: Guard[]): Guard[] =>
-      guards.map(g => ({ defender: map.get(g.defender) ?? g.defender, action: g.action }));
+      guards.map(g => ({
+        ...g,
+        defender: map.get(g.defender) ?? g.defender,
+        onlyAgainst: g.onlyAgainst ? map.get(g.onlyAgainst) ?? g.onlyAgainst : undefined,
+      }));
     this.guards = remapGuards(source.guards);
     this.blockers = remapGuards(source.blockers);
     for (const [key, entry] of this.statuses) {
@@ -213,6 +224,7 @@ export class Character {
   getRollBonus(skillId: string, kind?: 'attack' | 'defense'): number {
     let bonus = 0;
     for (const eq of this.equipment) {
+      if (!this.bonusesActive(eq)) continue;
       for (const b of eq.rollBonuses) {
         if (b.skillId !== skillId && b.skillId !== '*') continue;
         if (b.kind !== undefined && b.kind !== kind) continue;
@@ -247,6 +259,21 @@ export class Character {
   }
 
   // --- Equipment / derived stats -------------------------------------------
+
+  /** Whether an item's bonuses count for this wearer (`bonusRequires`). */
+  bonusesActive(eq: EquipmentDefinition): boolean {
+    const req = eq.bonusRequires;
+    return !req || this.getSkillLevel(req.skillId) >= req.level;
+  }
+
+  /** The wielded weapon's attack modifier — 0 while its `bonusRequires` is
+   *  unmet — or undefined when unarmed (a +0 weapon still counts as armed). */
+  getWeaponAttackBonus(): number | undefined {
+    for (const e of this.equipment) {
+      if (e.slot === EquipmentSlot.Weapon && e.attackBonus !== undefined) return this.bonusesActive(e) ? e.attackBonus : 0;
+    }
+    return undefined;
+  }
 
   getPassiveArmor(): number {
     let armor = this.equipment.reduce((s, e) => s + e.passiveArmor, 0);

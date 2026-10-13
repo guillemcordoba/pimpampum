@@ -1,5 +1,6 @@
 import { type ActionDefinition, ActionType, EquipmentDefinition, EquipmentSlot } from '@pimpampum/engine';
 import { action, d } from '../types.js';
+import { kitNeedsWeapon, needsWeapon, weaponFor, WEAPONS } from '@pimpampum/set-common';
 
 const ICON = 'icons/000000/transparent/1x1/';
 
@@ -37,27 +38,8 @@ export const ALL_EQUIPMENT: EquipmentDefinition[] = [
     iconPath: ICON + 'willdabeast/round-shield.svg', slotLabel: 'Escut',
     description: '',
   },
-  {
-    id: 'destral', name: 'Destral', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
-    attackBonus: 2,
-    iconPath: ICON + 'delapouite/sharp-axe.svg', slotLabel: 'Arma',
-    description: '',
-  },
-  {
-    id: 'basto', name: 'Bastó', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
-    attackBonus: 0,
-    iconPath: ICON + 'delapouite/bo.svg', slotLabel: 'Arma',
-    description: '',
-  },
-  {
-    id: 'gran-destral', name: 'Gran destral', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 1, rollBonuses: [],
-    attackBonus: 4,
-    iconPath: ICON + 'delapouite/war-axe.svg', slotLabel: 'Arma',
-    description: '',
-  },
+  // The weapons are shared by every set (@pimpampum/set-common).
+  ...WEAPONS,
 ];
 
 const equipIndex = new Map(ALL_EQUIPMENT.map(e => [e.id, e]));
@@ -69,29 +51,19 @@ export function getEquipment(id: string): EquipmentDefinition | undefined {
 /** Passive-armour value → the Armor item that provides it. */
 const ARMOR_BY_VALUE: Record<number, string | null> = { 0: null, 1: 'armadura-de-cuir', 2: 'armadura-de-ferro' };
 
-/** Does this card roll the WIELDED weapon? Without one it is unplayable. */
-export function needsWeapon(card: ActionDefinition): boolean {
-  return card.effects.some(e => e.type === 'weapon_damage');
-}
-
-/** Does a kit hold any card that needs a weapon? */
-export function kitNeedsWeapon(kit: { actions: ActionDefinition[] }): boolean {
-  return kit.actions.some(needsWeapon);
-}
+export { needsWeapon, kitNeedsWeapon };
 
 /**
  * THE GEAR A HERO IS GIVEN so every card in their kits actually works: the
  * shield (it is the universal defense card), the armour for `armor` (0-2,
- * clamped), and the MID weapon whenever a kit needs one — the bastó would hand
- * a weapon kit the worst weapon by accident, and no weapon at all is a dead
- * hand. One definition, because it used to be spelt out in five places (the
- * drawn party, the reference hero, the web app's hero builder, its roster
- * check and its quick-hero helper) that could drift apart.
+ * clamped), and the mid weapon whenever a kit needs one (`weaponFor`). One
+ * definition, because it used to be spelt out in five places (the drawn
+ * party, the reference hero, the web app's hero builder, its roster check and
+ * its quick-hero helper) that could drift apart.
  */
 export function standardGear(kits: { actions: ActionDefinition[] }[], armor: number): string[] {
   const gear = ['escut'];
   const armour = ARMOR_BY_VALUE[Math.max(0, Math.min(2, Math.round(armor)))];
   if (armour) gear.push(armour);
-  if (kits.some(kitNeedsWeapon)) gear.push('destral');
-  return gear;
+  return [...gear, ...weaponFor(kits)];
 }

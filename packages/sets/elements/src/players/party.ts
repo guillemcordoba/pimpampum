@@ -65,7 +65,7 @@ function drawSkills(levels: number): Record<string, number> {
 export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = PLAYER_PV, fatigue = 0): Character {
   const skills = drawSkills(levels);
   const chosen = ALL_SKILLS.filter(s => skills[s.id] !== undefined);
-  const equipment = standardGear(armor);
+  const equipment = standardGear(chosen, armor);
   return buildCharacter({
     name,
     classCss: chosen[0]?.classCss ?? 'aire',

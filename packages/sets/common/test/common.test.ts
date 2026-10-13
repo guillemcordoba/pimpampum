@@ -6,16 +6,21 @@ import { COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
 import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from '../src/bench/index.js';
 
 describe('Esgrima', () => {
-  it('keeps the weapon master id and its five cards, in order', () => {
+  it('keeps the weapon master id, and its ten cards in order', () => {
     expect(MESTRE_ARMES.id).toBe('mestre-armes');
     expect(MESTRE_ARMES.displayName).toBe('Esgrima');
     expect(MESTRE_ARMES.classCss).toBe('mestre-armes');
     expect(MESTRE_ARMES.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
-      ['atac-llampec', 1, ActionType.Atac],
-      ['contraatac', 2, ActionType.Defensa],
-      ['tall-precis', 3, ActionType.Atac],
-      ['estat-de-flux', 4, ActionType.Focus],
-      ['atac-encadenat', 5, ActionType.Atac],
+      ['finta-traidora', 1, ActionType.Atac],
+      ['retruc-d-acer', 2, ActionType.Defensa],
+      ['guardia-camaleo', 3, ActionType.Focus],
+      ['bufetada-insolent', 4, ActionType.Atac],
+      ['bloqueig-d-escorpi', 5, ActionType.Defensa],
+      ['brac-mort', 6, ActionType.Defensa],
+      ['bardissa-d-acer', 7, ActionType.Atac],
+      ['punt-feble', 8, ActionType.Focus],
+      ['estocada-fantasma', 9, ActionType.Atac],
+      ['tall-rere-tall', 10, ActionType.Atac],
     ]);
     expect(MESTRE_ARMES.actions.every(a => a.skillId === 'mestre-armes')).toBe(true);
   });

@@ -12,6 +12,15 @@ export { action, d, ICON_PREFIX } from './types.js';
 export * from './effects/helpers.js';
 export { COMMON_EFFECTS } from './effects/index.js';
 export { MESTRE_ARMES } from './skills/esgrima.js';
+export { WEAPONS, needsWeapon, kitNeedsWeapon, weaponFor } from './equipment.js';
+
+/** Shared cards the AI cannot play by construction, with why — each set that
+ *  fields them spreads this into its calibration's `aiBlindCards`. */
+export const COMMON_AI_BLIND_CARDS: Readonly<Record<string, string>> = {
+  'guardia-camaleo': 'grants post-reveal card swaps. The AI commits blind and never '
+    + 'swaps, so the card is worth exactly nothing to it and everything to a player '
+    + 'who can see the reveal. Its own handler already says so (aiWeight 0.2).',
+};
 
 import { MESTRE_ARMES } from './skills/esgrima.js';
 import type { SkillDefinition } from './types.js';

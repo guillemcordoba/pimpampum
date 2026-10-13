@@ -1,4 +1,4 @@
-import { CombatModifier, ModifierDuration, DiceRoll, Character, EffectContext, EquipmentSlot } from '@pimpampum/engine';
+import { CombatModifier, ModifierDuration, DiceRoll, Character, EffectContext } from '@pimpampum/engine';
 
 // --- Param readers ----------------------------------------------------------
 
@@ -80,13 +80,11 @@ export function applyMod(c: Character, kind: ModKind, amount: number, d: Duratio
 // --- Weapons ----------------------------------------------------------------
 
 /** Attack modifier of the wielded main-hand weapon, or undefined if unarmed
- *  (a +0 weapon still counts as armed). Used by the generic weapon mechanic
- *  (any weapon-using skill: Weapon Master, Berserk…). */
+ *  (a +0 weapon still counts as armed; a weapon whose `bonusRequires` the
+ *  wielder does not meet counts at +0). Used by the generic weapon mechanic
+ *  (any weapon-using skill: Esgrima, Berserk…). */
 export function wieldedWeaponBonus(c: Character): number | undefined {
-  for (const e of c.equipment) {
-    if (e.slot === EquipmentSlot.Weapon && e.attackBonus !== undefined) return e.attackBonus;
-  }
-  return undefined;
+  return c.getWeaponAttackBonus();
 }
 
 // NOTE: there is deliberately NO shared "save contest" helper here. Cards that

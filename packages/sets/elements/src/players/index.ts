@@ -6,7 +6,7 @@ export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 
 // Equipment
-export { ALL_EQUIPMENT, getEquipment, standardGear } from './equipment.js';
+export { ALL_EQUIPMENT, getEquipment, needsWeapon, kitNeedsWeapon, standardGear } from './equipment.js';
 
 // The universal desperation fallback (always in every hand)
 export { COP_DESESPERAT } from './desperation.js';

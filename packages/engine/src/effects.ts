@@ -14,6 +14,24 @@ export interface ActionEvent {
   targets: Character[];
 }
 
+export interface ExtraAttackOptions {
+  skillId?: string;
+  rollBonus?: number;
+  ignoreArmor?: boolean;
+  /** Nobody can defend it: the target's guards and walls are passed over
+   *  (unless a status on the target vetoes the bypass, as for any feint). */
+  ignoreDefense?: boolean;
+  label?: string;
+}
+
+/** How an extra attack went: whether it got through (`hit`) and the PV the
+ *  recipient lost (`damage`, after armour — a "wound" when above zero). An
+ *  attack that never happened (dead or unreachable target) is a miss for 0. */
+export interface ExtraAttackResult {
+  hit: boolean;
+  damage: number;
+}
+
 /**
  * The slice of the combat engine that effect handlers are allowed to touch.
  * Implemented by CombatEngine and passed to handlers via EffectContext so that
@@ -53,9 +71,10 @@ export interface EngineApi {
    * Perform an extra attack outside the normal turn order (action surge, summons,
    * counter-attacks) with the given attack dice. Resolves against the target's
    * active defense if any; the damage is the margin (minus armour). A blocked
-   * source is NOT re-forced here — the scripted target stands.
+   * source is NOT re-forced here — the scripted target stands. Returns how it
+   * went, so a chain of blows can stop at the first that does not wound.
    */
-  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts?: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string }): void;
+  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts?: ExtraAttackOptions): ExtraAttackResult;
 
   /** Add a freshly created combatant to a team mid-combat (summons). */
   addCombatant(team: number, c: Character): void;
@@ -200,6 +219,17 @@ export interface EffectHandler {
   /** Run when the round's cards are revealed, before anything resolves (a
    *  leap that takes its maker out of reach from the very start of the round). */
   onReveal?(ctx: EffectContext): void;
+  /** The action picks its targets when the cards are revealed, not when it
+   *  resolves: before anything resolves, an AI seat aims it and a human seat
+   *  is prompted (a blow whose aim matters from the very start of the round). */
+  aimsAtReveal?(params: Record<string, unknown>): boolean;
+  /** Run once an `aimsAtReveal` action has its targets, before anything
+   *  resolves (`ctx.targets` holds them). */
+  onAimed?(ctx: EffectContext): void;
+  /** The dice of this attack were already rolled (at the reveal, say): return
+   *  that roll and the first pass uses it instead of rolling. Bonuses are
+   *  added as usual. Return nothing to roll normally. */
+  presetAttackRoll?(ctx: EffectContext): number | void;
 }
 
 /** Registry mapping effect type keys to their handlers. (Status behaviours

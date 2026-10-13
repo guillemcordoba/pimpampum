@@ -16,7 +16,7 @@ export { skillLevelBonus, resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_M
 
 // Effects registry
 export { EffectRegistry, newAttackModifiers } from './effects.js';
-export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext, ActionEvent } from './effects.js';
+export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext, ActionEvent, ExtraAttackOptions, ExtraAttackResult } from './effects.js';
 
 // Status behaviours
 export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';

@@ -26,16 +26,20 @@ export const SHAPES: Shape[] = [
   { label: 'mixt', pool: [{ enemyId: 'soldat-del-foc', count: 4, level: CREATURE_LEVEL }, { enemyId: 'arquer-yuyan', count: 1, level: CREATURE_LEVEL }] },
 ];
 
-/** Ally rows: three of the four kits each, every kit in three rows. */
+/** Ally rows: three kits each — the four elements three to a row, every one
+ *  of them in three rows, and Esgrima in a fifth beside water and fire. */
 export const COMPANY: string[][] = [
   ['earthbender', 'firebender', 'airbender'],
   ['waterbender', 'firebender', 'airbender'],
   ['waterbender', 'earthbender', 'airbender'],
   ['waterbender', 'earthbender', 'firebender'],
+  // Esgrima, shared with the fantasy set (2026-10-13).
+  ['mestre-armes', 'waterbender', 'firebender'],
 ];
 
-/** The stand-in per company row — the one kit that row leaves out. */
-export const CALIBRATION_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender'];
+/** The stand-in per company row — the one element that row leaves out (the
+ *  Esgrima row leaves out two; earth stands in). */
+export const CALIBRATION_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender', 'earthbender'];
 
 /** Creatures no SHAPE fields, and why. */
 export const UNFIELDED_ENEMIES: Record<string, string> = {};

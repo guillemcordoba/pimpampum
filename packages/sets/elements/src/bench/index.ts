@@ -23,6 +23,7 @@ import {
   actionPrint, type GameSet, type KitInfo, type PartySpec, type SubjectKit,
 } from '@pimpampum/bench';
 import { COMMON_SKILLS_DIR, COMMON_SRC } from '@pimpampum/set-common/bench';
+import { COMMON_AI_BLIND_CARDS } from '@pimpampum/set-common';
 import {
   ALL_SKILLS, buildComposition, buildReferenceParty, createRegistry, ENEMY_DEFINITIONS, fullKitLevel,
   getEnemy, getSkill, PLAYER_PV, registerSkill, solveEncounter,
@@ -175,7 +176,7 @@ export const ELEMENTS: GameSet = {
     maxAvgRounds: MAX_AVG_ROUNDS,
     saturation: SATURATION,
     mainKits: MAIN_KITS.map(s => s.id),
-    aiBlindCards: {},
+    aiBlindCards: { ...COMMON_AI_BLIND_CARDS },
   },
 
   installKit(subject: SubjectKit): () => void {

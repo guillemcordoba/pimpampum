@@ -4,11 +4,11 @@ import { Character, Guard, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
-  EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent,
+  EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent, ExtraAttackOptions, ExtraAttackResult,
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
 import { resolveAttack, checkSkillUp, skillLevelBonus } from './resolution.js';
-import { AIView, PendingSummary, availableActionIndices } from './policy.js';
+import { AIView, PendingSummary, availableActionIndices, typeBlocked } from './policy.js';
 
 export interface LogEntry {
   kind: string;
@@ -138,7 +138,7 @@ export interface CombatEngineOptions {
   targetChooser?: TargetChooser;
 }
 
-const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal'] as const;
+const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal', 'onAimed'] as const;
 type HookName = typeof HOOKS[number];
 
 export class CombatEngine implements EngineApi, AIView {
@@ -203,6 +203,9 @@ export class CombatEngine implements EngineApi, AIView {
   /** What the first choosers committed this round, by seat — read by those who
    *  choose after the reveal (revealedPlanFor). */
   private revealedPlan: { team: number; idx: number; actionIdx: number }[] = [];
+  /** The queued card a target prompt is for when it aims at the reveal (null:
+   *  any prompt is for the card resolving now). */
+  private aimingIdx: number | null = null;
   /**
    * A round has BEGUN and not yet finished — `prepareRound` has run and the
    * engine is waiting for cards.
@@ -297,6 +300,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
     e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
     e.revealedPlan = this.revealedPlan.map(s => ({ ...s }));
+    e.aimingIdx = this.aimingIdx;
     // Carried, or the clone cannot tell an already-begun round from a fresh
     // one — which is the whole point of the flag for the lookahead.
     e.roundPrepared = this.roundPrepared;
@@ -434,14 +438,17 @@ export class CombatEngine implements EngineApi, AIView {
     if (gained > 0) this.log('heal', `${target.name} recupera ${gained} PV.`, target.team);
   }
 
-  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts: { skillId?: string; rollBonus?: number; ignoreArmor?: boolean; label?: string } = {}): void {
-    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return;
+  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts: ExtraAttackOptions = {}): ExtraAttackResult {
+    const missed: ExtraAttackResult = { hit: false, damage: 0 };
+    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return missed;
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
     const atkRoll = this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
-    const guards = this.activeGuards(target, source);
+    const bypass = this.bypassesDefense(source, target, !!opts.ignoreDefense);
+    const penalty = this.defensePenaltyOn(target, source);
+    const guards = bypass ? [] : this.activeGuards(target, source);
     const guard = guards.length === 1 ? guards[0] : null;
     let recipient = target;
     let hit = true;
@@ -449,17 +456,16 @@ export class CombatEngine implements EngineApi, AIView {
     if (guards.length >= 2) {
       // Defensa conjunta: extra attacks contest the summed wall too.
       const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, guards, attackTotal);
-      if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}`, source.team);
-      ({ hit, margin } = resolveAttack(adjustedAttacker, sum));
+      if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${penalty ? ` −${penalty}` : ''}`, source.team);
+      ({ hit, margin } = resolveAttack(adjustedAttacker, Math.max(0, sum - penalty)));
       if (hit) { if (checkSkillUp(margin)) for (const g of guards) g.defender.raiseSkill(g.action.skillId); }
       else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
       recipient = weak.g.defender;
-      if (!hit) { this.log('defense', `🛡️ El mur atura ${label}.`, recipient.team); return; }
+      if (!hit) { this.log('defense', `🛡️ El mur atura ${label}.`, recipient.team); return missed; }
     } else if (guard) {
       const defender = guard.defender;
-      const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + skillLevelBonus(defender, guard.action);
-      let defenderTotal = Math.max(0, defRoll + defBonus);
+      const { roll: defRoll, bonus: defBonus } = this.rollGuard(guard);
+      let defenderTotal = Math.max(0, defRoll + defBonus - penalty);
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       defenderTotal = this.adjustContestTotal(defender, defenderTotal, adjustedAttacker, 'defense');
       const defArmor = opts.ignoreArmor ? 0 : defender.getPassiveArmor();
@@ -469,7 +475,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (hit) { if (checkSkillUp(margin)) defender.raiseSkill(guard.action.skillId); }
       else if (skillId && checkSkillUp(-margin)) source.raiseSkill(skillId);
       recipient = defender;
-      if (!hit) { this.log('defense', `🛡️ ${recipient.name} «${guard.action.name}» atura ${label}.`, recipient.team); return; }
+      if (!hit) { this.log('defense', `🛡️ ${recipient.name} «${guard.action.name}» atura ${label}.`, recipient.team); return missed; }
     } else {
       const tgtArmor = opts.ignoreArmor ? 0 : target.getPassiveArmor();
       if (!this.silent) this.log('roll', `🎲 ${label}: atac ${this.fmtContestSide(atkRoll, atkBonus, attackTotal)} — ${target.name} no es defensa${tgtArmor > 0 ? ` (${tgtArmor} armadura)` : ''}`, source.team);
@@ -481,6 +487,47 @@ export class CombatEngine implements EngineApi, AIView {
     // Only real damage interrupts a pending focus (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
+    return { hit: true, damage: dmg };
+  }
+
+  /** Whether an attack by `source` on `target` passes over every defense:
+   *  undefendable by its own nature (`ignoreDefense`) or because a status on
+   *  the target opened its guard to this attacker (`opensGuardTo`, asked only
+   *  when the blow could otherwise be defended, so a one-shot opening is not
+   *  spent on a blow that needed none) — and not vetoed (`preventsGuardBypass`). */
+  private bypassesDefense(source: Character, target: Character, ignoreDefense: boolean): boolean {
+    // Walks the statuses directly, like isUntargetable: asked for every blow,
+    // and almost always of a target holding no such status.
+    let bypass = ignoreDefense;
+    if (!bypass) {
+      for (const [key, entry] of target.statuses) {   // deleting while iterating a Map is safe
+        if (entry.behavior?.opensGuardTo?.(this.statusCtx(target, key, entry), source)) { bypass = true; break; }
+      }
+    }
+    if (!bypass) return false;
+    for (const [key, entry] of target.statuses) {
+      if (entry.behavior?.preventsGuardBypass?.({ holder: target, key, entry })) return false;
+    }
+    return true;
+  }
+
+  /** Sum of `defensePenaltyAgainst` over the target's statuses, for `attacker`. */
+  private defensePenaltyOn(target: Character, attacker: Character): number {
+    let penalty = 0;
+    for (const [key, entry] of target.statuses) {
+      const f = entry.behavior?.defensePenaltyAgainst;
+      if (f) penalty += f({ holder: target, key, entry }, attacker);
+    }
+    return penalty;
+  }
+
+  /** One guard's defense roll: a fresh roll of its action's dice plus its
+   *  bonuses — or, for a guard already rolled (`fixedTotal`), that total. */
+  private rollGuard(g: Guard): { roll: number; bonus: number } {
+    if (g.fixedTotal !== undefined) return { roll: g.fixedTotal, bonus: 0 };
+    const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
+    const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
+    return { roll, bonus };
   }
 
   addCombatant(team: number, c: Character): void {
@@ -508,7 +555,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (ref.entry.behavior?.preventsGuard?.(ref)) return [];
       if (attacker && ref.entry.behavior?.excludesAllyGuards?.(ref, attacker)) keepOwn = true;
     }
-    const living = target.guards.filter(g => g.defender.isAlive());
+    const living = target.guards.filter(g => g.defender.isAlive() && (!g.onlyAgainst || g.onlyAgainst === attacker));
     return keepOwn ? living.filter(g => g.defender === target) : living;
   }
 
@@ -554,9 +601,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (!action) return false;
     if (!action.isAvailable() || c.isActionSetAside(actionIdx)) return false;
     if ((c.skills.get(action.def.skillId) ?? 0) < action.def.unlockLevel) return false;
-    for (const ref of c.statusRefs()) {
-      if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
-    }
+    if (typeBlocked(action.def, c)) return false;
     for (const eff of action.def.effects) {
       const fn = this.registry.getHandler(eff.type)?.canPlay;
       if (fn && !fn(c, eff.params ?? {})) return false;
@@ -603,9 +648,26 @@ export class CombatEngine implements EngineApi, AIView {
     return eligible.length === 1 ? eligible : null;
   }
 
+  /** An attack's target pool as the actor's statuses allow it: only the
+   *  characters every `attackTargetsOnly` status names (a taunt), when any of
+   *  them is in the pool; the whole pool otherwise. */
+  private narrowAttackPool(actor: Character, pool: Character[]): Character[] {
+    let only: Character[] | null = null;
+    for (const [key, entry] of actor.statuses) {
+      const named = entry.behavior?.attackTargetsOnly?.(this.statusCtx(actor, key, entry));
+      if (named && named.length) only = only ? only.filter(c => named.includes(c)) : [...named];
+    }
+    if (!only) return pool;
+    const kept = pool.filter(c => only!.includes(c));
+    return kept.length ? kept : pool;
+  }
+
   /** Eligible targets for an action's requirement (healing includes downed allies). */
   private eligibleTargets(actor: Character, def: ActionDefinition, req: TargetRequirement): Character[] {
-    if (req === 'enemy') return this.enemiesOf(actor);
+    if (req === 'enemy') {
+      const pool = this.enemiesOf(actor);
+      return def.actionType === ActionType.Atac ? this.narrowAttackPool(actor, pool) : pool;
+    }
     if (req === 'self') return [actor];
     // Defense dual choice: an ally to guard (self included) or an enemy to block.
     if (req === 'defense') return [...this.alliesOf(actor, true), ...this.enemiesOf(actor)];
@@ -705,6 +767,15 @@ export class CombatEngine implements EngineApi, AIView {
     this.pending = built;
     this.pendingIndex = 0;
     this.tierSpeed = null;
+    this.aimingIdx = null;
+    // Cards that aim at the reveal: a seat that already named its targets has
+    // aimed; an AI seat aims now. A human seat that did not is prompted before
+    // anything resolves (`aimAtReveal` in resolveNextAction).
+    built.forEach((p, i) => {
+      if (!this.aimsAtReveal(p.action.def)) return;
+      if (p.targets === null && p.actor.aiControlled) this.aimNow(i);
+      else if (p.targets !== null) this.dispatchAimed(p);
+    });
     // The cards are face up: effects that act at the reveal act now.
     for (const p of built) this.dispatch('onReveal', p.actor, p.action.def, { targets: p.targets ?? [] });
 
@@ -832,6 +903,10 @@ export class CombatEngine implements EngineApi, AIView {
 
     this.spendCardSwapCharge(actor);
 
+    // A card swapped away takes back any guard it raised at the reveal.
+    const old = p.action.def;
+    for (const c of this.allCombatants()) c.guards = c.guards.filter(g => !(g.defender === actor && g.action === old));
+
     p.action = newAction;
     p.speed = actor.getEffectiveSpeed(newAction);
     p.targets = null;
@@ -846,8 +921,87 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Set targets for the action currently awaiting resolution (after a 'target' prompt). */
   setResolveTarget(targets: TargetRef[]): void {
+    if (this.aimingIdx !== null) {
+      // The prompt was for a card that aims at the reveal.
+      const p = this.pending[this.aimingIdx];
+      this.aimingIdx = null;
+      if (!p) return;
+      p.targets = targets.map(t => this.resolveRef(t));
+      this.dispatchAimed(p);
+      return;
+    }
     const cur = this.pending[this.pendingIndex];
     if (cur) cur.targets = targets.map(t => this.resolveRef(t));
+  }
+
+  /** Whether any of the card's effects aims it at the reveal. */
+  private aimsAtReveal(def: ActionDefinition): boolean {
+    return def.effects.some(e => this.registry.getHandler(e.type)?.aimsAtReveal?.(e.params ?? {}) ?? false);
+  }
+
+  /** Aim the queued card at `i` without asking anyone (an AI seat, or a pool
+   *  with no choice in it), then let its effects see where it aims. */
+  private aimNow(i: number): void {
+    const p = this.pending[i];
+    const def = p.action.def;
+    const req = getActionTargetRequirement(def, this.registry);
+    const count = getActionTargetCount(def);
+    if (req === 'none') {
+      p.targets = [];
+    } else {
+      const pool = this.eligibleTargets(p.actor, def, req);
+      p.targets = count >= pool.length
+        ? pool
+        : this.inSeatStream(this.actStream(p.actor), () => this.autoTargets(p.actor, def, req, count, p.speed));
+    }
+    this.dispatchAimed(p);
+  }
+
+  /** onAimed for a card that has just aimed — in its actor's own stream, as
+   *  its resolution will be (whatever it rolls now is that card's roll). */
+  private dispatchAimed(p: PendingAction): void {
+    this.inSeatStream(this.actStream(p.actor), () => this.dispatch('onAimed', p.actor, p.action.def, { targets: p.targets ?? [] }));
+  }
+
+  /** Before anything resolves, every card that aims at the reveal must have
+   *  its targets: aim the ones that need no human, prompt for the first that
+   *  does. Null once all have aimed. */
+  private aimAtReveal(): StepResult | null {
+    if (this.pendingIndex !== 0 || this.tierSpeed !== null) return null;
+    for (let i = 0; i < this.pending.length; i++) {
+      const p = this.pending[i];
+      if (p.targets !== null || p.cancelled || !p.actor.isAlive() || !this.aimsAtReveal(p.action.def)) continue;
+      const req = getActionTargetRequirement(p.action.def, this.registry);
+      const count = getActionTargetCount(p.action.def);
+      if (req === 'none' || p.actor.aiControlled || count >= this.eligibleTargets(p.actor, p.action.def, req).length) {
+        this.aimNow(i);
+        continue;
+      }
+      this.aimingIdx = i;
+      return {
+        kind: 'target',
+        prompt: {
+          actorTeam: p.actor.team,
+          actorIdx: this.teams[p.actor.team].indexOf(p.actor),
+          actorName: p.actor.name,
+          actionName: p.action.def.name,
+          requirement: req,
+          count,
+          canReviveTarget: !!p.action.def.canReviveTarget,
+        },
+      };
+    }
+    return null;
+  }
+
+  /** The roll an attack's effects already made for it (`presetAttackRoll`), if any. */
+  private presetAttackRoll(actor: Character, def: ActionDefinition, targets: Character[]): number | undefined {
+    for (const eff of def.effects) {
+      const fn = this.registry.getHandler(eff.type)?.presetAttackRoll;
+      const roll = fn?.(this.ctx(actor, def, eff.params ?? {}, { targets }));
+      if (typeof roll === 'number') return roll;
+    }
+    return undefined;
   }
 
   /**
@@ -856,6 +1010,8 @@ export class CombatEngine implements EngineApi, AIView {
    */
   resolveNextAction(): StepResult {
     if (this.pendingIndex >= this.pending.length) return { kind: 'done' };
+    const aiming = this.aimAtReveal();
+    if (aiming) return aiming;
     const cur = this.pending[this.pendingIndex];
 
     // Entering a new speed tier: snapshot living set + focus interruption state.
@@ -1013,7 +1169,7 @@ export class CombatEngine implements EngineApi, AIView {
           list = (targets.length ? targets : [forced]).map(() => forced);
         } else {
           const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
-          list = valid.length ? valid : this.enemiesOf(actor).slice(0, 1);
+          list = valid.length ? valid : this.narrowAttackPool(actor, this.enemiesOf(actor)).slice(0, 1);
         }
         list = this.applyTargetRedirects(actor, list);
         this.history.push({ round: this.round, actor, action: action.def, targets: [...list] });
@@ -1021,7 +1177,7 @@ export class CombatEngine implements EngineApi, AIView {
         // roll — unless the action declares rollPerTarget (fragmentation:
         // fresh attack dice against each target).
         const perTarget = !!action.def.rollPerTarget;
-        let baseRoll = perTarget ? 0 : this.rollDiceFor(actor, action.def.dice, 'attack');
+        let baseRoll = perTarget ? 0 : (this.presetAttackRoll(actor, action.def, list) ?? this.rollDiceFor(actor, action.def.dice, 'attack'));
         for (const t of list) {
           if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
           this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
@@ -1210,10 +1366,10 @@ export class CombatEngine implements EngineApi, AIView {
     // status on the target vetoes the bypass (seismic awareness & co.).
     // A status on the attacker can make the blow undefendable too (a beast that
     // surfaces where nobody saw it dive).
-    const ignoreDefense = mods.ignoreDefense || !!statusMods.ignoreDefense;
-    const feintBlocked = ignoreDefense
-      && target.statusRefs().some(ref => ref.entry.behavior?.preventsGuardBypass?.(ref));
-    const bypass = ignoreDefense && !feintBlocked;
+    // A status on the target may have opened its guard to this attacker, too.
+    const bypass = this.bypassesDefense(source, target, mods.ignoreDefense || !!statusMods.ignoreDefense);
+    // A weak spot the attacker's side found weakens whatever defends it.
+    mods.defensePenalty += this.defensePenaltyOn(target, source);
     // Defensa conjunta: when several defenses cover the same attack — a wall
     // of blockers this attack was forced onto, or 2+ guards on the target
     // (the target's own self-guard included) — they contest jointly with the
@@ -1249,8 +1405,7 @@ export class CombatEngine implements EngineApi, AIView {
       this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» aguanta el cop sencer.`, guard.defender.team);
     } else if (guard) {
       const defender = guard.defender;
-      const defRoll = this.rollDiceFor(defender, guard.action.dice, 'defense');
-      const defBonus = (guard.action.rollBonus ?? 0) + defender.getRollBonus(guard.action.skillId, 'defense') + skillLevelBonus(defender, guard.action);
+      const { roll: defRoll, bonus: defBonus } = this.rollGuard(guard);
       let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
@@ -1370,8 +1525,7 @@ export class CombatEngine implements EngineApi, AIView {
     const absorbs = (g: Guard) => g.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref));
     const rolls = wall.map(g => {
       if (absorbs(g)) return { g, total: 0, absorbing: true };
-      const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
-      const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
+      const { roll, bonus } = this.rollGuard(g);
       return { g, total: Math.max(0, roll + bonus), absorbing: false };
     });
     const rawSum = rolls.reduce((s, r) => s + r.total, 0);

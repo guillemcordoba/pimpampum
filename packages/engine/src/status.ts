@@ -72,6 +72,10 @@ export interface StatusBehavior {
   clampPvLoss?(ref: StatusRef, amount: number): number;
   /** Added to attack dice totals AGAINST the holder (marks, exposures). */
   attackRollAgainstHolder?(ref: StatusRef): number;
+  /** Defenses contesting `attacker`'s blows on the holder count this much less
+   *  (a weak spot the attacker's side has found). Added to the attack's
+   *  `defensePenalty`, so it does nothing to an undefended holder. */
+  defensePenaltyAgainst?(ref: StatusRef, attacker: Character): number;
   /** The holder cannot benefit from any guard. */
   preventsGuard?(ref: StatusRef): boolean;
   /** Against `attacker`, the holder's ALLIES cannot guard it — only its own
@@ -134,6 +138,17 @@ export interface StatusBehavior {
   onAttackAction?(ctx: StatusHookContext): AttackStatusMods | void;
   /** Redirect one intended target of the holder's attack (scatter effects). */
   redirectAttackTarget?(ctx: StatusHookContext, intended: Character): Character;
+  /** The holder's attack cards may only aim at these characters (a taunt).
+   *  Narrows the pool an attack picks its targets from — area attacks
+   *  included, so they land once, on them — whenever at least one of them is
+   *  a legal target; otherwise the holder aims freely. A block still forces
+   *  the attack onto the blocker first. */
+  attackTargetsOnly?(ctx: StatusHookContext): Character[] | void;
+  /** An attack by `attacker` on the holder cannot be defended — an opening
+   *  that attacker made. Asked once per blow that could otherwise be defended,
+   *  so a one-shot opening may consume itself here. Vetoed, like every
+   *  undefendable blow, by `preventsGuardBypass`. */
+  opensGuardTo?(ctx: StatusHookContext, attacker: Character): boolean;
   /** An enemy of the holder is executing an attack action (hazards, traps).
    *  Return true when this hazard consumed the attack's hazard check — the
    *  engine stops checking further hazards for this attack. */

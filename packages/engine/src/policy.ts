@@ -17,7 +17,7 @@
  */
 import { Character } from './character.js';
 import { ActionInstance } from './action.js';
-import { ActionType } from './types.js';
+import { ActionType, type ActionDefinition } from './types.js';
 import { EffectRegistry } from './effects.js';
 
 /** Reveal-level summary of one queued action this round. */
@@ -51,12 +51,27 @@ function pvFraction(c: Character): number {
   return c.maxPV > 0 ? c.currentPV / c.maxPV : 0;
 }
 
+/**
+ * Whether a status forbids the card's type right now (`blocksActionType`).
+ *
+ * Never a desperation fallback (`lastResort`): it exists for exactly the hand
+ * whose every card is consumed OR BLOCKED (rules.md), so a lock on its type
+ * must not take it too — a hand of attacks under a "no Atacs" lock used to
+ * have nothing legal at all, and the engine's floor played its first, locked,
+ * card anyway.
+ */
+export function typeBlocked(def: ActionDefinition, actor: Character): boolean {
+  if (def.lastResort) return false;
+  for (const ref of actor.statusRefs()) {
+    if (ref.entry.behavior?.blocksActionType?.(ref, def.actionType)) return true;
+  }
+  return false;
+}
+
 /** Whether every effect on an action permits playing it now (resource gates)
  *  and no status on the actor blocks the action's type. */
 export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
-  for (const ref of actor.statusRefs()) {
-    if (ref.entry.behavior?.blocksActionType?.(ref, action.def.actionType)) return false;
-  }
+  if (typeBlocked(action.def, actor)) return false;
   for (const eff of action.def.effects) {
     const fn = registry.getHandler(eff.type)?.canPlay;
     if (fn && !fn(actor, eff.params ?? {})) return false;

@@ -112,6 +112,13 @@ export interface EquipmentDefinition {
    */
   attackBonus?: number;
   /**
+   * The item's bonuses (`attackBonus`, `rollBonuses`) count only while the
+   * wearer has this skill at this level or more; below it the item is still
+   * carried — a weapon still counts as a weapon — but at +0 (a blade that
+   * only a trained hand gets anything from).
+   */
+  bonusRequires?: { skillId: string; level: number };
+  /**
    * Action cards the item puts in the wearer's hand while equipped (a shield's
    * raise-shield defense…). Use `unlockLevel: 0` so the card needs no skill.
    */

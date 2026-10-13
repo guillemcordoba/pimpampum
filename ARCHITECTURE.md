@@ -59,7 +59,8 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   ├── src/
 │   │   ├── index.ts              # browser-safe root: everything below, plus COMMON_SKILLS
 │   │   ├── types.ts              # SkillDefinition, action(), d(), ICON_PREFIX (each set's players/types.ts re-exports them)
-│   │   ├── effects/              # helpers.ts (re-exported likewise) + COMMON_EFFECTS: weapon_damage, counter, empower
+│   │   ├── effects/              # helpers.ts (re-exported likewise) + COMMON_EFFECTS: weapon_damage, counter, empower, fatigue_cost
+│   │   ├── equipment.ts          # WEAPONS (bastó, espasa lleugera, destral, gran destral), needsWeapon, weaponFor — each set lists them in ALL_EQUIPMENT
 │   │   ├── skills/               # shared kits a set fields by listing them in its catalogue: esgrima.ts (id mestre-armes)
 │   │   └── bench/                # @pimpampum/set-common/bench — where this source is, for a set's fingerprints and drift check (Node-only)
 │   └── test/
@@ -95,7 +96,8 @@ no registration). The engine invokes behaviour hooks at fixed seams:
 whole pool twice), `modifyOutgoingDamage`, `modifyIncomingDamage`,
 `modifyContestTotal` (clutch adjust of a contested total seeing both sides;
 content-side save contests route through `EngineApi.adjustContestTotal`),
-`clampPvLoss`, `attackRollAgainstHolder`, `preventsGuard`, `blocksActionType`,
+`clampPvLoss`, `attackRollAgainstHolder`, `defensePenaltyAgainst`,
+`preventsGuard`, `blocksActionType` (never locks a `lastResort` card),
 `untargetable`, `ignoresConcealment`, `preventsGuardBypass`, `absorbsGuard`,
 `cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`, `positionValue`.
 
@@ -112,9 +114,26 @@ the same failure in the other direction (a first pass at double the value had
 Presó de terra correlating with losing).
 
 **Engine hooks** — `onAttackAction`, `redirectAttackTarget`,
-`onEnemyAttackAction` (hazards/traps), `attackRepeats`,
-`standingGuard`/`onStandingGuardBroken` (persistent walls), `onRoundEnd`
-(dots/regen tick here).
+`attackTargetsOnly` (taunts: narrows an attack's target pool, area attacks
+included), `opensGuardTo` (an opening: that attacker's blow on the holder is
+undefendable; may consume itself), `onEnemyAttackAction` (hazards/traps),
+`attackRepeats`, `standingGuard`/`onStandingGuardBroken` (persistent walls),
+`onRoundStart`, `onRoundEnd` (dots/regen tick here).
+
+**The duel seams (2026-10-13, for Esgrima; tests in
+`engine/test/seams-duel.test.ts`)** — `defensePenaltyAgainst`,
+`attackTargetsOnly` and `opensGuardTo` above; a `Guard` may carry a
+`fixedTotal` (a defense already rolled — the same total contests every attack
+it covers) and `onlyAgainst` (it covers one attacker's blows only);
+`EffectHandler.aimsAtReveal`/`onAimed`/`presetAttackRoll` (a card aimed and
+rolled at the reveal, whose attack later uses that roll);
+`performExtraAttack` takes `ignoreDefense` and returns `{hit, damage}`, and
+honours `opensGuardTo`/`defensePenaltyAgainst` like a normal attack;
+`EquipmentDefinition.bonusRequires` (an item's `attackBonus`/`rollBonuses`
+count only at a skill level — `Character.getWeaponAttackBonus()` is the one
+read of the wielded weapon). A `lastResort` card is never locked by
+`blocksActionType` (rules.md: Cop desesperat enters when every card is
+consumed or BLOCKED).
 
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
@@ -128,10 +147,13 @@ that target this round.
 2. `planActions(humanSelections)` — build the pending queue (humans supply
    action ids; AI fills the rest via `selectAction`), **shuffle it, then sort by
    speed** (tie fairness); returns `RevealedAction[]`. Between plan and resolve,
-   `flowSwapRefs()`/`flowSwap()` let card-swap statuses (Estat de flux) replace
-   a revealed card.
+   `flowSwapRefs()`/`flowSwap()` let card-swap statuses (Guàrdia camaleó) replace
+   a revealed card. Cards whose effect `aimsAtReveal` are aimed here (AI seats
+   and choiceless pools); `onAimed` runs once they have targets.
 3. `resolveNextAction()` — returns `{kind:'target'|'resolved'|'done'}`. On
-   `'target'` the UI prompts and calls `setResolveTarget(targets)`. Speed ties
+   `'target'` the UI prompts and calls `setResolveTarget(targets)`. Before the
+   first card resolves, a human seat whose `aimsAtReveal` card named no target
+   is prompted for it first. Speed ties
    resolve simultaneously (per-tier alive/interrupt snapshots). Blocked
    attackers have every chosen slot forced onto their blocker. Attacks roll once
    per pass; each target defends against that roll; `attackRepeats` statuses
@@ -144,11 +166,12 @@ that target this round.
 
 Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onBlockFail`, `onResolve`, `postRound`, `getTargetRequirement`, `aiWeight`,
-`onCombatStart`, `canPlay`, `onPlay`. They touch the engine only through
+`onCombatStart`, `canPlay`, `onPlay`, `resolveAs`, `onReveal`, `aimsAtReveal`,
+`onAimed`, `presetAttackRoll`. They touch the engine only through
 `EngineApi`.
 
 Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, plus
-`weapon_damage`, `counter` and `empower` in `packages/sets/common/src/effects`, authoritative
+`weapon_damage`, `counter`, `empower` and `fatigue_cost` in `packages/sets/common/src/effects`, authoritative
 list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `extra_dice`, `pack`, `crossfire`, `reckless`, `frenzy`, `lifedrain`,
 `debuff_on_hit`, `poison_on_hit`, `stun_on_hit`, `mark_on_hit`,
@@ -161,11 +184,11 @@ list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `wound_wounded`, `regen`, `dot`, `wild_shape`, `summon`, `sacrifice`,
 `detonate`, `cleanse`, `flanking`.
 
-Skill-specific handlers (`enter_rage`, `chain_attack`/`flow_state`,
+Skill-specific handlers (`enter_rage`, Esgrima's `treacherous_feint`…`cut_after_cut`,
 `charge_cost`, `adrenaline`, `condemn`/`reap`, `carve_rune`,
 `shadow_melt`/`shadow_bind`, `seismic_sense`/`earth_wall`/`bury`,
 `pressure_gain`/`eruption`) live on their skill's `SkillDefinition.effects`; the
-`StatusBehavior` consts they attach (`FURIA_ESTAT`, `CADENA`, `FLUX`, `ENCEGAT`,
+`StatusBehavior` consts they attach (`FURIA_ESTAT`, `FLUX`, `PROVOCAT`, `ESCORPI`, `PUNT_FEBLE`, `ENCEGAT`,
 `CAMP_MINAT`, `CONDEMNAT`, `PUTREFACCIO`, `ADRENALINA`,
 `RUNA_FULLA/CONFUSIO/ESCUT`, `FOS`, `LLIGAT`, `SENTIT`, `MUR`, `ENTERRAT`,
 `RIU_DE_LAVA`…) are defined alongside them in the same file.
@@ -260,7 +283,9 @@ ONLY when nothing else is (the generic `ActionDefinition.lastResort` flag).
 **Equipment** (simplified 2026-07-19 to three slots, one item each — no
 body-part inventory, no main/off/two-hand). An item gives passive armour, a
 speed penalty, roll bonuses, a **weapon attack modifier** (`attackBonus`;
-present = the item is a weapon: bastó +0, destral +2, gran destral +4) and/or
+present = the item is a weapon: bastó +0, espasa lleugera +1 (and +1 to Defensa
+rolls, both only at Esgrima 2+ — `bonusRequires`), destral +2, gran destral +4;
+shared by every set in `set-common/src/equipment.ts`) and/or
 **granted action cards** while equipped (`grantsActions`, `unlockLevel: 0` —
 e.g. the shield grants the «Escut de fusta» 2d4 defense card). Weapon-tagged
 actions (the `weapon_damage` effect) roll their OWN dice plus the wielded

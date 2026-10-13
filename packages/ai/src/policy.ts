@@ -53,10 +53,7 @@ export function expectedAttackTotal(actor: Character, def: ActionDefinition): nu
  * when the engine threw ~12.
  */
 function attackParts(actor: Character, def: ActionDefinition): { dice: DiceRoll | undefined; flat: number } {
-  let weapon = 0;
-  for (const e of actor.equipment) {
-    if (e.attackBonus !== undefined) weapon = Math.max(weapon, e.attackBonus);
-  }
+  const weapon = actor.getWeaponAttackBonus() ?? 0;
   return {
     dice: def.dice,
     flat: (def.rollBonus ?? 0) + weapon
