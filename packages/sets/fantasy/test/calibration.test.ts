@@ -8,7 +8,7 @@ import { MAX_MEDIAN_ROUNDS } from '@pimpampum/playtest';
 import { referenceParty, standInFor } from '@pimpampum/bench';
 import { ALL_SKILLS, ENEMY_DEFINITIONS } from '../src/index.js';
 import {
-  CALIBRATION_KITS, COMPANY, FAIR, FANTASY, pin, FIELDED, FULL_KIT, hero, MAIN_KITS, REFERENCE_KITS,
+  CALIBRATION_KITS, COMPANY, FAIR, FANTASY, pin, FIELDED, FULL_KIT, hero, HERO_LEVEL, MAIN_KITS, REFERENCE_KITS,
   MAX_AVG_ROUNDS, REFERENCE_SIGMA, SATURATION, SHAPES, sigmaOf, UNFIELDED_ENEMIES, UNLISTED_BODIES,
 } from '../src/bench/index.js';
 
@@ -92,6 +92,17 @@ describe('the fight matrix', () => {
       expect(row, `company ${i} already contains its stand-in ${standInFor(i)}`)
         .not.toContain(standInFor(i));
     });
+  });
+
+  it('caps exactly the kits longer than the set\'s own, and says which', () => {
+    // HERO_LEVEL is the longest of this set's kits; only the shared ten-card
+    // Esgrima runs past it. A kit growing past the cap must be a decision —
+    // it is then measured without its last cards — not a silent change.
+    expect(FANTASY.calibration.heroLevel).toBe(HERO_LEVEL);
+    const capped = ALL_SKILLS.filter(s => s.actions.length > HERO_LEVEL).map(s => s.id);
+    expect(capped, `kits measured short of their full kit at L${HERO_LEVEL}`).toEqual(['mestre-armes']);
+    const longestOwn = Math.max(...ALL_SKILLS.filter(s => !capped.includes(s.id)).map(s => s.actions.length));
+    expect(longestOwn, 'HERO_LEVEL should be the longest uncapped kit').toBe(HERO_LEVEL);
   });
 
   it('gives every company row a stand-in', () => {

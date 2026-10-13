@@ -72,7 +72,16 @@ const ESCORPI: StatusBehavior = {
     ctx.engine.log('attack', `La picada de l'escorpí: ${ctx.holder.name} no es pot defensar de ${attacker.name}.`, attacker.team);
     return true;
   },
-  positionValue() { return -0.1; },
+  /** Its whole payoff lands NEXT round, after the one-round search has scored
+   *  the board, while Retruc's riposte lands in it — so the price is the only
+   *  way the search sees it. A quarter of a body: at a tenth the AI almost
+   *  never played it where it was the best card, and at half it played it
+   *  where it was not and the kit won less (NEXT-STEPS §44). Worth nothing
+   *  once the fencer who would strike is down. */
+  positionValue(ref) {
+    const by = ref.entry.data?.['by'];
+    return by instanceof Character && by.isAlive() ? -0.25 : 0;
+  },
 };
 
 // --- 6 · Braç mort -----------------------------------------------------------
@@ -81,7 +90,9 @@ const ESCORPI: StatusBehavior = {
  *  fallback stays — the engine never locks it.) */
 const BRAC_MORT: StatusBehavior = {
   blocksActionType(_ref, type) { return type === ActionType.Atac; },
-  positionValue() { return -0.1; },
+  /** A lost attacking turn, priced like the sting above and for the same
+   *  reason: it bites only next round (NEXT-STEPS §44). */
+  positionValue() { return -0.25; },
 };
 
 // --- 7 · Bardissa d'acer -----------------------------------------------------

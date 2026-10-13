@@ -20,7 +20,7 @@ export { useSet, theSet, isExplicitParty, partyKits } from './gameset.js';
 
 // --- Where a subject is measured: the set's calibration, computed ---------
 export {
-  referenceParty, calibrationParty, subjectParty, companyCount, companyPrint, groupsPrint, standInFor,
+  referenceParty, measuredLevel, calibrationParty, subjectParty, companyCount, companyPrint, groupsPrint, standInFor,
   shapeEnemies, baselineFor, solvedShape, isSaturated, usableCells, saturatedCells,
 } from './positions.js';
 export type { SolvedShape } from './positions.js';

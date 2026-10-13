@@ -13,4 +13,9 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 /** Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,
  *  almost never played. */
 export const KNOWN_BLIND: Record<string, string[]> = {
+  // Retruc d'acer on the detector's edge since Bloqueig d'escorpí was priced
+  // (2026-10-13: best 29%, played 5.3%, flagged under 5.8%): the three
+  // Esgrima defenses share their best moments, and the least played gets
+  // flagged (NEXT-STEPS §44).
+  'mestre-armes': ['retruc-d-acer'],
 };

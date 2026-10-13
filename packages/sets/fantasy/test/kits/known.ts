@@ -20,4 +20,9 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
  * evaluator cannot see unless their statuses price themselves.
  */
 export const KNOWN_BLIND: Record<string, string[]> = {
+  // Braç mort sits on the detector's edge (2026-10-13: best 19%, played 3.6%,
+  // flagged under 3.8%), and its best moments are ties with Retruc d'acer —
+  // when best it gains −0.7±0.5 PV on the runner-up. Three near-substitute
+  // defenses share those moments; the least played gets flagged (NEXT-STEPS §44).
+  'mestre-armes': ['brac-mort'],
 };

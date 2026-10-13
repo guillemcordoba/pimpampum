@@ -4585,3 +4585,111 @@ designer.
   aimed at you hit the one you struck). Not decided by the user yet.
 - Still to look at: Cop desviat (0.7%) and Sentit sísmic (0.4%) as likely AI
   blind spots; Ira de l'oceà picked 64.6%.
+
+## 44. Esgrima measured: the level cap, two priced statuses, and a stall that is not Esgrima's (2026-10-13, branch `elements-set`)
+
+The shared ten-card Esgrima (`set-common`, skill `mestre-armes`) was measured
+in both sets right after `pnpm calibration:refresh`. All numbers 800-combat kit
+suites (`SLOW=1 npx vitest run test/kits/mestre-armes`) unless said otherwise.
+
+### 44.1 Fantasy measured Esgrima at level 10 among heroes at 4-6
+
+`analyze` fielded a subject at its full kit, and so did the calibration
+(stand-ins, company rows, reference party). Fantasy's own kits have 4-6 cards,
+so Esgrima played at L10 — and the level enters every roll. Checked first
+(matrix only, subject level forced, company untouched): **L10 +25.2pp±1.5,
+L6 +14.4pp±1.7, L5 +11.5pp±1.7** vs neutral. The level was about half of the
+excess; the rest is real (one cell, `cap/c4` — a lone basilisk — reads +72pp
+at every level).
+
+Fixed generically: `Calibration.heroLevel` (bench) caps the level measurement
+fields any HERO kit at; `measuredLevel(kitId)` applies it to the subject, the
+stand-ins, the company rows and the reference party alike, so a subject is
+never compared at one level against a baseline measured at another. Fantasy
+declares `HERO_LEVEL = 6` (its longest own kit, nigromant); elements declares
+nothing (all its kits have 10). The reference party caps too — it is "these
+kits, fully learnt" only up to what the table's other heroes reach — so
+fantasy's **REFERENCE_SIGMA is 22** (enginyer 5 + Esgrima 6 + nigromant 6 +
+berserk 5). `test/calibration.test.ts` names the capped kits (today only
+`mestre-armes`), so a kit growing past the cap is a decision.
+
+The price, stated in every report card: in fantasy, Esgrima's L7-L10 cards
+(Bardissa d'acer, Punt feble, Estocada fantasma, Tall rere tall) are measured
+nowhere but the elements set.
+
+After: fantasy power band **+16.1pp±1.5** (passes; was +25.2pp±1.5 FAIL).
+
+### 44.2 Bloqueig d'escorpí and Braç mort: priced at a quarter of a body
+
+Both statuses (`ESCORPI`, `BRAC_MORT`) said −0.1. Their payoff lands the round
+AFTER the one-round search scores the board — the timing is right (set with 2
+turns, still on the holder when the search scores) — so the price is the only
+way the search sees them. `aiWeight` is not the lever: at depth 1 with
+`topK: 0` every legal card is searched; aiWeight only steers the depth-0
+opponents and continuation. Matrix-only play rates by price:
+
+| price | fantasy Δ | escorpí | braç | elements Δ | escorpí | retruc |
+|---|---|---|---|---|---|---|
+| −0.1 | +15.7±1.5 | 1.6% | 1.7% | −5.0±1.8 | 4.3% | 10.0% |
+| −0.25 | +15.9±1.5 | 9.9% | 6.0% | −2.6±1.8 | 8.3% | 5.4% |
+| −0.5 | +12.9±1.6 | 16.1% | 10.4% | −5.1±1.8 | 10.3% | 3.1% |
+
+At −0.5 the AI plays them where they are not right and the kit wins less
+(Presó de terra's lesson, §15.1). Chosen −0.25 (the sting worth nothing once
+its fencer is down). A level/PV-scaled price was considered and rejected: it
+gives ~0.1 against elements' 73-PV soldiers (where 0.1 was measured blind) and
+~0.4 against fantasy's 14-PV goblins (where 0.5 was measured harmful).
+
+After (full suites, calibration refreshed): Bloqueig d'escorpí is no longer
+flagged in either set. Two flags remain, both ON THE DETECTOR'S EDGE and both
+ratcheted in `KNOWN_BLIND`: fantasy Braç mort (best 19%, played 3.6%, flagged
+under 3.8%; when best it gains −0.7±0.5 PV on the runner-up — its best moments
+are ties) and elements Retruc d'acer (best 29%, played 5.3%, flagged under
+5.8%). The three Esgrima defenses are near-substitutes sharing the same
+moments; whichever is played least is flagged. Open for the user: whether
+`isBlindSpot` should require a positive gain-when-best (a card that is best
+only by a tie is not a blind spot) — a change to the instrument, so not made
+here.
+
+### 44.3 The elements stalls are the airbender's Coixí de vent
+
+Every stalled fight (17/795 with Esgrima as subject; **18/795 with the
+waterbender as subject** — the same rate, so not Esgrima's) has the same
+board: the calibration airbender alone at 1/12 PV and Esgotat, playing Coixí
+de vent on itself every round from ~round 10 to 40, against soldiers (5 × 73
+PV, often down to 1-9 PV each) who attack every round. Coixí's status clamps
+any loss at 1 PV, so it cannot die; it never attacks, because any other card
+lets the soldiers kill it this round — the search correctly prefers a draw
+(0) to a loss (−100). Not an AI bug: the rules make a lone bender immortal.
+Only company rows with an airbender stall (c1-c3); c4/c5 and the other shapes:
+0. The DESIGN.md says "(and you)", the card text says only "l'aliat que
+defenses".
+
+Candidate fixes for the designer (not made): (a) Coixí cushions only the ally
+you defend, not yourself (matches the printed text); (b) Coixí costs 1 fatigue
+— a fatigue-cost card is unplayable at Esgotat (`fatigue_cost.canPlay`), so a
+lone bender at 5 loses it; (c) a cushioned bender cannot be cushioned again
+next round. After 44.2 the elements Esgrima suite happens to pass requirement 1
+(stalls 1.3%±0.4), but the cause is untouched.
+
+### 44.4 What else the measurement showed
+
+- **Fantasy triangle after the cap**: Power > Protect **69.1%±1.6** (was
+  27.1%±1.6: Tall rere tall, Bardissa and Riu de lava held it up; at L6 the
+  calibration Esgrima no longer holds Tall rere tall), Protect > Aggro
+  79.6%±1.4, but **Aggro > Power 46.4%±1.8 FAILS** — held up by cures-de-camp
+  (+21.5pp), retruc-d-acer (+10.5pp), aguantar-el-cop (+2.0pp). Tall rere tall
+  is not fixed by this, only unmeasured here: against a side that rarely
+  defends every blow is an auto-hit for the full total (3d6 + weapon + level,
+  > 12 PV at L10), so the chain never fails and one card can sweep a whole
+  Focus-leaning team. Number levers for the user: 3d6 → 2d6; the follow-up
+  blows without the level; fatigue 2 → 3; speed 1 → 0.
+- **Elements triangle**: Esgrima is in no company row 0, so it is not in the
+  mirror party and cannot move it.
+- **Encounter creator** (`encounter-speed.test.ts`) is over its 3 s on the
+  mixed band (4.3 s) and the horde (3.0-3.1 s). Not the measurement change —
+  that test builds its own explicit level-3 party. It is Retruc d'acer: the
+  party is stronger, the solver fields tougher enemies and the fights run
+  longer. Single-thread solve of the mixed band, third hero swapped: berserk L3
+  [11, 26] PV in 12.0 s; Esgrima L1 [9, 21] 11.9 s; **L2 [15, 37] 23.2 s**;
+  L3 [20, 48] 25.7 s.

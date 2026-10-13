@@ -29,7 +29,7 @@ import {
   getEnemy, getSkill, PLAYER_PV, registerSkill, solveEncounter,
   type SkillDefinition, unlockedActions, unregisterSkill,
 } from '../index.js';
-import { CALIBRATION_KITS, COMPANY, FAIR, MAX_AVG_ROUNDS, SATURATION, SHAPES } from './shapes.js';
+import { CALIBRATION_KITS, COMPANY, FAIR, HERO_LEVEL, MAX_AVG_ROUNDS, SATURATION, SHAPES } from './shapes.js';
 import { hero, MAIN_KITS, REFERENCE_KITS } from './reference.js';
 import { PIN, pin, PINNED } from './pinned.js';
 
@@ -174,6 +174,7 @@ export const FANTASY: GameSet = {
     shapes: SHAPES,
     company: COMPANY.map(row => row.map(pin)),
     standIns: CALIBRATION_KITS.map(pin),
+    heroLevel: HERO_LEVEL,
     fair: FAIR,
     maxAvgRounds: MAX_AVG_ROUNDS,
     saturation: SATURATION,

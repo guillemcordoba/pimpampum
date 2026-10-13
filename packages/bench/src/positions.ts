@@ -38,12 +38,28 @@ const BASELINE_OFFSET = 616_000;
 /** The solver's search budget for a shape. */
 const SHAPE_SEARCH_GAMES = 120;
 
+/**
+ * The level measurement fields a kit at: its full kit, capped for heroes at
+ * the set's `heroLevel` (`Calibration.heroLevel` says why). Every hero this
+ * module builds goes through it — subject, stand-in, company and reference
+ * party alike — so a subject is never compared at one level against a
+ * baseline measured at another.
+ */
+export function measuredLevel(kitId: string): number {
+  const set = theSet();
+  const kit = set.kit(kitId);
+  if (!kit) throw new Error(`@pimpampum/bench: the set '${set.id}' has no kit '${kitId}'.`);
+  const cap = kit.side === 'player' ? set.calibration.heroLevel : undefined;
+  return cap === undefined ? kit.fullLevel : Math.max(1, Math.min(kit.fullLevel, cap));
+}
+
 /** The set's benchmark party, as an EXPLICIT spec — the same heroes every
- *  game, so the honest error bar is the binomial one. */
+ *  game, so the honest error bar is the binomial one. Each hero at its
+ *  `measuredLevel` unless a level is asked for. */
 export function referenceParty(level?: number): PartySpec {
   const set = theSet();
   return {
-    characters: set.calibration.referenceKits.map((id, i) => set.hero(`Heroi ${i + 1}`, id, level)),
+    characters: set.calibration.referenceKits.map((id, i) => set.hero(`Heroi ${i + 1}`, id, level ?? measuredLevel(id))),
   };
 }
 
@@ -65,8 +81,8 @@ export function calibrationParty(companyIdx: number): PartySpec {
   const { company } = set.calibration;
   return {
     characters: [
-      set.hero('Patró', standInFor(companyIdx)),
-      ...company[companyIdx % company.length].map((id, i) => set.hero(`Company ${i + 1}`, id)),
+      set.hero('Patró', standInFor(companyIdx), measuredLevel(standInFor(companyIdx))),
+      ...company[companyIdx % company.length].map((id, i) => set.hero(`Company ${i + 1}`, id, measuredLevel(id))),
     ],
   };
 }
@@ -112,7 +128,9 @@ export function companyPrint(companyIdx: number): string {
 
 function partyPrint(companyIdx: number): string {
   const { company } = theSet().calibration;
-  return [standInFor(companyIdx), ...company[companyIdx % company.length]].map(skillPrint).join('/');
+  // The LEVEL is part of the print: the same kits at another level are another table.
+  return [standInFor(companyIdx), ...company[companyIdx % company.length]]
+    .map(id => `${skillPrint(id)}@L${measuredLevel(id)}`).join('/');
 }
 
 function poolPrint(shape: Shape): string {

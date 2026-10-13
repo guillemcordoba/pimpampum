@@ -217,6 +217,18 @@ export interface Calibration {
   /** A cell whose neutral baseline falls outside this band is pinned against an
    *  edge and cannot separate two subjects; it is not measured in. */
   saturation: { min: number; max: number };
+  /**
+   * The highest level measurement fields a HERO kit at: a kit with more cards
+   * plays only its first `heroLevel` of them. Omitted, every hero is fielded
+   * at full kit.
+   *
+   * The level enters every roll, so a kit measured at a level the rest of the
+   * table never reaches is measured for its training, not its cards — the
+   * fairness principle (similar total skill levels per player) applied to the
+   * instrument. A set whose kits differ in length declares it; one whose kits
+   * all have the same length has nothing to cap.
+   */
+  heroLevel?: number;
   /** Kits a "for each kit in turn" sweep iterates. */
   mainKits: string[];
   /**

@@ -19,7 +19,8 @@
  * TWO MEASUREMENTS, THREE KIT REQUIREMENTS (`rules.ts` has the four; the
  * triangle is set-level, `triangle.ts`):
  *
- *  - The FULL-KIT RUN — the thinking policy at full level over every usable
+ *  - The FULL-KIT RUN — the thinking policy at the kit's measured level (its full
+ *    kit, capped at the set's `heroLevel`: bench `measuredLevel`) over every usable
  *    cell. Requirement 1 (fights end) and 2 (the power band) read it.
  *  - The CARD VALUE — per decision, the fight played out once per legal card
  *    from a position every branch shares (`bench/regret.ts`, §18), under
@@ -36,7 +37,7 @@ import type { ActionDefinition } from '@pimpampum/engine';
 import {
   calibrationGames, calibrationParty, type CardScore, type Cell, cellResult,
   type CellSetup, companyCount, companyPrint, DEFAULT_REGRET, enemyPrint, type FieldedGroup, groupsPrint,
-  isSaturated, type KitInfo, kitChoiceCost, type KitValues, type MatrixResult, matrixCell, measureKit, measureKitCell,
+  isSaturated, type KitInfo, kitChoiceCost, type KitValues, type MatrixResult, matrixCell, measureKit, measureKitCell, measuredLevel,
   type PartySpec, pct, runMatrix, scoreCards, shapeEnemies, skillPrint, SMOKE,
   subjectParty, theSet, usableCells,
 } from '@pimpampum/bench';
@@ -270,7 +271,7 @@ function pooledChoiceCost(kvs: KitValues[]): ChoiceCost {
 export function analyze(subject: Subject, games: number, budget: AnalyzeBudget = {}): KitReport {
   const kit = kitOf(subject);
   const cards = kit.actions;
-  const level = kit.fullLevel;
+  const level = measuredLevel(subject.id);
   const cells = cellsFor(subject);
   const setup = setupFor(subject, level, budget.allSeats, budget.withoutCard);
   const print = subjectPrintFor(subject, level, budget.allSeats, budget.withoutCard);
@@ -312,10 +313,10 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   // per model and holds only when every model agrees (§20.11).
   const scored = runs.map(kv => new Map(scoreCards(kv).map(v => [v.id, v])));
   const values: CardScore[] = [];
-  const blind: string[] = [];
+  const blind: string[] = [], beyond: string[] = [];
   const neverRight: string[] = [], neverRightIds: string[] = [];
   for (const c of cards) {
-    if (c.unlockLevel > level) continue;
+    if (c.unlockLevel > level) { beyond.push(c.name); continue; }
     if (theSet().calibration.aiBlindCards[c.id]) { blind.push(c.name); continue; }
     const seen = scored.map(m => m.get(c.id)).filter((v): v is CardScore => v !== undefined);
     if (!seen.length) continue;
@@ -340,6 +341,7 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
       + (matters ? '' : ` → triar NO importa prou`) + ` [cal ≥${MIN_CHOICE_COST}]`
       + (neverRight.length ? ` · MAI la jugada correcta (tots els models): ${neverRight.join(', ')}` : '')
       + (blind.length ? ` · no mesurables per la IA: ${blind.join(', ')}` : '')
+      + (beyond.length ? ` · per sobre del nivell mesurat (L${level}): ${beyond.join(', ')}` : '')
       + ` · ${cost.decisions} decisions en ${runs.reduce((s, kv) => s + kv.fights, 0)} combats · models aiSharpness ${models.join('/')}`,
     cost,
     neverRight: neverRightIds,
@@ -389,7 +391,7 @@ export function analysisJobs(subject: Subject, games: number, budget: AnalyzeBud
 export function runAnalysisJob(subject: Subject, budget: AnalyzeBudget, job: AnalysisJob): void {
   const cells = cellsFor(subject);
   if (!cells[job.cellIdx]) return;
-  const level = kitOf(subject).fullLevel;
+  const level = measuredLevel(kitOf(subject).id);
   const setup = setupFor(subject, level, budget.allSeats, budget.withoutCard);
   const print = subjectPrintFor(subject, level, budget.allSeats, budget.withoutCard);
   if (job.kind === 'cardValue') {

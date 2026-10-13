@@ -63,6 +63,18 @@ export const COMPANY: string[][] = [
  */
 export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginyer-explosius'];
 
+/**
+ * The highest level a hero kit is MEASURED at (bench `Calibration.heroLevel`):
+ * the longest of this set's own kits. Esgrima, shared with the elements set,
+ * has ten cards where these have four to six; fielded at ten among heroes at
+ * five it was measured for its training — the level enters every roll — and
+ * not for its cards (NEXT-STEPS §44). So here it plays its first six.
+ *
+ * `test/calibration.test.ts` names the kits this caps, so a kit growing past
+ * it is a decision, not a silent change of what is measured.
+ */
+export const HERO_LEVEL = 6;
+
 
 /**
  * Creatures no SHAPE fields, and why.

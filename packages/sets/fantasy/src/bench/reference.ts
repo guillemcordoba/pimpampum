@@ -22,6 +22,7 @@
  */
 import { ALL_SKILLS, type CharacterBuildSpec, COMPLEMENTARY_SKILLS, getSkill, type PartySpec, PLAYER_PV, type SkillDefinition, standardGear } from '../index.js';
 import { pin } from './pinned.js';
+import { HERO_LEVEL } from './shapes.js';
 
 /**
  * The four kits at the reference table, BY ID. Not a slice — the point is that
@@ -36,7 +37,9 @@ export const REFERENCE_KITS = [
 ] as const;
 
 /**
- * Reference heroes are built at FULL KIT — every card the kit has.
+ * Reference heroes are built at FULL KIT — every card the kit has — up to the
+ * set's `HERO_LEVEL`, like every hero measurement fields (bench
+ * `measuredLevel`).
  *
  * It used to be a flat `5`, which is an absolute number in a system where a
  * level is an ordinal ("level N = the first N actions"). Two kits had already
@@ -44,6 +47,10 @@ export const REFERENCE_KITS = [
  * five, while every comment and doc said "at full kit". The gap only widens as
  * kits grow — a ten-card kit built at 5 is half a kit, and the benchmark
  * quietly becomes "a party of beginners".
+ *
+ * The cap is the other side of that coin: the shared ten-card Esgrima at ten
+ * beside heroes at four to six is not "the same party, fully learnt", it is
+ * one hero with twice everyone's training (NEXT-STEPS §44).
  *
  * `FULL_KIT` is a sentinel, not a level: `levelOf` clamps it to whatever the
  * kit actually has.
@@ -55,16 +62,16 @@ export const FULL_KIT = Number.MAX_SAFE_INTEGER;
  * when they say how strong the benchmark table is. Asserted below.
  *
  * The balance principle (CLAUDE.md) puts a fair table at ~6-7 levels per
- * player, so Σ26 over four heroes is still a modest party. Read every kit
+ * player, so Σ22 over four heroes is still a modest party. Read every kit
  * verdict in this package with that in mind: a stronger table pushes every
  * enemy PV up and every kit verdict down.
  *
  * It WILL move as kits gain cards, and that is correct — the reference party is
- * "these four kits, fully learnt", not "these four kits at a fixed number". The
+ * "these four kits, fully learnt (up to HERO_LEVEL)", not "these four kits at a fixed number". The
  * guard below makes the move loud instead of silent, so the scoreboards get
  * re-run rather than compared across a change of unit.
  */
-export const REFERENCE_SIGMA = 26;
+export const REFERENCE_SIGMA = 22;
 
 /** The armour the reference heroes wear (cuir). */
 export const REFERENCE_ARMOR = 'armadura-de-cuir';
@@ -118,7 +125,7 @@ export function levelOf(s: SkillDefinition, level: number): number {
 /** The reference party as this file builds it — for the guard below, which
  *  runs at import, before any set is installed. Everyone else asks bench
  *  (`referenceParty()`), which builds the same heroes from `REFERENCE_KITS`. */
-function localReferenceParty(level: number = FULL_KIT): PartySpec {
+function localReferenceParty(level: number = HERO_LEVEL): PartySpec {
   return { characters: REFERENCE_KITS.map((id, i) => hero(`Heroi ${i + 1}`, pin(id), level)) };
 }
 
@@ -137,7 +144,7 @@ export function sigmaOf(spec: PartySpec): number {
 const measured = sigmaOf(localReferenceParty());
 if (measured !== REFERENCE_SIGMA) {
   const detail = REFERENCE_KITS
-    .map(id => `${id}=${levelOf(skill(pin(id)), FULL_KIT)}`).join(' + ');
+    .map(id => `${id}=${levelOf(skill(pin(id)), HERO_LEVEL)}`).join(' + ');
   throw new Error(
     `set-fantasy/reference: the reference party is Σ${measured}, but REFERENCE_SIGMA says ${REFERENCE_SIGMA}.\n`
     + `  ${detail} = ${measured}\n`
