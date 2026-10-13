@@ -41,7 +41,19 @@ and when, lives in `NEXT-STEPS.md` §42.
 
 ## The frame every kit follows
 
-- **One skill per hero.** No second or complementary skills.
+- **A hero trains several skills** (decided 2026-10-13, replacing "one skill
+  per hero"). Bending is a skill like any other; two heroes who share one
+  skill differ by the rest.
+- **Cards can require N skills** (a "gold" card, after MTG's multicolour
+  doctrine): it opens once every listed skill reaches its threshold, and sits
+  outside each skill's "first N" list. Its roll adds the **sum** of those
+  levels (Ars Magica's Technique + Form), so a hybrid matches a specialist on
+  its gold cards and the fairness rule (similar total skill-level sum) still
+  holds. On a close loss the player chooses which of its skills grows (the
+  simulator picks the lowest). A gold card is ONE effect only the overlap
+  enables, never two halves stapled together; one or two per pairing. The
+  sum grows fast with N, so the thresholds keep these rare and the card's own
+  dice modest.
 - **Ten cards per kit.** Level N knows the first N. Cards 1-3 are one Atac,
   one Defensa and one Focus.
 - **Crescendo.** Power rises with the level: card 1 is what a novice can do,
@@ -179,3 +191,13 @@ Each takes a different thing away from a hero.
 | Shirshu | control (2-3) | actions (paralysis) | interrupt the scent; hit hard or not at all (its slobber) |
 | Unagi | lone beast | the guard (its jet goes through) | don't stack guards; 6 PV in one round frees the swallowed |
 | Arquer yuyan | support (1-2 in the line) | defense (pins) | reach the back line; interrupt the signal arrow |
+
+## Ideas parked for later skills (2026-10-13)
+
+Card concepts the user loved that did not fit the kit they were designed for.
+
+- **Mirall de l'enemic** (Focus): after the reveal, this card becomes a copy of
+  a card an enemy revealed this round. "Super cool", but not Esgrima.
+- **Doble ritme** (Focus): next round you play two cards instead of one. Wants
+  a kit whose cards combine in pairs (Acrobàcia?), not one whose cards each pay
+  on their own.

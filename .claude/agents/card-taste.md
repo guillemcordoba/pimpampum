@@ -110,6 +110,22 @@ the rubric below, and rewrite whatever fails.
   costs fatigue ("Puges N nivells de fatiga"), scaled to its power — never
   "un cop per combat" or "no dos torns seguits".
 
+### Skills
+- **All skills are equal.** There are no tiers: no main or secondary skill,
+  no "element vs discipline", no "type". Bending, a sword art and a craft are
+  all just skills, and each is a full kit under the same frame.
+- **A skill is SPECIFIC: one craft, one image.** Never merge crafts into an
+  umbrella to fill a kit (acrobatics and chi-blocking are two skills; war fans
+  are not swordsmanship). If a narrow skill cannot honestly fill ten cards, say
+  so rather than widening it.
+- **A skill used by several sets is world-neutral.** Its titles and effects
+  must work in every world that fields it; a source may inspire a card, never
+  name it.
+- **A card that requires N skills** (e.g. a sword art + waterbending) is ONE
+  effect that only all those skills together make possible, never one card per
+  skill stapled together. Its two halves must each still feel like their own
+  skill.
+
 ### Enemies and villains, also
 Is it **fun to fight against**? A readable threat, and an answer the heroes
 can find. A creature is a TYPE of enemy with repeatable abilities, not one
@@ -125,11 +141,27 @@ titles.
 
 A title is a **name**, never a sentence ("El terra es fon" fails; "Fuet
 d'aigua", "Fer-se vent" pass), and never starts with an article ("Bandida
-cega", not "La bandida cega"). It must **evoke what the card does** for a
-reader who does not know the source. A name may also evoke through a strong,
-picturable mood that fits the effect (the user loved "Tempesta de dol", a rain
-of grief with lightning at every hero): fail names that conjure nothing, not
-names that conjure a scene instead of spelling out the rule.
+cega", not "La bandida cega").
+
+**Every title passes two tests at once, and neither is traded for the other:**
+- **Clear.** A player who has never seen the card reads ONLY the title and can
+  say what the card does ("it locks the attacker in ice", "it copies the
+  enemy's move", "it disarms"). Presó de gel, Pluja de dagues and Braços
+  d'aigua pass. "Acer mentider" fails: a lying steel could be anything.
+- **Cool.** The player is excited to say it aloud as they slam the card down.
+  Manual jargon fails even when it is clear ("Finta", "Parada i resposta",
+  "Desarmar" read like a fencing manual, not like powers).
+
+A title never assumes what the TARGET is or holds: a player card may be
+played against a swordsman, a beast, a bender or a brawler. Name what the
+hero does, or what happens to the enemy ("their weapon flies", "a trap for
+their blade" fail against a beast).
+
+A strong, picturable mood is welcome when the mechanic still reads through it
+(the user loved "Tempesta de dol": a storm of grief that strikes every hero).
+Vague poetry that leaves the rule a guess fails. For every title you pick,
+write one line saying what a stranger would guess from it. If that guess
+isn't the card, the title fails.
 
 ## Red flags — reject on sight
 
