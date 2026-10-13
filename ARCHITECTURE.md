@@ -55,6 +55,14 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── isolated.ts           # analyzeIsolated()
 │   │   └── vitest.ts             # @pimpampum/playtest/vitest — kitSuite(), the known-findings ratchet
 │   └── test/                     # rule controls (fast), pipeline controls on SYNTHETIC (slow, one file each)
+├── sets/common/                  # @pimpampum/set-common — content SHARED by several sets (depends on engine only)
+│   ├── src/
+│   │   ├── index.ts              # browser-safe root: everything below, plus COMMON_SKILLS
+│   │   ├── types.ts              # SkillDefinition, action(), d(), ICON_PREFIX (each set's players/types.ts re-exports them)
+│   │   ├── effects/              # helpers.ts (re-exported likewise) + COMMON_EFFECTS: weapon_damage, counter, empower
+│   │   ├── skills/               # shared kits a set fields by listing them in its catalogue: esgrima.ts (id mestre-armes)
+│   │   └── bench/                # @pimpampum/set-common/bench — where this source is, for a set's fingerprints and drift check (Node-only)
+│   └── test/
 ├── sets/fantasy/                 # @pimpampum/set-fantasy — THE CONTENT
 │   ├── src/
 │   │   ├── index.ts              # browser-safe root: players + enemies + encounters + createRegistry
@@ -139,7 +147,8 @@ Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onCombatStart`, `canPlay`, `onPlay`. They touch the engine only through
 `EngineApi`.
 
-Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, authoritative
+Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, plus
+`weapon_damage`, `counter` and `empower` in `packages/sets/common/src/effects`, authoritative
 list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `extra_dice`, `pack`, `crossfire`, `reckless`, `frenzy`, `lifedrain`,
 `debuff_on_hit`, `poison_on_hit`, `stun_on_hit`, `mark_on_hit`,

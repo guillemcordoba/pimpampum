@@ -1,0 +1,30 @@
+{
+  "name": "@pimpampum/set-common",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pimpampum/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^3",
+    "@types/node": "^22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./bench": {
+      "types": "./dist/bench/index.d.ts",
+      "import": "./dist/bench/index.js"
+    }
+  }
+}

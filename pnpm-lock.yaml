@@ -118,6 +118,22 @@ importers:
         specifier: ^3
         version: 3.2.4(@types/node@22.20.1)(supports-color@8.1.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/sets/common:
+    dependencies:
+      '@pimpampum/engine':
+        specifier: workspace:*
+        version: link:../../engine
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3
+        version: 3.2.4(@types/node@22.20.1)(supports-color@8.1.1)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/sets/elements:
     dependencies:
       '@pimpampum/ai':
@@ -132,6 +148,9 @@ importers:
       '@pimpampum/engine':
         specifier: workspace:*
         version: link:../../engine
+      '@pimpampum/set-common':
+        specifier: workspace:*
+        version: link:../common
     devDependencies:
       '@pimpampum/playtest':
         specifier: workspace:*
@@ -160,6 +179,9 @@ importers:
       '@pimpampum/engine':
         specifier: workspace:*
         version: link:../../engine
+      '@pimpampum/set-common':
+        specifier: workspace:*
+        version: link:../common
     devDependencies:
       '@pimpampum/playtest':
         specifier: workspace:*

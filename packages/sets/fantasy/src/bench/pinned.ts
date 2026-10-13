@@ -23,9 +23,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getSkill, registerSkill, type SkillDefinition } from '../index.js';
+import { ALL_SKILLS, getSkill, registerSkill, type SkillDefinition } from '../index.js';
 import { PINNED_FILES, PINNED_SKILLS, REFRESHED } from './calibration-kits/index.js';
-import { PIN, pinSource } from './pin-source.js';
+import { liveKitFile, liveKitFiles, PIN, pinSource } from './pin-source.js';
 
 export { PIN, REFRESHED };
 
@@ -60,16 +60,18 @@ export const COPIES = path.join(SRC, 'bench/calibration-kits');
  * the baselines do NOT yet reflect. Empty means the ruler is the game.
  *
  * Re-pins each live file and compares it with the copy, byte for byte: the
- * same function made the copy, so equal means nothing has changed since.
+ * same function made the copy, so equal means nothing has changed since. A
+ * shared kit fantasy fields is read from set-common (`liveKitFile`).
  */
 export function calibrationDrift(live = LIVE, copies = COPIES): string[] {
   if (!fs.existsSync(live)) return [];
-  const pinnedFiles = new Set(Object.values(PINNED_FILES));
-  const unsnapshotted = fs.readdirSync(live).filter(f => f.endsWith('.ts') && !pinnedFiles.has(f))
-    .map(f => `${f.replace(/\.ts$/, '')} (not in the snapshot)`);
+  const snapshotted = new Set(Object.entries(PINNED_FILES).map(([id, file]) => liveKitFile(id, file, live)));
+  const fielded = (id: string) => ALL_SKILLS.some(s => s.id === id);
+  const unsnapshotted = liveKitFiles(live, fielded).filter(f => !snapshotted.has(f))
+    .map(f => `${path.basename(f, '.ts')} (not in the snapshot)`);
   const drifted = Object.entries(PINNED_FILES).flatMap(([id, file]) => {
     const skill = getSkill(id);
-    const liveFile = path.join(live, file);
+    const liveFile = liveKitFile(id, file, live);
     if (!skill || !fs.existsSync(liveFile)) return [`${id} (no longer a live kit)`];
     const copy = fs.readFileSync(path.join(copies, file), 'utf8');
     return pinSource(fs.readFileSync(liveFile, 'utf8'), skill) === copy ? [] : [id];

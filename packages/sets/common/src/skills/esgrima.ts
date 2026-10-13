@@ -2,7 +2,7 @@ import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 
 /**
- * Mestre d'Armes — a weapon-agnostic master-at-arms. Each attack card rolls
+ * Esgrima — the weapon-agnostic master-at-arms. Each attack card rolls
  * its OWN dice (the technique) and adds the wielded weapon's flat modifier
  * (the generic `weapon_damage` effect); weapon cards REQUIRE a weapon. The
  * only skill elite at both attack and defense. The signature mechanics live
@@ -88,7 +88,7 @@ const MESTRE_ARMES_EFFECTS: Record<string, EffectHandler> = {
 };
 
 export const MESTRE_ARMES: SkillDefinition = {
-  id: 'mestre-armes', displayName: "Mestre d'Armes", classCss: 'mestre-armes', category: 'player',
+  id: 'mestre-armes', displayName: 'Esgrima', classCss: 'mestre-armes', category: 'player',
   description: "Mestre de totes les armes: la tècnica és el que colpeja; l'arma que empunyes la potencia. Excel·lent en atac i defensa.",
   iconPath: ICON_PREFIX + 'delapouite/fencer.svg',
   actions: [

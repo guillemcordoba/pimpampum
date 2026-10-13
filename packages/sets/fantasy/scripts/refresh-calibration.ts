@@ -22,7 +22,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PIN_HEADER, pinSource, type PinnableSkill } from '../src/bench/pin-source.js';
+import { liveKitFiles, PIN_HEADER, pinSource, type PinnableSkill } from '../src/bench/pin-source.js';
+import { ALL_SKILLS } from '../src/players/catalog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = path.join(ROOT, 'src/players/skills');
@@ -32,13 +33,18 @@ async function main(): Promise<void> {
   fs.rmSync(PINNED, { recursive: true, force: true });
   fs.mkdirSync(PINNED, { recursive: true });
   const names: [exportName: string, file: string, id: string][] = [];
-  for (const file of fs.readdirSync(LIVE).filter(f => f.endsWith('.ts')).sort()) {
-    const mod = await import(path.join(LIVE, file)) as Record<string, unknown>;
+  // This set's own kits, plus the set-common kits its catalogue fields; each
+  // copy is named after its live file.
+  const fielded = (id: string) => ALL_SKILLS.some(s => s.id === id);
+  for (const liveFile of liveKitFiles(LIVE, fielded)) {
+    const file = path.basename(liveFile);
+    if (names.some(([, f]) => f === file)) throw new Error(`${file}: two live kits share a file name`);
+    const mod = await import(liveFile) as Record<string, unknown>;
     const found = Object.entries(mod).filter(([, v]) =>
       typeof v === 'object' && v !== null && Array.isArray((v as PinnableSkill).actions) && typeof (v as PinnableSkill).id === 'string');
     if (found.length !== 1) throw new Error(`${file}: expected exactly one exported SkillDefinition, found ${found.length}`);
     const [name, skill] = found[0] as [string, PinnableSkill];
-    fs.writeFileSync(path.join(PINNED, file), pinSource(fs.readFileSync(path.join(LIVE, file), 'utf8'), skill));
+    fs.writeFileSync(path.join(PINNED, file), pinSource(fs.readFileSync(liveFile, 'utf8'), skill));
     names.push([name, file, skill.id]);
   }
   fs.writeFileSync(path.join(PINNED, 'index.ts'), PIN_HEADER

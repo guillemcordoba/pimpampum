@@ -1,7 +1,7 @@
 import { ActionDefinition } from '@pimpampum/engine';
 import { SkillDefinition } from './types.js';
 import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
-import { MESTRE_ARMES } from './skills/weapon-master.js';
+import { MESTRE_ARMES } from '@pimpampum/set-common';
 import { NIGROMANT } from './skills/nigromant.js';
 import { BERSERK } from './skills/berserk.js';
 import { METGE } from './skills/metge.js';

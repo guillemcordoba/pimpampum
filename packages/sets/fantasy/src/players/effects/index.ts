@@ -2,7 +2,7 @@ import { EffectRegistry, EffectHandler } from '@pimpampum/engine';
 import { ATTACK_EFFECTS } from './attack-effects.js';
 import { FOCUS_EFFECTS } from './focus-effects.js';
 import { DEFENSE_EFFECTS } from './defense-effects.js';
-import { WEAPON_EFFECTS } from './weapon-effects.js';
+import { COMMON_EFFECTS } from '@pimpampum/set-common';
 import { SHARED_CARD_EFFECTS } from '../cards/index.js';
 
 /**
@@ -10,12 +10,13 @@ import { SHARED_CARD_EFFECTS } from '../cards/index.js';
  * effect `type` referenced from action definitions. Effects that pertain to a
  * single skill live on that skill's SkillDefinition (`effects` /
  * `statusBehaviors`) in `skills/*.ts` and are registered by `registerSkills`.
+ * `COMMON_EFFECTS` are the ones shared with other sets (@pimpampum/set-common).
  */
 export const ALL_EFFECTS: Record<string, EffectHandler> = {
   ...ATTACK_EFFECTS,
   ...FOCUS_EFFECTS,
   ...DEFENSE_EFFECTS,
-  ...WEAPON_EFFECTS,
+  ...COMMON_EFFECTS,
   ...SHARED_CARD_EFFECTS,
 };
 

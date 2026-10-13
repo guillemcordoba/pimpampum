@@ -22,6 +22,7 @@ import { type ActionDefinition, type Character } from '@pimpampum/engine';
 import {
   actionPrint, type GameSet, type KitInfo, type PartySpec, type SubjectKit,
 } from '@pimpampum/bench';
+import { COMMON_SKILLS_DIR, COMMON_SRC } from '@pimpampum/set-common/bench';
 import {
   ALL_SKILLS, buildComposition, buildReferenceParty, createRegistry, ENEMY_DEFINITIONS, fullKitLevel,
   getEnemy, getSkill, PLAYER_PV, registerSkill, solveEncounter,
@@ -81,25 +82,30 @@ function tsFiles(dir: string): string[] {
   });
 }
 
-/** Every content file that is not one kit's own, and not calibration. */
+/** Every content file that is not one kit's own, and not calibration — this
+ *  set's, and set-common's (the builders and generic handlers are there). */
 function sharedPrint(): string {
   let p = sourceMemo.get('shared');
   if (p === undefined) {
     const own = OWN_FILES.map(d => path.join(SRC, d));
-    const files = tsFiles(SRC).filter(f =>
-      !f.startsWith(path.join(SRC, 'bench')) && !own.some(d => f.startsWith(d)));
+    const files = [
+      ...tsFiles(SRC).filter(f => !f.startsWith(path.join(SRC, 'bench')) && !own.some(d => f.startsWith(d))),
+      ...tsFiles(COMMON_SRC).filter(f => !f.startsWith(path.join(COMMON_SRC, 'bench')) && !f.startsWith(COMMON_SKILLS_DIR)),
+    ];
     p = files.length ? hashFiles(files) : 'no-source';
     sourceMemo.set('shared', p);
   }
   return p;
 }
 
-/** The kit's own file (found by its id) plus the shared code. */
+/** The kit's own file (found by its id) plus the shared code. A live player
+ *  kit may be one set-common holds. */
 function sourcePrint(dir: string, id: string): string {
   const k = `${dir}:${id}`;
   let p = sourceMemo.get(k);
   if (p === undefined) {
-    const mine = tsFiles(path.join(SRC, dir))
+    const dirs = [path.join(SRC, dir), ...(dir === 'players/skills' ? [COMMON_SKILLS_DIR] : [])];
+    const mine = dirs.flatMap(tsFiles)
       .filter(f => fs.readFileSync(f, 'utf8').includes(`'${id}'`));
     p = `${mine.length ? hashFiles(mine) : 'no-file'}+${sharedPrint()}`;
     sourceMemo.set(k, p);

@@ -14,7 +14,8 @@
     "@pimpampum/engine": "workspace:*",
     "@pimpampum/ai": "workspace:*",
     "@pimpampum/bench": "workspace:*",
-    "@pimpampum/combat-balancer": "workspace:*"
+    "@pimpampum/combat-balancer": "workspace:*",
+    "@pimpampum/set-common": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
