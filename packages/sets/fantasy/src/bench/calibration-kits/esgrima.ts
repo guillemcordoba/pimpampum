@@ -142,13 +142,19 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // 2 · Retruc d'acer: when it holds, an answer of `dice` + the weapon at the
-  // attacker that nobody can defend.
+  // attacker that nobody can defend — plus the level only with `withLevel`:
+  // no opposing roll means no opposing level to cancel it, so the whole level
+  // lands as raw damage.
   'steel_riposte@cal': {
     onDefend(ctx) {
       const t = ctx.target;
       if (!t || !t.isAlive() || !ctx.source.isAlive()) return;
+      const skillId = ctx.action.skillId;
+      const rollBonus = ctx.params['withLevel'] === false
+        ? wieldedWeaponBonus(ctx.source) ?? 0
+        : bladeBonus(ctx.source, skillId);
       ctx.engine.performExtraAttack(ctx.source, t, diceParam(ctx.params, 'dice') ?? d(1, 6), {
-        skillId: ctx.action.skillId, rollBonus: bladeBonus(ctx.source, ctx.action.skillId),
+        skillId, rollBonus,
         ignoreDefense: true, label: `${ctx.source.name} retruca`,
       });
     },
@@ -306,7 +312,7 @@ export const MESTRE_ARMES: SkillDefinition = {
     action({
       id: 'retruc-d-acer@cal', name: "Retruc d'acer", skillId: 'mestre-armes@cal',
       unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 4),
-      effects: [{ type: 'steel_riposte@cal', params: { dice: d(1, 6) } }],
+      effects: [{ type: 'steel_riposte@cal', params: { dice: d(1, 6), withLevel: false } }],
       desc: "Si aguanta, contraataques l'atacant amb 1d6 + arma; no es pot defensar.",
       icon: 'lorc/sword-clash.svg',
     }),

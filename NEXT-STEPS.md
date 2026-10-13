@@ -4693,3 +4693,47 @@ next round. After 44.2 the elements Esgrima suite happens to pass requirement 1
   longer. Single-thread solve of the mixed band, third hero swapped: berserk L3
   [11, 26] PV in 12.0 s; Esgrima L1 [9, 21] 11.9 s; **L2 [15, 37] 23.2 s**;
   L3 [20, 48] 25.7 s.
+
+### 44.5 Retruc d'acer's riposte loses the level (2026-10-13)
+
+The riposte rolled `1d6 + weapon + Esgrima level` with no opposing roll, so
+no opposing level cancelled it: the whole level landed as raw damage. Its own
+text never promised the level ("1d6 + arma"), so the handler now takes
+`withLevel: false` (`steel_riposte`) and the description stands. Five number
+variants measured, each with the calibration re-pinned (`pnpm
+calibration:refresh`) so the triangle's `@cal` Esgrima moved with it; kit
+deltas 800-combat analyzer runs, encounter-speed one run each (wall clock,
+±0.2 s run to run):
+
+| variant | fantasy Δ | P>Pr | Pr>A | A>P | enc. horde / mixed | elements Δ · stalls |
+|---|---|---|---|---|---|---|
+| before (1d6+arma+nivell, 3d4, vel 3) | +16.1±1.5 | 69.1±1.6 | 79.6±1.4 | **46.4±1.8 ✗** | **3.1 / 4.4 s ✗** | −2.8±1.8 · 1.3% |
+| (a) riposte without the level | **+11.3±1.5** | 71.1±1.6 | 66.6±1.7 | 54.9±1.8 | 2.7 / 2.1 s | −6.0±1.8 · 1.3% |
+| (b) 1d4 + arma + nivell | +16.4±1.4 | 67.0±1.7 | 78.1±1.5 | 46.0±1.8 ✗ | 3.2 / 4.7 s ✗ | −4.9±1.8 · 1.3% |
+| (a+b) 1d4 + arma | +15.7±1.5 | 69.4±1.6 | 64.4±1.7 | 55.6±1.8 | 3.0 / 2.3 s ✗ | −5.8±1.8 · 1.3% |
+| (c) defense 3d4 → 2d4 | +16.3±1.4 | 68.4±1.6 | 74.1±1.5 | 53.0±1.8 ✗ | 3.2 / 4.3 s ✗ | −7.1±1.9 · 1.3% |
+| (d) speed 3 → 2 | +14.7±1.4 | 63.8±1.7 | 70.1±1.6 | 49.2±1.8 ✗ | 2.5 / 4.3 s ✗ | −4.1±1.8 · 1.5% |
+
+**Kept (a)**: the only variant that brings everything inside — and it is what
+the card already said. The defense dice are untouched, so the premium is too
+(`experiment-defense-vs-attack`: Retruc 3d4 at L2, 67% mean over same-level
+attacks — already under the 80% target; (c) would have taken it further away).
+Encounter-speed re-timed twice more after (a): horde 2.87 / 2.77 s, mixed
+2.10 / 2.15 s — the horde is still close to its 3 s (it read 3.0-3.1 s before
+Esgrima existed).
+
+- **Fantasy power band** +16.1 → **+11.3pp±1.5**; no other Esgrima card
+  needed tuning. AI play of Retruc 41.0% → 15.6%; Braç mort 3.6% → 7.9%, so it
+  left the blind-spot detector's edge and `KNOWN_BLIND` (fantasy) is empty.
+- **Triangle**: Aggro > Power 46.4 → **54.9%±1.8 — holds**, though thinly
+  (2.7σ over 50%). So the failure WAS Esgrima's: cures-de-camp's +21.5pp was a
+  culprit ranking inside a broken edge, and with Retruc tuned it no longer
+  breaks it. Protect > Aggro drops 79.6 → 66.6% (still holds): the protect
+  corner lost its free damage.
+- **Elements** Esgrima −2.8 → −6.0pp±1.8, stalls 1.3% (unchanged: Coixí de
+  vent, §44.3). Retruc still flagged blind there (best 25%, played 1.8%) and
+  still in its `KNOWN_BLIND`.
+- **Tall rere tall at L10 (elements)**: not dominant. It is the best play only
+  13% of the time, worth +2.1 PV over the hand (+3.3 PV when best) — the AI
+  plays it 61% of the time where legal, more than its best-share warrants, but
+  no measurement says it is too strong. Not tuned.

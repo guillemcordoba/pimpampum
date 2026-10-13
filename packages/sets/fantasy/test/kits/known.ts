@@ -19,10 +19,7 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
  * later rounds — a grip that holds, mines that wait — which a one-round
  * evaluator cannot see unless their statuses price themselves.
  */
+// Empty since 2026-10-13: Braç mort left the detector's edge once Retruc
+// d'acer's riposte lost the level (NEXT-STEPS §44.5).
 export const KNOWN_BLIND: Record<string, string[]> = {
-  // Braç mort sits on the detector's edge (2026-10-13: best 19%, played 3.6%,
-  // flagged under 3.8%), and its best moments are ties with Retruc d'acer —
-  // when best it gains −0.7±0.5 PV on the runner-up. Three near-substitute
-  // defenses share those moments; the least played gets flagged (NEXT-STEPS §44).
-  'mestre-armes': ['brac-mort'],
 };
