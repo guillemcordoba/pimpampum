@@ -315,3 +315,7 @@ native kit), so a shared skill's cards 7-10 are measured only in elements. At a
 real fantasy table a hero may still reach them; the encounter solver simulates
 the real party, so each fight is fair even if the scoreboard doesn't cover it.
 The native fantasy kits (4-6 cards) are to be filled to ten later.
+
+*Mestre del xi — card 5 renamed by the user:* Dits clavats → **Bloqueig mutu**
+(both of you are trapped). Toc de la mort's half-PV threshold is to be
+replaced: variants are being simulated (user: "amazing concept").
