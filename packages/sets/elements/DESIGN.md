@@ -55,9 +55,11 @@ and when, lives in `NEXT-STEPS.md` §42.
   its gold cards and the fairness rule (similar total skill-level sum) still
   holds. On a close loss the player chooses which of its skills grows (the
   simulator picks the lowest). A gold card is ONE effect only the overlap
-  enables, never two halves stapled together; one or two per pairing. The
-  sum grows fast with N, so the thresholds keep these rare and the card's own
-  dice modest.
+  enables, never two halves stapled together; five per pairing, a crescendo.
+  **Power follows the threshold sum** (decided 2026-10-14): a gold card
+  needing Foc 5 + Esgrima 5 is as good as card 10 of a single skill, one
+  needing 2 + 2 as good as card 4. So the sums run 2-10 like a kit's levels,
+  and a gold card is never stronger than the single-skill card its sum names.
 - **Ten cards per kit.** Level N knows the first N. Cards 1-3 are one Atac,
   one Defensa and one Focus.
 - **Crescendo.** Power rises with the level: card 1 is what a novice can do,

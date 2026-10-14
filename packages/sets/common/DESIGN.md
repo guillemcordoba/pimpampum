@@ -139,6 +139,128 @@ colossus takes precedence over blocks and the hook.
 - Artífex + Foc: **Globus de guerra** — the balloon rises on the bender's own flame.
 - Artífex + Aigua: **Submarí d'assalt** · Artífex + Terra: **Rails de terra**.
 
+## Gold cards: shared skill × element (2026-10-15, converged, NOT picked)
+
+Eighty cards, five per pairing, each needing one shared skill and one bending
+element. Power follows the threshold sum (elements/DESIGN.md): a 5+5 card is as
+strong as card 10 of a single skill, and each pairing climbs over sums 2-10.
+Each set went through `card-designer` drafts and three or four fresh
+`card-taste` rounds until a round found nothing that must change. Dice are not
+set yet; "N" marks a placeholder. Thresholds are written shared skill + element.
+
+### Esgrima × element (best card: Capa buida)
+
+| pairing | sum | card | type | thr | text |
+|---|---|---|---|---|---|
+| Foc | 2 | Cauteritzar la ferida | Focus | 1+1 | Recuperes N PV. |
+| Foc | 4 | Marcar a foc | Atac | 2+2 | Si fereix, la resta del combat, cada cop que el fereixin perd 1 PV més. No s'acumula. |
+| Foc | 5 | Fulla al roig viu | Focus | 3+2 | La resta del combat, cada cop que la teva arma xoca amb un enemic, en atac o en defensa, li fa perdre 1 PV. |
+| Foc | 7 | Flama a l'altra mà | Atac | 4+3 | Si no fereix, el foc de l'altra mà el fereix amb Nd6; no es pot defensar. |
+| Foc | 9 | Toc fulminant | Atac | 4+5 | Puges 1 nivell de fatiga. Ignora l'armadura. Si fereix, l'objectiu perd la seva acció d'aquest torn i la del següent. |
+| Terra | 2 | Postura de granit | Defensa | 1+1 | Aquest torn, cap atac no fa perdre més de 3 PV a qui defenses. |
+| Terra | 4 | Broquer de llosa | Defensa | 2+2 | El torn següent et torna a defensar. |
+| Terra | 6 | Arrossegar a la punta | Atac | 2+4 | Si fereix, el seu atac d'aquest torn va contra tu. |
+| Terra | 8 | Espasa serp | Atac | 2+6 | No es pot defensar. (metalbending: Terra 6) |
+| Terra | 10 | Bosc de llances | Defensa | 5+5 | Puges 2 nivells de fatiga. Al final del torn, cada enemic que hagi atacat el teu bàndol aquest torn rep un atac d'aquests daus; no es pot defensar. |
+| Aire | 2 | Punta de penell | Atac | 1+1 | Quan es resol, tria'n l'objectiu. |
+| Aire | 4 | Rebuf | Defensa | 2+2 | Si aguanta, l'atacant surt llançat: el torn següent actua l'últim. |
+| Aire | 6 | Capa buida | Defensa | 3+3 | Bloqueja un enemic: si t'ataca aquest torn, falla, i tu l'ataques amb aquests daus; no es pot defensar. |
+| Aire | 8 | Espasa voladora | Focus | 3+5 | Puges 1 nivell de fatiga. La resta del combat, al final de cada torn la teva espasa ataca sola l'enemic que triïs amb aquests daus, i tu no pots jugar cartes d'Esgrima. |
+| Aire | 10 | Ratxa de ganivets | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics al final del torn; no es pot defensar. |
+| Aigua | 3 | Nus de gel | Defensa | 1+2 | Bloqueja un enemic. Si aguanta, fins al final del torn següent l'atacant i tu només us podeu atacar l'un a l'altre. |
+| Aigua | 5 | Pica de glaç | Atac | 3+2 | Si l'objectiu t'ataca aquest torn, suma el tir del seu atac. |
+| Aigua | 6 | Fulla assedegada | Atac | 2+4 | Si fereix, tu o un aliat recupereu tants PV com li ha tret. |
+| Aigua | 8 | Onada d'estocades | Atac | 3+5 | Puges 1 nivell de fatiga. Fins a quatre atacs amb aquests daus, cadascun contra un enemic diferent. |
+| Aigua | 10 | Marioneta escarlata | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, el torn següent tries la carta que juga l'objectiu i contra qui, ell mateix inclòs. |
+
+### Mestre del xi × element (best card: Espina clavada)
+
+| pairing | sum | card | type | thr | text |
+|---|---|---|---|---|---|
+| Aigua | 2 | Verí retornat | Focus | 1+1 | Un aliat, o tu, perd tots els efectes negatius, que passen a l'enemic que triïs. |
+| Aigua | 4 | Corrent guaridor | Focus | 2+2 | Un aliat dret, o tu, recupera 2 PV al final de cada torn fins que el fereixin. |
+| Aigua | 6 | Hivernació | Defensa | 3+3 | Un aliat, o tu: fins al final del torn següent ningú no el pot atacar, i el torn següent no juga carta. |
+| Aigua | 8 | Lligam de dolor | Atac | 4+4 | Afecta dos enemics. Si fereix tots dos, fins al final del torn següent, quan un atac en fereixi un, l'altre perd els mateixos PV. |
+| Aigua | 10 | Venes glaçades | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix no juguen carta el torn següent, i el primer cop que els fereixi llavors fa el doble. |
+| Terra | 2 | Cor de granit | Defensa | 1+1 | Defensa un aliat. Aquest torn, cap carta enemiga no li pot deixar efectes negatius. |
+| Terra | 4 | Cantar els punts | Focus | 2+2 | El torn següent, cada atac del teu bàndol que fereixi deixa l'objectiu entumit. |
+| Terra | 6 | Espina clavada | Atac | 3+3 | Si fereix, queda entumit fins que passi un torn sense atacar. |
+| Terra | 8 | Fer-lo estàtua | Defensa | 4+4 | Bloqueja un enemic. Si aguanta, el torn següent no juga carta. |
+| Terra | 10 | Presa de terra | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix juguen la resta del combat les cartes només amb els daus. |
+| Foc | 2 | Caliu sota la pell | Atac | 1+1 | Si fereix, fins al final del torn següent cada atac que faci li fa perdre 2 PV. |
+| Foc | 4 | Cauteritzar | Focus | 2+2 | Un aliat dret, o tu, recupera els PV que li va treure l'últim cop que l'ha ferit. |
+| Foc | 6 | Cremar el cansament | Focus | 3+3 | Un aliat, o tu, baixa 2 nivells de la fatiga pujada aquest combat. |
+| Foc | 8 | Raig de retorn | Defensa | 4+4 | Puges 1 nivell de fatiga. El primer atac contra tu, aguantis o no, fereix també l'enemic que triïs amb el seu total, sense defensa. |
+| Foc | 10 | Incendi interior | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. +2 per cada nivell de fatiga que tinguis. |
+| Aire | 3 | Agulla de vent | Atac (very fast) | 2+1 | Si fereix, la seva carta d'aquest torn es resol només amb els daus. |
+| Aire | 4 | Mort fingida | Focus | 2+2 | El torn següent no et poden atacar, i el teu atac no es pot defensar. |
+| Aire | 6 | Pes de ploma | Atac | 3+3 | Si fereix, fins al final del torn següent no es pot defensar ni el poden defensar. |
+| Aire | 8 | Bocanada robada | Atac | 4+4 | Si fereix, un aliat, o tu, encara que hagi caigut, recupera tants PV com el dany. |
+| Aire | 10 | Asfíxia | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix i queden per sota de la meitat dels seus PV inicials cauen. |
+
+### Artífex × element (best card: Arnès de titella)
+
+Corda as in the landed kit.
+
+| pairing | sum | card | type | thr | text |
+|---|---|---|---|---|---|
+| Foc | 3 | Escarabat de caliu | Atac | 1+2 | Si fereix, s'hi enganxa. Corda 3: l'objectiu perd 1 PV. |
+| Foc | 5 | Braçal cremador | Focus | 2+3 | Un aliat, o tu. Corda 3: quan un atac seu fereix, l'objectiu perd 2 PV més. |
+| Foc | 6 | Fanal enlluernador | Focus | 3+3 | Apunta un enemic. Corda 2: els seus atacs van contra un combatent a l'atzar. |
+| Foc | 8 | Caldera explosiva | Focus | 4+4 | Puges 1 nivell de fatiga. Corda 3: al final de cada torn tria: esclata contra tots els enemics, o guanya un dau. A 0, esclata. |
+| Foc | 10 | Globus segrestador | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi lliga i l'enlaira. Corda 3: mentre penja no pot actuar ni defensar-se; quan s'atura, cau i rep els daus de la carta. |
+| Aigua | 2 | Tralla retràctil | Atac | 1+1 | Si no fereix, ataca un altre cop. |
+| Aigua | 4 | Campana guaridora | Defensa | 2+2 | Corda 2: un aliat, a dins, no pot actuar ni ser atacat, i al final de cada torn recupera tants PV com els daus de la carta. |
+| Aigua | 6 | Dipòsit de pressió | Defensa | 3+3 | Defensa un aliat. Si aguanta, guarda el tir de l'atacant: al final del torn que triïs, ataca amb ell l'enemic que triïs. |
+| Aigua | 8 | Cor de llautó | Focus | 4+4 | Puges 1 nivell de fatiga. Un aliat caigut s'aixeca amb 1 PV. Corda 3: recupera 2 PV. |
+| Aigua | 10 | Arnès de titella | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi tanca l'arnès. Corda 3: cada torn tries la carta que juga i els seus objectius, ell inclòs. |
+| Terra | 3 | Vagoneta desbocada | Atac | 1+2 | Si fereix, el mateix tir ataca un altre enemic a l'atzar. |
+| Terra | 4 | Cuirassa de ressorts | Defensa | 2+2 | Corda 3: quan t'ataquen, una placa salta i ataca l'atacant amb els daus de la carta. |
+| Terra | 6 | Grilló i bola | Atac | 3+3 | Si fereix, li tanques el grilló. Corda 4: actua l'últim. |
+| Terra | 8 | Talp de ferro | Focus | 4+4 | Corda 3: al final de cada torn surt sota l'enemic que triïs i l'ataca, sense defensa. |
+| Terra | 10 | Martell de terratrèmols | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 3: cada torn, abans que es resolgui cap carta, ataca tots els enemics, sense defensa. |
+| Aire | 2 | Libèl·lula de bambú | Atac | 1+1 | Corda 2: al final del torn torna a volar contra l'enemic que triïs. |
+| Aire | 5 | Ràfega de corda | Focus | 3+2 | Puges 1 nivell de fatiga. Els teus ginys que ataquen ho fan ara, i després tots tornen a tenir la corda plena. |
+| Aire | 7 | Ales de rellotgeria | Defensa | 3+4 | Un aliat, o tu. Corda 3: cada atac contra ell falla. |
+| Aire | 8 | Estel de guerra | Defensa | 4+4 | Defensa un aliat: aquest torn no el poden atacar; al final del torn cau sobre l'enemic que triïs i l'ataca amb els daus de la carta. |
+| Aire | 10 | Tifó de manovella | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 3: al final de cada torn llança un enemic a l'atzar contra un altre, i tots dos reben els daus de la carta; si està sol, contra el terra, dos cops. |
+
+### Acrobàcia × element (best card: Bola de bitlles)
+
+| pairing | sum | card | type | thr | text |
+|---|---|---|---|---|---|
+| Aigua | 2 | Bassal relliscós | Focus (fast) | 1+1 | Aquest torn, el primer atac contra tu té −2 i el seu atacant queda a terra. |
+| Aigua | 4 | Carambola | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, l'atacant i un altre enemic que triïs queden a terra. |
+| Aigua | 6 | Bola de bitlles | Atac | 3+3 | Si l'objectiu és a terra, afecta també tots els altres enemics; els que fereix queden a terra. |
+| Aigua | 8 | Patinada en vuit | Atac | 5+3 | Puges 1 nivell de fatiga. Afecta dos enemics, i al final del torn els tornes a afectar. |
+| Aigua | 10 | Glaçar els caiguts | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que fereix i són a terra perden les seves 2 accions següents. |
+| Terra | 2 | Llosa basculant | Defensa | 1+1 | Bloqueja un enemic. L'atacant queda a terra, aguantis o no. |
+| Terra | 4 | Enterrar el caigut | Atac | 2+2 | Si l'objectiu és a terra i fereix, perd la seva acció següent. |
+| Terra | 6 | Pilar ressort | Atac | 4+2 | No es pot defensar. Si fereix, queda a terra. |
+| Terra | 8 | Roda de molí | Atac | 3+5 | Afecta l'objectiu i tots els enemics a terra. |
+| Terra | 10 | Aliat meteor | Focus (fast) | 5+5 | Puges 2 nivells de fatiga. Un aliat: el seu atac d'aquest torn afecta tots els enemics, i tots queden a terra, ferits o no. |
+| Foc | 2 | Volta de flama | Defensa | 1+1 | Bloqueja un enemic. Si aguanta, l'atacant perd tants PV com el marge. |
+| Foc | 4 | Flic-flacs explosius | Atac | 3+1 | Dos atacs, cadascun contra un enemic a l'atzar. |
+| Foc | 6 | Llit de caliu | Atac | 2+4 | Si fereix, queda a terra; mentre hi sigui, perd 3 PV al final de cada torn. |
+| Foc | 8 | Molinet de foc | Atac | 4+4 | Puges 1 nivell de fatiga. Afecta tots els enemics; els que fereix queden a terra. |
+| Foc | 10 | Torxa en picat | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que són a terra en reben el dany dos cops. |
+| Aire | 2 | Bufada rasant | Atac | 1+1 | Afecta dos enemics, sense dany; els que supera queden a terra. |
+| Aire | 4 | Escut de cos | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, el seu tir va contra un enemic a terra que triïs. |
+| Aire | 6 | Pilota humana | Atac | 4+2 | Afecta un enemic a l'atzar; si fereix, el mateix tir rebota a un altre a l'atzar, fins a 3 enemics. |
+| Aire | 8 | Esmaixada al vol | Atac | 4+4 | Puges 1 nivell de fatiga. Si fereix, rep el mateix dany un altre cop i queda a terra. |
+| Aire | 10 | Penjats del cel | Atac (fast) | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics, sense dany; els que supera floten fins al final del torn (no actuen ni es defensen) i llavors cauen a terra. |
+
+### Decisions for the user
+
+- **One bloodbending puppet, or two?** Marioneta escarlata (Esgrima × Aigua) and Arnès de titella (Artífex × Aigua) are the same play.
+- **Cautery twice:** Cauteritzar la ferida (Esgrima × Foc, self) and Cauteritzar (Xi × Foc, ally; Segellar's old rule with fire as its lore).
+- **Revives:** Bocanada robada (Xi × Aire) and Cor de llautó (Artífex × Aigua) join Cop de vida.
+- **Campana guaridora** (Artífex × Aigua) sits close to Hivernació (Xi × Aigua).
+- **A blast in Artífex:** Caldera explosiva (steam, not powder).
+- **Reviewer-written images to confirm:** Onada d'estocades (it replaced Tentacles armats), Pilar ressort's floor rider.
+- **Rulings:** is being swallowed an efecte negatiu (Cor de granit vs Engolir)?
+- **For implementation:** the AI prices "a terra" at −0.1, so every Acrobàcia setup card will read as weak until that rises. Many of these statuses need `positionValue`. Finishers whose blows can't be defended (Ratxa de ganivets, Martell de terratrèmols) need small dice. Martell needs a round-start hook.
+
 ## Review rounds (log)
 
 Each round: a fresh `card-taste` reviewer per kit (one that did not design it),
