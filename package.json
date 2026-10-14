@@ -12,7 +12,8 @@
     "test:smoke": "pnpm build:libs && SLOW=1 BENCH_SMOKE=1 GAMES=2 SEARCH_GAMES=2 CALIBRATION_GAMES=4 vitest run",
     "calibration:refresh": "pnpm --filter @pimpampum/set-fantasy --filter @pimpampum/set-elements calibration:refresh",
     "build:libs": "pnpm -r --filter '!@pimpampum/web' build",
-    "test:watch": "pnpm build:libs && vitest"
+    "test:watch": "pnpm build:libs && vitest",
+    "idle-watch": "scripts/idle-watch.sh"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
