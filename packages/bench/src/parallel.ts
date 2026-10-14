@@ -46,8 +46,9 @@ export type WarmJob =
 export type WarmWorker = string[];
 
 /** Leave a couple of cores for the machine; more children than cores just adds
- *  context switching to a CPU-bound job. */
-const LANES = Math.max(1, Math.min(os.cpus().length - 2, 24));
+ *  context switching to a CPU-bound job. `BENCH_LANES` caps it lower, so
+ *  several measurements can share a machine someone is working on. */
+const LANES = Math.max(1, Math.min(os.cpus().length - 2, 24, Number(process.env.BENCH_LANES) || Infinity));
 
 /** Disable with `BENCH_SERIAL=1` when a crash needs a readable stack. */
 const enabled = (): boolean => process.env.BENCH_SERIAL !== '1' && process.env.BENCH_NO_CACHE !== '1';
