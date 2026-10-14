@@ -30,7 +30,7 @@ after five naming rounds.
 Weapons (shared): bastó +0 · Espasa lleugera +1 attack and +1 Defensa, only
 with Esgrima 2+ (an experiment) · destral +2 · gran destral +4, −1 speed.
 
-## Drafts — Acrobàcia, Punts de pressió, Artífex (2026-10-13, NOT picked)
+## Drafts — Acrobàcia, Mestre del xi, Artífex (2026-10-13, NOT picked)
 
 Drafted by `card-taste` while the user was away, then put through four review
 rounds (log below). **Nothing here is approved**: the user picks slot by slot,
@@ -57,7 +57,7 @@ are things to climb, ride, vault and spring off.
 
 Alternative at 6: **Cos de goma** (Defensa: strip every hold from you and the one you defend), anti-control nobody else has; Pirueta d'esquer sits close to air's Esquivar-los a tots for a hero holding both.
 
-### Punts de pressió — draft v4
+### Mestre del xi — draft v4 (named "Punts de pressió" until 2026-10-14; "Punts" in the log below)
 
 *Kappo / sappo, "cure or kill": the same points switch a body off or back on.*
 Everything that moves has points: a golem's joints, a devil's bones. The kit
@@ -111,8 +111,8 @@ colossus takes precedence over blocks and the hook.
 
 - Acrobàcia + Aigua: **Lliscada de gel** — slide on your own ice through every enemy's legs.
 - Acrobàcia + Terra: **Pilar trampolí** — a pillar hurls you over the line, unblockable.
-- Punts + Foc: **Llamp redirigit** — the held blow's whole total strikes an enemy you choose.
-- Punts + Aigua: **Agulles de gel** — ice needles into every enemy's points.
+- Xi + Foc: **Llamp redirigit** — the held blow's whole total strikes an enemy you choose.
+- Xi + Aigua: **Agulles de gel** — ice needles into every enemy's points.
 - Artífex + Foc: **Globus de guerra** — the balloon rises on the bender's own flame.
 - Artífex + Aigua: **Submarí d'assalt** · Artífex + Terra: **Rails de terra**.
 
@@ -129,7 +129,7 @@ then the kit's designer revises, accepting or arguing each point.
   height, the stake); Torre humana hits every enemy (it mirrored card 5);
   Cavalcar l'enemic gains "your attacks on the mount can't be defended", the
   deliberate Doble ritme pair. Best card: Cavalcar l'enemic.
-- *Punts de pressió:* Llegir el cos cut (title promised reading, card extended
+- *Mestre del xi:* Llegir el cos cut (title promised reading, card extended
   durations, doubled every lock); Ràfega de dits closes lightest types first,
   so one jab never locks a soldier; Mans per tot arreu cut (a third "defend
   everyone" in the set); Tots a terra → Tempesta de son. Best card: Toc de la
@@ -140,7 +140,7 @@ then the kit's designer revises, accepting or arguing each point.
   Truc robat cut (Mirall de l'enemic stays parked for a mimic/illusionist
   skill); Parany de molla re-rooted on persistence (it copied Bloqueig
   d'escorpí). Best card: Autòmat de corda.
-- *Across kits:* Artífex 5 and Punts de pressió both reached for "ban that
+- *Across kits:* Artífex 5 and Mestre del xi both reached for "ban that
   card"; Artífex keeps it (the gears eat it, literally), Punts owns body parts.
 
 **Round 2 (v1 → v2).**
@@ -151,7 +151,7 @@ then the kit's designer revises, accepting or arguing each point.
   d'escorpí); Salt mortal's height declared at the reveal from a fixed menu
   (chosen at resolution it was a free max bonus against any unguarded target);
   Torre humana adds the dice of the Defenses covering you.
-- *Punts de pressió:* rules.md §6 lets any heal raise the fallen, so card 3
+- *Mestre del xi:* rules.md §6 lets any heal raise the fallen, so card 3
   (heal) dominated card 6: Desbloquejar el cos now affects standing allies
   only, and Revifar el caigut → Cop de vida, the kit's only revive (twin of Toc
   de la mort); Cop ofegat cancelled an attack with no roll (dominant) → Ofegar
@@ -172,7 +172,7 @@ fight and a lone-beast/boss fight).
   never-picked card becomes the setup for 7 and 10); Salt mortal's stake is
   "if the target doesn't fall" (against non-defenders "if it doesn't wound"
   never happened).
-- *Punts de pressió:* Tempesta de son decided a horde in round 1 and gave free
+- *Mestre del xi:* Tempesta de son decided a horde in round 1 and gave free
   setup rounds against a boss → sleepers wake on a coin flip each round, and
   sleep starts at round's end; Ofegar l'atac and Cop de vida swapped (raise,
   kill, sleep at the top); Desbloquejar doesn't free the swallowed or hung.
@@ -181,7 +181,7 @@ fight and a lone-beast/boss fight).
   guards one ally (it read as a second Autòmat); Escut d'engranatges →
   Escut mastegador; Colós → Colós de butxaca; device rules written once.
 - *For the user (Esgrima, approved, not changed):* a reviewer notes that
-  **Punt feble** literally names the Punts de pressió skill and **Braç mort**
+  **Punt feble** literally names the Mestre del xi skill and **Braç mort**
   reads like a pressure-point card.
 
 **Round 4 (v3 → v4) — one reviewer over all four kits.** Three must-fixes, applied:
@@ -223,7 +223,7 @@ standing you lose that) · Malabars a puntades (A, 1 fatiga: while it wounds,
 again, up to 4; then on the ground) · Capbussó suïcida (A, 2 fatiga: every
 enemy; the wounded on the ground, and you too).
 
-*Punts de pressió v5* — Cop al nervi (A: its next attack half damage) ·
+*Mestre del xi v5* — Cop al nervi (A: its next attack half damage) ·
 Tancar la ferida (D: at round's end recover half the PV lost in it) ·
 Despertar la força (F: an ally's or your next attack double damage) · Poder
 apagat (A) · Abraçada paralitzant (D) · Ràfega de dits (A: three attacks; its
@@ -244,3 +244,20 @@ on an enemy and stands before the group, taking every attack on you until it
 falls, then crushes a random enemy). Cut: Escut mastegador, Xarxa de cadenes.
 Device rules cut to two lines: the card stays face up while it works; one of
 each device.
+
+**The loop (2026-10-14): card-designer + a fresh card-taste per round.**
+
+*Mestre del xi — final after three rounds* (round 3 found nothing structural).
+Kit rule **Entumit**: until the end of next round, the damage it does is
+halved (rounded down); if already numb, it only renews.
+Cop al nervi (A: if it wounds, numb) · Pinça entumidora (D: block; if it
+holds, the attacker numb) · Despertar el cop (F: you or an ally, next attack
+double damage) · Poder apagat (A: if it wounds, next round its card has no
+effect, only dice) · Dits clavats (D: block; if it holds, next round neither
+of you plays a card) · Ràfega de dits (A: three attacks; two wounds numb,
+three cancel its action this round) · Tocs en cadena (A: up to three enemies,
+one roll; the wounded numb) · Cop de vida (F: a fallen ally rises with half
+its starting PV, +1 fatigue) · Toc de la mort (A, 1 fatiga: if it wounds, at
+the end of next round it falls if under half its starting PV) · Tempesta de
+son (A, 2 fatiga: every enemy, no damage; the beaten fall asleep at round's
+end until they lose PV or roll 11+ on a d20 at a round's start).
