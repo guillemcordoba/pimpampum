@@ -110,6 +110,11 @@ export interface EngineApi {
   /** Move `target`'s still-pending action to the very end of this round's
    *  queue (it acts last). Returns false when it has already acted. */
   delayPendingAction(target: Character): boolean;
+  /** The counterpart of `delayPendingAction`: `target`'s still-pending action
+   *  resolves NEXT, right after the action now resolving, and joins that
+   *  action's speed tier (simultaneous with it). Returns false when it has
+   *  already acted or was cancelled. */
+  advancePendingAction(target: Character): boolean;
   /** This round's revealed plan — what everyone at the table sees once the
    *  cards are flipped: who plays what, and whether it has resolved yet. */
   plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean }>;
@@ -189,6 +194,10 @@ export interface AIContext {
   enemies: Character[];
   action: ActionDefinition;
   params: Record<string, unknown>;
+  /** This round's queue as revealed to everyone. EMPTY while the cards are
+   *  being chosen — the table chooses simultaneously — and filled from the
+   *  reveal on (resolution-time targeting, `aiTargetPriority`). */
+  plan: readonly import('./policy.js').PendingSummary[];
 }
 
 /**

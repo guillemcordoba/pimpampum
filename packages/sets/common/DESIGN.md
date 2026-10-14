@@ -235,8 +235,8 @@ rounds: every card must now pass the scene test (card-taste.md). Redesigns:
 *Acrobàcia v5* — the acrobat floors bodies and plays on them. Kit rule **A
 terra**: until the end of next round, attacks against it get +2.
 Escombrada (A: if it wounds, on the ground) · Esquiva i traveta (D: if it
-holds, the attacker on the ground) · Trampolí de mans (F, fast: an ally's next
-attack this round +4) · Puntada d'espagat (A: two enemies) · Tombarella de
+holds, the attacker on the ground) · Trampolí de mans (F, fast: an ally's Atac
+this round resolves now; whoever it wounds on the ground — rule B, below) · Puntada d'espagat (A: two enemies) · Tombarella de
 rescat (D: the first ally attacked) · Cavalcar l'enemic (A: if it wounds, next
 round it can't attack you) · Trepitjar caps (A: every enemy; the last, chosen,
 on the ground) · Salt mortal (A, 1 fatiga: height +2/+4/+6; if it's still
@@ -360,3 +360,10 @@ fights its own title and copies cards 4, 7, 10.)
   Hokuto). rules.md gains "efecte negatiu": any state an enemy card left on you.
   Parked: Vida prestada (give your PV to an ally).
 - **Tempesta de son:** a loss in the storm's own round doesn't wake (kept).
+**The user picked B (2026-10-14), implemented as written** (NEXT-STEPS §49):
+one ally, not yourself; when the Focus resolves, that ally's Atac this round,
+if it has not resolved, resolves right after it, ahead of its own speed slot
+(joining the launch's speed tier), with its own targets and dice; every target
+it wounds (area attacks: each) is on the ground. Anything else — a Defensa, a
+Focus, an attack already thrown — and the launch is wasted; a wounded acrobat
+never launches (a Focus). The old +4 is gone.

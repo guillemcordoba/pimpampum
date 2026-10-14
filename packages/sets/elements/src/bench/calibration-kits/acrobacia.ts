@@ -17,7 +17,7 @@ import { num } from '../../players/effects/helpers.js';
  * the approved design's.
  */
 
-// --- A terra (cards 1, 2, 7, 9, 10) ------------------------------------------
+// --- A terra (cards 1, 2, 3, 7, 9, 10) -------------------------------------
 
 const A_TERRA_KEY = 'a-terra';
 
@@ -41,13 +41,12 @@ function floor(engine: EngineApi, c: Character | undefined, team: number, bonus 
 
 // --- 3 · Trampolí de mans ----------------------------------------------------
 
-/** Launched: the holder's next attack THIS round has +`value`. Spent by that
- *  attack; gone at the end of the round if there was none. */
-const TRAMPOLI: StatusBehavior = {
-  onAttackAction(ctx) {
-    ctx.holder.clearStatus(ctx.key);
-    ctx.engine.log('attack', `${ctx.holder.name} surt disparat del trampolí: +${ctx.entry.value}.`, ctx.holder.team);
-    return { attackRollBonus: ctx.entry.value };
+/** Launched: every target the holder's launched card (`data.card`) wounds
+ *  this round is on the ground. Unpriced: it lives and dies inside the round
+ *  the search plays out. */
+const LLANCAT: StatusBehavior = {
+  onHolderAttackHit(ctx, target, damage, action) {
+    if (damage > 0 && action === ctx.entry.data?.['card']) floor(ctx.engine, target, ctx.holder.team, ctx.entry.value);
   },
 };
 
@@ -116,17 +115,34 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Trampolí de mans: one ally's next attack this round has +`amount`.
+  // 3 · Trampolí de mans: the ally's Atac this round, if it has not resolved,
+  // resolves now; whoever it wounds is on the ground. Anything else: wasted.
   'hand_trampoline@cal': {
     getTargetRequirement() { return 'ally_other'; },
     onResolve(ctx) {
       const t = ctx.targets.find(c => c !== ctx.source && c.isAlive());
       if (!t) return;
-      const amount = num(ctx.params, 'amount', 4);
-      t.setStatus('trampoli', amount, 1, undefined, TRAMPOLI);
-      ctx.engine.log('focus', `${ctx.source.name} fa de trampolí a ${t.name}: el seu proper atac aquest torn té +${amount}.`, ctx.source.team);
+      const launched = ctx.engine.plannedThisRound().find(p =>
+        p.actor === t && !p.resolved && !p.cancelled && p.action.actionType === ActionType.Atac);
+      if (!launched) {
+        ctx.engine.log('focus', `${ctx.source.name} fa de trampolí a ${t.name}, però no té cap atac per llançar.`, ctx.source.team);
+        return;
+      }
+      t.setStatus('llancat', num(ctx.params, 'bonus', 2), 1, { card: launched.action }, LLANCAT);
+      ctx.engine.advancePendingAction(t);
+      ctx.engine.log('focus', `${ctx.source.name} llança ${t.name} pels aires: «${launched.action.name}» es resol ara.`, ctx.source.team);
     },
-    aiWeight(ctx) { return ctx.allies.length ? 0.6 : 0; },
+    // Chosen before the reveal (the plan is still empty then): worth it when
+    // an ally holds an Atac slower than the launch.
+    aiWeight(ctx) {
+      const slowAtac = (c: Character) => c.actions.some(a =>
+        a.def.actionType === ActionType.Atac && !a.def.lastResort && a.def.speed < ctx.action.speed);
+      return ctx.allies.some(slowAtac) ? 0.6 : 0;
+    },
+    // Aimed after the reveal: the ally whose Atac is still to come.
+    aiTargetPriority(ctx, candidate) {
+      return ctx.plan.some(p => p.actor === candidate && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac) ? 10 : 0;
+    },
   },
 
   // 5 · Tombarella de rescat: commits to nobody; guards the first ally
@@ -266,8 +282,8 @@ export const ACROBACIA: SkillDefinition = {
     action({
       id: 'trampoli-de-mans@cal', name: 'Trampolí de mans', skillId: 'acrobacia@cal',
       unlock: 3, type: ActionType.Focus, speed: 4,
-      effects: [{ type: 'hand_trampoline@cal', params: { amount: 4 } }],
-      desc: 'Un aliat: el seu proper atac aquest torn té +4.',
+      effects: [{ type: 'hand_trampoline@cal' }],
+      desc: "Un aliat: el seu atac d'aquest torn es resol ara; si fereix, l'objectiu queda a terra.",
       icon: 'delapouite/leapfrog.svg',
     }),
     action({

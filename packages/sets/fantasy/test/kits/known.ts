@@ -24,6 +24,11 @@ export const KNOWN_BLIND: Record<string, string[]> = {
   // search prefers the damage by a point or two. A probe over every decision
   // found the one-round search ranking them best in 2-5% of their legal turns
   // and never at the moments the card value did (NEXT-STEPS §48.2).
-  acrobacia: ['tombarella-de-rescat'],
   'mestre-del-xi': ['segellar-la-ferida'],
+  // Best where the launched attack lands before the goblins' Amagar-se
+  // (speed 2) and breaks it. The search's rollouts model the goblins at depth
+  // 0, which hides ~1% of the time where the real (depth-1) goblins hide ~40%,
+  // so the search almost never sees a hide to break (NEXT-STEPS §49.3).
+  // Tombarella de rescat left this list on the same run (best 28%, played 6.9%).
+  acrobacia: ['trampoli-de-mans'],
 };

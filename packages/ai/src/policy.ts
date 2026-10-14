@@ -243,7 +243,7 @@ function actionWeight(
   const hinting = view.registry.effectsWith(def.effects, 'aiWeight');
   if (hinting.length) {
     const base: Omit<AIContext, 'params'> = {
-      registry: view.registry, round: view.round, actor, allies, enemies, action: def,
+      registry: view.registry, round: view.round, actor, allies, enemies, action: def, plan: view.pendingSummary(),
     };
     for (const { eff, handler } of hinting) {
       const fn = handler.aiWeight!;
@@ -264,7 +264,7 @@ function cardTargetPriority(
   const hints = hinting.map(({ eff, handler }) => ({ fn: handler.aiTargetPriority, params: eff.params ?? {} }));
   const base: Omit<AIContext, 'params'> = {
     registry: view.registry, round: view.round, actor,
-    allies: view.alliesOf(actor, false), enemies: view.enemiesOf(actor), action: def,
+    allies: view.alliesOf(actor, false), enemies: view.enemiesOf(actor), action: def, plan: view.pendingSummary(),
   };
   const scores = new Map(pool.map(c => [c, hints.reduce((s, h) => s + h.fn!({ ...base, params: h.params }, c), 0)]));
   return c => scores.get(c) ?? 0;

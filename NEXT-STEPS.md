@@ -5299,3 +5299,114 @@ Proof that nothing moved:
   for the two caches.
 
 The budget is not loosened.
+
+## 49. Trampolí de mans gets the user's rule; the AI's opponent model cannot see what it breaks (2026-10-14, branch `elements-set`)
+
+The user picked rule B (`packages/sets/common/DESIGN.md`): **"Un aliat: el seu
+atac d'aquest torn es resol ara; si fereix, l'objectiu queda a terra."** Id,
+title, type (Focus) and speed (4) unchanged. One ally, not yourself. When the
+Focus resolves, if that ally's card this round is an Atac that has not
+resolved, it resolves right after the launch, ahead of its own speed slot,
+with its own targets and dice. Every target it wounds is floored (area
+attacks: each one). If the ally plays no Atac, or already attacked, the
+launch is wasted. A wounded acrobat never launches (it is a Focus). The +4
+(`TRAMPOLI`) is gone; the effect key stays `hand_trampoline`, and its status
+is now `llancat` (LLANCAT).
+
+### 49.1 What the engine got (generic; tests in `engine/test/seams.test.ts`)
+
+- `EngineApi.advancePendingAction(target)`: the counterpart of
+  `delayPendingAction`. The target's pending action moves to just after the
+  one now resolving and joins its speed tier, so it is simultaneous with it.
+  A body it fells in that tier still acts. Returns false when the action has
+  already resolved or was cancelled. A Focus advanced for an actor already
+  hit stays interrupted.
+- `StatusBehavior.onHolderAttackHit(ctx, target, damage, action)`: called for
+  every blow of the holder that hit (walls included), with the damage after
+  armour (0 when armour took it all) and the card. It runs after the card's
+  own `onAttackHit`. It is gated like the other per-blow hooks.
+- `AIContext.plan`: the revealed queue (`pendingSummary()`). It is empty
+  while cards are being chosen, because the table chooses simultaneously.
+  It is filled from the reveal on.
+
+AI hints. `aiWeight` cannot read the plan: at choice time the plan is empty,
+and `AIContext` has no engine. So it reads the allies' HANDS instead: 0.6 if
+an ally holds an Atac slower than the launch. `aiTargetPriority` reads the
+plan at the reveal and aims at the ally whose Atac is still to come. The
+search plays the team's joint plan, so the launched card is simulated in its
+advanced order. In a probe, every real launch found an Atac (0 wasted).
+
+### 49.2 Measured (800-combat kit-analyzer; "before" is 81e61ee, "after" this commit with the calibration re-pinned)
+
+| | fantasy (L6) before | fantasy after | elements (L10) before | elements after |
+|---|---|---|---|---|
+| kit Δ vs neutral | +15.1pp±1.5 | +16.9pp±1.4 | −3.9pp±1.8 | −3.8pp±1.8 |
+| Trampolí: value vs the hand | −5.3 PV | **−0.2 PV** | −12.2 PV | **+23.1 PV** |
+| best play | 7% | **22%** | 5% | **28%** |
+| gain when best | −0.6 PV | **+10.4 PV** | −4.2 PV | **+11.0 PV** |
+| AI play rate | 2.0%±0.3 | 3.2%±0.4 | 0.5%±0.2 | 8.1%±0.7 |
+
+Both kit suites pass. Requirements 1-3 hold in both sets. The fantasy band
+passes inside its error: +16.9 − 2σ < 15. In elements, Trampolí is now the
+second-best card by value, after Tombarella. In fantasy, Tombarella de rescat
+stopped being a blind spot (best 28%, played 6.9%) and left `KNOWN_BLIND`.
+Trampolí took its place there, for the reason below. The fast tier is green
+(587).
+
+### 49.3 Why the fantasy AI under-plays it: the search's opponent model never hides
+
+A throwaway probe (deleted) used 40 fantasy fights: the acrobat at L6 with
+four company rows against 5 goblins at PV 14. At each acrobat decision where
+Trampolí was legal, it compared:
+- the card value (`valuePosition`, the analyzer's own);
+- a one-round score per card with a depth-1 continuation;
+- the production joint plan;
+- the search's own evaluation of that plan with and without Trampolí. That
+  evaluation was run twice: once with the goblins at depth 0 (as in the
+  rollouts), once with them at depth 1 (as in the real fight). Each used 24
+  paired samples.
+
+- **The plan is not the problem.** The card value calls Trampolí best at 31
+  of 118 decisions. At 26 of those, the production plan already has an ally
+  on a slow Atac, and the one-round score ranks Trampolí top at 25. Usually
+  it leads by 50-98 points, which means the round decides the fight. The
+  production AI played it at 4 of them.
+- **The opponent model is.** At the 27 best moments the AI missed, Trampolí
+  minus the AI's pick, scored by the search with depth-0 goblins: median
+  −2.3, 6 of 27 positive. With depth-1 goblins: 15 of 27 positive, eleven of
+  them by +44 to +86.
+- **What it breaks is Amagar-se.** This is the goblins' Focus at speed 2:
+  dodge every attack this turn. The launched attack lands at speed 4,
+  interrupts the hide, and so the rest of the party's round lands too. The
+  real goblins (depth 1) played Amagar-se in **43%** of their cards in those
+  rounds. The depth-0 model used for them inside the search played it in
+  **1.1%**. Its hint is 0.7 (1.6 when hurt) on a Focus base of 1.2, set
+  against attack weights that grow with expected damage. So the search
+  almost never sees a hide to break.
+- **Causal check, reverted.** I raised the hide hint to 4 (5 when hurt) and
+  ran the same probe. The depth-0 hide rate went to 7.7%, the AI played
+  Trampolí at 13 of 24 best moments (it was 4 of 31), and 17% of its legal
+  turns overall (it was 3.4%).
+
+None of the candidate causes is a Trampolí bug. Trampolí's `aiWeight` only
+seeds the search. The floored status's −0.1 price does not decide these
+rounds. The search does simulate the ally's card in the advanced order. The
+cause is the depth-0 OPPONENT MODEL, which §20.8 keeps "swingy" on purpose.
+Fixing it means changing the goblin's hint, and that moves every fantasy
+measurement that holds goblins (the horde and mixt shapes, every kit's
+baseline). So it was not done here. Trampolí is ratcheted in fantasy
+`KNOWN_BLIND`. In elements the gap is smaller (played 8.1% against 28% best)
+and not flagged.
+
+**For the user:** whether to bring the depth-0 goblin closer to the field,
+via its Amagar-se hint or a general Focus/interrupt term in `actionWeight`.
+That needs a full recalibration and every fantasy kit suite re-run, and it is
+the same lever §20.8 warns about ("do not fix this weight without measuring
+the SEARCH").
+
+### 49.4 Conflicts with intentions.md
+
+"Combos between actions played in the same round should be among the best
+options." Trampolí is now one of them by value: 22% / 28% best play, +10-11 PV
+when best. The AI still plays it far below that in fantasy (49.3). The
+fantasy band (+16.9±1.4) passes only within its error, as in §48.3.

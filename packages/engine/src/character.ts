@@ -32,7 +32,7 @@ const GATED_HOOKS = [
   'beforeHolderAction', 'skipsRound', 'plainCards', 'onPvLost', 'opensGuardTo', 'onEnemyAttackAction',
   'attackRepeats', 'standingGuard', 'blocksActionType', 'adjustActionWeight', 'onRoundStart',
   // The second word of the mask.
-  'onRoundEnd', 'choosesAfterReveal', 'cardSwapCharges', 'absorbsGuard', 'positionValue',
+  'onRoundEnd', 'choosesAfterReveal', 'cardSwapCharges', 'absorbsGuard', 'positionValue', 'onHolderAttackHit',
 ] as const satisfies readonly (keyof StatusBehavior)[];
 export type GatedHook = typeof GATED_HOOKS[number];
 

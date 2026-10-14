@@ -874,6 +874,52 @@ describe('round-two seams for the elements kits', () => {
     expect(order).toEqual(['Slow', 'B']);
   });
 
+  it('advancePendingAction: the unresolved action resolves next, inside the current speed tier', () => {
+    const order: string[] = [];
+    const registry = new EffectRegistry();
+    registry.register('note', { onResolve(ctx) { order.push(ctx.source.name); } });
+    let moved: boolean[] = [];
+    registry.register('pull', { onResolve(ctx) {
+      const [slow, done] = ctx.engine.alliesOf(ctx.source, false).sort((x, y) => x.name.localeCompare(y.name));
+      moved = [ctx.engine.advancePendingAction(slow), ctx.engine.advancePendingAction(done)];
+    } });
+    const a = makeChar('A', 20, [focusDef('pull', { speed: 5, effects: [{ type: 'pull' }] })]);
+    const slow = makeChar('Slow', 20, [focusDef('slow', { speed: -5, effects: [{ type: 'note' }] })]);
+    const done = makeChar('Zfast', 20, [focusDef('zfast', { speed: 9, effects: [{ type: 'note' }] })]);
+    const b = makeChar('B', 20, [focusDef('mid', { speed: 2, effects: [{ type: 'note' }] })]);
+    const engine = new CombatEngine([a, slow, done], [b], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }, { idx: 2, actionIdx: 0 }]);
+    expect(order).toEqual(['Zfast', 'Slow', 'B']);
+    expect(moved).toEqual([true, false]);
+  });
+
+  it('advancePendingAction: an advanced attack is simultaneous with the tier that launched it', () => {
+    const registry = new EffectRegistry();
+    registry.register('pull', { onResolve(ctx) { ctx.engine.advancePendingAction(ctx.engine.alliesOf(ctx.source, false)[0]); } });
+    const a = makeChar('A', 20, [focusDef('pull', { speed: 5, effects: [{ type: 'pull' }] })]);
+    const hitter = makeChar('Hitter', 20, [atkDef('big', { speed: 0, dice: new DiceRoll(1, 1), rollBonus: 49 })]);
+    // B acts at A's speed: felled by the advanced blow, it still acts (a tie).
+    const b = makeChar('B', 5, [atkDef('jab', { speed: 5, dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    b.aiControlled = true;
+    const engine = new CombatEngine([a, hitter], [b], { registry, actionChooser: firstLegalChooser });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(b.isAlive()).toBe(false);
+    expect(a.currentPV + hitter.currentPV).toBe(37);
+  });
+
+  it('onHolderAttackHit: each blow of the holder, with its damage after armour and its card', () => {
+    const seen: [string, number, string][] = [];
+    const registry = new EffectRegistry();
+    const a = makeChar('A', 20, [atkDef('sweep', { speed: 1, dice: new DiceRoll(1, 1), rollBonus: 3, targetCount: 99 })]);
+    const b = makeChar('B', 20, [focusDef('wait')]);
+    const c = makeChar('C', 20, [focusDef('wait')]);
+    c.getPassiveArmor = () => 10;
+    const engine = new CombatEngine([a], [b, c], { registry, actionChooser: firstLegalChooser });
+    a.setStatus('watch', 1, -1, undefined, { onHolderAttackHit(_ctx, t, dmg, action) { seen.push([t.name, dmg, action.id]); } });
+    runRound(engine, [{ idx: 0, actionIdx: 0 }]);
+    expect(seen).toEqual([['B', 4, 'sweep'], ['C', 0, 'sweep']]);
+  });
+
   it('plannedThisRound: the revealed plan, with what already resolved', () => {
     const seen: { names: string[]; resolved: boolean[] }[] = [];
     const registry = new EffectRegistry();

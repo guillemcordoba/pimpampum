@@ -987,6 +987,19 @@ export class CombatEngine implements EngineApi, AIView {
     return true;
   }
 
+  advancePendingAction(target: Character): boolean {
+    const now = this.pending[this.pendingIndex];
+    const i = this.pending.findIndex((p, j) => j > this.pendingIndex && p.actor === target && !p.cancelled);
+    if (!now || i < 0) return false;
+    const [p] = this.pending.splice(i, 1);
+    p.speed = now.speed;
+    // It joins a tier whose focus snapshot is already taken: a focus whose
+    // holder was hit before this tier stays interrupted.
+    if (p.action.def.actionType === ActionType.Focus && p.actor.hitThisTurn) this.tierInterrupted.add(p.actor);
+    this.pending.splice(this.pendingIndex + 1, 0, p);
+    return true;
+  }
+
   plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean }> {
     return this.pending.map((p, i) => ({ actor: p.actor, action: p.action.def, resolved: i < this.pendingIndex, cancelled: !!p.cancelled }));
   }
@@ -1533,6 +1546,12 @@ export class CombatEngine implements EngineApi, AIView {
     return out;
   }
 
+  private holderAttackHit(source: Character, target: Character, dmg: number, def: ActionDefinition): void {
+    for (const { key, entry, behavior } of this.hookedStatuses(source, 'onHolderAttackHit')) {
+      if (source.statuses.has(key)) behavior.onHolderAttackHit!(this.statusCtx(source, key, entry), target, dmg, def);
+    }
+  }
+
   /** Chain modifyOutgoingDamage across the attacker's statuses. */
   private applyOutgoingDamage(source: Character, dmg: number): number {
     if (!source.holdsStatusWith('modifyOutgoingDamage')) return dmg;
@@ -1796,6 +1815,7 @@ export class CombatEngine implements EngineApi, AIView {
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin, attackTotal: contestAttack });
+    this.holderAttackHit(source, recipient, dmg, def);
     if (guard && recipient === guard.defender && dmg > 0) {
       this.dispatch('onBlockFail', guard.defender, guard.action, { targets: [target], target: source, damageDealt: dmg });
     }
@@ -1832,6 +1852,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.log('attack', `💥 ${source.name} «${def.name}» trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
     this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
+    this.holderAttackHit(source, recipient, dmg, def);
     if (dmg > 0) {
       this.dispatch('onBlockFail', recipient, weak.g.action, { targets: [source], target: source, damageDealt: dmg });
     }

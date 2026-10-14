@@ -185,6 +185,10 @@ export interface StatusBehavior {
    *  for every blow `onTargeted`/`onAllyTargeted` were asked about (the moment
    *  to take back a guard raised for that one blow). */
   afterBlow?(ctx: StatusHookContext, target: Character, attacker: Character, blow: BlowInfo): void;
+  /** One of the holder's attacks (`action`, extra attacks included) has hit
+   *  `target` for `damage` after armour — 0 when the armour took it all. Runs
+   *  after the card's own `onAttackHit` riders. */
+  onHolderAttackHit?(ctx: StatusHookContext, target: Character, damage: number, action: ActionDefinition): void;
   /** The holder's revealed card is about to resolve: it is alive, the card
    *  was not cancelled and is not an interrupted Focus (a crossbow that shoots
    *  whoever it aims at just before each of their cards). Damage dealt here

@@ -84,22 +84,59 @@ describe('Acrobàcia', () => {
     expect(foe.currentPV).toBe(25);
   });
 
-  it("Trampolí de mans: one ally's next attack this round has +4", () => {
+  it("Trampolí de mans: the ally's slow attack resolves now — before the enemy's faster one — and floors whoever it wounds", () => {
     const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
     const friend = fighter('Amic', [blow(3, 0)], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30 });
-    playRound(engineFor([me, friend], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(23);
-  });
-
-  it('Trampolí de mans: wasted on an ally who has already attacked', () => {
-    const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
-    const friend = fighter('Amic', [blow(3, 9)], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30 });
+    // A speed-2 focus: the launched blow lands first and interrupts it.
+    const foe = fighter('Foe', [focusCard('carrega', { speed: 2 })], { pv: 30 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
     expect(foe.currentPV).toBe(27);
-    expect(friend.hasStatus('trampoli')).toBe(false);
+    expect(foe.hasStatus('a-terra')).toBe(true);
+    expect(e.logEntries.some(l => l.message.includes("s'interromp"))).toBe(true);
+    // The ally's card resolved once, not again in its own slot.
+    expect(e.logEntries.filter(l => l.message.includes('colpeja Foe')).length).toBe(1);
+  });
+
+  it('Trampolí de mans: an area attack floors every target it wounds, and only those', () => {
+    const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
+    const friend = fighter('Amic', [attackCard('escombrar', { dice: new DiceRoll(1, 1), rollBonus: 2, targetCount: 99 })], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30, equipment: [armour(5)] });
+    playRound(engineFor([me, friend], [a, b]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect(a.currentPV).toBe(27);
+    expect(a.hasStatus('a-terra')).toBe(true);
+    expect(b.currentPV).toBe(30);
+    expect(b.hasStatus('a-terra')).toBe(false);
+  });
+
+  it('Trampolí de mans: wasted on an ally who has already attacked, or who plays no Atac', () => {
+    const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
+    const fast = fighter('Ràpid', [blow(3, 9)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const e = engineFor([me, fast], [foe]);
+    playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(27);
+    expect(foe.hasStatus('a-terra')).toBe(false);
+
+    const me2 = acrobat('Acròbata', [card('trampoli-de-mans')]);
+    const waiter = fighter('Quiet', [wait], { pv: 30 });
+    const foe2 = fighter('Foe', [blow(4, 2)], { pv: 30 });
+    const e2 = engineFor([me2, waiter], [foe2]);
+    playRound(e2, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+    expect(waiter.currentPV).toBe(26);
+    expect(waiter.hasStatus('llancat')).toBe(false);
+  });
+
+  it('Trampolí de mans: a wounded acrobat never launches (a Focus)', () => {
+    const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
+    const friend = fighter('Amic', [blow(3, 0)], { pv: 30 });
+    const foe = fighter('Foe', [blow(4, 9), focusCard('carrega', { speed: 2 })], { pv: 30 });
+    const e = engineFor([me, friend], [foe]);
+    playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(me.currentPV).toBe(26);
+    expect(foe.currentPV).toBe(27);
+    expect(foe.hasStatus('a-terra')).toBe(false);
   });
 
   it("Puntada d'espagat: two enemies, one roll", () => {

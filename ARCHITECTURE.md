@@ -155,6 +155,17 @@ which is how searches answer it) takes the card's own `aiRevealOption` hint.
 `performExtraAttack` now also honours `attackRollAgainstHolder` (a mark or a
 body on the ground counts against follow-up blows and ripostes too) and
 returns the `recipient` who took the blow.
+Added 2026-10-14 for Trampolí de mans (tests in `engine/test/seams.test.ts`,
+beside `delayPendingAction`): `EngineApi.advancePendingAction(target)`, the
+counterpart of `delayPendingAction` — the target's still-pending action
+resolves NEXT, right after the one now resolving, and joins that one's speed
+tier (simultaneous with it: a body it fells in that tier still acts); false
+when it already acted or was cancelled. `StatusBehavior.onHolderAttackHit(ctx,
+target, damage, action)` — every blow of the holder that hit, with its damage
+after armour (0 when the armour took it) and its card, after the card's own
+`onAttackHit`. `AIContext.plan` — the revealed queue (`pendingSummary()`),
+EMPTY while cards are chosen (the table chooses simultaneously) and filled
+from the reveal on, so an `aiTargetPriority` can aim by what the others play.
 
 **The artificer seams (2026-10-14, for Artífex; tests in
 `engine/test/seams-artificer.test.ts`)** — every blow now carries a
