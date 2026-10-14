@@ -135,6 +135,25 @@ read of the wielded weapon). A `lastResort` card is never locked by
 `blocksActionType` (rules.md: Cop desesperat enters when every card is
 consumed or BLOCKED).
 
+**The acrobat seams (2026-10-14, for Acrobàcia; tests in
+`engine/test/seams-acrobat.test.ts`)** — `attackTargetsExcluded` (the
+holder's attacks cannot reach these characters: they leave every attack pool,
+area attacks included, before `attackTargetsOnly` narrows it; its extra
+attacks miss them; their block no longer forces its blows; with nobody left
+the blow lands on nobody); `onAllyTargeted` (an enemy attack, normal or extra,
+is about to resolve against one of the holder's allies — before the defenses
+are gathered, so a guard pushed there covers that very blow and joins any
+wall); `EffectHandler.onAttackResolved` (once per attack action, after every
+target and pass, with the final target list); REVEAL OPTIONS —
+`revealOptions`/`aiRevealOption`/`onRevealOption`: a card whose player picks
+one of several labels when the cards are revealed, before anything resolves; a
+human seat gets a `StepResult` `{kind:'choice'}` answered with
+`setResolveChoice(i)`, every other seat (and a prompt answered with nothing,
+which is how searches answer it) takes the card's own `aiRevealOption` hint.
+`performExtraAttack` now also honours `attackRollAgainstHolder` (a mark or a
+body on the ground counts against follow-up blows and ripostes too) and
+returns the `recipient` who took the blow.
+
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
 redirects; interrupted focuses excluded). Content queries it: the generic
@@ -153,7 +172,8 @@ that target this round.
 3. `resolveNextAction()` — returns `{kind:'target'|'resolved'|'done'}`. On
    `'target'` the UI prompts and calls `setResolveTarget(targets)`. Before the
    first card resolves, a human seat whose `aimsAtReveal` card named no target
-   is prompted for it first. Speed ties
+   is prompted for it first; then a human seat whose card offers
+   `revealOptions` gets a `'choice'` prompt (`setResolveChoice`). Speed ties
    resolve simultaneously (per-tier alive/interrupt snapshots). Blocked
    attackers have every chosen slot forced onto their blocker. Attacks roll once
    per pass; each target defends against that roll; `attackRepeats` statuses
@@ -167,7 +187,8 @@ that target this round.
 Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onBlockFail`, `onResolve`, `postRound`, `getTargetRequirement`, `aiWeight`,
 `onCombatStart`, `canPlay`, `onPlay`, `resolveAs`, `onReveal`, `aimsAtReveal`,
-`onAimed`, `presetAttackRoll`. They touch the engine only through
+`onAimed`, `presetAttackRoll`, `onAttackResolved`, `revealOptions`, `aiRevealOption`,
+`onRevealOption`. They touch the engine only through
 `EngineApi`.
 
 Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, plus
@@ -185,10 +206,12 @@ list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `detonate`, `cleanse`, `flanking`.
 
 Skill-specific handlers (`enter_rage`, Esgrima's `treacherous_feint`…`cut_after_cut`,
+Acrobàcia's `sweep`…`suicide_dive`,
 `charge_cost`, `adrenaline`, `condemn`/`reap`, `carve_rune`,
 `shadow_melt`/`shadow_bind`, `seismic_sense`/`earth_wall`/`bury`,
 `pressure_gain`/`eruption`) live on their skill's `SkillDefinition.effects`; the
-`StatusBehavior` consts they attach (`FURIA_ESTAT`, `FLUX`, `PROVOCAT`, `ESCORPI`, `PUNT_FEBLE`, `ENCEGAT`,
+`StatusBehavior` consts they attach (`FURIA_ESTAT`, `FLUX`, `PROVOCAT`, `ESCORPI`, `PUNT_FEBLE`,
+`A_TERRA`, `TRAMPOLI`, `RESCAT`, `CAVALCAT`, `ENCEGAT`,
 `CAMP_MINAT`, `CONDEMNAT`, `PUTREFACCIO`, `ADRENALINA`,
 `RUNA_FULLA/CONFUSIO/ESCUT`, `FOS`, `LLIGAT`, `SENTIT`, `MUR`, `ENTERRAT`,
 `RIU_DE_LAVA`…) are defined alongside them in the same file.

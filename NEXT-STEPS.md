@@ -4737,3 +4737,119 @@ Esgrima existed).
   13% of the time, worth +2.1 PV over the hand (+3.3 PV when best) — the AI
   plays it 61% of the time where legal, more than its best-share warrants, but
   no measurement says it is too strong. Not tuned.
+
+## 45. Acrobàcia implemented and measured: too strong in fantasy, in band in elements (2026-10-14, branch `elements-set`)
+
+The shared ten-card Acrobàcia (`set-common`, skill `acrobacia`, unarmed) is in
+both sets' catalogues as a main kit, with a company row in each (fantasy
+`acrobacia | enginyer-explosius | metge`, stand-in berserk; elements
+`acrobacia | earthbender | airbender`, stand-in waterbender) and the
+calibration re-pinned (`pnpm calibration:refresh`). The approved design is
+implemented as written — no concept, title, number or text changed. Fantasy
+measures it capped at `HERO_LEVEL` 6, so its cards 7-10 (Trepitjar caps, Salt
+mortal, Malabars a puntades, Capbussó suïcida) are measured only in elements.
+
+### 45.1 What the engine got (generic; tests in `engine/test/seams-acrobat.test.ts`)
+
+- `StatusBehavior.attackTargetsExcluded` — the holder's attacks cannot reach
+  these characters (Cavalcar l'enemic). They leave every attack pool, area
+  attacks included; its extra attacks miss them; their block no longer forces
+  its blows; with nobody left the blow lands on nobody.
+- `StatusBehavior.onAllyTargeted` — an enemy attack (normal or extra) is about
+  to resolve against one of the holder's allies, before defenses are gathered
+  (Tombarella de rescat pushes its guard there: it joins the wall).
+- `EffectHandler.onAttackResolved` — once per attack action, after every
+  target and pass (Trepitjar caps' chosen floor, Salt mortal's fall, the
+  diver on the ground).
+- Reveal options — `revealOptions` / `aiRevealOption` / `onRevealOption`: a
+  pick made when the cards are revealed. A human seat gets a new `StepResult`
+  `{kind:'choice'}` answered with `setResolveChoice(i)` (the web shows the
+  options as buttons; `tools/play.ts`, the lookahead, regret and the test
+  helper `playRound(…, choices)` answer it); any other seat, and a prompt
+  answered with nothing, takes the card's own `aiRevealOption` hint.
+- `performExtraAttack` now honours `attackRollAgainstHolder` (a body on the
+  ground, or marked, counts against follow-ups and ripostes too) and returns
+  the `recipient`. Checked not to move existing play: the elements triangle
+  re-run without it gave identical seeded numbers.
+
+Salt mortal's AI height: the lowest height whose expected roll (dice mean +
+level + roll bonuses) reaches the softest enemy's PV + armour (+ the expected
+roll of the Defensa it revealed); +2 when no height reaches anyone, since a
+height that does not kill is paid in full. Trepitjar caps' pick goes through
+`chooseTargets`, i.e. the seat's attack aim (the AI's searched target).
+Statuses priced conservatively and NOT swept: a terra −0.1, cavalcat −0.1
+while its acrobat stands; the trampoline, rescue and height statuses expire
+inside the round the search plays out, so they are unpriced.
+
+### 45.2 Measured (800-combat kit suites, `SLOW=1 npx vitest run test/kits/acrobacia`)
+
+| | fantasy (L6) | elements (L10) |
+|---|---|---|
+| power band | **+22.1pp±1.2 ✗** (raw 89.4%±1.1) | −1.6pp±1.8 ✓ (raw 60.2%±1.7) |
+| fights end | median 3, p90 5, stalls 0.0%±0.4 ✓ | median 2, p90 5, stalls 1.4%±0.4 ✓ |
+| choice matters | 5.45±0.26 PV/decision ✓ | 26.25±1.81 PV/decision ✓ |
+| blind spots | **Tombarella de rescat ✗** (best 31%, played 3.5%) | Esquiva i traveta (best 21%, played 1.9%) → `KNOWN_BLIND` |
+
+Fantasy per-cell: horda +9/+18/+23/+26, escamot +36/+20/+11/+24, cap
++23/+45/+31, mixt +19/+18/−2/+29 (spread 47pp, ±10 per cell). Elements:
+patrulla c4 −53 and mixt c4 −18 pull it down; bèstia is saturated in every
+row (all six cells dropped). The band culprits named by the suite: Puntada
+d'espagat (+0.07), Tombarella de rescat (+0.02), Cavalcar l'enemic (+0.02).
+
+Card values (value vs. the hand · best play · gain when best · AI play rate):
+
+| card | fantasy | elements |
+|---|---|---|
+| Escombrada | −1.8 PV · 7% · −1.1 · 4.0% | −9.1 · 4% · −2.1 · 1.5% |
+| Esquiva i traveta | +3.7 · 23% · +8.2 · 17.2% | +19.4 · 21% · −2.2 · 1.9% |
+| Trampolí de mans | −6.1 · 5% · −1.4 · 1.2% | −13.6 · 6% · −0.6 · 0.5% |
+| Puntada d'espagat | +4.2 · 37% · +3.4 · 49.1% | +0.3 · 12% · +6.1 · 5.6% |
+| Tombarella de rescat | +4.3 · 31% · +1.9 · 3.5% | +38.7 · 50% · +33.4 · 42.5% |
+| Cavalcar l'enemic | −1.0 · 10% · +0.3 · 24.9% | −11.6 · 4% · −1.2 · 1.4% |
+| Trepitjar caps | — | −5.9 · 6% · −0.7 · 9.9% |
+| Salt mortal | — | −13.6 · 1% · −0.9 · 0.7% |
+| Malabars a puntades | — | −0.3 · 10% · +2.8 · 12.0% |
+| Capbussó suïcida | — | −4.4 · 10% · +0.5 · 24.2% |
+
+- **Elements Esquiva i traveta** is best only by noise (−2.2 PV over the
+  runner-up when "best" — its near-substitute Tombarella), the same detector
+  edge as Esgrima's defenses (§44.2): ratcheted in elements `KNOWN_BLIND`.
+- **Fantasy Tombarella de rescat** is NOT ratcheted: it gains +1.9 PV over the
+  runner-up when best and is played at a ninth of its best share — a real
+  under-play I cannot yet explain. Its payoff lands inside the round the
+  search plays (no status to price); Esquiva, played 17%, gets a searched
+  target and floors the attacker, so the two may read as substitutes to a
+  6-sample search. Open; the fantasy suite fails on it.
+- **Fantasy power band** fails, +22.1pp. Not tuned (the brief was to report).
+  The AI's main card is Puntada d'espagat (49%: 2d6 on two enemies at speed 3,
+  at L6 against goblin hordes). Number levers for the designer, unmeasured:
+  Puntada 2d6 → 2d4 or speed 3 → 2; a fantasy-specific look at whether the
+  level (L6 among heroes at 4-6) is again half of it, as it was for Esgrima.
+- **Defense premium** (`experiment-defense-vs-attack`): Esquiva i traveta 3d4
+  at L2 holds 67% on mean over same-level attacks (Retruc's number; under the
+  80% aim). Tombarella (L5) has no same-level fantasy attack to measure.
+
+### 45.3 Triangle and the rest
+
+- **Fantasy triangle**: Power > Protect 71.1%±1.6, Protect > Aggro
+  66.6%±1.7, Aggro > Power 54.9%±1.8 — all hold, identical to §44.5
+  (Acrobàcia is not in company row 0, the mirror party).
+- **Elements triangle FAILS, and not because of this work**: Power > Protect
+  53.4%±1.8 ✗, Protect > Aggro **31.0%±1.6 ✗**, Aggro > Power 77.8%±1.5. The
+  mirror party is row 0 (earth, fire, air + water stand-in), no Acrobàcia, and
+  the one engine change that touches existing content was reverted for a
+  re-run: identical numbers. So it was already broken on 9866652. Culprits:
+  Ull de l'huracà@cal (+49.8pp on Protect > Aggro; +7.9pp on Power > Protect),
+  Partir la terra (+5.0), Pluja de dagues (+4.3). Last recorded passing in
+  §43; something between — likely the airbender's Ull de l'huracà — broke it.
+- **Smoke** (`pnpm test:smoke`): every file executes; the one failure was
+  `encounter-speed`'s parallel-vs-single-thread case timing out at 120 s while
+  two 800-combat kit suites ran beside it. Alone it passes: horde 2.82 s,
+  squad 1.46 s, boss 2.23 s, mixed 2.27 s (the horde still close to its 3 s).
+- **Conflicts with intentions.md**: fantasy Acrobàcia outside the ±15pp band
+  ("builds balanced"); Trampolí de mans, the kit's same-round combo card, is
+  among its least played and lowest valued in both sets (1.2% / 0.5%), against
+  "combos between actions played in the same round should be among the best
+  options"; Salt mortal (0.7%), Escombrada and Cavalcar l'enemic (~1.5%) are
+  near "so bad it never sees play" in elements, though requirement 3 passes;
+  Esquiva i traveta's premium is 67%, not ~80%; the elements triangle (above).
