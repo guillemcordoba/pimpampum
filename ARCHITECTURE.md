@@ -574,6 +574,61 @@ encounter in the game; the strategies were a thumb on the scale pushing
 characters toward a card TYPE regardless of position. A creature now differs
 from another because its CARDS differ.
 
+### The AI audit (`@pimpampum/ai/audit`, 2026-10-14)
+
+The AI judged against an OBJECTIVE referee — in a position, the best play is
+whichever branch, played out, ends best — on small fights dealt from
+IMAGINARY cards, so it imports no content set and no set's balance can colour
+it. It lives in the `ai` package (it depends only on the engine) as a subpath
+export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEPS §51.
+
+| file | what it is |
+|---|---|
+| `zero-sum.ts` | Nash equilibrium of a zero-sum matrix game: tableau simplex (Bland's rule) after merging duplicate rows/columns; regret matching+ as the fallback and the tests' second opinion |
+| `catalogue.ts` | 18 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt — and the universal fallback. Each says its payoff `horizon` |
+| `profile.ts` | the generator's distributions — speeds, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
+| `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
+| `referee.ts` | the solver of the fight |
+| `check.ts` | the AI's picks vs the referee's verdict |
+| `controls.ts` | hand-made positions whose equilibrium is arithmetic, in long/short twins |
+
+**The referee.** Every round is a simultaneous-move zero-sum game whose payoff
+is the value of the position it leads to; the fight is a stack of them, solved
+by recursion to its real end (a side down, or the position's round cap) —
+no leaf is ever scored by a heuristic, so a delayed blow, a device, a mark
+land before the score is read. The payoff is PV on side A minus PV on side B,
+`bench/regret.ts`'s currency. The approximations, each a knob on
+`RefereeOptions`:
+
+- **chance** — `samples[d]` seeded samples per joint action at depth `d`
+  (default 16 at the root, 4, then 1: sparse sampling), common random numbers
+  across a node's joint actions, and a transposition table keyed by the full
+  game state (`signature`), so dice that cannot change the state cost one
+  solve;
+- **targets** — committed with the card, at the reveal, from the
+  `maxTargets` (3) weakest candidates. A real seat aims at resolution, with more
+  information; the AI's pick is credited with its best target variant;
+- **size** — a side with more than `maxJoint` (16) joint actions is solved by
+  DOUBLE ORACLE: the restricted game's equilibrium, grown by each side's best
+  response (coordinate ascent over its seats, from two starts) until neither
+  improves. Exact if the best responses are; checked against full
+  enumeration by `audit.slow.test.ts`;
+- **depth** — `solvedRounds` (∞) rounds solved, then random play to the end;
+  never used by default.
+
+**The check.** The AI picks team 0's cards (`bestResponse` at
+`DEFAULT_LOOKAHEAD`, four seeds) on an engine with ONE MORE round than the
+referee scores — its evaluator calls a board at `maxRounds` a draw worth 0, a
+real-game rule that would make every last-round play look worthless on an
+audit's artificial cap. A pick is a MISMATCH when its equilibrium probability
+is under 2%, it loses more than ε = 1 PV and 2 standard errors against the
+equilibrium opponent, and two re-solves under independent referee seeds agree.
+
+**Fixtures.** Confirmed mismatches are appended to
+`ai/test/audit-fixtures.json` with the referee's verdict on every card
+combination; the fast tier replays only the AI against it (no re-solve), and
+an open fixture is `todo` until the AI is fixed — then flip it and it guards.
+
 ---
 
 ## The measurement layer (`@pimpampum/bench`, 2026-09-20; its own package since 2026-09-22)
