@@ -22,4 +22,9 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 // Empty since 2026-10-13: Braç mort left the detector's edge once Retruc
 // d'acer's riposte lost the level (NEXT-STEPS §44.5).
 export const KNOWN_BLIND: Record<string, string[]> = {
+  // Ganxo salvavides (2026-10-14: best 19%, played 3.3%) gains only +0.4 PV
+  // on the runner-up when it is best — near-ties with Paraigua blindat and
+  // Parany de molla, the kit's other defenses; its payoff lands inside the
+  // round the search plays, so there is no status to price (NEXT-STEPS §46).
+  artifex: ['ganxo-salvavides'],
 };

@@ -4853,3 +4853,118 @@ Card values (value vs. the hand · best play · gain when best · AI play rate):
   options"; Salt mortal (0.7%), Escombrada and Cavalcar l'enemic (~1.5%) are
   near "so bad it never sees play" in elements, though requirement 3 passes;
   Esquiva i traveta's premium is 67%, not ~80%; the elements triangle (above).
+
+## 46. Artífex implemented and measured: in band in both sets (2026-10-14, branch `elements-set`)
+
+The shared ten-card Artífex (`set-common`, skill `artifex`, unarmed, kit rule
+**Corda N** printed as the skill description) is in both sets' catalogues as a
+main kit, with a company row in each (fantasy `artifex | berserk | gel`,
+stand-in volcanic; elements `artifex | waterbender | airbender`, stand-in
+firebender) and the calibration re-pinned. The approved design is implemented
+as written — no concept, title, number or text changed. Fantasy measures it
+capped at `HERO_LEVEL` 6, so Trepant incansable, Baldufa de ganivets, Colós de
+butxaca and Boa mecànica are measured only in elements.
+
+### 46.1 How the gadgets work
+
+Every gadget is a status, one per card per maker — on the maker when it stands
+by the party (automaton, top, colossus), on whoever it is stuck in or aimed at
+otherwise (drill, boa, crossbow, the trap at an ally's feet), keyed by maker so
+two artificers never share one. Replaying a card rewinds or moves its gadget.
+A gadget acting on its own rolls the card's dice through `performExtraAttack`
+with no skill: no level, no fatigue, and a close contest teaches nobody (its
+defenses use a copy of the card with `skillId: ''`). Gadgets clear themselves
+the first time a hook sees their maker down. Rulings the text left open:
+
+- **Parany de molla** takes the place of the card's own guard on the ally that
+  round (no double guard); the maker still guards itself. The sprung trap
+  defends with 3d4 + the maker's level (+ the maker's roll bonuses) as a guard
+  of the ALLY (`fixedTotal`), so a breach hurts the ally, not the distant
+  maker. The attacker's 3 PV come off after the blow.
+- **Ganxo salvavides** targets only the maker (self-guard); "un aliat" = another
+  hero, so it never fires for the maker's own blow.
+- **Paraigua blindat** covers its chosen ally as usual; against a blow whose
+  target list holds two or more heroes it adds a one-blow guard of its own on
+  each other hero — breaches land on the maker, as for any guard.
+- **Colós de butxaca**: one 3d6 roll per blow (an area attack spends one turn
+  of key once); its guard stands in for the target's (`fixedTotal`, defender =
+  the target), so damage beyond it goes to whoever was struck. It falls right
+  after the blow that spent its last turn (after that blow's last target).
+- **Trepant / Boa**: a replay that does not wound pulls the old one out (the
+  card was thrown again).
+- Round-end acts face the guards still up from that round (guards are round
+  scoped and the round has not ended yet); the drill and the boa ignore them.
+
+### 46.2 What the engine got (generic; tests in `engine/test/seams-artificer.test.ts`)
+
+`BlowInfo` on every blow (`id` shared across one area pass, `targets`);
+`onAllyTargeted` may return true (the blow passes over that ally — no roll, no
+damage); `onTargeted` (the holder itself); `guardsBlow` (a status on the
+target's side replaces every guard on the target); `afterBlow`;
+`beforeHolderAction` (just before the holder's card resolves; a wound there
+interrupts a Focus, a fall cancels the card, an earlier same-tier hit still does
+not); `EngineApi.performAreaAttack` (one roll over several targets). Existing
+play is unchanged: the fantasy and elements triangles re-ran to identical seeded
+numbers. Encounter-speed, the old engine against the new one on the same loaded
+machine (load ~9, nice 19): horde 4.0/3.9 s vs 3.9/3.4 s — no measurable cost;
+the horde is over its 3 s on this machine either way in that run, and passed
+in the full fast tier (540/540) right after.
+
+Prices (`positionValue`), not swept: 0.01 × the dice mean per remaining act
+(automaton 1d6 ×3 = 0.1; colossus 3d6 ×3 = 0.3; drill/boa/crossbow negative on
+their holder); the trap 0.1. Bumerang, Paraigua and Ganxo expire inside the
+round the search plays: unpriced.
+
+### 46.3 Measured (800-combat suites + the analyzer's report card)
+
+| | fantasy (L6) | elements (L10) |
+|---|---|---|
+| power band | **+10.1pp±1.6 ✓** (raw 76.5%±1.5) | **−3.0pp±1.8 ✓** (raw 58.5%±1.7) |
+| fights end | median 5, p90 7, stalls 0.0%±0.4, draws 1.3% ✓ | median 2, p90 5, stalls 1.9%±0.5, draws 2.3% ✓ |
+| choice matters | 4.70±0.25 PV/decision ✓ | 9.20±0.92 PV/decision ✓ |
+| blind spots | Ganxo salvavides (best 19%, played 3.3%) → `KNOWN_BLIND` | none flagged |
+
+Fantasy per-cell spread 52pp (cap/c4 +43, cap/c5 +34, mixt/c6 +28; escamot/c3
+−9), elements 62pp (patrulla/c4 −46 pulls it down; bèstia saturated in every
+row).
+
+Card values (value vs. the hand · best play · gain when best · AI play rate):
+
+| card | fantasy | elements |
+|---|---|---|
+| Bumerang | +1.7 · 28% · +2.7 · 53.8% | −3.8 · 7% · +1.4 · 4.1% |
+| Parany de molla | +4.5 · 21% · +1.3 · 20.8% | +3.0 · 15% · +0.3 · 8.9% |
+| Autòmat de corda | −6.8 · 5% · −1.4 · 1.2% | −9.0 · 3% · −2.8 · 0.2% |
+| Paraigua blindat | +4.5 · 26% · +3.3 · 15.4% | +18.6 · 36% · +16.4 · 10.4% |
+| Ganxo salvavides | +1.7 · 19% · +0.4 · 3.3% | +3.0 · 11% · −2.5 · 1.8% |
+| Ballesta sentinella | −3.7 · 11% · −0.2 · 5.0% | −6.2 · 7% · −5.1 · 1.2% |
+| Trepant incansable | — | −5.0 · 3% · −2.5 · 2.8% |
+| Baldufa de ganivets | — | +7.1 · 20% · +6.1 · 66.3% |
+| Colós de butxaca | — | −4.0 · 8% · −3.6 · 2.1% |
+| Boa mecànica | — | −3.6 · 4% · −1.6 · 2.2% |
+
+- **Fantasy Ganxo salvavides** is best by near-ties only (+0.4 PV over the
+  runner-up when best, Paraigua and Parany): ratcheted in fantasy `KNOWN_BLIND`,
+  the same detector edge as §44.2.
+- **Elements Paraigua blindat** is under-played: best 36% with +16.4 PV when
+  best, played 10.4% — not flagged by the detector, but the largest gap in the
+  kit. Its payoff lands inside the round (unpriced); the AI's main card is
+  Baldufa de ganivets (66%: 3d6 on every enemy against five soldiers).
+- **Autòmat de corda** is the least valued card in both sets (1.2% / 0.2%
+  played), near "never sees play": a slow Focus whose 1d6 round-end blows face
+  the round's guards. Trepant, Colós, Boa and Ballesta are played 1-3% in
+  elements. Number levers for the designer, unmeasured: the automaton's dice or
+  corda; a higher `WORTH_PER_POINT`, which Esgrima's −0.1 → −0.25 sweep (§44.2)
+  suggests is the first thing to try.
+
+### 46.4 Triangle and the rest
+
+- **Fantasy triangle**: 71.1%±1.6 / 66.6%±1.7 / 54.9%±1.8 — all hold,
+  identical to §45 (Artífex is not in row 0).
+- **Elements triangle still FAILS as in §45**: Power > Protect 53.4%±1.8,
+  Protect > Aggro 31.0%±1.6, Aggro > Power 77.8%±1.5 — identical numbers;
+  culprit Ull de l'huracà@cal.
+- **Conflicts with intentions.md**: Autòmat de corda near "never sees play";
+  the elements kit leans on one card (Baldufa 66%), against "no action should
+  be the best choice every time" (it is best only 20% of the time, so the AI
+  over-plays it rather than it dominating); the elements triangle (pre-existing).
