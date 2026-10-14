@@ -15,7 +15,7 @@ const promptText = computed(() => {
   if (p.requirement === 'defense') {
     return `${p.actorName}: tria un aliat a protegir o un enemic a bloquejar per ${p.actionName}`;
   }
-  const what = p.requirement === 'enemy' ? 'enemic' : 'aliat';
+  const what = p.requirement === 'enemy' ? 'enemic' : p.requirement === 'fallen_ally' ? 'aliat caigut' : 'aliat';
   if (p.count > 1) {
     return `${p.actorName}: tria ${p.count} ${what}s per ${p.actionName} (${props.game.multiTargetSelections.value.length}/${p.count})`;
   }
@@ -35,6 +35,7 @@ const options = computed<Option[]>(() => {
   return eng.teams[0].map((c, idx) => ({ team: 0, idx, character: c as Character }))
     .filter(o => {
       if (p.requirement === 'ally_other' && o.idx === p.actorIdx) return false;
+      if (p.requirement === 'fallen_ally') return !o.character.isAlive();
       return o.character.isAlive() || p.canReviveTarget;
     });
 });

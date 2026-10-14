@@ -190,6 +190,20 @@ export interface StatusBehavior {
    *  whoever it aims at just before each of their cards). Damage dealt here
    *  interrupts a Focus like any other; a holder felled here does not act. */
   beforeHolderAction?(ctx: StatusHookContext, action: ActionDefinition): void;
+  /** The holder plays no card this round — not even Cop desesperat (asleep,
+   *  locked in a hold). Asked once per round for each living holder as the
+   *  round begins, after the `onRoundStart` hooks, so a status that ends
+   *  there (a sleeper who wakes) lets its holder play. */
+  skipsRound?(ctx: StatusHookContext): boolean;
+  /** The holder's cards resolve PLAIN while this holds: none of their effects
+   *  run (no rider, no cost, no focus body) and they aim at one target — only
+   *  the card's type, speed and dice count. Asked whenever an effect would
+   *  dispatch or a target is chosen. */
+  plainCards?(ctx: StatusHookContext): boolean;
+  /** The holder has just lost `amount` PV (> 0, after armour and clamps),
+   *  from any cause — a blow, a burn, a price. Runs for the statuses of the
+   *  one who lost them (a sleeper wakes; a curse counts the wounds). */
+  onPvLost?(ctx: StatusHookContext, amount: number, source?: Character): void;
   /** An attack by `attacker` on the holder cannot be defended — an opening
    *  that attacker made. Asked once per blow that could otherwise be defended,
    *  so a one-shot opening may consume itself here. Vetoed, like every

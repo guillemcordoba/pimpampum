@@ -99,7 +99,8 @@ content-side save contests route through `EngineApi.adjustContestTotal`),
 `clampPvLoss`, `attackRollAgainstHolder`, `defensePenaltyAgainst`,
 `preventsGuard`, `blocksActionType` (never locks a `lastResort` card),
 `untargetable`, `ignoresConcealment`, `preventsGuardBypass`, `absorbsGuard`,
-`cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`, `positionValue`.
+`cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`, `positionValue`,
+`skipsRound`, `plainCards`.
 
 **`positionValue` (2026-09-20)** deserves its own note: it is what a status is
 WORTH to its holder, in the same unit as `positionScore`'s PV term, and it
@@ -119,7 +120,7 @@ included), `opensGuardTo` (an opening: that attacker's blow on the holder is
 undefendable; may consume itself), `onEnemyAttackAction` (hazards/traps),
 `attackRepeats`, `standingGuard`/`onStandingGuardBroken` (persistent walls),
 `onTargeted`/`onAllyTargeted`, `guardsBlow`, `afterBlow`, `beforeHolderAction` (below),
-`onRoundStart`, `onRoundEnd` (dots/regen tick here).
+`onRoundStart`, `onRoundEnd` (dots/regen tick here), `onPvLost`.
 
 **The duel seams (2026-10-13, for Esgrima; tests in
 `engine/test/seams-duel.test.ts`)** — `defensePenaltyAgainst`,
@@ -178,6 +179,22 @@ ONE roll, each defending separately. A content guard whose card is copied
 with `skillId: ''` teaches nobody when its contest is close (Artífex's gadget
 defenses — a gadget's roll is not a character's).
 
+**The pressure-point seams (2026-10-14, for Mestre del xi; tests in
+`engine/test/seams-xi.test.ts`)** — `skipsRound` (the holder plays no card
+this round, not even Cop desesperat; asked as the round begins, AFTER the
+`onRoundStart` hooks, so a sleeper who wakes there plays — a status, unlike
+`skipTurns`, so it can price itself); `plainCards` (the holder's cards
+resolve plain: every effect dispatch reads its effects through
+`effectsOf(actor, def)`, which is empty, the target requirement falls back to
+the card type's own and the count to one — only type, speed and dice count);
+`onPvLost(ctx, amount, source)` (after any PV loss > 0, armour and clamps
+applied, for the statuses of the one who lost it: a sleeper wakes, a curse
+counts wounds or PV); `Character.lastWound` (the PV the latest loss took, kept
+by `applyPvLoss`, cleared each combat); `AttackModifiers.damageMult` (per
+target, before armour; 0 = a blow that decides whom it beats and hurts nobody);
+and the target requirement `'fallen_ally'` (the actor's fallen allies only —
+the web's target picker offers just those).
+
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
 redirects; interrupted focuses excluded). Content queries it: the generic
@@ -231,11 +248,13 @@ list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 
 Skill-specific handlers (`enter_rage`, Esgrima's `treacherous_feint`…`cut_after_cut`,
 Acrobàcia's `sweep`…`suicide_dive`, Artífex's `boomerang`…`mechanical_boa`,
+Mestre del xi's `numbing_strike`…`sleep_storm`,
 `charge_cost`, `adrenaline`, `condemn`/`reap`, `carve_rune`,
 `shadow_melt`/`shadow_bind`, `seismic_sense`/`earth_wall`/`bury`,
 `pressure_gain`/`eruption`) live on their skill's `SkillDefinition.effects`; the
 `StatusBehavior` consts they attach (`FURIA_ESTAT`, `FLUX`, `PROVOCAT`, `ESCORPI`, `PUNT_FEBLE`,
-`A_TERRA`, `TRAMPOLI`, `RESCAT`, `CAVALCAT`, `BUMERANG`…`BOA` (the gadgets), `ENCEGAT`,
+`A_TERRA`, `TRAMPOLI`, `RESCAT`, `CAVALCAT`, `BUMERANG`…`BOA` (the gadgets),
+`ENTUMIT`, `APAGAT`, `BLOQUEIG_MUTU`, `TOC_*`, `ADORMIT`, `ENCEGAT`,
 `CAMP_MINAT`, `CONDEMNAT`, `PUTREFACCIO`, `ADRENALINA`,
 `RUNA_FULLA/CONFUSIO/ESCUT`, `FOS`, `LLIGAT`, `SENTIT`, `MUR`, `ENTERRAT`,
 `RIU_DE_LAVA`…) are defined alongside them in the same file.

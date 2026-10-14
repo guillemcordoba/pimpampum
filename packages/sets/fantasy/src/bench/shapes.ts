@@ -49,6 +49,8 @@ export const COMPANY: string[][] = [
   ['acrobacia', 'enginyer-explosius', 'metge'],
   // Artífex, shared with the elements set (2026-10-14).
   ['artifex', 'berserk', 'gel'],
+  // Mestre del xi, shared with the elements set (2026-10-14).
+  ['mestre-del-xi', 'nigromant', 'runes'],
 ];
 
 /**
@@ -65,7 +67,7 @@ export const COMPANY: string[][] = [
  * points of even — because a strong or weak stand-in would bake its own
  * verdict into every other kit's score.
  */
-export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginyer-explosius', 'berserk', 'volcanic'];
+export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginyer-explosius', 'berserk', 'volcanic', 'berserk'];
 
 /**
  * The highest level a hero kit is MEASURED at (bench `Calibration.heroLevel`):
@@ -73,7 +75,7 @@ export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginye
  * has ten cards where these have four to six; fielded at ten among heroes at
  * five it was measured for its training — the level enters every roll — and
  * not for its cards (NEXT-STEPS §44). So here it plays its first six — and so
- * do Acrobàcia and Artífex, the other shared ten-card kits (§45, §46).
+ * do Acrobàcia, Artífex and Mestre del xi, the other shared ten-card kits (§45-§47).
  *
  * `test/calibration.test.ts` names the kits this caps, so a kit growing past
  * it is a decision, not a silent change of what is measured.

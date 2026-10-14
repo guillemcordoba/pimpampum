@@ -21,4 +21,5 @@ export const COMMON_SKILL_FILES: Readonly<Record<string, string>> = {
   'mestre-armes': 'esgrima.ts',
   acrobacia: 'acrobacia.ts',
   artifex: 'artifex.ts',
+  'mestre-del-xi': 'mestre-del-xi.ts',
 };

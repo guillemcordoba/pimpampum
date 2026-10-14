@@ -40,6 +40,7 @@
   --class-mestre-armes: #4a5a3a;
   --class-acrobata: #b5652a;
   --class-artifex: #6b5a2a;
+  --class-mestre-xi: #2f6f6a;
   --class-nigromant: #3a1f5c;
   --class-metge: #a34040;
   --class-runes: #4a6b8b;
@@ -478,6 +479,7 @@ body {
 .portrait.mestre-armes { border-color: var(--class-mestre-armes); }
 .portrait.acrobata { border-color: var(--class-acrobata); }
 .portrait.artifex { border-color: var(--class-artifex); }
+.portrait.mestre-xi { border-color: var(--class-mestre-xi); }
 .portrait.nigromant { border-color: var(--class-nigromant); }
 .portrait.metge { border-color: var(--class-metge); }
 .portrait.runes { border-color: var(--class-runes); }
@@ -776,6 +778,7 @@ body {
 .mini-card.mestre-armes { border-color: var(--class-mestre-armes); }
 .mini-card.acrobata { border-color: var(--class-acrobata); }
 .mini-card.artifex { border-color: var(--class-artifex); }
+.mini-card.mestre-xi { border-color: var(--class-mestre-xi); }
 .mini-card.nigromant { border-color: var(--class-nigromant); }
 .mini-card.metge { border-color: var(--class-metge); }
 .mini-card.runes { border-color: var(--class-runes); }

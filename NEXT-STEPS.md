@@ -4968,3 +4968,121 @@ Card values (value vs. the hand · best play · gain when best · AI play rate):
   the elements kit leans on one card (Baldufa 66%), against "no action should
   be the best choice every time" (it is best only 20% of the time, so the AI
   over-plays it rather than it dominating); the elements triangle (pre-existing).
+
+## 47. Mestre del xi implemented and measured; Toc de la mort's six rules compared (2026-10-14, branch `elements-set`)
+
+The shared ten-card Mestre del xi (`set-common`, skill `mestre-del-xi`,
+unarmed) is in both catalogues as a main kit, with a company row in each
+(fantasy `mestre-del-xi | nigromant | runes`, stand-in berserk; elements
+`mestre-del-xi | earthbender | firebender`, stand-in airbender) and the
+calibration re-pinned. Texts as approved; the dice are the provisional design
+numbers. Fantasy measures it capped at `HERO_LEVEL` 6, so its cards 7-10
+(Tocs en cadena, Cop de vida, Toc de la mort, Tempesta de son) are measured
+only in elements — except in the variant experiment below.
+
+### 47.1 What the engine got (generic; tests in `engine/test/seams-xi.test.ts`)
+
+`StatusBehavior.skipsRound` (no card at all this round, not even Cop
+desesperat; asked after `onRoundStart`), `StatusBehavior.plainCards` (the
+holder's cards resolve with no effects and one target: only type, speed and
+dice), `StatusBehavior.onPvLost` (after any PV loss), `Character.lastWound`,
+`AttackModifiers.damageMult` (0 = a blow that hurts nobody) and the target
+requirement `'fallen_ally'` (the web picker offers only the fallen). Rulings
+made where the text was silent: Entumit halves the margin before armour (the
+existing `modifyOutgoingDamage` seam: "damage, then armour", rules.md);
+Segellar la ferida heals the last PV loss of any cause, and may be played
+again on the same wound (the text does not forbid it); Cop de vida rounds the
+half down; Tempesta's sleepers are not woken by a loss in the storm's own
+round (they are not asleep yet); Toc's touch replaces an earlier touch of the
+same variant. Statuses priced: Entumit −0.15, Poder apagat −0.1, Bloqueig mutu
+−0.25 on both bodies (the per-body average makes the trade good against a
+lone boss, poor against one goblin of five), asleep −0.25, the pending Toc
+statuses half the share of health they will take (−0.05 base; Cinc passes
+−0.15 − 0.1 per card played; Tres tocs −0.1 per touch).
+
+### 47.2 The kit, with V1 (Ressò) as default — 800-combat suites
+
+| | fantasy (L6) | elements (L10) |
+|---|---|---|
+| power band | **+22.9pp±1.2 ✗** (raw 89.3%) | −12.1pp±1.8 ✓ (raw 48.1%) |
+| fights end | median 3, p90 5, stalls 0.0% ✓ | median 2, p90 5, stalls 0.8%±0.4 ✓ |
+| choice matters | 5.32±0.24 PV ✓ | 6.13±0.79 PV ✓ |
+| blind spots | **Segellar la ferida ✗** (best 23%, played 1.0%, +2.9 PV when best) | Cop de vida (best 19%, played 2.8%) → `KNOWN_BLIND` |
+
+Fantasy culprits named by the suite: Ràfega de dits (+0.09, played 55%),
+Bloqueig mutu, Pinça entumidora. Elements: bèstia (unagi) is saturated in all
+eight rows, so there is no boss cell in elements at all; patrulla c8 −67.
+Card values (vs hand · best · gain when best · AI play) — fantasy: Ràfega
++6.7·41%·+4.7·55%, Pinça +2.9·20%·+4.1·9%, Cop al nervi +1.2·12%·−0.4·14%,
+Poder apagat +0.4·10%·−1.6·19%, Bloqueig mutu −1.1·9%·−1.3·1.8%, Segellar
+−6.5·23%·+2.9·1.0%. Elements: Ràfega +10.8·25%·+6.1·13%, Cop al nervi
++8.4·18%·+8.1·6%, Cop de vida +3.5·19%·+1.3·2.8%, Toc −0.7·8%·−1.9·2.0%,
+Tempesta −1.5·9%·−4.1·24%, Pinça −1.8·14%·−2.4·18%, Tocs en cadena
+−1.8·7%·+2.3·30%, Poder apagat −3.1·6%·−1.0·2.2%, Bloqueig mutu
+−4.1·5%·−7.8·1.3%, Segellar −9.7·4%·−3.0·1.3%.
+
+- **Cop de vida** is legal on every turn, even with nobody fallen, so its play
+  rate is diluted; and as a speed-0 Focus it is interrupted most times the
+  master is struck first (a probe: 3 revives in 40 forced plays against two
+  goblins). The AI does see a revive. Ratcheted (elements).
+- **Segellar la ferida** (fantasy) is NOT ratcheted: +2.9 PV when best, played
+  at a twentieth of its best share. Hypothesis, unmeasured: the depth-0 aim
+  for an `'ally'` card is the lowest PV fraction, not the largest last wound,
+  so inside rollouts it seals the wrong ally. The suite fails on it.
+- **Fantasy band** fails at +22.9pp — not tuned (dice provisional). Lever
+  candidates for the designer: Ràfega de dits (three 1d6 blows each carrying
+  the level, vs goblin hordes); Pinça entumidora 3d4 at speed 3.
+
+### 47.3 Toc de la mort: V0-V5 compared
+
+Throwaway harness (deleted): the kit analyzer with the touch's `variant`
+param switched, 800 combats each, sequential. Elements at L10 as fielded;
+fantasy with the master at L10 among heroes capped at 6 (so its band is
+inflated by the level, §44.1 — compare variants with each other only). Shape
+splits are the mean cell delta of each shape (±per-shape error); "Toc %" is
+how often the AI played it where legal.
+
+| variant | elements Δ | fantasy Δ (L10) | Toc vs hand el / fa | best el / fa | gain when best el / fa | AI play el / fa |
+|---|---|---|---|---|---|---|
+| V0 mig PV | −12.1±1.8 | +24.7±1.1 | +0.1±0.9 / +2.6±0.4 | 7.8% / 8.8% | −3.0 / +0.3 | 1.5% / 3.5% |
+| V1 Ressò | −12.1±1.8 | +24.8±1.1 | −0.7±1.0 / +2.5±0.4 | 7.5% / 9.0% | −1.9 / +0.1 | 2.0% / 3.6% |
+| V2 Cop retardat | −11.7±1.8 | +24.7±1.1 | −0.6±0.9 / +2.7±0.4 | 7.4% / 9.5% | −3.4 / +0.2 | 1.1% / 3.5% |
+| V3 Cinc passes | −10.4±1.8 | +25.0±1.1 | −2.3±0.9 / +2.8±0.4 | 6.3% / 9.2% | −4.5 / +0.6 | 2.8% / 3.3% |
+| V4 Tres tocs | −10.4±1.8 | +25.3±1.1 | −3.1±0.9 / +2.5±0.4 | 5.8% / 8.6% | −4.2 / +0.6 | 1.1% / 6.0% |
+| V5 Cor ferit | −11.7±1.8 | +24.7±1.1 | −2.9±1.0 / +2.3±0.5 | 6.4% / 9.2% | −4.3 / +0.6 | 1.1% / 3.5% |
+
+Fight length identical everywhere (elements median 2, p90 5, stalls 0.6-0.8%;
+fantasy median 3, p90 5, stalls 0.0%). By shape (fantasy L10, every variant
+within ±0.7pp of these): horda +14.5±4.8, escamot +34.6..34.9, cap (lone
+basilisk) +31.1±6.2 (V4 +32.6), mixt +20.9..22.2. Toc's play rate by shape is
+2.4% horde, 3.1% squad, 3.4% boss and 3.9-4.9% mixed in every variant but
+**V4, played 14.2% against the boss** (and 2.4% against the horde). Elements
+(no boss cell): patrulla −18.9..−21.2, caçadors −3.2..+1.5, mixt −11.6..−15.4;
+Toc 1.0-3.5% everywhere.
+
+Read: **no rule makes the card dominant, and none makes it matter** — the
+kit's band moves by at most 1.7pp (elements) and 0.6pp (fantasy) across the
+six, all inside the error, because the AI plays Toc on 1-6% of its turns and
+the regret search finds it the best play only 6-10% of the time. What holds
+the card down is the price before any rule fires (1 fatigue, a 2d6 that must
+WOUND at speed 2), not the rule. Between the rules: V0 and V1 read best in
+elements (the only ones near zero vs the hand); V4 Tres tocs is the one with a
+shape: a boss-killer the AI reaches for against the lone basilisk (14%) and
+ignores against hordes, but it needs three wounds in consecutive rounds (3
+fatigue), and in elements it is the worst. V1 stays the default — nothing in
+the data argues otherwise. If the card should matter, the lever is its
+numbers (2d6 → 2d8, or no fatigue), measured with the rule the user picks.
+
+### 47.4 The rest
+
+- **Triangles** (Mestre del xi is in neither mirror party): fantasy Power >
+  Protect 71.1%±1.6, Protect > Aggro 66.6%±1.7, Aggro > Power 54.9%±1.8 —
+  hold, identical to §44.5. Elements unchanged from §45 (53.4 ✗ / 31.0 ✗ /
+  77.8 ✓; pre-existing).
+- **Encounter speed**: the horde reads 3.2-3.7 s on this loaded machine; the
+  base commit (abf2b50) exported and timed alongside read 4.5-5.7 s — no cost
+  from the new seams.
+- **Conflicts with intentions.md**: fantasy kit outside ±15pp; Segellar la
+  ferida, Bloqueig mutu, Poder apagat and Cop de vida near "never sees play"
+  (1-3%); Toc de la mort, the kit's signature, is not a "distinctive,
+  high-impact" card in either set under any of the six rules.

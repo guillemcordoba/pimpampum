@@ -8,12 +8,13 @@ import { WATERBENDER } from './waterbender.js';
 import { MESTRE_ARMES } from './esgrima.js';
 import { ACROBACIA } from './acrobacia.js';
 import { ARTIFEX } from './artifex.js';
+import { MESTRE_DEL_XI } from './mestre-del-xi.js';
 import type { SkillDefinition } from '../../players/types.js';
 
 /** When the snapshot was taken. */
 export const REFRESHED = '2026-10-14';
 
-export const PINNED_SKILLS: SkillDefinition[] = [AIRBENDER, EARTHBENDER, FIREBENDER, WATERBENDER, MESTRE_ARMES, ACROBACIA, ARTIFEX];
+export const PINNED_SKILLS: SkillDefinition[] = [AIRBENDER, EARTHBENDER, FIREBENDER, WATERBENDER, MESTRE_ARMES, ACROBACIA, ARTIFEX, MESTRE_DEL_XI];
 
 /** Live skill id → the file both copies live in, for the drift check. */
 export const PINNED_FILES: Record<string, string> = {
@@ -24,4 +25,5 @@ export const PINNED_FILES: Record<string, string> = {
   'mestre-armes': 'esgrima.ts',
   'acrobacia': 'acrobacia.ts',
   'artifex': 'artifex.ts',
+  'mestre-del-xi': 'mestre-del-xi.ts',
 };

@@ -26,9 +26,10 @@ export enum EquipmentSlot {
 /**
  * What kind of target the player must pick for an action. `'defense'` is the
  * defense-action dual choice: one living ally (including self) to guard, OR
- * one living enemy to block.
+ * one living enemy to block. `'fallen_ally'` is one of the actor's own side who
+ * has fallen (0 PV), and nobody standing.
  */
-export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other' | 'self' | 'defense';
+export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other' | 'self' | 'defense' | 'fallen_ally';
 
 /** A skill the character knows and its current level — the number of actions
  *  of the skill the character knows (level N = the first N actions). */

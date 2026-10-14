@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ActionType } from '@pimpampum/engine';
-import { ACROBACIA, ARTIFEX, COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
+import { ACROBACIA, ARTIFEX, COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES, MESTRE_DEL_XI } from '../src/index.js';
 import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from '../src/bench/index.js';
 
 describe('Esgrima', () => {
@@ -65,6 +65,27 @@ describe('Artífex', () => {
     ]);
     expect(ARTIFEX.actions.every(a => a.skillId === 'artifex')).toBe(true);
     expect(ARTIFEX.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))).toBe(false);
+  });
+});
+
+describe('Mestre del xi', () => {
+  it('has its id, and its ten cards in order — none of them needs a weapon', () => {
+    expect(MESTRE_DEL_XI.id).toBe('mestre-del-xi');
+    expect(MESTRE_DEL_XI.displayName).toBe('Mestre del xi');
+    expect(MESTRE_DEL_XI.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
+      ['cop-al-nervi', 1, ActionType.Atac],
+      ['pinca-entumidora', 2, ActionType.Defensa],
+      ['segellar-la-ferida', 3, ActionType.Focus],
+      ['poder-apagat', 4, ActionType.Atac],
+      ['bloqueig-mutu', 5, ActionType.Defensa],
+      ['rafega-de-dits', 6, ActionType.Atac],
+      ['tocs-en-cadena', 7, ActionType.Atac],
+      ['cop-de-vida', 8, ActionType.Focus],
+      ['toc-de-la-mort', 9, ActionType.Atac],
+      ['tempesta-de-son', 10, ActionType.Atac],
+    ]);
+    expect(MESTRE_DEL_XI.actions.every(a => a.skillId === 'mestre-del-xi')).toBe(true);
+    expect(MESTRE_DEL_XI.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))).toBe(false);
   });
 });
 

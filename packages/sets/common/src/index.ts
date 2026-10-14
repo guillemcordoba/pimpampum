@@ -14,6 +14,7 @@ export { COMMON_EFFECTS } from './effects/index.js';
 export { MESTRE_ARMES } from './skills/esgrima.js';
 export { ACROBACIA } from './skills/acrobacia.js';
 export { ARTIFEX } from './skills/artifex.js';
+export { MESTRE_DEL_XI, TOC_DE_LA_MORT_VARIANTS, DEFAULT_TOC_VARIANT, type TocVariant } from './skills/mestre-del-xi.js';
 export { WEAPONS, needsWeapon, kitNeedsWeapon, weaponFor } from './equipment.js';
 
 /** Shared cards the AI cannot play by construction, with why — each set that
@@ -27,6 +28,7 @@ export const COMMON_AI_BLIND_CARDS: Readonly<Record<string, string>> = {
 import { MESTRE_ARMES } from './skills/esgrima.js';
 import { ACROBACIA } from './skills/acrobacia.js';
 import { ARTIFEX } from './skills/artifex.js';
+import { MESTRE_DEL_XI } from './skills/mestre-del-xi.js';
 import type { SkillDefinition } from './types.js';
 
-export const COMMON_SKILLS: readonly SkillDefinition[] = [MESTRE_ARMES, ACROBACIA, ARTIFEX];
+export const COMMON_SKILLS: readonly SkillDefinition[] = [MESTRE_ARMES, ACROBACIA, ARTIFEX, MESTRE_DEL_XI];

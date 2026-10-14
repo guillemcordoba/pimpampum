@@ -137,13 +137,17 @@ export interface AttackModifiers {
   /** Flat extra PV damage on a hit, added AFTER armour (not part of the
    *  contest total). */
   bonusDamage: number;
+  /** Multiplies the margin damage on this target before armour: 1 is as
+   *  rolled, 0 a blow that decides whom it beats and hurts nobody. Combines
+   *  with a status's `damageMult`. */
+  damageMult: number;
   /** Extra dice rolled (once, flat) into the ATTACK TOTAL — they raise both
    *  the hit chance and the margin damage. */
   extraDamageDice: DiceRoll[];
 }
 
 export function newAttackModifiers(): AttackModifiers {
-  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, ignoreAllyGuards: false, defensePenalty: 0, skip: false, bonusDamage: 0, extraDamageDice: [] };
+  return { rollBonus: 0, ignoreArmor: false, ignoreDefense: false, ignoreAllyGuards: false, defensePenalty: 0, skip: false, bonusDamage: 0, damageMult: 1, extraDamageDice: [] };
 }
 
 /** Context handed to an effect handler hook. Fields are populated per-hook. */

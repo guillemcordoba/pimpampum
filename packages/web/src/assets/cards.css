@@ -140,6 +140,8 @@
 .print-card.acrobata .card-frame { border-color: var(--class-acrobata); }
 .print-card.artifex { border-color: var(--class-artifex); }
 .print-card.artifex .card-frame { border-color: var(--class-artifex); }
+.print-card.mestre-xi { border-color: var(--class-mestre-xi); }
+.print-card.mestre-xi .card-frame { border-color: var(--class-mestre-xi); }
 .print-card.nigromant { border-color: var(--class-nigromant); }
 .print-card.nigromant .card-frame { border-color: var(--class-nigromant); }
 .print-card.metge { border-color: var(--class-metge); }
