@@ -186,7 +186,15 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   picks.forEach((p, k) => {
     const j = first[k];
     const again = replicas.map(rep => judge(rep, p.actions));
-    const mismatch = j.flagged && confirmers.length === o.confirm && again.slice(0, o.confirm).every(x => x.flagged);
+    // Every solve must flag it, AND the mean loss over the solves must clear ε
+    // by z standard errors of ITS OWN spread across them: the root's standard
+    // error cannot see the noise of the sampled rounds below it, and the
+    // re-solves can (measured per-solve loss sd ≈ 3-4 PV, NEXT-STEPS §51).
+    const losses = [j.loss, ...again.slice(0, o.confirm).map(x => x.loss)];
+    const mean = losses.reduce((a, b) => a + b, 0) / losses.length;
+    const sd = losses.length > 1 ? Math.sqrt(losses.reduce((s, x) => s + (x - mean) ** 2, 0) / (losses.length - 1)) : 0;
+    const mismatch = j.flagged && confirmers.length === o.confirm && again.slice(0, o.confirm).every(x => x.flagged)
+      && mean > o.epsilon + o.z * sd / Math.sqrt(losses.length);
     verdicts.push({
       cards: p.actions.map((a, s) => archOf(acting[s].c, a)), count: p.count,
       eqProb: j.eqProb, value: j.value, loss: j.loss, noise: j.noise,

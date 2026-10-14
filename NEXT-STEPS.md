@@ -5516,3 +5516,177 @@ Read:
   question. Both are for the user.
 - The fantasy band (+15.9±1.4) passes only within its error, like Acrobàcia's
   (§48.3, §49).
+---
+
+## 51. The AI audit: the production AI against a Nash referee, on imaginary cards (2026-10-14, branch `elements-set`)
+
+A standing harness that judges the AI by an OBJECTIVE referee and imports no
+content set. In a position, the best play is whichever branch, played out,
+ends best. Real fights are too big to solve, so the audit deals small fights
+from imaginary cards and solves them properly. Design and knobs are in
+ARCHITECTURE.md, "The AI audit". Code: `packages/ai/src/audit/`,
+`tools/src/ai-audit.ts` and `tools/src/ai-audit-calibrate.ts`.
+
+### 51.1 What it is
+
+- **18 archetypes** (`catalogue.ts`), content-free: attack, fast jab, area
+  sweep, armour-piercing or undefendable, guard an ally, block an enemy, heal,
+  revive, cleanse, a slow setup Focus (next attack +N), delayed damage (lands
+  as next round opens), a delayed-death mark (2-3 rounds on), a device (hits
+  the weakest foe at every round end for 2-4 rounds), stun (`skipTurns`),
+  lock attacks, weaken (−N), advance an ally's card (`advancePendingAction`),
+  taunt, and the universal fallback. Each card states its payoff horizon.
+  65% of status cards price themselves (`positionValue`), as measured on the
+  real table; the rest do not.
+- **The generator** draws from distributions measured on both sets and frozen
+  in `profile.ts`: speeds, dice ladders (1d2 to 4d6), type mix (53/23/25),
+  levels (heroes 5-10, enemies 3-10), armour, fatigue costs (16% of cards),
+  shapes (4 heroes against 1, 2, 4 or 5) and fight lengths (2-5 rounds).
+- **The referee** solves each round as a zero-sum matrix game for its Nash
+  equilibrium (simplex, regret matching as fallback). It recurses to the real
+  end of the fight. Payoff: PV of side A minus PV of side B at the end. No leaf
+  is scored by a heuristic.
+- **The check**: the production AI (`bestResponse` at `DEFAULT_LOOKAHEAD`, 4
+  seeds) picks for team 0. A pick is a MISMATCH if all of these hold:
+  - its equilibrium probability is under 2%;
+  - against the equilibrium opponent it loses more than ε = 1 PV and 2 root
+    standard errors;
+  - two re-solves under independent referee seeds agree;
+  - the mean loss over the three solves clears ε by 2 standard errors of
+    their own spread.
+- **Fixtures**: each confirmed mismatch is appended to
+  `ai/test/audit-fixtures.json`, with the referee's verdict on every card
+  combination. The fast tier replays only the AI; open fixtures are `todo`.
+
+### 51.2 Realism given up, and why
+
+- **Hands are cut to 3-4 cards.** Real heroes hold 6-10. A hero holds 6-10 options
+  times up to 3 targets, and the referee recurses over every one of them.
+- **Shapes.** The night reaches 4v1, 1v4, 4v2, 3v3, 4v4 and 4v5. Only 4v1,
+  1v4, 4v2 and 3v3 get 3 rounds left; the biggest get 2. Long horizons
+  (3-4 rounds) live in 1v1, 2v1, 1v2, 2v2 and 4v1.
+- **PV is paced.** Each side's PV is rescaled so the other side's blows take
+  about the rounds left (×0.6-1.5) to remove it. Drawn as measured, a lone
+  12-PV hero facing a level-10 3d6 blow is over in one round, and no
+  multi-round card could matter. The PV table still sets the ratio between
+  bodies.
+- **Targets are committed at the reveal**, from the 3 weakest candidates. The
+  AI aims at resolution, so its pick is credited with its best target variant.
+- **A round cap ends every position.** The AI is shown one round more,
+  because its evaluator treats `maxRounds` as a draw worth 0.
+
+### 51.3 Validation
+
+- **The solver** (`audit.test.ts`) gets these exactly: rock-paper-scissors,
+  matching pennies, a 2×3 game solved by hand (value 8/5), a saddle point,
+  duplicate rows. On 200 random matrices up to 7×7, exploitability is under
+  1e-6 and regret matching agrees on the value.
+- **The referee on hand-made fights** (`controls.ts`): 7 controls, each
+  equilibrium exact by arithmetic. There are long/short twins for a device
+  and for delayed damage. The device or bomb is the play only when the fight
+  lasts long enough; in the twin, the foe dies first and a plain strike is
+  right. There is also an interrupt of a delayed blow, and unpriced copies of
+  the long pair. All 7 match to 1e-6.
+- **Double oracle vs full enumeration**: 10 positions (2v1, 3 cards, 2
+  rounds), same samples. Value difference rms 0.04 PV. (Before the
+  multi-start best response it was 3.5 PV, with one miss of 11 PV.)
+- **Referee noise**, same position under 3 referee seeds, 2v1 c3 r3, mean
+  |value| 35 PV:
+
+  | samples per depth | value sd | s per solve |
+  |---|---|---|
+  | 8, 2, 1 | 2.39 PV | 1.1 |
+  | 16, 4, 1 (chosen) | 1.33 PV | 2.6 |
+  | 16, 4, 2 | 1.31 PV | 4.4 |
+  | 32, 8, 2 | 0.70 PV | 8.4 |
+
+  On 16 night-mix positions with 2 replicates each: game value sd 1.91 PV
+  (worst 6.2). An AI pick's loss has sd 4.26 PV per solve, larger than the
+  root's own standard error can see. That is why a mismatch needs three
+  solves and a mean loss beyond their spread.
+
+### 51.4 Timing sweep (2026-10-14, nice 19)
+
+Seconds per position, including the AI's 4 picks and any confirming
+re-solves. Rows marked * ran 8 at a time; the rest ran while ~38 processes
+shared 32 cores, so they read about 2× slow. In the trial (4 lanes) the
+night mix averaged 35 s.
+
+| config | done | over budget | mean s | median s | max s |
+|---|---|---|---|---|---|
+| 1v1 c4 r2* | 8 | 0 | 0.2 | 0.2 | 0.3 |
+| 1v1 c4 r3* | 8 | 0 | 0.5 | 0.5 | 0.8 |
+| 1v1 c4 r4* | 8 | 0 | 1.6 | 1.2 | 3.4 |
+| 1v1 c4 r5* | 8 | 0 | 5.6 | 5.1 | 12.3 |
+| 2v1 c3 r2* | 8 | 0 | 0.8 | 0.6 | 1.7 |
+| 2v1 c3 r3* | 8 | 0 | 6.6 | 1.7 | 35.9 |
+| 2v1 c3 r3, K 8,2,1 | 6 | 0 | 6.8 | 4.8 | 16.5 |
+| 2v1 c3 r3, K 32,8,2 | 6 | 0 | 41.0 | 14.2 | 105.5 |
+| 2v1 c3 r4 | 6 | 0 | 73.4 | 41.7 | 304 |
+| 2v1 c3 r5 | 6 | 1 | 78.1 | 67.0 | 228 |
+| 1v2 c3 r4 | 5 | 0 | 200 | 164 | 511 |
+| 2v2 c2 r3 | 6 | 0 | 182 | 168 | 587 |
+| 2v2 c3 r2 | 6 | 0 | 20.1 | 20.8 | 41.0 |
+| 2v2 c3 r3 | 5 | 2 | 34.3 | 19.9 | 78.9 |
+| 2v2 c4 r3 | 4 | 2 | 66.3 | 128 | 128 |
+| 2v2 c3 r4 | 2 | 1 | 733 | — | — |
+| 4v1 c3 r3 | 6 | 0 | 155 | 94 | 593 |
+| 4v1 c3 r4 | 1 | 0 | 247 | — | — |
+| 4v1 c4 r3 | 2 | 1 | 522 | — | — |
+| 4v2 c3 r2 | 3 | 0 | 319 | 316 | 391 |
+| 3v3 c3 r2 | 3 | 0 | 437 | 325 | 672 |
+| 4v4 c3 r2 | 1 | 0 | 606 | — | — |
+| 3v3 c3 r3, 4v2 c3 r3, 4v5 c3 r2 | 0 | — | > 13 min | | |
+
+"Over budget" means one solve passed 20 M simulated rounds; the position is
+reported unsolved. The cost grows with joint actions per side, raised to the
+rounds left. Around 3 rounds for 2-4 bodies a side and 5 for 1v1 is where it
+stops being minutes.
+
+**Maximum per position in one night**: 4v4 / 4v5 at 2 rounds left, 4v1 and
+2v2 at 4, 2v1 at 5, 1v1 at 5 (6 is still cheap for 1v1).
+
+### 51.5 The trial: 50 night-mix positions, 4 lanes (2026-10-14)
+
+Wall time 727 s (35 s a position on average; median 10.6, p90 106, max 379).
+96% solved (2 over budget).
+
+- **Positions with a confirmed mismatch: 31%±7** (18 screened). The AI's
+  decisions that are mismatches: 27%±6. (Under the rule as it was then:
+  three agreeing solves. The mean-loss test was added afterwards.)
+- **By horizon**: 1: 5/11; 2: 10/29; 3+: 0/8.
+- **The controls**: the AI is right on 6 of 7. It misses `bomb-long-unpriced`:
+  delayed damage whose status does not price itself is invisible to the
+  depth-1 search. The priced copy, and the unpriced device (which ticks this
+  round), are fine.
+- **What recurs** in the mismatches:
+  - stun is ruled the play, and the AI plays weaken, strike or pierce (stun
+    is `skipTurns`, which nothing prices);
+  - setup Focus played where it loses;
+  - heal or guard played where a strike or a guard on the right body wins;
+  - taunts played where a block was right.
+
+  One trial is too small to rank these. The night is for that.
+
+### 51.6 The night (launched 2026-10-14)
+
+From `packages/tools`, 28 lanes, every child at nice 19:
+
+    setsid nohup nice -n 19 node --import tsx src/ai-audit.ts --mix night \
+      --games 11600 --lanes 28 --hours 7.25 --out /tmp/ai-audit/night \
+      > /tmp/ai-audit/night.log 2>&1 &
+
+- **The deadline ends it, not N.** `--hours 7.25` stops dealing new
+  positions; the ones in flight finish and the final report is written.
+  Positions are dealt mixed, so the shares hold wherever it stops.
+- **Expected yield**: 5,000-8,000 positions. Of those, about 25% horizon 1,
+  50% horizon 2 and 25% horizon 3+ (by the mix's round caps and `longShare`).
+- **Output**:
+  - `report-<date>-partial.{md,json}` every 10 minutes;
+  - `report-<date>.{md,json}` at the end;
+  - lane files in `run-*/`.
+
+  `--report-only <run-dir>` rebuilds the report and the fixtures after a
+  crash.
+- **Fixtures**: confirmed mismatches append to `ai/test/audit-fixtures.json`
+  (`todo: true`).

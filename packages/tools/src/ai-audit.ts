@@ -53,24 +53,31 @@ const MIXES: Record<string, Slice[]> = {
     { label: '1x1 c3 r3', weight: 1, gen: { shape: '1x1', cards: 3, roundsLeft: 3 } },
     { label: '2x1 c3 r3', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3 } },
   ],
-  // Weights are the expected position counts of a ~5,300-position night
-  // (28 lanes, ~6.5 h at the sweep's seconds per position, §51.4). A round
-  // cap of 2 leaves no room for a multi-round payoff, so the biggest shapes
-  // test this-round play only; the long horizons live in the small shapes.
+  // Weights are shares, by position count. Sized on 2026-10-14 (§51.4) for a
+  // 7¼-hour night on 28 lanes with `--hours 7.25`: the deadline, not N,
+  // ends it, and positions are dealt mixed so the shares hold wherever it
+  // stops. A round cap of 2 leaves no room for a multi-round payoff, so the
+  // biggest shapes test this-round play; the long horizons live in the
+  // smaller ones, where the whole fight still solves.
   night: [
-    { label: '1x1 c4 r5', weight: 600, gen: { shape: '1x1', cards: 4, roundsLeft: 5, multiShare: 0.8 } },
-    { label: '1x1 c4 r4', weight: 600, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '2x1 c3 r4', weight: 700, gen: { shape: '2x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '1x2 c3 r4', weight: 300, gen: { shape: '1x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '2x1 c3 r5', weight: 200, gen: { shape: '2x1', cards: 3, roundsLeft: 5, multiShare: 0.8 } },
-    { label: '2x2 c3 r3', weight: 400, gen: { shape: '2x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '2x2 c3 r2', weight: 400, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
-    { label: '4x1 c3 r3', weight: 600, gen: { shape: '4x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '1x4 c3 r3', weight: 300, gen: { shape: '1x4', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '4x1 c3 r4', weight: 150, gen: { shape: '4x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '4x2 c3 r2', weight: 300, gen: { shape: '4x2', cards: 3, roundsLeft: 2 } },
-    { label: '3x3 c3 r2', weight: 200, gen: { shape: '3x3', cards: 3, roundsLeft: 2 } },
-    { label: '4x4 c3 r2', weight: 150, gen: { shape: '4x4', cards: 3, roundsLeft: 2 } },
+    { label: '1x1 c4 r5', weight: 1500, gen: { shape: '1x1', cards: 4, roundsLeft: 5, multiShare: 0.8 } },
+    { label: '1x1 c4 r4', weight: 1000, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '2x1 c3 r4', weight: 1500, gen: { shape: '2x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '1x2 c3 r4', weight: 800, gen: { shape: '1x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '2x1 c3 r5', weight: 800, gen: { shape: '2x1', cards: 3, roundsLeft: 5, multiShare: 0.8 } },
+    { label: '2x2 c3 r2', weight: 600, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
+    { label: '2x2 c3 r3', weight: 1000, gen: { shape: '2x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x2 c3 r4', weight: 300, gen: { shape: '2x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '4x1 c3 r3', weight: 1200, gen: { shape: '4x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '1x4 c3 r3', weight: 600, gen: { shape: '1x4', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '4x1 c3 r4', weight: 400, gen: { shape: '4x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '4x1 c4 r3', weight: 200, gen: { shape: '4x1', cards: 4, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '4x2 c3 r2', weight: 600, gen: { shape: '4x2', cards: 3, roundsLeft: 2 } },
+    { label: '4x2 c3 r3', weight: 150, gen: { shape: '4x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '3x3 c3 r2', weight: 400, gen: { shape: '3x3', cards: 3, roundsLeft: 2 } },
+    { label: '3x3 c3 r3', weight: 100, gen: { shape: '3x3', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '4x4 c3 r2', weight: 300, gen: { shape: '4x4', cards: 3, roundsLeft: 2 } },
+    { label: '4x5 c3 r2', weight: 150, gen: { shape: '4x5', cards: 3, roundsLeft: 2 } },
   ],
 };
 
