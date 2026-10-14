@@ -12,17 +12,20 @@ and when, lives in `NEXT-STEPS.md` §42.
 
 ## How cards are made here
 
-1. The `card-taste` agent (`.claude/agents/card-taste.md`) designs each card's
-   concept by its design process: it researches the lore, then builds every
-   card from its scene (the one sentence a player pictures, with the effect
-   as its obvious consequence), offering two or three options per slot. The
-   concepts come from it, not from the main session.
-2. The user picks, slot by slot, kit by kit.
-3. The main session turns the picks into mechanics and dice.
-4. The agent reviews the final cards (text, crescendo, finishers).
-5. Build, then simulate (`/analyze`).
+1. The `card-designer` agent (`.claude/agents/card-designer.md`) designs each
+   card's concept: it researches the lore, then builds every card from its
+   scene (the one sentence a player pictures, with the effect as its obvious
+   consequence), offering two or three options per slot. The concepts come
+   from it, not from the main session.
+2. Review rounds: each round a NEW `card-taste` agent sees only the cards
+   (title, type, text, scene), says whether it sees and likes each one, and
+   the designer revises, until a round finds nothing that must change.
+3. The user picks, slot by slot, kit by kit.
+4. The main session turns the picks into mechanics and dice.
+5. A fresh `card-taste` reviews the final cards (text, crescendo, finishers).
+6. Build, then simulate (`/analyze`).
 
-## For the designer (`card-taste`): this set's sources and bar
+## For the designers (`card-designer`, `card-taste`): this set's sources and bar
 
 - **Sources.** Heroes and the world: *Avatar: The Last Airbender* (prefer
   the original series; *The Legend of Korra* and later material, such as
