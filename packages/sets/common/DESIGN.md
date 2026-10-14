@@ -281,3 +281,10 @@ attacks on you resolve against its defense and spend 1; when it stops it
 falls on a random enemy) · Taller desfermat (F, 2 fatiga: every corda gadget
 onto the table, full, aimed as you choose, the drill already stuck; the
 attackers attack now).
+
+*Mestre del xi — cheap heal (2026-10-14, user request).* **Segellar la ferida**
+(F, card 3, no fatigue) replaces Despertar el cop (parked): "Cura un aliat
+dret, o tu, tants PV com li va treure l'últim cop que l'ha ferit." It undoes
+one wound (big against a boss's blow, small against a horde's chip), and can't
+raise the fallen, so Cop de vida (8) stays the only revive. A fresh reviewer
+passed it.
