@@ -1,6 +1,7 @@
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../../players/types.js';
 import { EnemyDefinition, ICON } from '../types.js';
+import { HARM } from '../../players/effects/helpers.js';
 
 /**
  * Maledicció de sang — the capstone, and the one card that makes the shaman
@@ -36,7 +37,7 @@ const SHAMAN_EFFECTS: Record<string, EffectHandler> = {
       const target = ctx.targets[0];
       if (!target || !target.isAlive()) return;
       const amount = (ctx.params?.amount as number) ?? 2;
-      target.setStatus('maleit-de-sang', amount, -1, undefined, MALEIT);
+      target.setStatus('maleit-de-sang', amount, -1, { ...HARM }, MALEIT);
       ctx.engine.log('focus', `${ctx.source.name} marca ${target.name} amb la maledicció de sang: cada ferida li farà ${amount} de dany de més.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.allies.length >= 2 ? 1.7 : 0.8; },

@@ -23,10 +23,5 @@ export const KNOWN_BLIND: Record<string, string[]> = {
   // Tombarella de rescat, the star of the kit here (best 50%, played 42.5%).
   // The same detector edge as Esgrima's defenses (NEXT-STEPS §44.2, §45).
   acrobacia: ['esquiva-i-traveta'],
-  // Cop de vida (2026-10-14: best 19%, played 2.8%, gains only +1.3 PV over
-  // the runner-up when best). Legal on every turn — even with nobody fallen,
-  // when it does nothing — so its play rate is diluted; and a speed-0 Focus,
-  // it is interrupted most times the master is struck first (a probe: 3
-  // revives in 40 forced plays). The AI does see the revive (NEXT-STEPS §47).
-  'mestre-del-xi': ['cop-de-vida'],
+  // Cop de vida left this list 2026-10-14 (best 16%, played 3.7%, NEXT-STEPS §50).
 };

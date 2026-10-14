@@ -76,6 +76,8 @@ El combat consisteix en una sèrie de rondes:
 5. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
 6. **Caure i tornar.** Un personatge que arriba a 0 PV cau fora de combat i, si la seva acció encara no s'ha resolt, no la juga. Una curació pot triar un aliat caigut: el torna al combat amb els PV curats, i si arriba abans que li toqui actuar, juga la seva acció d'aquesta ronda.
 
+Un **efecte negatiu** és qualsevol estat que una carta enemiga t'ha deixat a sobre: penalitzacions, verí, cremades, marques, accions perdudes, son…
+
 ## Pujar de nivell
 
 Després de cada tirada enfrontada (atac contra defensa, o una tirada fora de combat), el perdedor comprova el seu marge:

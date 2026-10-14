@@ -18,13 +18,12 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
  * almost never played. Measured 2026-10-14 (NEXT-STEPS §48.2).
  */
 export const KNOWN_BLIND: Record<string, string[]> = {
-  // Both best mostly where the round's search sees no difference: in fights
-  // already won this round (every card scores the win), where the card value
-  // still prefers the card that saves PV, and on opening rounds where the
-  // search prefers the damage by a point or two. A probe over every decision
-  // found the one-round search ranking them best in 2-5% of their legal turns
-  // and never at the moments the card value did (NEXT-STEPS §48.2).
-  'mestre-del-xi': ['segellar-la-ferida'],
+  // Inherits Segellar la ferida's slot and its signature: a small heal that
+  // the card value calls best mostly where a won fight's mop-up saves a few PV
+  // (best 18%, gaining only +1.1 PV when best) and the search, which scores a
+  // win as a win, does not (NEXT-STEPS §48.2). Fantasy's shapes leave few
+  // efectes negatius on heroes to cleanse. Not re-probed (NEXT-STEPS §50).
+  'mestre-del-xi': ['desbloquejar-el-cos'],
   // Best where the launched attack lands before the goblins' Amagar-se
   // (speed 2) and breaks it. The search's rollouts model the goblins at depth
   // 0, which hides ~1% of the time where the real (depth-1) goblins hide ~40%,

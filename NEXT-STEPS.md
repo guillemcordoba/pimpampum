@@ -5410,3 +5410,109 @@ the SEARCH").
 options." Trampolí is now one of them by value: 22% / 28% best play, +10-11 PV
 when best. The AI still plays it far below that in fantasy (49.3). The
 fantasy band (+16.9±1.4) passes only within its error, as in §48.3.
+
+## 50. Mestre del xi: Entumit becomes −3 to attacks; Desbloquejar el cos replaces Segellar la ferida; "efecte negatiu" is one convention (2026-10-14, branch `elements-set`)
+
+The user's decisions (`packages/sets/common/DESIGN.md`), built as written:
+
+- **Entumit**: "Fins al final del torn següent, els seus atacs tenen −3." The
+  −3 is on the attack ROLL (the contested total, and so the damage of an
+  undefended blow), never on the damage after a defense. It renews, never
+  stacks. Priced −0.05 per point (−0.15 at 3, as the halving was). The
+  halving code is gone; the rule text is in the skill description.
+- **Card 3: Desbloquejar el cos** (Focus, speed −1, unlock 3, as Segellar):
+  "Un aliat dret, o tu, recupera 4 PV i perd tots els efectes negatius." N = 4
+  (below Bàlsam de lluna's 2d6). It never targets the fallen (Cop de vida stays
+  the only revive), and a swallowed body is out of its reach. AI hint: worth
+  the PV it would restore plus the cleared statuses' own `positionValue`, each
+  lost action −0.25, each penalty point −0.04 (`unblockWorth`); the same number
+  aims it (`aiTargetPriority`).
+- **rules.md** defines *efecte negatiu*: any state an enemy card has left on you.
+
+### 50.1 What the engine got (generic; tests in `engine/test/seams-xi.test.ts`)
+
+- `StatusBehavior.attackRollOfHolder(ref)`: added to every attack total the
+  holder rolls, each pass of its card and every extra blow. Gated like the
+  other per-blow hooks.
+- `CombatModifier.data`: an inert payload, like `StatusEntry.data`, copied by
+  `cloneState`.
+- `Character.lastWound` is removed. Segellar was its only reader.
+
+### 50.2 Efecte negatiu: one convention across both sets
+
+`packages/sets/common/src/effects/harm.ts`. Every status or modifier an enemy
+card leaves carries `harm: 1` in its data. Lost actions are `skipTurns` (only
+enemy cards raise it; the one self-stun handler is unused). A status that takes
+the body out of the fight carries `bodyOut: 1` instead, and `clearHarm` leaves
+such a body alone. Before this, `harm: 1` was on the elements and shared-kit
+statuses only, and nothing read it. Now marked too:
+
+- fantasy statuses: verí/cremades/foc persistent (DOT, from enemy cards only;
+  the shaman's sagnia on its own side stays unmarked), marca, silenced,
+  indefensable, marca-objectiu, putrefacció, condemnat, encegat, maleït de sang;
+- fantasy modifiers: Debilitació (bone devil's sting), Repèl (horned devil's
+  block), a negative `skill_mod` cast on the other side (bone and horned
+  devils, Gel);
+- elements: the ice prison, the strip of armour, `debuff_on_hit`;
+- the unagi's swallow: `harm` → `bodyOut`;
+- Bloqueig mutu: only the enemy's half is harm (the master's is its own price).
+
+Fantasy's unused `cleanse` handler now calls `clearHarm`. No claw that hangs a
+hero exists in code (Urpa elevadora was an Artífex draft, never built). If one
+is built, it should carry `bodyOut`.
+
+### 50.3 Measured (800-combat kit analyzer; before = 1daa805, after = this commit with the calibration re-pinned)
+
+| | fantasy (L6) before | fantasy after | elements (L10) before | elements after |
+|---|---|---|---|---|
+| kit Δ vs neutral | +14.0pp±1.5 | +15.9pp±1.4 ✓ | −10.2pp±1.8 | −9.1pp±1.8 ✓ |
+| fights end (median · p90 · stalls) | 4 · 6 · 0.0% | 4 · 6 · 0.0% | 2 · 5 · 0.4% | 2 · 5 · 1.1% |
+| choice matters (PV/decision) | 4.22±0.19 | 4.18±0.22 | 5.69±0.78 | 3.62±0.65 |
+
+Cards: value vs the hand · best play · gain when best · AI play.
+
+| card | fantasy before | fantasy after | elements before | elements after |
+|---|---|---|---|---|
+| Cop al nervi (numbs) | +2.3 · 15% · +0.2 · 17.0% | +1.7 · 15% · +0.0 · 16.5% | +11.6 · 25% · +12.6 · 8.2% | +5.4 · 16% · +5.9 · 7.2% |
+| Pinça entumidora (numbs) | +2.5 · 20% · +4.4 · 13.5% | +2.7 · 19% · +4.3 · 16.7% | −1.6 · 13% · +0.8 · 20.6% | −0.3 · 16% · −1.8 · 22.3% |
+| Ràfega de dits (numbs) | +3.6 · 30% · +3.4 · 43.8% | +3.6 · 30% · +3.7 · 41.8% | −0.3 · 9% · −1.0 · 4.7% | +0.1 · 9% · +0.1 · 5.7% |
+| Tocs en cadena (numbs) | L7, not measured | — | +1.0 · 12% · +2.2 · 29.6% | +1.3 · 9% · +1.3 · 26.9% |
+| Segellar → **Desbloquejar** | −5.7 · 20% · +2.2 · 0.9% | **−6.1 · 18% · +1.1 · 0.7%** | −10.1 · 5% · −7.4 · 1.3% | **−9.0 · 7% · −3.6 · 0.4%** |
+| Cop de vida | L8, not measured | — | +3.6 · 18% · +9.1 · 2.7% | +3.2 · 16% · +2.8 · 3.7% |
+
+Play rates are ±0.2-1.2pp (2σ ≈ the printed ± twice); a card value moves about
+±1 PV between runs.
+
+Read:
+
+- **Entumit −3 is about as strong as the halving.** Both bands moved within
+  ~1σ of the difference (+1.9pp fantasy, +1.1pp elements). Each numbing card
+  stays within noise of where it was, except Cop al nervi in elements, which
+  lost half its lead (+11.6 → +5.4 PV over the hand). Against the elements
+  soldiers' big totals, halving took more than 3 points. No band fails, so N
+  stays 3.
+- **Desbloquejar el cos is played as little as Segellar was** (0.7% / 0.4%).
+  Fantasy flags it as a blind spot (best 18%) with the signature of §48.2: a
+  small gain when best (+1.1 PV), the mop-up of a won fight that the card value
+  counts and the search does not. Fantasy's fights leave few efectes negatius
+  on heroes (goblins leave none). Ratcheted in fantasy `KNOWN_BLIND`; **not
+  re-probed**. In elements, where shirshus paralyse and soldiers burn, it is
+  best only 7% of the time and gains nothing when it is. N was not tuned: the
+  bands pass, and the brief allows N only under 7.
+- **Cop de vida** (elements) is no longer a blind spot (best 16%, played 3.7%)
+  and left elements `KNOWN_BLIND`. Toc de la mort's numbers moved with the
+  re-pinned calibration (+1.7 → +2.8 PV), within about 1σ.
+- Both kit suites pass. Fast tier: 594 green. The horde's encounter-speed
+  test read 3.08-3.12 s on two reruns, with another session's process on a
+  core and the run at `nice 19`. It passed in the first full fast-tier run
+  with the same engine code. The new hook is gated, so it costs a fight
+  nothing unless it holds a numb.
+
+### 50.4 Conflicts with intentions.md
+
+- Desbloquejar el cos, like Segellar before it, is near "never sees play"
+  (0.4-0.7%). If it should matter, the levers are its speed (a −1 Focus is
+  interrupted by any blow first) or a decision on the §48.2 card-value
+  question. Both are for the user.
+- The fantasy band (+15.9±1.4) passes only within its error, like Acrobàcia's
+  (§48.3, §49).

@@ -3,7 +3,7 @@
 // baselines should follow it.
 import { ActionType, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../../players/types.js';
-import { num, tspec, resolveTargets, targetReq } from '../../players/effects/helpers.js';
+import { num, tspec, resolveTargets, targetReq, HARM } from '../../players/effects/helpers.js';
 
 /**
  * Nigromant — a doom-mark curse-caster. Marca de la perdició condemns a foe
@@ -57,7 +57,7 @@ const PUTREFACCIO: StatusBehavior = {
       if (everInfected.has(victim) || victim.hasStatus('putrefaccio@cal')) continue;
       if (engine.rollDie(20) >= 7) continue; // catches it on a d20 < 7
       everInfected.add(victim);
-      victim.setStatus('putrefaccio@cal', entry.value, turns, { dot: entry.value, turns }, PUTREFACCIO);
+      victim.setStatus('putrefaccio@cal', entry.value, turns, { dot: entry.value, turns, ...HARM }, PUTREFACCIO);
       engine.log('poison', `La putrefacció s'estén a ${victim.name}.`, victim.team);
     }
   },
@@ -70,7 +70,7 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 3);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('condemnat', 1, turns, undefined, CONDEMNAT);
+        t.setStatus('condemnat', 1, turns, { ...HARM }, CONDEMNAT);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
@@ -86,7 +86,7 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
   'condemn_on_block@cal': {
     onDefend(ctx) {
       if (!ctx.target) return;
-      ctx.target.setStatus('condemnat', 1, num(ctx.params, 'turns', 2), undefined, CONDEMNAT);
+      ctx.target.setStatus('condemnat', 1, num(ctx.params, 'turns', 2), { ...HARM }, CONDEMNAT);
       ctx.engine.log('defense', `El sudari toca ${ctx.target.name}: queda condemnat.`, ctx.source.team);
     },
     aiWeight(ctx) {
@@ -119,7 +119,7 @@ const NIGROMANT_EFFECTS: Record<string, EffectHandler> = {
       const turns = num(ctx.params, 'turns', 3);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
         everInfected.add(t);
-        t.setStatus('putrefaccio@cal', dmg, turns, { dot: dmg, turns }, PUTREFACCIO);
+        t.setStatus('putrefaccio@cal', dmg, turns, { dot: dmg, turns, ...HARM }, PUTREFACCIO);
         // The rot bites at once: the first loss lands on infection.
         ctx.engine.log('poison', `${t.name} pateix ${dmg} de dany (putrefacció).`, t.team);
         ctx.engine.applyPvLoss(t, dmg, ctx.source);

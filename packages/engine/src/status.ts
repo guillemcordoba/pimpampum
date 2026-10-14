@@ -82,6 +82,9 @@ export interface StatusBehavior {
   clampPvLoss?(ref: StatusRef, amount: number): number;
   /** Added to attack dice totals AGAINST the holder (marks, exposures). */
   attackRollAgainstHolder?(ref: StatusRef): number;
+  /** Added to every attack total the HOLDER rolls: each pass of its card,
+   *  defended or not, and every extra blow (numbs, curses of weakness). */
+  attackRollOfHolder?(ref: StatusRef): number;
   /** Defenses contesting `attacker`'s blows on the holder count this much less
    *  (a weak spot the attacker's side has found). Added to the attack's
    *  `defensePenalty`, so it does nothing to an undefended holder. */

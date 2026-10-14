@@ -75,7 +75,7 @@ describe('Mestre del xi', () => {
     expect(MESTRE_DEL_XI.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
       ['cop-al-nervi', 1, ActionType.Atac],
       ['pinca-entumidora', 2, ActionType.Defensa],
-      ['segellar-la-ferida', 3, ActionType.Focus],
+      ['desbloquejar-el-cos', 3, ActionType.Focus],
       ['poder-apagat', 4, ActionType.Atac],
       ['bloqueig-mutu', 5, ActionType.Defensa],
       ['rafega-de-dits', 6, ActionType.Atac],

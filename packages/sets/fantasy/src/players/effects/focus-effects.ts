@@ -1,5 +1,5 @@
 import { EffectHandler, Character, StatusBehavior } from '@pimpampum/engine';
-import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, ModKind } from './helpers.js';
+import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, ModKind, HARM, clearHarm } from './helpers.js';
 import { DOT, REGEN } from './status-behaviors.js';
 
 // Attack rolls against the marked holder get +value (mark_target).
@@ -52,7 +52,9 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       if (dice) amt += dice.roll();
       const kind = str(ctx.params, 'kind', 'skill') as ModKind;
       const dur = durParam(ctx.params, 'duration', 'nextTurn');
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) applyMod(t, kind, amt, dur, ctx.action.name);
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) {
+        applyMod(t, kind, amt, dur, ctx.action.name, undefined, amt < 0 && t.team !== ctx.source.team ? HARM : undefined);
+      }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'self')); },
     aiWeight(ctx) { return num(ctx.params, 'amount', 0) >= 0 ? 1.3 : 1.0; },
@@ -79,7 +81,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       const amt = num(ctx.params, 'amount', 2); // TODO(balance)
       const turns = num(ctx.params, 'turns', 1);
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus('marca-objectiu', amt, turns, undefined, MARCA_OBJECTIU);
+        t.setStatus('marca-objectiu', amt, turns, { ...HARM }, MARCA_OBJECTIU);
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
@@ -138,7 +140,10 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   dot: {
     onResolve(ctx) {
       const dmg = num(ctx.params, 'damage', 2);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) t.setStatus(str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg }, DOT);
+      // A shaman's sagnia bleeds its own side: a price, not an efecte negatiu.
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
+        t.setStatus(str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg, ...(t.team !== ctx.source.team ? HARM : {}) }, DOT);
+      }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },
     aiWeight() { return 1; },
@@ -228,16 +233,10 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.actor.fatigue >= 1 ? 1.2 : 0; },
   },
 
-  // Remove negative modifiers and damage-over-time statuses from the target(s).
+  // Remove every efecte negatiu from the target(s).
   cleanse: {
     onResolve(ctx) {
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'ally'))) {
-        t.modifiers = t.modifiers.filter(m => m.getValue() >= 0);
-        for (const [key, entry] of t.statuses) {
-          if (typeof entry.data?.dot === 'number') t.statuses.delete(key);
-        }
-        t.clearStatus('silenced');
-      }
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'ally'))) clearHarm(t);
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'ally')); },
     aiWeight() { return 0.5; },

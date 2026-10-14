@@ -459,7 +459,6 @@ export class CombatEngine implements EngineApi, AIView {
     const lost = before - target.currentPV;
     if (died && wasAlive) this.log('death', `${target.name} cau derrotat!`, target.team);
     if (lost > 0) {
-      target.lastWound = lost;
       for (const { key, entry, behavior } of this.hookedStatuses(target, 'onPvLost')) {
         if (target.statuses.has(key)) behavior.onPvLost!(this.statusCtx(target, key, entry), lost, source);
       }
@@ -503,7 +502,7 @@ export class CombatEngine implements EngineApi, AIView {
     const skillId = opts.skillId ?? '';
     const atkRoll = roll ?? this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0)
-      + this.attackRollBonusAgainst(target);
+      + this.attackRollBonusAgainst(target) + this.attackRollBonusOf(source);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
     const bypass = this.bypassesDefense(source, target, !!opts.ignoreDefense);
     const penalty = this.defensePenaltyOn(target, source);
@@ -1595,6 +1594,17 @@ export class CombatEngine implements EngineApi, AIView {
     return bonus;
   }
 
+  /** Sum of attackRollOfHolder across the attacker's statuses. */
+  private attackRollBonusOf(attacker: Character): number {
+    let bonus = 0;
+    if (!attacker.holdsStatusWith('attackRollOfHolder')) return bonus;
+    for (const ref of attacker.statusRefs()) {
+      const f = ref.entry.behavior?.attackRollOfHolder;
+      if (f) bonus += f(ref);
+    }
+    return bonus;
+  }
+
   /** onAttackAction over the attacker's statuses; multipliers combine, flat bonuses add. */
   private collectAttackStatusMods(actor: Character): AttackStatusMods {
     const mods: AttackStatusMods = {};
@@ -1694,7 +1704,7 @@ export class CombatEngine implements EngineApi, AIView {
     for (const d of mods.extraDamageDice) extraDice += d.roll();
     const atkBonus = (def.rollBonus ?? 0) + mods.rollBonus
       + source.getRollBonus(def.skillId, 'attack') + skillLevelBonus(source, def)
-      + this.attackRollBonusAgainst(target);
+      + this.attackRollBonusAgainst(target) + this.attackRollBonusOf(source);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
     const attackTotal = Math.max(0,

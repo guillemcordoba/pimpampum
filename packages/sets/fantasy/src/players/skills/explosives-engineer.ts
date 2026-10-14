@@ -1,7 +1,7 @@
 import { ActionType, Character, DiceRoll, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { standingCoverAction } from '../cards/index.js';
-import { num } from '../effects/helpers.js';
+import { num, HARM } from '../effects/helpers.js';
 
 /** The skill all explosive ordnance belongs to (content may know its own ids). */
 export const EXPLOSIVE_SKILL_ID = 'enginyer-explosius';
@@ -64,7 +64,7 @@ const ENGINYER_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
       const turns = num(ctx.params, 'turns', 1);
-      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns, undefined, ENCEGAT);
+      for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus('encegat', 1, turns, { ...HARM }, ENCEGAT);
       ctx.engine.log('focus', 'Una cortina de fum encega els enemics!', ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length >= 2 ? 1.5 : 0.4; },

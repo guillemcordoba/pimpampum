@@ -96,7 +96,9 @@ no registration). The engine invokes behaviour hooks at fixed seams:
 whole pool twice), `modifyOutgoingDamage`, `modifyIncomingDamage`,
 `modifyContestTotal` (clutch adjust of a contested total seeing both sides;
 content-side save contests route through `EngineApi.adjustContestTotal`),
-`clampPvLoss`, `attackRollAgainstHolder`, `defensePenaltyAgainst`,
+`clampPvLoss`, `attackRollAgainstHolder`, `attackRollOfHolder` (added to every
+attack total the holder rolls, main pass and extra blows: Entumit's −3),
+`defensePenaltyAgainst`,
 `preventsGuard`, `blocksActionType` (never locks a `lastResort` card),
 `untargetable`, `ignoresConcealment`, `preventsGuardBypass`, `absorbsGuard`,
 `cardSwapCharges`/`spendCardSwapCharge`, `adjustActionWeight`, `positionValue`,
@@ -200,11 +202,17 @@ resolve plain: every effect dispatch reads its effects through
 the card type's own and the count to one — only type, speed and dice count);
 `onPvLost(ctx, amount, source)` (after any PV loss > 0, armour and clamps
 applied, for the statuses of the one who lost it: a sleeper wakes, a curse
-counts wounds or PV); `Character.lastWound` (the PV the latest loss took, kept
-by `applyPvLoss`, cleared each combat); `AttackModifiers.damageMult` (per
+counts wounds or PV); `AttackModifiers.damageMult` (per
 target, before armour; 0 = a blow that decides whom it beats and hurts nobody);
 and the target requirement `'fallen_ally'` (the actor's fallen allies only —
 the web's target picker offers just those).
+
+**Efecte negatiu** (rules.md) is a content convention, not a seam
+(`packages/sets/common/src/effects/harm.ts`): every status or modifier an
+enemy card leaves carries `harm: 1` in its data (`CombatModifier.data` is an
+inert payload like `StatusEntry.data`), lost actions are `skipTurns`, and a
+status that takes the body out of the fight (the unagi's swallow) carries
+`bodyOut: 1` instead. `clearHarm(c)` is the one cleanse.
 
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
@@ -242,7 +250,8 @@ Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onAimed`, `presetAttackRoll`, `onAttackResolved`, `revealOptions`, `aiRevealOption`,
 `onRevealOption`, `aiTargetPriority` (a hint like `aiWeight`: which ally the
 AI's heuristic aims a non-enemy card at, instead of the lowest PV fraction —
-Segellar la ferida wants the biggest last wound). They touch the engine only through
+Desbloquejar el cos wants the ally its cleanse is worth most to; Trampolí de
+mans the ally whose Atac is still to come). They touch the engine only through
 `EngineApi`.
 
 Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, plus

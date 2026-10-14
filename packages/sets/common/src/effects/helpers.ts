@@ -70,10 +70,12 @@ export function targetReq(spec: TargetSpec): 'none' | 'enemy' | 'ally' {
 
 export type ModKind = 'skill' | 'attack' | 'defense' | 'armor' | 'speed';
 
-/** Apply a temporary modifier to a character. */
-export function applyMod(c: Character, kind: ModKind, amount: number, d: DurationSpec, source: string, dice?: DiceRoll): void {
+/** Apply a temporary modifier to a character; `data` is its inert payload
+ *  (`HARM` when an enemy card sets it). */
+export function applyMod(c: Character, kind: ModKind, amount: number, d: DurationSpec, source: string, dice?: DiceRoll, data?: Record<string, unknown>): void {
   const m = new CombatModifier(kind, amount, toDuration(d)).withSource(source);
   if (dice) m.withDice(dice);
+  if (data) m.withData({ ...data });
   c.addModifier(m);
 }
 
@@ -92,3 +94,7 @@ export function wieldedWeaponBonus(c: Character): number | undefined {
 // implement their own contest as custom logic in their skill's file, with
 // their own dice and their own rules — contests are card design, not engine
 // machinery.
+
+// --- Efectes negatius ---------------------------------------------------------
+
+export * from './harm.js';

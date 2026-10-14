@@ -1,6 +1,7 @@
 import { ActionType, Character, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../../players/types.js';
 import { EnemyDefinition, ICON } from '../types.js';
+import { BODY_OUT } from '../../players/effects/helpers.js';
 
 /**
  * The giant eel of the bay: a lone beast that punishes a party for huddling.
@@ -118,7 +119,7 @@ const UNAGI_SKILL: SkillDefinition = {
         const t = ctx.target;
         if (!t || !t.isAlive() || (ctx.damageDealt ?? 0) <= 0 || ctx.source.hasStatus('panxa-plena')) return;
         ctx.engine.cancelPendingAction(t);
-        t.setStatus('engolit', 1, -1, { eel: ctx.source, harm: 1 }, ENGOLIT);
+        t.setStatus('engolit', 1, -1, { eel: ctx.source, ...BODY_OUT }, ENGOLIT);
         t.skipTurns = Math.max(t.skipTurns, 1);
         ctx.source.setStatus('panxa-plena', 1, -1);
         ctx.engine.log('attack', `L'unagi s'empassa ${t.name}!`, ctx.source.team);

@@ -2,4 +2,5 @@
 export type { DurationSpec, TargetSpec, ModKind } from '@pimpampum/set-common';
 export {
   num, str, diceParam, toDuration, durParam, tspec, resolveTargets, targetReq, applyMod, wieldedWeaponBonus,
+  HARM, BODY_OUT, isHarm, isTakenOut, harmfulStatuses, clearHarm,
 } from '@pimpampum/set-common';

@@ -1,5 +1,5 @@
 import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
-import { applyMod, diceParam, durParam, ModKind, num, str } from './helpers.js';
+import { applyMod, diceParam, durParam, HARM, ModKind, num, str } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
 /**
@@ -245,7 +245,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     onAttackHit(ctx) {
       if (!ctx.target || !ctx.target.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
       applyMod(ctx.target, str(ctx.params, 'kind', 'speed') as ModKind, -num(ctx.params, 'amount', 2),
-        durParam(ctx.params, 'duration', 'nextTurn'), ctx.action.name);
+        durParam(ctx.params, 'duration', 'nextTurn'), ctx.action.name, undefined, HARM);
     },
     aiWeight() { return 0.5; },
   },

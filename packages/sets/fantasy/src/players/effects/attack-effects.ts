@@ -1,5 +1,5 @@
 import { EffectHandler, EffectContext, Character, DiceRoll, StatusBehavior, ActionType, random } from '@pimpampum/engine';
-import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
+import { num, str, diceParam, durParam, applyMod, ModKind, HARM } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
 // The holder cannot benefit from any guard (undefendable_on_hit).
@@ -130,7 +130,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
       const dur = durParam(ctx.params, 'duration', 'nextTurn');
       const tgt = str(ctx.params, 'target', '');
       const recipients: Character[] = tgt === 'enemies' ? ctx.engine.enemiesOf(ctx.source) : [ctx.target];
-      for (const r of recipients) applyMod(r, kind, amount, dur, 'Debilitació');
+      for (const r of recipients) applyMod(r, kind, amount, dur, 'Debilitació', undefined, HARM);
     },
     aiWeight() { return 0.6; },
   },
@@ -140,7 +140,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     onAttackHit(ctx) {
       if (!ctx.target) return;
       const dmg = num(ctx.params, 'damage', 2);
-      ctx.target.setStatus(str(ctx.params, 'name', 'verí'), dmg, num(ctx.params, 'turns', 3), { dot: dmg }, DOT);
+      ctx.target.setStatus(str(ctx.params, 'name', 'verí'), dmg, num(ctx.params, 'turns', 3), { dot: dmg, ...HARM }, DOT);
     },
     aiWeight() { return 0.8; },
   },
@@ -156,14 +156,14 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
     onAttackHit(ctx) {
       if (!ctx.target) return;
       const cur = ctx.target.getStatusValue('marca', 0);
-      ctx.target.setStatus('marca', cur + num(ctx.params, 'amount', 1), num(ctx.params, 'turns', 4));
+      ctx.target.setStatus('marca', cur + num(ctx.params, 'amount', 1), num(ctx.params, 'turns', 4), { ...HARM });
     },
     aiWeight() { return 0.5; },
   },
 
   // Silence the target (no focus actions) for a while.
   silence_on_hit: {
-    onAttackHit(ctx) { if (ctx.target) ctx.target.setStatus('silenced', 1, num(ctx.params, 'turns', 2)); },
+    onAttackHit(ctx) { if (ctx.target) ctx.target.setStatus('silenced', 1, num(ctx.params, 'turns', 2), { ...HARM }); },
     aiWeight() { return 0.5; },
   },
 
@@ -186,7 +186,7 @@ export const ATTACK_EFFECTS: Record<string, EffectHandler> = {
   undefendable_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target) return;
-      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2), undefined, INDEFENSABLE);
+      ctx.target.setStatus('indefensable', 1, num(ctx.params, 'turns', 2), { ...HARM }, INDEFENSABLE);
     },
     aiWeight() { return 0.6; },
   },

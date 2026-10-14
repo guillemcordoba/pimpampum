@@ -9,11 +9,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  type ActionDefinition, type ActionEffect, type Character, CombatEngine, createCharacter, DiceRoll, EffectRegistry,
-  firstLegalChooser, getActionTargetRequirement,
+  type ActionDefinition, type ActionEffect, type Character, CombatEngine, CombatModifier, createCharacter, DiceRoll, EffectRegistry,
+  firstLegalChooser, getActionTargetRequirement, ModifierDuration,
 } from '@pimpampum/engine';
 import { armour, attackCard, defenseCard, fighter, focusCard, playRound, type Selection } from '@pimpampum/engine/testing';
-import { COMMON_EFFECTS, MESTRE_DEL_XI, TOC_DE_LA_MORT_VARIANTS, type TocVariant } from '../src/index.js';
+import { BODY_OUT, COMMON_EFFECTS, HARM, MESTRE_DEL_XI, TOC_DE_LA_MORT_VARIANTS, type TocVariant } from '../src/index.js';
 
 const registry = new EffectRegistry();
 for (const [type, h] of Object.entries({ ...COMMON_EFFECTS, ...MESTRE_DEL_XI.effects })) registry.register(type, h);
@@ -55,17 +55,28 @@ describe('Mestre del xi', () => {
     expect(me.actions.every((_, i) => e.canPlayActionIdx(me, i))).toBe(true);
   });
 
-  it('Cop al nervi: a wound numbs — half damage, rounded down, to the end of the next round', () => {
+  it('Cop al nervi: a wound numbs — its attacks −3 to the end of the next round', () => {
     const me = master('Mestre', [card('cop-al-nervi', 3), wait]);
     const foe = fighter('Foe', [blow(7)], { pv: 40 });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(37);
-    expect(me.currentPV).toBe(27);
+    expect(me.currentPV).toBe(26);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
-    expect(me.currentPV).toBe(24);
+    expect(me.currentPV).toBe(22);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
-    expect(me.currentPV).toBe(17);
+    expect(me.currentPV).toBe(15);
+  });
+
+  it('Cop al nervi: the −3 is on the attack roll, not on the damage after the defense', () => {
+    const me = master('Mestre', [card('cop-al-nervi', 3), guard(5, 9)]);
+    const foe = fighter('Foe', [blow(10)], { pv: 40 });
+    const e = engineFor([me], [foe]);
+    playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(me.currentPV).toBe(23);
+    // 10 − 3 = 7 against a defense of 5: 2 through.
+    playRound(e, [sel(0, 0, 1, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(me.currentPV).toBe(21);
   });
 
   it('Cop al nervi: numbed again, it only renews', () => {
@@ -74,8 +85,8 @@ describe('Mestre del xi', () => {
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    // 9 → 4 each round, never 2.
-    expect(me.currentPV).toBe(22);
+    // 9 → 6 each round, never 3.
+    expect(me.currentPV).toBe(18);
   });
 
   it('Pinça entumidora: blocks an enemy; when it holds, the attacker is numb', () => {
@@ -90,29 +101,66 @@ describe('Mestre del xi', () => {
     expect(friend.currentPV).toBe(28);
   });
 
-  it('Segellar la ferida: a standing ally recovers what its last wound took', () => {
-    const me = master('Mestre', [wait, card('segellar-la-ferida')]);
+  it('Desbloquejar el cos: a standing ally recovers 4 PV and sheds every efecte negatiu', () => {
+    const me = master('Mestre', [card('desbloquejar-el-cos')]);
     const ally = fighter('Aliat', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(7), blow(3)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
     const e = engineFor([me, ally], [foe]);
-    playRound(e, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(23);
-    playRound(e, [sel(0, 0, 1, T(0, 1)), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
-    // Hit for 3 (its last wound), then 3 back: not the 7.
-    expect(ally.currentPV).toBe(23);
+    ally.currentPV = 20;
+    ally.setStatus('verí', 2, -1, { dot: 2, ...HARM });
+    ally.setStatus('benedicció', 1, -1);
+    ally.addModifier(new CombatModifier('defense', -2, ModifierDuration.RestOfCombat).withData({ ...HARM }));
+    ally.addModifier(new CombatModifier('defense', -1, ModifierDuration.RestOfCombat));
+    ally.skipTurns = 2;
+    playRound(e, [sel(0, 0, 0, T(0, 1)), sel(1, 0, 0)]);
+    expect(ally.currentPV).toBe(24);
+    expect([...ally.statuses.keys()]).toEqual(['benedicció']);
+    // Its own price stays: only what an enemy card left goes.
+    expect(ally.modifiers.map(m => m.value)).toEqual([-1]);
+    expect(ally.skipTurns).toBe(0);
   });
 
-  it('Segellar la ferida: you too — and never the fallen', () => {
-    const me = master('Mestre', [wait, card('segellar-la-ferida')]);
-    const foe = fighter('Foe', [blow(6), wait], { pv: 30 });
-    const e = engineFor([me], [foe]);
-    playRound(e, [sel(0, 0, 0), sel(1, 0, 0, T(0, 0))]);
-    expect(me.currentPV).toBe(24);
-    playRound(e, [sel(0, 0, 1, T(0, 0)), sel(1, 0, 1)]);
+  it('Desbloquejar el cos: you too — and never the fallen', () => {
+    const me = master('Mestre', [card('desbloquejar-el-cos')]);
+    const e = engineFor([me], [fighter('Foe', [wait], { pv: 30 })]);
+    me.currentPV = 28;
+    me.setStatus('marca', 2, -1, { ...HARM });
+    playRound(e, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0)]);
     expect(me.currentPV).toBe(30);
-    const sealing = card('segellar-la-ferida');
-    expect(sealing.canReviveTarget).toBeFalsy();
-    expect(getActionTargetRequirement(sealing, registry)).toBe('ally');
+    expect(me.hasStatus('marca')).toBe(false);
+    const unblocking = card('desbloquejar-el-cos');
+    expect(unblocking.canReviveTarget).toBeFalsy();
+    expect(getActionTargetRequirement(unblocking, registry)).toBe('ally');
+    const fallen = fighter('Caigut', [wait], { pv: 12 });
+    const me2 = master('Mestre', [unblocking]);
+    const e2 = engineFor([me2, fallen], [fighter('Foe', [wait], { pv: 30 })]);
+    fallen.currentPV = 0;
+    playRound(e2, [sel(0, 0, 0, T(0, 1)), sel(1, 0, 0)]);
+    expect(fallen.currentPV).toBe(0);
+  });
+
+  it('Desbloquejar el cos: a numbed ally is freed of it', () => {
+    const me = master('Mestre', [card('desbloquejar-el-cos')]);
+    const ally = fighter('Aliat', [wait], { pv: 30 });
+    const foe = fighter('Foe', [card('cop-al-nervi', 3), blow(7)], { pv: 30 });
+    const e = engineFor([me, ally], [foe]);
+    playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
+    expect(ally.hasStatus('entumit')).toBe(false);
+  });
+
+  it('Desbloquejar el cos: a body taken out of the fight is out of reach', () => {
+    const me = master('Mestre', [card('desbloquejar-el-cos')]);
+    const ally = fighter('Aliat', [wait], { pv: 30 });
+    const e = engineFor([me, ally], [fighter('Foe', [wait], { pv: 30 })]);
+    ally.currentPV = 20;
+    ally.setStatus('engolit', 1, -1, { ...BODY_OUT });
+    ally.setStatus('verí', 2, -1, { dot: 2, ...HARM });
+    ally.skipTurns = 3;
+    playRound(e, [sel(0, 0, 0, T(0, 1)), sel(1, 0, 0)]);
+    expect(ally.currentPV).toBe(20);
+    expect(ally.hasStatus('verí')).toBe(true);
+    expect(ally.skipTurns).toBe(2);
   });
 
   it('Poder apagat: a wound means next round its card has no effect — only its dice', () => {
@@ -169,8 +217,8 @@ describe('Mestre del xi', () => {
     });
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(34);
-    // Its blow of 4, numb: 2.
-    expect(me.currentPV).toBe(28);
+    // Its blow of 4, numb: 1.
+    expect(me.currentPV).toBe(29);
   });
 
   it('Ràfega de dits: one wound, nothing', () => {

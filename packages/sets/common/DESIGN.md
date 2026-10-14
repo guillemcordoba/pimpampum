@@ -33,8 +33,10 @@ with Esgrima 2+ (an experiment) · destral +2 · gran destral +4, −1 speed.
 ## Mestre del xi — `mestre-del-xi` (landed 2026-10-14)
 
 *Kappo / sappo, "cure or kill": the same points switch a body off or back on.*
-Unarmed. Kit rule **Entumit**: until the end of next round the holder's damage
-is halved (rounded down); numbed again, it only renews. The dice are
+Unarmed. Kit rule **Entumit**: "Fins al final del torn següent, els seus atacs
+tenen −3." — on the attack roll (the contested total), not on the damage after
+it; numbed again, it only renews (since 2026-10-14, NEXT-STEPS §50; it used to
+halve the damage). The dice are
 provisional (tuned in NEXT-STEPS §48); Toc de la mort's rule is being chosen among measured variants
 (NEXT-STEPS §47).
 
@@ -42,7 +44,7 @@ provisional (tuned in NEXT-STEPS §48); Toc de la mort's rule is being chosen am
 |---|---|---|---|
 | 1 | Cop al nervi | Atac · 2 · 2d4 | if it wounds, numb |
 | 2 | Pinça entumidora | Defensa · 3 · 3d4 | block an enemy; if it holds, the attacker numb |
-| 3 | Segellar la ferida | Focus · −1 | a standing ally, or you, recovers what its last wound took |
+| 3 | Desbloquejar el cos | Focus · −1 | a standing ally, or you, recovers 4 PV and sheds every efecte negatiu (not a swallowed body) |
 | 4 | Poder apagat | Atac · 2 · 2d6 | if it wounds, next round its card is only its dice |
 | 5 | Bloqueig mutu | Defensa · 2 · 2d8 | block an enemy; if it holds, next round neither of you plays a card |
 | 6 | Ràfega de dits | Atac · 1 · 1d6 ×3 · 1 fatiga | two wounds numb; three cancel its action this round |

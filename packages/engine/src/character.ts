@@ -33,6 +33,7 @@ const GATED_HOOKS = [
   'attackRepeats', 'standingGuard', 'blocksActionType', 'adjustActionWeight', 'onRoundStart',
   // The second word of the mask.
   'onRoundEnd', 'choosesAfterReveal', 'cardSwapCharges', 'absorbsGuard', 'positionValue', 'onHolderAttackHit',
+  'attackRollOfHolder',
 ] as const satisfies readonly (keyof StatusBehavior)[];
 export type GatedHook = typeof GATED_HOOKS[number];
 
@@ -168,9 +169,6 @@ export class Character {
   /** Took an undefended hit this round (interrupts a not-yet-resolved focus). */
   hitThisTurn = false;
   hitThisCombat = false;
-  /** The PV lost the last time any were lost this combat (0 before the
-   *  first) — what a cure that undoes the last wound gives back. */
-  lastWound = 0;
   playedActionIdx: number | null = null;
   /** actionIdx -> turns set aside (-1 = permanent). */
   setAsideActions = new Map<number, number>();
@@ -236,6 +234,7 @@ export class Character {
       c.dice = m.dice;
       c.source = m.source;
       c.condition = m.condition;
+      if (m.data) c.data = { ...m.data };
       return c;
     });
     for (const [k, e] of this.statuses) {
@@ -249,7 +248,6 @@ export class Character {
     copy.skipTurns = this.skipTurns;
     copy.hitThisTurn = this.hitThisTurn;
     copy.hitThisCombat = this.hitThisCombat;
-    copy.lastWound = this.lastWound;
     copy.playedActionIdx = this.playedActionIdx;
     copy.setAsideActions = new Map(this.setAsideActions);
     copy.fatigue = this.fatigue;
@@ -470,7 +468,6 @@ export class Character {
     this.skipTurns = 0;
     this.hitThisTurn = false;
     this.hitThisCombat = false;
-    this.lastWound = 0;
     this.playedActionIdx = null;
     this.setAsideActions.clear();
     for (const a of this.actions) a.consumed = false;

@@ -1,5 +1,5 @@
 import { EffectHandler } from '@pimpampum/engine';
-import { num, str, diceParam, durParam, applyMod, ModKind } from './helpers.js';
+import { num, str, diceParam, durParam, applyMod, ModKind, HARM } from './helpers.js';
 import { DOT } from './status-behaviors.js';
 
 /** Defense-rider effects: onDefend runs when a block lands; onBlockFail when it
@@ -25,7 +25,7 @@ export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
       if (!ctx.target) return;
       const dmg = num(ctx.params, 'damage', 2);
       const name = str(ctx.params, 'name', 'crema');
-      ctx.target.setStatus(name, dmg, num(ctx.params, 'turns', 2), { dot: dmg }, DOT);
+      ctx.target.setStatus(name, dmg, num(ctx.params, 'turns', 2), { dot: dmg, ...HARM }, DOT);
       ctx.engine.log('defense', `${ctx.target.name} queda amb ${name} (${dmg}/torn).`, ctx.source.team);
     },
     aiWeight() { return 0.5; },
@@ -51,7 +51,7 @@ export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
   debuff_on_block: {
     onDefend(ctx) {
       if (!ctx.target) return;
-      applyMod(ctx.target, str(ctx.params, 'kind', 'skill') as ModKind, -num(ctx.params, 'amount', 3), durParam(ctx.params, 'duration', 'nextTurn'), 'Repèl'); // TODO(balance)
+      applyMod(ctx.target, str(ctx.params, 'kind', 'skill') as ModKind, -num(ctx.params, 'amount', 3), durParam(ctx.params, 'duration', 'nextTurn'), 'Repèl', undefined, HARM); // TODO(balance)
     },
     aiWeight() { return 0.3; },
   },

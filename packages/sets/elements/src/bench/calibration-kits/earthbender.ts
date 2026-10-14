@@ -3,7 +3,7 @@
 // baselines should follow it.
 import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../../players/types.js';
-import { applyMod } from '../../players/effects/helpers.js';
+import { applyMod, HARM } from '../../players/effects/helpers.js';
 
 /**
  * MESTRE DE LA TERRA — hung gar: stand, take the blow, answer it with your own
@@ -136,7 +136,7 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
       if (!t || (ctx.damageDealt ?? 0) <= 0) return;
       const armour = t.getPassiveArmor();
       if (armour <= 0) return;
-      applyMod(t, 'armor', -armour, 'restOfCombat', ctx.action.name);
+      applyMod(t, 'armor', -armour, 'restOfCombat', ctx.action.name, undefined, HARM);
       ctx.engine.log('attack', `${ctx.source.name} doblega el metall de ${t.name}: perd ${armour} d'armadura.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.some(e => e.getPassiveArmor() > 0) ? 0.8 : 0; },

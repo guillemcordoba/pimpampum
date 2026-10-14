@@ -1,14 +1,15 @@
 import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, EngineApi, StatusBehavior, StatusHookContext } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
-import { diceParam, num, str } from '../effects/helpers.js';
+import { clearHarm, diceParam, harmfulStatuses, HARM, isHarm, isTakenOut, num, str } from '../effects/helpers.js';
 
 /**
  * MESTRE DEL XI — kappo and sappo, "cure or kill": the same points switch a
  * body off or back on. Everything that moves has points, a golem's joints as
  * much as a devil's bones, and what goes dead is a part of the body, never a
- * named card. The kit numbs (ENTUMIT: the holder's damage is halved until the
+ * named card. The kit numbs (ENTUMIT: the holder's attacks are −3 until the
  * end of the next round), switches a card's power off, locks two bodies in one
- * hold, seals a wound and raises the fallen — and closes on its thesis: raise
+ * hold, unblocks a body (it heals and sheds every efecte negatiu, `harm.ts`)
+ * and raises the fallen — and closes on its thesis: raise
  * (8), kill (9), sleep (10).
  *
  * Concepts by the `card-designer` / `card-taste` loop, approved by the user;
@@ -35,23 +36,25 @@ function byOf(data: Record<string, unknown> | undefined): Character | undefined 
 // --- Entumit (cards 1, 2, 6, 7) ----------------------------------------------
 
 const ENTUMIT_KEY = 'entumit';
+const ENTUMIT_PENALTY = 3;
+const ENTUMIT_RULE = `Entumit: fins al final del torn següent, els seus atacs tenen −${ENTUMIT_PENALTY}.`;
 
-/** Numb: the damage the holder does is halved, rounded down. Set for two
- *  turns, so it lasts to the end of the round after the one it was set in;
- *  setting it again renews it rather than stacking. */
+/** Numb: every attack the holder rolls is `value` lower. Set for two turns,
+ *  so it lasts to the end of the round after the one it was set in; setting
+ *  it again renews it rather than stacking. */
 const ENTUMIT: StatusBehavior = {
-  modifyOutgoingDamage(_ctx, damage) { return Math.floor(damage / 2); },
-  /** Half the blows of a round and a half: real, and well short of a body.
-   *  A little above a terra's −0.1 (+2 on blows against it), since halving
-   *  is worth more than two points on most blows. */
-  positionValue() { return -0.15; },
+  attackRollOfHolder(ref) { return -ref.entry.value; },
+  /** A round and a half of blows `value` lower: real, and well short of a
+   *  body. Priced like a mark per point (elements' MARKED, −0.04 a point),
+   *  a little dearer since it also costs hits, not only damage. */
+  positionValue(ref) { return -0.05 * ref.entry.value; },
 };
 
 /** Numb `c` (or renew it). */
 function numb(engine: EngineApi, c: Character | undefined, team: number): void {
   if (!c || !c.isAlive()) return;
-  c.setStatus(ENTUMIT_KEY, 1, 2, { harm: 1 }, ENTUMIT);
-  engine.log('attack', `${c.name} queda entumit: fins al final del torn següent, fa la meitat de dany.`, team);
+  c.setStatus(ENTUMIT_KEY, ENTUMIT_PENALTY, 2, { ...HARM }, ENTUMIT);
+  engine.log('attack', `${c.name} queda entumit: fins al final del torn següent, els seus atacs tenen −${ENTUMIT_PENALTY}.`, team);
 }
 
 // --- 4 · Poder apagat --------------------------------------------------------
@@ -298,6 +301,26 @@ const ADORMIT: StatusBehavior = {
   positionValue() { return -0.25; },
 };
 
+// --- 3 · Desbloquejar el cos ------------------------------------------------
+
+/** Below water's Bàlsam de lluna (2d6, ~7): the cleanse is the card. */
+const UNBLOCK_HEAL = 4;
+
+/** What unblocking `c` is worth, in the evaluator's unit (1 ≈ a body's
+ *  health): the PV it would recover, plus what its efectes negatius cost it —
+ *  each status at its own price, each lost action like a lost turn (−0.25,
+ *  Bloqueig mutu's), each penalty point like a mark's (−0.04). */
+function unblockWorth(c: Character, params: Record<string, unknown>): number {
+  if (!c.isAlive() || isTakenOut(c)) return 0;
+  const heal = diceParam(params, 'dice')?.average() ?? num(params, 'amount', 4);
+  let worth = Math.min(heal, c.maxPV - c.currentPV) / Math.max(1, c.maxPV);
+  for (const [key, entry] of harmfulStatuses(c)) {
+    worth += Math.max(0, -(entry.behavior?.positionValue?.({ holder: c, key, entry }) ?? 0));
+  }
+  for (const m of c.modifiers) if (isHarm(m.data)) worth += 0.04 * Math.abs(m.value);
+  return worth + 0.25 * c.skipTurns;
+}
+
 const XI_EFFECTS: Record<string, EffectHandler> = {
   // 1 · Cop al nervi, 7 · Tocs en cadena: whoever a wound lands on is numb.
   numbing_strike: {
@@ -315,28 +338,29 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Segellar la ferida: a standing ally, or you, recovers the PV its last
-  // wound took.
-  seal_wound: {
+  // 3 · Desbloquejar el cos: a standing ally, or you, recovers `amount` (or
+  // `dice`) PV and sheds every efecte negatiu. A body taken out of the fight
+  // (swallowed) is out of the master's reach.
+  unblock_body: {
     getTargetRequirement() { return 'ally'; },
     onResolve(ctx) {
       const t = ctx.targets.find(c => c.isAlive());
       if (!t) return;
-      if (t.lastWound <= 0 || t.currentPV >= t.maxPV) {
-        ctx.engine.log('focus', `${ctx.source.name} segella la ferida de ${t.name}, però no hi ha res a tancar.`, ctx.source.team);
+      if (isTakenOut(t)) {
+        ctx.engine.log('focus', `${ctx.source.name} no arriba a ${t.name}.`, ctx.source.team);
         return;
       }
-      ctx.engine.log('focus', `${ctx.source.name} segella l'última ferida de ${t.name} (${t.lastWound} PV).`, ctx.source.team);
-      ctx.engine.heal(t, t.lastWound);
+      const dice = diceParam(ctx.params, 'dice');
+      const amount = dice ? ctx.engine.rollDiceFor(ctx.source, dice) : num(ctx.params, 'amount', 4);
+      const cleared = clearHarm(t);
+      ctx.engine.log('focus', `${ctx.source.name} desbloqueja el cos de ${t.name}${cleared ? ': perd els efectes negatius' : ''}.`, ctx.source.team);
+      ctx.engine.heal(t, amount);
     },
     aiWeight(ctx) {
-      const hurt = [ctx.actor, ...ctx.allies].some(c => c.currentPV < c.maxPV && c.lastWound > 0);
-      return hurt ? 0.6 : 0;
+      const best = Math.max(...[ctx.actor, ...ctx.allies].map(c => unblockWorth(c, ctx.params)));
+      return best > 0 ? Math.min(1.6, 3 * best) : -1;
     },
-    // The seal is worth the wound it closes, not how low the ally stands.
-    aiTargetPriority(_ctx, c) {
-      return c.lastWound > 0 ? Math.min(c.lastWound, c.maxPV - c.currentPV) : 0;
-    },
+    aiTargetPriority(ctx, c) { return c.isAlive() ? unblockWorth(c, ctx.params) : -1; },
   },
 
   // 4 · Poder apagat: a wound means next round its card has no effect — only
@@ -360,7 +384,8 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
       const me = ctx.source;
       if (!t || !t.isAlive() || !me.isAlive()) return;
       if (!t.blockers.some(g => g.defender === me && g.action === ctx.action)) return;
-      for (const c of [me, t]) c.setStatus('bloqueig-mutu', 1, 2, { fromRound: ctx.engine.round + 1, harm: 1 }, BLOQUEIG_MUTU);
+      // The enemy's half is an efecte negatiu; the master's is the price of its own card.
+      for (const c of [me, t]) c.setStatus('bloqueig-mutu', 1, 2, { fromRound: ctx.engine.round + 1, ...(c === t ? HARM : {}) }, BLOQUEIG_MUTU);
       ctx.engine.log('defense', `${me.name} i ${t.name} queden travats: el torn següent cap dels dos juga carta.`, me.team);
     },
     aiWeight() { return 0.3; },
@@ -442,7 +467,7 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
 
 export const MESTRE_DEL_XI: SkillDefinition = {
   id: 'mestre-del-xi', displayName: 'Mestre del xi', classCss: 'mestre-xi', category: 'player',
-  description: 'Els punts del cos: els mateixos dits que l\'apaguen el tornen a encendre.',
+  description: `Els punts del cos: els mateixos dits que l'apaguen el tornen a encendre. ${ENTUMIT_RULE}`,
   iconPath: ICON_PREFIX + 'lorc/meditation.svg',
   actions: [
     action({
@@ -460,10 +485,10 @@ export const MESTRE_DEL_XI: SkillDefinition = {
       icon: 'lorc/grab.svg',
     }),
     action({
-      id: 'segellar-la-ferida', name: 'Segellar la ferida', skillId: 'mestre-del-xi',
+      id: 'desbloquejar-el-cos', name: 'Desbloquejar el cos', skillId: 'mestre-del-xi',
       unlock: 3, type: ActionType.Focus, speed: -1,
-      effects: [{ type: 'seal_wound' }],
-      desc: "Cura un aliat dret, o tu, tants PV com li va treure l'últim cop que l'ha ferit.",
+      effects: [{ type: 'unblock_body', params: { amount: UNBLOCK_HEAL } }],
+      desc: `Un aliat dret, o tu, recupera ${UNBLOCK_HEAL} PV i perd tots els efectes negatius.`,
       icon: 'delapouite/hand-bandage.svg',
     }),
     action({

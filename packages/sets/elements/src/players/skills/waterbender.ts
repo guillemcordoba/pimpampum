@@ -1,5 +1,6 @@
 import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
+import { HARM } from '../effects/helpers.js';
 
 /**
  * MESTRE DE L'AIGUA — tai chi: water does not fight with its own force, it
@@ -193,7 +194,7 @@ function freeze(ctx: EffectContext): void {
   if (!t || !t.isAlive() || t.hasStatus('preso-de-gel-glacat')) return;
   if (!t.blockers.some(g => g.defender === ctx.source)) return;
   t.skipTurns += 2;
-  t.setStatus('preso-de-gel-glacat', 1, 1);
+  t.setStatus('preso-de-gel-glacat', 1, 1, { ...HARM });
   ctx.engine.log('defense', `${t.name} queda glaçat a la reixa: perd les seves 2 accions següents.`, ctx.source.team);
 }
 

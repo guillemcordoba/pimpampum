@@ -10,6 +10,7 @@
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 export * from './effects/helpers.js';
+
 export { COMMON_EFFECTS } from './effects/index.js';
 export { MESTRE_ARMES } from './skills/esgrima.js';
 export { ACROBACIA } from './skills/acrobacia.js';

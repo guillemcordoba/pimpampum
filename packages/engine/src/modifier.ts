@@ -15,6 +15,8 @@ export class CombatModifier {
   public dice: DiceRoll | null = null;
   public source = '';
   public condition: string | null = null;
+  /** Inert payload, like `StatusEntry.data`: the engine never reads it. */
+  public data?: Record<string, unknown>;
 
   constructor(
     public stat: string,
@@ -29,6 +31,11 @@ export class CombatModifier {
 
   withSource(source: string): this {
     this.source = source;
+    return this;
+  }
+
+  withData(data: Record<string, unknown>): this {
+    this.data = data;
     return this;
   }
 

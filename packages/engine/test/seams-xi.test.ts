@@ -1,13 +1,13 @@
 /**
  * The pressure-point seams: a status that takes a whole round away, one that
- * strips the holder's cards to their dice, a hook on every PV lost, the last
- * wound remembered, a blow that hurts nobody, and a target that must have
- * fallen. Each is generic and content-free; each test wires a minimal inline
+ * strips the holder's cards to their dice, a hook on every PV lost, a blow
+ * that hurts nobody, a target that must have fallen, a penalty on every attack
+ * the holder rolls and a modifier's inert payload. Each is generic and content-free; each test wires a minimal inline
  * effect or behaviour. `1d1` dice always roll 1 and level 0 adds nothing, so
  * every number is exact.
  */
 import { describe, it, expect } from 'vitest';
-import { CombatEngine, EffectRegistry, firstLegalChooser, type StatusBehavior } from '../src/index.js';
+import { CombatEngine, CombatModifier, DiceRoll, EffectRegistry, ModifierDuration, firstLegalChooser, type StatusBehavior } from '../src/index.js';
 import { attackCard, defenseCard, fighter, focusCard, playRound } from '../src/testing.js';
 
 const T = (team: number, idx: number) => [{ team, idx }];
@@ -114,7 +114,7 @@ describe('plainCards: only the dice count', () => {
   });
 });
 
-describe('onPvLost and the last wound', () => {
+describe('onPvLost', () => {
   it('runs for the one who lost PV, with the amount after armour and clamps', () => {
     const seen: number[] = [];
     const me = fighter('Me', [attackCard('hit', { rollBonus: 6 })], { ai: true });
@@ -125,10 +125,9 @@ describe('onPvLost and the last wound', () => {
     });
     playRound(engine(new EffectRegistry(), [me], [foe]), []);
     expect(seen).toEqual([4]);
-    expect(foe.lastWound).toBe(4);
   });
 
-  it('is not run for a blow that takes nothing; the last wound is the latest, and a new combat forgets it', () => {
+  it('is not run for a blow that takes nothing, and gets the PV actually lost', () => {
     const seen: number[] = [];
     const me = fighter('Me', [attackCard('hit', { rollBonus: 2 })], { ai: true });
     const foe = fighter('Foe', [focusCard()], { pv: 20 });
@@ -138,12 +137,9 @@ describe('onPvLost and the last wound', () => {
     e.applyPvLoss(foe, 7);
     playRound(e, []);
     expect(seen).toEqual([7, 3]);
-    expect(foe.lastWound).toBe(3);
     // The PV actually lost: a 50-point blow on 10 left takes 10.
     e.applyPvLoss(foe, 50);
-    expect(foe.lastWound).toBe(10);
-    foe.resetForNewCombat();
-    expect(foe.lastWound).toBe(0);
+    expect(seen).toEqual([7, 3, 10]);
   });
 });
 
@@ -184,5 +180,45 @@ describe("'fallen_ally': a target that has fallen, and nobody standing", () => {
     fallen.currentPV = 5;
     playRound(e, []);
     expect(targets).toEqual([['Fallen'], []]);
+  });
+});
+
+describe('attackRollOfHolder: every attack the holder rolls', () => {
+  const weak: StatusBehavior = { attackRollOfHolder: () => -3 };
+
+  it('lowers the total of an undefended blow, and so its damage', () => {
+    const me = fighter('Me', [attackCard('hit', { rollBonus: 6 })], { ai: true });
+    const foe = fighter('Foe', [focusCard()], { pv: 20 });
+    me.setStatus('weak', 1, -1, undefined, weak);
+    playRound(engine(new EffectRegistry(), [me], [foe]), []);
+    expect(foe.currentPV).toBe(16);
+  });
+
+  it('lowers the contested total, not the damage after it', () => {
+    const me = fighter('Me', [attackCard('hit', { rollBonus: 9 })], { ai: true });
+    const foe = fighter('Foe', [defenseCard('block', { rollBonus: 3, speed: 9 })], { pv: 20, ai: true });
+    me.setStatus('weak', 1, -1, undefined, weak);
+    playRound(engine(new EffectRegistry(), [me], [foe]), []);
+    // (1 + 9 − 3) − 3 = 4.
+    expect(foe.currentPV).toBe(16);
+  });
+
+  it('lowers an extra blow too', () => {
+    const me = fighter('Me', [focusCard()], { ai: true });
+    const foe = fighter('Foe', [focusCard()], { pv: 20 });
+    me.setStatus('weak', 1, -1, undefined, weak);
+    const e = engine(new EffectRegistry(), [me], [foe]);
+    e.performExtraAttack(me, foe, new DiceRoll(1, 1), { rollBonus: 5 });
+    expect(foe.currentPV).toBe(17);
+  });
+});
+
+describe('CombatModifier.data: an inert payload', () => {
+  it("survives the search's clone, as a copy", () => {
+    const me = fighter('Me', [focusCard()]);
+    me.addModifier(new CombatModifier('attack', -2, ModifierDuration.RestOfCombat).withData({ harm: 1 }));
+    const copy = me.cloneState();
+    expect(copy.modifiers[0].data).toEqual({ harm: 1 });
+    expect(copy.modifiers[0].data).not.toBe(me.modifiers[0].data);
   });
 });
