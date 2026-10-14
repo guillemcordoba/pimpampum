@@ -10,12 +10,13 @@ import { RUNES } from './runes.js';
 import { VOLCANIC } from './volcanic.js';
 import { MESTRE_ARMES } from './esgrima.js';
 import { ACROBACIA } from './acrobacia.js';
+import { ARTIFEX } from './artifex.js';
 import type { SkillDefinition } from '../../players/types.js';
 
 /** When the snapshot was taken. */
 export const REFRESHED = '2026-10-14';
 
-export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES, ACROBACIA];
+export const PINNED_SKILLS: SkillDefinition[] = [BERSERK, ENGINYER_EXPLOSIUS, GEL, METGE, NIGROMANT, RUNES, VOLCANIC, MESTRE_ARMES, ACROBACIA, ARTIFEX];
 
 /** Live skill id → the file both copies live in, for the drift check. */
 export const PINNED_FILES: Record<string, string> = {
@@ -28,4 +29,5 @@ export const PINNED_FILES: Record<string, string> = {
   'volcanic': 'volcanic.ts',
   'mestre-armes': 'esgrima.ts',
   'acrobacia': 'acrobacia.ts',
+  'artifex': 'artifex.ts',
 };

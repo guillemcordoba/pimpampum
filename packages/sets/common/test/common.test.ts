@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ActionType } from '@pimpampum/engine';
-import { ACROBACIA, COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
+import { ACROBACIA, ARTIFEX, COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
 import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from '../src/bench/index.js';
 
 describe('Esgrima', () => {
@@ -44,6 +44,27 @@ describe('Acrobàcia', () => {
     ]);
     expect(ACROBACIA.actions.every(a => a.skillId === 'acrobacia')).toBe(true);
     expect(ACROBACIA.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))).toBe(false);
+  });
+});
+
+describe('Artífex', () => {
+  it('has its id, and its ten cards in order — none of them needs a weapon', () => {
+    expect(ARTIFEX.id).toBe('artifex');
+    expect(ARTIFEX.displayName).toBe('Artífex');
+    expect(ARTIFEX.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
+      ['bumerang', 1, ActionType.Atac],
+      ['parany-de-molla', 2, ActionType.Defensa],
+      ['automat-de-corda', 3, ActionType.Focus],
+      ['paraigua-blindat', 4, ActionType.Defensa],
+      ['ganxo-salvavides', 5, ActionType.Defensa],
+      ['ballesta-sentinella', 6, ActionType.Focus],
+      ['trepant-incansable', 7, ActionType.Atac],
+      ['baldufa-de-ganivets', 8, ActionType.Atac],
+      ['colos-de-butxaca', 9, ActionType.Defensa],
+      ['boa-mecanica', 10, ActionType.Atac],
+    ]);
+    expect(ARTIFEX.actions.every(a => a.skillId === 'artifex')).toBe(true);
+    expect(ARTIFEX.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))).toBe(false);
   });
 });
 

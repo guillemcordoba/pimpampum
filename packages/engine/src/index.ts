@@ -19,7 +19,7 @@ export { EffectRegistry, newAttackModifiers } from './effects.js';
 export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext, ActionEvent, ExtraAttackOptions, ExtraAttackResult } from './effects.js';
 
 // Status behaviours
-export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
+export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo } from './status.js';
 
 // Actions
 export { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';

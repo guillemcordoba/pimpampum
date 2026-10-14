@@ -4,7 +4,7 @@ import { WATERBENDER } from './skills/waterbender.js';
 import { EARTHBENDER } from './skills/earthbender.js';
 import { FIREBENDER } from './skills/firebender.js';
 import { AIRBENDER } from './skills/airbender.js';
-import { ACROBACIA, MESTRE_ARMES } from '@pimpampum/set-common';
+import { ACROBACIA, ARTIFEX, MESTRE_ARMES } from '@pimpampum/set-common';
 
 /** Every player skill. Enemy skills live in `../enemies/`. Esgrima is shared
  *  with the fantasy set (@pimpampum/set-common): the non-bending swordsman. */
@@ -15,6 +15,7 @@ export const ALL_SKILLS: SkillDefinition[] = [
   AIRBENDER,
   MESTRE_ARMES,
   ACROBACIA,
+  ARTIFEX,
 ];
 
 

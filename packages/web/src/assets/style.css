@@ -39,6 +39,7 @@
   --class-enginyer: #9c5a1f;
   --class-mestre-armes: #4a5a3a;
   --class-acrobata: #b5652a;
+  --class-artifex: #6b5a2a;
   --class-nigromant: #3a1f5c;
   --class-metge: #a34040;
   --class-runes: #4a6b8b;
@@ -476,6 +477,7 @@ body {
 .portrait.enginyer { border-color: var(--class-enginyer); }
 .portrait.mestre-armes { border-color: var(--class-mestre-armes); }
 .portrait.acrobata { border-color: var(--class-acrobata); }
+.portrait.artifex { border-color: var(--class-artifex); }
 .portrait.nigromant { border-color: var(--class-nigromant); }
 .portrait.metge { border-color: var(--class-metge); }
 .portrait.runes { border-color: var(--class-runes); }
@@ -773,6 +775,7 @@ body {
 .mini-card.enginyer { border-color: var(--class-enginyer); }
 .mini-card.mestre-armes { border-color: var(--class-mestre-armes); }
 .mini-card.acrobata { border-color: var(--class-acrobata); }
+.mini-card.artifex { border-color: var(--class-artifex); }
 .mini-card.nigromant { border-color: var(--class-nigromant); }
 .mini-card.metge { border-color: var(--class-metge); }
 .mini-card.runes { border-color: var(--class-runes); }

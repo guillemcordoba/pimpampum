@@ -78,6 +78,11 @@ export interface EngineApi {
    * went, so a chain of blows can stop at the first that does not wound.
    */
   performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts?: ExtraAttackOptions): ExtraAttackResult;
+  /** An extra attack on several targets with ONE roll of `dice` (an area
+   *  blow outside the turn order): every target defends against that same
+   *  roll separately, as an area attack's targets do. One result per target,
+   *  in order. */
+  performAreaAttack(source: Character, targets: readonly Character[], dice: DiceRoll, opts?: ExtraAttackOptions): ExtraAttackResult[];
 
   /** Add a freshly created combatant to a team mid-combat (summons). */
   addCombatant(team: number, c: Character): void;

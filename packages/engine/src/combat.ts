@@ -6,7 +6,7 @@ import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
 import {
   EffectRegistry, EngineApi, EffectContext, AttackModifiers, newAttackModifiers, ActionEvent, ExtraAttackOptions, ExtraAttackResult,
 } from './effects.js';
-import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind } from './status.js';
+import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo } from './status.js';
 import { resolveAttack, checkSkillUp, skillLevelBonus } from './resolution.js';
 import { AIView, PendingSummary, availableActionIndices, typeBlocked } from './policy.js';
 
@@ -152,6 +152,8 @@ export interface CombatEngineOptions {
   targetChooser?: TargetChooser;
 }
 
+const NO_STATUSES: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
+
 const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal', 'onAimed', 'onAttackResolved'] as const;
 type HookName = typeof HOOKS[number];
 
@@ -206,6 +208,8 @@ export class CombatEngine implements EngineApi, AIView {
   readonly history: ActionEvent[] = [];
 
   private plays: { team: number; actionId: string; actionType: ActionType }[] = [];
+  /** Numbers every blow (BlowInfo.id). */
+  private blowSeq = 0;
 
   // Step-by-step round state.
   private pending: PendingAction[] = [];
@@ -297,6 +301,7 @@ export class CombatEngine implements EngineApi, AIView {
     // Nothing reads a clone's log (see the doc above): skip building the prose.
     e.silent = true;
     e.plays = this.plays.map(p => ({ ...p }));
+    e.blowSeq = this.blowSeq;
     e.pending = this.pending.map(p => {
       const actor = at(p.actor);
       // ActionInstances are cloned alongside their owner, so find the copy by
@@ -457,19 +462,38 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts: ExtraAttackOptions = {}): ExtraAttackResult {
+    return this.extraBlow(source, target, dice, opts, undefined, { id: ++this.blowSeq, attacker: source, targets: [target] });
+  }
+
+  performAreaAttack(source: Character, targets: readonly Character[], dice: DiceRoll, opts: ExtraAttackOptions = {}): ExtraAttackResult[] {
+    const roll = this.rollDiceFor(source, dice, 'attack');
+    const blow: BlowInfo = { id: ++this.blowSeq, attacker: source, targets: [...targets] };
+    return targets.map(t => this.extraBlow(source, t, dice, opts, roll, blow));
+  }
+
+  /** One extra blow; `roll` is the dice already rolled for an area blow
+   *  (undefined: roll them now). */
+  private extraBlow(source: Character, target: Character, dice: DiceRoll, opts: ExtraAttackOptions, roll: number | undefined, blow: BlowInfo): ExtraAttackResult {
+    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return { hit: false, damage: 0 };
+    if (!this.canReach(source, target)) return { hit: false, damage: 0 };
+    const result = this.announceTarget(source, target, blow)
+      ? { hit: false, damage: 0 }
+      : this.contestExtraBlow(source, target, dice, opts, roll, blow);
+    this.blowResolved(source, target, blow);
+    return result;
+  }
+
+  private contestExtraBlow(source: Character, target: Character, dice: DiceRoll, opts: ExtraAttackOptions, roll: number | undefined, blow: BlowInfo): ExtraAttackResult {
     const missed: ExtraAttackResult = { hit: false, damage: 0 };
-    if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return missed;
-    if (!this.canReach(source, target)) return missed;
-    this.announceTarget(source, target);
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
-    const atkRoll = this.rollDiceFor(source, dice, 'attack');
+    const atkRoll = roll ?? this.rollDiceFor(source, dice, 'attack');
     const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0)
       + this.attackRollBonusAgainst(target);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
     const bypass = this.bypassesDefense(source, target, !!opts.ignoreDefense);
     const penalty = this.defensePenaltyOn(target, source);
-    const guards = bypass ? [] : this.activeGuards(target, source);
+    const guards = bypass ? [] : this.replacedGuards(target, source, blow) ?? this.activeGuards(target, source);
     const guard = guards.length === 1 ? guards[0] : null;
     let recipient = target;
     let hit = true;
@@ -529,22 +553,62 @@ export class CombatEngine implements EngineApi, AIView {
     return !excluded || !excluded.includes(target);
   }
 
-  /** An enemy attack is about to be resolved against `target`: its living
-   *  allies' statuses hear of it first (onAllyTargeted), so a guard they raise
-   *  covers this blow. */
-  private announceTarget(attacker: Character, target: Character): void {
-    if (attacker.team === target.team) return;
+  /** An enemy attack is about to be resolved against `target`: its own
+   *  statuses (onTargeted), then its living allies' (onAllyTargeted), hear of
+   *  it first, so a guard they raise covers this blow. True when one of them
+   *  made the blow pass over `target`. */
+  private announceTarget(attacker: Character, target: Character, blow: BlowInfo): boolean {
+    if (attacker.team === target.team) return false;
+    for (const { key, entry, behavior } of this.hookedStatuses(target, 'onTargeted')) {
+      if (target.statuses.has(key) && behavior.onTargeted!(this.statusCtx(target, key, entry), attacker, blow)) return true;
+    }
     for (const ally of this.teams[target.team]) {
       if (ally === target || !ally.isAlive()) continue;
-      let hooked: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] | null = null;
-      for (const [key, entry] of ally.statuses) {
-        if (entry.behavior?.onAllyTargeted) (hooked ??= []).push({ key, entry, behavior: entry.behavior });
-      }
-      if (!hooked) continue;
-      for (const { key, entry, behavior } of hooked) {
-        if (ally.statuses.has(key)) behavior.onAllyTargeted!(this.statusCtx(ally, key, entry), target, attacker);
+      for (const { key, entry, behavior } of this.hookedStatuses(ally, 'onAllyTargeted')) {
+        if (ally.statuses.has(key) && behavior.onAllyTargeted!(this.statusCtx(ally, key, entry), target, attacker, blow)) return true;
       }
     }
+    return false;
+  }
+
+  /** An enemy blow announced on `target` has resolved: every living member
+   *  of its side hears of it (afterBlow). */
+  private blowResolved(attacker: Character, target: Character, blow: BlowInfo): void {
+    if (attacker.team === target.team) return;
+    for (const member of this.teams[target.team]) {
+      if (!member.isAlive()) continue;
+      for (const { key, entry, behavior } of this.hookedStatuses(member, 'afterBlow')) {
+        if (member.statuses.has(key)) behavior.afterBlow!(this.statusCtx(member, key, entry), target, attacker, blow);
+      }
+    }
+  }
+
+  /** The guards a status on `target`'s side puts in front of this blow
+   *  instead of `target`'s own (guardsBlow), or null when none does. */
+  private replacedGuards(target: Character, attacker: Character, blow: BlowInfo): Guard[] | null {
+    if (attacker.team === target.team) return null;
+    for (const [key, entry] of target.statuses) {
+      if (entry.behavior?.preventsGuard?.({ holder: target, key, entry })) return null;
+    }
+    for (const member of this.teams[target.team]) {
+      if (!member.isAlive()) continue;
+      for (const { key, entry, behavior } of this.hookedStatuses(member, 'guardsBlow')) {
+        if (!member.statuses.has(key)) continue;
+        const guards = behavior.guardsBlow!(this.statusCtx(member, key, entry), target, attacker, blow);
+        if (guards && guards.length) return guards;
+      }
+    }
+    return null;
+  }
+
+  /** `c`'s statuses carrying `hook` (a snapshot: hooks may clear statuses),
+   *  or nothing — the usual case, kept allocation-free. */
+  private hookedStatuses(c: Character, hook: keyof StatusBehavior): { key: string; entry: StatusEntry; behavior: StatusBehavior }[] {
+    let hooked: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] | null = null;
+    for (const [key, entry] of c.statuses) {
+      if (entry.behavior?.[hook]) (hooked ??= []).push({ key, entry, behavior: entry.behavior });
+    }
+    return hooked ?? NO_STATUSES;
   }
 
   /** Whether an attack by `source` on `target` passes over every defense:
@@ -595,11 +659,6 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   // --- Helpers --------------------------------------------------------------
-
-  private activeGuard(target: Character, attacker?: Character, ownOnly = false): Character['guards'][number] | null {
-    const guards = this.activeGuards(target, attacker, ownOnly);
-    return guards.length ? guards[guards.length - 1] : null;
-  }
 
   /** Every living guard covering `target` (self-guard included), in resolution
    *  order. Two or more form a defensa conjunta wall that contests with the
@@ -1216,7 +1275,9 @@ export class CombatEngine implements EngineApi, AIView {
     }
 
     const before = this.logEntries.length;
-    this.inSeatStream(this.actStream(cur.actor), () => this.resolveOne(cur));
+    this.inSeatStream(this.actStream(cur.actor), () => {
+      if (this.beforeHolderAction(cur)) this.resolveOne(cur);
+    });
     this.pendingIndex++;
     return {
       kind: 'resolved',
@@ -1224,6 +1285,36 @@ export class CombatEngine implements EngineApi, AIView {
       action: this.reveal(cur),
       done: this.pendingIndex >= this.pending.length,
     };
+  }
+
+  /** The actor's statuses hear that its card is about to resolve
+   *  (beforeHolderAction). False when that felled it: the card never happens.
+   *  Damage taken here interrupts a Focus, as damage taken earlier would. */
+  private beforeHolderAction(cur: PendingAction): boolean {
+    const { actor } = cur;
+    const def = cur.action.def;
+    if (def.actionType === ActionType.Focus && this.tierInterrupted.has(actor)) return true;
+    const hooked = this.hookedStatuses(actor, 'beforeHolderAction');
+    if (!hooked.length) return true;
+    // Whether THESE hooks hurt it: an earlier hit in its own speed tier is
+    // simultaneous and must not interrupt it now.
+    // (Likewise one already felled in its tier still acts: only a fall here
+    // stops it.)
+    const hitBefore = actor.hitThisTurn;
+    const aliveBefore = actor.isAlive();
+    actor.hitThisTurn = false;
+    for (const { key, entry, behavior } of hooked) {
+      if (actor.statuses.has(key)) behavior.beforeHolderAction!(this.statusCtx(actor, key, entry), def);
+    }
+    const hitHere = actor.hitThisTurn;
+    actor.hitThisTurn = hitBefore || hitHere;
+    if (aliveBefore && !actor.isAlive()) {
+      cur.cancelled = true;
+      this.log('interrupt', `${actor.name} cau abans de jugar «${def.name}».`, actor.team);
+      return false;
+    }
+    if (def.actionType === ActionType.Focus && hitHere) this.tierInterrupted.add(actor);
+    return true;
   }
 
   private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, speed: number): Character[] {
@@ -1316,9 +1407,10 @@ export class CombatEngine implements EngineApi, AIView {
         // fresh attack dice against each target).
         const perTarget = !!action.def.rollPerTarget;
         let baseRoll = perTarget ? 0 : (this.presetAttackRoll(actor, action.def, list) ?? this.rollDiceFor(actor, action.def.dice, 'attack'));
+        let blow: BlowInfo = { id: ++this.blowSeq, attacker: actor, targets: [...list] };
         for (const t of list) {
           if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
-          this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
+          this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced, blow);
         }
         // Generic repeat seam: statuses may grant extra full passes over the
         // still-living targets (stimulants, flurries). Each pass re-rolls.
@@ -1328,9 +1420,10 @@ export class CombatEngine implements EngineApi, AIView {
           const alive = list.filter(t => t.isAlive());
           if (alive.length === 0) break;
           baseRoll = perTarget ? 0 : this.rollDiceFor(actor, action.def.dice, 'attack');
+          blow = { id: ++this.blowSeq, attacker: actor, targets: alive };
           for (const t of alive) {
             if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
-            this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
+            this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced, blow);
           }
         }
         this.dispatch('onAttackResolved', actor, action.def, { targets: [...list] });
@@ -1479,14 +1572,21 @@ export class CombatEngine implements EngineApi, AIView {
     }
   }
 
-  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods, baseRoll: number, forcedByBlock = false): void {
-    const def = action.def;
+  private resolveAttackOnTarget(source: Character, action: ActionInstance, target: Character, statusMods: AttackStatusMods, baseRoll: number, forcedByBlock: boolean, blow: BlowInfo): void {
     const mods: AttackModifiers = newAttackModifiers();
-    this.dispatch('modifyAttack', source, def, { targets: [target], target, attackMods: mods });
+    this.dispatch('modifyAttack', source, action.def, { targets: [target], target, attackMods: mods });
 
     // An effect may pass over this target entirely — no roll, no damage.
     if (mods.skip) return;
-    this.announceTarget(source, target);
+    // …and so may a status on its side, told first (onTargeted/onAllyTargeted).
+    if (!this.announceTarget(source, target, blow)) {
+      this.contestAttackOnTarget(source, action, target, mods, statusMods, baseRoll, forcedByBlock, blow);
+    }
+    this.blowResolved(source, target, blow);
+  }
+
+  private contestAttackOnTarget(source: Character, action: ActionInstance, target: Character, mods: AttackModifiers, statusMods: AttackStatusMods, baseRoll: number, forcedByBlock: boolean, blow: BlowInfo): void {
+    const def = action.def;
 
     // Extra dice (per target) roll flat into the attack total: they raise both
     // the hit chance and the margin damage. The action's own dice were rolled
@@ -1515,17 +1615,21 @@ export class CombatEngine implements EngineApi, AIView {
     // (the target's own self-guard included) — they contest jointly with the
     // SUM of their defense rolls. A single defense resolves through the
     // ordinary guard path below.
+    // A status on the target's side may stand in front of the blow instead of
+    // every guard there (guardsBlow).
+    let guards: Guard[] = [];
     if (!bypass) {
       const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
-      const wall = blockWall.length >= 2 && blockWall.some(g => g.defender === target)
-        ? blockWall
-        : this.activeGuards(target, source, mods.ignoreAllyGuards);
-      if (wall.length >= 2) {
-        this.resolveAttackOnWall(source, action, wall, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus);
+      guards = this.replacedGuards(target, source, blow)
+        ?? (blockWall.length >= 2 && blockWall.some(g => g.defender === target)
+          ? blockWall
+          : this.activeGuards(target, source, mods.ignoreAllyGuards));
+      if (guards.length >= 2) {
+        this.resolveAttackOnWall(source, action, guards, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus);
         return;
       }
     }
-    const guard = bypass ? null : this.activeGuard(target, source, mods.ignoreAllyGuards);
+    const guard = guards.length ? guards[guards.length - 1] : null;
     let recipient = target;
     let hit: boolean;
     let margin: number;

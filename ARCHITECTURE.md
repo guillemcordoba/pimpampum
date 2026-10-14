@@ -61,7 +61,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── types.ts              # SkillDefinition, action(), d(), ICON_PREFIX (each set's players/types.ts re-exports them)
 │   │   ├── effects/              # helpers.ts (re-exported likewise) + COMMON_EFFECTS: weapon_damage, counter, empower, fatigue_cost
 │   │   ├── equipment.ts          # WEAPONS (bastó, espasa lleugera, destral, gran destral), needsWeapon, weaponFor — each set lists them in ALL_EQUIPMENT
-│   │   ├── skills/               # shared kits a set fields by listing them in its catalogue: esgrima.ts (id mestre-armes)
+│   │   ├── skills/               # shared kits a set fields by listing them in its catalogue: esgrima.ts (id mestre-armes), acrobacia.ts, artifex.ts
 │   │   └── bench/                # @pimpampum/set-common/bench — where this source is, for a set's fingerprints and drift check (Node-only)
 │   └── test/
 ├── sets/fantasy/                 # @pimpampum/set-fantasy — THE CONTENT
@@ -118,6 +118,7 @@ Presó de terra correlating with losing).
 included), `opensGuardTo` (an opening: that attacker's blow on the holder is
 undefendable; may consume itself), `onEnemyAttackAction` (hazards/traps),
 `attackRepeats`, `standingGuard`/`onStandingGuardBroken` (persistent walls),
+`onTargeted`/`onAllyTargeted`, `guardsBlow`, `afterBlow`, `beforeHolderAction` (below),
 `onRoundStart`, `onRoundEnd` (dots/regen tick here).
 
 **The duel seams (2026-10-13, for Esgrima; tests in
@@ -153,6 +154,29 @@ which is how searches answer it) takes the card's own `aiRevealOption` hint.
 `performExtraAttack` now also honours `attackRollAgainstHolder` (a mark or a
 body on the ground counts against follow-up blows and ripostes too) and
 returns the `recipient` who took the blow.
+
+**The artificer seams (2026-10-14, for Artífex; tests in
+`engine/test/seams-artificer.test.ts`)** — every blow now carries a
+`BlowInfo` `{id, attacker, targets}`: the targets of one pass of an area
+attack share an `id` (one roll), every other pass and every extra attack gets
+a new one, and `targets` is the pass's whole list (so a status can tell an
+area attack from a single blow). `onAllyTargeted` receives it and may return
+`true`: the blow passes over that ally entirely — no roll, no damage (a hook
+that yanks the ally out); `onTargeted` is the same hook for the HOLDER itself
+(a trap at its feet), asked before its allies are; `afterBlow` runs on every
+living member of the target's side once a blow announced there has resolved,
+whatever it did (take back a guard raised for that one blow); `guardsBlow`
+lets a status on the target's side return the guards that contest a blow
+INSTEAD of every guard, wall and block on the target (a construct standing in
+front of the whole party — not asked for undefendable blows nor for a target
+that cannot be guarded); `beforeHolderAction` runs just before the holder's
+card resolves (alive, not cancelled, not an already-interrupted Focus) —
+damage dealt there interrupts a Focus and a fall there cancels the card, but
+an earlier hit in the card's own speed tier still does not;
+`EngineApi.performAreaAttack` is an extra attack over several targets with
+ONE roll, each defending separately. A content guard whose card is copied
+with `skillId: ''` teaches nobody when its contest is close (Artífex's gadget
+defenses — a gadget's roll is not a character's).
 
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
@@ -206,12 +230,12 @@ list in `EFFECT_TYPES`): `weapon_damage`, `piercing`, `bonus_damage`,
 `detonate`, `cleanse`, `flanking`.
 
 Skill-specific handlers (`enter_rage`, Esgrima's `treacherous_feint`…`cut_after_cut`,
-Acrobàcia's `sweep`…`suicide_dive`,
+Acrobàcia's `sweep`…`suicide_dive`, Artífex's `boomerang`…`mechanical_boa`,
 `charge_cost`, `adrenaline`, `condemn`/`reap`, `carve_rune`,
 `shadow_melt`/`shadow_bind`, `seismic_sense`/`earth_wall`/`bury`,
 `pressure_gain`/`eruption`) live on their skill's `SkillDefinition.effects`; the
 `StatusBehavior` consts they attach (`FURIA_ESTAT`, `FLUX`, `PROVOCAT`, `ESCORPI`, `PUNT_FEBLE`,
-`A_TERRA`, `TRAMPOLI`, `RESCAT`, `CAVALCAT`, `ENCEGAT`,
+`A_TERRA`, `TRAMPOLI`, `RESCAT`, `CAVALCAT`, `BUMERANG`…`BOA` (the gadgets), `ENCEGAT`,
 `CAMP_MINAT`, `CONDEMNAT`, `PUTREFACCIO`, `ADRENALINA`,
 `RUNA_FULLA/CONFUSIO/ESCUT`, `FOS`, `LLIGAT`, `SENTIT`, `MUR`, `ENTERRAT`,
 `RIU_DE_LAVA`…) are defined alongside them in the same file.

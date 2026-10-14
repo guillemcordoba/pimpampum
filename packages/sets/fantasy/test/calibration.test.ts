@@ -96,11 +96,11 @@ describe('the fight matrix', () => {
 
   it('caps exactly the kits longer than the set\'s own, and says which', () => {
     // HERO_LEVEL is the longest of this set's kits; only the shared ten-card kits,
-    // Esgrima and Acrobàcia, run past it. A kit growing past the cap must be a decision —
+    // Esgrima, Acrobàcia and Artífex, run past it. A kit growing past the cap must be a decision —
     // it is then measured without its last cards — not a silent change.
     expect(FANTASY.calibration.heroLevel).toBe(HERO_LEVEL);
     const capped = ALL_SKILLS.filter(s => s.actions.length > HERO_LEVEL).map(s => s.id);
-    expect(capped, `kits measured short of their full kit at L${HERO_LEVEL}`).toEqual(['mestre-armes', 'acrobacia']);
+    expect(capped, `kits measured short of their full kit at L${HERO_LEVEL}`).toEqual(['mestre-armes', 'acrobacia', 'artifex']);
     const longestOwn = Math.max(...ALL_SKILLS.filter(s => !capped.includes(s.id)).map(s => s.actions.length));
     expect(longestOwn, 'HERO_LEVEL should be the longest uncapped kit').toBe(HERO_LEVEL);
   });

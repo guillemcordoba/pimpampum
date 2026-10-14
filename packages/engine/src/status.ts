@@ -1,4 +1,4 @@
-import type { Character, StatusEntry } from './character.js';
+import type { Character, Guard, StatusEntry } from './character.js';
 import type { ActionDefinition, ActionType } from './types.js';
 import type { EngineApi } from './effects.js';
 import type { AIView } from './policy.js';
@@ -40,6 +40,16 @@ export interface AttackStatusMods {
   damageMult?: number;
   /** The holder's attack cannot be defended (feint immunity still vetoes it). */
   ignoreDefense?: boolean;
+}
+
+/** One blow on its way: `id` is shared by every target of one pass of an
+ *  area attack — they all defend against the same roll — and is new for every
+ *  other blow (each pass, each extra attack); `targets` is that pass's whole
+ *  target list (an extra attack's: just its own targets). */
+export interface BlowInfo {
+  id: number;
+  attacker: Character;
+  targets: readonly Character[];
 }
 
 /** Which contested dice total is being adjusted (see modifyContestTotal). */
@@ -154,8 +164,32 @@ export interface StatusBehavior {
    *  holder's living allies (never the holder) — before its defenses are
    *  gathered, so a guard pushed onto `target.guards` here covers this very
    *  blow (a defender that dives to whoever is attacked first). Called per
-   *  target, in the attack's target order, for normal and extra attacks. */
-  onAllyTargeted?(ctx: StatusHookContext, target: Character, attacker: Character): void;
+   *  target, in the attack's target order, for normal and extra attacks.
+   *  Return true and the blow passes over `target` entirely — no roll, no
+   *  damage, as if it had never been aimed there (an ally yanked out of the
+   *  way); no other status hears of it, and `afterBlow` still runs. */
+  onAllyTargeted?(ctx: StatusHookContext, target: Character, attacker: Character, blow: BlowInfo): boolean | void;
+  /** `onAllyTargeted` for the HOLDER itself: an enemy blow is about to
+   *  resolve against it, before its defenses are gathered (a trap at its
+   *  feet). Asked before its allies are; true makes the blow pass over it. */
+  onTargeted?(ctx: StatusHookContext, attacker: Character, blow: BlowInfo): boolean | void;
+  /** Take over the defense of an enemy blow on `target`, a living member of
+   *  the holder's side (the holder included): return the guards that contest
+   *  it INSTEAD of every guard, wall and block on `target` (a construct that
+   *  stands in front of the whole group). The first status that answers wins;
+   *  nothing (or an empty list) leaves the defense as it was. Not asked for an
+   *  undefendable blow, nor for a target that cannot be guarded. */
+  guardsBlow?(ctx: StatusHookContext, target: Character, attacker: Character, blow: BlowInfo): Guard[] | void;
+  /** An enemy blow on `target`, a living member of the holder's side (the
+   *  holder included), has resolved — whatever it did, passed over included —
+   *  for every blow `onTargeted`/`onAllyTargeted` were asked about (the moment
+   *  to take back a guard raised for that one blow). */
+  afterBlow?(ctx: StatusHookContext, target: Character, attacker: Character, blow: BlowInfo): void;
+  /** The holder's revealed card is about to resolve: it is alive, the card
+   *  was not cancelled and is not an interrupted Focus (a crossbow that shoots
+   *  whoever it aims at just before each of their cards). Damage dealt here
+   *  interrupts a Focus like any other; a holder felled here does not act. */
+  beforeHolderAction?(ctx: StatusHookContext, action: ActionDefinition): void;
   /** An attack by `attacker` on the holder cannot be defended — an opening
    *  that attacker made. Asked once per blow that could otherwise be defended,
    *  so a one-shot opening may consume itself here. Vetoed, like every

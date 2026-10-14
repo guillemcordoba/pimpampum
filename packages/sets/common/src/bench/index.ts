@@ -20,4 +20,5 @@ export const COMMON_SKILLS_DIR = path.join(COMMON_SRC, 'skills');
 export const COMMON_SKILL_FILES: Readonly<Record<string, string>> = {
   'mestre-armes': 'esgrima.ts',
   acrobacia: 'acrobacia.ts',
+  artifex: 'artifex.ts',
 };
