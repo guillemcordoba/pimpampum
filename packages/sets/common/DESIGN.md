@@ -308,3 +308,10 @@ dau més que l'anterior." Parked: Bessó de llautó (a brass double copying your
 cards: too many rulings), Estrebada de ganxo (air's Catapulta de vent).
 Watch in simulation: Ganxo salvavides' guaranteed miss next to Paraigua
 blindat's contested guard.
+
+**Decision (2026-10-14): shared skills above level 6 in fantasy are accepted
+unmeasured.** Fantasy's measurement caps heroes at HERO_LEVEL 6 (its longest
+native kit), so a shared skill's cards 7-10 are measured only in elements. At a
+real fantasy table a hero may still reach them; the encounter solver simulates
+the real party, so each fight is fair even if the scoreboard doesn't cover it.
+The native fantasy kits (4-6 cards) are to be filled to ten later.
