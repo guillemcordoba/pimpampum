@@ -340,3 +340,11 @@ The native fantasy kits (4-6 cards) are to be filled to ten later.
 *Mestre del xi — card 5 renamed by the user:* Dits clavats → **Bloqueig mutu**
 (both of you are trapped). Toc de la mort's half-PV threshold is to be
 replaced: variants are being simulated (user: "amazing concept").
+
+*Acrobàcia — Trampolí de mans needs a rule (2026-10-14, awaiting the user).*
+Numbers can't fix it (§45, §48). card-designer proposed A (the ally lands
+and floors it, you strike after), B (the launched ally's attack resolves now;
+if it wounds, the target is floored) and C (cannonball through two). The fresh
+reviewer picks **B**: "Un aliat: el seu atac d'aquest torn es resol ara; si
+fereix, l'objectiu queda a terra." (A stapled two effects and is dominant; C
+fights its own title and copies cards 4, 7, 10.)
