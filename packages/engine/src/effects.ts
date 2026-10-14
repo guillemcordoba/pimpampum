@@ -215,6 +215,11 @@ export interface EffectHandler {
   getTargetRequirement?(params: Record<string, unknown>): TargetRequirement;
   /** Additive contribution to the AI's weight for selecting this action. */
   aiWeight?(ctx: AIContext): number;
+  /** A hint like `aiWeight`: how much the AI would rather aim this card at
+   *  `candidate` (higher first). Without one, a card aimed at an ally goes to
+   *  the lowest PV fraction — wrong for a card whose worth depends on
+   *  something else about the ally (the size of its last wound, say). */
+  aiTargetPriority?(ctx: AIContext, candidate: Character): number;
   /** Run once per combatant at the start of combat (initialise resources/pools). */
   onCombatStart?(ctx: EffectContext): void;
   /** Availability gate: return false to make the action unplayable this round

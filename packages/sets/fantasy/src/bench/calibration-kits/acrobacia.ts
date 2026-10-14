@@ -272,7 +272,7 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'puntada-d-espagat@cal', name: "Puntada d'espagat", skillId: 'acrobacia@cal',
-      unlock: 4, type: ActionType.Atac, speed: 3, dice: d(2, 6), targetCount: 2,
+      unlock: 4, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 2,
       desc: 'Afecta dos enemics.',
       icon: 'delapouite/van-damme-split.svg',
     }),

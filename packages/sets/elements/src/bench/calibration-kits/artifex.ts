@@ -479,7 +479,7 @@ export const ARTIFEX: SkillDefinition = {
     }),
     action({
       id: 'automat-de-corda@cal', name: 'Autòmat de corda', skillId: 'artifex@cal',
-      unlock: 3, type: ActionType.Focus, speed: 1, dice: d(1, 6),
+      unlock: 3, type: ActionType.Focus, speed: 1, dice: d(2, 6),
       effects: [{ type: 'clockwork_automaton@cal', params: { corda: 3 } }],
       desc: "Corda 3: al final de cada torn ataca un enemic a l'atzar.",
       icon: 'delapouite/mono-wheel-robot.svg',

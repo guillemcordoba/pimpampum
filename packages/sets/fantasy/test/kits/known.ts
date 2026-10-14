@@ -15,16 +15,15 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 
 /**
  * Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,
- * almost never played. Measured 2026-10-04 (NEXT-STEPS §30). Both pay off in
- * later rounds — a grip that holds, mines that wait — which a one-round
- * evaluator cannot see unless their statuses price themselves.
+ * almost never played. Measured 2026-10-14 (NEXT-STEPS §48.2).
  */
-// Empty since 2026-10-13: Braç mort left the detector's edge once Retruc
-// d'acer's riposte lost the level (NEXT-STEPS §44.5).
 export const KNOWN_BLIND: Record<string, string[]> = {
-  // Ganxo salvavides (2026-10-14: best 19%, played 3.3%) gains only +0.4 PV
-  // on the runner-up when it is best — near-ties with Paraigua blindat and
-  // Parany de molla, the kit's other defenses; its payoff lands inside the
-  // round the search plays, so there is no status to price (NEXT-STEPS §46).
-  artifex: ['ganxo-salvavides'],
+  // Both best mostly where the round's search sees no difference: in fights
+  // already won this round (every card scores the win), where the card value
+  // still prefers the card that saves PV, and on opening rounds where the
+  // search prefers the damage by a point or two. A probe over every decision
+  // found the one-round search ranking them best in 2-5% of their legal turns
+  // and never at the moments the card value did (NEXT-STEPS §48.2).
+  acrobacia: ['tombarella-de-rescat'],
+  'mestre-del-xi': ['segellar-la-ferida'],
 };

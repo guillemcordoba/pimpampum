@@ -35,7 +35,7 @@ with Esgrima 2+ (an experiment) · destral +2 · gran destral +4, −1 speed.
 *Kappo / sappo, "cure or kill": the same points switch a body off or back on.*
 Unarmed. Kit rule **Entumit**: until the end of next round the holder's damage
 is halved (rounded down); numbed again, it only renews. The dice are
-provisional; Toc de la mort's rule is being chosen among measured variants
+provisional (tuned in NEXT-STEPS §48); Toc de la mort's rule is being chosen among measured variants
 (NEXT-STEPS §47).
 
 | # | card | type · speed · dice | what it does |
@@ -45,10 +45,10 @@ provisional; Toc de la mort's rule is being chosen among measured variants
 | 3 | Segellar la ferida | Focus · −1 | a standing ally, or you, recovers what its last wound took |
 | 4 | Poder apagat | Atac · 2 · 2d6 | if it wounds, next round its card is only its dice |
 | 5 | Bloqueig mutu | Defensa · 2 · 2d8 | block an enemy; if it holds, next round neither of you plays a card |
-| 6 | Ràfega de dits | Atac · 2 · 1d6 ×3 | two wounds numb; three cancel its action this round |
+| 6 | Ràfega de dits | Atac · 1 · 1d6 ×3 · 1 fatiga | two wounds numb; three cancel its action this round |
 | 7 | Tocs en cadena | Atac · 1 · 2d6 | up to three enemies, one roll; the wounded numb |
 | 8 | Cop de vida | Focus · 0 | a fallen ally rises with half its starting PV, +1 fatigue |
-| 9 | Toc de la mort | Atac · 2 · 2d6 · 1 fatiga | if it wounds, a delayed death (variant: Ressò by default) |
+| 9 | Toc de la mort | Atac · 2 · 2d8 | if it wounds, a delayed death (variant: Ressò by default) |
 | 10 | Tempesta de son | Atac · 1 · 3d8 · 2 fatiga | every enemy, no damage; the beaten sleep until they lose PV or roll 11+ |
 
 ## Drafts — Acrobàcia, Mestre del xi, Artífex (2026-10-13, NOT picked)

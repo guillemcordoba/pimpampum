@@ -249,6 +249,23 @@ function actionWeight(
   return Math.max(0.05, w);
 }
 
+/** The card's own `aiTargetPriority` hints, summed over its effects; null
+ *  when no effect gives one. */
+function cardTargetPriority(
+  view: AIView, actor: Character, def: ActionDefinition, pool: Character[],
+): ((c: Character) => number) | null {
+  const hints = def.effects
+    .map(eff => ({ fn: view.registry.getHandler(eff.type)?.aiTargetPriority, params: eff.params ?? {} }))
+    .filter(h => h.fn);
+  if (!hints.length) return null;
+  const base: Omit<AIContext, 'params'> = {
+    registry: view.registry, round: view.round, actor,
+    allies: view.alliesOf(actor, false), enemies: view.enemiesOf(actor), action: def,
+  };
+  const scores = new Map(pool.map(c => [c, hints.reduce((s, h) => s + h.fn!({ ...base, params: h.params }, c), 0)]));
+  return c => scores.get(c) ?? 0;
+}
+
 /**
  * Resolution-time target choice for an AI actor. Runs when the action actually
  * resolves, so it sees everything a human at the table sees at that moment:
@@ -291,6 +308,10 @@ export function pickResolveTargets(
   }
 
   if (req !== 'enemy') {
+    const priority = cardTargetPriority(view, actor, def, pool);
+    if (priority) {
+      return [...pool].sort((a, b) => priority(b) - priority(a) || pvFraction(a) - pvFraction(b)).slice(0, count);
+    }
     return [...pool].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
   }
 

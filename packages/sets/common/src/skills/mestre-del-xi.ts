@@ -87,16 +87,16 @@ const RAFEGA_KEY = 'rafega-de-dits-ferida';
 
 /**
  * The rule variants of Toc de la mort being measured (NEXT-STEPS §47). Every
- * variant costs 1 fatigue and fires when the touch wounds; the card's handler
+ * variant fires when the touch wounds (no fatigue since §48); the card's handler
  * reads `params.variant`, and the card's text must be the variant's.
  */
 export const TOC_DE_LA_MORT_VARIANTS = {
-  'mig-pv': "Puges 1 nivell de fatiga. Si fereix, al final del torn següent cau si li queda menys de la meitat dels seus PV inicials.",
-  'resso': "Puges 1 nivell de fatiga. Si fereix, al final del torn següent torna a perdre tots els PV que hagi perdut des del toc.",
-  'cop-retardat': "Puges 1 nivell de fatiga. Si fereix, al final del torn següent rep 4d6 que no es poden defensar.",
-  'cinc-passes': "Puges 1 nivell de fatiga. Si fereix, cau quan hagi jugat tres cartes més.",
-  'tres-tocs': "Puges 1 nivell de fatiga. Si fereix, li deixes un toc; al tercer, cau. Si passa un torn sense rebre'n cap, els perd tots.",
-  'cor-ferit': "Puges 1 nivell de fatiga. Si fereix, al final del torn següent perd 3 PV per cada cop que l'hagi ferit des del toc.",
+  'mig-pv': "Si fereix, al final del torn següent cau si li queda menys de la meitat dels seus PV inicials.",
+  'resso': "Si fereix, al final del torn següent torna a perdre tots els PV que hagi perdut des del toc.",
+  'cop-retardat': "Si fereix, al final del torn següent rep 4d6 que no es poden defensar.",
+  'cinc-passes': "Si fereix, cau quan hagi jugat tres cartes més.",
+  'tres-tocs': "Si fereix, li deixes un toc; al tercer, cau. Si passa un torn sense rebre'n cap, els perd tots.",
+  'cor-ferit': "Si fereix, al final del torn següent perd 3 PV per cada cop que l'hagi ferit des del toc.",
 } as const;
 export type TocVariant = keyof typeof TOC_DE_LA_MORT_VARIANTS;
 export const DEFAULT_TOC_VARIANT: TocVariant = 'resso';
@@ -148,7 +148,10 @@ const TOC_RESSO: StatusBehavior = {
     ctx.engine.log('attack', `El toc de la mort ressona: ${ctx.holder.name} torna a perdre ${echo} PV.`, byOf(ctx.entry.data)?.team);
     ctx.engine.applyPvLoss(ctx.holder, echo, byOf(ctx.entry.data));
   },
-  positionValue(ref) { return pendingLossPrice(ref.holder, ref.entry.value) - 0.05; },
+  /** The echo lands after the round the search plays, so its base `price`
+   *  (a card param, which the bench cache fingerprints) is the only way the
+   *  search sees a fresh touch (NEXT-STEPS §48.1). */
+  positionValue(ref) { return pendingLossPrice(ref.holder, ref.entry.value) - num(ref.entry.data ?? {}, 'price', 0.05); },
 };
 
 /** V2 · Cop retardat: at the end of next round it takes the dice (4d6) —
@@ -231,7 +234,7 @@ function touch(ctx: EffectContext, t: Character, variant: TocVariant): void {
       ctx.engine.log('attack', `${by.name} toca ${t.name}: al final del torn següent cau si li queda menys de la meitat dels PV.`, team);
       return;
     case 'resso':
-      t.setStatus(TOC_KEY, 0, 2, { round, by, harm: 1 }, TOC_RESSO);
+      t.setStatus(TOC_KEY, 0, 2, { round, by, price: num(ctx.params, 'price', 0.05), harm: 1 }, TOC_RESSO);
       ctx.engine.log('attack', `${by.name} toca ${t.name}: al final del torn següent tornarà a perdre el que perdi fins llavors.`, team);
       return;
     case 'cop-retardat':
@@ -329,6 +332,10 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) {
       const hurt = [ctx.actor, ...ctx.allies].some(c => c.currentPV < c.maxPV && c.lastWound > 0);
       return hurt ? 0.6 : 0;
+    },
+    // The seal is worth the wound it closes, not how low the ally stands.
+    aiTargetPriority(_ctx, c) {
+      return c.lastWound > 0 ? Math.min(c.lastWound, c.maxPV - c.currentPV) : 0;
     },
   },
 
@@ -475,9 +482,9 @@ export const MESTRE_DEL_XI: SkillDefinition = {
     }),
     action({
       id: 'rafega-de-dits', name: 'Ràfega de dits', skillId: 'mestre-del-xi',
-      unlock: 6, type: ActionType.Atac, speed: 2, dice: d(1, 6),
-      effects: [{ type: 'finger_flurry', params: { blows: 3 } }],
-      desc: "Tres atacs a l'objectiu. Si en fereixen dos, queda entumit; si en fereixen tres, la seva acció d'aquest torn no es resol.",
+      unlock: 6, type: ActionType.Atac, speed: 1, dice: d(1, 6),
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'finger_flurry', params: { blows: 3 } }],
+      desc: "Puges 1 nivell de fatiga. Tres atacs a l'objectiu. Si en fereixen dos, queda entumit; si en fereixen tres, la seva acció d'aquest torn no es resol.",
       icon: 'lorc/lightning-trio.svg',
     }),
     action({
@@ -496,8 +503,8 @@ export const MESTRE_DEL_XI: SkillDefinition = {
     }),
     action({
       id: 'toc-de-la-mort', name: 'Toc de la mort', skillId: 'mestre-del-xi',
-      unlock: 9, type: ActionType.Atac, speed: 2, dice: d(2, 6),
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'death_touch', params: { variant: DEFAULT_TOC_VARIANT } }],
+      unlock: 9, type: ActionType.Atac, speed: 2, dice: d(2, 8),
+      effects: [{ type: 'death_touch', params: { variant: DEFAULT_TOC_VARIANT, price: 0.15 } }],
       desc: TOC_DE_LA_MORT_VARIANTS[DEFAULT_TOC_VARIANT],
       icon: 'lorc/death-note.svg',
     }),

@@ -229,7 +229,9 @@ Handlers implement: `modifyAttack`, `onAttackHit`, `onAttackMiss`, `onDefend`,
 `onBlockFail`, `onResolve`, `postRound`, `getTargetRequirement`, `aiWeight`,
 `onCombatStart`, `canPlay`, `onPlay`, `resolveAs`, `onReveal`, `aimsAtReveal`,
 `onAimed`, `presetAttackRoll`, `onAttackResolved`, `revealOptions`, `aiRevealOption`,
-`onRevealOption`. They touch the engine only through
+`onRevealOption`, `aiTargetPriority` (a hint like `aiWeight`: which ally the
+AI's heuristic aims a non-enemy card at, instead of the lowest PV fraction —
+Segellar la ferida wants the biggest last wound). They touch the engine only through
 `EngineApi`.
 
 Generic parameterised handlers (`packages/sets/fantasy/src/players/effects`, plus

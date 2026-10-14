@@ -5086,3 +5086,171 @@ numbers (2d6 → 2d8, or no fatigue), measured with the rule the user picks.
   ferida, Bloqueig mutu, Poder apagat and Cop de vida near "never sees play"
   (1-3%); Toc de la mort, the kit's signature, is not a "distinctive,
   high-impact" card in either set under any of the six rules.
+
+## 48. The three shared kits tuned by their numbers; two blind spots that are the card value's, not the AI's; the horde's 3 s is the engine (2026-10-14, branch `elements-set`)
+
+Brief: bring Mestre del xi, Acrobàcia and Artífex inside every requirement in
+both sets by numbers only (dice, speeds, fatigue costs, prices, AI hints).
+Every variant is an 800-combat kit-analyzer run, sequential, against the
+calibration as it stood (the live kit moves, its pinned `@cal` copy does not);
+then `pnpm calibration:refresh` and the full kit suites. "Δ" is the kit delta
+vs neutral; a card is "value vs the hand · best play · gain when best · AI
+play".
+
+### 48.1 Mestre del xi
+
+**Ràfega de dits** (fantasy, L6). Dice and fatigue barely move it; speed does
+— its three blows (each carrying the level) land before the goblins act.
+
+| Ràfega | fantasy Δ | Ràfega | Segellar played |
+|---|---|---|---|
+| 1d6 · vel 2 (§47) | +22.9±1.2 | +6.7 · 41% · +4.7 · 54.7% | 1.0% |
+| + Segellar aimed by its wound (48.2) | +22.8±1.2 | +6.8 · 40% · +4.8 · 55.2% | 1.1% |
+| 1 fatiga | +20.6±1.3 | +6.7 · 44% · +5.1 · 51.2% | 1.1% |
+| 1d4 | +19.3±1.3 | +6.8 · 42% · +5.4 · 53.2% | 1.2% |
+| 1d4 · 1 fatiga | +20.8±1.3 | +6.3 · 44% · +5.4 · 48.8% | 1.5% |
+| vel 0 | +11.9±1.5 | +0.2 · 18% · +1.7 · 37.3% | 0.7% |
+| vel 1 | +16.9±1.4 | +3.5 · 28% · +4.1 · 45.2% | 1.2% |
+| **vel 1 · 1 fatiga (kept)** | **+13.6±1.5** | +3.2 · 29% · +3.2 · 44.6% | 0.9% |
+
+Elements (L10): vel 2 −12.1±1.8 (§47), vel 1 −13.1±1.8, vel 1 · 1 fatiga
+−12.9±1.8 — Ràfega is a minor card there (4-5% played). Kept vel 1 with the
+fatigue brake (the user's rule for a too-strong card) over vel 0, which takes
+the "three wounds cancel its action" clause away almost always.
+
+**Toc de la mort** (elements only: L9; V1 Ressò kept), with Ràfega as kept:
+
+| Toc | elements Δ | Toc |
+|---|---|---|
+| 2d6 · 1 fatiga (§47) | −12.9±1.8 | +0.3 · 7% · −2.5 · 3.0% |
+| 2d8 · 1 fatiga | −12.3±1.8 | +2.0 · 10% · −0.2 · 3.5% |
+| 2d6 · no fatigue | −12.8±1.8 | +1.0 · 8% · −2.8 · 2.9% |
+| 2d8 · no fatigue | −11.7±1.8 | +2.3 · 10% · +0.4 · 3.9% |
+| **2d8 · no fatigue · Ressò priced −0.15 (kept)** | **−11.4±1.8** | +1.8 · 10% · −0.1 · 4.8% |
+
+The pending echo's base price moved from −0.05 to −0.15 (a `price` param on
+the card, so the cache sees it). Toc now gains PV over the hand and the AI
+plays it about half as often as it is the best play — it matters a little and
+dominates nothing. It is still played on ~5% of turns: in fights that end at a
+median of two rounds, a death that arrives at the end of the NEXT round rarely
+has a round to arrive in. The variant texts lost "Puges 1 nivell de fatiga".
+
+### 48.2 Segellar la ferida and Tombarella de rescat: the card value counts PV in won fights
+
+The §47 hypothesis was checked: the depth-0 aim for an ally card was the
+lowest PV fraction. A generic AI hint now exists — `EffectHandler.
+aiTargetPriority(ctx, candidate)`, used by `pickResolveTargets` for non-enemy
+cards (ai `policy.test.ts`) — and Segellar returns the PV the seal would close.
+It changed nothing measurable (played 1.0% → 1.1%), so the aim was not it.
+
+A throwaway probe (deleted) replayed fantasy fights and, at each decision where
+the card was legal, compared the card value's best card (whole fight, PV
+differential) with a one-round evaluation of every card done the way the
+depth-1 search does it:
+
+| | decisions | card value: best | one-round search: best | both | AI played |
+|---|---|---|---|---|---|
+| Segellar la ferida | 117 | 19 | 2 | 0 | 3 |
+| Tombarella de rescat | 99 | 26 | 5 | 0 | 10 |
+
+At the moments the card value calls them best, the one-round search rates them
+24 points (a quarter of a win) below its best card on average. A third of those
+moments are fights already won this round — every card scores the win (100),
+and the card value, which counts PV left at the end, prefers the card that
+saves PV; most of the rest are opening rounds where the search prefers the
+damage by a point or two. Neither a price nor an aim can fix that: the search
+scores a win as a win, whatever PV it leaves. Both are ratcheted in fantasy
+`KNOWN_BLIND`. For the user: whether the card value should stop counting the
+PV of an already-decided fight (it makes every heal and guard look best in the
+mop-up), or the search should value the PV a win leaves — instrument changes,
+not made.
+
+### 48.3 Acrobàcia
+
+| variant | fantasy Δ | Puntada | Tombarella (best) |
+|---|---|---|---|
+| Puntada 2d6 · vel 3 (§45) | +22.4±1.2 | +4.7 · 40% · +3.5 · 52.2% | 3.6% (30%) |
+| vel 2 | +20.7±1.3 | +3.8 · 32% · +2.5 · 52.5% | 4.0% (30%) |
+| **vel 1 (kept)** | **+16.6±1.4** | +1.1 · 19% · +1.5 · 46.7% | 7.0% (35%) |
+| vel 1 · 2d4 | +15.9±1.4 | +1.0 · 16% · +1.2 · 36.8% | 10.2% (34%) |
+| vel 1 · 1 fatiga | +17.3±1.4 | +1.5 · 21% · +1.3 · 45.1% | 7.3% (34%) |
+| vel 1 + Tombarella vel 3 | +16.5±1.4 | +1.9 · 27% · +2.0 · 47.9% | 4.8% (21%) |
+| vel 1 + Trampolí +6 | +17.3±1.4 | Trampolí −4.6 · 9% · −0.8 · 2.2% | 6.5% (34%) |
+
+Below +16-17 nothing in Puntada moves the kit: what is left is its two
+defenses (Tombarella +4.3, Esquiva +3.2 over the hand) and the shape cells
+every fantasy kit reads high (cap/c4 +43 to +45 for all three kits). Kept the one
+change that moved it. The band passes (+16.6 − 2σ < 15) but thinly. Tombarella
+at speed 3 changed the band by nothing and only dodged the detector, so it was
+not kept; Tombarella is ratcheted instead (48.2).
+
+**Trampolí de mans** stays +4: +6 moved it within noise (−5.3 → −4.6 PV, 2.2%).
+Giving away the acrobat's own attack for +N on one ally's attack is worth N
+against an attack worth its whole total; no sane N makes it a peer. For the
+designer: the card needs something the acrobat keeps (a rule change).
+
+Elements with Puntada vel 1: −4.6±1.8 (§45 −1.6).
+
+### 48.4 Artífex
+
+| variant | elements Δ | Baldufa | Paraigua (best) | gadgets played: Autòmat · Ballesta · Trepant · Colós · Boa |
+|---|---|---|---|---|
+| today, WORTH 0.01 | −6.1±1.8 | 61.0% | 12.1% (33%) | 0.6 · 1.2 · 2.5 · 2.1 · 2.2% |
+| WORTH 0.025 | −8.9±1.8 | 60.0% | 12.6% (33%) | 0.5 · 0.7 · 2.9 · 3.9 · 2.6% |
+| Autòmat 2d6, Baldufa 2 fatiga, Colós and Boa 1 fatiga | −7.2±1.8 | 58.7% | 12.9% (35%) | 0.8 · 1.2 · 2.4 · 2.6 · 1.9% |
+| **Autòmat 2d6 (kept)** | −6.5±1.8 | 60.8% | 12.1% (33%) | 0.7 · 1.2 · 2.4 · 2.3 · 2.2% |
+
+(The "today" row differs from §46's −3.0 because the calibration's other
+kits moved: the `@cal` Mestre del xi aims Segellar differently.) A higher price
+made the AI play gadgets no more and the kit weaker; cheaper gadgets and a
+dearer Baldufa moved nothing. **Elements fights end at a median of two
+rounds**: a gadget that pays over three rounds has, on average, one round to
+pay in. That is the fights' length, not a number on the cards. Fantasy (median
+five rounds) is where Autòmat 2d6 shows: played 1.2% → 3.6%, −6.8 → −6.3 PV,
+kit +10.1 → +7.8pp±1.6. Kept; the dice are printed on the card, its text is
+unchanged. Fantasy Ganxo salvavides is no longer flagged (best 16%, played
+3.9%) and left `KNOWN_BLIND`.
+
+### 48.5 The encounter creator's horde: the engine, not a kit
+
+`encounter-speed.test.ts` reads 3.08-3.21 s on the horde (budget 3 s; everything
+else passes). The party there holds no new kit (berserk, volcanic, Esgrima,
+nigromant at L3), and no content it uses changed since a978fff. Single-thread
+`solveEncounter` of each request, the same machine, sequential, two runs each:
+
+| commit | horde | squad | boss | mixed | solved PV |
+|---|---|---|---|---|---|
+| a978fff (§44.5, passed at 2.8 s) | 15.0 / 15.2 s | 7.1 / 7.1 | 12.3 / 12.2 | 12.0 / 12.1 | [14] [18] [165] [12, 29] |
+| 2381ef3 (Acrobàcia seams) | 15.5 | 7.4 | 12.8 | 12.4 | same |
+| a278d28 (Artífex seams) | 15.9 | 7.5 | 13.1 | 12.8 | same |
+| f0d6edd (Mestre del xi) | 16.1 / 16.1 | 7.7 / 7.6 | 13.8 / 13.7 | 13.0 / 12.9 | same |
+| this commit | 16.1 | 7.6 | 13.7 | 12.9 | same |
+
+The solver fields the very same enemies at every commit, so no party got
+stronger: each set of new engine seams (per-blow `BlowInfo`, `onAllyTargeted`,
+`guardsBlow`, `afterBlow`, `beforeHolderAction`, …) costs every fight 1-3%,
++6-12% in all. No kit number can buy it back. Budget not loosened; the fast
+tier fails on it. For the user: a profiling pass on the per-blow hooks (most
+fights hold no status with any of them), or a decision about the budget.
+
+### 48.6 After (calibration refreshed; 800-combat suites)
+
+| kit | fantasy Δ | elements Δ | suites |
+|---|---|---|---|
+| Esgrima | +14.7±1.5 | −5.9±1.8 | pass both |
+| Acrobàcia | +22.4 → **+16.6±1.4** | −1.6 → −4.6±1.8 | pass both |
+| Artífex | +10.1 → +7.8±1.6 | −3.0 → −6.5±1.8 | pass both |
+| Mestre del xi | +22.9 → **+13.6±1.5** | −12.1 → −11.4±1.8 | pass both |
+
+Fantasy `KNOWN_BLIND`: Tombarella de rescat and Segellar la ferida in,
+Ganxo salvavides out. Fantasy triangle unchanged (Power > Protect 71.1%±1.6,
+Protect > Aggro 66.6%±1.7, Aggro > Power 54.9%±1.8); none of these kits is in
+its mirror party. Fast tier: all green but the horde's 3 s (48.5).
+
+Defense premium (`experiment-defense-vs-attack`): no defense dice changed.
+Colós de butxaca (L9, 3d6) now holds 67% against Toc de la mort's 2d8 (it was
+~85% against 2d6), its mean over same-level attacks 57%.
+
+Conflicts with intentions.md, still open: Trampolí de mans (48.3) and the
+elements gadgets (48.4) near "never sees play"; Acrobàcia's fantasy band passes
+only within its error.

@@ -219,3 +219,27 @@ describe('aiming at an enemy: attacks finish the wounded, everything else spares
     expect(target(focusCard('curse'))).toBe('Fresh');
   });
 });
+
+describe('aiming at an ally: the lowest PV fraction, unless the card says what it wants', () => {
+  function target(registry: EffectRegistry, card: ActionDefinition): string {
+    const hero = fighter('Hero', [card], { pv: 20 });
+    const low = fighter('Low', [attackCard('stab')], { pv: 20 });
+    const big = fighter('BigWound', [attackCard('stab')], { pv: 20 });
+    const foe = fighter('Foe', [attackCard('stab')], { pv: 20, ai: true });
+    const engine = new CombatEngine([hero, low, big], [foe], { registry, ...aiPolicy({ depth: 0 }) });
+    low.loseLife(15);
+    big.loseLife(6);
+    engine.prepareRound();
+    return pickResolveTargets(engine, hero, card, 'ally', 1, [hero, low, big], 0)[0].name;
+  }
+
+  it('with no hint, the lowest fraction', () => {
+    expect(target(new EffectRegistry(), focusCard('mend'))).toBe('Low');
+  });
+
+  it('with an aiTargetPriority hint, the highest priority', () => {
+    const registry = new EffectRegistry();
+    registry.register('prefers_big', { aiTargetPriority: (_ctx, c) => (c.name === 'BigWound' ? 1 : 0) });
+    expect(target(registry, focusCard('mend', { effects: [{ type: 'prefers_big' }] }))).toBe('BigWound');
+  });
+});
