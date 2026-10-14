@@ -348,3 +348,15 @@ if it wounds, the target is floored) and C (cannonball through two). The fresh
 reviewer picks **B**: "Un aliat: el seu atac d'aquest torn es resol ara; si
 fereix, l'objectiu queda a terra." (A stapled two effects and is dominant; C
 fights its own title and copies cards 4, 7, 10.)
+
+*Mestre del xi — user decisions (2026-10-14):*
+- **Entumit** becomes a flat penalty: "Fins al final del torn següent, els
+  seus atacs tenen −3." (N tuned by simulation; it only renews.) Replaces the
+  halving.
+- **Card 3: Desbloquejar el cos** replaces Segellar la ferida (whose rule had
+  no lore): "Un aliat dret, o tu, recupera N PV i perd tots els efectes
+  negatius." N below Bàlsam de lluna's ~7. Lore: the healer unblocks the flow
+  and the body heals itself (acupressure, Avatar's chi paths, wuxia unsealing,
+  Hokuto). rules.md gains "efecte negatiu": any state an enemy card left on you.
+  Parked: Vida prestada (give your PV to an ally).
+- **Tempesta de son:** a loss in the storm's own round doesn't wake (kept).
