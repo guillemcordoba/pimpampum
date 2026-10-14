@@ -261,3 +261,23 @@ its starting PV, +1 fatigue) · Toc de la mort (A, 1 fatiga: if it wounds, at
 the end of next round it falls if under half its starting PV) · Tempesta de
 son (A, 2 fatiga: every enemy, no damage; the beaten fall asleep at round's
 end until they lose PV or roll 11+ on a d20 at a round's start).
+
+*Artífex — final (v8) after two rounds* (round 2 found no concept to change).
+Kit rule **Corda N**: the card stays on the table with a die at N and can be
+played again (rewinds it). The gadget attacks with the card's dice; each time
+it acts, playing it included, it uses what the die shows, then the die drops
+1; at 0 it stops. Self-running gadgets act at round's end; traps when sprung.
+Bumerang (A: at round's end it returns onto a random enemy) · Parany de molla
+(D: at an ally's feet until attacked; defends that attack, the attacker loses
+3 PV) · Autòmat de corda (F: Corda 2, attacks a random enemy each round's end)
+· Paraigua blindat (D: against attacks hitting several of you, defends the
+whole group) · Escut viu (A, fast: if it wounds, this round other enemies'
+attacks on you hit it, undefended) · Ballesta sentinella (F: aimed at an
+enemy, Corda 3, shoots it just before each card it plays) · Trepant
+incansable (A: ignores armour; if it wounds it sticks; Corda 3, wounds again
+each round's end, undefended) · Baldufa de ganivets (A, 1 fatiga: every
+enemy, dice = corda; Corda 3) · Colós de butxaca (D, 2 fatiga: Corda 3,
+attacks on you resolve against its defense and spend 1; when it stops it
+falls on a random enemy) · Taller desfermat (F, 2 fatiga: every corda gadget
+onto the table, full, aimed as you choose, the drill already stuck; the
+attackers attack now).
