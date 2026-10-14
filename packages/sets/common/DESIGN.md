@@ -288,3 +288,12 @@ dret, o tu, tants PV com li va treure l'últim cop que l'ha ferit." It undoes
 one wound (big against a boss's blow, small against a horde's chip), and can't
 raise the fallen, so Cop de vida (8) stays the only revive. A fresh reviewer
 passed it.
+
+*Artífex — round 3 (whole set at once): all ten pass.* Final Corda rule:
+"la carta es queda a la taula amb un dau a N. Cada cop que el giny actua
+(amb els daus de la carta), el dau baixa 1, també amb l'atac que fa en
+jugar-la, si és un Atac; a 0, s'atura. Tornar-la a jugar li torna la corda.
+Els ginys que van sols actuen al final del torn; els paranys, quan salten."
+Ballesta sentinella: "Apunta un enemic. Corda 3: li dispara just abans que es
+resolgui cada carta seva." Escut viu's art shows a spring grappling claw.
+Approved by the user (2026-10-14).
