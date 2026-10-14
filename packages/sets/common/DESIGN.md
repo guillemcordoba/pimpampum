@@ -297,3 +297,14 @@ Els ginys que van sols actuen al final del torn; els paranys, quan salten."
 Ballesta sentinella: "Apunta un enemic. Corda 3: li dispara just abans que es
 resolgui cada carta seva." Escut viu's art shows a spring grappling claw.
 Approved by the user (2026-10-14).
+
+*Artífex — slots 5 and 10 redone (user: "about the hook"; the finisher "should
+be a gadget"):* **Ganxo salvavides** (D, picked by the user over the
+reviewer's Ganxo arrossegador): "El primer atac contra un aliat aquest torn no
+l'impacta: l'has estirat fora." **Boa mecànica** (A, 2 fatiga; name picked by
+the user): "Puges 2 nivells de fatiga. Corda 4. Si fereix, s'hi enrosca:
+mentre l'estreny no es pot defensar, i al final de cada torn l'ataca amb un
+dau més que l'anterior." Parked: Bessó de llautó (a brass double copying your
+cards: too many rulings), Estrebada de ganxo (air's Catapulta de vent).
+Watch in simulation: Ganxo salvavides' guaranteed miss next to Paraigua
+blindat's contested guard.
