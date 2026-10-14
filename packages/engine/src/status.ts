@@ -144,6 +144,18 @@ export interface StatusBehavior {
    *  a legal target; otherwise the holder aims freely. A block still forces
    *  the attack onto the blocker first. */
   attackTargetsOnly?(ctx: StatusHookContext): Character[] | void;
+  /** The holder's attacks cannot reach these characters (one who leapt on
+   *  its back): they leave every pool the holder's attacks aim from — area
+   *  attacks included — its extra attacks miss them, and a block by one of
+   *  them no longer forces the holder's blows. Applied before
+   *  `attackTargetsOnly`. If nobody is left, the attack lands on nobody. */
+  attackTargetsExcluded?(ctx: StatusHookContext): Character[] | void;
+  /** An enemy attack is about to be resolved against `target`, one of the
+   *  holder's living allies (never the holder) — before its defenses are
+   *  gathered, so a guard pushed onto `target.guards` here covers this very
+   *  blow (a defender that dives to whoever is attacked first). Called per
+   *  target, in the attack's target order, for normal and extra attacks. */
+  onAllyTargeted?(ctx: StatusHookContext, target: Character, attacker: Character): void;
   /** An attack by `attacker` on the holder cannot be defended — an opening
    *  that attacker made. Asked once per blow that could otherwise be defended,
    *  so a one-shot opening may consume itself here. Vetoed, like every

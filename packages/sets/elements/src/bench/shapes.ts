@@ -27,7 +27,8 @@ export const SHAPES: Shape[] = [
 ];
 
 /** Ally rows: three kits each — the four elements three to a row, every one
- *  of them in three rows, and Esgrima in a fifth beside water and fire. */
+ *  of them in three rows, Esgrima in a fifth beside water and fire, and
+ *  Acrobàcia in a sixth beside earth and air. */
 export const COMPANY: string[][] = [
   ['earthbender', 'firebender', 'airbender'],
   ['waterbender', 'firebender', 'airbender'],
@@ -35,11 +36,14 @@ export const COMPANY: string[][] = [
   ['waterbender', 'earthbender', 'firebender'],
   // Esgrima, shared with the fantasy set (2026-10-13).
   ['mestre-armes', 'waterbender', 'firebender'],
+  // Acrobàcia, shared with the fantasy set (2026-10-14).
+  ['acrobacia', 'earthbender', 'airbender'],
 ];
 
 /** The stand-in per company row — the one element that row leaves out (the
- *  Esgrima row leaves out two; earth stands in). */
-export const CALIBRATION_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender', 'earthbender'];
+ *  Esgrima row leaves out two, earth stands in; the Acrobàcia row too,
+ *  water stands in). */
+export const CALIBRATION_KITS = ['waterbender', 'earthbender', 'firebender', 'airbender', 'earthbender', 'waterbender'];
 
 /** Creatures no SHAPE fields, and why. */
 export const UNFIELDED_ENEMIES: Record<string, string> = {};

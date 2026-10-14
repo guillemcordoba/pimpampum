@@ -138,6 +138,10 @@ for (const [ri, round] of SCRIPT.entries()) {
       } else {
         eng.setResolveTarget([]);
       }
+    } else if (step.kind === 'choice') {
+      // The script names no reveal options: the card's own pick stands in.
+      console.log(`   [choice] ${step.prompt.actorName} ${step.prompt.actionName}: ${step.prompt.options.join(' / ')} → the card's own pick`);
+      eng.setResolveChoice();
     } else {
       for (const l of step.logs) console.log('   ' + l.message);
     }

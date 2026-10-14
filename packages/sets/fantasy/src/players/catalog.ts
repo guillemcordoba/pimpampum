@@ -1,7 +1,7 @@
 import { ActionDefinition } from '@pimpampum/engine';
 import { SkillDefinition } from './types.js';
 import { ENGINYER_EXPLOSIUS } from './skills/explosives-engineer.js';
-import { MESTRE_ARMES } from '@pimpampum/set-common';
+import { ACROBACIA, MESTRE_ARMES } from '@pimpampum/set-common';
 import { NIGROMANT } from './skills/nigromant.js';
 import { BERSERK } from './skills/berserk.js';
 import { METGE } from './skills/metge.js';
@@ -13,6 +13,7 @@ import { VOLCANIC } from './skills/volcanic.js';
 export const ALL_SKILLS: SkillDefinition[] = [
   ENGINYER_EXPLOSIUS,
   MESTRE_ARMES,
+  ACROBACIA,
   NIGROMANT,
   BERSERK,
   METGE,

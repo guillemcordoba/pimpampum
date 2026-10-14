@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ActionType } from '@pimpampum/engine';
-import { COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
+import { ACROBACIA, COMMON_EFFECTS, COMMON_SKILLS, MESTRE_ARMES } from '../src/index.js';
 import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from '../src/bench/index.js';
 
 describe('Esgrima', () => {
@@ -23,6 +23,27 @@ describe('Esgrima', () => {
       ['tall-rere-tall', 10, ActionType.Atac],
     ]);
     expect(MESTRE_ARMES.actions.every(a => a.skillId === 'mestre-armes')).toBe(true);
+  });
+});
+
+describe('Acrobàcia', () => {
+  it('has its id, and its ten cards in order — none of them needs a weapon', () => {
+    expect(ACROBACIA.id).toBe('acrobacia');
+    expect(ACROBACIA.displayName).toBe('Acrobàcia');
+    expect(ACROBACIA.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
+      ['escombrada', 1, ActionType.Atac],
+      ['esquiva-i-traveta', 2, ActionType.Defensa],
+      ['trampoli-de-mans', 3, ActionType.Focus],
+      ['puntada-d-espagat', 4, ActionType.Atac],
+      ['tombarella-de-rescat', 5, ActionType.Defensa],
+      ['cavalcar-l-enemic', 6, ActionType.Atac],
+      ['trepitjar-caps', 7, ActionType.Atac],
+      ['salt-mortal', 8, ActionType.Atac],
+      ['malabars-a-puntades', 9, ActionType.Atac],
+      ['capbusso-suicida', 10, ActionType.Atac],
+    ]);
+    expect(ACROBACIA.actions.every(a => a.skillId === 'acrobacia')).toBe(true);
+    expect(ACROBACIA.actions.some(a => a.effects.some(e => e.type === 'weapon_damage'))).toBe(false);
   });
 });
 

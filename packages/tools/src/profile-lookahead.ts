@@ -46,7 +46,11 @@ time('clone + resolve one round', Math.max(1, Math.round(500 * SCALE)), () => {
   sim.planActions([]);
   let s = sim.resolveNextAction();
   let g = 0;
-  while (s.kind !== 'done' && g++ < 400) { if (s.kind === 'target') sim.setResolveTarget([]); s = sim.resolveNextAction(); }
+  while (s.kind !== 'done' && g++ < 400) {
+    if (s.kind === 'target') sim.setResolveTarget([]);
+    else if (s.kind === 'choice') sim.setResolveChoice();
+    s = sim.resolveNextAction();
+  }
   sim.finishRound();
 });
 time('bestResponse d1 s2 p1 k3', Math.max(1, Math.round(100 * SCALE)), () => { bestResponse(e, 0, { depth: 1, samples: 2, passes: 1, topK: 3 }); });

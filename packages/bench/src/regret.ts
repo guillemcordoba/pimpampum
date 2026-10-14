@@ -272,6 +272,7 @@ function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: nu
     // An empty target list hands targeting back to the engine, which is what
     // the AI would have got anyway.
     if (step.kind === 'target') sim.setResolveTarget([]);
+    else if (step.kind === 'choice') sim.setResolveChoice();
     step = sim.resolveNextAction();
   }
   sim.finishRound();

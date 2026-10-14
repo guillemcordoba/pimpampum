@@ -45,6 +45,8 @@ export const COMPANY: string[][] = [
   // stays because it costs nothing: `runCell` divides its game budget across
   // the matrix, so more rows buy finer coverage at the same total combats.
   ['volcanic', 'nigromant', 'runes'],
+  // Acrobàcia, shared with the elements set (2026-10-14).
+  ['acrobacia', 'enginyer-explosius', 'metge'],
 ];
 
 /**
@@ -61,14 +63,15 @@ export const COMPANY: string[][] = [
  * points of even — because a strong or weak stand-in would bake its own
  * verdict into every other kit's score.
  */
-export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginyer-explosius'];
+export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginyer-explosius', 'berserk'];
 
 /**
  * The highest level a hero kit is MEASURED at (bench `Calibration.heroLevel`):
  * the longest of this set's own kits. Esgrima, shared with the elements set,
  * has ten cards where these have four to six; fielded at ten among heroes at
  * five it was measured for its training — the level enters every roll — and
- * not for its cards (NEXT-STEPS §44). So here it plays its first six.
+ * not for its cards (NEXT-STEPS §44). So here it plays its first six — and so
+ * does Acrobàcia, the other shared ten-card kit (§45).
  *
  * `test/calibration.test.ts` names the kits this caps, so a kit growing past
  * it is a decision, not a silent change of what is measured.

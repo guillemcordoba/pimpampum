@@ -90,14 +90,20 @@ export interface Selection {
 /**
  * Play one round with scripted selections for any seat; unlisted AI seats ask
  * the engine's chooser. Throws on a target prompt, because a test that did not
- * say who it aims at is not testing what it thinks.
+ * say who it aims at is not testing what it thinks — and on a reveal-option
+ * prompt beyond the `choices` given, answered in the order they come.
  */
-export function playRound(engine: CombatEngine, selections: Selection[]): void {
+export function playRound(engine: CombatEngine, selections: Selection[], choices: number[] = []): void {
   engine.prepareRound();
   engine.planActions(selections);
+  const answers = [...choices];
   let r = engine.resolveNextAction();
   while (r.kind !== 'done') {
     if (r.kind === 'target') throw new Error('unexpected target prompt in test');
+    if (r.kind === 'choice') {
+      if (!answers.length) throw new Error('unexpected choice prompt in test');
+      engine.setResolveChoice(answers.shift());
+    }
     r = engine.resolveNextAction();
   }
   engine.finishRound();

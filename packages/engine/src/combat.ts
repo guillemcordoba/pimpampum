@@ -55,9 +55,20 @@ export interface TargetPrompt {
   canReviveTarget: boolean;
 }
 
+/** A request for the player to pick one of a card's reveal options (a height,
+ *  a stance) — answered with `setResolveChoice(index)`. */
+export interface ChoicePrompt {
+  actorTeam: number;
+  actorIdx: number;
+  actorName: string;
+  actionName: string;
+  options: readonly string[];
+}
+
 /** Result of resolving one step of a round. */
 export type StepResult =
   | { kind: 'target'; prompt: TargetPrompt }
+  | { kind: 'choice'; prompt: ChoicePrompt }
   | { kind: 'resolved'; logs: LogEntry[]; action: RevealedAction; done: boolean }
   | { kind: 'done' };
 
@@ -100,6 +111,9 @@ interface PendingAction {
   targets: Character[] | null;
   /** Set by cancelPendingAction: a cancelled action that never resolves. */
   cancelled?: boolean;
+  /** The reveal option picked for a card that offers some (`revealOptions`);
+   *  undefined until picked. */
+  option?: number;
 }
 
 /**
@@ -138,7 +152,7 @@ export interface CombatEngineOptions {
   targetChooser?: TargetChooser;
 }
 
-const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal', 'onAimed'] as const;
+const HOOKS = ['onResolve', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'modifyAttack', 'postRound', 'onReveal', 'onAimed', 'onAttackResolved'] as const;
 type HookName = typeof HOOKS[number];
 
 export class CombatEngine implements EngineApi, AIView {
@@ -206,6 +220,8 @@ export class CombatEngine implements EngineApi, AIView {
   /** The queued card a target prompt is for when it aims at the reveal (null:
    *  any prompt is for the card resolving now). */
   private aimingIdx: number | null = null;
+  /** The queued card a choice prompt is for (null: none pending). */
+  private choosingIdx: number | null = null;
   /**
    * A round has BEGUN and not yet finished — `prepareRound` has run and the
    * engine is waiting for cards.
@@ -292,6 +308,7 @@ export class CombatEngine implements EngineApi, AIView {
         speed: p.speed,
         targets: p.targets ? p.targets.map(at) : null,
         cancelled: p.cancelled,
+        option: p.option,
       };
     });
     e.pendingIndex = this.pendingIndex;
@@ -301,6 +318,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
     e.revealedPlan = this.revealedPlan.map(s => ({ ...s }));
     e.aimingIdx = this.aimingIdx;
+    e.choosingIdx = this.choosingIdx;
     // Carried, or the clone cannot tell an already-begun round from a fresh
     // one — which is the whole point of the flag for the lookahead.
     e.roundPrepared = this.roundPrepared;
@@ -441,10 +459,13 @@ export class CombatEngine implements EngineApi, AIView {
   performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts: ExtraAttackOptions = {}): ExtraAttackResult {
     const missed: ExtraAttackResult = { hit: false, damage: 0 };
     if (!target.isAlive() || (target.team !== source.team && this.isUntargetable(target) && !this.sensesConcealed(source))) return missed;
+    if (!this.canReach(source, target)) return missed;
+    this.announceTarget(source, target);
     const label = opts.label ?? source.name;
     const skillId = opts.skillId ?? '';
     const atkRoll = this.rollDiceFor(source, dice, 'attack');
-    const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0);
+    const atkBonus = (opts.rollBonus ?? 0) + (skillId ? source.getRollBonus(skillId, 'attack') : 0)
+      + this.attackRollBonusAgainst(target);
     const attackTotal = Math.max(0, atkRoll + atkBonus);
     const bypass = this.bypassesDefense(source, target, !!opts.ignoreDefense);
     const penalty = this.defensePenaltyOn(target, source);
@@ -487,7 +508,43 @@ export class CombatEngine implements EngineApi, AIView {
     // Only real damage interrupts a pending focus (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
-    return { hit: true, damage: dmg };
+    return { hit: true, damage: dmg, recipient };
+  }
+
+  /** Everyone `actor`'s attacks cannot reach right now (attackTargetsExcluded),
+   *  or null when nobody is excluded — the usual case, kept allocation-free. */
+  private excludedTargets(actor: Character): Character[] | null {
+    let out: Character[] | null = null;
+    for (const [key, entry] of actor.statuses) {
+      const f = entry.behavior?.attackTargetsExcluded;
+      if (!f) continue;
+      const named = f(this.statusCtx(actor, key, entry));
+      if (named && named.length) (out ??= []).push(...named);
+    }
+    return out;
+  }
+
+  private canReach(actor: Character, target: Character): boolean {
+    const excluded = this.excludedTargets(actor);
+    return !excluded || !excluded.includes(target);
+  }
+
+  /** An enemy attack is about to be resolved against `target`: its living
+   *  allies' statuses hear of it first (onAllyTargeted), so a guard they raise
+   *  covers this blow. */
+  private announceTarget(attacker: Character, target: Character): void {
+    if (attacker.team === target.team) return;
+    for (const ally of this.teams[target.team]) {
+      if (ally === target || !ally.isAlive()) continue;
+      let hooked: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] | null = null;
+      for (const [key, entry] of ally.statuses) {
+        if (entry.behavior?.onAllyTargeted) (hooked ??= []).push({ key, entry, behavior: entry.behavior });
+      }
+      if (!hooked) continue;
+      for (const { key, entry, behavior } of hooked) {
+        if (ally.statuses.has(key)) behavior.onAllyTargeted!(this.statusCtx(ally, key, entry), target, attacker);
+      }
+    }
   }
 
   /** Whether an attack by `source` on `target` passes over every defense:
@@ -559,9 +616,11 @@ export class CombatEngine implements EngineApi, AIView {
     return keepOwn ? living.filter(g => g.defender === target) : living;
   }
 
-  /** Living blockers standing between `actor` and their targets. */
+  /** Living blockers standing between `actor` and their targets — save those
+   *  the actor's attacks cannot reach, who force nothing. */
   private livingBlockers(actor: Character): Guard[] {
-    return actor.blockers.filter(g => g.defender.isAlive());
+    const excluded = actor.blockers.length ? this.excludedTargets(actor) : null;
+    return actor.blockers.filter(g => g.defender.isAlive() && !(excluded && excluded.includes(g.defender)));
   }
 
   /** The target every chosen attack slot is forced onto when `actor` is
@@ -648,10 +707,13 @@ export class CombatEngine implements EngineApi, AIView {
     return eligible.length === 1 ? eligible : null;
   }
 
-  /** An attack's target pool as the actor's statuses allow it: only the
+  /** An attack's target pool as the actor's statuses allow it: without the
+   *  characters it cannot reach (`attackTargetsExcluded`), then only the
    *  characters every `attackTargetsOnly` status names (a taunt), when any of
-   *  them is in the pool; the whole pool otherwise. */
+   *  them is left; the whole remaining pool otherwise. */
   private narrowAttackPool(actor: Character, pool: Character[]): Character[] {
+    const excluded = this.excludedTargets(actor);
+    if (excluded) pool = pool.filter(c => !excluded.includes(c));
     let only: Character[] | null = null;
     for (const [key, entry] of actor.statuses) {
       const named = entry.behavior?.attackTargetsOnly?.(this.statusCtx(actor, key, entry));
@@ -768,6 +830,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.pendingIndex = 0;
     this.tierSpeed = null;
     this.aimingIdx = null;
+    this.choosingIdx = null;
     // Cards that aim at the reveal: a seat that already named its targets has
     // aimed; an AI seat aims now. A human seat that did not is prompted before
     // anything resolves (`aimAtReveal` in resolveNextAction).
@@ -910,6 +973,7 @@ export class CombatEngine implements EngineApi, AIView {
     p.action = newAction;
     p.speed = actor.getEffectiveSpeed(newAction);
     p.targets = null;
+    p.option = undefined;
     actor.playedActionIdx = newActionIdx;
     this.plays.push({ team: actor.team, actionId: newAction.def.id, actionType: newAction.def.actionType });
 
@@ -994,6 +1058,77 @@ export class CombatEngine implements EngineApi, AIView {
     return null;
   }
 
+  /** The reveal options a card offers (the first effect that offers any). */
+  private revealOptionsOf(def: ActionDefinition): readonly string[] | null {
+    for (const eff of def.effects) {
+      const opts = this.registry.getHandler(eff.type)?.revealOptions?.(eff.params ?? {});
+      if (opts && opts.length) return opts;
+    }
+    return null;
+  }
+
+  /** Before anything resolves, every revealed card that offers options must
+   *  have one picked: an AI seat's is picked now (the card's own hint), a human
+   *  seat is prompted, one card at a time. Null once all are picked. */
+  private chooseAtReveal(): StepResult | null {
+    if (this.pendingIndex !== 0 || this.tierSpeed !== null) return null;
+    for (let i = 0; i < this.pending.length; i++) {
+      const p = this.pending[i];
+      if (p.option !== undefined || p.cancelled || !p.actor.isAlive()) continue;
+      const options = this.revealOptionsOf(p.action.def);
+      if (!options) continue;
+      if (p.actor.aiControlled) {
+        this.pickOption(i, undefined);
+        continue;
+      }
+      this.choosingIdx = i;
+      return {
+        kind: 'choice',
+        prompt: {
+          actorTeam: p.actor.team,
+          actorIdx: this.teams[p.actor.team].indexOf(p.actor),
+          actorName: p.actor.name,
+          actionName: p.action.def.name,
+          options,
+        },
+      };
+    }
+    return null;
+  }
+
+  /** Answer a 'choice' prompt with an index into its options. Nothing (or an
+   *  index out of range) takes the pick nobody was asked for — the card's own
+   *  hint — which is how a search that cannot ask anyone answers. */
+  setResolveChoice(option?: number): void {
+    const i = this.choosingIdx;
+    this.choosingIdx = null;
+    if (i === null || !this.pending[i]) return;
+    this.pickOption(i, option);
+  }
+
+  private pickOption(i: number, option: number | undefined): void {
+    const p = this.pending[i];
+    const def = p.action.def;
+    const options = this.revealOptionsOf(def) ?? [];
+    this.inSeatStream(this.actStream(p.actor), () => {
+      let pick = option;
+      if (pick === undefined || !(pick >= 0 && pick < options.length)) {
+        pick = 0;
+        for (const eff of def.effects) {
+          const fn = this.registry.getHandler(eff.type)?.aiRevealOption;
+          if (!fn) continue;
+          const hint = fn(this.ctx(p.actor, def, eff.params ?? {}, { targets: p.targets ?? [] }), options);
+          if (hint >= 0 && hint < options.length) pick = hint;
+          break;
+        }
+      }
+      p.option = pick;
+      for (const eff of def.effects) {
+        this.registry.getHandler(eff.type)?.onRevealOption?.(this.ctx(p.actor, def, eff.params ?? {}, { targets: p.targets ?? [] }), pick);
+      }
+    });
+  }
+
   /** The roll an attack's effects already made for it (`presetAttackRoll`), if any. */
   private presetAttackRoll(actor: Character, def: ActionDefinition, targets: Character[]): number | undefined {
     for (const eff of def.effects) {
@@ -1012,6 +1147,8 @@ export class CombatEngine implements EngineApi, AIView {
     if (this.pendingIndex >= this.pending.length) return { kind: 'done' };
     const aiming = this.aimAtReveal();
     if (aiming) return aiming;
+    const choosing = this.chooseAtReveal();
+    if (choosing) return choosing;
     const cur = this.pending[this.pendingIndex];
 
     // Entering a new speed tier: snapshot living set + focus interruption state.
@@ -1168,7 +1305,8 @@ export class CombatEngine implements EngineApi, AIView {
           // steps in front of untargetability filters).
           list = (targets.length ? targets : [forced]).map(() => forced);
         } else {
-          const valid = targets.filter(t => this.tierAlive.has(t) && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
+          const valid = targets.filter(t => this.tierAlive.has(t) && this.canReach(actor, t)
+            && !(t.team !== actor.team && this.isUntargetable(t) && !this.sensesConcealed(actor)));
           list = valid.length ? valid : this.narrowAttackPool(actor, this.enemiesOf(actor)).slice(0, 1);
         }
         list = this.applyTargetRedirects(actor, list);
@@ -1195,6 +1333,7 @@ export class CombatEngine implements EngineApi, AIView {
             this.resolveAttackOnTarget(actor, action, t, mods, baseRoll, !!forced);
           }
         }
+        this.dispatch('onAttackResolved', actor, action.def, { targets: [...list] });
         if (action.def.isConsumable) action.consumed = true;
         break;
       }
@@ -1347,6 +1486,7 @@ export class CombatEngine implements EngineApi, AIView {
 
     // An effect may pass over this target entirely — no roll, no damage.
     if (mods.skip) return;
+    this.announceTarget(source, target);
 
     // Extra dice (per target) roll flat into the attack total: they raise both
     // the hit chance and the margin damage. The action's own dice were rolled

@@ -30,6 +30,9 @@ export interface ExtraAttackOptions {
 export interface ExtraAttackResult {
   hit: boolean;
   damage: number;
+  /** Who took the blow when it got through: the target, or the guard that
+   *  stood in for it. */
+  recipient?: Character;
 }
 
 /**
@@ -230,6 +233,23 @@ export interface EffectHandler {
    *  that roll and the first pass uses it instead of rolling. Bonuses are
    *  added as usual. Return nothing to roll normally. */
   presetAttackRoll?(ctx: EffectContext): number | void;
+  /** Run once an attack action has resolved against ALL its targets (every
+   *  pass included), with `ctx.targets` the final list — the moment for what
+   *  the card does after the blow, whatever it did to each target. Not run
+   *  for an attack that never happened. */
+  onAttackResolved?(ctx: EffectContext): void;
+  /** The card's player picks one of these when the cards are revealed (a
+   *  height, a stance), before anything resolves. A human seat is prompted
+   *  (StepResult 'choice'); every other seat takes `aiRevealOption`. */
+  revealOptions?(params: Record<string, unknown>): readonly string[];
+  /** The pick (an index into `revealOptions`) for a seat nobody asks — an AI
+   *  seat, or a prompt answered with nothing. The card's own heuristic, a
+   *  hint like `aiWeight`; without one the first option is taken. */
+  aiRevealOption?(ctx: EffectContext, options: readonly string[]): number;
+  /** Run once the reveal option is chosen (`option` indexes `revealOptions`),
+   *  before anything resolves. `ctx.targets` holds the card's targets if it
+   *  already has them. */
+  onRevealOption?(ctx: EffectContext, option: number): void;
 }
 
 /** Registry mapping effect type keys to their handlers. (Status behaviours

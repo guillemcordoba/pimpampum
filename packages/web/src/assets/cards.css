@@ -136,6 +136,8 @@
 .print-card.enginyer .card-frame { border-color: var(--class-enginyer); }
 .print-card.mestre-armes { border-color: var(--class-mestre-armes); }
 .print-card.mestre-armes .card-frame { border-color: var(--class-mestre-armes); }
+.print-card.acrobata { border-color: var(--class-acrobata); }
+.print-card.acrobata .card-frame { border-color: var(--class-acrobata); }
 .print-card.nigromant { border-color: var(--class-nigromant); }
 .print-card.nigromant .card-frame { border-color: var(--class-nigromant); }
 .print-card.metge { border-color: var(--class-metge); }

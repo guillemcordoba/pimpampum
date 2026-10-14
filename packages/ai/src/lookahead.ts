@@ -291,6 +291,8 @@ function playRound(engine: CombatEngine, team: number, choices: Map<Character, n
     // The lookahead never prompts: an empty target list makes the engine fall
     // back to its own resolution-time targeting.
     if (step.kind === 'target') engine.setResolveTarget([]);
+    // …and answers a reveal option with nothing: the card's own pick.
+    else if (step.kind === 'choice') engine.setResolveChoice();
     step = engine.resolveNextAction();
   }
   engine.finishRound();
@@ -525,6 +527,7 @@ export function searchTargets(
         let step = sim.resolveNextAction();
         for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
           if (step.kind === 'target') sim.setResolveTarget([]);
+          else if (step.kind === 'choice') sim.setResolveChoice();
           step = sim.resolveNextAction();
         }
         sim.finishRound();

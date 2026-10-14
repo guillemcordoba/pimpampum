@@ -1,0 +1,320 @@
+import { ActionDefinition, ActionType, Character, EffectContext, EffectHandler, EngineApi, StatusBehavior } from '@pimpampum/engine';
+import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
+import { num } from '../effects/helpers.js';
+
+/**
+ * ACROBÀCIA — the body as the weapon: no blade, no weapon needed. Sweeps and
+ * trips put the enemy on the ground (A TERRA: every attack on them has +2
+ * until the end of the next round), the body lends itself to the team (a hand
+ * trampoline, a rescue roll) and climbs over the enemy (riding one, stepping
+ * on heads) — and three finishers paid in fatigue: the somersault whose
+ * height is a bet, the juggling kicks, the suicide dive.
+ *
+ * Concepts by the `card-taste` agent, approved by the user; the numbers are
+ * the approved design's.
+ */
+
+// --- A terra (cards 1, 2, 7, 9, 10) ------------------------------------------
+
+const A_TERRA_KEY = 'a-terra';
+
+/** On the ground: attacks against the holder have +`value`. Set for two
+ *  turns, so it lasts to the end of the round after the one it was set in;
+ *  setting it again refreshes it rather than stacking. */
+const A_TERRA: StatusBehavior = {
+  attackRollAgainstHolder(ref) { return ref.entry.value; },
+  /** +2 on the blows of the next round and a half: real, and far from a
+   *  body. Conservative on purpose (ARCHITECTURE: an over-priced status gets
+   *  played to the exclusion of everything else). */
+  positionValue() { return -0.1; },
+};
+
+/** Put `c` on the ground (or keep it there a round longer). */
+function floor(engine: EngineApi, c: Character | undefined, team: number, bonus = 2): void {
+  if (!c || !c.isAlive()) return;
+  c.setStatus(A_TERRA_KEY, bonus, 2, { harm: 1 }, A_TERRA);
+  engine.log('attack', `${c.name} queda a terra: els atacs contra ell tenen +${bonus} fins al final del torn següent.`, team);
+}
+
+// --- 3 · Trampolí de mans ----------------------------------------------------
+
+/** Launched: the holder's next attack THIS round has +`value`. Spent by that
+ *  attack; gone at the end of the round if there was none. */
+const TRAMPOLI: StatusBehavior = {
+  onAttackAction(ctx) {
+    ctx.holder.clearStatus(ctx.key);
+    ctx.engine.log('attack', `${ctx.holder.name} surt disparat del trampolí: +${ctx.entry.value}.`, ctx.holder.team);
+    return { attackRollBonus: ctx.entry.value };
+  },
+};
+
+// --- 5 · Tombarella de rescat ------------------------------------------------
+
+/** Rolling to the rescue: the first ally of the holder attacked from now on
+ *  this round is guarded by the holder's own defense. */
+const RESCAT: StatusBehavior = {
+  onAllyTargeted(ctx, target) {
+    const card = ctx.entry.data?.['card'] as ActionDefinition | undefined;
+    ctx.holder.clearStatus(ctx.key);
+    if (!card || !ctx.holder.isAlive()) return;
+    target.guards.push({ defender: ctx.holder, action: card });
+    ctx.engine.log('defense', `${ctx.holder.name} fa una tombarella i defensa ${target.name}.`, ctx.holder.team);
+  },
+};
+
+// --- 6 · Cavalcar l'enemic ---------------------------------------------------
+
+/** Ridden: next round the holder's attacks cannot reach the acrobat on its
+ *  back (area attacks included). */
+const CAVALCAT: StatusBehavior = {
+  attackTargetsExcluded(ctx) {
+    const by = ctx.entry.data?.['by'];
+    const from = ctx.entry.data?.['fromRound'];
+    if (!(by instanceof Character) || !by.isAlive() || ctx.engine.round < (typeof from === 'number' ? from : 0)) return;
+    return [by];
+  },
+  /** One enemy's attacks kept off the acrobat for a round — it bites only
+   *  next round, after the one-round search has scored the board. Priced low,
+   *  like Esgrima's next-round statuses were at first (NEXT-STEPS §44.2). */
+  positionValue(ref) {
+    const by = ref.entry.data?.['by'];
+    return by instanceof Character && by.isAlive() ? -0.1 : 0;
+  },
+};
+
+// --- 8 · Salt mortal ---------------------------------------------------------
+
+/** The height chosen at the reveal, spent by the card's own attack. */
+const SALT_KEY = 'salt-mortal-alcada';
+
+function heightsOf(params: Record<string, unknown>): number[] {
+  const h = params['heights'];
+  return Array.isArray(h) && h.every(x => typeof x === 'number') ? h as number[] : [2, 4, 6];
+}
+
+function chosenHeight(ctx: EffectContext): number {
+  const e = ctx.source.getStatus(SALT_KEY);
+  return e && e.data?.['round'] === ctx.engine.round ? e.value : 0;
+}
+
+const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
+  // 1 · Escombrada: a wound puts whoever took it on the ground.
+  sweep: {
+    onAttackHit(ctx) {
+      if ((ctx.damageDealt ?? 0) > 0) floor(ctx.engine, ctx.target, ctx.source.team, num(ctx.params, 'bonus', 2));
+    },
+    aiWeight() { return 0.3; },
+  },
+
+  // 2 · Esquiva i traveta: when it holds, the attacker is on the ground —
+  // every attacker it holds against, guarding an ally too.
+  trip: {
+    onDefend(ctx) { floor(ctx.engine, ctx.target, ctx.source.team, num(ctx.params, 'bonus', 2)); },
+    aiWeight() { return 0.4; },
+  },
+
+  // 3 · Trampolí de mans: one ally's next attack this round has +`amount`.
+  hand_trampoline: {
+    getTargetRequirement() { return 'ally_other'; },
+    onResolve(ctx) {
+      const t = ctx.targets.find(c => c !== ctx.source && c.isAlive());
+      if (!t) return;
+      const amount = num(ctx.params, 'amount', 4);
+      t.setStatus('trampoli', amount, 1, undefined, TRAMPOLI);
+      ctx.engine.log('focus', `${ctx.source.name} fa de trampolí a ${t.name}: el seu proper atac aquest torn té +${amount}.`, ctx.source.team);
+    },
+    aiWeight(ctx) { return ctx.allies.length ? 0.6 : 0; },
+  },
+
+  // 5 · Tombarella de rescat: commits to nobody; guards the first ally
+  // attacked after it resolves (RESCAT), and always its acrobat.
+  rescue_roll: {
+    getTargetRequirement() { return 'self'; },
+    onResolve(ctx) {
+      ctx.source.setStatus('tombarella', 1, 1, { card: ctx.action }, RESCAT);
+    },
+    aiWeight(ctx) { return ctx.allies.length ? 0.5 : 0; },
+  },
+
+  // 6 · Cavalcar l'enemic: a wound means whoever took it cannot attack the
+  // acrobat next round.
+  ride_enemy: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      if (!t || !t.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
+      t.setStatus('cavalcat', 1, 2, { by: ctx.source, fromRound: ctx.engine.round + 1, harm: 1 }, CAVALCAT);
+      ctx.engine.log('attack', `${ctx.source.name} cavalca ${t.name}: el torn següent no el pot atacar.`, ctx.source.team);
+    },
+    aiWeight() { return 0.4; },
+  },
+
+  // 7 · Trepitjar caps: after the area attack, one enemy of the player's
+  // choosing is on the ground, wounded or not. The seat chooses through the
+  // engine's `chooseTargets` (the AI aims it as an attack).
+  head_stomp: {
+    onAttackResolved(ctx) {
+      if (!ctx.source.isAlive()) return;
+      const pool = ctx.engine.enemiesOf(ctx.source);
+      if (!pool.length) return;
+      const [t] = ctx.engine.chooseTargets(ctx.source, ctx.action, pool, 1);
+      floor(ctx.engine, t, ctx.source.team, num(ctx.params, 'bonus', 2));
+    },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.6 : 0.2; },
+  },
+
+  // 8 · Salt mortal: at the reveal the player picks a height; it adds to the
+  // attack, and if the target is still standing afterwards the acrobat loses
+  // that much PV, armour or not.
+  somersault: {
+    revealOptions(params) { return heightsOf(params).map(h => `+${h}`); },
+    // The AI's pick (the target is not chosen yet at the reveal): the lowest
+    // height whose expected roll drops the softest enemy — PV + armour, plus
+    // the expected roll of the Defensa it revealed — and the lowest of all
+    // when none does, since a height that does not kill is paid in full.
+    aiRevealOption(ctx) {
+      const heights = heightsOf(ctx.params);
+      const me = ctx.source;
+      const base = (ctx.action.dice?.average() ?? 0) + (ctx.action.rollBonus ?? 0)
+        + me.getSkillLevel(ctx.action.skillId) + me.getRollBonus(ctx.action.skillId, 'attack');
+      const plan = ctx.engine.plannedThisRound();
+      let need = Infinity;
+      for (const e of ctx.engine.enemiesOf(me)) {
+        const guard = plan.find(p => p.actor === e && !p.cancelled && p.action.actionType === ActionType.Defensa);
+        const parry = guard ? (guard.action.dice?.average() ?? 0) + (guard.action.rollBonus ?? 0) + e.getSkillLevel(guard.action.skillId) : 0;
+        need = Math.min(need, e.currentPV + e.getPassiveArmor() + parry);
+      }
+      const i = heights.findIndex(h => base + h >= need);
+      return i >= 0 ? i : 0;
+    },
+    onRevealOption(ctx, option) {
+      const h = heightsOf(ctx.params)[option] ?? 0;
+      ctx.source.setStatus(SALT_KEY, h, 1, { round: ctx.engine.round });
+      ctx.engine.log('focus', `${ctx.source.name} salta a +${h}.`, ctx.source.team);
+    },
+    modifyAttack(ctx) {
+      if (ctx.attackMods) ctx.attackMods.rollBonus += chosenHeight(ctx);
+    },
+    onAttackResolved(ctx) {
+      const h = chosenHeight(ctx);
+      ctx.source.clearStatus(SALT_KEY);
+      const t = ctx.targets[0];
+      if (h <= 0 || !t || !t.isAlive() || !ctx.source.isAlive()) return;
+      ctx.engine.log('attack', `${t.name} no cau: ${ctx.source.name} perd ${h} PV de la caiguda.`, ctx.source.team);
+      ctx.engine.applyPvLoss(ctx.source, h, ctx.source);
+    },
+    aiWeight() { return 0.3; },
+  },
+
+  // 9 · Malabars a puntades: while a blow wounds, kick the same target again
+  // with a fresh roll (the card's dice + the level), up to `blows` in all;
+  // whoever a blow wounded is on the ground at the end.
+  juggling_kicks: {
+    onAttackHit(ctx) {
+      const target = ctx.targets[0];
+      const dice = ctx.action.dice;
+      if (!target || !dice || (ctx.damageDealt ?? 0) <= 0) return;
+      const wounded = new Set<Character>();
+      if (ctx.target) wounded.add(ctx.target);
+      const total = num(ctx.params, 'blows', 4);
+      const rollBonus = (ctx.action.rollBonus ?? 0) + ctx.source.getSkillLevel(ctx.action.skillId);
+      for (let blow = 2; blow <= total; blow++) {
+        if (!target.isAlive() || !ctx.source.isAlive()) break;
+        const r = ctx.engine.performExtraAttack(ctx.source, target, dice, {
+          skillId: ctx.action.skillId, rollBonus, label: `${ctx.source.name} «${ctx.action.name}» (cop ${blow})`,
+        });
+        if (r.damage <= 0) break;
+        if (r.recipient) wounded.add(r.recipient);
+      }
+      for (const w of wounded) floor(ctx.engine, w, ctx.source.team, num(ctx.params, 'bonus', 2));
+    },
+    aiWeight() { return 0.5; },
+  },
+
+  // 10 · Capbussó suïcida: every enemy it wounds is on the ground — and so is
+  // the acrobat, always.
+  suicide_dive: {
+    onAttackHit(ctx) {
+      if ((ctx.damageDealt ?? 0) > 0) floor(ctx.engine, ctx.target, ctx.source.team, num(ctx.params, 'bonus', 2));
+    },
+    onAttackResolved(ctx) { floor(ctx.engine, ctx.source, ctx.source.team, num(ctx.params, 'bonus', 2)); },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.6 : 0.1; },
+  },
+};
+
+export const ACROBACIA: SkillDefinition = {
+  id: 'acrobacia', displayName: 'Acrobàcia', classCss: 'acrobata', category: 'player',
+  description: "El cos com a arma: tomba l'enemic, salta-hi a sobre i juga't el coll.",
+  iconPath: ICON_PREFIX + 'darkzaitzev/acrobatic.svg',
+  actions: [
+    action({
+      id: 'escombrada', name: 'Escombrada', skillId: 'acrobacia',
+      unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 4),
+      effects: [{ type: 'sweep' }],
+      desc: "Si fereix, l'objectiu queda a terra: els atacs contra ell tenen +2 fins al final del torn següent.",
+      icon: 'lorc/foot-trip.svg',
+    }),
+    action({
+      id: 'esquiva-i-traveta', name: 'Esquiva i traveta', skillId: 'acrobacia',
+      unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 4),
+      effects: [{ type: 'trip' }],
+      desc: "Si aguanta, l'atacant queda a terra.",
+      icon: 'felbrigg/dodge.svg',
+    }),
+    action({
+      id: 'trampoli-de-mans', name: 'Trampolí de mans', skillId: 'acrobacia',
+      unlock: 3, type: ActionType.Focus, speed: 4,
+      effects: [{ type: 'hand_trampoline', params: { amount: 4 } }],
+      desc: 'Un aliat: el seu proper atac aquest torn té +4.',
+      icon: 'delapouite/leapfrog.svg',
+    }),
+    action({
+      id: 'puntada-d-espagat', name: "Puntada d'espagat", skillId: 'acrobacia',
+      unlock: 4, type: ActionType.Atac, speed: 3, dice: d(2, 6), targetCount: 2,
+      desc: 'Afecta dos enemics.',
+      icon: 'delapouite/van-damme-split.svg',
+    }),
+    action({
+      id: 'tombarella-de-rescat', name: 'Tombarella de rescat', skillId: 'acrobacia',
+      unlock: 5, type: ActionType.Defensa, speed: 4, dice: d(2, 8),
+      effects: [{ type: 'rescue_roll' }],
+      desc: 'Defensa el primer aliat que sigui atacat aquest torn.',
+      icon: 'lorc/cartwheel.svg',
+    }),
+    action({
+      id: 'cavalcar-l-enemic', name: "Cavalcar l'enemic", skillId: 'acrobacia',
+      unlock: 6, type: ActionType.Atac, speed: 1, dice: d(3, 6),
+      effects: [{ type: 'ride_enemy' }],
+      desc: "Si fereix, l'objectiu no et pot atacar el torn següent.",
+      icon: 'delapouite/jump-across.svg',
+    }),
+    action({
+      id: 'trepitjar-caps', name: 'Trepitjar caps', skillId: 'acrobacia',
+      unlock: 7, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
+      effects: [{ type: 'head_stomp' }],
+      desc: 'Afecta tots els enemics; el que triïs queda a terra.',
+      icon: 'lorc/boot-stomp.svg',
+    }),
+    action({
+      id: 'salt-mortal', name: 'Salt mortal', skillId: 'acrobacia',
+      unlock: 8, type: ActionType.Atac, speed: 1, dice: d(3, 6),
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'somersault', params: { heights: [2, 4, 6] } }],
+      desc: "Puges 1 nivell de fatiga. En revelar, tria +2, +4 o +6; si l'objectiu no cau, perds el mateix en PV.",
+      icon: 'lorc/heavy-fall.svg',
+    }),
+    action({
+      id: 'malabars-a-puntades', name: 'Malabars a puntades', skillId: 'acrobacia',
+      unlock: 9, type: ActionType.Atac, speed: 2, dice: d(2, 6),
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'juggling_kicks', params: { blows: 4 } }],
+      desc: "Puges 1 nivell de fatiga. Mentre fereixi, el tornes a atacar (4 cops en total); si l'has ferit, queda a terra.",
+      icon: 'lorc/juggler.svg',
+    }),
+    action({
+      id: 'capbusso-suicida', name: 'Capbussó suïcida', skillId: 'acrobacia',
+      unlock: 10, type: ActionType.Atac, speed: 0, dice: d(3, 8), targetCount: 99,
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'suicide_dive' }],
+      desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics; els ferits queden a terra, i tu també.',
+      icon: 'delapouite/pool-dive.svg',
+    }),
+  ],
+  effects: ACROBACIA_EFFECTS,
+};

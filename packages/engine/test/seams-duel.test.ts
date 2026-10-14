@@ -42,7 +42,7 @@ describe('performExtraAttack', () => {
     playRound(engine(strikeBack({ ignoreDefense: true }, seen), [a], [b]), [
       { team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 1, idx: 0, actionIdx: 0, targets: T(1, 0) },
     ]);
-    expect(seen).toEqual([{ hit: true, damage: 6 }]);
+    expect(seen).toEqual([{ hit: true, damage: 6, recipient: b }]);
     expect(b.currentPV).toBe(14);
   });
 
@@ -62,7 +62,7 @@ describe('performExtraAttack', () => {
     const a = fighter('A', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
     const b = fighter('B', [focusCard()], { pv: 20, equipment: [armour(6)] });
     playRound(engine(strikeBack({}, seen), [a], [b]), [{ team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }]);
-    expect(seen).toEqual([{ hit: true, damage: 0 }]);
+    expect(seen).toEqual([{ hit: true, damage: 0, recipient: b }]);
   });
 });
 

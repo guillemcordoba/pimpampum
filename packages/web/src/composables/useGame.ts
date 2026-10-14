@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { Character, CombatEngine } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
-import type { LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
+import type { ChoicePrompt, LogEntry, RevealedAction, TargetPrompt, TargetRef } from '@pimpampum/engine';
 import { createRegistry, buildCharacter, createEnemyFrom, getEnemy } from '@pimpampum/set-fantasy';
 import { takePendingEncounter } from './pendingEncounter';
 import { useParties, heroBuildSpec, type HeroSpec } from './party';
@@ -52,6 +52,7 @@ export function useGame() {
   const revealed = ref<RevealedAction[]>([]);
   const currentStepIndex = ref(-1);
   const currentTargetPrompt = ref<TargetPrompt | null>(null);
+  const currentChoicePrompt = ref<ChoicePrompt | null>(null);
   const multiTargetSelections = ref<TargetRef[]>([]);
   const highlightedTarget = ref<{ team: number; idx: number } | null>(null);
   const roundComplete = ref(false);
@@ -118,6 +119,7 @@ export function useGame() {
     revealed.value = [];
     currentStepIndex.value = -1;
     currentTargetPrompt.value = null;
+    currentChoicePrompt.value = null;
     multiTargetSelections.value = [];
     highlightedTarget.value = null;
     roundComplete.value = false;
@@ -188,6 +190,10 @@ export function useGame() {
       multiTargetSelections.value = [];
       return;
     }
+    if (step.kind === 'choice') {
+      currentChoicePrompt.value = step.prompt;
+      return;
+    }
     if (step.kind === 'done') {
       roundComplete.value = true;
       return;
@@ -247,6 +253,15 @@ export function useGame() {
     advanceResolution();
   }
 
+  /** Answer a card's reveal-option prompt (Salt mortal's height…). */
+  function chooseOption(option: number) {
+    const eng = engine.value;
+    if (!eng || !currentChoicePrompt.value) return;
+    eng.setResolveChoice(option);
+    currentChoicePrompt.value = null;
+    advanceResolution();
+  }
+
   function confirmTargets() {
     const eng = engine.value;
     if (!eng || !currentTargetPrompt.value) return;
@@ -293,11 +308,11 @@ export function useGame() {
     gamePhase, engine, playerTeam, enemyTeam,
     playerSpecs, enemySpecs,
     combatLog, playerSelections, skippingPlayers, winner,
-    revealed, currentStepIndex, currentTargetPrompt, multiTargetSelections,
+    revealed, currentStepIndex, currentTargetPrompt, currentChoicePrompt, multiTargetSelections,
     highlightedTarget, roundComplete, flowSwappers,
     addEnemy, removeEnemy, canStart, startCombat,
     selectCard, canConfirmCards, confirmCards, startResolving, advanceResolution,
-    selectTarget, confirmTargets, nextRound, playAgain, flowSwapCard, cardSwapCharges,
+    selectTarget, confirmTargets, chooseOption, nextRound, playAgain, flowSwapCard, cardSwapCharges,
   };
 }
 

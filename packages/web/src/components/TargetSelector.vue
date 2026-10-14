@@ -7,6 +7,7 @@ import CharacterPortrait from './CharacterPortrait.vue';
 const props = defineProps<{ game: Game }>();
 
 const prompt = computed(() => props.game.currentTargetPrompt.value);
+const choice = computed(() => props.game.currentChoicePrompt.value);
 
 const promptText = computed(() => {
   const p = prompt.value;
@@ -62,6 +63,21 @@ function isSelected(o: Option): boolean {
 </script>
 
 <template>
+  <div v-if="choice" class="target-overlay">
+    <div class="target-prompt">
+      <h3>{{ choice.actorName }}: tria per {{ choice.actionName }}</h3>
+      <div class="target-options">
+        <button
+          v-for="(label, i) in choice.options"
+          :key="i"
+          class="btn btn-primary"
+          @click="game.chooseOption(i)"
+        >
+          {{ label }}
+        </button>
+      </div>
+    </div>
+  </div>
   <div v-if="prompt" class="target-overlay">
     <div class="target-prompt">
       <h3>{{ promptText }}</h3>

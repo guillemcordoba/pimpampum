@@ -19,4 +19,5 @@ export const COMMON_SKILLS_DIR = path.join(COMMON_SRC, 'skills');
  *  its id (`mestre-armes` is Esgrima), so the pairing is written down. */
 export const COMMON_SKILL_FILES: Readonly<Record<string, string>> = {
   'mestre-armes': 'esgrima.ts',
+  acrobacia: 'acrobacia.ts',
 };

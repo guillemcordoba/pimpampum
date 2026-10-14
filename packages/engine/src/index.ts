@@ -35,7 +35,7 @@ export type { StatusEntry, Guard, CreateCharacterOptions } from './character.js'
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
 export type {
   LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser,
-  RevealedAction, TargetPrompt, StepResult, RoundPrep,
+  RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,
 } from './combat.js';
 
 // The POLICY SEAM. The engine exposes the view and the legality rules; the
