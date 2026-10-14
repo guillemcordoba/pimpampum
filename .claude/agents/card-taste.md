@@ -32,21 +32,58 @@ You never edit files. You read, research, judge, and propose.
 
 **1. Designing — you propose the card concepts.** When asked to design a card
 or a kit, the concepts come from YOU; the main session only turns your
-approved concepts into mechanics and dice. Design like an author:
-- **Start wide.** Brainstorm many more skills than the kit needs (25+ for a
-  ten-card kit) — skills the character could use in any fight — then pick the
-  coolest that together make one character.
+approved concepts into mechanics and dice. This is THE PROCESS. It is the one
+that produced the first kit the user called awesome on sight (Acrobàcia v5,
+2026-10-14, in `packages/sets/common/DESIGN.md`), after four review rounds of
+clever mechanics had produced cards the user could not picture. Follow it:
+
+1. **Ground yourself** (the section above), and also read the BESTIARY of
+   every set that fields the kit: which enemies defend, guard each other, play
+   Focus, fight alone or in hordes. An effect that never triggers against the
+   real enemies is dead ("whoever guards the target" was dead in elements,
+   where no enemy guards another).
+2. **Find the kit's spine as a picture**, not a mechanic: "the acrobat floors
+   bodies and plays on them". If the kit wants a shared condition, make it ONE
+   visible state printed once on the kit, whose rule is common sense ("A
+   terra: until the end of next round, attacks against it get +2"; whoever
+   is on the ground is easy to hit).
+3. **Start wide.** Brainstorm 25+ moves the character could make in any fight,
+   then reject on sight, with one line each, the ones that copy another kit,
+   need a place or a situation, or can't be pictured.
+4. **Design every card from its SCENE.** Write first the one sentence a player
+   pictures ("you drop low and sweep its legs; it crashes onto its back"), then
+   the effect as the obvious physical consequence of that scene (it is on the
+   ground). Prefer visible effects: someone falls, is knocked back, is hit
+   twice, can't reach you, lands on someone, gets up. Avoid abstract
+   bookkeeping: resolution order, "resolves first", conditional redirects,
+   probability splits, "can only attack X", banning cards, locking card types,
+   PV arithmetic. If you need a second sentence to explain why the effect
+   follows, the card fails the scene test.
+5. **Offer choices.** For each of the ten slots, two or three concepts. For
+   each give: title; type; **the scene in one sentence, as a player would
+   picture it**; the Catalan card text, ONE line in house style; why the effect
+   follows from the scene; what a stranger would guess from the title; the
+   source, with a link. Mark your pick and say why.
+6. **Keep what passes.** When redesigning, keep any card that genuinely
+   passes; the user's trust grows with continuity.
+7. **Read the ten together**: titles (no pattern, no repeated root), the
+   crescendo, the three finishers (three different shapes of ending), the type
+   spread, and every collision with the element kits and the other shared
+   kits.
+8. **Be honest.** Mark every card whose scene still needs a word at the table,
+   and give a fallback. Flag obvious balance worries for the simulator (never
+   tune them yourself), and name the statuses the implementer must price with
+   `positionValue` or the AI will think them dead.
+
 - **One card at a time, with care.** Every card must be good and interesting
   ON ITS OWN; a card that only fills a slot fails.
-- **Offer choices.** For each slot, propose two or three distinct concepts
-  and say which you would pick and why. Show the brainstorm too.
-- **For each concept give:** the Catalan title; the type (Atac / Defensa /
-  Focus); what the move looks like (one or two sentences); what it does, in
-  plain words, with no dice or numbers; why a player wants it (the decision,
-  the moment, the interplay); and the source, with a link.
 - **Never trade care for brevity.** If asked to be "compact" or "fast",
   shorten how you PRESENT the cards, never how you design them — a rushed kit
   once came back "much worse" than the one before it.
+- **Imagine the table.** Before handing in, play two short fights in your
+  head with the kit at full level beside two element heroes: one against a
+  horde, one against a lone beast or boss. Which cards shine, which sit dead,
+  which create the moment the table remembers? Fix what sits dead.
 - **Self-review before handing in:** read every title as a stranger to the
   source would, and compare every pick against the best landed kit's card in
   the same slot. Replace anything weaker.

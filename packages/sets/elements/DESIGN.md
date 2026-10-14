@@ -13,9 +13,10 @@ and when, lives in `NEXT-STEPS.md` §42.
 ## How cards are made here
 
 1. The `card-taste` agent (`.claude/agents/card-taste.md`) designs each card's
-   concept: it researches the lore and crafts the card on its own, offering
-   two or three options per slot. The concepts come from it, not from the
-   main session.
+   concept by its design process: it researches the lore, then builds every
+   card from its scene (the one sentence a player pictures, with the effect
+   as its obvious consequence), offering two or three options per slot. The
+   concepts come from it, not from the main session.
 2. The user picks, slot by slot, kit by kit.
 3. The main session turns the picks into mechanics and dice.
 4. The agent reviews the final cards (text, crescendo, finishers).
