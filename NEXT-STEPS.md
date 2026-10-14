@@ -5254,3 +5254,48 @@ Colós de butxaca (L9, 3d6) now holds 67% against Toc de la mort's 2d8 (it was
 Conflicts with intentions.md, still open: Trampolí de mans (48.3) and the
 elements gadgets (48.4) near "never sees play"; Acrobàcia's fantasy band passes
 only within its error.
+
+### 48.7 The horde's 3 s bought back by the engine, with no outcome changed (2026-10-14)
+
+A profiling pass on 48.5 (`node --cpu-prof`, single-thread horde solve). No
+single seam was slow. The cost was spread out: each blow and each targeting
+query walked statuses that almost never carry the hook being asked for
+(`onTargeted`/`onAllyTargeted`/`afterBlow`/`guardsBlow` over the whole side,
+`plainCards` before every effect dispatch, `untargetable`/`ignoresConcealment`
+in every `enemiesOf`, `rollMode` in every roll). Each dispatch also looked up
+a handler per effect (`getHandler` alone was 3.8% of the solve). Two changes,
+both content-free:
+
+- **`StatusMap`** (`Character.statuses`, still typed as a Map). It records
+  which hooks any of its statuses' behaviours carries, recomputed after a set,
+  delete or clear. `holdsStatusWith(hook)` lets the engine skip a walk that
+  could call nothing. 37 hooks are gated this way (every per-blow, per-roll
+  and per-decision one, plus `positionValue` in the evaluator). A plain Map
+  assigned in its place still works, just without the shortcut.
+- **`EffectRegistry.effectsWith(effects, hook)`**. It gives, in order, the
+  effects whose handler implements the hook, cached per card effect list for
+  every hook at once. The cache is reset by any register or unregister. All
+  engine dispatch, `canPlay`, `getTargetRequirement`, and the AI's `aiWeight`
+  and `aiTargetPriority` read through it.
+
+Every call that used to happen still happens, in the same order, with the
+same arguments. Only calls that could not have done anything are skipped.
+
+| commit, same machine, back to back | horde single-thread | encounter-speed horde (8 workers) |
+|---|---|---|
+| 7072d3b (before) | 15.99 / 15.69 s | 2.98 s |
+| this commit | 14.54 / 14.85 s | 2.49 s (2.65 s inside the full fast tier) |
+
+Proof that nothing moved:
+
+- A seeded fingerprint of 1,390 fights hashed every log line, result and
+  final PV. It covered every player kit at full level in a trio against two
+  of each creature, plus a trio-vs-trio, in both sets. The hash is identical
+  before and after (`dbae8852694e9341`).
+- `kit-analyzer --player mestre-del-xi`, run on both commits, prints the same
+  report line for line: +13.7pp±1.5, and the same card ranking.
+- The solved PVs are unchanged ([14] for the horde).
+- The fast tier is green (579 tests), plus `engine/test/hook-shortcuts.test.ts`
+  for the two caches.
+
+The budget is not loosened.

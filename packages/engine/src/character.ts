@@ -22,6 +22,79 @@ export interface StatusEntry {
   behavior?: StatusBehavior;
 }
 
+/** The status hooks the engine asks for at every blow, roll, targeting query
+ *  or decision — where almost no character holds a status that has one. */
+const GATED_HOOKS = [
+  'modifySpeed', 'rollMode', 'modifyOutgoingDamage', 'modifyIncomingDamage', 'modifyContestTotal',
+  'clampPvLoss', 'attackRollAgainstHolder', 'defensePenaltyAgainst', 'preventsGuard', 'excludesAllyGuards',
+  'untargetable', 'ignoresConcealment', 'preventsGuardBypass', 'onAttackAction', 'redirectAttackTarget',
+  'attackTargetsOnly', 'attackTargetsExcluded', 'onAllyTargeted', 'onTargeted', 'guardsBlow', 'afterBlow',
+  'beforeHolderAction', 'skipsRound', 'plainCards', 'onPvLost', 'opensGuardTo', 'onEnemyAttackAction',
+  'attackRepeats', 'standingGuard', 'blocksActionType', 'adjustActionWeight', 'onRoundStart',
+  // The second word of the mask.
+  'onRoundEnd', 'choosesAfterReveal', 'cardSwapCharges', 'absorbsGuard', 'positionValue',
+] as const satisfies readonly (keyof StatusBehavior)[];
+export type GatedHook = typeof GATED_HOOKS[number];
+
+/** A hook's bit: bits 0-31 are the low word of the mask, 32 on the high. */
+const HOOK_INDEX = Object.fromEntries(GATED_HOOKS.map((h, i) => [h, i])) as Record<GatedHook, number>;
+const behaviorMasks = new WeakMap<StatusBehavior, [number, number]>();
+
+function hookMaskOf(behavior: StatusBehavior): [number, number] {
+  let mask = behaviorMasks.get(behavior);
+  if (mask === undefined) {
+    mask = [0, 0];
+    for (const h of GATED_HOOKS) {
+      const i = HOOK_INDEX[h];
+      if (behavior[h]) mask[i >> 5] |= 1 << (i & 31);
+    }
+    behaviorMasks.set(behavior, mask);
+  }
+  return mask;
+}
+
+/** A character's statuses, which also know which gated hooks any of them
+ *  carries — so the engine skips the walk when none does. The answer is
+ *  recomputed after any set, delete or clear. */
+export class StatusMap extends Map<string, StatusEntry> {
+  private low = 0;
+  private high = 0;
+  private stale = true;
+
+  override set(key: string, entry: StatusEntry): this {
+    this.stale = true;
+    return super.set(key, entry);
+  }
+
+  override delete(key: string): boolean {
+    this.stale = true;
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    this.stale = true;
+    super.clear();
+  }
+
+  holds(hook: GatedHook): boolean {
+    if (this.size === 0) return false;
+    if (this.stale) {
+      let low = 0, high = 0;
+      for (const entry of this.values()) {
+        if (!entry.behavior) continue;
+        const [l, h] = hookMaskOf(entry.behavior);
+        low |= l;
+        high |= h;
+      }
+      this.low = low;
+      this.high = high;
+      this.stale = false;
+    }
+    const i = HOOK_INDEX[hook];
+    return ((i < 32 ? this.low : this.high) & (1 << (i & 31))) !== 0;
+  }
+}
+
 /** A guard linking a defender to the ally (or self) they are protecting this round. */
 export interface Guard {
   defender: Character;
@@ -85,7 +158,10 @@ export class Character {
 
   // Combat state
   modifiers: CombatModifier[] = [];
-  statuses = new Map<string, StatusEntry>();
+  /** A `StatusMap`; a plain Map assigned here works too, only without the
+   *  shortcut `holdsStatusWith` takes. (Typed as the Map, so a reactive copy
+   *  of a Character still passes for one.) */
+  statuses: Map<string, StatusEntry> = new StatusMap();
   /** Defenders protecting this character this round (incl. self-guard). */
   guards: Guard[] = [];
   skipTurns = 0;
@@ -162,14 +238,14 @@ export class Character {
       c.condition = m.condition;
       return c;
     });
-    copy.statuses = new Map(
-      [...this.statuses].map(([k, e]) => [k, {
+    for (const [k, e] of this.statuses) {
+      copy.statuses.set(k, {
         value: e.value,
         remaining: e.remaining,
         data: e.data ? { ...e.data } : undefined,
         behavior: e.behavior,
-      }]),
-    );
+      });
+    }
     copy.skipTurns = this.skipTurns;
     copy.hitThisTurn = this.hitThisTurn;
     copy.hitThisCombat = this.hitThisCombat;
@@ -294,8 +370,10 @@ export class Character {
   getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
     const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
     let statusSpeed = 0;
-    for (const [key, entry] of this.statuses) {
-      if (entry.behavior?.modifySpeed) statusSpeed += entry.behavior.modifySpeed({ holder: this, key, entry });
+    if (this.holdsStatusWith('modifySpeed')) {
+      for (const [key, entry] of this.statuses) {
+        if (entry.behavior?.modifySpeed) statusSpeed += entry.behavior.modifySpeed({ holder: this, key, entry });
+      }
     }
     return base - this.getEquipmentSpeedPenalty()
       + sumModifiers(this.modifiers, 'speed') + statusSpeed;
@@ -318,6 +396,13 @@ export class Character {
 
   setStatus(key: string, value = 1, remaining = 1, data?: Record<string, unknown>, behavior?: StatusBehavior): void {
     this.statuses.set(key, { value, remaining, data, behavior });
+  }
+
+  /** False only when no status here carries `hook`: the engine's licence to
+   *  skip asking. */
+  holdsStatusWith(hook: GatedHook): boolean {
+    const s = this.statuses;
+    return s instanceof StatusMap ? s.holds(hook) : s.size > 0;
   }
 
   hasStatus(key: string): boolean {

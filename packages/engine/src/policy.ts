@@ -61,7 +61,7 @@ function pvFraction(c: Character): number {
  * card anyway.
  */
 export function typeBlocked(def: ActionDefinition, actor: Character): boolean {
-  if (def.lastResort) return false;
+  if (def.lastResort || !actor.holdsStatusWith('blocksActionType')) return false;
   for (const ref of actor.statusRefs()) {
     if (ref.entry.behavior?.blocksActionType?.(ref, def.actionType)) return true;
   }
@@ -72,9 +72,9 @@ export function typeBlocked(def: ActionDefinition, actor: Character): boolean {
  *  and no status on the actor blocks the action's type. */
 export function canPlayAction(action: ActionInstance, actor: Character, registry: EffectRegistry): boolean {
   if (typeBlocked(action.def, actor)) return false;
-  for (const eff of action.def.effects) {
-    const fn = registry.getHandler(eff.type)?.canPlay;
-    if (fn && !fn(actor, eff.params ?? {})) return false;
+  for (const { eff, handler } of registry.effectsWith(action.def.effects, 'canPlay')) {
+    const fn = handler.canPlay!;
+    if (!fn(actor, eff.params ?? {})) return false;
   }
   return true;
 }

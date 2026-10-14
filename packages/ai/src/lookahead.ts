@@ -229,7 +229,7 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
     if (t.length === 0) return 0;
     let acc = 0;
     for (const c of t) {
-      if (!c.isAlive()) continue;
+      if (!c.isAlive() || !c.holdsStatusWith('positionValue')) continue;
       for (const [key, entry] of c.statuses) {
         const price = entry.behavior?.positionValue;
         if (price) acc += price({ holder: c, key, entry });

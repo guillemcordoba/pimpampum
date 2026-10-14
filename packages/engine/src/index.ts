@@ -16,7 +16,7 @@ export { skillLevelBonus, resolveAttack, resolveDamage, checkSkillUp, SKILL_UP_M
 
 // Effects registry
 export { EffectRegistry, newAttackModifiers } from './effects.js';
-export type { EngineApi, EffectContext, EffectHandler, AttackModifiers, AIContext, ActionEvent, ExtraAttackOptions, ExtraAttackResult } from './effects.js';
+export type { EngineApi, EffectContext, EffectHandler, HookedEffect, AttackModifiers, AIContext, ActionEvent, ExtraAttackOptions, ExtraAttackResult } from './effects.js';
 
 // Status behaviours
 export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo } from './status.js';
@@ -29,7 +29,7 @@ export { CombatModifier, ModifierDuration } from './modifier.js';
 
 // Characters
 export { Character, createCharacter } from './character.js';
-export type { StatusEntry, Guard, CreateCharacterOptions } from './character.js';
+export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './character.js';
 
 // Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';

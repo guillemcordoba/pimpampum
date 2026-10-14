@@ -1,6 +1,6 @@
 import { DiceRoll } from './dice.js';
 import { Character } from './character.js';
-import { ActionDefinition, ActionType, TargetRequirement } from './types.js';
+import { ActionDefinition, ActionEffect, ActionType, TargetRequirement } from './types.js';
 
 /** One action that actually happened in this combat: who played what, at whom,
  *  in which round. Attacks record their FINAL target list (after redirects);
@@ -266,17 +266,43 @@ export interface EffectHandler {
   onRevealOption?(ctx: EffectContext, option: number): void;
 }
 
+/** An effect of a card, with its registered handler. */
+export interface HookedEffect {
+  eff: ActionEffect;
+  handler: EffectHandler;
+}
+
+const NO_HOOKED_EFFECTS: readonly HookedEffect[] = [];
+
+const HANDLER_HOOKS = [
+  'onResolve', 'modifyAttack', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'postRound',
+  'getTargetRequirement', 'aiWeight', 'aiTargetPriority', 'onCombatStart', 'canPlay', 'onPlay', 'resolveAs',
+  'onReveal', 'aimsAtReveal', 'onAimed', 'presetAttackRoll', 'onAttackResolved', 'revealOptions',
+  'aiRevealOption', 'onRevealOption',
+] as const satisfies readonly (keyof EffectHandler)[];
+// Fails to compile when EffectHandler grows a hook the list above lacks.
+const everyHookListed: Exclude<keyof EffectHandler, typeof HANDLER_HOOKS[number]> extends never ? true : never = true;
+void everyHookListed;
+
+type HookTable = Record<keyof EffectHandler, readonly HookedEffect[]>;
+
 /** Registry mapping effect type keys to their handlers. (Status behaviours
  *  need no registry — they are attached to the status instance by whoever
  *  sets it; see StatusBehavior.) */
 export class EffectRegistry {
   private handlers = new Map<string, EffectHandler>();
+  /** `effectsWith`'s answers, per card effect list, for every hook at once.
+   *  Every dispatch walks a card's effects for one hook, and almost none
+   *  implement it: the walk is made once per card instead of once per
+   *  dispatch. A register or unregister starts it over. */
+  private hooked = new WeakMap<readonly ActionEffect[], HookTable>();
 
   register(effectType: string, handler: EffectHandler): void {
     if (this.handlers.has(effectType)) {
       throw new Error(`Effect handler already registered: ${effectType}`);
     }
     this.handlers.set(effectType, handler);
+    this.hooked = new WeakMap();
   }
 
   /**
@@ -292,6 +318,30 @@ export class EffectRegistry {
    */
   unregister(effectType: string): void {
     this.handlers.delete(effectType);
+    this.hooked = new WeakMap();
+  }
+
+  /** The effects in `effects` whose handler implements `hook`, in order, each
+   *  with that handler: exactly what a walk calling `hook` where present
+   *  would visit. */
+  effectsWith(effects: readonly ActionEffect[], hook: keyof EffectHandler): readonly HookedEffect[] {
+    if (effects.length === 0) return NO_HOOKED_EFFECTS;
+    let table = this.hooked.get(effects);
+    if (!table) {
+      // Every hook in one fixed order, so every table shares one shape.
+      table = Object.fromEntries(HANDLER_HOOKS.map(h => [h, this.walk(effects, h)])) as HookTable;
+      this.hooked.set(effects, table);
+    }
+    return table[hook];
+  }
+
+  private walk(effects: readonly ActionEffect[], hook: keyof EffectHandler): readonly HookedEffect[] {
+    const list: HookedEffect[] = [];
+    for (const eff of effects) {
+      const handler = this.handlers.get(eff.type);
+      if (handler?.[hook]) list.push({ eff, handler });
+    }
+    return list.length ? list : NO_HOOKED_EFFECTS;
   }
 
   getHandler(effectType: string): EffectHandler | undefined {

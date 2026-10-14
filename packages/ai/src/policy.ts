@@ -232,18 +232,23 @@ function actionWeight(
 
   // Status behaviours may transform the base weight (e.g. an attack chain
   // that must not be broken).
-  for (const ref of actor.statusRefs()) {
-    const adjust = ref.entry.behavior?.adjustActionWeight;
-    if (adjust) w = adjust(view, ref, def, w);
+  if (actor.holdsStatusWith('adjustActionWeight')) {
+    for (const ref of actor.statusRefs()) {
+      const adjust = ref.entry.behavior?.adjustActionWeight;
+      if (adjust) w = adjust(view, ref, def, w);
+    }
   }
 
   // Content-registered hints per effect.
-  const base: Omit<AIContext, 'params'> = {
-    registry: view.registry, round: view.round, actor, allies, enemies, action: def,
-  };
-  for (const eff of def.effects) {
-    const fn = view.registry.getHandler(eff.type)?.aiWeight;
-    if (fn) w += fn({ ...base, params: eff.params ?? {} });
+  const hinting = view.registry.effectsWith(def.effects, 'aiWeight');
+  if (hinting.length) {
+    const base: Omit<AIContext, 'params'> = {
+      registry: view.registry, round: view.round, actor, allies, enemies, action: def,
+    };
+    for (const { eff, handler } of hinting) {
+      const fn = handler.aiWeight!;
+      w += fn({ ...base, params: eff.params ?? {} });
+    }
   }
 
   return Math.max(0.05, w);
@@ -254,10 +259,9 @@ function actionWeight(
 function cardTargetPriority(
   view: AIView, actor: Character, def: ActionDefinition, pool: Character[],
 ): ((c: Character) => number) | null {
-  const hints = def.effects
-    .map(eff => ({ fn: view.registry.getHandler(eff.type)?.aiTargetPriority, params: eff.params ?? {} }))
-    .filter(h => h.fn);
-  if (!hints.length) return null;
+  const hinting = view.registry.effectsWith(def.effects, 'aiTargetPriority');
+  if (!hinting.length) return null;
+  const hints = hinting.map(({ eff, handler }) => ({ fn: handler.aiTargetPriority, params: eff.params ?? {} }));
   const base: Omit<AIContext, 'params'> = {
     registry: view.registry, round: view.round, actor,
     allies: view.alliesOf(actor, false), enemies: view.enemiesOf(actor), action: def,

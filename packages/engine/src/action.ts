@@ -30,14 +30,14 @@ export function getActionTargetRequirement(def: ActionDefinition, registry: Effe
     // ('self' — a body's own guard, never lent to an ally) or to the enemy
     // side ('enemy' — a block that can only be raised against a foe). Anything
     // else a defense's effect asks for would change what a defense IS.
-    for (const eff of def.effects) {
-      const req = registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {});
+    for (const { eff, handler } of registry.effectsWith(def.effects, 'getTargetRequirement')) {
+      const req = handler.getTargetRequirement!(eff.params ?? {});
       if (req === 'self' || req === 'enemy') return req;
     }
     return 'defense';
   }
-  for (const eff of def.effects) {
-    const req = registry.getHandler(eff.type)?.getTargetRequirement?.(eff.params ?? {});
+  for (const { eff, handler } of registry.effectsWith(def.effects, 'getTargetRequirement')) {
+    const req = handler.getTargetRequirement!(eff.params ?? {});
     if (req && req !== 'none') return req;
   }
   return 'none';
