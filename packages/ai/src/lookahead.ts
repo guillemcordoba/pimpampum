@@ -198,7 +198,7 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  */
 export const DEFAULT_LOOKAHEAD: LookaheadOptions = {
   depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2, tempo: 1,
-  opponentSearch: { samples: 2, margin: 10, sharpness: 1 },
+  opponentSearch: { samples: 1, margin: 10, sharpness: 1 },
 };
 
 /**

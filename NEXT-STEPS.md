@@ -6012,3 +6012,24 @@ disagree most.
   opponent search and the decided-board fix change how every enemy plays.
   Worth reading there: Trampolí's play rate (§49.3), now that the goblins'
   model hides.
+
+### 52.8 Final cost, and the encounter-speed test (2026-10-15)
+
+A re-profile of the boss solve after §52.5-52.6 put the opponent search at a
+quarter of the time (the basilisk searches four heroes' cards). One rollout
+per opponent card instead of two: night replay 28.0% → 28.1% (+0.1pp±0.1,
+3 seed bases), fixtures unchanged, goblins still +5.7pp stronger (heroes
+55.1% → 49.4%), puzzles green. Shipped.
+
+| single pinned core, the four requests | before §52.4 | after everything |
+|---|---|---|
+| horde | 28.7 s | 20.5 s |
+| bone devils | 18.1 s | 12.5 s |
+| boss | 44.3 s | 26.9 s |
+| mixed band | 32.2 s | 23.0 s |
+| sum | 123.2 s | 82.8 s (−33%) |
+
+`encounter-speed` (8 workers, load ~1): horde 1.53 s, bone devils 1.06,
+boss 1.98, mixed 1.80 — all under the 3 s budget again. Solved PVs: [9],
+[18], [191], [9, 21] (were [9], [17], [189], [10, 24]; the opponent search
+and the decided-board fix change play, so the calibration refresh is due).
