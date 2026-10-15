@@ -332,6 +332,21 @@ export function pickResolveTargets(
 
   const pending = view.pendingSummary();
   const expectedDamage = def.actionType === ActionType.Atac ? expectedAttackTotal(actor, def) : 0;
+  // FOCUS FIRE. The kill bonus below used to need THIS blow to fell the target
+  // alone, so two blows that together fell a dangerous body were each aimed by
+  // wounded fraction instead — often at a big half-dead body neither could
+  // finish — and every rollout of the search aimed that way too: a strike
+  // whose worth was a joint kill read as a scratch on the boss (NEXT-STEPS §52).
+  // The teammates' attacks still to resolve this round count toward it.
+  let teamFollowUp = 0;
+  if (def.actionType === ActionType.Atac) {
+    for (const p of pending) {
+      if (p.resolved || p.cancelled || p.actor === actor || p.actor.team !== actor.team
+        || p.actionType !== ActionType.Atac || p.actor.playedActionIdx === null || !p.actor.isAlive()) continue;
+      const ally = p.actor.actions[p.actor.playedActionIdx]?.def;
+      if (ally && (ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
+    }
+  }
   const score = (e: Character): number => {
     // An ATTACK focuses fire on the wounded; anything else aimed at an enemy —
     // a swallow, a curse, a plague — is wasted on one about to die, so it goes
@@ -339,8 +354,11 @@ export function pickResolveTargets(
     let s = def.actionType === ActionType.Atac ? 2 * (1 - pvFraction(e)) : 2 * pvFraction(e);
     s += Math.min(2, bestAttackAverage(e) / 6); // dangerous targets (heavy hitters) first
     if (def.actionType === ActionType.Atac) {
-      if (Math.max(0, expectedDamage - e.getPassiveArmor()) >= e.currentPV) {
+      const armour = e.getPassiveArmor();
+      if (Math.max(0, expectedDamage - armour) >= e.currentPV) {
         s += 4; // take the kill
+      } else if (teamFollowUp > 0 && Math.max(0, expectedDamage - armour) + Math.max(0, teamFollowUp - armour) >= e.currentPV) {
+        s += 3; // a kill the team's blows still to come can finish
       }
       const focusing = pending.some(p =>
         p.actor === e && !p.resolved && !p.cancelled

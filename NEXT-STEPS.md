@@ -5775,3 +5775,25 @@ fight getting longer, not the leaf.
 
 **Calibration.** Every baseline moves (the enemies think with the same AI):
 `pnpm calibration:refresh` and the slow kit suites are due, at night.
+
+### 52.2 Fix 2 — the aim rule counts the team's blows still to come (focus fire)
+
+**Cause.** `pickResolveTargets` (policy.ts) gave the kill bonus only when ONE
+blow fells the target; otherwise it aimed by wounded FRACTION, so two blows
+that together fell a dangerous small body went at a big half-dead one. The
+rollouts aim by this rule, so the SEARCH priced a strike whose worth was a
+joint kill as a scratch on the boss, and guarded instead (puzzle (d): two
+heroes can fell Small before its slow maul; the AI guarded, 4/4 seeds).
+
+**Fix** (ai only): an attack's target also scores +3 when its expected
+damage plus the expected damage of teammates' attacks still pending this round
+(single-target, read from `playedActionIdx`) fells it.
+
+**Measured (2026-10-15).** Puzzle (d) passes. Night replay vs fix 1: all
+−0.9pp±0.5; 4x2/3x3/4x4/4x5 (202) 64.4% → 55.4%, −8.9pp±4.5 (but 20% of those
+picks were not weighed by the night's referee); 3-4 seats −3.6pp±1.8; nothing
+else moved. Fresh referee sample (2x2, 3x2, 4x2 at 2 rounds, the same 150
+seeds solved under each code, 96 solved by both): 34.4% → 32.3%,
+−2.1pp±4.1 — not resolved at this size; 4x2 +5.6pp±10.8 on 18. No mirror
+A/B is possible in one process (both sides aim by the same rule). Cost: one
+pass over the pending queue per target choice, not measurable.

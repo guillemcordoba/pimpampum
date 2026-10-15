@@ -112,7 +112,7 @@ const FOCUS = position('focus-fire', 2,
 
 describe('audit defects as puzzles: focus fire', () => {
   it('(d) the referee strikes with both', () => expect(refereeAnswer(FOCUS)).toEqual({ cards: 'strike,strike', p: 1 }));
-  it.fails('(d) the AI strikes with both', () => expect(aiAnswer(FOCUS)).toEqual(Array(4).fill('strike,strike')));
+  it('(d) the AI strikes with both', () => expect(aiAnswer(FOCUS)).toEqual(Array(4).fill('strike,strike')));
 });
 
 // --- (e) THE TWO EARLIER MISMATCHES (NEXT-STEPS §49) -------------------------
