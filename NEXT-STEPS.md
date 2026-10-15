@@ -5869,3 +5869,67 @@ unchanged ([9], [17], [189], [10, 24]).
 For scale, the same script with `tempo: 0` (no leaf settling, i.e. roughly
 before §52.1) summed 158 s in a noisier session against 164 s with it; the
 fixes' cost was mostly longer fights and more rollouts, not the leaf.
+
+### 52.5 Fix 3 — the opponent model drops the foe's blunders (`opponentSearch`, 2026-10-15)
+
+**The audit can see it now.** A `hide` archetype joined the catalogue (Focus,
+speed 1-4: no blow wounds the holder for the rest of the round; unpriced, as
+it lapses before any leaf reads it), with a long/short control pair
+(`hide-long`: hide twice, −20; `hide-short`: the claw fells a 6-PV foe first,
++10 — hiding costs a fatigue level, and the fatigued claw no longer kills).
+`GeneratorConfig.foeCard` deals an archetype to the OTHER side, and
+`ai-audit --mix verify` holds §52's four fresh slices plus the same four with
+a hide in the foe's hand. `ai-audit --rival '<json>'` A/Bs an AI setting on
+the same solves.
+
+**Puzzles.** (e1) now asks the model the SEARCH uses (`rolloutOdds`), not the
+depth-0 policy; (e1b) is new — §49.3's Trampolí in miniature: break the hide
+with a 1-point jab before it resolves, or strike for 8 after it; the foe's
+claw never lands, so in every equilibrium it hides with some chance and the
+jab is the only answer (referee: jab p = 1). Both failed (hide 1.4%; AI
+strike 4/4) and pass.
+
+**Fix** (ai only). Once per decision, each opponent seat's cards are played
+out for one round (2 samples, everyone else at depth 0, scored from the
+foe's side); a card trailing the foe's best by more than 10 leaf points
+(about one side's whole health) has its depth-0 odds cut by e^−(excess).
+Everything else keeps the heuristic's odds.
+
+Tried first and rejected — **replacing** the odds by a quantal response to
+the searched values (weight 0.3-1, sharpness 0.5-30): night replay WORSE,
++1.5 to +3pp of positions with a ruled-out pick, worst in 1x1 (+4pp) and 2x1;
+better only in 4x1/4x2. The modelled foe answered a depth-0 us, not the us
+that plays — §20.8 again. (The replay now pools three AI seed bases: one seed
+base alone moves the headline by ±1.2pp, and a single-seed comparison had
+made every change look worse.)
+
+**Measured (2026-10-15).**
+
+| | before | after |
+|---|---|---|
+| puzzles (e1), (e1b) | fail | pass |
+| controls (9) | `bomb-short` wrong (from §52.1, see §52.6) | same; `hide-long`, `hide-short` right |
+| night replay, 2,030 positions, 3 seed bases | 28.0% | 28.1% (+0.1pp±0.1) |
+| fixtures (179) | 60.9% | 60.3% (−0.6pp±0.6; no guard broken) |
+| fresh referee sample, `--mix verify`, 320 positions | 23.4%±2.4 | 23.4%±2.4 — not one pick differs |
+| … with a hide in the foe's hand (179) | 19.6%±3.0 | 19.6%±3.0 |
+| goblins' modelled Amagar-se, where legal (149 decisions) | 3.1% | 57.3% (the real depth-1 goblins: 36.5%) |
+| reference party vs 5 goblins (PV 18), both old → goblins new, 1,500 seeds | 55.1%±1.3 | 50.1%±1.3 (the goblins got stronger) |
+| … heroes new, goblins old | 55.1%±1.3 | 54.4%±1.3 |
+| fantasy mirror, new vs old, 600 combats | | 52.2%±2.0 (seed 424242), 55.6%±2.0 (seed 7) |
+
+So: on random imaginary positions the referee sees no change at all — an
+equilibrium foe hides only as one side of a guessing game, which no
+one-response model reproduces, and a hide is a *blunder-avoider* only when
+the other card gets it killed. On the real table it is exactly that case:
+the goblins' model moved from 3% to 57% hiding (the real ones 36%), and the
+AI that thinks this way wins more as goblins and no less as heroes.
+Whether Trampolí (§49.3) is now played where it should be is for tonight's
+kit suites.
+
+**Cost** (single pinned core, the four encounter-speed solves): 78.5 →
+84.1 s (+7%); per round horde +18%, bone devils +16%, boss +2%, mixed band
++34% (the opponent search adds ~one rollout per foe card per decision; the
+inner rollouts reuse the memo's depth-0 odds). Every solved PV moves a
+little (bone devils 17 → 18, boss 189 → 185, mixed [10, 24] → [9, 23]):
+the calibration refresh due tonight covers it.

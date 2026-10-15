@@ -19,7 +19,7 @@ import {
   type ActionDefinition, type Character, type StatusBehavior,
 } from '@pimpampum/engine';
 import { attackCard, fighter, focusCard } from '@pimpampum/engine/testing';
-import { aiPolicy, bestResponse, DEFAULT_LOOKAHEAD, selectAction } from '../src/index.js';
+import { aiPolicy, bestResponse, DEFAULT_LOOKAHEAD, rolloutOdds, selectAction } from '../src/index.js';
 import { aiPicks, buildEngine, CONTROLS, Referee, type CardSpec, type FighterSpec, type Position } from '../src/audit/index.js';
 
 // --- positions in the audit's own vocabulary --------------------------------
@@ -160,6 +160,26 @@ function exposeEngine(policy: { actionChooser: CombatEngine['actionChooser'] }, 
   return { engine: new CombatEngine([hero], [foe], { registry: inlineRegistry(), maxRounds, ...policy }), hero };
 }
 
+// (e1b) …AND THE SEARCH THEREFORE NEVER BREAKS A HIDE (§49.3's Trampolí, in
+// miniature). One round; the foe (10 PV) holds a slow claw (−1) and a hide
+// (speed 3). H1 slams for 20 at speed 0. H0 jabs for 1 at speed 5 — which
+// lands before the hide and breaks it — or strikes for 8 at speed 1, after it.
+//   jab:    the hide never happens; the slam fells the foe → 60 − 0 = 60.
+//   strike: if the foe hides, nothing wounds it → 60 − 10 = 50; if it claws,
+//           the strike and slam fell it before the claw → 60.
+// The foe loses nothing by hiding and the claw never lands, so in every
+// equilibrium it hides with some chance and the jab is the only answer. A
+// model in which the foe always claws sees the two as equal and keeps the
+// heuristic's pick, the strike.
+const BREAK_HIDE = position('break-hide', 1,
+  [body('H0', 30, [fixed('strike', 8, 1), fixed('jab', 1, 5)]), body('H1', 30, [fixed('strike', 20, 0)])],
+  [body('F', 10, [fixed('strike', 6, -1), { arch: 'hide', p: { speed: 3 } }])]);
+
+describe('audit defects as puzzles: breaking a hide', () => {
+  it('(e1b) the referee jabs', () => expect(refereeAnswer(BREAK_HIDE)).toEqual({ cards: 'jab,strike', p: 1 }));
+  it('(e1b) the AI jabs', () => expect(aiAnswer(BREAK_HIDE)).toEqual(Array(4).fill('jab,strike')));
+});
+
 describe('audit defects as puzzles: the two earlier mismatches', () => {
   it('(e1) the referee hides', () => {
     const { engine, foe } = hideEngine({ actionChooser: () => null });
@@ -168,16 +188,14 @@ describe('audit defects as puzzles: the two earlier mismatches', () => {
     expect(hid).toBeCloseTo(1, 6);
   });
 
-  it.fails('(e1) the opponent model hides at least half the time', () => {
-    let hid = 0;
-    for (let s = 0; s < 200; s++) {
-      withSeed(s, () => {
-        const { engine, foe } = hideEngine({ actionChooser: (e, a) => selectAction(e, a).actionIdx });
-        engine.prepareRound();
-        if (foe.actions[selectAction(engine, foe).actionIdx].def.id === 'hide') hid++;
-      });
-    }
-    expect(hid, `${hid}/200`).toBeGreaterThanOrEqual(100);
+  // The model that matters is the one the SEARCH's rollouts play the foe with
+  // (`rolloutOdds`), not the depth-0 policy on its own, which still claws.
+  it('(e1) the opponent model hides at least half the time', () => {
+    const { engine, foe } = hideEngine({ actionChooser: (e, a) => selectAction(e, a).actionIdx });
+    engine.prepareRound();
+    const odds = rolloutOdds(engine, foe);
+    const hid = odds.indices.reduce((s, idx, k) => s + (foe.actions[idx].def.id === 'hide' ? odds.weights[k] / odds.total : 0), 0);
+    expect(hid).toBeGreaterThanOrEqual(0.5);
   });
 
   it('(e2) the referee trips', () => {

@@ -52,6 +52,25 @@ export const CONTROLS: Control[] = [
       fighter('F', 50, [{ arch: 'bomb', p: { dmg: 20, speed: 2, priced: 1 } }])),
     answer: 'jab', value: -34,
   },
+  // A 20-point slam (speed 0) would fell the 10-PV hero; the hide (speed 3,
+  // a fatigue level each time) dodges it. Hide twice: hero 10, foe 30 → −20.
+  // Claw first: foe 24, the hero falls → −24. Hide then claw (5, fatigued):
+  // foe 25, the hero falls → −25.
+  {
+    position: control('hide-long', 1, 2,
+      fighter('H', 10, [fixed(6, 1), { arch: 'hide', p: { speed: 3, fatigue: 1 } }]),
+      fighter('F', 30, [fixed(20, 0)])),
+    answer: 'hide', value: -20,
+  },
+  // The foe has 6 PV: the claw (speed 1) fells it before the slam → +10.
+  // Hiding first leaves the hero fatigued, and a fatigued claw (5) no longer
+  // fells it before the slam next round.
+  {
+    position: control('hide-short', 1, 2,
+      fighter('H', 10, [fixed(6, 1), { arch: 'hide', p: { speed: 3, fatigue: 1 } }]),
+      fighter('F', 6, [fixed(20, 0)])),
+    answer: 'strike', value: 10,
+  },
   // The long pair again with statuses that do NOT price themselves
   // (`positionValue`), as an unpriced real card would be: same game, same
   // answer — what changes is only what the AI's evaluator can see.

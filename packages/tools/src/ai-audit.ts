@@ -34,6 +34,7 @@ import {
   CONTROLS, DEFAULT_REFEREE, checkPosition, generatePosition, type CheckResult, type GeneratorConfig,
   type Position, type RefereeOptions,
 } from '@pimpampum/ai/audit';
+import { DEFAULT_LOOKAHEAD, type LookaheadOptions } from '@pimpampum/ai';
 import { flag, games, pct, share, SMOKE } from '@pimpampum/bench';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -79,6 +80,18 @@ const MIXES: Record<string, Slice[]> = {
     { label: '4x4 c3 r2', weight: 300, gen: { shape: '4x4', cards: 3, roundsLeft: 2 } },
     { label: '4x5 c3 r2', weight: 150, gen: { shape: '4x5', cards: 3, roundsLeft: 2 } },
   ],
+  // The fresh slices an AI fix is re-verified on (NEXT-STEPS §52), half of
+  // them with a hide dealt to the OTHER side — the search's opponent model.
+  verify: [
+    { label: '1x1 c4 r4', weight: 1, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '2x1 c3 r3', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x2 c3 r2', weight: 1, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
+    { label: '4x1 c3 r2', weight: 1, gen: { shape: '4x1', cards: 3, roundsLeft: 2 } },
+    { label: '1x1 c4 r3 foe-hide', weight: 1, gen: { shape: '1x1', cards: 4, roundsLeft: 3, foeCard: 'hide' } },
+    { label: '2x1 c3 r3 foe-hide', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3, foeCard: 'hide' } },
+    { label: '2x2 c3 r2 foe-hide', weight: 1, gen: { shape: '2x2', cards: 3, roundsLeft: 2, foeCard: 'hide' } },
+    { label: '4x1 c3 r2 foe-hide', weight: 1, gen: { shape: '4x1', cards: 3, roundsLeft: 2, foeCard: 'hide' } },
+  ],
 };
 
 function slices(): Slice[] {
@@ -88,8 +101,10 @@ function slices(): Slice[] {
       cards: flag('--cards') ? Number(flag('--cards')) : undefined,
       maxCards: flag('--max-cards') ? Number(flag('--max-cards')) : undefined,
       roundsLeft: flag('--rounds') ? Number(flag('--rounds')) : undefined,
+      foeCard: flag('--foe-card'),
     };
-    return [{ label: `${gen.shape} c${gen.cards ?? 'real'} r${gen.roundsLeft ?? 'auto'}`, weight: 1, gen }];
+    const foe = gen.foeCard ? ` foe-${gen.foeCard}` : '';
+    return [{ label: `${gen.shape} c${gen.cards ?? 'real'} r${gen.roundsLeft ?? 'auto'}${foe}`, weight: 1, gen }];
   }
   const mix = flag('--mix') ?? (SMOKE ? 'small' : 'night');
   const m = MIXES[mix];
@@ -126,7 +141,22 @@ function runOne(i: number, base: number): Row {
   const s = sliceFor(all, seed);
   const pos = generatePosition(seed, s.gen);
   const replicates = Number(flag('--replicates') ?? 0);
-  return { slice: s.label, seed, result: checkPosition(pos, { referee: refereeOpts(s, 1), replicates }) };
+  return { slice: s.label, seed, result: checkPosition(pos, { referee: refereeOpts(s, 1), replicates, rival: rival() }) };
+}
+
+/**
+ * `--rival '<json>'`: a second AI setting — `DEFAULT_LOOKAHEAD` with these
+ * fields replaced (`null` removes one) — asked every position and judged on
+ * the SAME solves (`CheckOptions.rival`). How an AI change is A/B'd against
+ * the referee.
+ */
+function rival(): LookaheadOptions | undefined {
+  const raw = flag('--rival');
+  if (!raw) return undefined;
+  const over = JSON.parse(raw) as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...DEFAULT_LOOKAHEAD };
+  for (const [k, v] of Object.entries(over)) { if (v === null) delete out[k]; else out[k] = v; }
+  return out as unknown as LookaheadOptions;
 }
 
 // --- a lane ---------------------------------------------------------------
@@ -258,7 +288,31 @@ table('horizon', r => [horizonBucket(r.result.position.tags.horizon)]);
 table('slice', r => [r.slice]);
 table('featured archetype', r => [r.result.position.tags.featured ?? '(none)']);
 table('archetype in the tested hand', r => [...new Set(r.result.position.teams[0].flatMap(f => f.cards.map(c => c.arch)))]);
+table('archetype in the other hand', r => [...new Set(r.result.position.teams[1].flatMap(f => f.cards.map(c => c.arch)))]);
 table('priced statuses', r => [r.result.position.teams[0].some(f => f.cards.some(c => c.p.priced === 0)) ? 'hand has an unpriced status card' : 'all priced']);
+
+const rivalled = solved.filter(r => r.result.rivalPicks);
+if (rivalled.length) {
+  // Paired: the same position, the same solves, two AI settings.
+  const rivalMismatch = (r: Row): boolean => (r.result.rivalPicks ?? []).some(p => p.mismatch);
+  say(`## Production vs rival (\`--rival ${flag('--rival')}\`), on the same solves`);
+  say();
+  say('| group | positions | production | rival | production − rival |');
+  say('|---|---|---|---|---|');
+  const groups = new Map<string, Row[]>();
+  for (const r of rivalled) {
+    const keys = ['all', r.slice, ...new Set(r.result.position.teams[1].flatMap(f => f.cards.map(c => `other hand: ${c.arch}`)))];
+    for (const k of keys) groups.set(k, [...(groups.get(k) ?? []), r]);
+  }
+  for (const [k, g] of groups) {
+    if (g.length < 10) continue;
+    const d = g.map(r => (hasMismatch(r) ? 1 : 0) - (rivalMismatch(r) ? 1 : 0));
+    const mean = d.reduce((a, b) => a + b, 0) / d.length;
+    const sd = Math.sqrt(d.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, d.length - 1));
+    say(`| ${k} | ${g.length} | ${share(g.filter(hasMismatch).length, g.length)} | ${share(g.filter(rivalMismatch).length, g.length)} | ${(100 * mean).toFixed(1)}pp±${(100 * sd / Math.sqrt(d.length)).toFixed(1)} |`);
+  }
+  say();
+}
 
 // Which card the AI played, and what the equilibrium played instead.
 const swaps = new Map<string, number>();

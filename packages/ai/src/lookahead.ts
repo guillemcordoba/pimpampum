@@ -106,6 +106,19 @@ export interface LookaheadOptions {
    * mirror and doubled the search's cost (§52.2).
    */
   tempo?: number;
+  /** Search the OPPONENTS' cards once per decision for the rollouts' model of
+   *  them (`searchedOdds`); omit for the depth-0 heuristic alone. */
+  opponentSearch?: OpponentSearch;
+}
+
+export interface OpponentSearch {
+  /** Rollouts per opponent card. */
+  samples: number;
+  /** How far (leaf-score points) a card may trail the foe's best before its
+   *  depth-0 odds are cut. */
+  margin: number;
+  /** How fast they are cut beyond it (per point). */
+  sharpness: number;
 }
 
 /**
@@ -135,6 +148,9 @@ export interface EvaluatorWeights {
   /** What each side's statuses say they are worth
    *  (`StatusBehavior.positionValue`). */
   status: number;
+  /** Share of the PV term read in ABSOLUTE PV (both sides' PV over their
+   *  mean total) rather than mean fractions. 0 or omitted: fractions only. */
+  absolutePv?: number;
 }
 
 export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatigue: 0.5, status: 10 };
@@ -180,7 +196,10 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  * teammates have chosen — bought more than more samples did, and at less cost
  * (NEXT-STEPS §29, §38).
  */
-export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2, tempo: 1 };
+export const DEFAULT_LOOKAHEAD: LookaheadOptions = {
+  depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2, tempo: 1,
+  opponentSearch: { samples: 2, margin: 10, sharpness: 1 },
+};
 
 /**
  * How good is this position for `team`? Hand-written on purpose (see the file
@@ -232,7 +251,13 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   };
   // Dead members count as 0 PV rather than being dropped, else wiping out our
   // own wounded would read as an improvement.
-  const pvDiff = pvFrac(us) - pvFrac(them);
+  let pvDiff = pvFrac(us) - pvFrac(them);
+  if (w.absolutePv) {
+    const sum = (t: Character[], f: (c: Character) => number) => t.reduce((s, c) => s + f(c), 0);
+    const scale = (sum(us, c => Math.max(1, c.maxPV)) + sum(them, c => Math.max(1, c.maxPV))) / 2;
+    const abs = (sum(us, c => Math.max(0, c.currentPV)) - sum(them, c => Math.max(0, c.currentPV))) / scale;
+    pvDiff = (1 - w.absolutePv) * pvDiff + w.absolutePv * abs;
+  }
   const bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
   const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
@@ -302,7 +327,13 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
       }
       if (best > 0) out += best + exposure;
     }
-    acc += (side === team ? 1 : -1) * w.pv * Math.min(out, foeMax) / foeMax;
+    let units = Math.min(out, foeMax) / foeMax;
+    if (w.absolutePv) {
+      let all = 0;
+      for (const c of engine.allCombatants()) all += Math.max(1, c.maxPV);
+      units = (1 - w.absolutePv) * units + w.absolutePv * Math.min(out, foeMax) / (all / 2);
+    }
+    acc += (side === team ? 1 : -1) * w.pv * units;
   }
   return acc;
 }
@@ -387,10 +418,50 @@ function playRound(engine: CombatEngine, team: number, choices: Map<Character, n
  * climb on a surface that reshuffles under it between passes.
  */
 interface DecisionMemo {
+  /** The side deciding, and how hard it thinks. */
+  team: number;
+  opts: LookaheadOptions;
+  pairSeed: number;
   /** Rollout values already measured, by plan, then by sample index. */
   plans: Map<string, number[]>;
-  /** The opponent model's odds, by seat (`team * 1000 + index`). */
+  /** The rollouts' odds, by seat (`team * 1000 + index`). */
   odds: Map<number, ActionOdds>;
+  /** The depth-0 heuristic's odds, by seat — `odds` before the opponent
+   *  search, and what that search plays everyone else with. */
+  base: Map<number, ActionOdds>;
+}
+
+const newMemo = (team: number, opts: LookaheadOptions, pairSeed: number, base = new Map<number, ActionOdds>()): DecisionMemo =>
+  ({ team, opts, pairSeed, plans: new Map(), odds: opts.opponentSearch ? new Map() : base, base });
+
+/**
+ * A foe's cards, each played out for one round against everyone else at depth
+ * 0 and scored from the FOE's side; a card that trails its best by more than
+ * `OpponentSearch.margin` has its depth-0 odds cut.
+ *
+ * WHY: the depth-0 heuristic prices an attack by its damage and a Focus at a
+ * flat 1.2, so a foe that should dodge (claw and die, or hide and lose
+ * nothing) claws almost always, and the search planned against a foe walking
+ * into the blow (§49.3: the real goblins hid 43% of the time, the model 1%).
+ * Nothing in a card says it hides; only playing it out shows it.
+ *
+ * WHY ONLY BLUNDERS: replacing the heuristic's odds by the searched values
+ * (a quantal response to our depth-0 play) made the search WORSE on the
+ * night's positions, worst in 1v1 — the foe it modelled answered a depth-0
+ * us, not the us that plays (§20.8 again: the model owes the search
+ * accuracy, not quality). Cutting only cards that lose about a side's worth
+ * of health leaves the heuristic alone wherever it is merely imprecise
+ * (NEXT-STEPS §52.4).
+ */
+function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, shared: DecisionMemo): ActionOdds {
+  const os = shared.opts.opponentSearch!;
+  const inner = newMemo(actor.team, { ...shared.opts, samples: os.samples, opponentSearch: undefined }, shared.pairSeed + 104_729, shared.base);
+  const values = base.indices.map(idx =>
+    evaluate(root, actor.team, new Map([[actor, idx]]), inner.opts, 1, inner.pairSeed, undefined, inner));
+  const top = Math.max(...values);
+  const weights = base.indices.map((_, k) =>
+    base.weights[k] * Math.exp(-os.sharpness * Math.max(0, top - values[k] - os.margin)));
+  return { indices: base.indices, weights, total: weights.reduce((s, w) => s + w, 0) };
 }
 
 /**
@@ -409,11 +480,29 @@ function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatE
   if (!root.roundPrepared) return (e, a) => selectAction(e, a).actionIdx;
   return (e, a) => {
     if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a).actionIdx;
-    const seat = a.team * 1000 + e.teams[a.team].indexOf(a);
+    const pos = e.teams[a.team].indexOf(a);
+    const seat = a.team * 1000 + pos;
     let odds = shared.odds.get(seat);
-    if (!odds) shared.odds.set(seat, odds = actionOdds(e, a));
+    if (!odds) {
+      let base = shared.base.get(seat);
+      if (!base) shared.base.set(seat, base = actionOdds(e, a));
+      odds = a.team !== shared.team && shared.opts.opponentSearch && base.indices.length > 1
+        ? searchedOdds(root, root.teams[a.team][pos], base, shared)
+        : base;
+      shared.odds.set(seat, odds);
+    }
     return drawAction(odds).actionIdx;
   };
+}
+
+/**
+ * The odds the search's rollouts give `actor`'s cards when its OPPONENTS
+ * decide, on a round already prepared. For tests and probes.
+ */
+export function rolloutOdds(engine: CombatEngine, actor: Character, opts: LookaheadOptions = DEFAULT_LOOKAHEAD, pairSeed = 1): ActionOdds {
+  const shared = newMemo(1 - actor.team, opts, pairSeed);
+  const base = actionOdds(engine, actor);
+  return opts.opponentSearch && base.indices.length > 1 ? searchedOdds(engine, actor, base, shared) : base;
 }
 
 function evaluate(
@@ -555,7 +644,7 @@ export function bestResponse(
   // and every candidate's, on every pass — runs against the same rollouts, so
   // the comparisons are PAIRED. See `evaluate`.
   const pairSeed = Math.floor(random() * 1e9);
-  const memo: DecisionMemo = { plans: new Map(), odds: new Map() };
+  const memo = newMemo(team, opts, pairSeed);
 
   let value = actors.length ? evaluate(engine, team, choices, opts, opts.depth, pairSeed, undefined, memo) : 0;
   for (let pass = 0; pass < opts.passes; pass++) {

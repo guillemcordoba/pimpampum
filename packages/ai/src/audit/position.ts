@@ -123,12 +123,15 @@ export interface GeneratorConfig {
   longShare?: number;
   /** Rescale PV so the fight lasts about `roundsLeft` (default on; see `pace`). */
   pace?: boolean;
+  /** Deal one card of this archetype to the OTHER side — to measure how the
+   *  AI plays against a card, not with it (the search's opponent model). */
+  foeCard?: string;
 }
 
 const BY_TYPE = {
   attack: [['strike', 5], ['jab', 1], ['sweep', 1], ['pierce', 1], ['stun', 1], ['lock', 1], ['weaken', 1]],
   defense: [['guard', 1], ['block', 1]],
-  focus: [['heal', 1], ['revive', 1], ['cleanse', 1], ['setup', 1], ['bomb', 1], ['doom', 1], ['device', 1], ['advance', 1], ['taunt', 1]],
+  focus: [['heal', 1], ['revive', 1], ['cleanse', 1], ['setup', 1], ['bomb', 1], ['doom', 1], ['device', 1], ['advance', 1], ['taunt', 1], ['hide', 1]],
 } as const;
 
 /** Archetypes whose payoff takes more than the round they are played in. */
@@ -244,6 +247,11 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
       featured = arch;
       break;
     }
+  }
+
+  if (cfg.foeCard) {
+    const f = teams[1][int(r, 0, nB - 1)];
+    f.cards[int(r, 0, f.cards.length - 1)] = { arch: cfg.foeCard, p: ARCHETYPES[cfg.foeCard].draw(r) };
   }
 
   // A revive needs a fallen ally; a cleanse something to strip.

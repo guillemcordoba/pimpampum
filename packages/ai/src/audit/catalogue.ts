@@ -150,6 +150,10 @@ const TAUNTED = (pricedFlag: boolean): StatusBehavior => ({
   ...(pricedFlag ? { positionValue: () => -0.1 } : {}),
 });
 
+/** No blow wounds the holder for the rest of the round. Never priced: it is
+ *  gone before any leaf reads it, so a price could only ever be read wrong. */
+const HIDDEN: StatusBehavior = { modifyIncomingDamage: () => 0 };
+
 function tickDown(ctx: StatusHookContext): void {
   const left = (ctx.entry.data!.left as number) - 1;
   if (left > 0) ctx.entry.data!.left = left; else ctx.holder.statuses.delete(ctx.key);
@@ -261,6 +265,11 @@ export function auditRegistry(): EffectRegistry {
         e.setStatus('audit.taunted', 1, -1, { left: P(ctx, 'rounds'), by: ctx.source }, B.taunted[P(ctx, 'priced')]);
       }
     },
+  });
+  r.register('audit:hide', {
+    getTargetRequirement: () => 'none',
+    // One turn: it lapses as this round ends.
+    onResolve(ctx) { ctx.source.setStatus('audit.hidden', 1, 1, undefined, HIDDEN); },
   });
   r.register('audit:selfwound', {
     onAttackResolved(ctx) { ctx.engine.applyPvLoss(ctx.source, 1); },
@@ -383,6 +392,14 @@ export const ARCHETYPES: Record<string, Archetype> = {
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:taunt', { rounds: p.rounds, priced: p.priced }) }),
     draw: r => ({ speed: int(r, 4, 7), rounds: int(r, 1, 2), priced: priced(r) }),
     horizon: p => p.rounds,
+  },
+  hide: {
+    id: 'hide', summary: 'focus: dodge every blow that lands after it, this round',
+    build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:hide', {}) }),
+    // The real hides sit in the fast half of the focus ladder: one that
+    // resolves after the blows has nothing left to dodge.
+    draw: r => ({ speed: int(r, 1, 4) }),
+    horizon: () => 1,
   },
   desperate: {
     id: 'desperate', summary: 'the universal fallback: only when nothing else is legal',
