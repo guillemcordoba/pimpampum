@@ -30,7 +30,9 @@ import {
   Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
-import { selectAction, pickResolveTargets, expectedAttackTotal } from './policy.js';
+import {
+  selectAction, actionOdds, drawAction, pickResolveTargets, expectedAttackTotal, type ActionOdds,
+} from './policy.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
 export interface LookaheadOptions {
@@ -384,6 +386,36 @@ function playRound(engine: CombatEngine, team: number, choices: Map<Character, n
  * response is then a hill-climb on one fixed sampled objective, rather than a
  * climb on a surface that reshuffles under it between passes.
  */
+interface DecisionMemo {
+  /** Rollout values already measured, by plan, then by sample index. */
+  plans: Map<string, number[]>;
+  /** The opponent model's odds, by seat (`team * 1000 + index`). */
+  odds: Map<number, ActionOdds>;
+}
+
+/**
+ * The rollouts' chooser for everyone the plan does not fix, weighing each seat
+ * ONCE per decision.
+ *
+ * Every rollout of one `bestResponse` clones the same board, and nobody's
+ * choice changes it, so a seat that chooses in a rollout reads the same board
+ * in every sample of every candidate: the same odds, only a different draw.
+ * The weighing (every card's damage estimate and hints) was a tenth of the
+ * search's time. Not shared where the board can differ: a round the rollout
+ * must prepare itself (round-start effects may roll), a later round, and a
+ * seat that chooses after the reveal (it reads the plan).
+ */
+function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatEngine, a: Character) => number | null {
+  if (!root.roundPrepared) return (e, a) => selectAction(e, a).actionIdx;
+  return (e, a) => {
+    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a).actionIdx;
+    const seat = a.team * 1000 + e.teams[a.team].indexOf(a);
+    let odds = shared.odds.get(seat);
+    if (!odds) shared.odds.set(seat, odds = actionOdds(e, a));
+    return drawAction(odds).actionIdx;
+  };
+}
+
 function evaluate(
   engine: CombatEngine,
   team: number,
@@ -404,6 +436,8 @@ function evaluate(
    * comparison reaches the same conclusion it would have.
    */
   floor?: number,
+  /** What one `bestResponse` has already worked out. Omit to work it all out. */
+  shared?: DecisionMemo,
 ): number {
   let total = 0;
   let sumSq = 0;
@@ -417,6 +451,21 @@ function evaluate(
     const pos = engine.teams[team].indexOf(actor);
     if (pos >= 0) seats.push([pos, idx]);
   }
+  // THE SAME PLAN IS ASKED FOR AGAIN, and its rollouts would be the same. A
+  // sample is a pure function of the board, the plan and `pairSeed + s`, so
+  // the second pass of `bestResponse` — which re-asks every card of every
+  // seat whose teammates have not moved since — reads its values back. The
+  // racing rule below still runs over them sample by sample against TODAY's
+  // floor, so a plan cut earlier is resumed where it stopped, and one measured
+  // in full is cut now exactly where a fresh measurement would cut it.
+  let known: number[] | undefined;
+  if (shared) {
+    let key = '';
+    for (const [pos, idx] of seats) key += pos + ':' + idx + ',';
+    known = shared.plans.get(key);
+    if (!known) shared.plans.set(key, known = []);
+  }
+  const opponentModel = shared ? rolloutOpponents(engine, shared) : (e: CombatEngine, a: Character) => selectAction(e, a).actionIdx;
   for (let s = 0; s < opts.samples; s++) {
     if (floor !== undefined && s >= minSamples) {
       // Two sigma of the running mean, floored so a run of identical rollouts
@@ -427,7 +476,8 @@ function evaluate(
       const slack = 2 * Math.sqrt(variance / s) + 1e-9;
       if (mean + slack < floor) return mean;
     }
-    const one = withSeed(pairSeed + s * 7919, () => {
+    const cached = known?.[s];
+    const one = cached !== undefined ? cached : withSeed(pairSeed + s * 7919, () => {
       const sim = engine.clone();
       if (opts.seatStreams !== false) sim.seatStreamSeed = pairSeed + s * 7919;
       // Rollouts think at depth 0 — otherwise the search recurses into itself
@@ -436,7 +486,7 @@ function evaluate(
       // The rollout plays at DEPTH 0 — otherwise the search recurses into
       // itself once per sample per candidate and never returns. It gets the
       // depth-0 policy explicitly, because the engine has none of its own.
-      sim.actionChooser = (e, a) => selectAction(e, a).actionIdx;
+      sim.actionChooser = opponentModel;
       // Rollouts aim by the heuristic: searching targets inside a rollout would
       // nest a search per target choice per sample per candidate.
       sim.targetChooser = pickResolveTargets;
@@ -460,6 +510,7 @@ function evaluate(
       }
       return positionScore(sim, team, opts.weights);
     });
+    if (known && cached === undefined) known[s] = one;
     total += one;
     sumSq += one * one;
   }
@@ -504,8 +555,9 @@ export function bestResponse(
   // and every candidate's, on every pass — runs against the same rollouts, so
   // the comparisons are PAIRED. See `evaluate`.
   const pairSeed = Math.floor(random() * 1e9);
+  const memo: DecisionMemo = { plans: new Map(), odds: new Map() };
 
-  let value = actors.length ? evaluate(engine, team, choices, opts, opts.depth, pairSeed) : 0;
+  let value = actors.length ? evaluate(engine, team, choices, opts, opts.depth, pairSeed, undefined, memo) : 0;
   for (let pass = 0; pass < opts.passes; pass++) {
     let improved = false;
     for (const actor of actors) {
@@ -547,7 +599,7 @@ export function bestResponse(
         // `value` is the incumbent, measured on the SAME paired rollouts, so a
         // candidate that cannot reach it is not worth finishing.
         const v = evaluate(engine, team, trial, opts, opts.depth, pairSeed,
-          opts.race === false ? undefined : value);
+          opts.race === false ? undefined : value, memo);
         if (v > value) { value = v; choices.set(actor, idx); improved = true; }
       }
     }

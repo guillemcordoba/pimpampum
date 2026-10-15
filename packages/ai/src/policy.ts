@@ -378,8 +378,21 @@ export function pickResolveTargets(
  *  later, at resolution time (pickResolveTargets), with reveal-level info.
  *  Returns actionIdx -1 (an explicit pass) when nothing is playable. */
 export function selectAction(view: AIView, actor: Character): PlannedAction {
+  return drawAction(actionOdds(view, actor));
+}
+
+/** The depth-0 policy's odds for one decision, before its single draw. */
+export interface ActionOdds {
+  indices: number[];
+  weights: number[];
+  total: number;
+}
+
+/** What `selectAction` weighs, without drawing. Reads the board and consumes
+ *  no randomness, so the same board gives the same odds. */
+export function actionOdds(view: AIView, actor: Character): ActionOdds {
   const indices = availableActionIndices(actor, view.registry);
-  if (indices.length === 0) return { actionIdx: -1 };
+  if (indices.length === 0) return { indices, weights: [], total: 0 };
 
   const allies = view.alliesOf(actor, false);
   const enemies = view.enemiesOf(actor);
@@ -387,6 +400,12 @@ export function selectAction(view: AIView, actor: Character): PlannedAction {
   const weights = indices.map(i =>
     Math.pow(actionWeight(view, actor, actor.actions[i], allies, enemies, facts), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);
+  return { indices, weights, total };
+}
+
+/** `selectAction`'s one draw from its odds. */
+export function drawAction({ indices, weights, total }: ActionOdds): PlannedAction {
+  if (indices.length === 0) return { actionIdx: -1 };
   let roll = random() * total;
   let chosen = indices[0];
   for (let k = 0; k < indices.length; k++) {
