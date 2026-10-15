@@ -5933,3 +5933,82 @@ kit suites.
 inner rollouts reuse the memo's depth-0 odds). Every solved PV moves a
 little (bone devils 17 → 18, boss 189 → 185, mixed [10, 24] → [9, 23]):
 the calibration refresh due tonight covers it.
+
+### 52.6 Multi-body guard/block vs strike: mostly the referee's currency, and not to be fixed in the AI (2026-10-15)
+
+**A side finding first, fixed (e782d33).** The 9 controls asked of the AI
+showed `bomb-short` wrong (bomb 4/4 where the strike fells a 3-PV foe now):
+the `tempo` leaf added next round's blows ON TOP of a win that a round-start
+effect had just produced (bomb 118.5 against strike 110). The leaf now stops
+at a result, and a win scores 100 plus the health term (a loss −100 minus
+it), so two winning lines no longer tie. All 9 controls are asked of the AI
+in the fast tier now (puzzles (f)). Night replay, 3 seed bases: 28.1% →
+28.0% (−0.1pp±0.1), no group worse.
+
+**Hypothesis 1 — the AI's leaf reads mean health fractions (plus bodies), the
+referee pays absolute PV.** Tested with `EvaluatorWeights.absolutePv` (the PV
+term in both sides' PV over their mean total; default 0, kept for A/B):
+
+| night replay, 2,030 positions, 3 AI seed bases | ruled-out | 4x1 (299) | 4x2 (127) | 2x2 (319) |
+|---|---|---|---|---|
+| production | 28.0% | 53.3% | 50.7% | 29.6% |
+| PV term in absolute PV | 24.4% (−3.6pp±0.6) | 47.4% | 47.2% | 23.4% |
+| … at half weight | 26.1% (−1.9pp±0.4) | 52.3% | 49.9% | 26.1% |
+| absolute PV and no bodies term (the referee's own currency) | 23.3% (−4.7pp±0.7) | 45.5% | 45.4% | 21.9% |
+
+So the currency explains about a sixth of the multi-body mismatches (4x1
+53 → 45). And on the real table it is ruinous:
+
+| reference party vs a level-10 basilisk (PV 260), 800 seeds, basilisk on production | heroes win |
+|---|---|
+| heroes on production | 69.5%±1.6 |
+| heroes, absolute PV | 14.1%±1.2 |
+| heroes, absolute PV at half weight | 29.6%±1.6 |
+| heroes, absolute PV, no bodies term | 4.0%±0.7 |
+| basilisk on absolute PV (heroes production) | 71.0%±1.6 |
+| vs 2 level-10 horned devils (PV 80): production / absolute PV | 66.9% / 64.8% |
+| fantasy mirror, absolute PV vs production (600 × 2 seeds) | 49.5%, 51.8% |
+
+A cut fight paid in PV cannot see the turns a fallen body no longer takes;
+the leaf's bodies term is what keeps four 12-PV heroes alive against a
+260-PV boss. Not shipped. Puzzle (g) pins the divergence both ways: H0 on 4
+of 40 PV can strike the boss or guard itself; the boss hits one of two
+heroes for 5. The referee (PV) has the boss hit the 40-PV hero whatever
+happens, so the guard saves nothing — strike. The AI's model of the boss
+takes the kill, so it guards; it still guards with the PV term absolute, and
+strikes only without the bodies term.
+
+**For the user:** the referee's payoff, not the AI, is the thing to revisit
+for multi-body shapes — e.g. pay health fractions plus bodies standing at the
+cut, or play the cut position out with a fixed policy — before the next
+night. As it stands, 4x1/4x2 mismatch rates overstate the AI's errors there.
+
+**Hypothesis 2 — advance lands on the wrong ally inside rollouts.** Tested
+with a rollout-only aim rule (an unhinted `ally_other` card goes to the ally
+whose attack is still to come, the hardest first — near ideal for the
+audit's advance): hand-holds-advance 42.9% → 40.9% (−2.0pp±0.8), all
+−0.3pp±0.1, 4x1 −0.9pp±0.4. A small share of the advance mismatches; and the
+rule would misaim real unhinted ally cards (heals, buffs), so not shipped.
+
+**What the 4x1 residual is.** Seat swaps (AI card → equilibrium card) over
+the 161 4x1 positions with a ruled-out pick are spread, not one-sided:
+strike→guard 40, strike→block 36, guard→strike 35, strike→jab 29,
+lock→strike 29, block→strike 26, guard→stun 26 … Guard/block vs strike goes
+both ways, and many of these positions hold 1-4-PV bodies beside a 200-400-PV
+boss (`pace` on the `side: enemy` draw), exactly where PV and bodies
+disagree most.
+
+### 52.7 Still open after §52.4-52.6 (2026-10-15)
+
+- **The referee's currency** for multi-body shapes (§52.6) — for the user.
+- **(e1) in random positions.** The fresh sample with a foe-held hide shows
+  no error the opponent search could fix: an equilibrium foe hides only as
+  one side of a guessing game. The jab-before-the-hide pattern still shows up
+  among the mismatches (2× `strike,strike → jab,strike`). Modelling the foe
+  as a mixed strategy would need the foe's response to OUR plan (a second
+  best-response pass, roughly double the cost) — not tried.
+- **Advance** stays the worst archetype (41-43%); targeting explains little.
+- **Due at night:** `pnpm calibration:refresh` and the slow kit suites — the
+  opponent search and the decided-board fix change how every enemy plays.
+  Worth reading there: Trampolí's play rate (§49.3), now that the goblins'
+  model hides.

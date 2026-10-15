@@ -232,3 +232,26 @@ describe('audit defects as puzzles: the AI plays every control\'s answer', () =>
     it(`(f) ${c.position.id}: ${c.answer}`, () => expect(aiAnswer(c.position)).toEqual(Array(4).fill(c.answer)));
   }
 });
+
+// --- (g) THE REFEREE'S CURRENCY (§52.6) ---------------------------------------
+//
+// One round. H0 (4 of 40 PV) can strike the boss for 6 or guard itself (10
+// against its 5). H1 (40) strikes for 6. The boss hits one of them for 5.
+// The referee pays PV: killing H0 is worth 4 to the boss, hitting H1 worth 5,
+// so it hits H1 whatever H0 does and H0's guard saves nothing — strike.
+// The AI's leaf prices a BODY (its bodies term; the fractions add to it), so
+// its model of the boss takes the kill, and it guards — still with the PV term
+// in absolute PV; only without the bodies term does it strike. Which is right
+// depends on the currency, not on play: a cut fight paid in PV cannot see the
+// turns a fallen hero no longer takes. Moving the AI toward the referee's
+// currency (absolute PV) wins the night's replay (−3.6pp of ruled-out picks)
+// and turns the reference party's 69.5% against a basilisk into 14.1%.
+// Pinned both ways so a change to either side is seen.
+const CURRENCY = position('currency', 1,
+  [body('H0', 4, [fixed('strike', 6, 1), fixed('guard', 10, 3)], 40), body('H1', 40, [fixed('strike', 6, 1)])],
+  [body('Boss', 200, [fixed('strike', 5, 0)])]);
+
+describe('audit defects as puzzles: the referee pays PV, the AI health fractions', () => {
+  it('(g) the referee strikes', () => expect(refereeAnswer(CURRENCY)).toEqual({ cards: 'strike,strike', p: 1 }));
+  it('(g) the AI guards the body', () => expect(aiAnswer(CURRENCY)).toEqual(Array(4).fill('guard,strike')));
+});

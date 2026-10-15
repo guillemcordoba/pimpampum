@@ -536,7 +536,13 @@ that prices encounters has to have.
   is the only way a defense can be valued next to the focus it protects.
   `topK` prunes candidates by the depth-0 opinion. ~6× the cost, and it beats
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
-  Production is six rollouts per card, one pass, no pruning (`DEFAULT_LOOKAHEAD`).
+  Production is six rollouts per card, two passes, no pruning (`DEFAULT_LOOKAHEAD`).
+  Inside the rollouts the other side plays the depth-0 heuristic, except that
+  each of its cards is first played out once per decision and one that trails
+  its best by about a side's health is cut (`opponentSearch`: a foe does not
+  walk into a lethal blow it could hide from; NEXT-STEPS §52.5). One
+  `DecisionMemo` per decision keeps every rollout value by plan and sample and
+  every seat's odds, so nothing is computed twice (§52.4).
   Candidates are compared on PAIRED rollouts, and each rollout gives every seat
   its own random stream (`CombatEngine.seatStreamSeed`): on the one shared
   stream, a card that rolls a different number of dice shifts every later roll
@@ -588,7 +594,7 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 | file | what it is |
 |---|---|
 | `zero-sum.ts` | Nash equilibrium of a zero-sum matrix game: tableau simplex (Bland's rule) after merging duplicate rows/columns; regret matching+ as the fallback and the tests' second opinion |
-| `catalogue.ts` | 18 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt — and the universal fallback. Each says its payoff `horizon` |
+| `catalogue.ts` | 19 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt, hide (dodge every later blow this round) — and the universal fallback. Each says its payoff `horizon` |
 | `profile.ts` | the generator's distributions — speeds, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
 | `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
 | `referee.ts` | the solver of the fight |
@@ -600,7 +606,11 @@ is the value of the position it leads to; the fight is a stack of them, solved
 by recursion to its real end (a side down, or the position's round cap) —
 no leaf is ever scored by a heuristic, so a delayed blow, a device, a mark
 land before the score is read. The payoff is PV on side A minus PV on side B,
-`bench/regret.ts`'s currency. The approximations, each a knob on
+`bench/regret.ts`'s currency. That currency cannot see the turns a fallen body
+no longer takes after the cut, and the AI's leaf can (bodies, health
+fractions): about a sixth of the multi-body mismatches are this difference,
+and moving the AI toward PV wins the audit and loses real fights badly
+(puzzle (g), NEXT-STEPS §52.6). The approximations, each a knob on
 `RefereeOptions`:
 
 - **chance** — `samples[d]` seeded samples per joint action at depth `d`
