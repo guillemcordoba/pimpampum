@@ -135,7 +135,7 @@ colossus takes precedence over blocks and the hook.
 - Acrobàcia + Aigua: **Lliscada de gel** — slide on your own ice through every enemy's legs.
 - Acrobàcia + Terra: **Pilar trampolí** — a pillar hurls you over the line, unblockable.
 - Xi + Foc: **Llamp redirigit** — the held blow's whole total strikes an enemy you choose.
-- Xi + Aigua: **Agulles de gel** — ice needles into every enemy's points.
+- Xi + Aigua: ~~Agulles de gel~~ — cut in the gold-card rounds (stapled Pluja de dagues + numbing).
 - Artífex + Foc: **Globus de guerra** — the balloon rises on the bender's own flame.
 - Artífex + Aigua: **Submarí d'assalt** · Artífex + Terra: **Rails de terra**.
 
@@ -150,116 +150,119 @@ set yet; "N" marks a placeholder. Thresholds are written shared skill + element.
 
 ### Esgrima × element (best card: Capa buida)
 
-| pairing | sum | card | type | thr | text |
-|---|---|---|---|---|---|
-| Foc | 2 | Cauteritzar la ferida | Focus | 1+1 | Recuperes N PV. |
-| Foc | 4 | Marcar a foc | Atac | 2+2 | Si fereix, la resta del combat, cada cop que el fereixin perd 1 PV més. No s'acumula. |
-| Foc | 5 | Fulla al roig viu | Focus | 3+2 | La resta del combat, cada cop que la teva arma xoca amb un enemic, en atac o en defensa, li fa perdre 1 PV. |
-| Foc | 7 | Flama a l'altra mà | Atac | 4+3 | Si no fereix, el foc de l'altra mà el fereix amb Nd6; no es pot defensar. |
-| Foc | 9 | Toc fulminant | Atac | 4+5 | Puges 1 nivell de fatiga. Ignora l'armadura. Si fereix, l'objectiu perd la seva acció d'aquest torn i la del següent. |
-| Terra | 2 | Postura de granit | Defensa | 1+1 | Aquest torn, cap atac no fa perdre més de 3 PV a qui defenses. |
-| Terra | 4 | Broquer de llosa | Defensa | 2+2 | El torn següent et torna a defensar. |
-| Terra | 6 | Arrossegar a la punta | Atac | 2+4 | Si fereix, el seu atac d'aquest torn va contra tu. |
-| Terra | 8 | Espasa serp | Atac | 2+6 | No es pot defensar. (metalbending: Terra 6) |
-| Terra | 10 | Bosc de llances | Defensa | 5+5 | Puges 2 nivells de fatiga. Al final del torn, cada enemic que hagi atacat el teu bàndol aquest torn rep un atac d'aquests daus; no es pot defensar. |
-| Aire | 2 | Punta de penell | Atac | 1+1 | Quan es resol, tria'n l'objectiu. |
-| Aire | 4 | Rebuf | Defensa | 2+2 | Si aguanta, l'atacant surt llançat: el torn següent actua l'últim. |
-| Aire | 6 | Capa buida | Defensa | 3+3 | Bloqueja un enemic: si t'ataca aquest torn, falla, i tu l'ataques amb aquests daus; no es pot defensar. |
-| Aire | 8 | Espasa voladora | Focus | 3+5 | Puges 1 nivell de fatiga. La resta del combat, al final de cada torn la teva espasa ataca sola l'enemic que triïs amb aquests daus, i tu no pots jugar cartes d'Esgrima. |
-| Aire | 10 | Ratxa de ganivets | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics al final del torn; no es pot defensar. |
-| Aigua | 3 | Nus de gel | Defensa | 1+2 | Bloqueja un enemic. Si aguanta, fins al final del torn següent l'atacant i tu només us podeu atacar l'un a l'altre. |
-| Aigua | 5 | Pica de glaç | Atac | 3+2 | Si l'objectiu t'ataca aquest torn, suma el tir del seu atac. |
-| Aigua | 6 | Fulla assedegada | Atac | 2+4 | Si fereix, tu o un aliat recupereu tants PV com li ha tret. |
-| Aigua | 8 | Onada d'estocades | Atac | 3+5 | Puges 1 nivell de fatiga. Fins a quatre atacs amb aquests daus, cadascun contra un enemic diferent. |
-| Aigua | 10 | Marioneta escarlata | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, el torn següent tries la carta que juga l'objectiu i contra qui, ell mateix inclòs. |
+| pairing | sum | card | type | thr | text | scene |
+|---|---|---|---|---|---|---|
+| Foc | 2 | Cauteritzar la ferida | Focus | 1+1 | Recuperes els PV que vas perdre el torn anterior, fins a N. | You heat the flat of your blade with your own fire and press it to last round's wound; it hisses shut. |
+| Foc | 4 | Fogonada a la cara | Atac | 2+2 | Si fereix, el torn següent l'objectiu juga una carta a l'atzar, contra objectius a l'atzar. | Your cut ends in a burst of flame off the blade into its face; blinded next round, it lashes out at anything, at anyone. |
+| Foc | 5 | Xocs ardents | Focus | 3+2 | La resta del combat, cada enemic contra qui xoqui una carta teva que requereixi Esgrima perd 1 PV, guanyis o perdis. | You set your blade burning for the rest of the fight; every clash of steel, won or lost, scorches whoever it meets. |
+| Foc | 7 | Revés de foc | Atac | 4+3 | Si no fereix, l'enemic que triïs rep un atac de Nd6; no es pot defensar. | When your sword is stopped, you turn with the block and backhand a jet of fire from your free hand at any enemy you choose. |
+| Foc | 10 | Sabre de tro | Atac | 5+5 | Puges 2 nivells de fatiga. Ignora l'armadura. Si fereix, el llamp salta a cada altre enemic amb el mateix tir; els que fereix perden la seva acció d'aquest torn i la del següent. | You run lightning down your sabre and drive it through armour; the bolt leaps from that body to every foe, locking their muscles. |
+| Terra | 2 | Arma arrelada | Defensa | 1+1 | Aquest torn, cap atac no fa perdre més de 3 PV ni a tu ni a qui defenses. | You drive your blade into the ground and the stone roots it there; braced behind it, you and your ally take only grazes. |
+| Terra | 4 | Broquer de basalt | Defensa | 2+2 | Aquest tir et torna a defensar el torn següent. | You rip a basalt buckler from the ground onto your off arm and parry with blade and stone; the shield is still there next round. |
+| Terra | 6 | Ensartar la filera | Atac | 2+4 | Afecta fins a tres enemics. | You shift the ground so three enemies stumble into a row, then lunge and skewer the whole file on one thrust. |
+| Terra | 8 | Cimitarra soterrània | Atac | 2+6 | Puges 1 nivell de fatiga. No es pot defensar, tret que l'objectiu jugui una Defensa més ràpida. | You sink your scimitar into the earth; it runs underground and bursts up beneath the target, which only a quicker guard sees coming. |
+| Terra | 10 | Sembra d'espases | Defensa | 5+5 | Puges 2 nivells de fatiga. Al final del torn, cada enemic que hagi atacat el teu bàndol aquest torn rep un atac d'aquests daus. | You stab your sword into the earth and stone blades sprout across the field; at round's end they spear every enemy who attacked. |
+| Aire | 2 | Gir de penell | Atac | 1+1 | Quan es resol, tria'n l'objectiu. | Mid-lunge you leap into the wind and it swings you like a weathervane; your sword lands on whoever you pick at the last instant. |
+| Aire | 4 | Fora d'abast | Defensa | 2+2 | Bloqueja un enemic. Si aguanta, l'atacant surt llançat: el torn següent no et pot atacar. | You parry its blow on your blade and a gust behind the parry flings it far back, too far to reach you next round. |
+| Aire | 6 | Capa buida | Defensa | 3+3 | Bloqueja un enemic: si t'ataca aquest torn, falla, i tu l'ataques amb aquests daus; no es pot defensar. | Its blow cuts through your cloak, left hanging on a puff of air; you are already behind it, thrusting where it can't guard. |
+| Aire | 8 | Sense mans | Focus | 3+5 | Puges 1 nivell de fatiga. Al final de cada torn, la teva arma ataca sola l'enemic que triïs amb aquests daus, fins que juguis una carta que requereixi Esgrima. | You release your sword and currents of air wield it; each round's end it flies at whoever you point to, until you take it back. |
+| Aire | 10 | Ratxa esmolada | Atac | 5+5 | Puges 2 nivells de fatiga. Cinc atacs, cadascun contra l'enemic que triïs. | Sword out, you ride a whetted gust across the field, and it carries you to five foes in one breath, each one your choice. |
+| Aigua | 3 | Nus de gebre | Defensa | 1+2 | Bloqueja un enemic. Si aguanta, fins al final del torn següent l'atacant i tu només us podeu atacar l'un a l'altre. | Your blade meets its blow and frost freezes the contact into a rope of ice binding you two: neither can turn on anyone else. |
+| Aigua | 5 | Contracorrent | Atac | 3+2 | Si l'objectiu t'ataca aquest torn, tots dos atacs es resolen alhora, i el teu suma el tir del seu. | You flow into its incoming blow like a counter-current, catching its force along your blade and sending it back with your own. |
+| Aigua | 6 | Fulla assedegada | Atac | 2+4 | Si fereix, un aliat, o tu, recupera tants PV com li ha tret. | Your blade drinks the water from the wound it opens, and you pour that water as healing over an ally, or yourself. |
+| Aigua | 8 | Onada trinxadora | Atac | 3+5 | Puges 1 nivell de fatiga. Tres atacs, cadascun contra un enemic a l'atzar. | You ride a churning wave into their ranks, sword flailing as it tumbles you; three cuts land wherever the water throws you. |
+| Aigua | 10 | Marioneta escarlata | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, el torn següent tries la carta que juga l'objectiu i contra qui, ell mateix inclòs. | Your sword opens a cut and you bend the body through its blood; next round it moves as your puppet, even against itself. |
 
 ### Mestre del xi × element (best card: Espina clavada)
 
-| pairing | sum | card | type | thr | text |
-|---|---|---|---|---|---|
-| Aigua | 2 | Verí retornat | Focus | 1+1 | Un aliat, o tu, perd tots els efectes negatius, que passen a l'enemic que triïs. |
-| Aigua | 4 | Corrent guaridor | Focus | 2+2 | Un aliat dret, o tu, recupera 2 PV al final de cada torn fins que el fereixin. |
-| Aigua | 6 | Hivernació | Defensa | 3+3 | Un aliat, o tu: fins al final del torn següent ningú no el pot atacar, i el torn següent no juga carta. |
-| Aigua | 8 | Lligam de dolor | Atac | 4+4 | Afecta dos enemics. Si fereix tots dos, fins al final del torn següent, quan un atac en fereixi un, l'altre perd els mateixos PV. |
-| Aigua | 10 | Venes glaçades | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix no juguen carta el torn següent, i el primer cop que els fereixi llavors fa el doble. |
-| Terra | 2 | Cor de granit | Defensa | 1+1 | Defensa un aliat. Aquest torn, cap carta enemiga no li pot deixar efectes negatius. |
-| Terra | 4 | Cantar els punts | Focus | 2+2 | El torn següent, cada atac del teu bàndol que fereixi deixa l'objectiu entumit. |
-| Terra | 6 | Espina clavada | Atac | 3+3 | Si fereix, queda entumit fins que passi un torn sense atacar. |
-| Terra | 8 | Fer-lo estàtua | Defensa | 4+4 | Bloqueja un enemic. Si aguanta, el torn següent no juga carta. |
-| Terra | 10 | Presa de terra | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix juguen la resta del combat les cartes només amb els daus. |
-| Foc | 2 | Caliu sota la pell | Atac | 1+1 | Si fereix, fins al final del torn següent cada atac que faci li fa perdre 2 PV. |
-| Foc | 4 | Cauteritzar | Focus | 2+2 | Un aliat dret, o tu, recupera els PV que li va treure l'últim cop que l'ha ferit. |
-| Foc | 6 | Cremar el cansament | Focus | 3+3 | Un aliat, o tu, baixa 2 nivells de la fatiga pujada aquest combat. |
-| Foc | 8 | Raig de retorn | Defensa | 4+4 | Puges 1 nivell de fatiga. El primer atac contra tu, aguantis o no, fereix també l'enemic que triïs amb el seu total, sense defensa. |
-| Foc | 10 | Incendi interior | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. +2 per cada nivell de fatiga que tinguis. |
-| Aire | 3 | Agulla de vent | Atac (very fast) | 2+1 | Si fereix, la seva carta d'aquest torn es resol només amb els daus. |
-| Aire | 4 | Mort fingida | Focus | 2+2 | El torn següent no et poden atacar, i el teu atac no es pot defensar. |
-| Aire | 6 | Pes de ploma | Atac | 3+3 | Si fereix, fins al final del torn següent no es pot defensar ni el poden defensar. |
-| Aire | 8 | Bocanada robada | Atac | 4+4 | Si fereix, un aliat, o tu, encara que hagi caigut, recupera tants PV com el dany. |
-| Aire | 10 | Asfíxia | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix i queden per sota de la meitat dels seus PV inicials cauen. |
+| pairing | sum | card | type | thr | text | scene |
+|---|---|---|---|---|---|---|
+| Aigua | 3 | Verí rebotat | Focus | 1+2 | Un aliat, o tu, perd tots els efectes negatius, que passen a l'enemic que triïs. | You press an ally's points and draw every ailment out as a dark bead of water, then flick it into an enemy's points. |
+| Aigua | 4 | Transvasar el vigor | Atac | 2+2 | Si fereix, l'objectiu queda entumit, i un aliat, o tu, té +3 als atacs fins al final del torn següent. | You jab a point and siphon its strength out as a stream of water, its limb going numb, then pour that strength into an ally's. |
+| Aigua | 6 | Hivernació | Defensa | 3+3 | Un aliat, o tu: fins al final del torn següent cap atac no l'afecta, i el torn següent no juga carta. | You press the points that slow a heart and seal an ally in a shell of ice; nothing reaches them, but they sleep a round. |
+| Aigua | 8 | Lligam de dolor | Atac | 4+4 | Afecta fins a tres enemics. Després, fins al final del torn següent, quan un atac fereix un dels que has ferit, els altres que has ferit perden els mateixos PV. | You strike three foes' points and thread water through their blood, linking them; for a round, a wound to one hurts them all. |
+| Aigua | 10 | Venes de vidre | Defensa | 5+5 | Puges 2 nivells de fatiga. Bloqueja tots els enemics. Els atacants contra qui aguantis queden de vidre: fins al final del torn següent, cada atac que els fereixi els treu el doble de PV. | You meet every attacker with a fingertip and freeze the water in their veins to glass; any wound now cracks them twice as deep. |
+| Terra | 2 | Segell de fang | Defensa | 1+1 | Defensa un aliat, o tu. Aquest torn, cap carta enemiga no li pot deixar efectes negatius. | You stand guard and press mud over an ally's points, sealing them; whatever the enemy lands, nothing sticks. |
+| Terra | 4 | Cantar els punts | Focus | 1+3 | El torn següent, cada atac del teu bàndol que fereixi deixa l'objectiu entumit. | Feeling their stances through the ground, you call out each enemy's open point; next round every wounding blow of your side lands there and numbs. |
+| Terra | 6 | Espina clavada | Atac | 3+3 | Si fereix, l'objectiu queda entumit fins que passi un torn sense atacar. | You drive a stone thorn into a pressure point and leave it lodged; it stays numb until it rests a whole round without attacking. |
+| Terra | 8 | Fer-lo estàtua | Defensa | 4+4 | Bloqueja un enemic. Si aguanta, l'atacant no juga carta fins que un atac el fereixi, com a màxim dos torns. | You catch its blow, press its points, and stone creeps over it; it stands a statue until a wound cracks it free, or the stone crumbles. |
+| Terra | 10 | Presa de terra | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix es descarreguen a terra: la resta del combat, les seves cartes no tenen cap efecte, només en compten els daus. | You strike every enemy's points and slap the ground; their power drains into the earth like lightning to ground, leaving only bare force, for good. |
+| Foc | 2 | Espurnes a les juntures | Atac | 1+1 | Si fereix, fins al final del torn següent cada atac que faci li fa perdre 1 PV. | Your fingertips leave sparks lodged in its joints; until next round ends, every swing it makes grinds them and burns it. |
+| Foc | 4 | Cauteritzar | Focus | 2+2 | Un aliat dret, o tu, recupera els PV que li va treure l'últim atac que el va ferir. | You heat your fingers in a living flame and press the points around an ally's last wound, sealing it as if it never landed. |
+| Foc | 6 | Fondre el cansament | Focus | 3+3 | Un aliat, o tu: la resta del combat, la fatiga amb què ha començat el combat no li resta a les tirades; en acabar, puja 1 nivell de fatiga. | You kindle an ally's points and burn off the weariness they came in with; it stops weighing on them, and returns once it's over. |
+| Foc | 8 | Raig redirigit | Defensa | 3+5 | Puges 1 nivell de fatiga. Aquest torn, el primer atac contra tu, aguantis o no, també fereix l'enemic que triïs, l'atacant inclòs, amb el total d'aquell atac, sense defensa. | You take the first blow in through your fingertips, run it down your channels like lightning, and fire its whole force out at any enemy. |
+| Foc | 10 | Fornal humana | Atac | 5+5 | Tria quants nivells de fatiga puges, com a mínim 2: +3 a aquesta tirada per cadascun, i els puges després de tirar. Afecta tots els enemics; els que fereix queden entumits. | You stoke your own points like a forge, burning as much strength as you dare, then sweep every enemy with blazing, numbing fingertips. |
+| Aire | 2 | Buidar els pulmons | Atac | 1+1 | Si fereix, el torn següent no pot jugar Focus. | Your two-finger strike under the ribs bends the air right out of its lungs; breathless, it can't focus next round. |
+| Aire | 5 | Fals cadàver | Focus | 3+2 | El torn següent cap atac no t'afecta, i el teu atac no es pot defensar. | You press your points and bend the breath out of your body, dropping like a corpse; ignored next round, you rise striking where nobody guards. |
+| Aire | 6 | Força de ploma | Defensa | 3+3 | Bloqueja un enemic. Si aguanta, fins al final del torn següent els seus atacs no fereixen. | You catch its blow, touch the points of its limbs and blow its strength away like down; its next blows land light as feathers. |
+| Aire | 8 | Boca a boca robat | Atac | 4+4 | Si fereix, un aliat caigut s'aixeca amb tants PV com li ha tret. | You hit an enemy's breath point, pull the air from its chest and breathe it into a fallen ally's mouth; they rise on stolen life. |
+| Aire | 10 | Asfíxia | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix s'ofeguen: al final de cada torn perden PV, el doble cada cop (1, 2, 4…), fins que algú et fereixi. No s'acumula. | You seal every enemy's breath points with a touch and bend the air out of their lungs; they choke harder each round, until a blow breaks your hold. |
 
-### Artífex × element (best card: Arnès de titella)
+Rulings: an *efecte negatiu* is only a state an enemy card left (the turn Hivernació costs is your own card's price, like the master's half of Bloqueig mutu). Entumit set again never shortens one already running (it keeps the later end), so Espina clavada's thorn stays; a turn without playing a card also counts as a turn without attacking. A harm passed to an enemy that can't act on it is lost.
+
+### Artífex × element (best card: Titella hidràulica)
 
 Corda as in the landed kit.
 
-| pairing | sum | card | type | thr | text |
-|---|---|---|---|---|---|
-| Foc | 3 | Escarabat de caliu | Atac | 1+2 | Si fereix, s'hi enganxa. Corda 3: l'objectiu perd 1 PV. |
-| Foc | 5 | Braçal cremador | Focus | 2+3 | Un aliat, o tu. Corda 3: quan un atac seu fereix, l'objectiu perd 2 PV més. |
-| Foc | 6 | Fanal enlluernador | Focus | 3+3 | Apunta un enemic. Corda 2: els seus atacs van contra un combatent a l'atzar. |
-| Foc | 8 | Caldera explosiva | Focus | 4+4 | Puges 1 nivell de fatiga. Corda 3: al final de cada torn tria: esclata contra tots els enemics, o guanya un dau. A 0, esclata. |
-| Foc | 10 | Globus segrestador | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi lliga i l'enlaira. Corda 3: mentre penja no pot actuar ni defensar-se; quan s'atura, cau i rep els daus de la carta. |
-| Aigua | 2 | Tralla retràctil | Atac | 1+1 | Si no fereix, ataca un altre cop. |
-| Aigua | 4 | Campana guaridora | Defensa | 2+2 | Corda 2: un aliat, a dins, no pot actuar ni ser atacat, i al final de cada torn recupera tants PV com els daus de la carta. |
-| Aigua | 6 | Dipòsit de pressió | Defensa | 3+3 | Defensa un aliat. Si aguanta, guarda el tir de l'atacant: al final del torn que triïs, ataca amb ell l'enemic que triïs. |
-| Aigua | 8 | Cor de llautó | Focus | 4+4 | Puges 1 nivell de fatiga. Un aliat caigut s'aixeca amb 1 PV. Corda 3: recupera 2 PV. |
-| Aigua | 10 | Arnès de titella | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi tanca l'arnès. Corda 3: cada torn tries la carta que juga i els seus objectius, ell inclòs. |
-| Terra | 3 | Vagoneta desbocada | Atac | 1+2 | Si fereix, el mateix tir ataca un altre enemic a l'atzar. |
-| Terra | 4 | Cuirassa de ressorts | Defensa | 2+2 | Corda 3: quan t'ataquen, una placa salta i ataca l'atacant amb els daus de la carta. |
-| Terra | 6 | Grilló i bola | Atac | 3+3 | Si fereix, li tanques el grilló. Corda 4: actua l'últim. |
-| Terra | 8 | Talp de ferro | Focus | 4+4 | Corda 3: al final de cada torn surt sota l'enemic que triïs i l'ataca, sense defensa. |
-| Terra | 10 | Martell de terratrèmols | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 3: cada torn, abans que es resolgui cap carta, ataca tots els enemics, sense defensa. |
-| Aire | 2 | Libèl·lula de bambú | Atac | 1+1 | Corda 2: al final del torn torna a volar contra l'enemic que triïs. |
-| Aire | 5 | Ràfega de corda | Focus | 3+2 | Puges 1 nivell de fatiga. Els teus ginys que ataquen ho fan ara, i després tots tornen a tenir la corda plena. |
-| Aire | 7 | Ales de rellotgeria | Defensa | 3+4 | Un aliat, o tu. Corda 3: cada atac contra ell falla. |
-| Aire | 8 | Estel de guerra | Defensa | 4+4 | Defensa un aliat: aquest torn no el poden atacar; al final del torn cau sobre l'enemic que triïs i l'ataca amb els daus de la carta. |
-| Aire | 10 | Tifó de manovella | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 3: al final de cada torn llança un enemic a l'atzar contra un altre, i tots dos reben els daus de la carta; si està sol, contra el terra, dos cops. |
+| pairing | sum | card | type | thr | text | scene |
+|---|---|---|---|---|---|---|
+| Foc | 3 | Escarabat incandescent | Atac | 1+2 | Si fereix, s'hi enganxa. Corda 3: al final de cada torn qui el porta perd 1 PV; si qui el porta cau, salta a l'enemic que triïs, amb la corda que li queda. | You flick a red-hot clockwork beetle; it latches on, burning each round, and scuttles to a host you pick when its victim drops. |
+| Foc | 5 | Braçal de guspires | Focus | 2+3 | Un aliat, o tu. Corda 3: quan un atac seu fereix, un enemic a l'atzar perd 2 PV. | You clamp a wound-up flint bracer, fed by your flame, on an ally's arm; every blow that lands sprays sparks onto a random enemy. |
+| Foc | 6 | Fanal enlluernador | Focus | 3+3 | Apunta un enemic. Corda 2: els seus atacs només fereixen la meitat, arrodonit avall. | You aim a clockwork lantern, blazing with your fire, into one enemy's eyes; dazzled, its blows land half-blind and half as hard. |
+| Foc | 8 | Caldera explosiva | Focus | 4+4 | Puges 1 nivell de fatiga. Corda 3: al final de cada torn tria: la caldera guanya un dau, o esclata (ataca tots els enemics i s'atura). Si se li acaba la corda, esclata. | You wind a copper boiler and stoke it with your fire; each round you build the pressure or let the steam burst over every enemy. |
+| Foc | 10 | Globus segrestador | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi lliga i l'enlaira. Corda 3: mentre penja no pot actuar ni ser atacat; quan s'atura, cau enmig dels altres enemics: ell rep un atac amb els daus de la carta, sense defensa, i cada altre enemic, un atac amb els mateixos daus. | Your harpoon hooks a patchwork balloon onto the enemy and your flame fills it; it hangs helpless aloft, then crashes down among its friends. |
+| Aigua | 2 | Xeringa de neu | Atac | 1+1 | Si fereix, queda fràgil: el proper atac que el fereixi li fa perdre 2 PV més. | You jab in a brass syringe and bend its water to snow inside the wound; the frozen flesh turns brittle and cracks deeper on the next hit. |
+| Aigua | 4 | Campana de busseig | Defensa | 2+2 | Un aliat entra a la campana: aquest torn no pot actuar ni ser atacat; al final del torn en surt i recupera tants PV com treguin els daus de la carta. | You drop a brass diving bell over an ally and fill it with healing water you bend; sealed in for a round, they step out mended. |
+| Aigua | 6 | Dipòsit de pressió | Defensa | 3+3 | Defensa un aliat i guarda el tir del primer atac que aguanti: al final del torn que triïs, ataca amb aquell tir fins a tres enemics. | A pressure tank on your back swallows the blow aimed at an ally, force and all; whenever you choose, its water jet hoses three foes. |
+| Aigua | 8 | Cor de sínia | Focus | 4+4 | Puges 1 nivell de fatiga. Un aliat caigut s'aixeca amb 1 PV. Corda 3: al final de cada torn recupera 2 PV. | You strap a tiny waterwheel to a fallen ally's chest and bend water through it; it jolts them up, then mends them each round. |
+| Aigua | 10 | Titella hidràulica | Atac | 5+5 | Puges 2 nivells de fatiga. Si fereix, s'hi tanca l'arnès. Corda 3: cada torn tries la carta que juga i els seus objectius, ell inclòs. | Your harness of hoses snaps shut around it and you drive water through its pistons; it fights as your puppet, even against itself. |
+| Terra | 3 | Vagoneta desbocada | Atac | 1+2 | Si fereix, el mateix tir ataca un enemic a l'atzar, ell inclòs. | You bend a rail out of the ground and launch a loaded mine cart down it; it smashes the target and careens on, maybe back into it. |
+| Terra | 4 | Cuirassa reactiva | Defensa | 2+2 | La cuirassa és teva. Corda 3: quan t'ataquen, aguantis o no, una placa de roca salta i ataca l'atacant amb els daus de la carta. | You strap on a clockwork cuirass plated with bent stone; whenever something strikes you, a plate springs off and slams back at the attacker. |
+| Terra | 6 | Grilló i bola | Atac | 3+3 | Si fereix, li tanques el grilló. Corda 4: arrossega la bola de roca: cada torn actua l'últim i els seus atacs tenen −N. | You snap an iron shackle on it, chained to a boulder you tear from the ground; dragging it, it moves last and swings weakly. |
+| Terra | 8 | Talp de ferro | Focus | 4+4 | Puges 1 nivell de fatiga. Corda 3: cada torn, just abans que es resolgui la carta de l'enemic que triïs, li surt de sota i l'ataca; si fereix, la carta no es resol. | You wind an iron mole and soften the earth ahead of it; each round it bursts under your chosen enemy mid-move and spoils it. |
+| Terra | 10 | Martell de terratrèmols | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 2: a l'inici de cada torn ataca tots els enemics, sense defensa; els que fereix, aquell torn juguen Cop desesperat en lloc de la seva carta. | You wind a piston hammer and earthbend through each blow; every round opens with a quake underfoot, and whoever it shakes drops their move and flails. |
+| Aire | 2 | Libèl·lula de bambú | Atac | 1+1 | Corda 2: després plana sobre vosaltres; al final de cada torn ataca un enemic que triïs dels que us hagin atacat aquest torn. | You spin a bamboo dragonfly off your palm on a puff of air; after its strike it hovers over the group, diving at whoever attacked you. |
+| Aire | 5 | Manxa de ginys | Focus | 3+2 | Puges 1 nivell de fatiga. Cada giny teu que ataca cada torn fa ara la seva acció d'un torn un cop més, sense gastar corda. | You pump a gust through your gadgets like a bellows; every one that fights spins its gears and acts once more, right now, without unwinding. |
+| Aire | 7 | Estel de guerra | Defensa | 3+4 | Un aliat s'hi penja: aquest torn no el poden atacar, i el seu atac d'aquest torn fereix el doble. | You launch a war kite on a gust and an ally grabs the line; carried overhead out of reach, they dive in for a doubled blow. |
+| Aire | 8 | Ales de rellotgeria | Defensa | 4+4 | Un aliat, o tu. Corda 3: cada atac contra ell falla. | You strap clockwork wings on an ally and fill them with wind; they flit above every blow, and each one misses. |
+| Aire | 10 | Tifó de manovella | Focus | 5+5 | Puges 2 nivells de fatiga. Corda 2: al final de cada torn, el tifó fa xocar l'enemic que triïs contra cadascun dels altres: per cada xoc, ell i l'altre reben un atac amb els daus de la carta; si està sol, en rep dos. | You crank a typhoon into life and steer it; each round it slams one enemy into all the others, or, alone, into the ground twice. |
 
 ### Acrobàcia × element (best card: Bola de bitlles)
 
-| pairing | sum | card | type | thr | text |
-|---|---|---|---|---|---|
-| Aigua | 2 | Bassal relliscós | Focus (fast) | 1+1 | Aquest torn, el primer atac contra tu té −2 i el seu atacant queda a terra. |
-| Aigua | 4 | Carambola | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, l'atacant i un altre enemic que triïs queden a terra. |
-| Aigua | 6 | Bola de bitlles | Atac | 3+3 | Si l'objectiu és a terra, afecta també tots els altres enemics; els que fereix queden a terra. |
-| Aigua | 8 | Patinada en vuit | Atac | 5+3 | Puges 1 nivell de fatiga. Afecta dos enemics, i al final del torn els tornes a afectar. |
-| Aigua | 10 | Glaçar els caiguts | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que fereix i són a terra perden les seves 2 accions següents. |
-| Terra | 2 | Llosa basculant | Defensa | 1+1 | Bloqueja un enemic. L'atacant queda a terra, aguantis o no. |
-| Terra | 4 | Enterrar el caigut | Atac | 2+2 | Si l'objectiu és a terra i fereix, perd la seva acció següent. |
-| Terra | 6 | Pilar ressort | Atac | 4+2 | No es pot defensar. Si fereix, queda a terra. |
-| Terra | 8 | Roda de molí | Atac | 3+5 | Afecta l'objectiu i tots els enemics a terra. |
-| Terra | 10 | Aliat meteor | Focus (fast) | 5+5 | Puges 2 nivells de fatiga. Un aliat: el seu atac d'aquest torn afecta tots els enemics, i tots queden a terra, ferits o no. |
-| Foc | 2 | Volta de flama | Defensa | 1+1 | Bloqueja un enemic. Si aguanta, l'atacant perd tants PV com el marge. |
-| Foc | 4 | Flic-flacs explosius | Atac | 3+1 | Dos atacs, cadascun contra un enemic a l'atzar. |
-| Foc | 6 | Llit de caliu | Atac | 2+4 | Si fereix, queda a terra; mentre hi sigui, perd 3 PV al final de cada torn. |
-| Foc | 8 | Molinet de foc | Atac | 4+4 | Puges 1 nivell de fatiga. Afecta tots els enemics; els que fereix queden a terra. |
-| Foc | 10 | Torxa en picat | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que són a terra en reben el dany dos cops. |
-| Aire | 2 | Bufada rasant | Atac | 1+1 | Afecta dos enemics, sense dany; els que supera queden a terra. |
-| Aire | 4 | Escut de cos | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, el seu tir va contra un enemic a terra que triïs. |
-| Aire | 6 | Pilota humana | Atac | 4+2 | Afecta un enemic a l'atzar; si fereix, el mateix tir rebota a un altre a l'atzar, fins a 3 enemics. |
-| Aire | 8 | Esmaixada al vol | Atac | 4+4 | Puges 1 nivell de fatiga. Si fereix, rep el mateix dany un altre cop i queda a terra. |
-| Aire | 10 | Penjats del cel | Atac (fast) | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics, sense dany; els que supera floten fins al final del torn (no actuen ni es defensen) i llavors cauen a terra. |
+| pairing | sum | card | type | thr | text | scene |
+|---|---|---|---|---|---|---|
+| Aigua | 2 | Bassal relliscós | Focus (fast) | 1+1 | Aquest torn, el primer enemic que ataqui queda a terra abans que es resolgui el seu atac. | Cartwheeling, you fling a slick puddle across the floor; the first enemy to lunge at anyone slips and hits the ground before its blow lands. |
+| Aigua | 4 | Dòmino | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, l'atacant i un altre enemic que triïs queden a terra. | You roll under its blow and sweep a sheet of water at its feet; it skids into the enemy you pick and both go down. |
+| Aigua | 7 | Bola de bitlles | Atac | 3+4 | Si l'objectiu és a terra, afecta també tots els altres enemics; els que fereix queden a terra. | You kick a downed enemy across a floor you slicken with water; it spins like a bowling ball and knocks every other enemy flat. |
+| Aigua | 8 | Vuit sobre l'aigua | Atac | 5+3 | Puges 1 nivell de fatiga. Afecta dos enemics, i al final del torn els tornes a atacar; els que fereix queden a terra. | You skate a figure eight across bent water, kicking two enemies as you pass and again on the loop back; whoever you hit falls. |
+| Aigua | 10 | Pirueta glaçada | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que ja eren a terra, si els fereix, perden les seves 2 accions següents. Després, tots queden a terra. | You pirouette across the field, freezing the ground in a spreading sheet; anyone already down is frozen fast, and everyone else skids flat. |
+| Terra | 2 | Llosa basculant | Defensa | 1+1 | Bloqueja un enemic. L'atacant queda a terra, aguantis o no. | You flip backward off a slab you tilt under its feet; as it lunges, the slab tips and drops it, hit or miss. |
+| Terra | 4 | Enterrar fins al coll | Atac | 2+2 | Si fereix un objectiu que és a terra, perd la seva acció següent. | You somersault onto a downed enemy and stamp the earth closed over it, burying it to the neck; it spends its next turn digging out. |
+| Terra | 6 | Pilar ressort | Atac | 4+2 | No es pot defensar. L'objectiu i tu quedeu a terra. | A stone pillar springs you up and you crash down onto the target from above; nothing blocks it, and you both end up sprawled. |
+| Terra | 8 | Corró esclafador | Atac | 3+5 | Puges 1 nivell de fatiga. Afecta l'objectiu i tots els enemics que són a terra; els que fereix queden a terra. | You curl inside a rolling stone drum and tumble over the target and every enemy already down, flattening whoever it catches. |
+| Terra | 10 | Aliat projectil | Focus (very fast) | 5+5 | Puges 2 nivells de fatiga. Un aliat que ataqui aquest torn surt volant: fins al final del torn no el poden atacar; llavors cau, el seu atac es resol contra tots els enemics i tots els enemics queden a terra. | You vault an ally onto a stone pillar that hurls them up; out of reach, they come down striking, splitting the ground under every enemy. |
+| Foc | 2 | Doble de fum | Focus (fast) | 1+1 | Aquest torn, el primer atac contra tu falla, i el seu atacant perd 1 PV. | You backflip out of a puff of smoke that keeps your shape; the first blow strikes the smoke double, and its embers sting the attacker. |
+| Foc | 4 | Flic-flacs explosius | Atac | 3+1 | Dos atacs, cadascun contra un enemic a l'atzar; els que fereix queden a terra. | You chain back handsprings, each landing blasting fire from your feet; the blasts throw two random enemies off their feet. |
+| Foc | 6 | Llit de caliu | Atac | 2+4 | Si fereix, queda a terra; mentre hi sigui, perd 3 PV al final de cada torn. | You hook-kick it down onto a bed of embers you rake across the floor; every round it stays down, it burns. |
+| Foc | 8 | Molinet de torxes | Defensa | 4+4 | Puges 1 nivell de fatiga. Bloqueja tots els enemics; els que t'ataquen queden a terra i perden 2 PV, aguantis o no. | You cartwheel through their blows with a torch in each hand; anyone who swings at you is swept down and scorched by the wheel of fire. |
+| Foc | 10 | Catifa de foc | Atac | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics; els que són a terra en reben el doble. | You cartwheel across the field unrolling a carpet of fire along the floor; it licks everyone, and anyone lying on it burns twice. |
+| Aire | 2 | Patada en ventall | Atac | 1+1 | Afecta dos enemics, sense dany; els que supera queden a terra. | You spin a fan kick through two enemies; the gust off your heel knocks both off their feet without a scratch. |
+| Aire | 4 | Estavellada | Defensa | 1+3 | Bloqueja un enemic. Si aguanta, l'atacant s'estavella: queda a terra i perd 2 PV. | You flip over its lunge and a gust at your back sends its charge on past you, slamming it into the ground. |
+| Aire | 6 | Pilota humana | Atac | 4+2 | Afecta un enemic a l'atzar; si fereix, el mateix tir rebota a un altre a l'atzar, fins a 3 enemics. L'últim que fereix queda a terra. | You curl into a ball and a gust fires you at a random enemy; you ricochet from body to body, flattening the last one you hit. |
+| Aire | 8 | Esmaixada al vol | Atac | 4+4 | Puges 1 nivell de fatiga. Si fereix, torna a perdre els mateixos PV i queda a terra. | You ride an updraft with it in your grip and spike it into the ground; the landing hurts as much as the blow. |
+| Aire | 10 | Penjats del cel | Atac (fast) | 5+5 | Puges 2 nivells de fatiga. Afecta tots els enemics, sense dany; els que supera perden la seva acció d'aquest torn, i al final del torn perden N PV i queden a terra. | You swing on a trapeze of wind, snatching every enemy up into the air; dangling, they can't act, then the wind drops them hard. |
 
 ### Decisions for the user
 
-- **One bloodbending puppet, or two?** Marioneta escarlata (Esgrima × Aigua) and Arnès de titella (Artífex × Aigua) are the same play.
+- **One bloodbending puppet, or two?** Marioneta escarlata (Esgrima × Aigua) and Titella hidràulica (Artífex × Aigua) are the same play.
 - **Cautery twice:** Cauteritzar la ferida (Esgrima × Foc, self) and Cauteritzar (Xi × Foc, ally; Segellar's old rule with fire as its lore).
-- **Revives:** Bocanada robada (Xi × Aire) and Cor de llautó (Artífex × Aigua) join Cop de vida.
-- **Campana guaridora** (Artífex × Aigua) sits close to Hivernació (Xi × Aigua).
+- **Revives:** Boca a boca robat (Xi × Aire) and Cor de sínia (Artífex × Aigua) join Cop de vida.
+- **Estel de guerra** (Artífex × Aire) plays like Aliat projectil (Acrobàcia × Terra): an ally flies out of reach and lands a bigger blow.
+- **Campana de busseig** (Artífex × Aigua) sits close to Hivernació (Xi × Aigua).
 - **A blast in Artífex:** Caldera explosiva (steam, not powder).
-- **Reviewer-written images to confirm:** Onada d'estocades (it replaced Tentacles armats), Pilar ressort's floor rider.
-- **Rulings:** is being swallowed an efecte negatiu (Cor de granit vs Engolir)?
-- **For implementation:** the AI prices "a terra" at −0.1, so every Acrobàcia setup card will read as weak until that rises. Many of these statuses need `positionValue`. Finishers whose blows can't be defended (Ratxa de ganivets, Martell de terratrèmols) need small dice. Martell needs a round-start hook.
+- **Reviewer-written images to confirm:** Pilar ressort's rider (target and you both floored).
+- **Rulings:** is being swallowed an efecte negatiu (Segell de fang vs Engolir)?
+- **For implementation:** the AI prices "a terra" at −0.1, so every Acrobàcia setup card will read as weak until that rises. Many of these statuses need `positionValue`. Finishers whose blows can't be defended (Martell de terratrèmols, Tifó de manovella, Sabre de tro) need small dice. Martell needs a round-start hook.
 
 ## Review rounds (log)
 
