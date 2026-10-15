@@ -394,6 +394,18 @@ function evaluate(
 }
 
 /**
+ * What the search believes a fixed plan for `team` is worth: the same paired
+ * rollouts and leaf it compares candidates with, at full sample. For tracing a
+ * decision (why did it pick that card?), never on the hot path.
+ */
+export function evaluatePlan(
+  engine: CombatEngine, team: number, choices: Map<Character, number>,
+  opts: LookaheadOptions = DEFAULT_LOOKAHEAD, pairSeed = 1,
+): number {
+  return evaluate(engine, team, choices, opts, opts.depth, pairSeed);
+}
+
+/**
  * Choose a card for every living member of `team`, by iterated best response.
  * Returns the assignment and its expected value.
  */

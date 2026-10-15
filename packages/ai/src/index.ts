@@ -27,7 +27,7 @@ export {
   selectAction, pickResolveTargets, expectedAttackTotal, estimateExpectedDamage,
 } from './policy.js';
 export {
-  bestResponse, positionScore, lookaheadChooser, DEFAULT_LOOKAHEAD, DEFAULT_EVAL_WEIGHTS,
+  bestResponse, evaluatePlan, positionScore, lookaheadChooser, DEFAULT_LOOKAHEAD, DEFAULT_EVAL_WEIGHTS,
 } from './lookahead.js';
 export type { LookaheadOptions, EvaluatorWeights } from './lookahead.js';
 
