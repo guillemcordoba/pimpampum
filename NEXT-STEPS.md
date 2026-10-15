@@ -5690,3 +5690,88 @@ From `packages/tools`, 28 lanes, every child at nice 19:
   crash.
 - **Fixtures**: confirmed mismatches append to `ai/test/audit-fixtures.json`
   (`todo: true`).
+
+## 52. The AI audit's defects: puzzles, causes, fixes (2026-10-15, branch `elements-set`)
+
+The night of §51 found the production AI on a referee-dominated card in 26% of
+positions. Each defect group got a GENERIC control puzzle first
+(`ai/test/defect-puzzles.test.ts`: made-up cards, fixed dice, the answer exact
+by arithmetic and confirmed by the referee), then a fix, judged three ways:
+the puzzles; the AI REPLAYED on the night's 2,030 solved positions against the
+referee's stored verdicts (paired, AI-only, a pick the referee did not weigh is
+"unknown"); and a FRESH referee sample solved with `CheckOptions.rival` (the old
+setting asked the same positions, judged on the same solves, under the full
+confirmation rule). Fresh slices: 1x1 c4 r4, 2x1 c3 r3, 2x2 c3 r2, 4x1 c3 r2;
+4 lanes at nice 19. Replay rule: equilibrium probability < 2% and loss > 2 PV on
+the stored root solve (stricter than ε = 1, unconfirmed), so its rates read
+higher than the night's confirmed 26%; only the paired difference matters.
+
+### 52.1 Fix 1 — the leaf is settled at the start of the next round (`tempo`)
+
+**Cause.** The depth-1 leaf (`positionScore`) is read when the searched round
+ends. A stun (`skipTurns`) is only spent by the NEXT `prepareRound`; a delayed
+blow lands in the next round's `onRoundStart`; a raised ally first acts next
+round. So a stun scored as its dice, an unpriced bomb as nothing, a revive as
+a few PV and one more body (the bodies term is divided by everyone standing).
+An underpriced status (a terra's −0.1; §49) is the same blind spot: its +N
+lands on next round's blows.
+
+**Fix** (`LookaheadOptions.tempo`, default 1, ai only, no engine change): after
+the searched round the rollout prepares the next one (round-start effects land,
+the bodies that lose it are known) and adds each side's next-round blows —
+every acting body's best LEGAL attack, plus the largest
+`attackRollAgainstHolder` a foe carries — in the PV term's units (blows over
+the other side's total max PV). Not when that round is the cap.
+
+Tried and rejected:
+- **Playing the next round out at depth 0** (`continuation`): best on the
+  audit replay (decisions 31.7% → 17.8%) but it LOST the fantasy mirror
+  (45.0%±5.7 at 6 samples, 37.8%±5.6 at 3 samples to keep the cost) and
+  doubled the search's cost: our own side's depth-0 play in that round is weak.
+- **Capping the threat at the PV the other side has left**: our threat then
+  shrank with every point dealt and the search guarded where it should strike
+  — fresh 4x1 c3 r2 went +7.1pp±3.8 worse; uncapped, +2.5pp±2.3.
+- `tempo` 0.5 / 0.75: smaller gains everywhere, mirror 52%.
+- A softer rollout opponent (`rolloutSharpness` 1) on top: +1.3pp±1.2 worse.
+
+**Measured (2026-10-15).**
+
+| | before | after | paired Δ |
+|---|---|---|---|
+| puzzles (a) stun, (b) unpriced bomb, (c) revive, (e2) underpriced exposure | fail | pass | |
+| night replay, positions with a ruled-out pick (2,030) | 38.5%±2.2 | 30.1%±2.0 | −8.4pp±1.4 |
+| … decisions | 31.7%±2.1 | 22.9%±1.9 | |
+| … hand holds a stun (474) | 59.3%±4.5 | 34.2%±4.4 | −25.1pp±4.1 |
+| … equilibrium stuns (330) | 68.2%±5.1 | 36.4%±5.3 | −31.8pp±5.1 |
+| … hand holds a bomb (319) | 39.2%±5.5 | 29.2%±5.1 | −10.0pp±4.2 |
+| … hand holds a revive (247) | 38.1%±6.2 | 26.7%±5.6 | −11.3pp±4.6 |
+| … 4x1 (299) | 74.6%±5.0 | 53.8%±5.8 | −20.7pp±4.8 |
+| … 4x2, 3x3, 4x4, 4x5 (202) | 69.8%±6.5 | 64.4%±6.7 | −5.4pp±3.2 |
+| … no group got worse | | | |
+| night fixtures (179, all failing before) | 100% | 59.8%±7.3 | −40.2pp±7.3 |
+| fresh referee sample, confirmed (1,681; first cut, capped threat) | 25.6%±2.1 | 21.8%±2.0 | −3.7pp±1.5 |
+| … 1x1 c4 r4 (522) | 14.6%±3.1 | 6.3%±2.1 | −8.2pp±2.5 |
+| … 2x1 c3 r3 (486) | 25.7%±4.0 | 16.7%±3.4 | −9.1pp±3.0 |
+| … 2x2 c3 r2 (337) | 19.3%±4.3 | 19.3%±4.3 | 0.0pp±1.9 |
+| … 4x1 c3 r2, uncapped (407) | 49.1%±5.0 | 51.6%±5.0 | +2.5pp±2.3 |
+| … hand holds a stun (248) | 41.1%±6.2 | 14.1%±4.4 | −27.0pp±6.0 |
+| the 7 controls | 6/7 (misses bomb-long-unpriced) | 7/7 | |
+| fantasy mirror, new vs old, 2 × 600 combats | | 56.8%±4.0, 53.3%±4.1 (seed 7, an earlier cut) | |
+
+4x1 c3 r2 is the one slice that did not improve: +2.5pp±2.3 (1σ). Its fights
+end in two rounds and hold no multi-round card, so the term can only add noise
+there; the extra picks are mostly guards where a strike was right, on one or
+two of the four AI seeds. Accepted for the gains elsewhere and the mirror;
+watch it.
+
+**Cost.** Reference party vs 5 goblins / vs 2 wolves and a golem, 40 fights,
+interleaved: 10.0 → 10.7 ms a round (+7%) and 3.9 → 3.8 ms; per fight the
+goblins went 74 → 89 ms because the fights got longer (heroes won 7/40 → 0/40:
+both sides use the AI, and the goblins gained more). `encounter-speed`, same
+load: horde 4.85 → 4.25 s, bone devils 1.71 → 2.25, boss 2.98 → 4.39, mixed
+2.44 → 2.83 (sum +14%). The 3 s budget already failed at baseline on this
+machine under load (horde 3.5-4.8 s at load 8-14); the boss's +47% is the
+fight getting longer, not the leaf.
+
+**Calibration.** Every baseline moves (the enemies think with the same AI):
+`pnpm calibration:refresh` and the slow kit suites are due, at night.

@@ -25,7 +25,7 @@
  */
 import { withSeed, type Character } from '@pimpampum/engine';
 import { pickResolveTargets, selectAction } from '../policy.js';
-import { bestResponse, DEFAULT_LOOKAHEAD } from '../lookahead.js';
+import { bestResponse, DEFAULT_LOOKAHEAD, type LookaheadOptions } from '../lookahead.js';
 import { ARCHETYPES } from './catalogue.js';
 import { buildEngine, type Position } from './position.js';
 import { BudgetExceeded, Referee, jointKey, type Joint, type RefereeOptions, type RootSolution } from './referee.js';
@@ -44,6 +44,9 @@ export interface CheckOptions {
   /** Re-solve this many extra times whatever happens (to measure the referee's error). */
   replicates: number;
   referee: Partial<RefereeOptions>;
+  /** A second AI setting, asked the same position and judged on the SAME
+   *  solves — an A/B of an AI change against the referee at the cost of one. */
+  rival?: LookaheadOptions;
 }
 
 export const DEFAULT_CHECK: CheckOptions = { aiSeeds: 4, epsilon: 1, z: 2, pMax: 0.02, confirm: 2, replicates: 0, referee: {} };
@@ -86,6 +89,9 @@ export interface CheckResult {
   combos?: { actions: number[]; cards: string[]; eqProb: number; loss: number }[];
   /** Share of the AI's seeds whose pick is a (confirmed) mismatch. */
   mismatchShare: number;
+  /** The rival setting's picks and share (`CheckOptions.rival`). */
+  rivalPicks?: PickVerdict[];
+  rivalMismatchShare?: number;
   sims: number;
   ms: number;
 }
@@ -94,7 +100,9 @@ const archOf = (c: Character, actionIdx: number): string =>
   actionIdx < 0 ? 'pass' : c.actions[actionIdx].def.id.split('.')[0];
 
 /** The AI's card per acting seat of team 0, over `seeds` seeds. */
-export function aiPicks(pos: Position, seeds: number): Map<string, { actions: number[]; count: number }> {
+export function aiPicks(
+  pos: Position, seeds: number, lookahead: LookaheadOptions = DEFAULT_LOOKAHEAD,
+): Map<string, { actions: number[]; count: number }> {
   const out = new Map<string, { actions: number[]; count: number }>();
   for (let s = 0; s < seeds; s++) {
     withSeed(9_000_000 + s, () => {
@@ -103,7 +111,7 @@ export function aiPicks(pos: Position, seeds: number): Map<string, { actions: nu
       }, { extraRounds: 1, ai: true });
       const prep = engine.prepareRound();
       const skipping = new Set(prep.skipping.filter(r => r.team === 0).map(r => r.idx));
-      const choices = bestResponse(engine, 0, DEFAULT_LOOKAHEAD).choices;
+      const choices = bestResponse(engine, 0, lookahead).choices;
       const actions = engine.teams[0]
         .map((c, i) => ({ c, i }))
         .filter(({ c, i }) => c.isAlive() && !skipping.has(i))
@@ -124,6 +132,7 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   const o = { ...DEFAULT_CHECK, ...opts };
   const t0 = performance.now();
   const picks = [...aiPicks(pos, o.aiSeeds).values()];
+  const rivalPicks = o.rival ? [...aiPicks(pos, o.aiSeeds, o.rival).values()] : [];
   const state = buildEngine(pos, { actionChooser: () => null });
   const baseSeed = o.referee.seed ?? 1;
   let sims = 0;
@@ -143,7 +152,7 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
     });
     return acc;
   };
-  const must = picks.flatMap(p => variantsOf(p.actions));
+  const must = [...picks, ...rivalPicks].flatMap(p => variantsOf(p.actions));
   const solveWith = (seed: number): RootSolution => {
     const referee = new Referee({ ...o.referee, seed });
     try {
@@ -171,8 +180,7 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
     if (!(err instanceof BudgetExceeded)) throw err;
     return { position: pos, solved: false, error: err.message, picks: [], mismatchShare: 0, sims, ms: performance.now() - t0 };
   }
-  const first = picks.map(p => judge(root, p.actions));
-  const anyFlag = first.some(j => j.flagged);
+  const anyFlag = [...picks, ...rivalPicks].some(p => judge(root, p.actions).flagged);
   const extra = Math.max(o.replicates, anyFlag ? o.confirm : 0);
   const replicas: RootSolution[] = [];
   for (let r = 1; r <= extra; r++) {
@@ -180,29 +188,34 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   }
   const confirmers = replicas.slice(0, o.confirm);
 
-  const verdicts: PickVerdict[] = [];
-  let mismatched = 0;
-  let total = 0;
-  picks.forEach((p, k) => {
-    const j = first[k];
-    const again = replicas.map(rep => judge(rep, p.actions));
-    // Every solve must flag it, AND the mean loss over the solves must clear ε
-    // by z standard errors of ITS OWN spread across them: the root's standard
-    // error cannot see the noise of the sampled rounds below it, and the
-    // re-solves can (measured per-solve loss sd ≈ 3-4 PV, NEXT-STEPS §51).
-    const losses = [j.loss, ...again.slice(0, o.confirm).map(x => x.loss)];
-    const mean = losses.reduce((a, b) => a + b, 0) / losses.length;
-    const sd = losses.length > 1 ? Math.sqrt(losses.reduce((s, x) => s + (x - mean) ** 2, 0) / (losses.length - 1)) : 0;
-    const mismatch = j.flagged && confirmers.length === o.confirm && again.slice(0, o.confirm).every(x => x.flagged)
-      && mean > o.epsilon + o.z * sd / Math.sqrt(losses.length);
-    verdicts.push({
-      cards: p.actions.map((a, s) => archOf(acting[s].c, a)), count: p.count,
-      eqProb: j.eqProb, value: j.value, loss: j.loss, noise: j.noise,
-      screened: j.flagged, mismatch, replicateLoss: again.map(x => x.loss),
+  const verdictsOf = (set: typeof picks): { verdicts: PickVerdict[]; share: number } => {
+    const verdicts: PickVerdict[] = [];
+    let mismatched = 0;
+    let total = 0;
+    set.forEach(p => {
+      const j = judge(root, p.actions);
+      const again = replicas.map(rep => judge(rep, p.actions));
+      // Every solve must flag it, AND the mean loss over the solves must clear ε
+      // by z standard errors of ITS OWN spread across them: the root's standard
+      // error cannot see the noise of the sampled rounds below it, and the
+      // re-solves can (measured per-solve loss sd ≈ 3-4 PV, NEXT-STEPS §51).
+      const losses = [j.loss, ...again.slice(0, o.confirm).map(x => x.loss)];
+      const mean = losses.reduce((a, b) => a + b, 0) / losses.length;
+      const sd = losses.length > 1 ? Math.sqrt(losses.reduce((s, x) => s + (x - mean) ** 2, 0) / (losses.length - 1)) : 0;
+      const mismatch = j.flagged && confirmers.length === o.confirm && again.slice(0, o.confirm).every(x => x.flagged)
+        && mean > o.epsilon + o.z * sd / Math.sqrt(losses.length);
+      verdicts.push({
+        cards: p.actions.map((a, s) => archOf(acting[s].c, a)), count: p.count,
+        eqProb: j.eqProb, value: j.value, loss: j.loss, noise: j.noise,
+        screened: j.flagged, mismatch, replicateLoss: again.map(x => x.loss),
+      });
+      total += p.count;
+      if (mismatch) mismatched += p.count;
     });
-    total += p.count;
-    if (mismatch) mismatched += p.count;
-  });
+    return { verdicts, share: total ? mismatched / total : 0 };
+  };
+  const mine = verdictsOf(picks);
+  const rival = o.rival ? verdictsOf(rivalPicks) : undefined;
 
   const cardsOf = (jt: Joint): string[] => jt.map((x, k) => archOf(acting[k]?.c ?? probe.teams[0][x.idx], x.actionIdx));
   const bestRow = root.rowValue.reduce((b, v, i) => (v > root.rowValue[b] ? i : b), 0);
@@ -229,7 +242,9 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
     position: pos, solved: true, value: root.value, replicateValues: replicas.map(r => r.value),
     exactRoot: root.exactRoot, eqCards,
     best: { cards: cardsOf(root.rows[bestRow]), value: root.rowValue[bestRow] },
-    picks: verdicts, combos, mismatchShare: total ? mismatched / total : 0, sims, ms: performance.now() - t0,
+    picks: mine.verdicts, combos, mismatchShare: mine.share,
+    ...(rival ? { rivalPicks: rival.verdicts, rivalMismatchShare: rival.share } : {}),
+    sims, ms: performance.now() - t0,
   };
 }
 

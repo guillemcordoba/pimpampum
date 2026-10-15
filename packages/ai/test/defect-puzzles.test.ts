@@ -86,9 +86,9 @@ describe('audit defects as puzzles: the referee agrees with the arithmetic', () 
 });
 
 describe('audit defects as puzzles: the production AI', () => {
-  it.fails('(a) stun', () => expect(aiAnswer(STUN)).toEqual(Array(4).fill('stun')));
-  it.fails('(b) unpriced delayed damage', () => expect(aiAnswer(BOMB)).toEqual(Array(4).fill('bomb')));
-  it.fails('(c) revive', () => expect(aiAnswer(REVIVE)).toEqual(Array(4).fill('revive')));
+  it('(a) stun', () => expect(aiAnswer(STUN)).toEqual(Array(4).fill('stun')));
+  it('(b) unpriced delayed damage', () => expect(aiAnswer(BOMB)).toEqual(Array(4).fill('bomb')));
+  it('(c) revive', () => expect(aiAnswer(REVIVE)).toEqual(Array(4).fill('revive')));
 });
 
 // --- (d) FOCUS FIRE ----------------------------------------------------------
@@ -187,7 +187,7 @@ describe('audit defects as puzzles: the two earlier mismatches', () => {
     expect(tripped).toBeCloseTo(1, 6);
   });
 
-  it.fails('(e2) the AI trips', () => {
+  it('(e2) the AI trips', () => {
     const chosen: string[] = [];
     for (let s = 0; s < 8; s++) {
       withSeed(s, () => {

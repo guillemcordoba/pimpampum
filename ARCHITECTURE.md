@@ -529,7 +529,10 @@ that prices encounters has to have.
   Fast (~4 ms/combat) and blind to what the rest of the round commits.
 - **Depth 1** — play the round forward and score the position it leaves
   (`positionScore`: PV differential, bodies standing, fatigue level — hand-written,
-  readable weights). The team is solved JOINTLY by iterated best response, which
+  readable weights), SETTLED at the start of the next round (`tempo`: round-start
+  effects land, stunned bodies are known, and each side's next-round blows are
+  priced — a stun, a delayed blow or a raised ally pay off there; NEXT-STEPS
+  §52). The team is solved JOINTLY by iterated best response, which
   is the only way a defense can be valued next to the focus it protects.
   `topK` prunes candidates by the depth-0 opinion. ~6× the cost, and it beats
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
@@ -623,6 +626,9 @@ real-game rule that would make every last-round play look worthless on an
 audit's artificial cap. A pick is a MISMATCH when its equilibrium probability
 is under 2%, it loses more than ε = 1 PV and 2 standard errors against the
 equilibrium opponent, and two re-solves under independent referee seeds agree.
+`CheckOptions.rival` asks a second AI setting the same position and judges it
+on the SAME solves — the cheap, paired way to A/B an AI change against the
+referee (NEXT-STEPS §52).
 
 **Fixtures.** Confirmed mismatches are appended to
 `ai/test/audit-fixtures.json` with the referee's verdict on every card

@@ -30,7 +30,7 @@ import {
   Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
-import { selectAction, pickResolveTargets } from './policy.js';
+import { selectAction, pickResolveTargets, expectedAttackTotal } from './policy.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
 export interface LookaheadOptions {
@@ -85,6 +85,25 @@ export interface LookaheadOptions {
    * resolution (`searchTargets`); 0 keeps the resolution heuristic alone.
    */
   targetSamples?: number;
+  /**
+   * Weight of NEXT ROUND'S BLOWS in the leaf (`nextRoundThreat`); 0 scores the
+   * board where the searched round ends, as the search always did.
+   *
+   * WHY: a depth-1 leaf read at the end of the round cannot see anything that
+   * lands at the start of the next one. A stun (`skipTurns`) takes a turn that
+   * has not come yet; a delayed blow lands as the next round opens; a raised
+   * ally first acts next round. All three scored as nothing, or as one more
+   * body worth a few PV, and the overnight audit caught the AI passing them
+   * up in 26-60% of the positions they were right in (NEXT-STEPS §52). So the
+   * leaf is SETTLED — the next round is prepared, round-start effects land,
+   * the bodies that lose it are known — and each side's blows for that round
+   * are priced in the PV term's own units.
+   *
+   * Playing that round out at depth 0 instead was measured too, and lost: our
+   * own side's depth-0 play is weak enough that it cost the AI strength in the
+   * mirror and doubled the search's cost (§52.2).
+   */
+  tempo?: number;
 }
 
 /**
@@ -159,7 +178,7 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
  * teammates have chosen — bought more than more samples did, and at less cost
  * (NEXT-STEPS §29, §38).
  */
-export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2 };
+export const DEFAULT_LOOKAHEAD: LookaheadOptions = { depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2, tempo: 1 };
 
 /**
  * How good is this position for `team`? Hand-written on purpose (see the file
@@ -240,6 +259,50 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   const statusDiff = statusValue(livingUs) - statusValue(livingThem);
 
   return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff;
+}
+
+/**
+ * NEXT ROUND'S BLOWS, ours minus theirs, in the PV term's own units: each body
+ * that acts next round lands the best attack it may legally play (plus the
+ * largest exposure a foe carries — `attackRollAgainstHolder`), spread over the
+ * other side's full health. Read on a SETTLED board (`LookaheadOptions.tempo`);
+ * `skipping` are the bodies that lose the round. Crude on purpose — no
+ * defences, no targets — because its job is only to make a turn taken, a body
+ * raised or a foe laid open worth something at the leaf; the next decision
+ * plays that round for real.
+ *
+ * NOT capped at the PV the other side has LEFT, though a blow cannot take
+ * more: capped so, our threat SHRANK with every point we dealt, and in 4v1
+ * fights the search started guarding where striking was right (§52.1).
+ */
+function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Character>, w: EvaluatorWeights): number {
+  let acc = 0;
+  for (const side of [0, 1]) {
+    const foes = engine.teams[1 - side];
+    let foeMax = 0;
+    let exposure = 0;
+    for (const f of foes) {
+      foeMax += Math.max(1, f.maxPV);
+      if (!f.isAlive()) continue;
+      if (!f.holdsStatusWith('attackRollAgainstHolder')) continue;
+      let e = 0;
+      for (const ref of f.statusRefs()) e += ref.entry.behavior?.attackRollAgainstHolder?.(ref) ?? 0;
+      exposure = Math.max(exposure, e);
+    }
+    let out = 0;
+    for (const c of engine.teams[side]) {
+      if (!c.isAlive() || skipping.has(c)) continue;
+      let best = 0;
+      for (let i = 0; i < c.actions.length; i++) {
+        const a = c.actions[i];
+        if (a.def.actionType !== ActionType.Atac || !engine.canPlayActionIdx(c, i)) continue;
+        best = Math.max(best, expectedAttackTotal(c, a.def));
+      }
+      if (best > 0) out += best + exposure;
+    }
+    acc += (side === team ? 1 : -1) * w.pv * Math.min(out, foeMax) / foeMax;
+  }
+  return acc;
 }
 
 /** Action indices `actor` may legally play, via the engine's own gate, honouring
@@ -384,6 +447,16 @@ function evaluate(
 
       if (depthLeft > 1 && !sim.isOver() && sim.round < sim.maxRounds) {
         return bestResponse(sim, team, { ...opts, depth: depthLeft - 1 }).value;
+      }
+      // SETTLE THE LEAF (`LookaheadOptions.tempo`): prepare the next round —
+      // round-start effects land, the bodies that lose it are known — and
+      // price its blows. Not when that round is the cap: a board there is a
+      // draw whatever it holds.
+      if (opts.tempo && !sim.isOver() && sim.round + 1 < sim.maxRounds) {
+        const { skipping } = sim.prepareRound();
+        const lost = new Set(skipping.map(r => sim.teams[r.team][r.idx]));
+        return positionScore(sim, team, opts.weights)
+          + opts.tempo * nextRoundThreat(sim, team, lost, opts.weights ?? DEFAULT_EVAL_WEIGHTS);
       }
       return positionScore(sim, team, opts.weights);
     });
