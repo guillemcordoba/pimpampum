@@ -249,7 +249,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1398,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1398",
    "roundsLeft": 5,
@@ -410,7 +410,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1754,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1754",
    "roundsLeft": 5,
@@ -585,7 +585,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1848,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1848",
    "roundsLeft": 5,
@@ -1209,7 +1209,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 2314,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2314",
    "roundsLeft": 4,
@@ -1378,7 +1378,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c3 r3",
   "seed": 2391,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2391",
    "roundsLeft": 3,
@@ -1707,7 +1707,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 233,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g233",
    "roundsLeft": 5,
@@ -3052,7 +3052,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 86,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g86",
    "roundsLeft": 4,
@@ -3447,7 +3447,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 167,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g167",
    "roundsLeft": 4,
@@ -3611,7 +3611,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 314,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g314",
    "roundsLeft": 5,
@@ -3773,7 +3773,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1686,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1686",
    "roundsLeft": 5,
@@ -4100,7 +4100,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2207,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2207",
    "roundsLeft": 5,
@@ -5575,7 +5575,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1628,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1628",
    "roundsLeft": 4,
@@ -6112,7 +6112,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 280,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g280",
    "roundsLeft": 5,
@@ -6272,7 +6272,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r3",
   "seed": 441,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g441",
    "roundsLeft": 3,
@@ -7281,7 +7281,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r2",
   "seed": 1635,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1635",
    "roundsLeft": 2,
@@ -7506,7 +7506,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2398,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2398",
    "roundsLeft": 5,
@@ -8710,7 +8710,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c3 r3",
   "seed": 1590,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1590",
    "roundsLeft": 3,
@@ -9002,7 +9002,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1835,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1835",
    "roundsLeft": 5,
@@ -9397,7 +9397,7 @@
   "found": "2026-10-14",
   "slice": "1x2 c3 r4",
   "seed": 588,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g588",
    "roundsLeft": 4,
@@ -10530,7 +10530,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2322,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2322",
    "roundsLeft": 5,
@@ -10697,7 +10697,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c3 r3",
   "seed": 2323,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2323",
    "roundsLeft": 3,
@@ -11346,7 +11346,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 887,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g887",
    "roundsLeft": 4,
@@ -12217,7 +12217,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2013,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2013",
    "roundsLeft": 5,
@@ -12376,7 +12376,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2335,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2335",
    "roundsLeft": 5,
@@ -12695,7 +12695,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 2416,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2416",
    "roundsLeft": 4,
@@ -13277,7 +13277,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 466,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g466",
    "roundsLeft": 5,
@@ -13446,7 +13446,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 822,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g822",
    "roundsLeft": 5,
@@ -13997,7 +13997,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 2005,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2005",
    "roundsLeft": 4,
@@ -14164,7 +14164,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r3",
   "seed": 2271,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2271",
    "roundsLeft": 3,
@@ -15282,7 +15282,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 10,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g10",
    "roundsLeft": 4,
@@ -15633,7 +15633,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 492,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g492",
    "roundsLeft": 5,
@@ -15798,7 +15798,7 @@
   "found": "2026-10-14",
   "slice": "1x2 c3 r4",
   "seed": 829,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g829",
    "roundsLeft": 4,
@@ -15968,7 +15968,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 924,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g924",
    "roundsLeft": 5,
@@ -16316,7 +16316,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c3 r3",
   "seed": 1001,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1001",
    "roundsLeft": 3,
@@ -18767,7 +18767,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1675,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1675",
    "roundsLeft": 4,
@@ -19255,7 +19255,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r3",
   "seed": 386,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g386",
    "roundsLeft": 3,
@@ -20385,7 +20385,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1911,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1911",
    "roundsLeft": 5,
@@ -20708,7 +20708,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1963,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1963",
    "roundsLeft": 4,
@@ -20870,7 +20870,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 23,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g23",
    "roundsLeft": 4,
@@ -21039,7 +21039,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 31,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g31",
    "roundsLeft": 4,
@@ -21379,7 +21379,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 246,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g246",
    "roundsLeft": 5,
@@ -21707,7 +21707,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 497,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g497",
    "roundsLeft": 4,
@@ -22872,7 +22872,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 654,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g654",
    "roundsLeft": 4,
@@ -23280,7 +23280,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r3",
   "seed": 1530,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1530",
    "roundsLeft": 3,
@@ -23579,7 +23579,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1704,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1704",
    "roundsLeft": 4,
@@ -23754,7 +23754,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2047,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2047",
    "roundsLeft": 5,
@@ -24426,7 +24426,7 @@
   "found": "2026-10-14",
   "slice": "4x2 c3 r3",
   "seed": 516,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g516",
    "roundsLeft": 3,
@@ -25603,7 +25603,7 @@
   "found": "2026-10-14",
   "slice": "2x2 c3 r2",
   "seed": 1292,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1292",
    "roundsLeft": 2,
@@ -26117,7 +26117,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2191,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2191",
    "roundsLeft": 5,
@@ -26760,7 +26760,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c4 r3",
   "seed": 668,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g668",
    "roundsLeft": 3,
@@ -27089,7 +27089,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1411,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1411",
    "roundsLeft": 5,
@@ -27251,7 +27251,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1953,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1953",
    "roundsLeft": 5,
@@ -28050,7 +28050,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 455,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g455",
    "roundsLeft": 4,
@@ -28849,7 +28849,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 94,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g94",
    "roundsLeft": 5,
@@ -29009,7 +29009,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 348,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g348",
    "roundsLeft": 5,
@@ -29974,7 +29974,7 @@
   "found": "2026-10-14",
   "slice": "2x1 c3 r4",
   "seed": 617,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g617",
    "roundsLeft": 4,
@@ -30388,7 +30388,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1607,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1607",
    "roundsLeft": 4,
@@ -31030,7 +31030,7 @@
   "found": "2026-10-14",
   "slice": "2x1 c3 r4",
   "seed": 2104,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2104",
    "roundsLeft": 4,
@@ -31371,7 +31371,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 408,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g408",
    "roundsLeft": 4,
@@ -31533,7 +31533,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 607,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g607",
    "roundsLeft": 4,
@@ -31697,7 +31697,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 801,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g801",
    "roundsLeft": 5,
@@ -32057,7 +32057,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 992,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g992",
    "roundsLeft": 5,
@@ -32216,7 +32216,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 1293,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1293",
    "roundsLeft": 5,
@@ -32741,7 +32741,7 @@
   "found": "2026-10-14",
   "slice": "4x1 c3 r3",
   "seed": 192,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g192",
    "roundsLeft": 3,
@@ -33395,7 +33395,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 1416,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1416",
    "roundsLeft": 4,
@@ -34679,7 +34679,7 @@
   "found": "2026-10-14",
   "slice": "1x2 c3 r4",
   "seed": 2418,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2418",
    "roundsLeft": 4,
@@ -35036,7 +35036,7 @@
   "found": "2026-10-14",
   "slice": "2x1 c3 r5",
   "seed": 1512,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1512",
    "roundsLeft": 5,
@@ -35203,7 +35203,7 @@
   "found": "2026-10-14",
   "slice": "2x1 c3 r4",
   "seed": 1968,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g1968",
    "roundsLeft": 4,
@@ -35537,7 +35537,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r4",
   "seed": 209,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g209",
    "roundsLeft": 4,
@@ -36034,7 +36034,7 @@
   "found": "2026-10-14",
   "slice": "1x1 c4 r5",
   "seed": 2008,
-  "todo": true,
+  "todo": false,
   "position": {
    "id": "g2008",
    "roundsLeft": 5,

@@ -5797,3 +5797,31 @@ seeds solved under each code, 96 solved by both): 34.4% → 32.3%,
 −2.1pp±4.1 — not resolved at this size; 4x2 +5.6pp±10.8 on 18. No mirror
 A/B is possible in one process (both sides aim by the same rule). Cost: one
 pass over the pending queue per target choice, not measurable.
+
+### 52.3 Still open (2026-10-15)
+
+- **(e1) The opponent model never hides.** The rollouts play the other side
+  with the depth-0 heuristic (`selectAction`): an attack is worth
+  `1 + 1.5 × expected damage`, a Focus a flat 1.2, so a foe that should dodge
+  (puzzle (e1): claw and die, or hide and lose nothing — the referee hides
+  p = 1) claws 98% of the time. Still `it.fails`. Tried: a uniform ε-mixture
+  for the opponents inside rollouts (ε 0.15 / 0.3): night replay −1.2pp±1.0 /
+  +0.3pp±1.2, mirror 51.2%±4.1 — no measurable gain, not shipped. The audit
+  has no hide archetype, so it cannot measure this at all; the lever that
+  worked in §49.3 is the content hint (Amagar-se's `aiWeight`), which moves
+  every fantasy baseline. **For the user**, as in §49.3. Adding a "dodge this
+  round" archetype to the audit catalogue would let the referee judge it.
+- **Advance** (`advancePendingAction`) is still the worst archetype in the
+  replay (45% of positions): inside a rollout an unhinted `ally_other` Focus
+  goes to the most wounded ally, not the one with a slow attack. Real cards
+  carry an `aiTargetPriority` hint (Trampolí does); the audit's does not.
+- **Guard/block vs strike** is now the largest remaining pair in the
+  multi-body slices; the referee pays in PV, the leaf in mean fractions, and
+  part of this may be that currency difference rather than an AI fault.
+- **Fixtures.** 70 of the 179 night fixtures now pass the fast tier's own
+  rule (ε 0.5) and were flipped from `todo` to guards; 109 stay open.
+- **Cost of both fixes**, 40 fights, same session: 10.5 → 12.9 ms a round vs
+  goblins (+23%), 4.2 → 4.4 vs wolves and golem (+5%); per fight +32-43%,
+  most of it longer fights.
+- **Due at night:** `pnpm calibration:refresh` and the slow kit suites — both
+  fixes change how every enemy plays too.
