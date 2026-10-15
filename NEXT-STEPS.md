@@ -5825,3 +5825,47 @@ pass over the pending queue per target choice, not measurable.
   most of it longer fights.
 - **Due at night:** `pnpm calibration:refresh` and the slow kit suites — both
   fixes change how every enemy plays too.
+
+### 52.4 The search's cost bought back, no decision changed (2026-10-15)
+
+`encounter-speed` failed after the two fixes (boss 2.98 → 4.39 s at 8
+workers). A CPU profile of the boss solve (single thread) showed no new hot
+spot: the leaf's own work (`prepareRound` + `nextRoundThreat`) was ~4%; the
+rest was more rollouts per round (+19% clones on the boss, partly longer
+fights) at a slightly dearer leaf (+8% per clone). So the cut came from the
+search not redoing work, in one per-decision memo (`DecisionMemo`,
+`lookahead.ts`):
+
+- **Plans asked twice read their rollouts back.** A sample is a pure function
+  of (board, plan, `pairSeed + s`), and `bestResponse`'s second pass re-asks
+  every card of every seat whose teammates have not moved since the first.
+  Values are stored per plan and per sample; the racing rule still runs
+  sample by sample against the CURRENT floor, so a plan cut earlier resumes
+  where it stopped and a full one is cut exactly where a fresh one would be.
+- **Each opponent seat is weighed once per decision.** Every rollout clones
+  the same prepared board and nobody's choice changes it, so a seat's depth-0
+  odds are the same in every sample of every candidate; only the draw (one
+  `random()` in the seat's stream, as before) differs. `selectAction` was
+  split into `actionOdds` + `drawAction` for this. Not shared where the board
+  can differ: a round the rollout prepares itself, a later round, a seat that
+  chooses after the reveal.
+
+Proof that nothing moved: a seeded fingerprint of 1,152 depth-1 fights (every
+player kit of both sets, at full level, in trios, against two of every
+creature; every log line, result and final PV hashed) is identical before and
+after (`f759868773532d69`), and every solved PV of the four requests is
+unchanged ([9], [17], [189], [10, 24]).
+
+| single thread, one pinned core, interleaved ×2 | before | after |
+|---|---|---|
+| horde (5 goblins) | 28.7 s | 20.5 s |
+| bone devils | 18.1 s | 12.4 s |
+| boss (basilisk) | 44.3 s | 28.8 s |
+| mixed band | 32.2 s | 19.7 s |
+| sum | 123.2 s | 81.4 s (−34%) |
+| rollouts (clones), boss | 960k | 801k |
+| µs per clone, boss | 46 | 36 |
+
+For scale, the same script with `tempo: 0` (no leaf settling, i.e. roughly
+before §52.1) summed 158 s in a noisier session against 164 s with it; the
+fixes' cost was mostly longer fights and more rollouts, not the leaf.
