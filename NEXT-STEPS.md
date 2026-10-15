@@ -6033,3 +6033,130 @@ per opponent card instead of two: night replay 28.0% → 28.1% (+0.1pp±0.1,
 boss 1.98, mixed 1.80 — all under the 3 s budget again. Solved PVs: [9],
 [18], [191], [9, 21] (were [9], [17], [189], [10, 24]; the opponent search
 and the decided-board fix change play, so the calibration refresh is due).
+
+## 53. The slow tier after the §52 AI: three fantasy kits over the band, the fantasy triangle breaks, the airbender stalls (2026-10-15, branch `elements-set`)
+
+The AI of §52 (tempo leaf, focus fire, opponent search, decided board, memo;
+up to 773c6b1) plays both sides, so every baseline moved. `pnpm
+calibration:refresh` re-pinned the calibration kits (no kit had changed, so
+only `REFRESHED` moved; the recalibration itself happened on the first
+measurement, as the bench cache keys on the AI's source). `REFERENCE_SIGMA` is a
+level sum, so its guard did not throw (fantasy 22, elements 40, unchanged).
+Fast tier green (711 + 109 todo). Kit suites at `GAMES` default (612 fights
+fantasy, 594 elements), nice 19; `--maxWorkers=1` did not serialise the
+files (`vitest.shared.ts` sets `maxForks: 4` under SLOW), so four kit files ran
+at once, each on bench's idle-aware lanes.
+
+### 53.1 Kit verdicts, before → after
+
+"Before" is the last full suite in §47-50 (§48.6 for Esgrima and Artífex,
+§49.2 for Acrobàcia, §50.3 for Mestre del xi). The sets' own kits were not
+re-measured in §44-50; where an older number exists its section is named.
+Requirement 1 = fights end (median · p90 · stalls), 2 = power band (Δ vs
+neutral, fails when Δ − 2σ > 15), 3 = choice matters (PV per decision).
+
+**Fantasy (L6)**
+
+| kit | 1 · fights end | 2 · power band | 3 · choice | blind spots |
+|---|---|---|---|---|
+| Esgrima | 4 · 6 · 0.0% ✓ | +14.7 → +17.0±1.5 ✓ (inside its error) | 3.52 ✓ | none |
+| Acrobàcia | 4 · 6 · 0.0% ✓ | +16.9 → **+20.0±1.4 ✗** (culprits Puntada d'espagat, Trampolí, Esquiva i traveta) | 5.45 (§45) → 4.68 ✓ | **Trampolí de mans no longer blind** (left `KNOWN_BLIND`) |
+| Artífex | 4 · 7 · 0.0% ✓ | +7.8 → +14.9±1.5 ✓ | 4.70 (§46) → 3.45 ✓ | none |
+| Mestre del xi | 4 · 6 · 0.0% → 4 · 6 · 0.0% ✓ | +15.9 → **+18.7±1.4 ✗** (Ràfega de dits, Desbloquejar, Cop al nervi) | 4.18 → 3.67 ✓ | **Desbloquejar el cos no longer blind** (left `KNOWN_BLIND`) |
+| Berserk | 4 · 6 · 0.0% ✓ | +3.9 (§38) → +3.2±1.7 ✓ | 3.74 ✓ | **Rugit de guerra new** (best 18%, played 2.4%, −0.8 PV when best) → `KNOWN_BLIND` |
+| Enginyer d'explosius | 4 · 7 · 0.1% ✓ | +10.9±1.6 ✓ | 3.07 ✓ | none |
+| Nigromant | 4 · 6 · 0.0% ✓ | +16.2 (§38) → **+19.8±1.4 ✗** (Mà de la tomba, Invocar l'ombra de l'infern, Xuclar la vida) | 4.65 ✓ | none |
+| Màgia volcànica | 4 · 6 · 0.0% ✓ | +0.7±1.8 ✓ | 2.05 ✓ | none |
+
+**Elements (L10)**
+
+| kit | 1 · fights end | 2 · power band | 3 · choice | blind spots |
+|---|---|---|---|---|
+| Esgrima | 2 · 5 · 1.8% ✓ | −5.9 → −9.9±1.8 ✓ | 10.26 ✓ | Retruc d'acer (known) |
+| Acrobàcia | 2 · 5 · 0.5% ✓ | −3.8 → −3.3±1.8 ✓ | 26.25 (§45) → 27.11 ✓ | Esquiva i traveta (known) |
+| Artífex | 2 · 5 · 1.4% ✓ | −6.5 → −9.4±1.8 ✓ | 9.20 (§46) → 11.65 ✓ | none |
+| Mestre del xi | 2 · 5 · 1.1% → 2 · 6 · 1.1% ✓ | −9.1 → −11.3±1.8 ✓ | 3.62 → 3.91 ✓ | none |
+| earthbender | 2 · 6 · 1.3% ✓ | −4.1±1.8 ✓ | 18.25 ✓ | none |
+| firebender | 2 · 5 · 1.6% ✓ | −6.1±1.8 ✓ | 12.38 ✓ | none |
+| waterbender | 2 · 6 · 1.5% ✓ | −5.5±1.8 ✓ | 22.95 ✓ | **Cop desviat new** (best 21%, played 1.8%, +14.8±9.1 PV when best) ✗ |
+| airbender | **3 · 40 · 14.3% ✗** (culprits Coixí de vent, Salt del meteor) | +2.0±1.8 ✓ | 23.05 ✓ | **Catapulta de vent** (best 22%, played 1.7%, +2.8 when best), **Cop i fuga** (16%, 0.8%, +0.9) ✗ |
+
+Fantasy `set`, `balancer` and `ai-strength` slow tests pass.
+
+### 53.2 The triangles
+
+| | Power > Protect | Protect > Aggro | Aggro > Power |
+|---|---|---|---|
+| fantasy before (§44.5-§48.6) | 71.1%±1.6 | 66.6%±1.7 | 54.9%±1.8 |
+| fantasy after | 76.1%±1.5 | **50.1%±1.8 ✗** | 59.7%±1.7 |
+| elements before (§45-§47, already failing) | 53.4%±1.8 ✗ | 31.0%±1.6 ✗ | 77.8%±1.5 |
+| elements after | 52.2%±1.8 ✗ | 31.6%±1.6 ✗ | 75.2%±1.5 |
+
+Fantasy Protect > Aggro is held up (the culprit search) by Riu de lava@cal
+(+16.1pp), Cures de camp@cal (+15.9pp), Bufetada insolent@cal (+9.1pp). Elements
+is unchanged within noise; still Ull de l'huracà@cal (+15.2pp / +39.6pp).
+
+**Bisected** (the fantasy triangle re-run in a worktree at each AI commit,
+same seeds, 800 fights an edge):
+
+| commit | Power > Protect | Protect > Aggro | Aggro > Power |
+|---|---|---|---|
+| 4c05346 (before §52) | 71.1 | 66.6 | 54.9 |
+| e64b59a tempo leaf | 76.7 | **53.9** | 57.9 |
+| fc13420 focus fire | 73.4 | 53.8 | 58.9 |
+| 6307942 opponent search | 77.9 | **48.2** | 63.1 |
+| e782d33 decided board | 79.0 | 47.1 | 60.1 |
+| 773c6b1 one rollout per opponent card | 76.1 | 50.1 | 59.7 |
+
+So the tempo leaf took ~13pp off Protect > Aggro and the opponent search
+another ~5pp; focus fire and the decided board moved nothing beyond noise.
+Reading: the leaf now prices each side's NEXT-round blows, which an all-attack
+side owns and an all-defense side does not (a guard's worth lapses with the
+round), so the Aggro side's search now weighs the threat it keeps; and the
+opponent search lets it dodge the Protect side's few real punishes. Whether
+the triangle or the leaf should give is a design question — for the user. A
+number lever on the content side would be the Protect corner's own cards
+(the culprits are the Aggro corner's).
+
+### 53.3 Diagnosis
+
+- **The fantasy band drift (+3 to +7pp on every shared and rich kit).** The
+  calibration's neutral stand-ins are vanilla; the subjects carry the cards
+  the new leaf now sees (stuns, delayed blows, revival-like summons, numbs,
+  gadgets that act next round). The biggest movers are exactly those: Artífex
+  +7.1, Nigromant +3.6, Acrobàcia +3.1, Mestre del xi +2.8, Esgrima +2.3;
+  the plain kits barely moved (berserk −0.7). Not bisected per kit (each kit
+  suite recalibrates from scratch at each commit). Three kits now fail the
+  band (Acrobàcia, Mestre del xi, Nigromant — the first two were already
+  passing only inside their error); for the user: tune by their numbers
+  (memory: numbers before mechanics), or accept that the ruler moved.
+- **Trampolí de mans and Desbloquejar el cos left the blind list**, as §52.5
+  and §52.6 predicted: the opponent model now hides (Trampolí breaks the
+  hide), and a win keeps its health (the mop-up heal is worth something to
+  the search). Fixed by the AI, as intended.
+- **Rugit de guerra** reads blind but gains nothing when best (−0.8 PV): the
+  card value's noise (§48.2 signature); ratcheted into `KNOWN_BLIND`.
+- **The airbender's stalls are NOT the new AI.** A probe (deleted) replayed
+  the airbender suite's 22 cells, 12 fights each, same seeds and the same
+  solved encounters, under 4c05346 and under 773c6b1: 35/264 stalls (13.3%)
+  under both. Every stalled board is §44.3's: the airbender (now the subject,
+  so in every company row) alone at 1/12 PV and Esgotat, playing Coixí de
+  vent on itself every round against soldiers it cannot finish. Turning off
+  `tempo` and `opponentSearch` changes nothing either (18.2% vs 18.2% at 2 a
+  cell). The airbender's own suite had not been run since §44; its failure is
+  §44.3's rule (a lone bender is immortal), still for the designer: (a)
+  Coixí cushions only the ally, as printed; (b) a fatigue cost; (c) no
+  cushion twice running.
+- **The elements blind spots** (Cop desviat, Catapulta de vent, Cop i fuga)
+  have no pre-§52 measurement to compare with (those suites had not run since
+  §44). Not ratcheted: Cop desviat gains +14.8 PV when best (noisy, but not
+  the noise signature) and is worth a look; Catapulta and Cop i fuga gain
+  little when best (+2.8, +0.9).
+
+### 53.4 The AI audit, night 2
+
+Launched after the slow tier to compare with §51's night (26.0%±1.0 of
+positions with a confirmed mismatch; `/tmp/ai-audit/night/report-2026-10-14.md`):
+`ai-audit.ts --mix night --games 11600`, output `/tmp/ai-audit/night2`. Note
+the catalogue gained the `hide` archetype in §52.5, so the dealt hands may
+differ from night 1's at the same seeds. Results to be written here.

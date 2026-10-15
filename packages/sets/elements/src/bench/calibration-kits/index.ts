@@ -12,7 +12,7 @@ import { MESTRE_DEL_XI } from './mestre-del-xi.js';
 import type { SkillDefinition } from '../../players/types.js';
 
 /** When the snapshot was taken. */
-export const REFRESHED = '2026-10-14';
+export const REFRESHED = '2026-10-15';
 
 export const PINNED_SKILLS: SkillDefinition[] = [AIRBENDER, EARTHBENDER, FIREBENDER, WATERBENDER, MESTRE_ARMES, ACROBACIA, ARTIFEX, MESTRE_DEL_XI];
 

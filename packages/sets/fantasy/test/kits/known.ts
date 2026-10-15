@@ -15,19 +15,12 @@ export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
 
 /**
  * Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,
- * almost never played. Measured 2026-10-14 (NEXT-STEPS §48.2).
+ * almost never played. Measured 2026-10-15 (NEXT-STEPS §53).
  */
 export const KNOWN_BLIND: Record<string, string[]> = {
-  // Inherits Segellar la ferida's slot and its signature: a small heal that
-  // the card value calls best mostly where a won fight's mop-up saves a few PV
-  // (best 18%, gaining only +1.1 PV when best) and the search, which scores a
-  // win as a win, does not (NEXT-STEPS §48.2). Fantasy's shapes leave few
-  // efectes negatius on heroes to cleanse. Not re-probed (NEXT-STEPS §50).
-  'mestre-del-xi': ['desbloquejar-el-cos'],
-  // Best where the launched attack lands before the goblins' Amagar-se
-  // (speed 2) and breaks it. The search's rollouts model the goblins at depth
-  // 0, which hides ~1% of the time where the real (depth-1) goblins hide ~40%,
-  // so the search almost never sees a hide to break (NEXT-STEPS §49.3).
-  // Tombarella de rescat left this list on the same run (best 28%, played 6.9%).
-  acrobacia: ['trampoli-de-mans'],
+  // Best 18% by the card value but played 2.4%, and it GAINS nothing when best
+  // (−0.8 PV): the card value's noise, the §48.2 signature, not a play the
+  // search misses. Appeared with the AI of §52 (it passed before). Desbloquejar
+  // el cos and Trampolí de mans left this list on the same run (NEXT-STEPS §53).
+  berserk: ['rugit-de-guerra'],
 };
