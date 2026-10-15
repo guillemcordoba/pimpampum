@@ -220,3 +220,15 @@ describe('audit defects as puzzles: the two earlier mismatches', () => {
 });
 
 
+
+// --- (f) THE CONTROLS, ASKED OF THE AI ---------------------------------------
+//
+// The referee is held to every control in `audit.test.ts`; the AI is asked
+// them here. `bomb-short` failed after the `tempo` leaf: a bomb that fells the
+// foe as next round opens was scored as a win PLUS next round's blows, above
+// the strike that fells it now (§52.6).
+describe('audit defects as puzzles: the AI plays every control\'s answer', () => {
+  for (const c of CONTROLS) {
+    it(`(f) ${c.position.id}: ${c.answer}`, () => expect(aiAnswer(c.position)).toEqual(Array(4).fill(c.answer)));
+  }
+});

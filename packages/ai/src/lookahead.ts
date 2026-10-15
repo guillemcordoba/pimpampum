@@ -223,9 +223,22 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   const livingUs = us.filter(c => c.isAlive());
   const livingThem = them.filter(c => c.isAlive());
 
+  const pvFrac = (team_: Character[]) => {
+    if (team_.length === 0) return 0;
+    let acc = 0;
+    for (const c of team_) acc += Math.max(0, c.currentPV) / Math.max(1, c.maxPV);
+    return acc / team_.length;
+  };
+
+  // A WIN IS WORTH MORE WITH MORE HEALTH LEFT. Every win used to score a flat
+  // 100, so two lines that both win — fell the foe now, or let a bomb fell it
+  // next round after it has struck once more — were a tie, and the depth-0
+  // seed decided (the audit's `bomb-short` control, NEXT-STEPS §52.6). The
+  // health term only breaks ties among wins (and among losses): it is never
+  // worth a win.
   if (livingThem.length === 0 && livingUs.length === 0) return 0;
-  if (livingThem.length === 0) return 100;
-  if (livingUs.length === 0) return -100;
+  if (livingThem.length === 0) return 100 + w.pv * pvFrac(us);
+  if (livingUs.length === 0) return -100 - w.pv * pvFrac(them);
 
   // OUT OF ROUNDS IS A RESULT, AND THE RESULT IS A DRAW.
   //
@@ -242,13 +255,6 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   // for the cap is the harder, open problem the `topK` comment names, and that
   // one needs a design decision rather than a correction — NEXT-STEPS §20.6.)
   if (engine.round >= engine.maxRounds) return 0;
-
-  const pvFrac = (team_: Character[]) => {
-    if (team_.length === 0) return 0;
-    let acc = 0;
-    for (const c of team_) acc += Math.max(0, c.currentPV) / Math.max(1, c.maxPV);
-    return acc / team_.length;
-  };
   // Dead members count as 0 PV rather than being dropped, else wiping out our
   // own wounded would read as an improvement.
   let pvDiff = pvFrac(us) - pvFrac(them);
@@ -593,6 +599,10 @@ function evaluate(
       // draw whatever it holds.
       if (opts.tempo && !sim.isOver() && sim.round + 1 < sim.maxRounds) {
         const { skipping } = sim.prepareRound();
+        // A round-start effect may have ended the fight: no blows follow a
+        // result (they were once added on top of the win, so a bomb that
+        // fells the foe next round outscored a strike that fells it now).
+        if (sim.isOver()) return positionScore(sim, team, opts.weights);
         const lost = new Set(skipping.map(r => sim.teams[r.team][r.idx]));
         return positionScore(sim, team, opts.weights)
           + opts.tempo * nextRoundThreat(sim, team, lost, opts.weights ?? DEFAULT_EVAL_WEIGHTS);

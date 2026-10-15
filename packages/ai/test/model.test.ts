@@ -218,7 +218,19 @@ describe('the leaf evaluator agrees with the engine about how a fight ends', () 
     const engine = atCap(10, 0);
     engine.teams[1][0].currentPV = 0;
     expect(engine.teams[1][0].isAlive(), 'fixture: the villain must actually be down').toBe(false);
-    expect(positionScore(engine, 0)).toBe(100);
+    expect(positionScore(engine, 0)).toBeGreaterThanOrEqual(100);
+  });
+
+  it('a win with more health left is worth more', () => {
+    // Two lines that both win must not tie (the audit's `bomb-short`).
+    const won = (pv: number) => {
+      const engine = atCap(pv, 0);
+      engine.round = 1;
+      engine.teams[1][0].currentPV = 0;
+      return positionScore(engine, 0);
+    };
+    expect(won(10)).toBeGreaterThan(won(5));
+    expect(won(1)).toBeGreaterThan(100);
   });
 
   it('below the cap it still scores the board', () => {
