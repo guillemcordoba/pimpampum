@@ -23,6 +23,8 @@
  *       … --mix night (default), --mix small, or a single config:
  *       --shape 2x2 --cards 3 --rounds 3   (and --samples 8,2,1 --decision-samples 8,4)
  *       --replicates 2   re-solve every position twice more (referee error)
+ *       --aims           also judge the AI's own in-round aiming (2 paths per
+ *                        equilibrium column, 32 continuations a decision)
  *       --rejudge        re-check every recorded fixture instead of dealing new
  *                        positions, and rewrite the file with the ones that
  *                        still hold (after any change to the referee)
@@ -139,7 +141,7 @@ function runOne(i: number, base: number): Row {
   const seed = base + i;
   const s = sliceFor(all, seed);
   const pos = generatePosition(seed, s.gen);
-  return { slice: s.label, seed, result: checkPosition(pos, { referee: refereeOpts(s, 1), replicates, rival: rival() }) };
+  return { slice: s.label, seed, result: checkPosition(pos, { referee: refereeOpts(s, 1), replicates, rival: rival(), aims: aims() }) };
 }
 
 /**
@@ -148,6 +150,10 @@ function runOne(i: number, base: number): Row {
  * the SAME solves (`CheckOptions.rival`). How an AI change is A/B'd against
  * the referee.
  */
+function aims(): { paths: number; samples: number } | undefined {
+  return process.argv.includes('--aims') ? { paths: 2, samples: 32 } : undefined;
+}
+
 function rival(): LookaheadOptions | undefined {
   const raw = flag('--rival');
   if (!raw) return undefined;
@@ -308,6 +314,33 @@ if (rivalled.length) {
     const mean = d.reduce((a, b) => a + b, 0) / d.length;
     const sd = Math.sqrt(d.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, d.length - 1));
     say(`| ${k} | ${g.length} | ${share(g.filter(hasMismatch).length, g.length)} | ${share(g.filter(rivalMismatch).length, g.length)} | ${(100 * mean).toFixed(1)}pp±${(100 * sd / Math.sqrt(d.length)).toFixed(1)} |`);
+  }
+  say();
+}
+
+const aimed = solved.filter(r => r.result.aims);
+if (aimed.length) {
+  // Each judged decision is one the AI's own card made as it resolved, on a
+  // sampled path with the opponent on its equilibrium cards.
+  const all = aimed.flatMap(r => r.result.aims!.map(a => ({ r, a })));
+  say('## The AI\'s own aiming (in-round decisions)');
+  say();
+  say(`- decisions judged: ${all.length}, on ${aimed.length} positions; with a choice that mattered (best − worst > ε): ${all.filter(x => Math.max(...x.a.options.map(o => o.mean)) - Math.min(...x.a.options.map(o => o.mean)) > 1).length}`);
+  say(`- mismatched (loses > ε and 3 SE): ${share(all.filter(x => x.a.mismatch).length, all.length)}; positions with one: ${share(aimed.filter(r => r.result.aims!.some(a => a.mismatch)).length, aimed.length)}`);
+  say(`- mean loss per decision: ${(all.reduce((s, x) => s + x.a.loss, 0) / Math.max(1, all.length)).toFixed(2)} PV`);
+  say();
+  const byCard = new Map<string, { n: number; m: number; loss: number }>();
+  for (const { a } of all) {
+    const g = byCard.get(a.card) ?? { n: 0, m: 0, loss: 0 };
+    g.n++; if (a.mismatch) g.m++; g.loss += a.loss;
+    byCard.set(a.card, g);
+  }
+  say('| aiming card | decisions | mismatch | mean loss |');
+  say('|---|---|---|---|');
+  for (const [k, g] of [...byCard].sort((x, y) => y[1].n - x[1].n)) say(`| ${k} | ${g.n} | ${share(g.m, g.n)} | ${(g.loss / g.n).toFixed(2)} |`);
+  say();
+  for (const { r, a } of all.filter(x => x.a.mismatch).slice(0, 40)) {
+    say(`- **${r.result.position.id}** (seed ${r.seed}, ${r.slice}): seat ${a.actorIdx} ${a.card} aimed ${a.ai} (${a.options.find(o => o.pick.join() === a.ai.join())?.mean.toFixed(2)}), best ${a.best} (${a.options.find(o => o.pick.join() === a.best.join())?.mean.toFixed(2)}), loss ${a.loss.toFixed(2)}±${a.se.toFixed(2)}`);
   }
   say();
 }

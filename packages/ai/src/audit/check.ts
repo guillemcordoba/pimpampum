@@ -23,12 +23,12 @@
  * last-round play as worth nothing and the audit would report that artefact.
  * So the AI's engine has `maxRounds + 1` — its depth-1 search never reaches it.
  */
-import { withSeed, type Character } from '@pimpampum/engine';
+import { withSeed, type Character, type CombatEngine, type TargetChooser } from '@pimpampum/engine';
 import { pickResolveTargets, selectAction } from '../policy.js';
-import { bestResponse, DEFAULT_LOOKAHEAD, type LookaheadOptions } from '../lookahead.js';
+import { bestResponse, searchTargets, DEFAULT_LOOKAHEAD, type LookaheadOptions } from '../lookahead.js';
 import { ARCHETYPES } from './catalogue.js';
 import { buildEngine, type Position } from './position.js';
-import { BudgetExceeded, Referee, Unsupported, jointKey, type Joint, type RefereeOptions, type RootSolution } from './referee.js';
+import { BudgetExceeded, Referee, Unsupported, jointKey, type AimVerdict, type Joint, type RefereeOptions, type RootSolution } from './referee.js';
 
 export interface CheckOptions {
   /** Seeds the AI is asked under. */
@@ -47,6 +47,9 @@ export interface CheckOptions {
   /** A second AI setting, asked the same position and judged on the SAME
    *  solves — an A/B of an AI change against the referee at the cost of one. */
   rival?: LookaheadOptions;
+  /** Also judge the AI's own in-round aiming: this many sampled paths per
+   *  equilibrium column, each decision valued on `samples` continuations. */
+  aims?: { paths: number; samples: number };
 }
 
 export const DEFAULT_CHECK: CheckOptions = { aiSeeds: 4, epsilon: 1, z: 2, pMax: 0.02, confirm: 2, replicates: 0, referee: {} };
@@ -91,6 +94,8 @@ export interface CheckResult {
   /** The rival setting's picks and share (`CheckOptions.rival`). */
   rivalPicks?: PickVerdict[];
   rivalMismatchShare?: number;
+  /** The AI's in-round aiming, when asked for (`CheckOptions.aims`). */
+  aims?: AimJudgement[];
   sims: number;
   ms: number;
 }
@@ -123,6 +128,27 @@ export function aiPicks(
   }
   return out;
 }
+
+export interface AimJudgement extends AimVerdict {
+  /** The card that aimed, by archetype. */
+  card: string;
+  /** Loses more than ε and z standard errors of the difference. */
+  mismatch: boolean;
+}
+
+/**
+ * The production AI's aiming (`aiPolicy`'s target chooser at depth 1), asked on
+ * an engine with one more round than the referee scores — for the reason the
+ * card choice is (see the top of this file): its evaluator calls a board at
+ * the cap a draw worth 0, and every last-round aim would read as nothing.
+ */
+const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool, speed) => {
+  const view = engine.clone();
+  (view as unknown as { maxRounds: number }).maxRounds = engine.maxRounds + 1;
+  const at = (c: Character): Character => view.teams[c.team][engine.teams[c.team].indexOf(c)];
+  const picked = searchTargets(view as CombatEngine, at(actor), def, req, count, pool.map(at), speed, DEFAULT_LOOKAHEAD.targetSamples ?? 0);
+  return picked.map(c => pool[pool.map(at).indexOf(c)]);
+};
 
 interface Judged { loss: number; value: number; eqProb: number; noise: number; flagged: boolean }
 
@@ -226,12 +252,37 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
     for (const a of Object.keys(m)) if (m[a] < 1e-6) delete m[a];
     return m;
   });
+  let aims: AimJudgement[] | undefined;
+  if (o.aims) {
+    aims = [];
+    const referee = new Referee({ ...o.referee, seed: baseSeed });
+    try {
+      for (const p of picks) {
+        const row = jointOf(p.actions);
+        root.cols.forEach((col, k) => {
+          if (root.sol.col[k] < o.pMax) return;
+          for (let path = 0; path < o.aims!.paths; path++) {
+            for (const v of referee.judgeAims(state, row, col, path, o.aims!.samples, AI_AIM)) {
+              const seat = acting.findIndex(a => a.i === v.actorIdx);
+              aims!.push({ ...v, card: archOf(probe.teams[0][v.actorIdx], p.actions[seat] ?? -1), mismatch: v.loss > Math.max(o.epsilon, 3 * v.se) });
+            }
+          }
+        });
+      }
+    } catch (err) {
+      if (!(err instanceof BudgetExceeded)) throw err;
+      aims = undefined;
+    } finally {
+      sims += referee.sims;
+    }
+  }
   return {
     position: pos, solved: true, value: root.value, replicateValues: replicas.map(r => r.value),
     eqCards,
     best: { cards: cardsOf(root.rows[bestRow]), value: root.rowValue[bestRow] },
     picks: mine.verdicts, combos, mismatchShare: mine.share,
     ...(rival ? { rivalPicks: rival.verdicts, rivalMismatchShare: rival.share } : {}),
+    ...(aims ? { aims } : {}),
     sims, ms: performance.now() - t0,
   };
 }

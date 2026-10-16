@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import type { Character } from '@pimpampum/engine';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +92,19 @@ describe('the referee on hand-made fights', () => {
     // hits for 1: 4 + 0 − (20 − 1) = −15. At the weakest: 0 + 5 − (20 − 9) = −6.
     const pos = aiming([body('A', 4, [strike(1, 1)]), body('B', 5, [strike(9, 1)])], [body('F', 20, [strike(5, 2)])]);
     expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(-15, 9);
+  });
+
+  it('the AI\'s own aiming is judged where it resolves: the right aim loses nothing, and the worth of each aim is the arithmetic', () => {
+    const pos = aiming([body('H', 10, [strike(4, 2)])], [body('F1', 3, [strike(1, 1)]), body('F2', 4, [strike(8, 1)])]);
+    const state = buildEngine(pos, { actionChooser: () => null });
+    const row = [{ idx: 0, actionIdx: 0 }];
+    const col = [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }];
+    const aimAt = (i: number) => (_e: unknown, _a: unknown, _d: unknown, _r: unknown, _c: number, pool: Character[]) => [pool[i]];
+    for (const [i, loss] of [[0, 8], [1, 0]] as const) {
+      const [v] = new Referee().judgeAims(state, row, col, 0, 4, aimAt(i));
+      expect(v.options.map(o => o.mean)).toEqual([-2, 6]);
+      expect(v.loss).toBeCloseTo(loss, 9);
+    }
   });
 
   it('a fight the cap cuts is scored at the cap, never further', () => {

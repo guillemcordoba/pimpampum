@@ -39,7 +39,7 @@
  */
 import {
   Character, seededRng, setRng, withSeed,
-  type ActionSelection, type CombatEngine,
+  type ActionSelection, type CombatEngine, type TargetChooser,
 } from '@pimpampum/engine';
 import { solveZeroSum, rowValues, type MatrixSolution } from './zero-sum.js';
 
@@ -207,8 +207,30 @@ interface Answer { pick: number[]; seed: number }
 
 /** Thrown by the scripted chooser at the first unscripted decision. */
 class Ask {
-  /** `key` is null when the state cannot name the decision (see `replay`). */
-  constructor(readonly team: number, readonly poolSize: number, readonly count: number, readonly key: string | null) {}
+  /** `key` is null when the state cannot name the decision (see `replay`).
+   *  `resolving`: the card about to resolve is the one aiming (not one that
+   *  aims at the reveal, nor an effect's own question). `ai`: what the AI
+   *  under audit answered there, when it was asked. */
+  constructor(
+    readonly team: number, readonly poolSize: number, readonly count: number, readonly key: string | null,
+    readonly actorIdx: number, readonly resolving: boolean, readonly ai?: number[],
+  ) {}
+}
+
+/** One option of an in-round decision: its value and that value's standard error. */
+export interface OptionStat { pick: number[]; mean: number; se: number }
+
+/** The AI's answer to one of its own in-round decisions, judged. */
+export interface AimVerdict {
+  /** Team-0 seat that decided. */
+  actorIdx: number;
+  options: OptionStat[];
+  ai: number[];
+  best: number[];
+  /** The best option's value minus the AI's. */
+  loss: number;
+  /** Standard error of that difference. */
+  se: number;
 }
 
 /** The engine's queue, read for one fact: whether a card is still unaimed. */
@@ -252,6 +274,23 @@ export class Referee {
   /** Solve the round `state` is about to play; `mustInclude` are team-0 joints
    *  that must be among the candidates (kept for callers; every joint already is). */
   solve(state: CombatEngine, depth: number, mustInclude: Joint[] = []): RootSolution {
+    const { sig, prepared, seats } = this.prepare(state);
+    const K = this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
+    const cell = (row: Joint, col: Joint): CellStat => {
+      const selections = [...toSelections(0, row), ...toSelections(1, col)];
+      const vals: number[] = [];
+      for (let s = 0; s < K; s++) {
+        vals.push(this.round(prepared, selections, hash(sig, this.opts.seed * 31 + s + 1), [], depth));
+      }
+      const mean = vals.reduce((a, b) => a + b, 0) / K;
+      const variance = K > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (K - 1) : 0;
+      return { mean, se: Math.sqrt(variance / K) };
+    };
+    return this.matrix(seats, cell, mustInclude);
+  }
+
+  /** The round `state` is about to play, prepared, with every seat's legal cards. */
+  private prepare(state: CombatEngine): { sig: string; prepared: CombatEngine; seats: [SeatOption[][], SeatOption[][]] } {
     const sig = signature(state);
     const prepared = state.clone();
     for (const c of [...prepared.teams[0], ...prepared.teams[1]]) c.aiControlled = true;
@@ -269,20 +308,10 @@ export class Referee {
       .map((c, idx) => ({ c, idx }))
       .filter(({ c, idx }) => c.isAlive() && !skipping.has(`${team}.${idx}`))
       .map(({ c, idx }) => this.seatOptions(prepared, c, idx));
-    const seats: [SeatOption[][], SeatOption[][]] = [seatsOf(0), seatsOf(1)];
+    return { sig, prepared, seats: [seatsOf(0), seatsOf(1)] };
+  }
 
-    const K = this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
-    const cell = (row: Joint, col: Joint): CellStat => {
-      const selections = [...toSelections(0, row), ...toSelections(1, col)];
-      const vals: number[] = [];
-      for (let s = 0; s < K; s++) {
-        vals.push(this.round(prepared, selections, hash(sig, this.opts.seed * 31 + s + 1), [], depth));
-      }
-      const mean = vals.reduce((a, b) => a + b, 0) / K;
-      const variance = K > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (K - 1) : 0;
-      return { mean, se: Math.sqrt(variance / K) };
-    };
-
+  private matrix(seats: [SeatOption[][], SeatOption[][]], cell: (row: Joint, col: Joint) => CellStat, mustInclude: Joint[]): RootSolution {
     const rows = cartesian(seats[0]);
     const cols = cartesian(seats[1]);
     for (const j of mustInclude) {
@@ -310,27 +339,65 @@ export class Referee {
     const hit = key === null ? undefined : this.decisions.get(key);
     if (hit !== undefined) return hit;
     const M = this.opts.decisionSamples[Math.min(depth, this.opts.decisionSamples.length - 1)];
-    // Seeded by the state, not the path: the same state is the same decision.
-    const at = key ?? `${seed0}#${script.map(a => `${a.pick.join('+')}@${a.seed}`).join('/')}`;
-    const seeds = Array.from({ length: M }, (_, m) => hash(at, this.opts.seed * 131 + m));
-    let best = out.team === 0 ? -Infinity : Infinity;
-    for (const pick of subsets(out.poolSize, out.count)) {
-      let total = 0;
-      for (const seed of seeds) total += this.round(prepared, selections, seed0, [...script, { pick, seed }], depth);
-      const v = total / M;
-      best = out.team === 0 ? Math.max(best, v) : Math.min(best, v);
-    }
+    const stats = this.optionStats(prepared, selections, seed0, script, depth, out, M);
+    const best = out.team === 0 ? Math.max(...stats.map(s => s.mean)) : Math.min(...stats.map(s => s.mean));
     if (key !== null) this.decisions.set(key, best);
     return best;
   }
 
+  /** Every answer to the decision `ask`, each worth the mean of `samples`
+   *  continuations of the chance after it (the same draws for every answer). */
+  private optionStats(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[], depth: number, ask: Ask, samples: number): OptionStat[] {
+    // Seeded by the state, not the path: the same state is the same decision.
+    const at = ask.key === null ? `${seed0}#${script.map(a => `${a.pick.join('+')}@${a.seed}`).join('/')}` : `${depth}|${ask.key}`;
+    const seeds = Array.from({ length: samples }, (_, m) => hash(at, this.opts.seed * 131 + m));
+    return subsets(ask.poolSize, ask.count).map(pick => {
+      const vals = seeds.map(seed => this.round(prepared, selections, seed0, [...script, { pick, seed }], depth));
+      const mean = vals.reduce((a, b) => a + b, 0) / samples;
+      const variance = samples > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (samples - 1) : 0;
+      return { pick, mean, se: Math.sqrt(variance / samples) };
+    });
+  }
+
+  /**
+   * THE AI'S OWN AIMING, judged. One sampled path through the round `state`
+   * is about to play, with side A on `row` and side B on `col`: at every
+   * decision side A's card makes as it resolves, `ai` is asked (on the live
+   * engine, at the very moment the game would ask it), every answer is valued
+   * on `samples` continuations, and the path goes on with the AI's answer.
+   * Side B's decisions, and side A's others, take the referee's best.
+   */
+  judgeAims(state: CombatEngine, row: Joint, col: Joint, path: number, samples: number, ai: TargetChooser): AimVerdict[] {
+    const { sig, prepared } = this.prepare(state);
+    const selections = [...toSelections(0, row), ...toSelections(1, col)];
+    const seed0 = hash(sig, this.opts.seed * 31 + 1000 + path);
+    const script: Answer[] = [];
+    const out: AimVerdict[] = [];
+    for (let step = 0; step < 64; step++) {
+      const ask = this.replay(prepared, selections, seed0, script, ai);
+      if (!(ask instanceof Ask)) return out;
+      const stats = this.optionStats(prepared, selections, seed0, script, 0, ask, samples);
+      const top = stats.reduce((b, s) => (ask.team === 0 ? s.mean > b.mean : s.mean < b.mean) ? s : b);
+      let pick = top.pick;
+      if (ask.team === 0 && ask.resolving && ask.ai) {
+        const mine = stats.find(s => s.pick.join(',') === [...ask.ai!].sort((a, b) => a - b).join(','));
+        if (mine) {
+          out.push({ actorIdx: ask.actorIdx, options: stats, ai: mine.pick, best: top.pick, loss: top.mean - mine.mean, se: Math.hypot(top.se, mine.se) });
+          pick = mine.pick;
+        }
+      }
+      script.push({ pick, seed: hash(`${sig}#${path}#${script.length}`, this.opts.seed * 17) });
+    }
+    throw new Error('referee: a round with more than 64 decisions');
+  }
+
   /** Re-run the round from its start under a script of answers: the state at
    *  its end, or the first decision the script does not answer. */
-  private replay(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[]): CombatEngine | Ask {
+  private replay(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[], ai?: TargetChooser): CombatEngine | Ask {
     if (++this.sims > this.opts.budget) throw new BudgetExceeded(`over ${this.opts.budget} simulated rounds`);
     const sim = prepared.clone();
     let asked = 0;
-    sim.targetChooser = (_e, actor, def, req, count, pool) => {
+    sim.targetChooser = (_e, actor, def, req, count, pool, speed) => {
       if (asked >= script.length) {
         // A card AIMING (its queue entry still unaimed) is decided by the engine
         // state alone. A choice an effect asks for mid-resolution may sit on
@@ -338,8 +405,13 @@ export class Referee {
         // it is solved every time it is met, never shared.
         const aiming = pendingOf(sim).some(p => p.actor === actor && p.action.def === def && p.targets === null);
         const ref = (c: Character): string => `${c.team}.${sim.teams[c.team].indexOf(c)}`;
-        throw new Ask(actor.team, pool.length, count,
-          aiming ? digest(`${midRoundKey(sim, this.idOf)}|${ref(actor)}:#${this.idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`) : null);
+        const queue = pendingOf(sim);
+        const current = queue[(sim as unknown as { pendingIndex: number }).pendingIndex];
+        const resolving = aiming && current?.actor === actor && current.action.def === def;
+        const key = aiming ? digest(`${midRoundKey(sim, this.idOf)}|${ref(actor)}:#${this.idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`) : null;
+        // The AI is asked before anything is thrown, on the engine as it stands.
+        const answer = ai && resolving && actor.team === 0 ? ai(sim, actor, def, req, count, pool, speed).map(c => pool.indexOf(c)) : undefined;
+        throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer);
       }
       const a = script[asked++];
       // Inside withSeed: the generator it installed is restored when it returns.
