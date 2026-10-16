@@ -640,10 +640,21 @@ equilibrium opponent, and two re-solves under independent referee seeds agree.
 on the SAME solves — the cheap, paired way to A/B an AI change against the
 referee (NEXT-STEPS §52).
 
+**The AI's own aiming** (`CheckOptions.aims`, `--aims`; 2026-10-16). The
+referee walks sampled paths through the root round with side A on the AI's
+cards and side B on each equilibrium column; at every decision side A's card
+makes as it resolves, the production target chooser (`searchTargets`, on an
+engine with one more round, as for cards) is asked at the very moment the
+game would ask it, every answer is valued on 32 continuations, and the path
+goes on with the AI's answer (side B and every other decision: the referee's
+best). An aim is a MISMATCH when it loses more than ε and 3 standard errors.
+
 **Fixtures.** Confirmed mismatches are appended to
 `ai/test/audit-fixtures.json` with the referee's verdict on every card
 combination; the fast tier replays only the AI against it (no re-solve), and
 an open fixture is `todo` until the AI is fixed — then flip it and it guards.
+After any change to the referee, `ai-audit.ts --rejudge` re-checks every
+recorded fixture and keeps only those the new referee still confirms.
 
 ---
 
