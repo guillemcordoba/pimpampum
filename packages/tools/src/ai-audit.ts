@@ -23,6 +23,9 @@
  *       … --mix night (default), --mix small, or a single config:
  *       --shape 2x2 --cards 3 --rounds 3   (and --samples 8,2,1 --decision-samples 8,4)
  *       --replicates 2   re-solve every position twice more (referee error)
+ *       --rejudge        re-check every recorded fixture instead of dealing new
+ *                        positions, and rewrite the file with the ones that
+ *                        still hold (after any change to the referee)
  *
  * Every lane is a child process at nice 19.
  */
@@ -39,58 +42,50 @@ import { flag, games, pct, share, SMOKE } from '@pimpampum/bench';
 
 const HERE = fileURLToPath(import.meta.url);
 const FIXTURES = path.resolve(path.dirname(HERE), '../../ai/test/audit-fixtures.json');
+const REJUDGE = process.argv.includes('--rejudge');
+const RECORDED: Fixture[] = REJUDGE ? JSON.parse(fs.readFileSync(FIXTURES, 'utf8')) : [];
 
 /** One slice of a mix: a generator config, its referee settings, its weight. */
 interface Slice { label: string; weight: number; gen: GeneratorConfig; referee?: Partial<RefereeOptions> }
 
 /**
- * THE MIXES. `night` is sized by the timing sweep in NEXT-STEPS §51: the
- * largest shapes and horizons that solve inside the per-position budget,
- * weighted toward multi-round payoffs (`multiShare`) and toward the real
- * shapes (4 heroes against 1-5 enemies) as far as the budget allows.
+ * THE MIXES. `night` is sized by the timing sweep in NEXT-STEPS §54: the
+ * shapes and horizons the exact referee solves inside the per-position
+ * budget, weighted toward multi-round payoffs (`multiShare`).
  */
 const MIXES: Record<string, Slice[]> = {
   small: [
     { label: '1x1 c3 r3', weight: 1, gen: { shape: '1x1', cards: 3, roundsLeft: 3 } },
     { label: '2x1 c3 r3', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3 } },
   ],
-  // Weights are shares, by position count. Sized on 2026-10-14 (§51.4) for a
-  // 7¼-hour night on 28 lanes with `--hours 7.25`: the deadline, not N,
-  // ends it, and positions are dealt mixed so the shares hold wherever it
-  // stops. A round cap of 2 leaves no room for a multi-round payoff, so the
-  // biggest shapes test this-round play; the long horizons live in the
-  // smaller ones, where the whole fight still solves.
+  // Weights are shares, by position count. Sized on 2026-10-16 (§54) to the
+  // shapes the EXACT referee solves inside its budget: duels, two against one
+  // either way, and short two-a-side fights. Four bodies a side is out of its
+  // reach, so it is not dealt: an unsolvable position would only burn a lane.
   night: [
-    { label: '1x1 c4 r5', weight: 1500, gen: { shape: '1x1', cards: 4, roundsLeft: 5, multiShare: 0.8 } },
-    { label: '1x1 c4 r4', weight: 1000, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '2x1 c3 r4', weight: 1500, gen: { shape: '2x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '1x2 c3 r4', weight: 800, gen: { shape: '1x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '2x1 c3 r5', weight: 800, gen: { shape: '2x1', cards: 3, roundsLeft: 5, multiShare: 0.8 } },
+    { label: '1x1 c4 r5', weight: 1200, gen: { shape: '1x1', cards: 4, roundsLeft: 5, multiShare: 0.8 } },
+    { label: '1x1 c4 r4', weight: 800, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '1x1 c4 r3', weight: 400, gen: { shape: '1x1', cards: 4, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x1 c3 r4', weight: 800, gen: { shape: '2x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '2x1 c3 r3', weight: 1200, gen: { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x1 c3 r2', weight: 600, gen: { shape: '2x1', cards: 3, roundsLeft: 2 } },
+    { label: '1x2 c3 r4', weight: 600, gen: { shape: '1x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '1x2 c3 r3', weight: 900, gen: { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '1x2 c3 r2', weight: 400, gen: { shape: '1x2', cards: 3, roundsLeft: 2 } },
     { label: '2x2 c3 r2', weight: 600, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
-    { label: '2x2 c3 r3', weight: 1000, gen: { shape: '2x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '2x2 c3 r4', weight: 300, gen: { shape: '2x2', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '4x1 c3 r3', weight: 1200, gen: { shape: '4x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '1x4 c3 r3', weight: 600, gen: { shape: '1x4', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '4x1 c3 r4', weight: 400, gen: { shape: '4x1', cards: 3, roundsLeft: 4, multiShare: 0.8 } },
-    { label: '4x1 c4 r3', weight: 200, gen: { shape: '4x1', cards: 4, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '4x2 c3 r2', weight: 600, gen: { shape: '4x2', cards: 3, roundsLeft: 2 } },
-    { label: '4x2 c3 r3', weight: 150, gen: { shape: '4x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '3x3 c3 r2', weight: 400, gen: { shape: '3x3', cards: 3, roundsLeft: 2 } },
-    { label: '3x3 c3 r3', weight: 100, gen: { shape: '3x3', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
-    { label: '4x4 c3 r2', weight: 300, gen: { shape: '4x4', cards: 3, roundsLeft: 2 } },
-    { label: '4x5 c3 r2', weight: 150, gen: { shape: '4x5', cards: 3, roundsLeft: 2 } },
   ],
   // The fresh slices an AI fix is re-verified on (NEXT-STEPS §52), half of
   // them with a hide dealt to the OTHER side — the search's opponent model.
+  // (4x1 left with §54: the exact referee cannot solve it.)
   verify: [
     { label: '1x1 c4 r4', weight: 1, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
     { label: '2x1 c3 r3', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
     { label: '2x2 c3 r2', weight: 1, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
-    { label: '4x1 c3 r2', weight: 1, gen: { shape: '4x1', cards: 3, roundsLeft: 2 } },
+    { label: '1x2 c3 r3', weight: 1, gen: { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
     { label: '1x1 c4 r3 foe-hide', weight: 1, gen: { shape: '1x1', cards: 4, roundsLeft: 3, foeCard: 'hide' } },
     { label: '2x1 c3 r3 foe-hide', weight: 1, gen: { shape: '2x1', cards: 3, roundsLeft: 3, foeCard: 'hide' } },
     { label: '2x2 c3 r2 foe-hide', weight: 1, gen: { shape: '2x2', cards: 3, roundsLeft: 2, foeCard: 'hide' } },
-    { label: '4x1 c3 r2 foe-hide', weight: 1, gen: { shape: '4x1', cards: 3, roundsLeft: 2, foeCard: 'hide' } },
+    { label: '1x2 c3 r3 foe-hide', weight: 1, gen: { shape: '1x2', cards: 3, roundsLeft: 3, foeCard: 'hide' } },
   ],
 };
 
@@ -136,10 +131,14 @@ function runOne(i: number, base: number): Row {
     const c = CONTROLS[-i - 1];
     return { slice: 'control', seed: 0, result: checkPosition(c.position, { referee: { ...DEFAULT_REFEREE, seed: 1 } }) };
   }
+  const replicates = Number(flag('--replicates') ?? 0);
+  if (REJUDGE) {
+    const f = RECORDED[i];
+    return { slice: f.slice, seed: f.seed, result: checkPosition(f.position, { referee: refereeOpts({ label: f.slice, weight: 1, gen: {} }, 1), replicates }) };
+  }
   const seed = base + i;
   const s = sliceFor(all, seed);
   const pos = generatePosition(seed, s.gen);
-  const replicates = Number(flag('--replicates') ?? 0);
   return { slice: s.label, seed, result: checkPosition(pos, { referee: refereeOpts(s, 1), replicates, rival: rival() }) };
 }
 
@@ -201,7 +200,7 @@ if (process.argv.includes('--worker')) {
 
 // --- the parent -----------------------------------------------------------
 
-const N = games(200);
+const N = REJUDGE ? Math.min(RECORDED.length, games(RECORDED.length)) : games(200);
 const LANES = Math.max(1, Number(flag('--lanes') ?? (SMOKE ? 2 : 4)));
 const BASE = Number(flag('--seed') ?? 1);
 const OUT = flag('--out') ?? '/tmp/ai-audit';
@@ -380,13 +379,28 @@ console.log(`\nreport: ${mdPath}\njson:   ${jsonPath}`);
 
 // --- the fixtures -----------------------------------------------------------
 
-interface Fixture {
-  id: string; found: string; slice: string; seed: number; todo: boolean;
-  position: Position; value: number;
-  combos: NonNullable<CheckResult['combos']>;
-  ai: string[][];
-}
-if (final && !process.argv.includes('--no-fixtures') && !SMOKE) {
+if (final && REJUDGE && !SMOKE) {
+  // Keep a fixture only if THIS referee still confirms the mismatch, with
+  // this referee's verdict on every combination; drop the rest.
+  // A fixture this run never reached (a deadline, a smaller --games) is kept
+  // as it was; one it reached is kept only if confirmed again.
+  const byId = new Map(generated.filter(r => r.result.position).map(r => [`${r.result.position.id}:${r.slice}`, r]));
+  const kept: Fixture[] = [];
+  for (const f of RECORDED) {
+    const r = byId.get(f.id);
+    if (!r) { kept.push(f); continue; }
+    if (!r.result.solved || !hasMismatch(r) || r.result.ms > 60_000) continue;
+    kept.push({
+      ...f, rejudged: date, value: r.result.value!, combos: r.result.combos ?? [],
+      ai: r.result.picks.filter(p => p.mismatch).map(p => p.cards),
+    });
+  }
+  const reached = RECORDED.filter(f => byId.has(f.id));
+  const unsolved = reached.filter(f => !byId.get(f.id)!.result.solved).length;
+  const held = reached.filter(f => kept.includes(f) || kept.some(k => k.id === f.id && k.rejudged === date)).length;
+  fs.writeFileSync(FIXTURES, JSON.stringify(kept, null, 1) + '\n');
+  console.log(`fixtures re-judged: ${held} of ${reached.length} reached still hold (${unsolved} unsolved by this referee); ${RECORDED.length - reached.length} not reached, kept → ${FIXTURES}`);
+} else if (final && !process.argv.includes('--no-fixtures') && !SMOKE) {
   const existing: Fixture[] = fs.existsSync(FIXTURES) ? JSON.parse(fs.readFileSync(FIXTURES, 'utf8')) : [];
   const known = new Set(existing.map(f => f.id));
   let added = 0;
@@ -406,4 +420,13 @@ if (final && !process.argv.includes('--no-fixtures') && !SMOKE) {
   fs.writeFileSync(FIXTURES, JSON.stringify(existing, null, 1) + '\n');
   console.log(`fixtures: +${added} → ${FIXTURES}`);
 }
+}
+
+interface Fixture {
+  id: string; found: string; slice: string; seed: number; todo: boolean;
+  position: Position; value: number;
+  combos: NonNullable<CheckResult['combos']>;
+  ai: string[][];
+  /** When a later referee last confirmed it (`--rejudge`). */
+  rejudged?: string;
 }
