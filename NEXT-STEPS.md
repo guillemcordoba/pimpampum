@@ -6155,8 +6155,38 @@ number lever on the content side would be the Protect corner's own cards
 
 ### 53.4 The AI audit, night 2
 
-Launched after the slow tier to compare with §51's night (26.0%±1.0 of
-positions with a confirmed mismatch; `/tmp/ai-audit/night/report-2026-10-14.md`):
-`ai-audit.ts --mix night --games 11600`, output `/tmp/ai-audit/night2`. Note
-the catalogue gained the `hide` archetype in §52.5, so the dealt hands may
-differ from night 1's at the same seeds. Results to be written here.
+Launched after the slow tier to compare with §51's night: `ai-audit.ts --mix
+night --games 11600 --hours 7.9 --lanes 28`, nice 19, 22:30 → 06:32; report
+`/tmp/ai-audit/night2/report-2026-10-15.md`. The catalogue gained the `hide`
+archetype in §52.5, so the dealt hands differ from night 1's at the same seeds
+(2757 positions vs 2442). Same referee settings; referee noise unchanged
+(value sd 2.35 PV vs 2.56). Every control passes (9, with §52.5's two hide
+controls). +91 fixtures appended (270 in `audit-fixtures.json`, recorded as
+todo).
+
+| | night 1 (§51, before §52) | night 2 (after §52) |
+|---|---|---|
+| solved | 82.8%±0.8 | 82.9%±0.7 |
+| positions with a confirmed mismatch | 26.0%±1.0 | **21.3%±0.9** |
+| AI decisions that are mismatches | 20.8%±0.9 | **15.4%±0.8** |
+| horizon 1 | 31.0%±2.4 | 35.1%±2.3 |
+| horizon 2 | 28.7%±1.4 | **21.8%±1.2** |
+| horizon 3+ | 17.1%±1.6 | **9.9%±1.2** |
+| 1x1 (c4 r4 / r5) | 15.6 / 17.1 | **7.6 / 7.3** |
+| 2x1 c3 r4 / r5 | 23.1 / 34.7 | **17.3 / 16.2** |
+| 4x1 c3 r3 | 51.7%±3.2 | 43.2%±3.0 |
+| 4x2 c3 r2 | 44.1%±4.6 | 52.9%±4.2 |
+| 3x3 c3 r2 | 43.1%±6.1 | 37.7%±5.8 |
+| featured stun | 44.3%±4.8 | **17.0%±3.2** |
+| featured device / doom | 19.8 / 20.0 | **10.9 / 11.4** |
+| featured cleanse | 28.9%±4.8 | **15.8%±3.6** |
+
+Reading: the §52 fixes did what they aimed at — the multi-round horizons
+(the tempo leaf), stun, delayed cards (device, doom) and the duels all
+roughly halved. Horizon 1 did not improve (+4.1pp, about 1.2σ: noise or a
+slight cost of the leaf on one-round boards), and the large multi-body slices
+stay at 40-55% (4x2 got worse by ~1.5σ). Those slices are where the
+referee's currency (summed PV margin) is least like winning, so before
+fixing the AI there the payoff for multi-body fights should be decided
+(open question). The commonest residual swaps: guard/block instead of a
+strike (14), lock instead of stun (7), strike instead of revive (6).
