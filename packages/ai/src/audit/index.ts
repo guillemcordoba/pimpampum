@@ -13,7 +13,7 @@ export { PROFILE } from './profile.js';
 export type { Profile } from './profile.js';
 export { buildEngine, generatePosition, MULTI_ROUND } from './position.js';
 export type { Position, FighterSpec, CardSpec, StatusSpec, GeneratorConfig } from './position.js';
-export { Referee, DEFAULT_REFEREE, BudgetExceeded, pvDiff, signature, jointKey } from './referee.js';
+export { Referee, DEFAULT_REFEREE, BudgetExceeded, Unsupported, pvDiff, signature, jointKey } from './referee.js';
 export type { RefereeOptions, RootSolution, Joint, SeatOption } from './referee.js';
 export { checkPosition, aiPicks, DEFAULT_CHECK, ARCHETYPE_SUMMARY } from './check.js';
 export type { CheckOptions, CheckResult, PickVerdict } from './check.js';

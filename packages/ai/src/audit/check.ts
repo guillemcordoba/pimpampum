@@ -14,8 +14,8 @@
  *             replicates are what catch the error the root's standard error
  *             cannot see (a deterministic first round over a sampled second).
  *
- * Targets are not judged: the AI aims at resolution, so a pick is credited with
- * the best target variant the referee considered for it.
+ * Only the cards are judged: the referee takes every in-round decision (the
+ * targets) itself, at its best, so a pick is a card choice.
  *
  * ONE ROUND MORE FOR THE AI. The referee scores the fight at its round cap; the
  * AI's evaluator treats a board AT `maxRounds` as a draw worth 0 (a real-game
@@ -28,7 +28,7 @@ import { pickResolveTargets, selectAction } from '../policy.js';
 import { bestResponse, DEFAULT_LOOKAHEAD, type LookaheadOptions } from '../lookahead.js';
 import { ARCHETYPES } from './catalogue.js';
 import { buildEngine, type Position } from './position.js';
-import { BudgetExceeded, Referee, jointKey, type Joint, type RefereeOptions, type RootSolution } from './referee.js';
+import { BudgetExceeded, Referee, Unsupported, jointKey, type Joint, type RefereeOptions, type RootSolution } from './referee.js';
 
 export interface CheckOptions {
   /** Seeds the AI is asked under. */
@@ -78,14 +78,13 @@ export interface CheckResult {
   value?: number;
   /** The game value in each re-solve. */
   replicateValues?: number[];
-  exactRoot?: boolean;
   /** Per acting seat of team 0: archetype → equilibrium probability. */
   eqCards?: Record<string, number>[];
   /** The referee's best pure row and its value. */
   best?: { cards: string[]; value: number };
   picks: PickVerdict[];
-  /** Every card combination the referee weighed for team 0 (targets folded
-   *  in, best variant kept): what a fixture replays the AI against. */
+  /** Every card combination of team 0, as the referee weighed it: what a
+   *  fixture replays the AI against. */
   combos?: { actions: number[]; cards: string[]; eqProb: number; loss: number }[];
   /** Share of the AI's seeds whose pick is a (confirmed) mismatch. */
   mismatchShare: number;
@@ -137,22 +136,12 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   const baseSeed = o.referee.seed ?? 1;
   let sims = 0;
 
-  // The AI's picks, with every target variant the referee would consider.
   const probe = state.clone();
   const prep = probe.prepareRound();
   const skipping = new Set(prep.skipping.filter(r => r.team === 0).map(r => r.idx));
   const acting = probe.teams[0].map((c, i) => ({ c, i })).filter(({ c, i }) => c.isAlive() && !skipping.has(i));
-  const seatOpts = acting.map(({ c, i }) => new Referee(o.referee).seatOptions(probe, c, 0, i));
-  const variantsOf = (actions: number[]): Joint[] => {
-    let acc: Joint[] = [[]];
-    actions.forEach((a, k) => {
-      const opts = seatOpts[k].filter(x => x.actionIdx === a);
-      const use = opts.length ? opts : [{ idx: acting[k].i, actionIdx: a }];
-      acc = acc.flatMap(j => use.map(x => [...j, x]));
-    });
-    return acc;
-  };
-  const must = [...picks, ...rivalPicks].flatMap(p => variantsOf(p.actions));
+  const jointOf = (actions: number[]): Joint => actions.map((a, k) => ({ idx: acting[k].i, actionIdx: a }));
+  const must = [...picks, ...rivalPicks].map(p => jointOf(p.actions));
   const solveWith = (seed: number): RootSolution => {
     const referee = new Referee({ ...o.referee, seed });
     try {
@@ -163,10 +152,9 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   };
   const judge = (root: RootSolution, actions: number[]): Judged => {
     const bestRow = root.rowValue.reduce((b, v, i) => (v > root.rowValue[b] ? i : b), 0);
-    const keys = new Set(variantsOf(actions).map(jointKey));
-    const idxs = root.rows.map((r, i) => (keys.has(jointKey(r)) ? i : -1)).filter(i => i >= 0);
-    const eqProb = idxs.reduce((s, i) => s + root.sol.row[i], 0);
-    const mine = idxs.reduce((b, i) => (b < 0 || root.rowValue[i] > root.rowValue[b] ? i : b), -1);
+    const key = jointKey(jointOf(actions));
+    const mine = root.rows.findIndex(r => jointKey(r) === key);
+    const eqProb = mine >= 0 ? root.sol.row[mine] : 0;
     const value = mine >= 0 ? root.rowValue[mine] : -Infinity;
     const loss = root.value - value;
     const noise = o.z * Math.hypot(mine >= 0 ? root.rowSE[mine] : 0, root.rowSE[bestRow]);
@@ -177,7 +165,7 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   try {
     root = solveWith(baseSeed);
   } catch (err) {
-    if (!(err instanceof BudgetExceeded)) throw err;
+    if (!(err instanceof BudgetExceeded) && !(err instanceof Unsupported)) throw err;
     return { position: pos, solved: false, error: err.message, picks: [], mismatchShare: 0, sims, ms: performance.now() - t0 };
   }
   const anyFlag = [...picks, ...rivalPicks].some(p => judge(root, p.actions).flagged);
@@ -240,7 +228,7 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
   });
   return {
     position: pos, solved: true, value: root.value, replicateValues: replicas.map(r => r.value),
-    exactRoot: root.exactRoot, eqCards,
+    eqCards,
     best: { cards: cardsOf(root.rows[bestRow]), value: root.rowValue[bestRow] },
     picks: mine.verdicts, combos, mismatchShare: mine.share,
     ...(rival ? { rivalPicks: rival.verdicts, rivalMismatchShare: rival.share } : {}),

@@ -72,6 +72,27 @@ describe('the referee on hand-made fights', () => {
     });
   }
 
+  // Fixed dice, so the value is arithmetic. The hero's 4 fells either foe; it
+  // must take the 4-PV one that hits for 8, not the weakest: hero 10 − 1, foes
+  // 3 → +6. Aimed at the weakest: hero 10 − 8, foes 4 → −2.
+  const strike = (n: number, speed: number) => ({ arch: 'strike', p: { n, s: 1, speed, fatigue: 0 } });
+  const body = (name: string, pv: number, cards: ReturnType<typeof strike>[]) =>
+    ({ name, maxPv: pv, pv, armour: 0, level: 0, fatigue: 0, cards });
+  const aiming = (hero: ReturnType<typeof body>[], foes: ReturnType<typeof body>[]): Position =>
+    ({ id: 'aim', roundsLeft: 1, teams: [hero, foes], tags: { shape: `${hero.length}x${foes.length}`, horizon: 1, side: 'hero' } });
+
+  it('every in-round decision is the seat\'s own, at resolution: it aims at the foe that matters, not the weakest', () => {
+    const pos = aiming([body('H', 10, [strike(4, 2)])], [body('F1', 3, [strike(1, 1)]), body('F2', 4, [strike(8, 1)])]);
+    expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(6, 9);
+  });
+
+  it('the other side decides against you: the foe aims where it hurts most', () => {
+    // The foe's 5 fells the 5-PV hero who hits for 9, not the 4-PV one who
+    // hits for 1: 4 + 0 − (20 − 1) = −15. At the weakest: 0 + 5 − (20 − 9) = −6.
+    const pos = aiming([body('A', 4, [strike(1, 1)]), body('B', 5, [strike(9, 1)])], [body('F', 20, [strike(5, 2)])]);
+    expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(-15, 9);
+  });
+
   it('a fight the cap cuts is scored at the cap, never further', () => {
     // bomb-long has two rounds left: a bomb planted in the second never lands.
     const c = CONTROLS.find(x => x.position.id === 'bomb-long')!;

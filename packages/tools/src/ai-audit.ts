@@ -21,7 +21,7 @@
  *
  * Run:  pnpm --filter @pimpampum/tools exec tsx src/ai-audit.ts --games 50 --lanes 4
  *       … --mix night (default), --mix small, or a single config:
- *       --shape 2x2 --cards 3 --rounds 3   (and --samples 8,2,1 --max-joint 16)
+ *       --shape 2x2 --cards 3 --rounds 3   (and --samples 8,2,1 --decision-samples 8,4)
  *       --replicates 2   re-solve every position twice more (referee error)
  *
  * Every lane is a child process at nice 19.
@@ -115,9 +115,8 @@ function slices(): Slice[] {
 function refereeOpts(slice: Slice, seed: number): Partial<RefereeOptions> {
   const out: Partial<RefereeOptions> = { ...slice.referee, seed };
   if (flag('--samples')) out.samples = flag('--samples')!.split(',').map(Number);
-  if (flag('--max-joint')) out.maxJoint = Number(flag('--max-joint'));
+  if (flag('--decision-samples')) out.decisionSamples = flag('--decision-samples')!.split(',').map(Number);
   if (flag('--budget')) out.budget = Number(flag('--budget'));
-  if (flag('--solved-rounds')) out.solvedRounds = Number(flag('--solved-rounds'));
   return out;
 }
 
@@ -257,7 +256,7 @@ say(`# AI audit — ${date}${final ? '' : ' (PARTIAL, run still going)'}`);
 say();
 say(`${generated.length} generated positions (seeds ${BASE}…${BASE + N - 1}) + ${controls.length} controls, ${LANES} lanes, ${wall.toFixed(0)} s wall.`);
 say(`Mix: ${slices().map(s => `${s.label} ×${s.weight}`).join(', ')}.`);
-say(`Referee: samples ${JSON.stringify(flag('--samples') ?? DEFAULT_REFEREE.samples)}, maxJoint ${flag('--max-joint') ?? DEFAULT_REFEREE.maxJoint}, maxTargets ${DEFAULT_REFEREE.maxTargets}, budget ${flag('--budget') ?? DEFAULT_REFEREE.budget} rounds. AI: bestResponse at DEFAULT_LOOKAHEAD, 4 seeds.`);
+say(`Referee: samples ${JSON.stringify(flag('--samples') ?? DEFAULT_REFEREE.samples)}, decision samples ${JSON.stringify(flag('--decision-samples') ?? DEFAULT_REFEREE.decisionSamples)}, every card and decision enumerated, budget ${flag('--budget') ?? DEFAULT_REFEREE.budget} rounds. AI: bestResponse at DEFAULT_LOOKAHEAD, 4 seeds.`);
 say();
 say('## Headline');
 say();

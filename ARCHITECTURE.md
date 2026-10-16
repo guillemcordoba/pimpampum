@@ -601,39 +601,39 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 | `check.ts` | the AI's picks vs the referee's verdict |
 | `controls.ts` | hand-made positions whose equilibrium is arithmetic, in long/short twins |
 
-**The referee.** Every round is a simultaneous-move zero-sum game whose payoff
-is the value of the position it leads to; the fight is a stack of them, solved
-by recursion to its real end (a side down, or the position's round cap) —
-no leaf is ever scored by a heuristic, so a delayed blow, a device, a mark
-land before the score is read. The payoff is PV on side A minus PV on side B,
-`bench/regret.ts`'s currency. That currency cannot see the turns a fallen body
-no longer takes after the cut, and the AI's leaf can (bodies, health
-fractions): about a sixth of the multi-body mismatches are this difference,
-and moving the AI toward PV wins the audit and loses real fights badly
-(puzzle (g), NEXT-STEPS §52.6). The approximations, each a knob on
-`RefereeOptions`:
+**The referee** (exact for decisions since 2026-10-16). Every round is a
+simultaneous-move zero-sum game over every combination of CARDS, whose cell is
+the resolution solved as a tree: each in-round decision (whom an attack hits,
+whom a guard covers — the rules take them at resolution, knowing what has
+resolved) is a max for side A or a min for side B over every legal answer, then
+the next round's value; the fight is a stack of them, solved by recursion to its
+real end (a side down, or the position's round cap) — no leaf is ever scored by
+a heuristic. The payoff is PV on side A minus PV on side B, `bench/regret.ts`'s
+currency. That currency cannot see the turns a fallen body no longer takes after
+the cut, and the AI's leaf can (bodies, health fractions): about a sixth of the
+multi-body mismatches were this difference (NEXT-STEPS §52.6).
 
-- **chance** — `samples[d]` seeded samples per joint action at depth `d`
-  (default 16 at the root, 4, then 1: sparse sampling), common random numbers
-  across a node's joint actions, and a transposition table keyed by the full
-  game state (`signature`), so dice that cannot change the state cost one
-  solve;
-- **targets** — committed with the card, at the reveal, from the
-  `maxTargets` (3) weakest candidates. A real seat aims at resolution, with more
-  information; the AI's pick is credited with its best target variant;
-- **size** — a side with more than `maxJoint` (16) joint actions is solved by
-  DOUBLE ORACLE: the restricted game's equilibrium, grown by each side's best
-  response (coordinate ascent over its seats, from two starts) until neither
-  improves. Exact if the best responses are; checked against full
-  enumeration by `audit.slow.test.ts`;
-- **depth** — `solvedRounds` (∞) rounds solved, then random play to the end;
-  never used by default.
+Nothing about a decision is approximated: every card of every seat, every target
+of every in-round decision, every round. The decisions are found by REPLAY — the
+engine asks its `targetChooser` synchronously, so the round is re-run from its
+start with a script of answers, and the first unscripted question stops it and
+names its pool. The one thing SAMPLED is chance (dice, tie order), which cannot
+be enumerated: `samples[d]` draws per card combination at depth `d` (16, 4,
+then 1; common random numbers across a node's combinations), and each in-round
+decision is taken on the MEAN of `decisionSamples[d]` fresh draws of the chance
+after it (8, then 4) — a seat choosing on one draw would be choosing on dice it
+has not seen. Both converge to the true value as they grow. A position whose
+solve does not fit `budget` is UNSOLVED, never approximated; one the referee
+cannot represent (reveal options, a seat that chooses after the reveal, chance
+at the start of a round) throws `Unsupported`. Until 2026-10-16 the referee also
+capped targets at three, committed them with the card, and solved big sides by
+double oracle; NEXT-STEPS §54 measured what that cost.
 
 **The check.** The AI picks team 0's cards (`bestResponse` at
 `DEFAULT_LOOKAHEAD`, four seeds) on an engine with ONE MORE round than the
 referee scores — its evaluator calls a board at `maxRounds` a draw worth 0, a
 real-game rule that would make every last-round play look worthless on an
-audit's artificial cap. A pick is a MISMATCH when its equilibrium probability
+audit's artificial cap. Only cards are judged (the referee takes the in-round decisions itself). A pick is a MISMATCH when its equilibrium probability
 is under 2%, it loses more than ε = 1 PV and 2 standard errors against the
 equilibrium opponent, and two re-solves under independent referee seeds agree.
 `CheckOptions.rival` asks a second AI setting the same position and judges it

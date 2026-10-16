@@ -6190,3 +6190,47 @@ referee's currency (summed PV margin) is least like winning, so before
 fixing the AI there the payoff for multi-body fights should be decided
 (open question). The commonest residual swaps: guard/block instead of a
 strike (14), lock instead of stun (7), strike instead of revive (6).
+
+## 54. The referee made exact for every decision (2026-10-16, branch `elements-set`, uncommitted at writing)
+
+The referee of §51-53 approximated four things: dice (sampled), targets (the
+three weakest, committed with the card at the reveal), big sides (double
+oracle above 16 joint plays) and positions over budget (dropped). On night 2
+the double-oracle slices carried the high mismatch rates: in 2x2, positions
+solved by full enumeration at the root mismatched 10%, the approximated ones
+25%; 4x1 and 4x2 (0% enumerated) 45% and 53%. So §53.4's "big fights are the
+AI's weak spot" is NOT a finding — it may be the referee's error.
+
+Now (`referee.ts`): every card combination of every seat is enumerated (no
+double oracle); every in-round decision is taken by its seat at resolution,
+as the rules say, a max/min over every legal target, found by REPLAYING the
+round under a script of answers (the engine asks its `targetChooser`
+synchronously); identical mid-round states share one solve (a generic walk of
+the engine's fields, 64-bit digest). Only chance is sampled: `samples` per
+cell as before, and each decision is taken on the mean of `decisionSamples`
+(8, then 4) fresh continuations, never on one draw. Over budget = unsolved;
+unrepresentable (reveal options, choosing after the reveal, chance at a
+round's start) = `Unsupported`. The check judges cards only.
+
+**Cost** (one lane, nice 19, budget 2·10⁷ simulated rounds, 4 positions a shape):
+
+| shape | solved | time each |
+|---|---|---|
+| 1x1 c4 r3 / r5 | 4/4, 4/4 | 0.2-0.4 s / 4-14 s |
+| 2x1 c3 r2 / r3 | 4/4, all seen | 2-7 s / 2-4 s |
+| 1x2 c3 r3 / r4 | 4/4, 4/4 | 0-3 s / 4-21 s |
+| 2x1 c3 r4 | 3/4 | 8-190 s |
+| 2x2 c3 r2 | 1/3 | 180 s |
+| 4x1 c3 r2 | 0/3 | — |
+
+So the exact referee covers duels and two-against-one, and short two-a-side
+fights at best; four bodies a side is out of reach. Seed-to-seed spread of
+the value on 12 2x1 r2 positions: 2.20 PV (old referee 1.34; the seat streams'
+common random numbers are gone, decisions add their own sampling); still
+under the check's 3-PV bar. Values otherwise agree within that noise on those
+small positions.
+
+Consequences, open: the 270 fixtures were judged by the old referee and must
+be re-judged; the audit's mix must keep to the shapes this referee solves; the
+AI's own in-round aiming can now be judged too (the referee knows each
+decision's value).
