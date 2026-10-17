@@ -17,7 +17,7 @@ export { Referee, DEFAULT_REFEREE, BudgetExceeded, Unsupported, outcome, pvDiff,
 export type { RefereeOptions, RootSolution, Joint, SeatOption } from './referee.js';
 export { checkPosition, aiPicks, DEFAULT_CHECK, ARCHETYPE_SUMMARY } from './check.js';
 export type { CheckOptions, CheckResult, PickVerdict } from './check.js';
-export { playoutCheck, playOne, DEFAULT_PLAYOUT } from './playout.js';
+export { playoutCheck, playOne, playAI, balance, DEFAULT_PLAYOUT } from './playout.js';
 export type { PlayoutOptions, PlayoutResult, Candidate } from './playout.js';
 export { shrink } from './shrink.js';
 export type { ShrinkResult } from './shrink.js';

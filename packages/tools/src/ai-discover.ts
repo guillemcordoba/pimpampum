@@ -4,7 +4,8 @@
  * fight played to its real end. Each position goes to the playout judge
  * (`@pimpampum/ai/audit` `playoutCheck`): with the AI playing both sides from
  * the next round on, does another card this round win clearly more often than
- * the AI's? A position where one does is a DISCOVERY, written for the shrinker
+ * the AI's? Each position's side-B PV is first scaled toward an even fight
+ * (`balance`), since in a settled one no card matters. A position where one does is a DISCOVERY, written for the shrinker
  * to cut down to a test.
  *
  * Output, in `--out` (default /tmp/ai-discover):
@@ -20,7 +21,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generatePosition, playoutCheck, type PlayoutResult } from '@pimpampum/ai/audit';
+import { balance, generatePosition, playoutCheck, type PlayoutResult } from '@pimpampum/ai/audit';
 import { flag, games, share, SMOKE } from '@pimpampum/bench';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -31,8 +32,11 @@ function runOne(seed: number): Row {
   // The real mix: shape and hands from the measured profile (hands capped at
   // 6), the fight paced to last 2-4 rounds, then played to its end.
   const pace = 2 + (seed % 3);
-  const pos = generatePosition(seed, { maxCards: 6, roundsLeft: pace, toTheEnd: true, multiShare: 0.8 });
+  const dealt = generatePosition(seed, { maxCards: 6, roundsLeft: pace, toTheEnd: true, multiShare: 0.8 });
   const playouts = SMOKE ? 4 : Number(flag('--playouts') ?? 200);
+  // Side B's PV scaled toward an even fight between the AI and itself: a
+  // settled result has no card that matters.
+  const pos = balance(dealt, SMOKE ? 2 : 24, SMOKE ? 1 : 6, seed);
   return { seed, result: playoutCheck(pos, { games: playouts, seed }) };
 }
 

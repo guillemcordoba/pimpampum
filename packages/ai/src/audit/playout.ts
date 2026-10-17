@@ -91,6 +91,46 @@ export function playOne(pos: Position, seats: number[], actions: number[], seed:
   });
 }
 
+/** One game to its end with the AI on both sides throughout. */
+export function playAI(pos: Position, seed: number): number {
+  return withSeed(seed, () => {
+    const e = buildEngine(pos, aiPolicy({ depth: 1 }), { ai: true });
+    e.runCombat();
+    return outcome(e);
+  });
+}
+
+/**
+ * The position with one side's PV scaled up until the AI against itself wins
+ * about as often as it loses — a position whose result is not settled before
+ * anyone plays, which is the only kind where a card can matter. Bisects a
+ * balance in log space (1/8 to 8): above 1 side B's PV is multiplied by it,
+ * below 1 side A's by its inverse, so the losing side is always the one
+ * strengthened and nobody is squeezed against 1 PV. `games` AI-against-AI
+ * games a step.
+ */
+export function balance(pos: Position, games = 24, steps = 6, seed = 1): Position {
+  const up = (team: Position['teams'][number], f: number): Position['teams'][number] => team.map(fs => fs.pv > 0
+    ? { ...fs, pv: Math.max(1, Math.round(fs.pv * f)), maxPv: Math.max(1, Math.round(fs.maxPv * f)) } : fs);
+  const scaled = (f: number): Position => ({
+    ...pos, teams: f >= 1 ? [pos.teams[0], up(pos.teams[1], f)] : [up(pos.teams[0], 1 / f), pos.teams[1]],
+  });
+  const mean = (p: Position): number => Array.from({ length: games }, (_, g) => playAI(p, seed * 7919 + g)).reduce((s, x) => s + x, 0) / games;
+  let lo = Math.log(1 / 8);
+  let hi = Math.log(8);
+  let best = pos;
+  let bestGap = Math.abs(mean(pos));
+  for (let s = 0; s < steps && bestGap > 0.1; s++) {
+    const mid = (lo + hi) / 2;
+    const p = scaled(Math.exp(mid));
+    const m = mean(p);
+    if (Math.abs(m) < bestGap) { best = p; bestGap = Math.abs(m); }
+    // Side A winning: lean toward side B.
+    if (m > 0) lo = mid; else hi = mid;
+  }
+  return best;
+}
+
 /** Judge one position. */
 export function playoutCheck(pos: Position, opts: Partial<PlayoutOptions> = {}): PlayoutResult {
   const o = { ...DEFAULT_PLAYOUT, ...opts };
