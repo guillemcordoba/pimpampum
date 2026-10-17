@@ -20,7 +20,7 @@
  * fast tier to replay (`--no-fixtures` to skip).
  *
  * Run:  pnpm --filter @pimpampum/tools exec tsx src/ai-audit.ts --games 50 --lanes 4
- *       … --mix night (default), --mix small, or a single config:
+ *       … --mix night (default), --mix full (real sizes, fixed dice), --mix small, or a single config:
  *       --shape 2x2 --cards 3 --rounds 3   (and --samples 8,2,1 --decision-samples 8,4)
  *       --replicates 2   re-solve every position twice more (referee error)
  *       --aims           also judge the AI's own in-round aiming (2 paths per
@@ -75,6 +75,27 @@ const MIXES: Record<string, Slice[]> = {
     { label: '1x2 c3 r3', weight: 900, gen: { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
     { label: '1x2 c3 r2', weight: 400, gen: { shape: '1x2', cards: 3, roundsLeft: 2 } },
     { label: '2x2 c3 r2', weight: 600, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
+  ],
+  // REAL SIZES, exactly (NEXT-STEPS §54, 2026-10-17): the measured shapes
+  // (4 heroes against 1, 2, 4 or 5 — PROFILE.shapes 2:1:2:3) with fixed dice,
+  // so the enumerating referee solves them with nothing sampled, each at the
+  // most cards and rounds that still solve; tested side heroes or enemies
+  // alike. 4x5 solves at no size and stands in as 4x3. Half the positions;
+  // the other half are the real-dice small fights of `night`, for chance and
+  // the multi-round cards a one-round fight never deals.
+  full: [
+    { label: '4x1 c3 r2 fixed', weight: 500, gen: { shape: '4x1', cards: 3, roundsLeft: 2, multiShare: 0.8, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '1x4 c3 r2 fixed', weight: 500, gen: { shape: '1x4', cards: 3, roundsLeft: 2, multiShare: 0.8, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '4x2 c3 r1 fixed', weight: 250, gen: { shape: '4x2', cards: 3, roundsLeft: 1, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '2x4 c3 r1 fixed', weight: 250, gen: { shape: '2x4', cards: 3, roundsLeft: 1, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '4x4 c2 r1 fixed', weight: 1000, gen: { shape: '4x4', cards: 2, roundsLeft: 1, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '4x3 c2 r1 fixed', weight: 750, gen: { shape: '4x3', cards: 2, roundsLeft: 1, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '3x4 c2 r1 fixed', weight: 750, gen: { shape: '3x4', cards: 2, roundsLeft: 1, fixedDice: true }, referee: { chance: 'enumerate' } },
+    { label: '1x1 c4 r4', weight: 500, gen: { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 } },
+    { label: '1x1 c4 r3', weight: 500, gen: { shape: '1x1', cards: 4, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x1 c3 r3', weight: 1000, gen: { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '1x2 c3 r3', weight: 1000, gen: { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 } },
+    { label: '2x2 c3 r2', weight: 1000, gen: { shape: '2x2', cards: 3, roundsLeft: 2 } },
   ],
   // The fresh slices an AI fix is re-verified on (NEXT-STEPS §52), half of
   // them with a hide dealt to the OTHER side — the search's opponent model.
