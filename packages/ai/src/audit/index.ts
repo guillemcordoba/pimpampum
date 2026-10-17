@@ -19,3 +19,5 @@ export { checkPosition, aiPicks, DEFAULT_CHECK, ARCHETYPE_SUMMARY } from './chec
 export type { CheckOptions, CheckResult, PickVerdict } from './check.js';
 export { playoutCheck, playOne, DEFAULT_PLAYOUT } from './playout.js';
 export type { PlayoutOptions, PlayoutResult, Candidate } from './playout.js';
+export { shrink } from './shrink.js';
+export type { ShrinkResult } from './shrink.js';
