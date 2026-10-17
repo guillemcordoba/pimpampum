@@ -1,7 +1,7 @@
 // Dice
 export { diceDistribution, expectedExcess } from './dice.js';
 export { DiceRoll, rollDie } from './dice.js';
-export { random, setRng, seededRng, withSeed } from './rng.js';
+export { random, randomInt, setRng, seededRng, withChance, withSeed } from './rng.js';
 
 
 // Core types

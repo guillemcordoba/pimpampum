@@ -1,5 +1,5 @@
 import { DiceRoll, rollDie } from './dice.js';
-import { random, seededRng, withRng } from './rng.js';
+import { randomInt, seededRng, withRng } from './rng.js';
 import { Character, Guard, StatusEntry, type GatedHook } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionEffect, ActionType, TargetRequirement } from './types.js';
@@ -943,7 +943,7 @@ export class CombatEngine implements EngineApi, AIView {
     // measured ~52/48 seat bias). Shuffle before sorting so tie order is fair.
     this.inSeatStream(CombatEngine.TIE_ORDER_STREAM, () => {
       for (let i = built.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
+        const j = randomInt(i + 1);
         [built[i], built[j]] = [built[j], built[i]];
       }
     });

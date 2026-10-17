@@ -142,13 +142,14 @@ export interface AimJudgement extends AimVerdict {
  * card choice is (see the top of this file): its evaluator calls a board at
  * the cap a draw worth 0, and every last-round aim would read as nothing.
  */
-const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool, speed) => {
+const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool, speed) => withSeed(77_777, () => {
+  // Its own generator: the referee's chance may be enumerated, not drawn.
   const view = engine.clone();
   (view as unknown as { maxRounds: number }).maxRounds = engine.maxRounds + 1;
   const at = (c: Character): Character => view.teams[c.team][engine.teams[c.team].indexOf(c)];
   const picked = searchTargets(view as CombatEngine, at(actor), def, req, count, pool.map(at), speed, DEFAULT_LOOKAHEAD.targetSamples ?? 0);
   return picked.map(c => pool[pool.map(at).indexOf(c)]);
-};
+});
 
 interface Judged { loss: number; value: number; eqProb: number; noise: number; flagged: boolean }
 
@@ -195,12 +196,14 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
     return { position: pos, solved: false, error: err.message, picks: [], mismatchShare: 0, sims, ms: performance.now() - t0 };
   }
   const anyFlag = [...picks, ...rivalPicks].some(p => judge(root, p.actions).flagged);
-  const extra = Math.max(o.replicates, anyFlag ? o.confirm : 0);
+  // An enumerating referee is exact: a re-solve would only repeat it.
+  const confirm = o.referee.chance === 'enumerate' ? 0 : o.confirm;
+  const extra = Math.max(o.replicates, anyFlag ? confirm : 0);
   const replicas: RootSolution[] = [];
   for (let r = 1; r <= extra; r++) {
     try { replicas.push(solveWith(baseSeed + 1000 * r)); } catch (err) { if (!(err instanceof BudgetExceeded)) throw err; }
   }
-  const confirmers = replicas.slice(0, o.confirm);
+  const confirmers = replicas.slice(0, confirm);
 
   const verdictsOf = (set: typeof picks): { verdicts: PickVerdict[]; share: number } => {
     const verdicts: PickVerdict[] = [];
@@ -213,10 +216,10 @@ export function checkPosition(pos: Position, opts: Partial<CheckOptions> = {}): 
       // by z standard errors of ITS OWN spread across them: the root's standard
       // error cannot see the noise of the sampled rounds below it, and the
       // re-solves can (measured per-solve loss sd ≈ 3-4 PV, NEXT-STEPS §51).
-      const losses = [j.loss, ...again.slice(0, o.confirm).map(x => x.loss)];
+      const losses = [j.loss, ...again.slice(0, confirm).map(x => x.loss)];
       const mean = losses.reduce((a, b) => a + b, 0) / losses.length;
       const sd = losses.length > 1 ? Math.sqrt(losses.reduce((s, x) => s + (x - mean) ** 2, 0) / (losses.length - 1)) : 0;
-      const mismatch = j.flagged && confirmers.length === o.confirm && again.slice(0, o.confirm).every(x => x.flagged)
+      const mismatch = j.flagged && confirmers.length === confirm && again.slice(0, confirm).every(x => x.flagged)
         && mean > o.epsilon + o.z * sd / Math.sqrt(losses.length);
       verdicts.push({
         cards: p.actions.map((a, s) => archOf(acting[s].c, a)), count: p.count,

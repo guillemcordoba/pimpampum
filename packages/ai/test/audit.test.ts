@@ -107,6 +107,23 @@ describe('the referee on hand-made fights', () => {
     }
   });
 
+  it('enumerating chance, the value is the exact expectation: a 1d2 blow is worth 1.5, not a sample of it', () => {
+    const d2 = { arch: 'strike', p: { n: 1, s: 2, speed: 2, fatigue: 0 } };
+    const pos = aiming([body('H', 10, [d2 as ReturnType<typeof strike>])], [body('F', 10, [strike(1, 1)])]);
+    const root = new Referee({ chance: 'enumerate' }).solve(buildEngine(pos, { actionChooser: () => null }), 0);
+    expect(root.value).toBe(0.5);
+    expect(root.cellSE.flat().every(se => se === 0)).toBe(true);
+  });
+
+  it('a fixed-dice position leaves nothing to chance but tie order, so its exact solve agrees with the sampled one', () => {
+    const pos = generatePosition(5, { shape: '2x1', cards: 2, roundsLeft: 1, fixedDice: true });
+    for (const c of pos.teams.flat().flatMap(f => f.cards)) if (typeof c.p.s === 'number') expect(c.p.s).toBeLessThanOrEqual(1);
+    const exact = new Referee({ chance: 'enumerate' }).solve(buildEngine(pos, { actionChooser: () => null }), 0).value;
+    const sampled = new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value;
+    // The sampled referee draws only the tie order here: close, not equal.
+    expect(Math.abs(exact - sampled)).toBeLessThan(2);
+  });
+
   it('a fight the cap cuts is scored at the cap, never further', () => {
     // bomb-long has two rounds left: a bomb planted in the second never lands.
     const c = CONTROLS.find(x => x.position.id === 'bomb-long')!;

@@ -38,7 +38,7 @@
  * decision is an independent draw and the replayed prefix is identical.
  */
 import {
-  Character, seededRng, setRng, withSeed,
+  Character, seededRng, setRng, withChance, withSeed,
   type ActionSelection, type CombatEngine, type TargetChooser,
 } from '@pimpampum/engine';
 import { solveZeroSum, rowValues, type MatrixSolution } from './zero-sum.js';
@@ -52,10 +52,15 @@ export interface RefereeOptions {
   decisionSamples: number[];
   /** Give up past this many simulated rounds (the position is then unsolved). */
   budget: number;
+  /** `sample`: chance is drawn (`samples`, `decisionSamples`). `enumerate`:
+   *  every outcome of every draw is followed, weighted — exact, nothing
+   *  sampled at all, and affordable only where chance is small (fixed dice:
+   *  then only the order of speed ties is left to it). */
+  chance: 'sample' | 'enumerate';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
-  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000,
+  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample',
 };
 
 /** One seat's committed card. */
@@ -204,6 +209,15 @@ const toSelections = (team: number, j: Joint): ActionSelection[] =>
 /** A scripted answer to an in-round decision: indices into the pool the engine
  *  offered, and the seed the chance after it is drawn from. */
 interface Answer { pick: number[]; seed: number }
+/** A scripted outcome of a chance draw (`chance: 'enumerate'`). */
+interface Drawn { draw: number }
+type Scripted = Answer | Drawn;
+const isDraw = (s: Scripted): s is Drawn => 'draw' in s;
+
+/** Thrown at the first unscripted chance draw with more than one outcome. */
+class Draw {
+  constructor(readonly outcomes: number) {}
+}
 
 /** Thrown by the scripted chooser at the first unscripted decision. */
 class Ask {
@@ -275,7 +289,7 @@ export class Referee {
    *  that must be among the candidates (kept for callers; every joint already is). */
   solve(state: CombatEngine, depth: number, mustInclude: Joint[] = []): RootSolution {
     const { sig, prepared, seats } = this.prepare(state);
-    const K = this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
+    const K = this.opts.chance === 'enumerate' ? 1 : this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
     const cell = (row: Joint, col: Joint): CellStat => {
       const selections = [...toSelections(0, row), ...toSelections(1, col)];
       const vals: number[] = [];
@@ -332,8 +346,13 @@ export class Referee {
    * first unanswered decision: the best answer for the deciding side, each
    * judged on the mean of fresh draws of the chance after it.
    */
-  private round(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[], depth: number): number {
+  private round(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], depth: number): number {
     const out = this.replay(prepared, selections, seed0, script);
+    if (out instanceof Draw) {
+      let total = 0;
+      for (let k = 0; k < out.outcomes; k++) total += this.round(prepared, selections, seed0, [...script, { draw: k }], depth);
+      return total / out.outcomes;
+    }
     if (!(out instanceof Ask)) return this.value(out, depth + 1);
     const key = out.key === null ? null : `${depth}|${out.key}`;
     const hit = key === null ? undefined : this.decisions.get(key);
@@ -347,15 +366,17 @@ export class Referee {
 
   /** Every answer to the decision `ask`, each worth the mean of `samples`
    *  continuations of the chance after it (the same draws for every answer). */
-  private optionStats(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[], depth: number, ask: Ask, samples: number): OptionStat[] {
+  private optionStats(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], depth: number, ask: Ask, samples: number): OptionStat[] {
     // Seeded by the state, not the path: the same state is the same decision.
-    const at = ask.key === null ? `${seed0}#${script.map(a => `${a.pick.join('+')}@${a.seed}`).join('/')}` : `${depth}|${ask.key}`;
-    const seeds = Array.from({ length: samples }, (_, m) => hash(at, this.opts.seed * 131 + m));
+    const at = ask.key === null ? `${seed0}#${script.map(a => (isDraw(a) ? `d${a.draw}` : `${a.pick.join('+')}@${a.seed}`)).join('/')}` : `${depth}|${ask.key}`;
+    // Enumerated chance: one continuation is the exact value.
+    const n = this.opts.chance === 'enumerate' ? 1 : samples;
+    const seeds = Array.from({ length: n }, (_, m) => hash(at, this.opts.seed * 131 + m));
     return subsets(ask.poolSize, ask.count).map(pick => {
       const vals = seeds.map(seed => this.round(prepared, selections, seed0, [...script, { pick, seed }], depth));
-      const mean = vals.reduce((a, b) => a + b, 0) / samples;
-      const variance = samples > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (samples - 1) : 0;
-      return { pick, mean, se: Math.sqrt(variance / samples) };
+      const mean = vals.reduce((a, b) => a + b, 0) / n;
+      const variance = n > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1) : 0;
+      return { pick, mean, se: Math.sqrt(variance / n) };
     });
   }
 
@@ -371,10 +392,11 @@ export class Referee {
     const { sig, prepared } = this.prepare(state);
     const selections = [...toSelections(0, row), ...toSelections(1, col)];
     const seed0 = hash(sig, this.opts.seed * 31 + 1000 + path);
-    const script: Answer[] = [];
+    const script: Scripted[] = [];
     const out: AimVerdict[] = [];
     for (let step = 0; step < 64; step++) {
       const ask = this.replay(prepared, selections, seed0, script, ai);
+      if (ask instanceof Draw) { script.push({ draw: (path + step) % ask.outcomes }); continue; }
       if (!(ask instanceof Ask)) return out;
       const stats = this.optionStats(prepared, selections, seed0, script, 0, ask, samples);
       const top = stats.reduce((b, s) => (ask.team === 0 ? s.mean > b.mean : s.mean < b.mean) ? s : b);
@@ -392,8 +414,9 @@ export class Referee {
   }
 
   /** Re-run the round from its start under a script of answers: the state at
-   *  its end, or the first decision the script does not answer. */
-  private replay(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Answer[], ai?: TargetChooser): CombatEngine | Ask {
+   *  its end, or the first decision (or, enumerating, chance draw) the script
+   *  does not answer. */
+  private replay(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], ai?: TargetChooser): CombatEngine | Ask | Draw {
     if (++this.sims > this.opts.budget) throw new BudgetExceeded(`over ${this.opts.budget} simulated rounds`);
     const sim = prepared.clone();
     let asked = 0;
@@ -414,12 +437,23 @@ export class Referee {
         throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer);
       }
       const a = script[asked++];
+      if (isDraw(a)) throw new Error('referee: a replay out of step with its script');
       // Inside withSeed: the generator it installed is restored when it returns.
-      setRng(seededRng(a.seed));
+      if (this.opts.chance === 'sample') setRng(seededRng(a.seed));
       return a.pick.map(i => pool[i]);
     };
+    const play = (body: () => void): void => {
+      if (this.opts.chance === 'sample') { withSeed(seed0, body); return; }
+      withChance(outcomes => {
+        if (outcomes === 1) return 0;
+        if (asked >= script.length) throw new Draw(outcomes);
+        const a = script[asked++];
+        if (!isDraw(a)) throw new Error('referee: a replay out of step with its script');
+        return a.draw;
+      }, body);
+    };
     try {
-      withSeed(seed0, () => {
+      play(() => {
         sim.planActions(selections);
         let step = sim.resolveNextAction();
         for (let guard = 0; step.kind !== 'done'; guard++) {
@@ -430,7 +464,7 @@ export class Referee {
         sim.finishRound();
       });
     } catch (err) {
-      if (err instanceof Ask) return err;
+      if (err instanceof Ask || err instanceof Draw) return err;
       throw err;
     }
     return sim;

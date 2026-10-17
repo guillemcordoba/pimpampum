@@ -41,6 +41,8 @@ export interface Position {
     horizon: number;
     /** Which profile the tested side was drawn from. */
     side: 'hero' | 'enemy';
+    /** Every die rolls its average (`GeneratorConfig.fixedDice`). */
+    fixedDice?: boolean;
     /** The archetype the position was dealt around, if any. */
     featured?: string;
     /** A hand-made control (see `controls.ts`). */
@@ -126,6 +128,11 @@ export interface GeneratorConfig {
   /** Deal one card of this archetype to the OTHER side — to measure how the
    *  AI plays against a card, not with it (the search's opponent model). */
   foeCard?: string;
+  /** Every card's dice become their average, rolled as that many d1: nothing
+   *  is left to chance but the order of speed ties, so a referee that
+   *  ENUMERATES chance solves the fight exactly — affordable at full size
+   *  (4 a side) where real dice are not. Same expected damage, no variance. */
+  fixedDice?: boolean;
 }
 
 const BY_TYPE = {
@@ -269,6 +276,12 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
     }
   });
 
+  if (cfg.fixedDice) {
+    for (const c of teams.flat().flatMap(f => f.cards)) {
+      if (typeof c.p.n === 'number' && typeof c.p.s === 'number' && c.p.s > 1) c.p = { ...c.p, n: Math.round(c.p.n * (c.p.s + 1) / 2), s: 1 };
+    }
+  }
+
   const handHorizon = Math.max(1, ...teams[0].flatMap(f => f.cards.map(horizonOf)));
   // Room for every card on the table, the opponent's included.
   const tableHorizon = Math.max(1, ...teams.flat().flatMap(f => f.cards.map(horizonOf)));
@@ -278,6 +291,6 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
     id: `g${seed}`,
     roundsLeft,
     teams,
-    tags: { shape: `${nA}x${nB}`, horizon: Math.min(handHorizon, roundsLeft), side, featured },
+    tags: { shape: `${nA}x${nB}`, horizon: Math.min(handHorizon, roundsLeft), side, featured, ...(cfg.fixedDice ? { fixedDice: true } : {}) },
   };
 }
