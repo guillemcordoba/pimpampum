@@ -36,7 +36,7 @@ function runOne(seed: number): Row {
   const playouts = SMOKE ? 4 : Number(flag('--playouts') ?? 200);
   // Side B's PV scaled toward an even fight between the AI and itself: a
   // settled result has no card that matters.
-  const pos = balance(dealt, SMOKE ? 2 : 24, SMOKE ? 1 : 6, seed);
+  const pos = balance(dealt, SMOKE ? 2 : 24, SMOKE ? 1 : 8, seed);
   return { seed, result: playoutCheck(pos, { games: playouts, seed }) };
 }
 
