@@ -6234,3 +6234,51 @@ Consequences, open: the 270 fixtures were judged by the old referee and must
 be re-judged; the audit's mix must keep to the shapes this referee solves; the
 AI's own in-round aiming can now be judged too (the referee knows each
 decision's value).
+
+### 54.1 Fixed dice at full size, and what the AI gets wrong there (2026-10-17)
+
+Exact chance (`chance: 'enumerate'`, engine `randomInt`/`withChance`) plus
+`fixedDice` (every die its average, as n d1) leaves only speed-tie order to
+chance, so full-size fights solve exactly, nothing sampled — but only small:
+4x1 c3 r2 (~5 min), 4x2 c3 r1 (30-114 s), 4x3 c2 r1 (42-445 s); 4x4 c2 r1
+solved 1 of 25 in the run below, 4x5 never, and no 2-round fight beyond 4x1.
+
+`--mix full --aims`, 4 h, 4 lanes (`/tmp/ai-audit/full1/report-2026-10-17.md`):
+
+| | full size, fixed dice | small, real dice |
+|---|---|---|
+| positions solved | 91 | 104 |
+| AI card choice is a mismatch | 57 (63%) | 11 (11%) |
+| median loss when it is | 8.3 PV | 6.9 PV |
+| aims judged / mismatched | 757 / 112 (15%) | 140 / 16 (11%) |
+
+So the multi-body weakness is real, not referee error. The clearest pattern:
+the equilibrium leans on `advance` in 20 positions; the AI held it in 29 and
+played it in 9. On the stored verdicts (re-asking only the AI, seconds a run,
+195 positions, paired), mismatched positions:
+
+| AI variant | advance (20) | all (195) |
+|---|---|---|
+| production | 75% | 42.6% |
+| + two-seat moves, every pair | 70% | 41.5% |
+| + two-seat moves, ally-targeting cards only | 70% | 42.1% |
+| leaf in absolute PV, no bodies term (the referee's currency) | 65% | 37.4% |
+| both | 55% | 35.4% |
+| samples 6 → 24 | — | 39.0% |
+| opponent-search margin 2 / sharpness 3 | — | 41.0% |
+| tempo 0 | — | 45.1% |
+
+(The replay has no noise filter on the sampled small slices, so its rates
+run above the audit's; read the rows against each other.) Three causes:
+(1) SEARCH — one-seat passes cannot find a plan two seats must switch to
+together (g169: slow sweep + advance, 61 PV; two-seat moves fix it), but the
+gain is 1-2 positions in 195; every-pair moves break the 3-s encounter budget
+(5 s), ally-only ones are free and gain 1; not landed. (2) CURRENCY — about a
+third of the gap is the referee's PV margin at the cut against the AI's
+fractions-plus-bodies leaf; a cut fight's PV margin is a weak proxy for
+winning, and §52.6 measured the PV leaf losing real fights. (3) the rest:
+the AI's evaluator ranks the referee's plan 5th-67th of 16-81 even with
+search and currency aligned — its one-round rollouts against a predicted
+opponent, where the referee plays the opponent's best reply. Only more
+rollouts moved it (24 samples: −3.6pp), at 4× the cost. The catalogue's
+`advance` lacking the real card's `aiTargetPriority` hint made no difference.
