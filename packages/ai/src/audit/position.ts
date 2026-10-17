@@ -41,6 +41,8 @@ export interface Position {
     horizon: number;
     /** Which profile the tested side was drawn from. */
     side: 'hero' | 'enemy';
+    /** Played to its real end, no cut (`GeneratorConfig.toTheEnd`). */
+    toTheEnd?: boolean;
     /** Every die rolls its average (`GeneratorConfig.fixedDice`). */
     fixedDice?: boolean;
     /** The archetype the position was dealt around, if any. */
@@ -133,6 +135,10 @@ export interface GeneratorConfig {
    *  ENUMERATES chance solves the fight exactly — affordable at full size
    *  (4 a side) where real dice are not. Same expected damage, no variance. */
   fixedDice?: boolean;
+  /** No cut: the fight runs to its real end (a side down, or the engine's own
+   *  50-round stall rule). `roundsLeft` then only sets how long PV is paced
+   *  for and which payoffs are dealt; score it with `payoff: 'outcome'`. */
+  toTheEnd?: boolean;
 }
 
 const BY_TYPE = {
@@ -203,6 +209,9 @@ function pace(r: Draw, teams: [FighterSpec[], FighterSpec[]], roundsLeft: number
     }
   }
 }
+
+/** The engine's own stall rule: a fight still going after this many rounds is a draw. */
+const STALL_ROUNDS = 50;
 
 /** One position, from a seed. Same seed and config, same position. */
 export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Position {
@@ -289,8 +298,8 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
   if (cfg.pace !== false) pace(r, teams, roundsLeft);
   return {
     id: `g${seed}`,
-    roundsLeft,
+    roundsLeft: cfg.toTheEnd ? STALL_ROUNDS : roundsLeft,
     teams,
-    tags: { shape: `${nA}x${nB}`, horizon: Math.min(handHorizon, roundsLeft), side, featured, ...(cfg.fixedDice ? { fixedDice: true } : {}) },
+    tags: { shape: `${nA}x${nB}`, horizon: Math.min(handHorizon, roundsLeft), side, featured, ...(cfg.fixedDice ? { fixedDice: true } : {}), ...(cfg.toTheEnd ? { toTheEnd: true } : {}) },
   };
 }

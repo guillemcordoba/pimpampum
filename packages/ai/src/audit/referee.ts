@@ -57,10 +57,15 @@ export interface RefereeOptions {
    *  sampled at all, and affordable only where chance is small (fixed dice:
    *  then only the order of speed ties is left to it). */
   chance: 'sample' | 'enumerate';
+  /** What a finished fight is worth to side A. `margin`: PV on A minus PV on
+   *  B. `outcome`: +1 a win, −1 a loss, 0 a draw (a mutual wipe, or the
+   *  engine's own stall rule) — the game's own result, for a fight played to
+   *  its real end. */
+  payoff: 'margin' | 'outcome';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
-  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample',
+  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin',
 };
 
 /** One seat's committed card. */
@@ -91,6 +96,12 @@ export interface RootSolution {
 }
 
 interface CellStat { mean: number; se: number }
+
+/** +1 if team 0 won, −1 if it lost, 0 for a draw (`CombatEngine.winner`). */
+export function outcome(e: CombatEngine): number {
+  const w = e.winner();
+  return w === 0 ? 1 : w === 1 ? -1 : 0;
+}
 
 /** PV on team 0 minus PV on team 1. */
 export function pvDiff(e: CombatEngine): number {
@@ -276,7 +287,7 @@ export class Referee {
 
   /** Value of a between-rounds state to team 0, with the whole remaining fight solved. */
   value(state: CombatEngine, depth: number): number {
-    if (finished(state)) return pvDiff(state);
+    if (finished(state)) return this.opts.payoff === 'outcome' ? outcome(state) : pvDiff(state);
     const sig = signature(state);
     const hit = this.table.get(sig);
     if (hit !== undefined) return hit;
