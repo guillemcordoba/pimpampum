@@ -11562,5 +11562,6879 @@
    ]
   ],
   "rejudged": "2026-10-17"
+ },
+ {
+  "id": "g61:2x1 c3 r3",
+  "found": "2026-10-17",
+  "slice": "2x1 c3 r3",
+  "seed": 61,
+  "todo": true,
+  "position": {
+   "id": "g61",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 30,
+      "pv": 30,
+      "armour": 1,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "bomb",
+        "p": {
+         "dmg": 5,
+         "speed": 3,
+         "priced": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 8,
+      "pv": 6,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 0,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 0,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "stun",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": -2,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 182,
+      "pv": 119,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "lock",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 6,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "stun",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 2,
+         "s": 8,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x1",
+    "horizon": 2,
+    "side": "enemy"
+   }
+  },
+  "value": -95.04189680232555,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 1.575145348837225
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 1.201562500000037
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "stun"
+    ],
+    "eqProb": 1,
+    "loss": 0
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "bomb",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 3.208103197674447
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "bomb",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 3.208103197674447
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "bomb",
+     "stun"
+    ],
+    "eqProb": 0,
+    "loss": 3.208103197674447
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "block",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 6.941436531007781
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "block",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 6.941436531007781
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "block",
+     "stun"
+    ],
+    "eqProb": 0,
+    "loss": 6.941436531007781
+   }
+  ],
+  "ai": [
+   [
+    "block",
+    "stun"
+   ]
+  ]
+ },
+ {
+  "id": "g268:2x1 c3 r3",
+  "found": "2026-10-17",
+  "slice": "2x1 c3 r3",
+  "seed": 268,
+  "todo": true,
+  "position": {
+   "id": "g268",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 61,
+      "pv": 43,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 6,
+         "rounds": 1,
+         "priced": 0
+        }
+       },
+       {
+        "arch": "device",
+        "p": {
+         "dmg": 2,
+         "rounds": 2,
+         "speed": -1,
+         "priced": 0
+        }
+       },
+       {
+        "arch": "stun",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 19,
+      "pv": 13,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": -1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 4
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 78,
+      "pv": 69,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "weaken",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 1,
+         "by": 3,
+         "rounds": 2,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 3,
+         "s": 4,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x1",
+    "horizon": 2,
+    "side": "enemy",
+    "featured": "device"
+   }
+  },
+  "value": -7.463241377090206,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "taunt",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 2.7485300999958078
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "taunt",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 2.886919047254773
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "taunt",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 2.772391794689444
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "device",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 0.3420618092173111
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "device",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 0.5735778843638393
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "device",
+     "block"
+    ],
+    "eqProb": 0.8589301817699351,
+    "loss": -7.105427357601002e-15
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "stun",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 0.5370267278585814
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "stun",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.746340949570147
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "stun",
+     "block"
+    ],
+    "eqProb": 0.14106981823006487,
+    "loss": -4.440892098500626e-15
+   }
+  ],
+  "ai": [
+   [
+    "taunt",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g18:1x4 c3 r2 fixed",
+  "found": "2026-10-17",
+  "slice": "1x4 c3 r2 fixed",
+  "seed": 18,
+  "todo": true,
+  "position": {
+   "id": "g18",
+   "roundsLeft": 2,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 172,
+      "pv": 122,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 5,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 10,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 32,
+      "pv": 20,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 2,
+      "pv": 2,
+      "armour": 1,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 10,
+         "s": 1,
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 7,
+         "rounds": 1,
+         "priced": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 3,
+      "pv": 2,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "1x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": 74,
+  "combos": [
+   {
+    "actions": [
+     0
+    ],
+    "cards": [
+     "guard"
+    ],
+    "eqProb": 4.501650572485088e-16,
+    "loss": 0
+   },
+   {
+    "actions": [
+     1
+    ],
+    "cards": [
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 4.333333333333329
+   },
+   {
+    "actions": [
+     2
+    ],
+    "cards": [
+     "guard"
+    ],
+    "eqProb": 0.9999999999999996,
+    "loss": 0
+   }
+  ],
+  "ai": [
+   [
+    "jab"
+   ]
+  ]
+ },
+ {
+  "id": "g20:4x3 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "4x3 c2 r1 fixed",
+  "seed": 20,
+  "todo": true,
+  "position": {
+   "id": "g20",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 9,
+      "pv": 6,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 45,
+      "pv": 37,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 5,
+      "pv": 5,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 2
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 2,
+      "pv": 2,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 10,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 10,
+      "pv": 8,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 13,
+      "pv": 8,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 10,
+         "s": 1,
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 16,
+      "pv": 12,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "4x3",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": -5.000000000000002,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 10.499999999999998
+   },
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 10.499999999999998
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 7.999999999999998
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 7.999999999999998
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 8.499999999999998
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 8.499999999999998
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 5.999999999999998
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 5.999999999999998
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 2.4999999999999982
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 2.4999999999999982
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 1,
+    "loss": -1.7763568394002505e-15
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": -1.7763568394002505e-15
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 6.499999999999998
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "hide",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 6.499999999999998
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 3.9999999999999982
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "jab",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 3.9999999999999982
+   }
+  ],
+  "ai": [
+   [
+    "strike",
+    "strike",
+    "hide",
+    "block"
+   ]
+  ]
+ },
+ {
+  "id": "g31:2x4 c3 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "2x4 c3 r1 fixed",
+  "seed": 31,
+  "todo": true,
+  "position": {
+   "id": "g31",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 35,
+      "pv": 35,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 46,
+      "pv": 45,
+      "armour": 1,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 5,
+         "rounds": 1,
+         "priced": 1
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 7,
+      "pv": 6,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 1,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 8,
+      "pv": 6,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 2,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 7,
+      "pv": 6,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": -2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H3",
+      "maxPv": 6,
+      "pv": 4,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 3,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x4",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": 24.186440677966115,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 5.033898305084758
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "block"
+    ],
+    "eqProb": 0.38983050847457595,
+    "loss": 1.0658141036401503e-14
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "taunt"
+    ],
+    "eqProb": 0,
+    "loss": 3.745762711864419
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "pierce",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 5.033898305084758
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "pierce",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 6.000000000000011
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "pierce",
+     "taunt"
+    ],
+    "eqProb": 0,
+    "loss": 9.593220338983063
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "advance",
+     "strike"
+    ],
+    "eqProb": 0.610169491525424,
+    "loss": 1.7763568394002505e-14
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "advance",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 6.915254237288149
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "advance",
+     "taunt"
+    ],
+    "eqProb": 0,
+    "loss": 8.788135593220355
+   }
+  ],
+  "ai": [
+   [
+    "strike",
+    "taunt"
+   ],
+   [
+    "pierce",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g107:4x2 c3 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "4x2 c3 r1 fixed",
+  "seed": 107,
+  "todo": true,
+  "position": {
+   "id": "g107",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 6,
+      "pv": 5,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 6,
+      "pv": 5,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 42,
+      "pv": 27,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 4
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 20,
+      "pv": 13,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 7
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 67,
+      "pv": 47,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 86,
+      "pv": 78,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 1,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 4
+        }
+       },
+       {
+        "arch": "heal",
+        "p": {
+         "amount": 3,
+         "speed": -5
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 2,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "4x2",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": -32.000000000000064,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 34.499999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 27.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 34.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 32.499999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 25.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 32.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 30.749999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 23.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     0,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 31.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 22.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 21.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 27.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     1,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 22.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 22.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 21.999999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 25.499999999999936
+   },
+   {
+    "actions": [
+     0,
+     2,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 22.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 33.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 5.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 34.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 31.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 3.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 32.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     2,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 19.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     2,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 0.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     0,
+     2,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 21.499999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 1.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": -6.394884621840902e-14
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     2,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 19.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     2,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 4.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     1,
+     2,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 20.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 1.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     0,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     1,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     1,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 1,
+    "loss": -6.394884621840902e-14
+   },
+   {
+    "actions": [
+     1,
+     2,
+     1,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     2,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 19.999999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     2,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 2.499999999999936
+   },
+   {
+    "actions": [
+     1,
+     2,
+     2,
+     2
+    ],
+    "cards": [
+     "sweep",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 20.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 35.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 29.499999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 35.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 33.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 27.499999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 33.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 33.749999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     0,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 34.249999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 27.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 25.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 30.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     1,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 27.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 25.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 26.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "advance"
+    ],
+    "eqProb": 0,
+    "loss": 28.499999999999936
+   },
+   {
+    "actions": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike",
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 24.999999999999936
+   }
+  ],
+  "ai": [
+   [
+    "sweep",
+    "guard",
+    "strike",
+    "strike"
+   ],
+   [
+    "sweep",
+    "pierce",
+    "strike",
+    "strike"
+   ],
+   [
+    "sweep",
+    "guard",
+    "strike",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g145:1x1 c4 r3",
+  "found": "2026-10-17",
+  "slice": "1x1 c4 r3",
+  "seed": 145,
+  "todo": true,
+  "position": {
+   "id": "g145",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 61,
+      "pv": 47,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "bomb",
+        "p": {
+         "dmg": 7,
+         "speed": 1,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "setup",
+        "p": {
+         "bonus": 7,
+         "speed": 0,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 1,
+         "s": 3,
+         "speed": 5,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 3,
+         "s": 4,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 31,
+      "pv": 29,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 1,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 5,
+         "rounds": 2,
+         "priced": 0
+        }
+       },
+       {
+        "arch": "weaken",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": -2,
+         "by": 3,
+         "rounds": 2,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 3,
+         "s": 8,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "1x1",
+    "horizon": 2,
+    "side": "enemy",
+    "featured": "setup"
+   }
+  },
+  "value": 8.339699074074076,
+  "combos": [
+   {
+    "actions": [
+     0
+    ],
+    "cards": [
+     "bomb"
+    ],
+    "eqProb": 0,
+    "loss": 5.500695562221576
+   },
+   {
+    "actions": [
+     1
+    ],
+    "cards": [
+     "setup"
+    ],
+    "eqProb": 0,
+    "loss": 10.086247039190358
+   },
+   {
+    "actions": [
+     2
+    ],
+    "cards": [
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 7.683449074074075
+   },
+   {
+    "actions": [
+     3
+    ],
+    "cards": [
+     "block"
+    ],
+    "eqProb": 1,
+    "loss": 0
+   }
+  ],
+  "ai": [
+   [
+    "bomb"
+   ]
+  ]
+ },
+ {
+  "id": "g202:1x2 c3 r3",
+  "found": "2026-10-17",
+  "slice": "1x2 c3 r3",
+  "seed": 202,
+  "todo": true,
+  "position": {
+   "id": "g202",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 63,
+      "pv": 41,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": -1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 3,
+         "s": 6,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 3,
+         "s": 6,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 89,
+      "pv": 0,
+      "armour": 0,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 3,
+         "s": 6,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "weaken",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 1,
+         "by": 3,
+         "rounds": 2,
+         "priced": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 86,
+      "pv": 58,
+      "armour": 1,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 8,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "revive",
+        "p": {
+         "amount": 6,
+         "speed": -4
+        }
+       },
+       {
+        "arch": "doom",
+        "p": {
+         "dmg": 8,
+         "delay": 2,
+         "speed": 2,
+         "priced": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "1x2",
+    "horizon": 1,
+    "side": "hero"
+   }
+  },
+  "value": -5.947377086304499,
+  "combos": [
+   {
+    "actions": [
+     0
+    ],
+    "cards": [
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 6.864572979158449
+   },
+   {
+    "actions": [
+     1
+    ],
+    "cards": [
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 3.570434178517637
+   },
+   {
+    "actions": [
+     2
+    ],
+    "cards": [
+     "strike"
+    ],
+    "eqProb": 1,
+    "loss": -8.881784197001252e-16
+   }
+  ],
+  "ai": [
+   [
+    "block"
+   ]
+  ]
+ },
+ {
+  "id": "g203:3x4 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "3x4 c2 r1 fixed",
+  "seed": 203,
+  "todo": true,
+  "position": {
+   "id": "g203",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 8,
+      "pv": 7,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 49,
+      "pv": 41,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 5,
+         "rounds": 1,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 4,
+         "rounds": 1,
+         "priced": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 20,
+      "pv": 13,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 4
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": -1,
+         "fatigue": 1
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": -2,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H3",
+      "maxPv": 2,
+      "pv": 2,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 7
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 6,
+         "s": 1,
+         "speed": -2,
+         "fatigue": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "3x4",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": 15.000000000000018,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 7.000000000000018
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "block"
+    ],
+    "eqProb": 1,
+    "loss": 1.7763568394002505e-14
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 7.000000000000018
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.7763568394002505e-14
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 7.000000000000018
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.7763568394002505e-14
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 7.000000000000018
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "advance",
+     "taunt",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.7763568394002505e-14
+   }
+  ],
+  "ai": [
+   [
+    "advance",
+    "taunt",
+    "hide"
+   ]
+  ]
+ },
+ {
+  "id": "g62:4x3 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "4x3 c2 r1 fixed",
+  "seed": 62,
+  "todo": true,
+  "position": {
+   "id": "g62",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 7,
+      "pv": 6,
+      "armour": 0,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 7,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 9,
+      "pv": 8,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "heal",
+        "p": {
+         "amount": 6,
+         "speed": 1
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 1
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 16,
+      "pv": 11,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 22,
+      "pv": 14,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 15,
+      "pv": 12,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 34,
+      "pv": 23,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 31,
+      "pv": 20,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -4,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "4x3",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": -38.750000000000014,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "guard",
+     "heal",
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.2499999999999858
+   },
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "guard",
+     "heal",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 5.749999999999986
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "guard",
+     "heal",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.91666666666665
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "guard",
+     "heal",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 5.749999999999986
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "guard",
+     "strike",
+     "strike",
+     "block"
+    ],
+    "eqProb": 1,
+    "loss": -1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "guard",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 2.249999999999986
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "guard",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 0.3333333333333215
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "guard",
+     "strike",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.7499999999999858
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "jab",
+     "heal",
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.7499999999999858
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "jab",
+     "heal",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 7.249999999999986
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "jab",
+     "heal",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 3.5833333333333215
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "jab",
+     "heal",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 7.249999999999986
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.7499999999999858
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 7.249999999999986
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "block",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 3.5833333333333215
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 7.249999999999986
+   }
+  ],
+  "ai": [
+   [
+    "guard",
+    "heal",
+    "block",
+    "strike"
+   ],
+   [
+    "jab",
+    "strike",
+    "block",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g65:2x4 c3 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "2x4 c3 r1 fixed",
+  "seed": 65,
+  "todo": true,
+  "position": {
+   "id": "g65",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 27,
+      "pv": 27,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 6,
+         "rounds": 1,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 13,
+      "pv": 10,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 6,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 9,
+      "pv": 6,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 1,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 6,
+      "pv": 5,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 6
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 15,
+      "pv": 12,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 14,
+         "s": 1,
+         "speed": 0
+        }
+       },
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 4
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 21,
+      "pv": 19,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -4,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": -25.000000000000124,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "taunt",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 9.999999999999876
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "taunt",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.999999999999872
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "taunt",
+     "guard"
+    ],
+    "eqProb": 0,
+    "loss": 8.499999999999876
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "block",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 3.9999999999998757
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "block",
+     "strike"
+    ],
+    "eqProb": 0.999999999999999,
+    "loss": -1.2434497875801753e-13
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "block",
+     "guard"
+    ],
+    "eqProb": 0,
+    "loss": 3.9999999999998757
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 6.999999999999872
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 1.1193232133515902e-16,
+    "loss": -1.2434497875801753e-13
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "guard"
+    ],
+    "eqProb": 8.208370231244996e-16,
+    "loss": -1.2434497875801753e-13
+   }
+  ],
+  "ai": [
+   [
+    "block",
+    "hide"
+   ],
+   [
+    "strike",
+    "hide"
+   ]
+  ]
+ },
+ {
+  "id": "g77:1x1 c4 r3",
+  "found": "2026-10-17",
+  "slice": "1x1 c4 r3",
+  "seed": 77,
+  "todo": true,
+  "position": {
+   "id": "g77",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 45,
+      "pv": 31,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 3,
+         "s": 6,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "bomb",
+        "p": {
+         "dmg": 6,
+         "speed": 3,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 55,
+      "pv": 44,
+      "armour": 0,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 2,
+         "s": 8,
+         "speed": 3
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 1,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": -4,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "lock",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": 2,
+         "priced": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "1x1",
+    "horizon": 2,
+    "side": "hero",
+    "featured": "bomb"
+   }
+  },
+  "value": -13.61773277586194,
+  "combos": [
+   {
+    "actions": [
+     0
+    ],
+    "cards": [
+     "strike"
+    ],
+    "eqProb": 1,
+    "loss": -8.881784197001252e-15
+   },
+   {
+    "actions": [
+     1
+    ],
+    "cards": [
+     "guard"
+    ],
+    "eqProb": 0,
+    "loss": 10.951295643649912
+   },
+   {
+    "actions": [
+     2
+    ],
+    "cards": [
+     "bomb"
+    ],
+    "eqProb": 0,
+    "loss": 11.66156409913806
+   },
+   {
+    "actions": [
+     3
+    ],
+    "cards": [
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 6.655633093755609
+   }
+  ],
+  "ai": [
+   [
+    "guard"
+   ]
+  ]
+ },
+ {
+  "id": "g114:3x4 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "3x4 c2 r1 fixed",
+  "seed": 114,
+  "todo": true,
+  "position": {
+   "id": "g114",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 43,
+      "pv": 36,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 19,
+      "pv": 14,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 42,
+      "pv": 29,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 1,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 2,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -4,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 41,
+      "pv": 28,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "heal",
+        "p": {
+         "amount": 5,
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 4,
+      "pv": 3,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 4,
+      "pv": 4,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -1,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 5,
+      "pv": 4,
+      "armour": 0,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "3x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": 49.222222222222214,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "hide",
+     "strike",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 14.666666666666664
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "hide",
+     "strike",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 19.999999999999996
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "hide",
+     "hide",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 26.66666666666666
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "hide",
+     "hide",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 42.66666666666666
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "pierce"
+    ],
+    "eqProb": 0.7777777777777782,
+    "loss": 0
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "jab",
+     "strike",
+     "pierce"
+    ],
+    "eqProb": 0.22222222222222165,
+    "loss": -7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "jab",
+     "hide",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 14.666666666666664
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "jab",
+     "hide",
+     "pierce"
+    ],
+    "eqProb": 0,
+    "loss": 19.999999999999996
+   }
+  ],
+  "ai": [
+   [
+    "hide",
+    "strike",
+    "pierce"
+   ]
+  ]
+ },
+ {
+  "id": "g209:2x4 c3 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "2x4 c3 r1 fixed",
+  "seed": 209,
+  "todo": true,
+  "position": {
+   "id": "g209",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 41,
+      "pv": 34,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 1,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 5,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 35,
+      "pv": 22,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 6,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 10,
+         "s": 1,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 9,
+      "pv": 7,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 6
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 35,
+      "pv": 25,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 6,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 8,
+      "pv": 8,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "heal",
+        "p": {
+         "amount": 6,
+         "speed": -1
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 5,
+      "pv": 4,
+      "armour": 0,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 3
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": -9.999999999999986,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 8.000000000000014
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "guard",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 8.000000000000014
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "guard",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 8.000000000000014
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 1,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.4210854715202004e-14
+   }
+  ],
+  "ai": [
+   [
+    "guard",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g127:3x4 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "3x4 c2 r1 fixed",
+  "seed": 127,
+  "todo": true,
+  "position": {
+   "id": "g127",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 93,
+      "pv": 66,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 42,
+      "pv": 42,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 5,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 66,
+      "pv": 66,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "hide",
+        "p": {
+         "speed": 4
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 3,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 9,
+      "pv": 6,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 12,
+      "pv": 8,
+      "armour": 1,
+      "level": 3,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 7,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 2,
+      "pv": 1,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 4,
+      "pv": 3,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "3x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": 156.49999999999986,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "guard",
+     "block",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 25.499999999999858
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "guard",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 9.999999999999858
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "guard",
+     "jab",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 25.499999999999858
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "guard",
+     "jab",
+     "strike"
+    ],
+    "eqProb": 1,
+    "loss": -1.4210854715202004e-13
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "block",
+     "block",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 63.49999999999986
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "block",
+     "block",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 28.999999999999858
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "block",
+     "jab",
+     "hide"
+    ],
+    "eqProb": 0,
+    "loss": 44.49999999999986
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "block",
+     "jab",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 3.499999999999858
+   }
+  ],
+  "ai": [
+   [
+    "block",
+    "jab",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g206:4x3 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "4x3 c2 r1 fixed",
+  "seed": 206,
+  "todo": true,
+  "position": {
+   "id": "g206",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 42,
+      "pv": 33,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 12,
+      "pv": 8,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 5,
+         "s": 1,
+         "speed": 1,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 6
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 14,
+      "pv": 12,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": -2,
+         "armour": 1,
+         "defense": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": -2,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 3,
+      "pv": 2,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "sweep",
+        "p": {
+         "n": 4,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H0",
+      "maxPv": 62,
+      "pv": 54,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 3,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 1
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 39,
+      "pv": 34,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 2,
+      "cards": [
+       {
+        "arch": "advance",
+        "p": {
+         "speed": 8
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 55,
+      "pv": 54,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 2,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 0,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "4x3",
+    "horizon": 1,
+    "side": "enemy",
+    "fixedDice": true
+   }
+  },
+  "value": -49.99999999999999,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "pierce",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "advance",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 19.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "advance",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 19.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "strike",
+     "advance",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "strike",
+     "advance",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 17.000000000000007
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "pierce",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "advance",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 2.000000000000007
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "advance",
+     "pierce",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 2.000000000000007
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "sweep",
+     "advance",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 1,
+    "loss": 7.105427357601002e-15
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "sweep",
+     "advance",
+     "strike",
+     "sweep"
+    ],
+    "eqProb": 0,
+    "loss": 7.105427357601002e-15
+   }
+  ],
+  "ai": [
+   [
+    "strike",
+    "advance",
+    "strike",
+    "sweep"
+   ]
+  ]
+ },
+ {
+  "id": "g239:2x1 c3 r3",
+  "found": "2026-10-17",
+  "slice": "2x1 c3 r3",
+  "seed": 239,
+  "todo": true,
+  "position": {
+   "id": "g239",
+   "roundsLeft": 3,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 3,
+         "s": 4,
+         "speed": 2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "stun",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": -4,
+         "fatigue": 1
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": 0,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 2,
+         "s": 4,
+         "speed": -2,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 3,
+         "s": 4,
+         "speed": 2
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 83,
+      "pv": 79,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 2,
+         "s": 8,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 2,
+         "s": 6,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 2,
+         "s": 8,
+         "speed": 3
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "2x1",
+    "horizon": 2,
+    "side": "hero",
+    "featured": "stun"
+   }
+  },
+  "value": -41.45184321435232,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 14.340833100149368
+   },
+   {
+    "actions": [
+     0,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 16.072423854344066
+   },
+   {
+    "actions": [
+     0,
+     2
+    ],
+    "cards": [
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 16.029816858988838
+   },
+   {
+    "actions": [
+     1,
+     0
+    ],
+    "cards": [
+     "stun",
+     "strike"
+    ],
+    "eqProb": 0.5076426614220474,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     1,
+     1
+    ],
+    "cards": [
+     "stun",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 11.855094447490629
+   },
+   {
+    "actions": [
+     1,
+     2
+    ],
+    "cards": [
+     "stun",
+     "block"
+    ],
+    "eqProb": 0.4923573385779526,
+    "loss": 1.4210854715202004e-14
+   },
+   {
+    "actions": [
+     2,
+     0
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 16.43753121209896
+   },
+   {
+    "actions": [
+     2,
+     1
+    ],
+    "cards": [
+     "strike",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 15.774945254857244
+   },
+   {
+    "actions": [
+     2,
+     2
+    ],
+    "cards": [
+     "strike",
+     "block"
+    ],
+    "eqProb": 0,
+    "loss": 16.911108723490628
+   }
+  ],
+  "ai": [
+   [
+    "strike",
+    "strike"
+   ],
+   [
+    "strike",
+    "strike"
+   ]
+  ]
+ },
+ {
+  "id": "g271:3x4 c2 r1 fixed",
+  "found": "2026-10-17",
+  "slice": "3x4 c2 r1 fixed",
+  "seed": 271,
+  "todo": true,
+  "position": {
+   "id": "g271",
+   "roundsLeft": 1,
+   "teams": [
+    [
+     {
+      "name": "H0",
+      "maxPv": 11,
+      "pv": 7,
+      "armour": 2,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 1
+        }
+       }
+      ]
+     },
+     {
+      "name": "H1",
+      "maxPv": 13,
+      "pv": 9,
+      "armour": 2,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 4,
+         "rounds": 1,
+         "priced": 1
+        }
+       },
+       {
+        "arch": "pierce",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 1,
+         "armour": 0,
+         "defense": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "H2",
+      "maxPv": 9,
+      "pv": 9,
+      "armour": 2,
+      "level": 6,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 7,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "E0",
+      "maxPv": 17,
+      "pv": 11,
+      "armour": 0,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "jab",
+        "p": {
+         "n": 2,
+         "s": 1,
+         "speed": 6,
+         "fatigue": 0
+        }
+       },
+       {
+        "arch": "block",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 2
+        }
+       }
+      ]
+     },
+     {
+      "name": "E1",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 0,
+      "level": 4,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 9,
+         "s": 1,
+         "speed": 0
+        }
+       },
+       {
+        "arch": "strike",
+        "p": {
+         "n": 11,
+         "s": 1,
+         "speed": 1,
+         "fatigue": 0
+        }
+       }
+      ]
+     },
+     {
+      "name": "E2",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 1,
+      "level": 5,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 0
+        }
+       },
+       {
+        "arch": "guard",
+        "p": {
+         "n": 8,
+         "s": 1,
+         "speed": 3
+        }
+       }
+      ]
+     },
+     {
+      "name": "E3",
+      "maxPv": 15,
+      "pv": 10,
+      "armour": 1,
+      "level": 10,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "heal",
+        "p": {
+         "amount": 4,
+         "speed": 2
+        }
+       },
+       {
+        "arch": "jab",
+        "p": {
+         "n": 3,
+         "s": 1,
+         "speed": 4,
+         "fatigue": 0
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "3x4",
+    "horizon": 1,
+    "side": "hero",
+    "fixedDice": true
+   }
+  },
+  "value": -3,
+  "combos": [
+   {
+    "actions": [
+     0,
+     0,
+     0
+    ],
+    "cards": [
+     "jab",
+     "taunt",
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 4
+   },
+   {
+    "actions": [
+     0,
+     0,
+     1
+    ],
+    "cards": [
+     "jab",
+     "taunt",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1
+   },
+   {
+    "actions": [
+     0,
+     1,
+     0
+    ],
+    "cards": [
+     "jab",
+     "pierce",
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 3
+   },
+   {
+    "actions": [
+     0,
+     1,
+     1
+    ],
+    "cards": [
+     "jab",
+     "pierce",
+     "strike"
+    ],
+    "eqProb": 1,
+    "loss": 0
+   },
+   {
+    "actions": [
+     1,
+     0,
+     0
+    ],
+    "cards": [
+     "block",
+     "taunt",
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 5
+   },
+   {
+    "actions": [
+     1,
+     0,
+     1
+    ],
+    "cards": [
+     "block",
+     "taunt",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 2
+   },
+   {
+    "actions": [
+     1,
+     1,
+     0
+    ],
+    "cards": [
+     "block",
+     "pierce",
+     "jab"
+    ],
+    "eqProb": 0,
+    "loss": 4.5
+   },
+   {
+    "actions": [
+     1,
+     1,
+     1
+    ],
+    "cards": [
+     "block",
+     "pierce",
+     "strike"
+    ],
+    "eqProb": 0,
+    "loss": 1.5
+   }
+  ],
+  "ai": [
+   [
+    "jab",
+    "pierce",
+    "jab"
+   ]
+  ]
  }
 ]
