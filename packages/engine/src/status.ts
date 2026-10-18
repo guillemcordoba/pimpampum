@@ -137,6 +137,14 @@ export interface StatusBehavior {
    * returns a number.
    */
   positionValue?(ref: StatusRef): number;
+  /**
+   * AI ONLY, never called by the engine: what a blow of `damage` (after
+   * armour) is expected to do to the holder — a PURE estimate of
+   * `modifyIncomingDamage`, which may consume the status or act on the board
+   * and so cannot be asked hypothetically. Without it the AI aims as if the
+   * status were not there: blows imagined landing on a holder who takes none.
+   */
+  expectedIncomingDamage?(ref: StatusRef, damage: number): number;
   /** Spend one card-swap charge (clear the status when exhausted). */
   spendCardSwapCharge?(ref: StatusRef): void;
   /** AI: transform the base weight of a candidate action while the holder has
