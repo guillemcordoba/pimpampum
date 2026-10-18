@@ -27,7 +27,7 @@
  * encounters needs.
  */
 import {
-  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, skillLevelBonus, random, withSeed, withRng, seededRng, mirrored,
+  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed, withRng, seededRng, mirrored,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
@@ -172,12 +172,6 @@ export interface EvaluatorWeights {
   /** Share of the PV term read in ABSOLUTE PV (both sides' PV over their
    *  mean total) rather than mean fractions. 0 or omitted: fractions only. */
   absolutePv?: number;
-  /** Share of the bodies term read as WORTH rather than head count: each
-   *  living body counts its best card's expected roll times the rounds it can
-   *  expect to stand (PV over the other side's blows per body, less its
-   *  armour). A team that loses its 19-PV blocker loses more than one that
-   *  loses a 9-PV striker of the same dice. 0 or omitted: head count only. */
-  bodyWorth?: number;
 }
 
 export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatigue: 0.5, status: 10 };
@@ -291,11 +285,7 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
     const abs = (sum(us, c => Math.max(0, c.currentPV)) - sum(them, c => Math.max(0, c.currentPV))) / scale;
     pvDiff = (1 - w.absolutePv) * pvDiff + w.absolutePv * abs;
   }
-  let bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
-  if (w.bodyWorth) {
-    const ws = worthOf(engine, livingUs, livingThem), wt = worthOf(engine, livingThem, livingUs);
-    bodyDiff = (1 - w.bodyWorth) * bodyDiff + w.bodyWorth * (ws - wt) / Math.max(1e-9, ws + wt);
-  }
+  const bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
   const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
 
@@ -323,39 +313,6 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   const statusDiff = statusValue(livingUs) - statusValue(livingThem);
 
   return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff;
-}
-
-/** Best expected roll a body may legally play this round, any type. */
-function bestRoll(engine: CombatEngine, c: Character): number {
-  let best = 0;
-  for (let i = 0; i < c.actions.length; i++) {
-    const def = c.actions[i].def;
-    if (!engine.canPlayActionIdx(c, i)) continue;
-    const roll = def.actionType === ActionType.Atac ? expectedAttackTotal(c, def)
-      : (def.dice?.average() ?? 0) + (def.rollBonus ?? 0) + skillLevelBonus(c, def);
-    best = Math.max(best, roll);
-  }
-  return best;
-}
-
-/** `EvaluatorWeights.bodyWorth`: Σ best roll × rounds the body can stand. */
-function worthOf(engine: CombatEngine, side: Character[], foes: Character[]): number {
-  if (side.length === 0) return 0;
-  let blows = 0;
-  for (const f of foes) {
-    let best = 0;
-    for (let i = 0; i < f.actions.length; i++) {
-      if (f.actions[i].def.actionType === ActionType.Atac && engine.canPlayActionIdx(f, i)) best = Math.max(best, expectedAttackTotal(f, f.actions[i].def));
-    }
-    blows += best;
-  }
-  const perBody = blows / side.length;
-  let acc = 0;
-  for (const c of side) {
-    const rounds = Math.min(10, Math.max(0, c.currentPV) / Math.max(1, perBody - c.getPassiveArmor()));
-    acc += bestRoll(engine, c) * rounds;
-  }
-  return acc;
 }
 
 /**
