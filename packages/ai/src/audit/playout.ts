@@ -40,6 +40,10 @@ export interface PlayoutOptions {
    *  outcome over `games/4` screening games is beyond ±this, no card can
    *  matter much and the position is not judged. */
   settled: number;
+  /** Judge only changes INTO this archetype (e.g. 'guard') — the shrinker
+   *  re-asking whether one known discovery still holds needs nothing else, and
+   *  every other candidate costs as much to play out. Omit: every change. */
+  focus?: string;
 }
 
 export const DEFAULT_PLAYOUT: PlayoutOptions = { games: 200, epsilon: 0.1, z: 3, aiSeeds: 4, seed: 1, settled: 0.8 };
@@ -167,6 +171,7 @@ export function playoutCheck(pos: Position, opts: Partial<PlayoutOptions> = {}):
   seats.forEach((_, k) => {
     for (const a of legal[k]) {
       if (a === mine.actions[k]) continue;
+      if (o.focus && archOf(probe, seats[k], a) !== o.focus) continue;
       const actions = [...mine.actions];
       actions[k] = a;
       const first = batch(actions, 0);

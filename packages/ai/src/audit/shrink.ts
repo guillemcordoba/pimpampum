@@ -2,9 +2,10 @@
  * THE SHRINKER — a failing position cut down to the smallest one that still
  * fails, so a discovery becomes a test a person can read.
  *
- * Greedy, like a property-based tester's shrinking: try every simplification
- * in turn — drop a body, drop a card, clear a status, take away fatigue,
- * armour or a level, halve PV, halve a card's dice — keep the first one after
+ * Greedy, like a property-based tester's shrinking: coarse cuts first (half a
+ * side, half of every hand), then every simplification in turn — drop a body,
+ * drop a card, clear a status, take away fatigue, armour or a level, halve PV,
+ * halve a card's dice — keep the first one after
  * which `fails` still holds, and start again from the smaller position; stop
  * when none does (or the budget of tries runs out). Each kept step is named,
  * so the test says what was removed on the way.
@@ -36,6 +37,26 @@ function* simplifications(p: Position): Generator<[string, Position]> {
       }
     }
   };
+  // COARSE FIRST, as delta debugging does: half a side, half of every hand on
+  // a side. One check each, and when it holds it saves a dozen single cuts.
+  for (let ti = 1; ti >= 0; ti--) {
+    const team = p.teams[ti];
+    if (team.length >= 2) {
+      const q = copy(p);
+      const keep = Math.ceil(team.length / 2);
+      const kept = q.teams[ti].slice(0, keep);
+      if (kept.some(f => f.pv > 0)) {
+        q.teams[ti] = kept;
+        q.tags = { ...q.tags, shape: `${q.teams[0].length}x${q.teams[1].length}` };
+        yield [`drop the back half of side ${ti === 0 ? 'A' : 'B'}`, q];
+      }
+    }
+    if (team.some(f => f.cards.length >= 2)) {
+      const q = copy(p);
+      for (const f of q.teams[ti]) f.cards = f.cards.slice(0, Math.ceil(f.cards.length / 2));
+      yield [`halve every hand on side ${ti === 0 ? 'A' : 'B'}`, q];
+    }
+  }
   // Bodies: each side keeps at least one standing.
   yield* each((q, ti, fi) => {
     const team = q.teams[ti];

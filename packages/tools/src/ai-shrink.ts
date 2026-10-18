@@ -49,7 +49,10 @@ const playouts = SMOKE ? 4 : Number(flag('--playouts') ?? 100);
 
 function shrinkOne(d: PlayoutResult, k: number): Discovered | null {
   const seed = 31 * (k + 1);
-  const fails = (p: Position): boolean => !!playoutCheck(p, { games: playouts, seed }).best;
+  // Only the discovery's own kind of change is re-judged while shrinking
+  // (`focus`); the final confirmation weighs every change.
+  const into = d.best?.cards.find((c, s) => c !== d.ai.cards[s]);
+  const fails = (p: Position): boolean => !!playoutCheck(p, { games: playouts, seed, focus: into }).best;
   const r = shrink(d.position, fails, SMOKE ? 3 : 300);
   const confirm = playoutCheck(r.position, { games: 4 * playouts, seed: seed + 7 });
   if (!confirm.best) return null;
