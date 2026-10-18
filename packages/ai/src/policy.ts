@@ -143,11 +143,19 @@ interface DecisionFacts {
   /** Per enemy, the speed of its slowest interruptible focus (Infinity: none). */
   enemyFocusSpeeds: number[];
   guardsOf: (e: Character) => ReturnType<typeof bestDefenseParts>;
+  defenses: DefenseModel;
 }
 
-function decisionFacts(actor: Character, allies: Character[], enemies: Character[]): DecisionFacts {
+/** How the depth-0 policy weighs a defense: `'flat'`, the opponent model
+ *  §20.8 measured best for the field; `'prevented'`, the PV it expects to
+ *  save, mirroring an attack's weight — a better player, used only for the
+ *  searching side's own seats in rollouts (`LookaheadOptions.selfDefense`). */
+export type DefenseModel = 'flat' | 'prevented';
+
+function decisionFacts(actor: Character, allies: Character[], enemies: Character[], defenses: DefenseModel): DecisionFacts {
   const guards = new Map<Character, ReturnType<typeof bestDefenseParts>>();
   return {
+    defenses,
     woundedAllies: allies.filter(a => pvFraction(a) < 0.5).length,
     woundedEnemies: enemies.filter(e => pvFraction(e) < 0.4).length,
     selfHurt: pvFraction(actor) < 0.5,
@@ -217,6 +225,10 @@ function actionWeight(
       //
       // So: do not "fix" this weight without measuring the SEARCH. See
       // NEXT-STEPS §20.8.
+      if (facts.defenses === 'prevented') {
+        w = enemies.length === 0 ? 0.1 : 1 + 1.5 * expectedPrevented(actor, def, allies, enemies);
+        break;
+      }
       w = 1.5;
       if (woundedAllies > 0) w += 2 * woundedAllies;
       if (selfHurt) w += 1.5;
@@ -252,6 +264,35 @@ function actionWeight(
   }
 
   return Math.max(0.05, w);
+}
+
+/** The biggest single blow this defense blunts: over every foe's best attack
+ *  and every body it could cover (the actor, or an ally), the expected damage
+ *  undefended minus the expected damage against this card's roll. A block
+ *  covers more than one blow and a guard only one; crude on purpose, like
+ *  the attack's own estimate. */
+function expectedPrevented(actor: Character, def: ActionDefinition, allies: Character[], enemies: Character[]): number {
+  const flat = (def.rollBonus ?? 0) + actor.getRollBonus(def.skillId, 'defense') + skillLevelBonus(actor, def);
+  const covered = [actor, ...allies.filter(a => a !== actor && a.isAlive())];
+  let best = 0;
+  for (const e of enemies) {
+    let atk: { dice: DiceRoll | undefined; flat: number } | null = null;
+    let atkAvg = -1;
+    for (const a of e.actions) {
+      if (a.def.actionType !== ActionType.Atac) continue;
+      const parts = attackParts(e, a.def);
+      const avg = (parts.dice?.average() ?? 3) + parts.flat;
+      if (avg > atkAvg) { atkAvg = avg; atk = parts; }
+    }
+    if (!atk) continue;
+    for (const c of covered) {
+      const armour = c.getPassiveArmor();
+      const saved = expectedExcess(atk.dice, atk.flat, undefined, 0, armour)
+        - expectedExcess(atk.dice, atk.flat, def.dice, flat, armour);
+      best = Math.max(best, saved);
+    }
+  }
+  return best;
 }
 
 /** The card's own `aiTargetPriority` hints, summed over its effects; null
@@ -512,8 +553,8 @@ export function pickResolveTargets(
 /** Weighted-random action selection for one character. Targets are chosen
  *  later, at resolution time (pickResolveTargets), with reveal-level info.
  *  Returns actionIdx -1 (an explicit pass) when nothing is playable. */
-export function selectAction(view: AIView, actor: Character): PlannedAction {
-  return drawAction(actionOdds(view, actor));
+export function selectAction(view: AIView, actor: Character, defenses: DefenseModel = 'flat'): PlannedAction {
+  return drawAction(actionOdds(view, actor, defenses));
 }
 
 /** The depth-0 policy's odds for one decision, before its single draw. */
@@ -525,13 +566,13 @@ export interface ActionOdds {
 
 /** What `selectAction` weighs, without drawing. Reads the board and consumes
  *  no randomness, so the same board gives the same odds. */
-export function actionOdds(view: AIView, actor: Character): ActionOdds {
+export function actionOdds(view: AIView, actor: Character, defenses: DefenseModel = 'flat'): ActionOdds {
   const indices = availableActionIndices(actor, view.registry);
   if (indices.length === 0) return { indices, weights: [], total: 0 };
 
   const allies = view.alliesOf(actor, false);
   const enemies = view.enemiesOf(actor);
-  const facts = decisionFacts(actor, allies, enemies);
+  const facts = decisionFacts(actor, allies, enemies, defenses);
   const weights = indices.map(i =>
     Math.pow(actionWeight(view, actor, actor.actions[i], allies, enemies, facts), view.aiSharpness));
   const total = weights.reduce((s, w) => s + w, 0);

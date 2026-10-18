@@ -6425,3 +6425,39 @@ Open: lock (catalogue, flat −0.3 per round left, per body — on a lone boss
 it outweighs raising a fallen hero 3 to 1.9 at the leaf, while played to the
 end the revive wins outright, g30040) and the one-round horizon's view of a
 lasting extra body (bodies 3 / 10 were both equal).
+
+**Rollout options, continued (2026-10-18 evening, `--baseline WORKTREE`, δ 0.015,
+seeds 100001+).** The 16:27 run was lost to the OOM killer (a SIGSTOPped
+shrinker keeps its memory) and re-run alone after the reboot.
+
+| variant | mean pair result | verdict |
+|---|---|---|
+| `rolloutSharpness` 2 → 0.5 | +0.004 ± 0.005 | undecided at the 1 h cap, leans equal |
+| `rolloutSharpness` 2 → 2 | — | no-op: 2 is the engine's default (queued by mistake); 4 is queued |
+| `continuation: 1` (one more depth-0 round before the leaf) | **+0.036 ± 0.012** | better — NOT landed: about doubles each decision's cost; the encounter test's 3 s decides |
+| `continuation: 2` | −0.022 ± 0.008 | worse |
+
+One round of continuation helps and two hurt: the further a rollout plays at
+depth 0, the further it drifts from the real fight. g40098 (d5, 4 heroes vs a
+boss whose pierce ignores defense) shows the drift: the AI blocks with its
+tank, the pierce is forced onto it (dead 74%), heroes win 30%; striking lets
+the pierce kill the 9-PV glass hero instead, the tank blocks every later
+round, heroes win 97%. Played on at DEPTH 0 the order flips (65% vs 15%):
+the depth-0 tank strikes instead of blocking (the flat defense weight,
+§20.8), so keeping it alive is worth nothing to any depth-0 readout.
+
+Two options written for it, both off by default, matches queued:
+`EvaluatorWeights.bodyWorth` (a living body counts its best card's expected
+roll × the rounds it can expect to stand, blended into the bodies term) and
+`LookaheadOptions.selfDefense` (the searching side's own seats in rollouts
+weigh a defense by the PV it expects to save — `DefenseModel` 'prevented' —
+while opponents keep the flat model; it can only act with continuation, since
+the searched round fixes every own seat). Neither flips g40098 on its own:
+its leaf is dominated by the glass hero's surviving pierce this round.
+
+**The workers' memory was a leak (2026-10-18).** Shrink workers grew to the
+4 GB heap limit and one died: engine `expectedExcess` cached by DiceRoll
+identity in a strong Map, and the audit builds fresh dice for every game it
+sets up, about 12 KB a game kept forever. The first level is now a WeakMap;
+a 300-game loop holds 7 MB flat, where it grew before. Both OOM kills of the
+day (01:38, 16:27) had workers at that size.

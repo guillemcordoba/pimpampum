@@ -27,11 +27,11 @@
  * encounters needs.
  */
 import {
-  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed, withRng, seededRng, mirrored,
+  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, skillLevelBonus, random, withSeed, withRng, seededRng, mirrored,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
-  selectAction, actionOdds, drawAction, pickResolveTargets, aimedTargets, expectedAttackTotal, type ActionOdds, type AttackAim,
+  selectAction, actionOdds, drawAction, pickResolveTargets, aimedTargets, expectedAttackTotal, type ActionOdds, type AttackAim, type DefenseModel,
 } from './policy.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
@@ -52,6 +52,15 @@ export interface LookaheadOptions {
    *  legal falls back to the full hand — a character with no attack must still
    *  act. */
   restrictTo?: ActionType[];
+  /** Rounds each rollout plays on at depth 0 (everyone) after the searched
+   *  round, before the leaf is read. Omit or 0: read it right after. Each
+   *  round costs about as much as the searched one. */
+  continuation?: number;
+  /** The searching side's OWN seats in rollouts weigh a defense by the PV it
+   *  expects to save (`DefenseModel` 'prevented') instead of the flat
+   *  opponent model. A tank that blocks every round is worth keeping alive
+   *  only if the rollouts let it block. */
+  selfDefense?: boolean;
   /** Rollouts in ANTITHETIC pairs: every odd sample replays the one before it
    *  with each die mirrored (high where it rolled low), so the dice's luck
    *  largely cancels in the mean. Same cost per sample. */
@@ -158,6 +167,22 @@ export interface EvaluatorWeights {
   /** Share of the PV term read in ABSOLUTE PV (both sides' PV over their
    *  mean total) rather than mean fractions. 0 or omitted: fractions only. */
   absolutePv?: number;
+  /** THE RACE: rounds each side needs to wipe the other (its living bodies'
+   *  best attacks against the other side's PV left), as `(theirs − ours) /
+   *  (theirs + ours)` in [−1, 1]. Fractions of health price a point of damage
+   *  on a 13-PV hero ten times one on a 174-PV boss; in a fight that is a
+   *  race, the boss's point is what brings the end. 0 or omitted: off. */
+  race?: number;
+  /** Count the race in WHOLE rounds: a blow that makes the foe fall a round
+   *  sooner is worth a round of their blows not taken; one that does not is
+   *  worth nothing to the race. */
+  raceWhole?: boolean;
+  /** Share of the bodies term read as WORTH rather than head count: each
+   *  living body counts its best card's expected roll times the rounds it can
+   *  expect to stand (PV over the other side's blows per body, less its
+   *  armour). A team that loses its 19-PV blocker loses more than one that
+   *  loses a 9-PV striker of the same dice. 0 or omitted: head count only. */
+  bodyWorth?: number;
 }
 
 export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatigue: 0.5, status: 10 };
@@ -271,7 +296,11 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
     const abs = (sum(us, c => Math.max(0, c.currentPV)) - sum(them, c => Math.max(0, c.currentPV))) / scale;
     pvDiff = (1 - w.absolutePv) * pvDiff + w.absolutePv * abs;
   }
-  const bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
+  let bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
+  if (w.bodyWorth) {
+    const ws = worthOf(engine, livingUs, livingThem), wt = worthOf(engine, livingThem, livingUs);
+    bodyDiff = (1 - w.bodyWorth) * bodyDiff + w.bodyWorth * (ws - wt) / Math.max(1e-9, ws + wt);
+  }
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
   const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
 
@@ -298,7 +327,63 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   };
   const statusDiff = statusValue(livingUs) - statusValue(livingThem);
 
-  return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff;
+  const race = w.race ? w.race * raceTerm(engine, livingUs, livingThem, !!w.raceWhole) : 0;
+  return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff + race;
+}
+
+/** Best expected roll a body may legally play this round, any type. */
+function bestRoll(engine: CombatEngine, c: Character): number {
+  let best = 0;
+  for (let i = 0; i < c.actions.length; i++) {
+    const def = c.actions[i].def;
+    if (!engine.canPlayActionIdx(c, i)) continue;
+    const roll = def.actionType === ActionType.Atac ? expectedAttackTotal(c, def)
+      : (def.dice?.average() ?? 0) + (def.rollBonus ?? 0) + skillLevelBonus(c, def);
+    best = Math.max(best, roll);
+  }
+  return best;
+}
+
+/** `EvaluatorWeights.bodyWorth`: Σ best roll × rounds the body can stand. */
+function worthOf(engine: CombatEngine, side: Character[], foes: Character[]): number {
+  if (side.length === 0) return 0;
+  let blows = 0;
+  for (const f of foes) {
+    let best = 0;
+    for (let i = 0; i < f.actions.length; i++) {
+      if (f.actions[i].def.actionType === ActionType.Atac && engine.canPlayActionIdx(f, i)) best = Math.max(best, expectedAttackTotal(f, f.actions[i].def));
+    }
+    blows += best;
+  }
+  const perBody = blows / side.length;
+  let acc = 0;
+  for (const c of side) {
+    const rounds = Math.min(10, Math.max(0, c.currentPV) / Math.max(1, perBody - c.getPassiveArmor()));
+    acc += bestRoll(engine, c) * rounds;
+  }
+  return acc;
+}
+
+/** Rounds to wipe, theirs minus ours over their sum (`EvaluatorWeights.race`). */
+function raceTerm(engine: CombatEngine, us: Character[], them: Character[], whole: boolean): number {
+  const perRound = (side: Character[]): number => {
+    let out = 0;
+    for (const c of side) {
+      let best = 0;
+      for (let i = 0; i < c.actions.length; i++) {
+        const a = c.actions[i];
+        if (a.def.actionType !== ActionType.Atac || !engine.canPlayActionIdx(c, i)) continue;
+        best = Math.max(best, expectedAttackTotal(c, a.def));
+      }
+      out += best;
+    }
+    return out;
+  };
+  const left = (side: Character[]): number => side.reduce((s, c) => s + Math.max(0, c.currentPV), 0);
+  const rounds = (pv: number, dpr: number): number => (whole ? Math.ceil : (x: number) => x)(pv / Math.max(1, dpr));
+  const toWipeThem = rounds(left(them), perRound(us));
+  const toWipeUs = rounds(left(us), perRound(them));
+  return (toWipeUs - toWipeThem) / Math.max(1e-9, toWipeUs + toWipeThem);
 }
 
 /**
@@ -468,7 +553,7 @@ const newMemo = (team: number, opts: LookaheadOptions, pairSeed: number, base = 
  */
 function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, shared: DecisionMemo): ActionOdds {
   const os = shared.opts.opponentSearch!;
-  const inner = newMemo(actor.team, { ...shared.opts, samples: os.samples, opponentSearch: undefined }, shared.pairSeed + 104_729, shared.base);
+  const inner = newMemo(actor.team, { ...shared.opts, samples: os.samples, opponentSearch: undefined, selfDefense: undefined }, shared.pairSeed + 104_729, shared.base);
   const values = base.indices.map(idx =>
     evaluate(root, actor.team, new Map([[actor, idx]]), inner.opts, 1, inner.pairSeed, undefined, inner));
   const top = Math.max(...values);
@@ -490,15 +575,20 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
  * seat that chooses after the reveal (it reads the plan).
  */
 function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatEngine, a: Character) => number | null {
-  if (!root.roundPrepared) return (e, a) => selectAction(e, a).actionIdx;
+  const model = (a: Character): DefenseModel => (shared.opts.selfDefense && a.team === shared.team ? 'prevented' : 'flat');
+  if (!root.roundPrepared) return (e, a) => selectAction(e, a, model(a)).actionIdx;
   return (e, a) => {
-    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a).actionIdx;
+    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a, model(a)).actionIdx;
     const pos = e.teams[a.team].indexOf(a);
     const seat = a.team * 1000 + pos;
     let odds = shared.odds.get(seat);
     if (!odds) {
-      let base = shared.base.get(seat);
-      if (!base) shared.base.set(seat, base = actionOdds(e, a));
+      // `base` is shared with the opponent-search memo, whose own seats are
+      // not ours: keyed by model as well as seat.
+      const m = model(a);
+      const baseKey = seat + (m === 'prevented' ? 500 : 0);
+      let base = shared.base.get(baseKey);
+      if (!base) shared.base.set(baseKey, base = actionOdds(e, a, m));
       odds = a.team !== shared.team && shared.opts.opponentSearch && base.indices.length > 1
         ? searchedOdds(root, root.teams[a.team][pos], base, shared)
         : base;
@@ -567,7 +657,8 @@ function evaluate(
     known = shared.plans.get(key);
     if (!known) shared.plans.set(key, known = []);
   }
-  const opponentModel = shared ? rolloutOpponents(engine, shared) : (e: CombatEngine, a: Character) => selectAction(e, a).actionIdx;
+  const opponentModel = shared ? rolloutOpponents(engine, shared)
+    : (e: CombatEngine, a: Character) => selectAction(e, a, opts.selfDefense && a.team === team ? 'prevented' : 'flat').actionIdx;
   for (let s = 0; s < opts.samples; s++) {
     if (floor !== undefined && s >= minSamples) {
       // Two sigma of the running mean, floored so a run of identical rollouts
@@ -603,6 +694,11 @@ function evaluate(
       if (depthLeft > 1 && !sim.isOver() && sim.round < sim.maxRounds) {
         return bestResponse(sim, team, { ...opts, depth: depthLeft - 1 }).value;
       }
+      // PLAY ON (`LookaheadOptions.continuation`): a few more rounds at depth 0
+      // for everyone before the leaf is read — a cost that lands rounds later
+      // (a tank spent shielding others from an undefendable blow) is invisible
+      // to a leaf read right after this one.
+      for (let k = 0; k < (opts.continuation ?? 0) && !sim.isOver() && sim.round < sim.maxRounds; k++) sim.runRound();
       // SETTLE THE LEAF (`LookaheadOptions.tempo`): prepare the next round —
       // round-start effects land, the bodies that lose it are known — and
       // price its blows. Not when that round is the cap: a board there is a
