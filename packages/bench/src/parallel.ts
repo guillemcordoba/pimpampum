@@ -62,7 +62,7 @@ const LANES = Math.max(1, Math.min(os.cpus().length - 2, 24, Number(process.env.
  */
 const USER_STATE = path.join(process.env.XDG_RUNTIME_DIR ?? os.tmpdir(), 'pimpampum-user-state');
 const BUSY_LANES = Math.max(1, Number(process.env.BENCH_LANES_BUSY) || 4);
-function lanesNow(): number {
+export function lanesNow(): number {
   try {
     return fs.readFileSync(USER_STATE, 'utf8').trim() === 'active' ? Math.min(BUSY_LANES, LANES) : LANES;
   } catch {

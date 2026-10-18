@@ -20,4 +20,6 @@ export type { CheckOptions, CheckResult, PickVerdict } from './check.js';
 export { playoutCheck, playOne, playAI, balance, DEFAULT_PLAYOUT } from './playout.js';
 export type { PlayoutOptions, PlayoutResult, Candidate } from './playout.js';
 export { shrink } from './shrink.js';
+export { playPair, twoHeaded, sprt } from './match.js';
+export type { MatchVerdict, SprtState } from './match.js';
 export type { ShrinkResult } from './shrink.js';
