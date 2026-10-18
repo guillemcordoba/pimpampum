@@ -172,16 +172,6 @@ export interface EvaluatorWeights {
   /** Share of the PV term read in ABSOLUTE PV (both sides' PV over their
    *  mean total) rather than mean fractions. 0 or omitted: fractions only. */
   absolutePv?: number;
-  /** THE RACE: rounds each side needs to wipe the other (its living bodies'
-   *  best attacks against the other side's PV left), as `(theirs − ours) /
-   *  (theirs + ours)` in [−1, 1]. Fractions of health price a point of damage
-   *  on a 13-PV hero ten times one on a 174-PV boss; in a fight that is a
-   *  race, the boss's point is what brings the end. 0 or omitted: off. */
-  race?: number;
-  /** Count the race in WHOLE rounds: a blow that makes the foe fall a round
-   *  sooner is worth a round of their blows not taken; one that does not is
-   *  worth nothing to the race. */
-  raceWhole?: boolean;
   /** Share of the bodies term read as WORTH rather than head count: each
    *  living body counts its best card's expected roll times the rounds it can
    *  expect to stand (PV over the other side's blows per body, less its
@@ -332,8 +322,7 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   };
   const statusDiff = statusValue(livingUs) - statusValue(livingThem);
 
-  const race = w.race ? w.race * raceTerm(engine, livingUs, livingThem, !!w.raceWhole) : 0;
-  return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff + race;
+  return w.pv * pvDiff + w.bodies * bodyDiff + w.fatigue * fatigueDiff + w.status * statusDiff;
 }
 
 /** Best expected roll a body may legally play this round, any type. */
@@ -367,28 +356,6 @@ function worthOf(engine: CombatEngine, side: Character[], foes: Character[]): nu
     acc += bestRoll(engine, c) * rounds;
   }
   return acc;
-}
-
-/** Rounds to wipe, theirs minus ours over their sum (`EvaluatorWeights.race`). */
-function raceTerm(engine: CombatEngine, us: Character[], them: Character[], whole: boolean): number {
-  const perRound = (side: Character[]): number => {
-    let out = 0;
-    for (const c of side) {
-      let best = 0;
-      for (let i = 0; i < c.actions.length; i++) {
-        const a = c.actions[i];
-        if (a.def.actionType !== ActionType.Atac || !engine.canPlayActionIdx(c, i)) continue;
-        best = Math.max(best, expectedAttackTotal(c, a.def));
-      }
-      out += best;
-    }
-    return out;
-  };
-  const left = (side: Character[]): number => side.reduce((s, c) => s + Math.max(0, c.currentPV), 0);
-  const rounds = (pv: number, dpr: number): number => (whole ? Math.ceil : (x: number) => x)(pv / Math.max(1, dpr));
-  const toWipeThem = rounds(left(them), perRound(us));
-  const toWipeUs = rounds(left(us), perRound(them));
-  return (toWipeUs - toWipeThem) / Math.max(1e-9, toWipeUs + toWipeThem);
 }
 
 /**
