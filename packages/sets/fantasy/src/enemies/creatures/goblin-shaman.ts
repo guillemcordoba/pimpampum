@@ -22,6 +22,7 @@ const MALEIT: StatusBehavior = {
     // its own, it makes other wounds worse.
     return damage > 0 ? damage + (ctx.entry.value || 2) : damage;
   },
+  expectedIncomingDamage(ref, damage) { return damage > 0 ? damage + (ref.entry.value || 2) : damage; },
   /** A burden on the cursed: every blow they take from now on is bigger. Priced
    *  at a few extra points against their own health, and no more — the curse
    *  only pays when someone connects. */

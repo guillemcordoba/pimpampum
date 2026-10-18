@@ -64,6 +64,10 @@ const RUNA_ESCUT: StatusBehavior = {
     ctx.engine.log('info', `ᛉ La runa de l'escut invisible crida: evita ${prevented} punts de dany (${left} usos restants).`, ctx.holder.team);
     return damage - amount;
   },
+  expectedIncomingDamage(ref, damage) {
+    if (damage <= 0 || ref.entry.value <= 0 || (damage < 3 && damage < ref.holder.currentPV)) return damage;
+    return Math.max(0, damage - num(ref.entry.data ?? {}, 'amount', 4));
+  },
 };
 
 interface RuneSpec {

@@ -20,6 +20,7 @@ const FUGA: StatusBehavior = {
     if (damage > 0) ctx.engine.log('defense', `El cop contra ${ctx.holder.name} només troba aire.`, ctx.holder.team);
     return 0;
   },
+  expectedIncomingDamage() { return 0; },
   positionValue() { return 0.1; },
 };
 
@@ -42,6 +43,7 @@ const PATINET: StatusBehavior = {
     ctx.engine.log('defense', `${ctx.holder.name} s'esmuny amb el patinet d'aire: el cop falla.`, ctx.holder.team);
     return 0;
   },
+  expectedIncomingDamage(ref, damage) { return ref.entry.remaining > 1 ? damage : 0; },
   positionValue() { return 0.08; },
 };
 
