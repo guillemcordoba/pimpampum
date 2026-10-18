@@ -258,6 +258,12 @@ export function auditRegistry(): EffectRegistry {
   r.register('audit:advance', {
     getTargetRequirement: () => 'ally_other',
     onResolve(ctx) { for (const t of ctx.targets) ctx.engine.advancePendingAction(t); },
+    // The hint the real card carries (Acrobàcia's launch): the ally whose
+    // attack is still to come. Without it the heuristic advanced the most
+    // wounded ally, and the rollouts judged advance on that (NEXT-STEPS §54.3).
+    aiTargetPriority(ctx, c) {
+      return ctx.plan.some(p => p.actor === c && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac) ? 10 : 0;
+    },
   });
   r.register('audit:taunt', {
     getTargetRequirement: () => 'none',
