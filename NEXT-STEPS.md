@@ -6409,3 +6409,19 @@ mixed band 2.2 s of 3, quiet machine).
 `refs/ai-baselines/night-2026-10-17`, since the engine gained three additive
 seams): **+0.081 ± 0.026** over 113 fresh positions (seeds 200001+), i.e.
 about 54% of the points.
+
+Discovery d5 (seeds 40001+, after hide-aim and antithetic): 97 judged,
+**27.8% ± 4.6** beaten — within noise of d4; the rate is too coarse to see
+the few points the matches measure. What the winners swapped IN: advance 5,
+guard 4, jab 4, stun 3, revive 3. Advance has topped that list in every round
+(§54.1, d4, d5): the catalogue's advance had no \`aiTargetPriority\`, so the
+heuristic — and every rollout — advanced the most wounded ally (49% agreement
+with the target search). It now carries the real card's hint (Acrobàcia's
+launch: the ally whose attack is still to come), 81% agreement. That is a
+catalogue change, invisible to a match (both AIs read it); the next discovery
+round says whether advance stops topping the list.
+
+Open: lock (catalogue, flat −0.3 per round left, per body — on a lone boss
+it outweighs raising a fallen hero 3 to 1.9 at the leaf, while played to the
+end the revive wins outright, g30040) and the one-round horizon's view of a
+lasting extra body (bodies 3 / 10 were both equal).
