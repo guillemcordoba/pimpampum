@@ -6358,3 +6358,22 @@ Landed as the default (2026-10-18). The encounter-speed test passes with it on
 a quiet machine (boss 2.3 s of 3); its earlier failures were the 16 match
 lanes beside it. The local optimum g5040 shows is real but rare: escaping it
 (`startPlans`) did not move a match.
+
+Option sweeps against the new default (2026-10-18, `--baseline WORKTREE
+--candidate-opts …`, cached deck seeds 1+, fine runs on seeds 100001+):
+
+| variant | mean pair result | verdict |
+|---|---|---|
+| samples 6 → 12 | +0.026 ± 0.010 | better |
+| samples 6 → 9 | +0.032 ± 0.010 | better — NOT landed: the mixed band then takes 2.76-2.97 s of the encounter test's 3 s (user's call) |
+| race off | −0.001 ± 0.008 | equal: racing is free |
+| targetSamples 2 → 4 | +0.002 ± 0.007 | equal |
+| passes 2 → 3 | −0.001 ± 0.005 | equal: the climb has settled by pass 2 |
+| tempo 1 → 0 / → 2 | −0.047 ± 0.015 / −0.035 ± 0.010 | worse / worse: 1 is the top |
+| bodies 6 → 3 / → 10 (δ 0.03) | +0.012 ± 0.006 / −0.010 ± 0.006 | equal / equal |
+| bodies 6 → 3 / → 1, fresh seeds (δ 0.015) | +0.000 ± 0.006 / +0.003 ± 0.005 | equal / equal |
+| opponent search off | −0.011 ± 0.005 | equal (leans worse): keep |
+
+So the number knobs are at their tops except the sample count: what is left
+of the AI's error at depth 1 is rollout NOISE (more samples help, more
+target samples or passes do not) and the evaluation itself.
