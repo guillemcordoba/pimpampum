@@ -121,12 +121,22 @@ export function diceDistribution(roll: DiceRoll | undefined, flat = 0): Readonly
  * enemy per candidate action per rollout, and the key cost more than the
  * convolution it was there to avoid.
  *
- * `NONE` stands in for "no dice", which is a real and common case (a flat
+ * The first level is WEAK: the audit builds fresh cards — fresh dice — for
+ * every game it sets up, and a strong map kept every one of them, about 12 KB
+ * a game, until a shrinker's workers died of heap exhaustion.
+ * `noDice` stands in for "no dice", which is a real and common case (a flat
  * defence, an unarmoured target) and cannot be a WeakMap key.
  */
-const NONE = Symbol('no-dice');
 type ExcessNode = Map<unknown, unknown>;
-const excessCache: ExcessNode = new Map();
+const excessCache = new WeakMap<DiceRoll, ExcessNode>();
+const noDice: ExcessNode = new Map();
+
+function root(a: DiceRoll | undefined): ExcessNode {
+  if (!a) return noDice;
+  let node = excessCache.get(a);
+  if (!node) { node = new Map(); excessCache.set(a, node); }
+  return node;
+}
 
 function child(node: ExcessNode, key: unknown): ExcessNode {
   let next = node.get(key) as ExcessNode | undefined;
@@ -139,7 +149,7 @@ export function expectedExcess(
   b: DiceRoll | undefined, bFlat: number,
   floor: number,
 ): number {
-  const leaf = child(child(child(child(excessCache, a ?? NONE), aFlat), b ?? NONE), bFlat);
+  const leaf = child(child(child(root(a), aFlat), b ?? noDice), bFlat);
   const hit = leaf.get(floor) as number | undefined;
   if (hit !== undefined) return hit;
   const da = diceDistribution(a, aFlat);
