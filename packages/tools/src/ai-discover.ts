@@ -15,14 +15,14 @@
  * Run:  pnpm --filter @pimpampum/tools exec tsx src/ai-discover.ts --games 400 --lanes 4 --hours 4
  *       --playouts 200   games per candidate per batch
  *
- * Every lane is a child process at nice 19.
+ * Every lane is a child process at nice 19, and yields while the user is active.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { balance, generatePosition, playoutCheck, type PlayoutResult } from '@pimpampum/ai/audit';
-import { flag, games, share, SMOKE } from '@pimpampum/bench';
+import { flag, games, lanesNow, share, SMOKE } from '@pimpampum/bench';
 
 const HERE = fileURLToPath(import.meta.url);
 
@@ -57,6 +57,8 @@ if (process.argv.includes('--worker')) {
   fs.mkdirSync(claims, { recursive: true });
   const deadline = Number(flag('--deadline') ?? Infinity);
   for (let i = 0; i < n; i++) {
+    // Yield while the user is at the machine (bench `lanesNow`).
+    while (lane >= lanesNow() && !SMOKE) await new Promise(r => setTimeout(r, 30_000));
     if (Date.now() > deadline) break;
     try { fs.closeSync(fs.openSync(path.join(claims, String(i)), 'wx')); } catch { continue; }
     let row: Row;

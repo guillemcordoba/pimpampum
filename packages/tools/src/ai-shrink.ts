@@ -9,7 +9,7 @@
  * Run:  pnpm --filter @pimpampum/tools exec tsx src/ai-shrink.ts <discoveries.json> --lanes 4
  *       --playouts 100   games per candidate per batch while shrinking
  *
- * Every lane is a child process at nice 19.
+ * Every lane is a child process at nice 19, and yields while the user is active.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONTROLS, playoutCheck, shrink, type PlayoutResult, type Position } from '@pimpampum/ai/audit';
 import os from 'node:os';
-import { flag, SMOKE } from '@pimpampum/bench';
+import { flag, lanesNow, SMOKE } from '@pimpampum/bench';
 
 const HERE = fileURLToPath(import.meta.url);
 const TESTS = path.resolve(path.dirname(HERE), '../../ai/test/discovered.json');
@@ -68,6 +68,7 @@ if (process.argv.includes('--worker')) {
   const all = JSON.parse(fs.readFileSync(input!, 'utf8')) as PlayoutResult[];
   fs.mkdirSync(path.join(runDir, 'claims'), { recursive: true });
   for (let k = 0; k < all.length; k++) {
+    while (lane >= lanesNow() && !SMOKE) await new Promise(r => setTimeout(r, 30_000));
     try { fs.closeSync(fs.openSync(path.join(runDir, 'claims', String(k)), 'wx')); } catch { continue; }
     let line: unknown;
     try { line = { k, test: shrinkOne(all[k], k) }; } catch (err) { line = { k, error: String((err as Error).stack ?? err).slice(0, 2000) }; }
