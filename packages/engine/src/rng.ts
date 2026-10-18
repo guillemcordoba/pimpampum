@@ -62,6 +62,14 @@ export function seededRng(seed: number): () => number {
   };
 }
 
+/** `gen` mirrored: u → 1 − u, kept inside [0, 1). A draw and its mirror are antithetic. */
+export function mirrored(gen: () => number): () => number {
+  return () => {
+    const u = gen();
+    return u === 0 ? 0 : 1 - u;
+  };
+}
+
 /** Run `fn` with a seeded generator, restoring the previous one afterwards. */
 export function withSeed<T>(seed: number, fn: () => T): T {
   return withRng(seededRng(seed), fn);

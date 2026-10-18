@@ -1,5 +1,5 @@
 import { DiceRoll, rollDie } from './dice.js';
-import { randomInt, seededRng, withRng } from './rng.js';
+import { mirrored, randomInt, seededRng, withRng } from './rng.js';
 import { Character, Guard, StatusEntry, type GatedHook } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionEffect, ActionType, TargetRequirement } from './types.js';
@@ -189,6 +189,13 @@ export class CombatEngine implements EngineApi, AIView {
    * different card only changes its own seat's draws (NEXT-STEPS §29).
    */
   seatStreamSeed?: number;
+  /**
+   * Draw every seat stream MIRRORED (u → 1 − u): the same seed then rolls high
+   * where it rolled low. A rollout and its mirror are an ANTITHETIC pair — the
+   * dice's luck largely cancels in their mean — for a caller that averages
+   * rollouts (the AI's lookahead). Off unless set.
+   */
+  seatStreamMirror?: boolean;
   private seatStreams?: Map<number, () => number>;
 
   private inSeatStream<T>(key: number, fn: () => T): T {
@@ -196,7 +203,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.seatStreams ??= new Map();
     let gen = this.seatStreams.get(key);
     if (!gen) {
-      gen = seededRng((Math.imul(this.seatStreamSeed ^ key, 2654435761) ^ key) >>> 0);
+      const plain = seededRng((Math.imul(this.seatStreamSeed ^ key, 2654435761) ^ key) >>> 0);
+      gen = this.seatStreamMirror ? mirrored(plain) : plain;
       this.seatStreams.set(key, gen);
     }
     return withRng(gen, fn);
