@@ -23,6 +23,8 @@ import { EffectRegistry } from './effects.js';
 /** Reveal-level summary of one queued action this round. */
 export interface PendingSummary {
   actor: Character;
+  /** The card itself. */
+  action: ActionDefinition;
   actionType: ActionType;
   speed: number;
   resolved: boolean;

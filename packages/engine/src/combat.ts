@@ -1044,6 +1044,7 @@ export class CombatEngine implements EngineApi, AIView {
   pendingSummary(): readonly PendingSummary[] {
     return this.pending.map((p, i) => ({
       actor: p.actor,
+      action: p.action.def,
       actionType: p.action.def.actionType,
       speed: p.speed,
       resolved: i < this.pendingIndex,
