@@ -6461,3 +6461,19 @@ identity in a strong Map, and the audit builds fresh dice for every game it
 sets up, about 12 KB a game kept forever. The first level is now a WeakMap;
 a 300-game loop holds 7 MB flat, where it grew before. Both OOM kills of the
 day (01:38, 16:27) had workers at that size.
+
+**d5 shrunk (2026-10-19 night): 24 tests in `ai/test/discovered.json`.** What the
+better pick swaps in: advance 5, jab 4, revive 2; swapped out: block 5,
+strike 7. Every one checked is an EVALUATION failure (the AI's own leaf
+prefers its pick). Continuation 1 fixes g40007, g40099, g40054, g40017
+outright and moves three more off the old pick.
+
+Advance is under-played for the reason g40098's tank is: the depth-0 model
+(§20.8's flat defense weight) seldom defends. In g40047 the foes, played at
+depth 1, raise a block and a guard 70% of the time; advancing a hero's sweep
+lands it before that block. Against depth-0 foes the leaf scores the AI's
+strike 4.64 vs the advance 3.02; against depth-1 foes −0.20 vs 1.62. The
+targets agree (196/200), so it is not aim. `LookaheadOptions.opponentDefense`
+(rollout opponents weigh defenses by PV prevented) is queued for a match,
+alone and with continuation 1; on the d5 tests it fixes g40017 and moves four
+off the old pick.

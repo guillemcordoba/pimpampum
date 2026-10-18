@@ -61,6 +61,11 @@ export interface LookaheadOptions {
    *  opponent model. A tank that blocks every round is worth keeping alive
    *  only if the rollouts let it block. */
   selfDefense?: boolean;
+  /** The same for everyone NOT on the searching side. The flat model was
+   *  kept because it predicted the spam baselines best (§20.8); against a
+   *  player who defends, it never raises the block an advance races or a
+   *  strike runs into. */
+  opponentDefense?: boolean;
   /** Rollouts in ANTITHETIC pairs: every odd sample replays the one before it
    *  with each die mirrored (high where it rolled low), so the dice's luck
    *  largely cancels in the mean. Same cost per sample. */
@@ -562,6 +567,11 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
   return { indices: base.indices, weights, total: weights.reduce((s, w) => s + w, 0) };
 }
 
+/** How a rollout seat weighs its defenses (`selfDefense`, `opponentDefense`). */
+function defenseModel(opts: LookaheadOptions, team: number, a: Character): DefenseModel {
+  return (a.team === team ? opts.selfDefense : opts.opponentDefense) ? 'prevented' : 'flat';
+}
+
 /**
  * The rollouts' chooser for everyone the plan does not fix, weighing each seat
  * ONCE per decision.
@@ -575,7 +585,7 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
  * seat that chooses after the reveal (it reads the plan).
  */
 function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatEngine, a: Character) => number | null {
-  const model = (a: Character): DefenseModel => (shared.opts.selfDefense && a.team === shared.team ? 'prevented' : 'flat');
+  const model = (a: Character): DefenseModel => defenseModel(shared.opts, shared.team, a);
   if (!root.roundPrepared) return (e, a) => selectAction(e, a, model(a)).actionIdx;
   return (e, a) => {
     if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a, model(a)).actionIdx;
@@ -658,7 +668,7 @@ function evaluate(
     if (!known) shared.plans.set(key, known = []);
   }
   const opponentModel = shared ? rolloutOpponents(engine, shared)
-    : (e: CombatEngine, a: Character) => selectAction(e, a, opts.selfDefense && a.team === team ? 'prevented' : 'flat').actionIdx;
+    : (e: CombatEngine, a: Character) => selectAction(e, a, defenseModel(opts, team, a)).actionIdx;
   for (let s = 0; s < opts.samples; s++) {
     if (floor !== undefined && s >= minSamples) {
       // Two sigma of the running mean, floored so a run of identical rollouts
