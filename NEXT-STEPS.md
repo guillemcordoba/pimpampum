@@ -6403,3 +6403,9 @@ samples win, §54.3 sweep), and samples are expensive, so sample 2k+1 replays
 **+0.012 ± 0.004** over 1065 positions — landed as the default. The
 encounter-speed test passes with everything landed today (boss 2.3 s,
 mixed band 2.2 s of 3, quiet machine).
+
+**Cumulative (2026-10-18):** today's AI against last night's (`094a827`'s
+`packages/ai/src` on today's engine — a local scratch commit,
+`refs/ai-baselines/night-2026-10-17`, since the engine gained three additive
+seams): **+0.081 ± 0.026** over 113 fresh positions (seeds 200001+), i.e.
+about 54% of the points.
