@@ -6282,3 +6282,79 @@ search and currency aligned — its one-round rollouts against a predicted
 opponent, where the referee plays the opponent's best reply. Only more
 rollouts moved it (24 samples: −3.6pp), at 4× the cost. The catalogue's
 `advance` lacking the real card's `aiTargetPriority` hint made no difference.
+
+### 54.2 Played to the end: the playout judge, discovery, shrinking (2026-10-17 night)
+
+The user's ask: no cut-off and no prediction, every position played until a
+side is down. The exact referee cannot do that at real size (fixed dice, win/
+loss payoff, 20 M simulated rounds per solve: 1v1 c3 solved 3/3, 2v1 c3 0/3,
+2v2 c2 0/3, 4v1 c2 1/3), and a lopsided position played to the end is often
+already decided, so every card ties. So discovery moved to the PLAYOUT JUDGE
+(`ai/src/audit/playout.ts`, `tools/src/ai-discover.ts`): real shapes and
+hands, real dice, the AI's pick and every one-seat change each played to the
+end ~200 times on the same seeds with the AI on both sides afterwards; a
+change that wins clearly more, twice, is a discovery. Side B's PV is first
+scaled toward an even AI-vs-AI fight (`balance`, 1/32-32). This is a
+backgammon-style rollout: it proves the AI contradicts its own continuation,
+not what the best card is — the exact referee confirms that on the SHRUNK
+position (`shrink.ts`, `tools/src/ai-shrink.ts`, into `ai/test/discovered.json`).
+
+| run | positions | judged | a one-seat change beats the AI |
+|---|---|---|---|
+| d2, 4 lanes, 65 min | 42 | 32 | 31% ± 8 |
+| d3, 16 lanes, 60 min (killed) | 47 | 46 | 37% ± 7 |
+
+Small shapes (1x4, 4x1, 2x4) ~0%; 4x4/4x5/5x4 36-60%. The session was
+OOM-killed at 01:38 running d3 (16 lanes) beside the shrinker (10 lanes) on a
+62 GB box with no swap; the shrinker had finished nothing. `ai-match.ts` now
+caps its lanes at 16, and one lane-spawning harness runs at a time.
+
+### 54.3 The match decides; what it has said (2026-10-18)
+
+Judging AI changes by how many stored positions they now get right was the
+wrong test: the guard/block aim fix mended g102, g175, g224 on the stored
+referee verdicts, broke g169, g123, g86, and left the count at 83/195. Chess
+engines settle that with a MATCH (Fishtest: new vs old, SPRT), so
+`tools/src/ai-match.ts` plays the working-tree AI against the AI at a git ref —
+extracted and run on TODAY'S engine, refused unless the engine source is
+identical — in duplicate pairs (same seed, AIs swapped) on imaginary real-size
+fights played to the end, until SPRT (δ 0.03 mean pair result ≈ 1.5 points of
+score) calls better / worse / equal. `--candidate-opts` matches an option
+variant with no code edit. The playout judge and the referee go back to
+producing TESTS; the match decides FIXES.
+
+| change (candidate vs baseline) | positions | mean pair result | verdict |
+|---|---|---|---|
+| defenses aim where pending blows land; blocks skip AoE (§54.2's fix) vs HEAD | 483 | +0.021 ± 0.007 | better — landed |
+| `startPlans: 'pick'` (also climb from all-attack) | ~150 | −0.002 ± 0.008 | equal — dropped |
+| leaf in absolute PV (`absolutePv: 1`) | ~130 | −0.049 ± 0.019 | worse — dropped |
+| `startPlans: 'search'` (climb from both, keep the better) | ~150 | +0.004 ± 0.009 | equal — dropped, code removed |
+| `attackAim: 'share'` (below) | 130 | +0.048 ± 0.018 | better (early stop) |
+| `attackAim: 'share'`, confirmation on fresh seeds (100001+) | ~260 | +0.032 ± 0.013 | better — landed as the default |
+
+`absolutePv` is the variant the cut-off referee liked best (§54.1: 42.6% →
+37.4% mismatches); played to the end it loses. That is the case for the match.
+
+Diagnosis of the 27 discoveries (d2 + d3) with the fix: 4 now play a winner,
+2 are SEARCH failures (the AI's own evaluation rates the winner higher — g5040
+is a local optimum: block, guard, heal, block, which no single change
+improves, scores −4.86 where all-strike scores +1.18), 21 are EVALUATION
+failures (the AI's one-round evaluation prefers its pick). Lock is
+over-valued in several (g37, g5006, g5045, g5011): the catalogue prices it at
+a flat −0.3 per round left whatever the locked foe would have done — a
+catalogue price, not an AI defect, so not "fixed" there.
+
+A large share of the evaluation gap is the ROLLOUT MODEL: inside every
+rollout, attacks are aimed by the heuristic, and it agreed with the real
+target search on only 38-46% of first-round attack decisions (the search
+agrees with itself 85-95%). The search aims at the biggest share of full
+health the blow removes (lower max PV: 73% of disagreements); the heuristic
+aimed at the lowest health fraction (83%). `attackAim: 'share'` aims by that
+share, through the target's standing wall, and picks guard vs block by the
+share each saves: agreement 57-62% on attacks, 61-67% on guard-or-block
+(26-51% before).
+
+Landed as the default (2026-10-18). The encounter-speed test passes with it on
+a quiet machine (boss 2.3 s of 3); its earlier failures were the 16 match
+lanes beside it. The local optimum g5040 shows is real but rare: escaping it
+(`startPlans`) did not move a match.

@@ -52,13 +52,8 @@ export interface LookaheadOptions {
    *  legal falls back to the full hand — a character with no attack must still
    *  act. */
   restrictTo?: ActionType[];
-  /** Search from a second starting plan too — everyone on their hardest
-   *  attack. `pick`: start from whichever of the two scores better (one extra
-   *  evaluation). `search`: climb from both, keep the better (about twice the
-   *  cost). Omit: the depth-0 picks only. */
-  startPlans?: 'pick' | 'search';
   /** How the heuristic aims attacks — in every rollout, and as the target
-   *  search's fallback (`AttackAim`). Omit: `wounded`. */
+   *  search's fallback (`AttackAim`). Omit: `share`. */
   attackAim?: AttackAim;
   /** Leaf evaluator weights. Omit for `DEFAULT_EVAL_WEIGHTS`; set only to
    *  A/B the evaluator against itself (see `EvaluatorWeights`). */
@@ -665,43 +660,6 @@ export function bestResponse(
   const memo = newMemo(team, opts, pairSeed);
 
   let value = actors.length ? evaluate(engine, team, choices, opts, opts.depth, pairSeed, undefined, memo) : 0;
-  if (!opts.startPlans || !actors.length) return climb(engine, team, actors, choices, value, opts, pairSeed, memo);
-
-  // A SECOND STARTING PLAN: everyone on their hardest-hitting attack. Climbing
-  // one seat at a time cannot leave a plan every single change makes worse,
-  // and a team settled on defending is one: a lone striker beside three
-  // defenders gains nothing, while four strikers together win (NEXT-STEPS
-  // §54.3, g5040). The depth-0 seed lands there often enough to matter.
-  const offense = new Map(choices);
-  for (const a of actors) {
-    let best = -1;
-    let bestDmg = -Infinity;
-    for (const idx of legal(engine, a, opts.restrictTo)) {
-      const def = a.actions[idx].def;
-      if (def.actionType !== ActionType.Atac) continue;
-      const dmg = expectedAttackTotal(a, def);
-      if (dmg > bestDmg) { best = idx; bestDmg = dmg; }
-    }
-    if (best >= 0) offense.set(a, best);
-  }
-  const offenseValue = evaluate(engine, team, offense, opts, opts.depth, pairSeed, undefined, memo);
-  if (opts.startPlans === 'pick') {
-    return offenseValue > value
-      ? climb(engine, team, actors, offense, offenseValue, opts, pairSeed, memo)
-      : climb(engine, team, actors, choices, value, opts, pairSeed, memo);
-  }
-  const a = climb(engine, team, actors, choices, value, opts, pairSeed, memo);
-  const b = climb(engine, team, actors, offense, offenseValue, opts, pairSeed, memo);
-  return b.value > a.value ? b : a;
-}
-
-/** Iterated best response from `choices` (worth `value`): improve one seat at a time until no seat improves. */
-function climb(
-  engine: CombatEngine, team: number, actors: Character[], start: Map<Character, number>, startValue: number,
-  opts: LookaheadOptions, pairSeed: number, memo: DecisionMemo,
-): { choices: Map<Character, number>; value: number } {
-  const choices = new Map(start);
-  let value = startValue;
   for (let pass = 0; pass < opts.passes; pass++) {
     let improved = false;
     for (const actor of actors) {
@@ -789,7 +747,7 @@ export function lookaheadChooser(opts: Partial<LookaheadOptions> = {}, teams: nu
  */
 export function searchTargets(
   engine: CombatEngine, actor: Character, def: ActionDefinition, req: TargetRequirement,
-  count: number, pool: Character[], speed: number, samples: number, aim: AttackAim = 'wounded',
+  count: number, pool: Character[], speed: number, samples: number, aim: AttackAim = 'share',
 ): Character[] {
   const heuristic = pickResolveTargets(engine, actor, def, req, count, pool, speed, aim);
   if (count !== 1 || pool.length < 2 || samples < 1) return heuristic;

@@ -348,16 +348,18 @@ function byNeed(view: AIView, actor: Character, allies: Character[], aim: Attack
 }
 
 /**
- * How the heuristic aims an attack. `wounded`: at the lowest health
- * fraction. `share`: at the biggest share of its full health the blow removes
- * — what the leaf evaluator scores, so what the target SEARCH reaches for
- * (73% of their disagreements, NEXT-STEPS §54.3); rollouts aimed by `wounded`
- * imagined blows landing where the real AI does not put them.
+ * How the heuristic aims an attack — here, and in every rollout of the
+ * search, so it is the search's model of where blows land. `share` (the
+ * default): at the biggest share of its full health the blow removes through
+ * the target's standing wall, which is what the leaf evaluator scores and so
+ * what the target SEARCH reaches for. `wounded` (the old rule): at the lowest
+ * health fraction — rollouts aimed so imagined blows landing where the real AI
+ * does not put them (NEXT-STEPS §54.3).
  */
 export type AttackAim = 'wounded' | 'share';
 
 /** `pickResolveTargets` with an aim fixed, as a `targetChooser`. */
-export function aimedTargets(aim: AttackAim = 'wounded') {
+export function aimedTargets(aim: AttackAim = 'share') {
   return (view: AIView, actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, pool: Character[], speed: number): Character[] =>
     pickResolveTargets(view, actor, def, req, count, pool, speed, aim);
 }
@@ -376,7 +378,7 @@ export function pickResolveTargets(
   count: number,
   pool: Character[],
   speed: number,
-  aim: AttackAim = 'wounded',
+  aim: AttackAim = 'share',
 ): Character[] {
   if (req === 'none') return [];
 
