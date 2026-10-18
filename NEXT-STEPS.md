@@ -6395,3 +6395,11 @@ Content follow-up (not done): real statuses with `modifyIncomingDamage` and no
 `expectedIncomingDamage` are invisible to the aim the same way. Advance and
 heal targets agree with the search 49% / 55%: the heuristic cannot know a
 focus is an advance or a heal — that is each card's `aiTargetPriority`.
+
+Antithetic rollouts (2026-10-18): the AI's error is rollout noise (more
+samples win, §54.3 sweep), and samples are expensive, so sample 2k+1 replays
+2k's seed with every draw mirrored (engine `seatStreamMirror`, rng
+`mirrored()`; AI `antithetic`). Same cost. Match vs the default:
+**+0.012 ± 0.004** over 1065 positions — landed as the default. The
+encounter-speed test passes with everything landed today (boss 2.3 s,
+mixed band 2.2 s of 3, quiet machine).
