@@ -64,10 +64,12 @@ export interface SprtState {
 
 /**
  * The sequential test, normal approximation with the variance estimated from
- * the observations (as Fishtest's). `better`/`worse`: that hypothesis beat "no
- * difference" at error rates α, β. `equal`: "no difference" beat both.
+ * the observations (as Fishtest's), and never before `minN` observations: a
+ * spread estimated from a few dozen of them is itself too noisy, and an early
+ * stop on it is the over-eager kind. `better`/`worse`: that hypothesis beat
+ * "no difference" at error rates α, β. `equal`: "no difference" beat both.
  */
-export function sprt(xs: readonly number[], delta: number, alpha = 0.05, beta = 0.05, minN = 20): SprtState {
+export function sprt(xs: readonly number[], delta: number, alpha = 0.05, beta = 0.05, minN = 100): SprtState {
   const n = xs.length;
   const mean = n ? xs.reduce((s, x) => s + x, 0) / n : 0;
   const variance = n > 1 ? xs.reduce((s, x) => s + (x - mean) ** 2, 0) / (n - 1) : 0;
