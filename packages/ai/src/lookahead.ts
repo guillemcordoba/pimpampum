@@ -27,7 +27,7 @@
  * encounters needs.
  */
 import {
-  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed,
+  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed, withRng, seededRng, mirrored,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
@@ -52,6 +52,10 @@ export interface LookaheadOptions {
    *  legal falls back to the full hand — a character with no attack must still
    *  act. */
   restrictTo?: ActionType[];
+  /** Rollouts in ANTITHETIC pairs: every odd sample replays the one before it
+   *  with each die mirrored (high where it rolled low), so the dice's luck
+   *  largely cancels in the mean. Same cost per sample. */
+  antithetic?: boolean;
   /** How the heuristic aims attacks — in every rollout, and as the target
    *  search's fallback (`AttackAim`). Omit: `share`. */
   attackAim?: AttackAim;
@@ -575,9 +579,12 @@ function evaluate(
       if (mean + slack < floor) return mean;
     }
     const cached = known?.[s];
-    const one = cached !== undefined ? cached : withSeed(pairSeed + s * 7919, () => {
+    // ANTITHETIC pairs: sample 2k+1 replays 2k's seed with every draw mirrored.
+    const seed = pairSeed + (opts.antithetic ? s >> 1 : s) * 7919;
+    const mirror = !!opts.antithetic && (s & 1) === 1;
+    const one = cached !== undefined ? cached : withRng(mirror ? mirrored(seededRng(seed)) : seededRng(seed), () => {
       const sim = engine.clone();
-      if (opts.seatStreams !== false) sim.seatStreamSeed = pairSeed + s * 7919;
+      if (opts.seatStreams !== false) { sim.seatStreamSeed = seed; sim.seatStreamMirror = mirror; }
       // Rollouts think at depth 0 — otherwise the search recurses into itself
       // once per sample per candidate and never returns. The clone also drops any
       // external chooser, which may be a lookahead wrapper for the same reason.
