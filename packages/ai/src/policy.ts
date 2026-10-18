@@ -341,6 +341,17 @@ function guardOrBlock(
   return pool.includes(actor) ? [actor] : [];
 }
 
+/** `damage` as `e`'s statuses say it would land (`StatusBehavior.expectedIncomingDamage`). */
+function afterHolderStatuses(e: Character, damage: number): number {
+  if (e.statuses.size === 0) return damage;
+  let d = damage;
+  for (const ref of e.statusRefs()) {
+    const f = ref.entry.behavior?.expectedIncomingDamage;
+    if (f) d = f(ref, d);
+  }
+  return Math.max(0, d);
+}
+
 /** Allies by who needs a guard: most blows headed their way, then most wounded. */
 function byNeed(view: AIView, actor: Character, allies: Character[], aim: AttackAim): Character[] {
   const incoming = incomingByAlly(view, actor, allies, aim);
@@ -460,11 +471,12 @@ export function pickResolveTargets(
   };
   const score = (e: Character): number => {
     if (aim === 'share' && def.actionType === ActionType.Atac) {
-      const dmg = throughWall(e);
+      const dmg = afterHolderStatuses(e, throughWall(e));
       let s = 4 * Math.min(dmg, e.currentPV) / Math.max(1, e.maxPV);
-      s += Math.min(2, bestAttackAverage(e) / 6);
+      // A dangerous foe is worth wounding — not worth a blow that cannot wound.
+      if (dmg > 0) s += Math.min(2, bestAttackAverage(e) / 6);
       if (dmg >= e.currentPV) s += 4;
-      else if (teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= e.currentPV) s += 3;
+      else if (dmg > 0 && teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= e.currentPV) s += 3;
       const focusing = pending.some(p =>
         p.actor === e && !p.resolved && !p.cancelled
         && p.actionType === ActionType.Focus && p.speed < speed);

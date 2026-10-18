@@ -150,9 +150,10 @@ const TAUNTED = (pricedFlag: boolean): StatusBehavior => ({
   ...(pricedFlag ? { positionValue: () => -0.1 } : {}),
 });
 
-/** No blow wounds the holder for the rest of the round. Never priced: it is
- *  gone before any leaf reads it, so a price could only ever be read wrong. */
-const HIDDEN: StatusBehavior = { modifyIncomingDamage: () => 0 };
+/** No blow wounds the holder for the rest of the round. No `positionValue`:
+ *  it is gone before any leaf reads it, so a price could only ever be read
+ *  wrong. It does say it takes nothing, so the AI does not aim blows at it. */
+const HIDDEN: StatusBehavior = { modifyIncomingDamage: () => 0, expectedIncomingDamage: () => 0 };
 
 function tickDown(ctx: StatusHookContext): void {
   const left = (ctx.entry.data!.left as number) - 1;

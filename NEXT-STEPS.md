@@ -6377,3 +6377,21 @@ Option sweeps against the new default (2026-10-18, `--baseline WORKTREE
 So the number knobs are at their tops except the sample count: what is left
 of the AI's error at depth 1 is rollout NOISE (more samples help, more
 target samples or passes do not) and the evaluation itself.
+
+Fresh discovery against the improved AI (d4, seeds 30001+, 16 lanes, 2 h):
+104 judged, a one-seat change beats the AI in **24.0% ± 4.2** (31-37% the
+night before). Hide stood out: the AI's hide was beaten in 5 of 8. Cause, the
+same disease as `share`: inside rollouts the heuristic aimed 75% of attacks
+with a hidden foe in reach AT the hidden one (the search: 11%), so imagined
+enemies wasted their blows on a hider. A status that changes incoming damage
+can now say so to the AI: `StatusBehavior.expectedIncomingDamage` (pure,
+AI-only — `modifyIncomingDamage` may consume the status, so it cannot be
+asked hypothetically); the catalogue's hide returns 0, and a blow that cannot
+wound no longer earns the danger or team-kill bonuses. Heuristic now 2 of 216,
+search 3. Match vs 02021e6: **+0.037 ± 0.010** (164 positions, seeds 100001+),
+confirmed **+0.017 ± 0.007** (seeds 1+) — landed.
+
+Content follow-up (not done): real statuses with `modifyIncomingDamage` and no
+`expectedIncomingDamage` are invisible to the aim the same way. Advance and
+heal targets agree with the search 49% / 55%: the heuristic cannot know a
+focus is an advance or a heal — that is each card's `aiTargetPriority`.
