@@ -17,6 +17,9 @@
  *       --delta 0.02   the edge (mean pair result) the test resolves
  *       --pairs 16     duplicate pairs per position
  *       --candidate <ref>  instead of the working tree's (built) AI
+ *       --candidate-opts '{"weights":{…}}'  options merged into that side's
+ *                      aiPolicy (also --baseline-opts): a variant, no edit
+ *       --baseline WORKTREE  the working tree's AI on both sides (with -opts)
  *
  * Every lane is a child process at nice 19, and yields while the user is
  * active (bench `lanesNow`).
@@ -69,9 +72,11 @@ function checkBuilt(): void {
   }
 }
 
-async function loadPolicy(dir: string | undefined): Promise<() => Policy> {
+/** `opts`: JSON merged into `aiPolicy`'s options — a variant (weights, samples…) without a code edit. */
+async function loadPolicy(dir: string | undefined, opts: string | undefined): Promise<() => Policy> {
   const mod = dir ? await import(pathToFileURL(path.join(dir, 'packages/ai/src/index.ts')).href) : await import('@pimpampum/ai');
-  return () => mod.aiPolicy({ depth: 1 }) as Policy;
+  const extra = opts ? JSON.parse(opts) as object : {};
+  return () => mod.aiPolicy({ depth: 1, ...extra }) as Policy;
 }
 
 function deal(seed: number, deck: string): Position {
@@ -100,8 +105,8 @@ if (process.argv.includes('--worker')) {
   const deck = flag('--deck')!;
   const pairs = Number(flag('--pairs'));
   const deadline = Number(flag('--deadline') ?? Infinity);
-  const candidate = await loadPolicy(flag('--candidate-dir'));
-  const baseline = await loadPolicy(flag('--baseline-dir'));
+  const candidate = await loadPolicy(flag('--candidate-dir'), flag('--candidate-opts'));
+  const baseline = await loadPolicy(flag('--baseline-dir'), flag('--baseline-opts'));
   const out = path.join(runDir, `lane-${lane}.jsonl`);
   const claims = path.join(runDir, 'claims');
   fs.mkdirSync(claims, { recursive: true });
@@ -133,7 +138,7 @@ const cache = path.join(OUT, 'ai-at');
 // In a smoke run with no baseline named, the AI meets itself: the machinery
 // still executes end to end, and the result must be exactly even.
 const baselineRef = flag('--baseline') ?? (SMOKE ? undefined : 'HEAD');
-const baselineDir = baselineRef ? extractAi(baselineRef, cache) : undefined;
+const baselineDir = baselineRef && baselineRef !== 'WORKTREE' ? extractAi(baselineRef, cache) : undefined;
 const candidateRef = flag('--candidate');
 const candidateDir = candidateRef ? extractAi(candidateRef, cache) : undefined;
 if (!candidateDir) checkBuilt();
@@ -141,7 +146,7 @@ if (!candidateDir) checkBuilt();
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const runDir = path.join(OUT, `run-${stamp}`);
 fs.mkdirSync(runDir, { recursive: true });
-const who = `${candidateRef ?? 'working tree'} vs ${baselineRef ?? 'itself'}`;
+const who = `${candidateRef ?? 'working tree'}${flag('--candidate-opts') ? ' ' + flag('--candidate-opts') : ''} vs ${baselineRef ?? 'itself'}${flag('--baseline-opts') ? ' ' + flag('--baseline-opts') : ''}`;
 console.log(`AI match: ${who}; up to ${N} positions × ${PAIRS} pairs, δ ${DELTA}, ${LANES} lanes at nice 19 → ${runDir}`);
 
 const t0 = performance.now();
@@ -151,6 +156,8 @@ const done = Promise.all(Array.from({ length: LANES }, (_, lane) => new Promise<
     '--worker', String(lane), '--n', String(N), '--seed', String(BASE), '--run-dir', runDir,
     '--deck', DECK, '--pairs', String(PAIRS),
     ...(baselineDir ? ['--baseline-dir', baselineDir] : []),
+    ...(flag('--candidate-opts') ? ['--candidate-opts', flag('--candidate-opts')!] : []),
+    ...(flag('--baseline-opts') ? ['--baseline-opts', flag('--baseline-opts')!] : []),
     ...(candidateDir ? ['--candidate-dir', candidateDir] : []),
     ...(HOURS ? ['--deadline', String(Date.now() + HOURS * 3_600_000)] : [])];
   const child = spawn('nice', args, { stdio: ['ignore', 'inherit', 'inherit'], env: process.env });
