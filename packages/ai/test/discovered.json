@@ -1,1 +1,153 @@
-[]
+[
+ {
+  "id": "g30025~43",
+  "found": "2026-10-18",
+  "from": "g30025 (1x4)",
+  "steps": [
+   "drop H0",
+   "drop H1's block",
+   "drop H1's block",
+   "drop H1's advance",
+   "drop H1's hide",
+   "drop H1's guard",
+   "drop H2's strike",
+   "drop H2's strike",
+   "drop H2's weaken",
+   "drop H2's block",
+   "drop H2's guard",
+   "drop H3's heal",
+   "drop H3's strike",
+   "drop H3's advance",
+   "drop H3's block",
+   "drop H3's pierce",
+   "drop H2",
+   "drop E0's weaken",
+   "drop E0's heal",
+   "drop E0's strike",
+   "H1: armour → 0",
+   "H3: armour → 0",
+   "H1: level → 0",
+   "H3: level → 0",
+   "H1: PV halved to 6",
+   "H1: PV halved to 3",
+   "H1: PV halved to 2",
+   "H1: PV halved to 1",
+   "H3: PV halved to 7",
+   "H3: PV halved to 4",
+   "H3: PV halved to 2",
+   "H3: PV halved to 1",
+   "E0: PV halved to 478",
+   "E0: PV halved to 239",
+   "E0: PV halved to 120",
+   "E0: PV halved to 60",
+   "E0: level → 0",
+   "E0: PV halved to 30",
+   "H1's lock: dice 2 → 1",
+   "E0: PV halved to 15",
+   "E0's block: dice 2 → 1",
+   "E0: PV halved to 8",
+   "E0's lock: dice 2 → 1"
+  ],
+  "position": {
+   "id": "g30025",
+   "roundsLeft": 50,
+   "teams": [
+    [
+     {
+      "name": "E0",
+      "maxPv": 12,
+      "pv": 8,
+      "armour": 0,
+      "level": 0,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "block",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 4
+        }
+       },
+       {
+        "arch": "lock",
+        "p": {
+         "n": 1,
+         "s": 6,
+         "speed": 1,
+         "priced": 1
+        }
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "name": "H1",
+      "maxPv": 1,
+      "pv": 1,
+      "armour": 0,
+      "level": 0,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "lock",
+        "p": {
+         "n": 1,
+         "s": 4,
+         "speed": 0,
+         "priced": 1
+        }
+       }
+      ]
+     },
+     {
+      "name": "H3",
+      "maxPv": 2,
+      "pv": 1,
+      "armour": 0,
+      "level": 0,
+      "fatigue": 0,
+      "cards": [
+       {
+        "arch": "taunt",
+        "p": {
+         "speed": 7,
+         "rounds": 1,
+         "priced": 1
+        }
+       }
+      ]
+     }
+    ]
+   ],
+   "tags": {
+    "shape": "1x2",
+    "horizon": 2,
+    "side": "enemy",
+    "featured": "weaken",
+    "toTheEnd": true
+   }
+  },
+  "ai": {
+   "actions": [
+    0
+   ],
+   "cards": [
+    "block"
+   ]
+  },
+  "better": {
+   "actions": [
+    1
+   ],
+   "cards": [
+    "lock"
+   ],
+   "lead": 1.635,
+   "se": 0.03867397951762053
+  },
+  "games": 400,
+  "todo": true
+ }
+]
