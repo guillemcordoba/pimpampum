@@ -15,7 +15,7 @@
 import {
   Character, ActionInstance, ActionDefinition, ActionType, TargetRequirement,
   EffectRegistry, AIContext, AIView, PlannedAction, DiceRoll, expectedExcess,
-  skillLevelBonus, random, availableActionIndices,
+  skillLevelBonus, random, availableActionIndices, getActionTargetCount,
 } from '@pimpampum/engine';
 
 /** Fraction of a character's PV remaining (0..1). */
@@ -271,6 +271,98 @@ function cardTargetPriority(
 }
 
 /**
+ * WHERE THE BLOWS STILL TO COME WILL LAND, by ally: each foe attack still
+ * pending is aimed as that foe would aim it (this same function, on the foe's
+ * side), and its expected total is counted on whoever it picks — on all of
+ * them for a blow that hits every enemy. A guard covers someone; this is who
+ * needs covering. (Guards used to go to the most wounded ally, wherever the
+ * blows were headed: inside the search's rollouts that made a guard look
+ * useless beside a strike, and the AI under-defended — NEXT-STEPS §54.2.)
+ */
+function incomingByAlly(view: AIView, actor: Character, allies: Character[], aim: AttackAim): Map<Character, number> {
+  const out = new Map<Character, number>(allies.map(a => [a, 0]));
+  const team = view.alliesOf(actor, true).filter(c => c.isAlive());
+  for (const p of view.pendingSummary()) {
+    if (p.resolved || p.cancelled || p.actor.team === actor.team || p.actionType !== ActionType.Atac || !p.actor.isAlive()) continue;
+    const count = getActionTargetCount(p.action);
+    const hit = count >= team.length ? team : pickResolveTargets(view, p.actor, p.action, 'enemy', count, team, p.speed, aim);
+    const dmg = expectedAttackTotal(p.actor, p.action);
+    for (const c of hit) if (out.has(c)) out.set(c, out.get(c)! + dmg);
+  }
+  return out;
+}
+
+/**
+ * The foes worth BLOCKING, scariest first: those whose attack is still to come
+ * and picks its target — a blow that hits every enemy is not redirected by a
+ * block (rules.md), so blocking its thrower stops nothing. Scored by that
+ * pending blow, not by the thrower's best card. Empty when none qualifies.
+ */
+function blockable(view: AIView, actor: Character, foes: Character[]): Character[] {
+  const team = view.alliesOf(actor, true).filter(c => c.isAlive()).length;
+  const threat = new Map<Character, number>();
+  for (const p of view.pendingSummary()) {
+    if (p.resolved || p.cancelled || p.actionType !== ActionType.Atac || !foes.includes(p.actor)) continue;
+    if (getActionTargetCount(p.action) >= team) continue;
+    threat.set(p.actor, Math.max(threat.get(p.actor) ?? 0, expectedAttackTotal(p.actor, p.action)));
+  }
+  return [...threat.keys()].sort((a, b) => threat.get(b)! - threat.get(a)!);
+}
+
+/**
+ * GUARD OR BLOCK, by the share of health each saves (`share` aim). A guard on
+ * an ally meets every blow headed their way: the sum of those blows over the
+ * ally's full health. A block pulls ONE pending blow off whoever it was headed
+ * for and onto the blocker: that blow over its target's full health — nothing,
+ * when it was headed for the blocker anyway (they defend themselves). The rule
+ * it replaces guarded only an ally under half health and otherwise blocked the
+ * scariest attacker, where the target search guarded (NEXT-STEPS §54.3).
+ */
+function guardOrBlock(
+  view: AIView, actor: Character, allies: Character[], enemies: Character[], count: number, pool: Character[],
+): Character[] {
+  const team = view.alliesOf(actor, true).filter(c => c.isAlive());
+  const guardValue = new Map<Character, number>(allies.map(a => [a, 0]));
+  const blockValue = new Map<Character, number>();
+  for (const p of view.pendingSummary()) {
+    if (p.resolved || p.cancelled || p.actor.team === actor.team || p.actionType !== ActionType.Atac || !p.actor.isAlive()) continue;
+    const n = getActionTargetCount(p.action);
+    const hit = n >= team.length ? team : pickResolveTargets(view, p.actor, p.action, 'enemy', n, team, p.speed, 'share');
+    const dmg = expectedAttackTotal(p.actor, p.action);
+    for (const c of hit) if (guardValue.has(c)) guardValue.set(c, guardValue.get(c)! + dmg / Math.max(1, c.maxPV));
+    if (n < team.length && enemies.includes(p.actor)) {
+      const saved = hit.filter(c => c !== actor).reduce((s, c) => s + dmg / Math.max(1, c.maxPV), 0);
+      blockValue.set(p.actor, Math.max(blockValue.get(p.actor) ?? 0, saved));
+    }
+  }
+  const options = [...[...guardValue].filter(([c]) => c !== actor), ...blockValue]
+    .filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (options.length) return options.slice(0, count).map(([c]) => c);
+  return pool.includes(actor) ? [actor] : [];
+}
+
+/** Allies by who needs a guard: most blows headed their way, then most wounded. */
+function byNeed(view: AIView, actor: Character, allies: Character[], aim: AttackAim): Character[] {
+  const incoming = incomingByAlly(view, actor, allies, aim);
+  return [...allies].sort((a, b) => incoming.get(b)! - incoming.get(a)! || pvFraction(a) - pvFraction(b));
+}
+
+/**
+ * How the heuristic aims an attack. `wounded`: at the lowest health
+ * fraction. `share`: at the biggest share of its full health the blow removes
+ * — what the leaf evaluator scores, so what the target SEARCH reaches for
+ * (73% of their disagreements, NEXT-STEPS §54.3); rollouts aimed by `wounded`
+ * imagined blows landing where the real AI does not put them.
+ */
+export type AttackAim = 'wounded' | 'share';
+
+/** `pickResolveTargets` with an aim fixed, as a `targetChooser`. */
+export function aimedTargets(aim: AttackAim = 'wounded') {
+  return (view: AIView, actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, pool: Character[], speed: number): Character[] =>
+    pickResolveTargets(view, actor, def, req, count, pool, speed, aim);
+}
+
+/**
  * Resolution-time target choice for an AI actor. Runs when the action actually
  * resolves, so it sees everything a human at the table sees at that moment:
  * who already died, which guards are up, and which slower focuses are still
@@ -284,6 +376,7 @@ export function pickResolveTargets(
   count: number,
   pool: Character[],
   speed: number,
+  aim: AttackAim = 'wounded',
 ): Character[] {
   if (req === 'none') return [];
 
@@ -292,22 +385,23 @@ export function pickResolveTargets(
   if (req === 'defense') {
     const allies = pool.filter(t => t.team === actor.team);
     const enemies = pool.filter(t => t.team !== actor.team);
+    if (aim === 'share') return guardOrBlock(view, actor, allies, enemies, count, pool);
     const wounded = allies.filter(a => a !== actor && pvFraction(a) < 0.5);
     const preferGuard = wounded.length > 0;
     if ((preferGuard || enemies.length === 0) && allies.length > 0) {
-      return [...allies].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
+      return byNeed(view, actor, allies, aim).slice(0, count);
     }
-    const pending = view.pendingSummary();
-    const attackers = enemies.filter(e => pending.some(p =>
-      p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac));
-    if (attackers.length > 0) {
-      const threat = new Map(attackers.map(e => [e, bestAttackAverage(e)]));
-      return [...attackers].sort((a, b) => threat.get(b)! - threat.get(a)!).slice(0, count);
+    const attackers = blockable(view, actor, enemies);
+    if (attackers.length > 0) return attackers.slice(0, count);
+    // Nothing worth blocking: guard whoever the blows are headed for — or,
+    // with nobody threatened, yourself if you are still a legal target. An
+    // actor felled earlier in their own speed tier still resolves (ties are
+    // simultaneous) but is no longer in the pool; the engine's self-guard
+    // covers them either way, so choosing nobody is the honest answer.
+    if (allies.length > 0) {
+      const need = byNeed(view, actor, allies, aim);
+      if (incomingByAlly(view, actor, allies, aim).get(need[0])! > 0) return need.slice(0, count);
     }
-    // Nothing to block, nobody hurt: guard yourself — if you are still a legal
-    // target. An actor felled earlier in their own speed tier still resolves
-    // (ties are simultaneous) but is no longer in the pool; the engine's
-    // self-guard covers them either way, so choosing nobody is the honest answer.
     return pool.includes(actor) ? [actor] : [];
   }
 
@@ -316,6 +410,7 @@ export function pickResolveTargets(
     if (priority) {
       return [...pool].sort((a, b) => priority(b) - priority(a) || pvFraction(a) - pvFraction(b)).slice(0, count);
     }
+    if (def.actionType === ActionType.Defensa) return byNeed(view, actor, pool, aim).slice(0, count);
     return [...pool].sort((a, b) => pvFraction(a) - pvFraction(b)).slice(0, count);
   }
 
@@ -323,11 +418,9 @@ export function pickResolveTargets(
   // whose attack is still pending, else the scariest one there is. Aimed like
   // a curse, it went to the healthiest enemy and almost never met a blow.
   if (def.actionType === ActionType.Defensa) {
-    const pendingNow = view.pendingSummary();
-    const attacking = pool.filter(e => pendingNow.some(p =>
-      p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Atac));
-    const candidates = attacking.length ? attacking : pool;
-    return [...candidates].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
+    const attackers = blockable(view, actor, pool);
+    if (attackers.length) return attackers.slice(0, count);
+    return [...pool].sort((a, b) => bestAttackAverage(b) - bestAttackAverage(a)).slice(0, count);
   }
 
   const pending = view.pendingSummary();
@@ -347,7 +440,35 @@ export function pickResolveTargets(
       if (ally && (ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
     }
   }
+  // What THIS blow is expected to take off `e`: through the wall already
+  // standing in front of it (its own and its allies' resolved guards, summed —
+  // defensa conjunta), less armour. `share` aim only.
+  const atk = attackParts(actor, def);
+  const throughWall = (e: Character): number => {
+    const wall = e.guards.filter(g => g.defender.isAlive());
+    const armour = e.getPassiveArmor();
+    if (!wall.length) return expectedExcess(atk.dice, atk.flat, undefined, 0, armour);
+    const flatOf = (g: typeof wall[number]): number => (g.action.rollBonus ?? 0)
+      + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
+    const [first, ...rest] = wall;
+    const others = rest.reduce((s, g) => s + (g.fixedTotal ?? (g.action.dice?.average() ?? 0) + flatOf(g)), 0);
+    return first.fixedTotal !== undefined
+      ? expectedExcess(atk.dice, atk.flat, undefined, first.fixedTotal + others, armour)
+      : expectedExcess(atk.dice, atk.flat, first.action.dice, flatOf(first) + others, armour);
+  };
   const score = (e: Character): number => {
+    if (aim === 'share' && def.actionType === ActionType.Atac) {
+      const dmg = throughWall(e);
+      let s = 4 * Math.min(dmg, e.currentPV) / Math.max(1, e.maxPV);
+      s += Math.min(2, bestAttackAverage(e) / 6);
+      if (dmg >= e.currentPV) s += 4;
+      else if (teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= e.currentPV) s += 3;
+      const focusing = pending.some(p =>
+        p.actor === e && !p.resolved && !p.cancelled
+        && p.actionType === ActionType.Focus && p.speed < speed);
+      if (focusing && !e.hitThisTurn) s += 3;
+      return s;
+    }
     // An ATTACK focuses fire on the wounded; anything else aimed at an enemy —
     // a swallow, a curse, a plague — is wasted on one about to die, so it goes
     // to the healthy.

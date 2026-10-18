@@ -24,13 +24,13 @@ import { selectAction, pickResolveTargets } from './policy.js';
 import { bestResponse, DEFAULT_LOOKAHEAD, searchTargets, type LookaheadOptions } from './lookahead.js';
 
 export {
-  selectAction, actionOdds, pickResolveTargets, expectedAttackTotal, estimateExpectedDamage,
+  selectAction, actionOdds, pickResolveTargets, aimedTargets, expectedAttackTotal, estimateExpectedDamage,
 } from './policy.js';
 export {
   bestResponse, evaluatePlan, positionScore, lookaheadChooser, rolloutOdds, DEFAULT_LOOKAHEAD, DEFAULT_EVAL_WEIGHTS,
 } from './lookahead.js';
 export type { LookaheadOptions, EvaluatorWeights, OpponentSearch } from './lookahead.js';
-export type { ActionOdds } from './policy.js';
+export type { ActionOdds, AttackAim } from './policy.js';
 
 /** Everything an engine needs to run itself. Hand it to `new CombatEngine`. */
 export interface Policy {
@@ -69,7 +69,7 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
       return pick ?? selectAction(engine, actor).actionIdx;
     },
     targetChooser: (engine, actor, def, req, count, pool, speed) => depth >= 1
-      ? searchTargets(engine as CombatEngine, actor, def, req, count, pool, speed, full.targetSamples ?? 0)
-      : pickResolveTargets(engine, actor, def, req, count, pool, speed),
+      ? searchTargets(engine as CombatEngine, actor, def, req, count, pool, speed, full.targetSamples ?? 0, full.attackAim)
+      : pickResolveTargets(engine, actor, def, req, count, pool, speed, full.attackAim),
   };
 }
