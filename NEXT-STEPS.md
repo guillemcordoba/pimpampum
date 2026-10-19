@@ -6477,3 +6477,36 @@ targets agree (196/200), so it is not aim. `LookaheadOptions.opponentDefense`
 (rollout opponents weigh defenses by PV prevented) is queued for a match,
 alone and with continuation 1; on the d5 tests it fixes g40017 and moves four
 off the old pick.
+
+**The night's matches (2026-10-19, `--baseline WORKTREE`, δ 0.015).**
+
+| variant (vs the default unless named) | seeds | mean pair result | verdict |
+|---|---|---|---|
+| `rolloutSharpness` 2 → 4 | 100001+ | −0.014 ± 0.005 | worse: 2 stays (0.5 undecided, leans equal) |
+| `bodyWorth` 0.5 / 1 | 100001+ | +0.015 ± 0.006 / +0.015 ± 0.006 | better on early stops… |
+| `bodyWorth` 0.5, confirmation | 1+ | +0.000 ± 0.006 | …equal; on top of `opponentDefense` equal too (+0.002 ± 0.005) — removed |
+| `race` 5 (rounds-to-wipe term) | 100001+ | +0.000 ± 0.006 | equal — removed |
+| `continuation` 1 with 4 samples | 100001+ | −0.032 ± 0.010 | worse: noise costs more than the horizon gains |
+| `selfDefense` + `continuation` 1 | 100001+ | +0.052 ± 0.014 | better |
+| `selfDefense` + `continuation` 1 vs `continuation` 1 | 1+ | +0.021 ± 0.007 | better… |
+| all three vs `opponentDefense` + `continuation` 1 | 300001+ | −0.001 ± 0.006 | …but nothing once opponents defend well |
+| **`opponentDefense`** | 100001+ | **+0.041 ± 0.013** | better |
+| **`opponentDefense`, confirmation** | 1+ | **+0.064 ± 0.016** | better — **landed as the default** |
+| `opponentDefense` + `continuation` 1 | 100001+ | +0.057 ± 0.016 | better — NOT landed: horde 3.5 s, boss 3.6 s, mixed band 4.8 s of the 3 s budget |
+
+The encounter-speed test with `opponentDefense` landed (quiet machine): horde
+1.7 s, bone devils 0.9 s, boss 1.7 s, mixed band 2.2 s.
+
+§20.8's flat defense weight stays for the depth-0 POLICY (what the spam
+baselines measured); the rollouts now model opponents who defend by PV
+prevented. `selfDefense` (the own side the same way) only acts with
+continuation, and adds nothing on top of `opponentDefense`.
+
+**Open, pre-existing (fails at 61006db too): `bench/test/positions.test.ts`
+"keeps the unsaturated cells".** Its "fight nobody can win" (3 synthetic
+brutes at 400 PV) scores 0.16-0.21, not under the 0.2 band edge: the heroes,
+who cannot win, block every round and reach the 40-round cap — a draw, worth
+half, and better than a loss. Correct play; more brutes make it WORSE (12:
+0.275), and the brute's level does nothing past its two cards. The fixture
+assumed an AI that loses a hopeless fight outright. A design call: a shape
+that is unwinnable AND unstallable, or a test that reads draws apart.
