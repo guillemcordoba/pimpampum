@@ -6581,3 +6581,6 @@ breaks three elements ones and the bot ladder; the kit verdicts are read
 THROUGH the AI, so every AI change moves them — that is what
 `calibration:refresh` is for, once an AI is chosen. Not done: it is a
 decision for the user, with this table.
+
+`ai-audit.ts` at GAMES=2 alone, quiet machine: 4 s, exit 0. Its 600 s in
+both tier runs is load (the kit suites beside it), not the harness.
