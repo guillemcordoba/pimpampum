@@ -6533,7 +6533,7 @@ Open for the user: continuation 1 is worth +0.036 (and +0.016 on top of
 test's 3 s; the profile is flat (nothing over 6%), so no cheap speed-up
 buys it. Either the budget moves, or it stays an option.
 
-**`opponentDefense` REVERTED to off the same morning (2026-10-19 09:00): the
+**`opponentDefense` REVERTED to off the same morning (2026-10-19 07:50): the
 slow tier.** Matches are AI against AI; the slow tier also plays the AI
 against fixed bots, and there the option is §20.8's warning come true:
 
