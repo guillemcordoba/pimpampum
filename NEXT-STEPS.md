@@ -6532,3 +6532,25 @@ Open for the user: continuation 1 is worth +0.036 (and +0.016 on top of
 `opponentDefense`: +0.057 vs +0.041) but costs 3.5-4.8 s of the encounter
 test's 3 s; the profile is flat (nothing over 6%), so no cheap speed-up
 buys it. Either the budget moves, or it stays an option.
+
+**`opponentDefense` REVERTED to off the same morning (2026-10-19 09:00): the
+slow tier.** Matches are AI against AI; the slow tier also plays the AI
+against fixed bots, and there the option is §20.8's warning come true:
+
+| depth-1 production vs spam (ai-strength, 800 mirror combats) | winrate |
+|---|---|
+| with `opponentDefense` | **44.3% ± 1.8** — LOSES to spam (requirement "never BEATEN" fails) |
+| without (today's default) | 63.3% ± 1.7 — still under the 70% bar (§20.7), but not beaten |
+
+Modelling the opponent as a player who defends is right against one who
+does (+0.064 in the match) and wrong against one who never does. A model
+of WHICH opponent is across the table would have both; until then the
+default stays the flat model. The option stays (off).
+
+The rest of that slow tier (run WITH the option; 12 of 166 failed): fantasy
+and elements triangles (Protect > Aggro 20.1% / 28.9%), the delta pipeline
+(bigger kit −4.6pp), stalls over 2% in firebender (2.1%) and earthbender
+(2.3%; §53: 1.6% / 1.3%), waterbender's Pluja de dagues never right,
+airbender blind to Esquivar-los a tots, ai-audit.ts over its smoke time
+(600 s), and two blind spots CLEARED (Rugit de guerra, Esquiva i traveta).
+Which of these belong to the option is what a re-run without it says.
