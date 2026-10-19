@@ -148,8 +148,8 @@ interface DecisionFacts {
 
 /** How the depth-0 policy weighs a defense: `'flat'`, the opponent model
  *  §20.8 measured best for the field; `'prevented'`, the PV it expects to
- *  save, mirroring an attack's weight — a better player, used only for the
- *  searching side's own seats in rollouts (`LookaheadOptions.selfDefense`). */
+ *  save, mirroring an attack's weight — used for rollout opponents
+ *  (`LookaheadOptions.opponentDefense`). */
 export type DefenseModel = 'flat' | 'prevented';
 
 function decisionFacts(actor: Character, allies: Character[], enemies: Character[], defenses: DefenseModel): DecisionFacts {

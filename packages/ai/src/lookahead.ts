@@ -56,15 +56,11 @@ export interface LookaheadOptions {
    *  round, before the leaf is read. Omit or 0: read it right after. Each
    *  round costs about as much as the searched one. */
   continuation?: number;
-  /** The searching side's OWN seats in rollouts weigh a defense by the PV it
-   *  expects to save (`DefenseModel` 'prevented') instead of the flat
-   *  opponent model. A tank that blocks every round is worth keeping alive
-   *  only if the rollouts let it block. */
-  selfDefense?: boolean;
-  /** The same for everyone NOT on the searching side. The flat model was
-   *  kept because it predicted the spam baselines best (§20.8); against a
-   *  player who defends, it never raises the block an advance races or a
-   *  strike runs into. */
+  /** Rollout OPPONENTS weigh a defense by the PV it expects to save
+   *  (`DefenseModel` 'prevented'). The flat model is still the depth-0
+   *  policy's, because it predicted the spam baselines best (§20.8); but in a
+   *  rollout it never raised the block an advance races or a strike runs
+   *  into. (The same for our own seats added nothing on top: §54.3.) */
   opponentDefense?: boolean;
   /** Rollouts in ANTITHETIC pairs: every odd sample replays the one before it
    *  with each die mirrored (high where it rolled low), so the dice's luck
@@ -482,7 +478,7 @@ const newMemo = (team: number, opts: LookaheadOptions, pairSeed: number, base = 
  */
 function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, shared: DecisionMemo): ActionOdds {
   const os = shared.opts.opponentSearch!;
-  const inner = newMemo(actor.team, { ...shared.opts, samples: os.samples, opponentSearch: undefined, selfDefense: undefined }, shared.pairSeed + 104_729, shared.base);
+  const inner = newMemo(actor.team, { ...shared.opts, samples: os.samples, opponentSearch: undefined }, shared.pairSeed + 104_729, shared.base);
   const values = base.indices.map(idx =>
     evaluate(root, actor.team, new Map([[actor, idx]]), inner.opts, 1, inner.pairSeed, undefined, inner));
   const top = Math.max(...values);
@@ -491,9 +487,9 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
   return { indices: base.indices, weights, total: weights.reduce((s, w) => s + w, 0) };
 }
 
-/** How a rollout seat weighs its defenses (`selfDefense`, `opponentDefense`). */
+/** How a rollout seat weighs its defenses (`opponentDefense`). */
 function defenseModel(opts: LookaheadOptions, team: number, a: Character): DefenseModel {
-  return (a.team === team ? opts.selfDefense : opts.opponentDefense) ? 'prevented' : 'flat';
+  return a.team !== team && opts.opponentDefense ? 'prevented' : 'flat';
 }
 
 /**
