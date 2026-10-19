@@ -6516,3 +6516,19 @@ that is unwinnable AND unstallable, or a test that reads draws apart.
 97; the shape mix differs, so read it as direction, not size). What the
 winners swapped IN: guard 7, sweep 5, advance 3, strike 3 — advance no
 longer tops the list. Worst by shape: 4x5 25%, 4x4 22%; best 1x4 3%.
+
+d6 shrunk: 25 of 28 became tests (`ai/test/discovered.json`). Block is the
+most-replaced card (6 of 22: by strike 4, guard, sweep); two of the five
+checked are near-ties in the AI's own leaf (noise), three prefer the block
+by 0.7-2 points — the one-round horizon, which continuation 1 does not mend
+in these. Advance still under-played in 3.
+
+**Cumulative (2026-10-19 06:35):** the AI after the night against last
+night's (`refs/ai-baselines/night-2026-10-17-e2`, a scratch commit: HEAD's
+engine with 094a827's `packages/ai/src`), seeds 400001+: **+0.117 ± 0.029**
+(yesterday afternoon +0.081 ± 0.026).
+
+Open for the user: continuation 1 is worth +0.036 (and +0.016 on top of
+`opponentDefense`: +0.057 vs +0.041) but costs 3.5-4.8 s of the encounter
+test's 3 s; the profile is flat (nothing over 6%), so no cheap speed-up
+buys it. Either the budget moves, or it stays an option.
