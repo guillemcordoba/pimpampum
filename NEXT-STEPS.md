@@ -6510,3 +6510,9 @@ half, and better than a loss. Correct play; more brutes make it WORSE (12:
 0.275), and the brute's level does nothing past its two cards. The fixture
 assumed an AI that loses a hopeless fight outright. A design call: a shape
 that is unwinnable AND unstallable, or a test that reads draws apart.
+
+**Discovery d6 (2026-10-19, seeds 50001+, 16 lanes, 2 h, AI with
+`opponentDefense`): 181 judged, 15.5% ± 2.7 beaten** (d5: 27.8% ± 4.6 of
+97; the shape mix differs, so read it as direction, not size). What the
+winners swapped IN: guard 7, sweep 5, advance 3, strike 3 — advance no
+longer tops the list. Worst by shape: 4x5 25%, 4x4 22%; best 1x4 3%.
