@@ -6554,3 +6554,30 @@ and elements triangles (Protect > Aggro 20.1% / 28.9%), the delta pipeline
 airbender blind to Esquivar-los a tots, ai-audit.ts over its smoke time
 (600 s), and two blind spots CLEARED (Rugit de guerra, Esquiva i traveta).
 Which of these belong to the option is what a re-run without it says.
+
+**The slow tier, both ways (2026-10-19; 166 tests; the AI of HEAD with
+`opponentDefense` on, then off = today's default).** Verdicts that differ
+are marked ⇄.
+
+| test | option ON | option OFF (default) |
+|---|---|---|
+| ai-strength: beats spam ≥ 70% | ✗ 44.3% | ✗ 63.3% |
+| ai-strength: never BEATEN by a bot | ✗ ⇄ | ✓ |
+| delta pipeline (bigger kit above zero) | ✗ −4.6pp | ✗ −4.9pp |
+| fantasy triangle, Protect > Aggro | ✗ 20.1% | ✗ 30.7% |
+| elements triangle, Protect > Aggro | ✗ 28.9% | ✗ 29.3% (§45: broken since 9866652) |
+| ai-audit.ts at GAMES=2 | ✗ 600 s timeout | ✗ 600 s timeout |
+| fantasy mestre-armes, power band | ✓ ⇄ | ✗ +19.9pp ± 1.3 |
+| fantasy artifex, every card a choice | ✓ ⇄ | ✗ Autòmat de corda never right |
+| fantasy enginyer-explosius, every card a choice | ✓ ⇄ | ✗ Bomba de fum never right |
+| fantasy berserk, blind spots | Rugit de guerra cleared ⇄ | still blind (known) |
+| elements acrobacia, blind spots | Esquiva i traveta cleared | cleared — removed from the known list |
+| elements airbender, blind spots | ✗ Esquivar-los a tots | ✗ Esquivar-los a tots |
+| elements waterbender | ✗ Pluja de dagues never right ⇄ | ✗ blind to Cop desviat (§53) |
+| elements firebender / earthbender, fights end | ✗ 2.1% / 2.3% stalled ⇄ | ✓ / ✓ |
+
+Neither AI passes the tier. The option fixes three fantasy kit verdicts and
+breaks three elements ones and the bot ladder; the kit verdicts are read
+THROUGH the AI, so every AI change moves them — that is what
+`calibration:refresh` is for, once an AI is chosen. Not done: it is a
+decision for the user, with this table.

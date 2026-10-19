@@ -18,10 +18,6 @@ export const KNOWN_BLIND: Record<string, string[]> = {
   // Esgrima defenses share their best moments, and the least played gets
   // flagged (NEXT-STEPS §44).
   'mestre-armes': ['retruc-d-acer'],
-  // Esquiva i traveta (2026-10-14: best 21%, played 1.9%) is best only by
-  // noise: when it is, it gains −2.2 PV on the runner-up — its near-substitute
-  // Tombarella de rescat, the star of the kit here (best 50%, played 42.5%).
-  // The same detector edge as Esgrima's defenses (NEXT-STEPS §44.2, §45).
-  acrobacia: ['esquiva-i-traveta'],
-  // Cop de vida left this list 2026-10-14 (best 16%, played 3.7%, NEXT-STEPS §50).
+  // Cop de vida left this list 2026-10-14 (best 16%, played 3.7%, NEXT-STEPS §50);
+  // Esquiva i traveta on 2026-10-19 with the AI of §54.3 (NEXT-STEPS §54.3).
 };
