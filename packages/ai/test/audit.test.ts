@@ -96,6 +96,14 @@ describe('the referee on hand-made fights', () => {
     expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(-15, 9);
   });
 
+  it('greedy decisions (the rest of the round at random) still find both aims: +6 and −15', () => {
+    const hero = aiming([body('H', 10, [strike(4, true)])], [body('F1', 3, [strike(1)]), body('F2', 4, [strike(8)])]);
+    const foe = aiming([body('A', 4, [strike(1)]), body('B', 5, [strike(9)])], [body('F', 20, [strike(5, true)])]);
+    const greedy = (pos: Position) => new Referee({ decisions: 'greedy' }).solve(buildEngine(pos, { actionChooser: () => null }), 0).value;
+    expect(greedy(hero)).toBeCloseTo(6, 9);
+    expect(greedy(foe)).toBeCloseTo(-15, 9);
+  });
+
   it('the AI\'s own aiming is judged where it aims: the right aim loses nothing, and the worth of each aim is the arithmetic', () => {
     const pos = aiming([body('H', 10, [strike(4, true)])], [body('F1', 3, [strike(1)]), body('F2', 4, [strike(8)])]);
     const state = buildEngine(pos, { actionChooser: () => null });
@@ -166,7 +174,7 @@ describe('the referee as a double oracle', () => {
       oracleSims += r.oracleSims;
     }
     expect(oracleSims).toBeLessThan(fullSims);
-  });
+  }, 60_000); // five real solves: seconds idle, more on a loaded machine
 
   it('every row is valued against the final mix, so the check reads it as it reads the full matrix', () => {
     const pos = generatePosition(2, { shape: '2x1', cards: 3, roundsLeft: 2 });

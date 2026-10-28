@@ -41,6 +41,10 @@ const rules = flag('--rule') ? [flag('--rule') as GangRule] : RULES;
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
 const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalogue'];
 const POSITIONS = games(12);
+/** First seed, so a slice can be extended without re-solving what is done. */
+const FROM = Number(flag('--from') ?? 1);
+/** `flank`'s bonus per other attack on the same target. */
+const FLANK = Number(flag('--flank') ?? 2);
 const BUDGET = Number(flag('--budget') ?? (SMOKE ? 200_000 : 3_000_000));
 /** Paths walked per likely cell, for where the attacks aimed. */
 const PATHS = 2;
@@ -67,9 +71,9 @@ function snapshot(t: Tally, b: Tally) {
 for (const rule of rules) {
   for (const slice of slices) {
     const t: Tally = { solved: 0, skipped: 0, value: 0, readsA: 0, readsB: 0, defenseOne: 0, defenseTwo: 0, twoAttacks: 0, focus: 0, weight: 0 };
-    for (let seed = 1; seed <= POSITIONS; seed++) {
+    for (let seed = FROM; seed < FROM + POSITIONS; seed++) {
       const pos = generatePosition(seed, { ...SLICES[slice], catalogue: CATALOGUE });
-      const fresh = (): CombatEngine => buildEngine(pos, { actionChooser: () => null }, { rules: { gangRule: rule } });
+      const fresh = (): CombatEngine => buildEngine(pos, { actionChooser: () => null }, { rules: { gangRule: rule, flankBonus: FLANK } });
       const referee = new Referee({ budget: BUDGET });
       let root;
       try { root = referee.solve(fresh(), 0); } catch (e) {
@@ -108,7 +112,7 @@ for (const rule of rules) {
           }
         }
       }));
-      if (PER_POSITION) console.log(JSON.stringify({ rule, slice, catalogue: CATALOGUE, seed, ...snapshot(t, before) }));
+      if (PER_POSITION) console.log(JSON.stringify({ rule: rule === 'flank' && FLANK !== 2 ? `flank${FLANK}` : rule, slice, catalogue: CATALOGUE, seed, ...snapshot(t, before) }));
     }
     const n = t.solved;
     console.log(JSON.stringify({

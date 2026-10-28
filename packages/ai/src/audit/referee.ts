@@ -96,11 +96,20 @@ export interface RefereeOptions {
    *  joint of the side. `seat`: one seat at a time, the others held, until
    *  no seat improves — a local best response. */
   bestResponse: 'joint' | 'seat';
+  /**
+   * How an in-round decision (an aim, a guard) is taken. `exact`: the best
+   * answer, every later decision of the round answered best in turn — a tree
+   * that grows with the power of the number of decisions. `greedy`: the best
+   * answer when every LATER decision of the round is played at random, then
+   * the next decision is taken the same way — linear in the decisions, and
+   * no opinion of good play in it.
+   */
+  decisions: 'exact' | 'greedy';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
   seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin', strategies: 'enumerate',
-  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8,
+  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8, decisions: 'exact',
 };
 
 /** One seat's committed card. */
@@ -563,6 +572,7 @@ export class Referee {
       return total / out.outcomes;
     }
     if (!(out instanceof Ask)) return this.value(out, depth + 1);
+    if (this.opts.decisions === 'greedy') return this.greedy(prepared, selections, seed0, script, depth, out);
     const key = out.key === null ? null : `${depth}|${out.key}`;
     const hit = key === null ? undefined : this.decisions.get(key);
     if (hit !== undefined) return hit;
@@ -571,6 +581,36 @@ export class Referee {
     const best = out.team === 0 ? Math.max(...stats.map(s => s.mean)) : Math.min(...stats.map(s => s.mean));
     if (key !== null) this.decisions.set(key, best);
     return best;
+  }
+
+  /** `decisions: 'greedy'`: the answer to `ask` that does best with the
+   *  rest of the round played at random, then on to the next decision; the
+   *  chance after it drawn once (the cell's own samples average it). */
+  private greedy(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], depth: number, ask: Ask): number {
+    const M = this.opts.decisionSamples[Math.min(depth, this.opts.decisionSamples.length - 1)];
+    const at = `${seed0}#${script.map(a => (isDraw(a) ? `d${a.draw}` : `${a.pick.join('+')}@${a.seed}`)).join('/')}`;
+    const seeds = Array.from({ length: M }, (_, m) => hash(at, this.opts.seed * 131 + m));
+    let best: number[] = [], top = ask.team === 0 ? -Infinity : Infinity;
+    for (const pick of subsets(ask.poolSize, ask.count)) {
+      const v = seeds.reduce((acc, seed) => acc + this.randomRest(prepared, selections, seed0, [...script, { pick, seed }], depth), 0) / M;
+      if (ask.team === 0 ? v > top : v < top) { top = v; best = pick; }
+    }
+    return this.round(prepared, selections, seed0, [...script, { pick: best, seed: hash(at, this.opts.seed * 137) }], depth);
+  }
+
+  /** The round played on from `script` with every further decision answered
+   *  at random (seeded), then valued as `round` values a finished round. */
+  private randomRest(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], depth: number): number {
+    const path = [...script];
+    for (let guard = 0; guard < 64; guard++) {
+      const out = this.replay(prepared, selections, seed0, path);
+      if (out instanceof Draw) { path.push({ draw: hash(`${seed0}#${path.length}`, this.opts.seed) % out.outcomes }); continue; }
+      if (!(out instanceof Ask)) return this.value(out, depth + 1);
+      const options = subsets(out.poolSize, out.count);
+      const h = hash(`${seed0}#r${path.length}#${path.map(a => (isDraw(a) ? `d${a.draw}` : a.pick.join('+'))).join('/')}`, this.opts.seed * 139);
+      path.push({ pick: options[h % options.length], seed: h });
+    }
+    throw new Error('referee: a round with more than 64 decisions');
   }
 
   /** Every answer to the decision `ask`, each worth the mean of `samples`

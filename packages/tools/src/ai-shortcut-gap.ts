@@ -34,13 +34,18 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
   'oracle ε=0.5': { epsilon: 0.5 },
   'per-seat best response': { bestResponse: 'seat' },
   'decision samples 1': { decisionSamples: [1] },
+  'greedy decisions': { decisions: 'greedy' },
+  'greedy decisions · 1 sample': { decisions: 'greedy', decisionSamples: [1] },
   'chance samples 4,2,1': { samples: [4, 2, 1] },
   'horizon 2': { horizon: 2 },
   'horizon 1': { horizon: 1 },
   'horizon 1 · evaluator leaf': { horizon: 1, leaf: 'score' },
   'horizon 1 · random-playout leaf': { horizon: 1, leaf: 'playout' },
+  'horizon 1 · random-playout leaf ×16': { horizon: 1, leaf: 'playout', playouts: 16 },
+  'horizon 1 · random-playout leaf ×32': { horizon: 1, leaf: 'playout', playouts: 32 },
   'horizon 2 · evaluator leaf': { horizon: 2, leaf: 'score' },
   'stacked: h1 · seat · dec 1 · 4 samples': { horizon: 1, bestResponse: 'seat', decisionSamples: [1], samples: [4] },
+  'stacked: h1 playout · greedy · ε0.5 · 4 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', epsilon: 0.5, samples: [4] },
 };
 
 const POSITIONS = games(8);
