@@ -44,12 +44,20 @@ export function useGame() {
   }
 
   const combatLog = ref<LogEntry[]>([]);
-  const playerSelections = ref<Map<number, number>>(new Map()); // charIdx -> actionIdx
+  // charIdx -> actionIdx, in the order the players committed (a Map keeps
+  // insertion order): inside a step, whoever decided first resolves first.
+  const playerSelections = ref<Map<number, number>>(new Map());
   const winner = ref<number | null>(null);
   const skippingPlayers = ref<Set<number>>(new Set());
 
   // Resolution state
   const revealed = ref<RevealedAction[]>([]);
+  /** Where each revealed card aims, by queue position (null: not aimed yet).
+   *  Every attack aims at the reveal, so the table sees them before any defense chooses. */
+  const aims = ref<(string[] | null)[]>([]);
+  function refreshAims() {
+    aims.value = engine.value?.pendingSummary().map(p => p.targets ? p.targets.map(t => t.name) : null) ?? [];
+  }
   const currentStepIndex = ref(-1);
   const currentTargetPrompt = ref<TargetPrompt | null>(null);
   const currentChoicePrompt = ref<ChoicePrompt | null>(null);
@@ -135,8 +143,10 @@ export function useGame() {
     const action = c.actions[actionIdx];
     if (!action?.isAvailable() || c.isActionSetAside(actionIdx)) return;
     if (!eng.canPlayActionIdx(c, actionIdx)) return;
-    if (playerSelections.value.get(charIdx) === actionIdx) playerSelections.value.delete(charIdx);
-    else playerSelections.value.set(charIdx, actionIdx);
+    // A changed mind is a new commit: it goes to the back of the order.
+    const unpick = playerSelections.value.get(charIdx) === actionIdx;
+    playerSelections.value.delete(charIdx);
+    if (!unpick) playerSelections.value.set(charIdx, actionIdx);
     playerSelections.value = new Map(playerSelections.value);
   }
 
@@ -154,6 +164,7 @@ export function useGame() {
       team: 0, idx, actionIdx,
     }));
     revealed.value = eng.planActions(selections);
+    refreshAims();
     flowSwappers.value = eng.flowSwapRefs().filter(r => r.team === 0).map(r => r.idx);
     currentStepIndex.value = -1;
     roundComplete.value = false;
@@ -165,6 +176,7 @@ export function useGame() {
     const eng = engine.value;
     if (!eng) return;
     revealed.value = eng.flowSwap({ team: 0, idx: charIdx }, actionIdx);
+    refreshAims();
     flowSwappers.value = eng.flowSwapRefs().filter(r => r.team === 0).map(r => r.idx);
   }
 
@@ -185,6 +197,7 @@ export function useGame() {
     const eng = engine.value;
     if (!eng || roundComplete.value) return;
     const step = eng.resolveNextAction();
+    refreshAims();
     if (step.kind === 'target') {
       currentTargetPrompt.value = step.prompt;
       multiTargetSelections.value = [];
@@ -249,6 +262,7 @@ export function useGame() {
       return;
     }
     eng.setResolveTarget([{ team, idx }]);
+    refreshAims();
     currentTargetPrompt.value = null;
     advanceResolution();
   }
@@ -266,6 +280,7 @@ export function useGame() {
     const eng = engine.value;
     if (!eng || !currentTargetPrompt.value) return;
     eng.setResolveTarget([...multiTargetSelections.value]);
+    refreshAims();
     currentTargetPrompt.value = null;
     multiTargetSelections.value = [];
     advanceResolution();
@@ -308,7 +323,7 @@ export function useGame() {
     gamePhase, engine, playerTeam, enemyTeam,
     playerSpecs, enemySpecs,
     combatLog, playerSelections, skippingPlayers, winner,
-    revealed, currentStepIndex, currentTargetPrompt, currentChoicePrompt, multiTargetSelections,
+    revealed, aims, currentStepIndex, currentTargetPrompt, currentChoicePrompt, multiTargetSelections,
     highlightedTarget, roundComplete, flowSwappers,
     addEnemy, removeEnemy, canStart, startCombat,
     selectCard, canConfirmCards, confirmCards, startResolving, advanceResolution,

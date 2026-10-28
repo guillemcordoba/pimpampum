@@ -55,8 +55,14 @@ const revealedCards = computed<{ r: RevealedAction; action: ActionInstance | und
  * Index of the card under resolution: the just-resolved one, or — while waiting
  * on a target prompt — the one about to resolve (one past the last resolved).
  */
-const resolvingIndex = computed(() =>
-  g.currentTargetPrompt.value ? g.currentStepIndex.value + 1 : g.currentStepIndex.value);
+const resolvingIndex = computed(() => {
+  const prompt = g.currentTargetPrompt.value;
+  if (!prompt) return g.currentStepIndex.value;
+  // An attack aims at the reveal, before anything resolves: the prompt is for
+  // that card, wherever it sits in the queue.
+  const aiming = revealed.value.findIndex((r, i) => i > g.currentStepIndex.value && r.actorTeam === prompt.actorTeam && r.actorIdx === prompt.actorIdx);
+  return aiming >= 0 ? aiming : g.currentStepIndex.value + 1;
+});
 
 function isCurrent(i: number): boolean {
   return phase.value === 'resolving' && !roundComplete.value && i === resolvingIndex.value;
@@ -108,6 +114,7 @@ function isHighlighted(team: number, idx: number): boolean {
                   {{ r.actorName }}
                   <span v-if="r.fast" class="reveal-speed">ràpida</span>
                 </div>
+                <div v-if="r.actionType === 'Atac' && g.aims.value[i]?.length" class="reveal-aim">→ {{ g.aims.value[i]!.join(', ') }}</div>
                 <MiniCard v-if="action" :action="action" :class-css="r.classCss" readonly />
               </div>
             </div>
@@ -207,6 +214,7 @@ function isHighlighted(team: number, idx: number): boolean {
 }
 .reveal-card.enemy .reveal-card-name { color: #f0b0b0; }
 .reveal-speed { opacity: 0.7; font-size: 0.8rem; margin-left: 0.3rem; }
+.reveal-aim { font-size: 0.8rem; opacity: 0.85; margin: 0.1rem 0 0.2rem; }
 
 /* Already-resolved cards fade and desaturate. */
 .reveal-card.resolved { opacity: 0.4; filter: grayscale(0.85); }
