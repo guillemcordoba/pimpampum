@@ -15,14 +15,14 @@ function control(id: string, over: Partial<ActionDefinition>): ActionDefinition 
   // the real kit and never noticed the controls were missing.
   return {
     id, name: id, skillId: 'control', unlockLevel: 0,
-    actionType: ActionType.Focus, speed: 0, effects: [], description: '', iconPath: '', ...over,
+    actionType: ActionType.Focus, effects: [], description: '', iconPath: '', ...over,
   } as ActionDefinition;
 }
 
 /** Forfeits the turn: no dice, no effects, nothing. */
 export const NO_OP = 'control-no-op';
 /**
- * Ends the fight the turn it is played: 20d6 at EVERY enemy, first. The
+ * Ends the fight the turn it is played: 20d6 at EVERY enemy, first (fast). The
  * `targetCount` is the point — a single-target 20d6 once priced SECOND, because
  * against a horde of one-PV bodies seventy points at one of them is overkill,
  * not power. The instrument was right and the control was wrong.
@@ -31,7 +31,7 @@ export const OVERWHELMING = 'control-overwhelming';
 
 const CARDS = [
   control(NO_OP, {}),
-  control(OVERWHELMING, { actionType: ActionType.Atac, speed: 9, dice: new DiceRoll(20, 6), targetCount: 99 }),
+  control(OVERWHELMING, { actionType: ActionType.Atac, fast: true, dice: new DiceRoll(20, 6), targetCount: 99 }),
 ];
 
 /** Mean value of every card the subject holds, over a handful of fights. */

@@ -35,10 +35,10 @@ import {
 
 // --- content ------------------------------------------------------------------
 
-function card(kit: string, i: number, name: string, type: ActionType, dice: string, speed: number,
+function card(kit: string, i: number, name: string, type: ActionType, dice: string,
   over: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
-    id: `${kit}-${i}`, name, skillId: kit, unlockLevel: i, actionType: type, speed,
+    id: `${kit}-${i}`, name, skillId: kit, unlockLevel: i, actionType: type,
     dice: DiceRoll.parse(dice), effects: [], description: '', iconPath: '', ...over,
   };
 }
@@ -60,43 +60,43 @@ interface Kit { id: string; side: 'player' | 'enemy'; actions: ActionDefinition[
 
 const KITS: Kit[] = [
   { id: 'brawler', side: 'player', actions: [
-    card('brawler', 1, 'Jab', A, '2d6', 3),
-    card('brawler', 2, 'Guard', D, '2d6', 4),
-    card('brawler', 3, 'Smash', A, '3d6', 1),
-    card('brawler', 4, 'Sweep', A, '2d6', 2, { targetCount: 99 }),
+    card('brawler', 1, 'Jab', A, '2d6'),
+    card('brawler', 2, 'Guard', D, '2d6'),
+    card('brawler', 3, 'Smash', A, '3d6'),
+    card('brawler', 4, 'Sweep', A, '2d6', { targetCount: 99 }),
   ] },
   { id: 'duelist', side: 'player', actions: [
-    card('duelist', 1, 'Thrust', A, '2d6', 3),
-    card('duelist', 2, 'Parry', D, '3d6', 5),
-    card('duelist', 3, 'Lunge', A, '4d6', 0),
+    card('duelist', 1, 'Thrust', A, '2d6'),
+    card('duelist', 2, 'Parry', D, '3d6'),
+    card('duelist', 3, 'Lunge', A, '4d6'),
   ] },
   { id: 'medic', side: 'player', actions: [
-    card('medic', 1, 'Patch', F, '2d4', 2, { effects: [{ type: HEAL }] }),
-    card('medic', 2, 'Cover', D, '2d6', 4),
+    card('medic', 1, 'Patch', F, '2d4', { effects: [{ type: HEAL }] }),
+    card('medic', 2, 'Cover', D, '2d6'),
   ] },
   { id: 'neutral', side: 'player', actions: [
-    card('neutral', 1, 'Strike', A, '2d6', 2),
-    card('neutral', 2, 'Block', D, '2d6', 3),
-    card('neutral', 3, 'Heavy', A, '3d6', 1),
+    card('neutral', 1, 'Strike', A, '2d6'),
+    card('neutral', 2, 'Block', D, '2d6'),
+    card('neutral', 3, 'Heavy', A, '3d6'),
   ] },
   { id: 'grunt', side: 'enemy', bulk: 1, actions: [
-    card('grunt', 1, 'Club', A, '3d6', 2),
-    card('grunt', 2, 'Stab', A, '2d6', 4),
+    card('grunt', 1, 'Club', A, '3d6'),
+    card('grunt', 2, 'Stab', A, '2d6'),
   ] },
   { id: 'brute', side: 'enemy', bulk: 2, actions: [
-    card('brute', 1, 'Maul', A, '3d6', 1),
-    card('brute', 2, 'Stomp', A, '2d6', 0, { targetCount: 99 }),
+    card('brute', 1, 'Maul', A, '3d6'),
+    card('brute', 2, 'Stomp', A, '2d6', { targetCount: 99 }),
   ] },
 ];
 
 /** Every combatant always holds a last-resort card, as in any real set. */
 const DESPERATE: ActionDefinition = {
-  id: 'syn-desperate', name: 'Desperate', skillId: 'syn', unlockLevel: 0, actionType: A, speed: 0,
+  id: 'syn-desperate', name: 'Desperate', skillId: 'syn', unlockLevel: 0, actionType: A,
   dice: new DiceRoll(1, 4), lastResort: true, effects: [], description: '', iconPath: '',
 };
 
 const LEATHER: EquipmentDefinition = {
-  id: 'syn-leather', name: 'Leather', slot: EquipmentSlot.Armor, passiveArmor: 1, speedPenalty: 0,
+  id: 'syn-leather', name: 'Leather', slot: EquipmentSlot.Armor, passiveArmor: 1,
   rollBonuses: [], iconPath: '', description: '',
 };
 const EQUIPMENT = new Map([[LEATHER.id, LEATHER]]);
