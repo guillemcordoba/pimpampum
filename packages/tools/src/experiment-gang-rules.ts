@@ -27,12 +27,15 @@ import {
 import { flag, games, SMOKE } from '@pimpampum/bench';
 
 const SLICES: Record<string, GeneratorConfig> = {
+  // Two bodies a side: the only shape where "same target" is a choice.
+  '2x2-c2-r2': { shape: '2x2', cards: 2, roundsLeft: 2 },
+  '2x2-c3-r1': { shape: '2x2', cards: 3, roundsLeft: 1 },
   '2x1-c3-r2': { shape: '2x1', cards: 3, roundsLeft: 2 },
   '1x2-c3-r2': { shape: '1x2', cards: 3, roundsLeft: 2 },
   '2x1-c3-r3': { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '1x2-c3-r3': { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 },
 };
-const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single'];
+const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single', 'swarm', 'divided', 'unguarded'];
 
 const rules = flag('--rule') ? [flag('--rule') as GangRule] : RULES;
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
@@ -81,6 +84,7 @@ for (const rule of rules) {
       t.readsB += Math.min(...root.payoff[0].map((_, j) => Math.max(...root.payoff.map(r => r[j])))) - root.value;
 
       const engine = fresh();
+      // The side with two bodies (side A when both have two).
       const twoSide = engine.teams[0].filter(c => c.isAlive()).length >= 2 ? 0 : 1;
       const defenseShare = (joints: typeof root.rows, mix: number[], team: number) => joints.reduce((s, j, i) =>
         s + mix[i] * j.filter(o => o.actionIdx >= 0 && engine.teams[team][o.idx].actions[o.actionIdx].def.actionType === ActionType.Defensa).length / Math.max(1, j.length), 0);
@@ -93,12 +97,15 @@ for (const rule of rules) {
         if (p < 0.01) return;
         for (let path = 0; path < PATHS; path++) {
           const end = referee.bestPath(fresh(), row, col, path);
-          const attacks = end.history.filter(ev => ev.round === end.round && ev.actor.team === twoSide && ev.action.actionType === ActionType.Atac);
-          t.weight += p / PATHS;
-          if (attacks.length < 2) continue;
-          t.twoAttacks += p / PATHS;
-          const aims = attacks.flatMap(ev => ev.targets);
-          if (aims.some((c, k) => aims.indexOf(c) !== k)) t.focus += p / PATHS;
+          // Every side with two bodies counts (both, in a 2v2).
+          for (const team of [0, 1].filter(tm => tm === twoSide || engine.teams[tm].filter(c => c.isAlive()).length >= 2)) {
+            const attacks = end.history.filter(ev => ev.round === end.round && ev.actor.team === team && ev.action.actionType === ActionType.Atac);
+            t.weight += p / PATHS;
+            if (attacks.length < 2) continue;
+            t.twoAttacks += p / PATHS;
+            const aims = attacks.flatMap(ev => ev.targets);
+            if (aims.some((c, k) => aims.indexOf(c) !== k)) t.focus += p / PATHS;
+          }
         }
       }));
       if (PER_POSITION) console.log(JSON.stringify({ rule, slice, catalogue: CATALOGUE, seed, ...snapshot(t, before) }));

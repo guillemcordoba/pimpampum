@@ -300,3 +300,61 @@ describe('gang rules (experimental): two attacks, 5 and 4, on one defense of 6',
   it('flank: 7 against 6 — 1 through; 6 against 6 is held', () => expect(play('flank')).toBe(19));
   it('single: the defense stops one blow (the first, with no chooser); the 4 lands in full', () => expect(play('single')).toBe(16));
 });
+
+describe('gang rules (experimental), the second batch', () => {
+  it('divided: the defense rolls once and its halves go where the defender sends them (no chooser: all to the first) — the 4 meets nothing', () => {
+    const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
+    const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
+    const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
+    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule: 'divided' });
+    playRound(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+      { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+    ]);
+    expect(d.currentPV).toBe(16);
+  });
+
+  it('unguarded: a body two attacks aim at loses its ally\'s guard — both blows land in full', () => {
+    const play = (gangRule: 'separate' | 'unguarded') => {
+      const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
+      const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
+      const x = fighter('X', [focusCard()], { pv: 20 });
+      const y = fighter('Y', [defenseCard('ten', { rollBonus: 0, dice: new DiceRoll(10, 1) })], { pv: 20 });
+      const engine = new CombatEngine([a1, a2], [x, y], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
+      playRound(engine, [
+        { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+        { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+        { team: 1, idx: 0, actionIdx: 0 },
+        { team: 1, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+      ]);
+      return x.currentPV;
+    };
+    expect(play('separate')).toBe(20);
+    expect(play('unguarded')).toBe(11);
+  });
+
+  it('swarm: the second blow meets a defense rolled twice, the worse kept — clearly more gets through', () => {
+    // Two 3s against a d6: E[max(0, 3 − d6)] = 0.5 per blow; with the worse
+    // of two d6, 31/36 for the second — +0.36. Less than that here: a
+    // defender who loses by ≤ 2 learns a level, and defends the second blow
+    // with it either way.
+    const mean = (gangRule: 'separate' | 'swarm') => withSeed(7, () => {
+      let lost = 0;
+      for (let i = 0; i < 3000; i++) {
+        const a1 = fighter('A1', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
+        const a2 = fighter('A2', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
+        const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 20 });
+        const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
+        playRound(engine, [
+          { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+          { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+          { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+        ]);
+        lost += 20 - d.currentPV;
+      }
+      return lost / 3000;
+    });
+    expect(mean('swarm') - mean('separate')).toBeGreaterThan(0.2);
+  });
+});
