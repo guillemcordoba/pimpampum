@@ -126,7 +126,34 @@ Every slow file at 2 games: **88 of 90 files execute.** The failures:
 
 **The answer `intentions.md` prescribes:** buff the corner that beats the winner. Here the broken edge is Aggro > Power, so Aggro needs a reason to win. It also may be partly the AI port: attackers now aim before any guard is up. The bot ladder checks that.
 
-_Pending:_ the bot ladder (`ai-strength.slow`), the rest of the slow tier, `/analyze`, and the referee audit.
+### The bot ladder (`ai-strength.slow`, fantasy): done, 8/9
+
+- ✅ The AI beats firstLegal, feeble, uniform and **spam** at least 70% of the time, and is never beaten by any of them.
+- ✅ Depth 1 (thinking one round ahead) beats depth 0.
+- ✅ Production is converged: a bigger budget beats it by clearly under 8 points.
+- ❌ **A bigger search budget plays worse than production:** depth1x against depth1 is 45.8% ±1.8 over 800 combats.
+  - **What it means:** more rollouts converge on the search's own model of the opponent, and that model (the depth-0 heuristic) now predicts the table worse under priority.
+  - **The plan for it:** the equilibrium-AI night (`AI-EQUILIBRIUM-PLAN.md`), which replaces "best response to a fixed guess" with an equilibrium.
+
+### AI benchmark, old engine against new (`tools/ai-benchmark.ts`, 200 combats per cell): done
+
+| Mirror head-to-head (winrate of the row) | Old | New |
+|---|---|---|
+| depth 1 (production) vs spam | 57.5% | **98.0%** |
+| depth-0 heuristic vs spam | 10.2% | 33.5% |
+| depth-0 heuristic vs uniform random | 86.8% | **41.8%** |
+| Production's play mix A/D/F, carrying the party | 62/10/28% | **17/42/41%** |
+
+- **The memory rule holds:** production against spam must not get worse, and it got much better.
+- **The real problem: the depth-0 heuristic now plays worse than random.** Its weights still make it attack about two-thirds of the time (66% of its decisions). Under priority, attacking into defenses that are always up first is a losing habit.
+- **The same heuristic is the opponent model in the search's rollouts.** The search plans against opponents who attack too much. That's why a bigger budget plays worse (the ladder failure above).
+- **What fixes it:**
+  - **Retune the heuristic's weights for priority:** the Defense and Focus base weights against attack damage.
+  - **Verify per the memory rules:** the referee audit after the fix, then the ladder, rejecting any fix that only moves the mistakes elsewhere.
+  - **Or replace the opponent model** on the equilibrium-AI night.
+- **The balance shift:** production now defends and focuses far more than it attacks. That's the same shift as the broken Aggro > Power edge and the longer fights.
+
+_Pending:_ the rest of the slow tier (kit suites), `/analyze`, the referee audit.
 
 ## Design pass (P3)
 
