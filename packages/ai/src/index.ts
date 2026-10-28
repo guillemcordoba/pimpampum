@@ -73,3 +73,6 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
       : pickResolveTargets(engine, actor, def, req, count, pool, full.attackAim),
   };
 }
+
+export { equilibriumPolicy, DEFAULT_EQUILIBRIUM } from './equilibrium.js';
+export type { EquilibriumPolicy } from './equilibrium.js';
