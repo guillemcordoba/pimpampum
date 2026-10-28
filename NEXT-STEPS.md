@@ -6700,6 +6700,14 @@ Plan: `AI-EQUILIBRIUM-PLAN.md`, "Revised".
 - Every round was solved by the prototype itself, with no fallback.
 - Cost: 0.1–6 s per position. Still far too slow for real hands (hundreds of joints a side).
 
+**Two stronger configurations** (`--playouts 32`, `--decisions exact`, 30 positions): the margin is the same within the noise.
+- 2v2: +6.0 / +6.5 with 32 playouts, +7.8 / +4.6 with exact decisions.
+- 2v1: +2.9 to +4.0.
+- 1v2: +5.4 to +7.2.
+- 1v1: +0.9 to +2.3.
+
+So the edge over today's AI doesn't hinge on the knobs. At these sizes, exact decisions are also **3–4× faster** than greedy (1.2 s against 5 s per 2v2 position), because they memoize.
+
 ### 56.4 Eight rules for several attacks on one defended body (`gangRule`, experimental)
 
 **The rules:**

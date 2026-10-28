@@ -26,6 +26,11 @@ const SLICES: Record<string, GeneratorConfig> = {
 const POSITIONS = games(20);
 const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalogue'];
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
+/** The prototype's own knobs, to compare its configurations. */
+const CONFIG = {
+  ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
+  ...(flag('--decisions') ? { decisions: flag('--decisions') as 'exact' | 'greedy' } : {}),
+};
 
 function play(pos: Position, team0: Policy, team1: Policy, seed: number): number {
   return withSeed(seed, () => {
@@ -35,16 +40,16 @@ function play(pos: Position, team0: Policy, team1: Policy, seed: number): number
   });
 }
 
-console.log(`EQUILIBRI (prototip) contra l'AI d'avui · cartes ${CATALOGUE} · ${POSITIONS} posicions per tall, parelles duplicades`);
+console.log(`EQUILIBRI (prototip ${JSON.stringify(CONFIG)}) contra l'AI d'avui · cartes ${CATALOGUE} · ${POSITIONS} posicions per tall, parelles duplicades`);
 for (const slice of slices) {
   const scores: number[] = [];
   let solved = 0, fallback = 0;
   const started = performance.now();
   for (let seed = 1; seed <= POSITIONS; seed++) {
     const pos = generatePosition(seed, { ...SLICES[slice], catalogue: CATALOGUE });
-    const eqA = equilibriumPolicy();
+    const eqA = equilibriumPolicy(CONFIG);
     const asA = play(pos, eqA, aiPolicy({ depth: 1 }), 50_000 + seed);
-    const eqB = equilibriumPolicy();
+    const eqB = equilibriumPolicy(CONFIG);
     const asB = -play(pos, aiPolicy({ depth: 1 }), eqB, 50_000 + seed);
     scores.push((asA + asB) / 2);
     solved += eqA.stats.solved + eqB.stats.solved;

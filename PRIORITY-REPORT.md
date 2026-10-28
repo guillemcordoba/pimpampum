@@ -189,7 +189,9 @@ Full numbers in `NEXT-STEPS.md` §56.
   - today's AI: 0.7–3.1;
   - one round scored by PV, or by today's evaluator: 2.8–6.3.
   - **Today's hand-weighted evaluator is a worse leaf than plain PV.**
-- **The prototype equilibrium player beats today's AI** on every small slice: +1.2 to +6.5 PV of margin, both seats, with no hand-set weights. It's far too slow for real hands yet.
+- **The prototype equilibrium player beats today's AI** on every small slice: +1.2 to +6.5 PV of margin, both seats, with no hand-set weights.
+  - The edge holds with 32 playouts or exact decisions: the same within the noise.
+  - It's far too slow for real hands yet.
 - **Eight rules for several attacks on one defended body:** see the decision below.
 
 ## Decisions for the user
