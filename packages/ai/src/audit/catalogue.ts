@@ -22,23 +22,10 @@ import {
   type StatusHookContext, type StatusRef,
 } from '@pimpampum/engine';
 import { PROFILE } from './profile.js';
+import { AUDIT_SKILL, dice, int, pick, type Draw, type Params } from './draw.js';
+import { buildComposed, COMPOSED_STATUSES, composedHorizon, describeComposed, drawComposed, registerComposed } from './compose.js';
 
-export type Params = Record<string, number>;
-export const AUDIT_SKILL = 'audit';
-
-/** A seeded uniform draw in [0, 1), and helpers over it. */
-export interface Draw {
-  (): number;
-}
-export const pick = <T>(r: Draw, xs: readonly T[]): T => xs[Math.floor(r() * xs.length)];
-export const int = (r: Draw, lo: number, hi: number): number => lo + Math.floor(r() * (hi - lo + 1));
-/** A draw from a frequency table `[value, weight][]`. */
-export function weighted<T>(r: Draw, table: readonly (readonly [T, number])[]): T {
-  const total = table.reduce((s, [, w]) => s + w, 0);
-  let x = r() * total;
-  for (const [v, w] of table) { x -= w; if (x <= 0) return v; }
-  return table[table.length - 1][0];
-}
+export { AUDIT_SKILL, int, pick, weighted, type Draw, type Params } from './draw.js';
 
 export interface Archetype {
   id: string;
@@ -62,11 +49,6 @@ function card(uid: string, type: ActionType, p: Params, over: Partial<ActionDefi
   };
 }
 
-/** Dice from the real ladder, as `{n, s}`. */
-function dice(r: Draw, ladder: readonly (readonly [string, number])[]): Params {
-  const [n, s] = weighted(r, ladder).split('d').map(Number);
-  return { n, s };
-}
 const fast = (r: Draw, type: 'attack' | 'defense' | 'focus'): number => (r() < PROFILE.fast[type] ? 1 : 0);
 const fatigueCost = (r: Draw): number => (r() < PROFILE.fatigueCostShare ? 1 : 0);
 const priced = (r: Draw): number => (r() < PROFILE.pricedShare ? 1 : 0);
@@ -172,6 +154,7 @@ const B = {
 export const STATUS_BEHAVIORS: Record<string, readonly StatusBehavior[]> = {
   'audit.bomb': B.bomb, 'audit.doom': B.doom, 'audit.device': B.device, 'audit.charged': B.charged,
   'audit.weak': B.weak, 'audit.lock': B.lock, 'audit.taunted': B.taunted,
+  ...COMPOSED_STATUSES,
 };
 
 // --- the registry ---------------------------------------------------------
@@ -281,6 +264,7 @@ export function auditRegistry(): EffectRegistry {
   r.register('audit:selfwound', {
     onAttackResolved(ctx) { ctx.engine.applyPvLoss(ctx.source, 1); },
   });
+  registerComposed(r);
   return r;
 }
 
@@ -407,6 +391,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
     draw: () => ({ fast: 1 }),
     horizon: () => 1,
   },
+  composed: {
+    id: 'composed', summary: 'a card drawn part by part: type, trigger, effect, subject (compose.ts)',
+    build: (p, uid) => buildComposed(p, uid),
+    draw: drawComposed,
+    horizon: composedHorizon,
+  },
   desperate: {
     id: 'desperate', summary: 'the universal fallback: only when nothing else is legal',
     build: (p, uid) => card(uid, ActionType.Atac, { n: 1, s: 4 }, { lastResort: true, effects: fx('audit:selfwound', {}) }),
@@ -416,4 +406,7 @@ export const ARCHETYPES: Record<string, Archetype> = {
 };
 
 /** Archetypes the generator deals (the fallback is added to every hand). */
-export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate');
+export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed');
+
+/** A card in words, for the report. */
+export const describeCard = (arch: string, p: Params): string => (arch === 'composed' ? describeComposed(p) : arch);

@@ -14,7 +14,7 @@
  * — so a harness, not an experiment.
  *
  * Run: pnpm --filter @pimpampum/tools exec tsx src/ai-shortcut-gap.ts
- *      … --games 12 --slice 2x1-c3-r3 --budget 4000000
+ *      … --games 12 --slice 2x1-c3-r3 --budget 4000000 --catalogue composed
  */
 import {
   aiPicks, BudgetExceeded, buildEngine, generatePosition, jointKey, Referee, Unsupported,
@@ -48,6 +48,10 @@ const POSITIONS = games(8);
 // skips the positions that take minutes.
 const BUDGET = Number(flag('--budget') ?? (SMOKE ? 300_000 : 4_000_000));
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
+/** Which imaginary cards the positions deal (`GeneratorConfig.catalogue`):
+ *  a shortcut is trusted only if it holds on composed cards too, not just on
+ *  the hand-written archetypes. */
+const CATALOGUE = (flag('--catalogue') ?? 'archetypes') as GeneratorConfig['catalogue'];
 /** `--only leaf`: just the candidates whose name holds this text. */
 const only = flag('--only');
 
@@ -65,7 +69,7 @@ for (const slice of slices) {
   const gen = SLICES[slice];
   if (!gen) throw new Error(`--slice ${slice}: unknown (${Object.keys(SLICES).join(', ')})`);
   for (let seed = 1; seed <= POSITIONS; seed++) {
-    const pos = generatePosition(seed, gen);
+    const pos = generatePosition(seed, { ...gen, catalogue: CATALOGUE });
     const exact = new Referee({ strategies: 'oracle', budget: BUDGET });
     let t = performance.now();
     try {
@@ -120,7 +124,7 @@ const quantile = (xs: number[], q: number) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : NaN;
 };
-console.log(`BRETXA DE CADA DRECERA contra el referee exacte · ${slices.join(', ')} · ${POSITIONS} posicions per tall`
+console.log(`BRETXA DE CADA DRECERA contra el referee exacte · cartes ${CATALOGUE} · ${slices.join(', ')} · ${POSITIONS} posicions per tall`
   + ` · ${skipped} fora de pressupost`);
 console.log('   drecera                                    posicions   bretxa mitjana   p90     s mitjans   rondes simulades');
 for (const r of rows.values()) {

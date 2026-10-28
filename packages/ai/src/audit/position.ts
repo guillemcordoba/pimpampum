@@ -139,6 +139,13 @@ export interface GeneratorConfig {
    *  50-round stall rule). `roundsLeft` then only sets how long PV is paced
    *  for and which payoffs are dealt; score it with `payoff: 'outcome'`. */
   toTheEnd?: boolean;
+  /**
+   * Which imaginary cards are dealt. `archetypes` (default): the hand-written
+   * list (`catalogue.ts`). `composed`: cards drawn part by part — type,
+   * trigger, effect, subject (`compose.ts`) — so a verdict is not about one
+   * list of effects. `mixed`: either, evenly.
+   */
+  catalogue?: 'archetypes' | 'composed' | 'mixed';
 }
 
 const BY_TYPE = {
@@ -158,7 +165,13 @@ function fits(arch: string, sideSize: number): boolean {
   return DEALT.includes(arch);
 }
 
-function drawCard(r: Draw, sideSize: number, maxHorizon: number): CardSpec {
+function drawCard(r: Draw, sideSize: number, maxHorizon: number, catalogue: GeneratorConfig['catalogue'] = 'archetypes'): CardSpec {
+  if (catalogue === 'composed' || (catalogue === 'mixed' && r() < 0.5)) {
+    for (let tries = 0; tries < 50; tries++) {
+      const c = { arch: 'composed', p: ARCHETYPES.composed.draw(r) };
+      if (horizonOf(c) <= maxHorizon) return c;
+    }
+  }
   for (let tries = 0; tries < 50; tries++) {
     const type = weighted(r, [['attack', PROFILE.typeMix.attack], ['defense', PROFILE.typeMix.defense], ['focus', PROFILE.typeMix.focus]] as const);
     const arch = weighted(r, BY_TYPE[type] as unknown as [string, number][]);
@@ -237,7 +250,7 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
       armour: weighted(r, PROFILE.armour[who]),
       level: weighted(r, PROFILE.level[who]),
       fatigue: who === 'hero' && r() < 0.2 ? int(r, 1, 2) : 0,
-      cards: Array.from({ length: n }, () => drawCard(r, sideSize, maxHorizon)),
+      cards: Array.from({ length: n }, () => drawCard(r, sideSize, maxHorizon, cfg.catalogue)),
     };
   };
   const teams: [FighterSpec[], FighterSpec[]] = [
@@ -248,7 +261,7 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
   // Weighted toward the multi-round cases: give the tested side one, if the
   // fight is long enough for any.
   let featured: string | undefined;
-  const room = MULTI_ROUND.filter(a => fits(a, nA));
+  const room = cfg.catalogue === 'composed' ? ['composed'] : MULTI_ROUND.filter(a => fits(a, nA));
   if (maxHorizon >= 2 && r() < (cfg.multiShare ?? 0.7) && room.length) {
     // Most multi-round cards pay next round; reach for the long ones (a
     // three-round device, a late mark) half the time the fight has room.
@@ -257,6 +270,8 @@ export function generatePosition(seed: number, cfg: GeneratorConfig = {}): Posit
       const arch = pick(r, room);
       const c = { arch, p: ARCHETYPES[arch].draw(r) };
       if (horizonOf(c) > maxHorizon) continue;
+      // A composed card is featured only when it pays after this round.
+      if (arch === 'composed' && horizonOf(c) < 2) continue;
       if (long && horizonOf(c) < 3 && tries < 50) continue;
       const f = teams[0][int(r, 0, nA - 1)];
       f.cards[int(r, 0, f.cards.length - 1)] = c;
