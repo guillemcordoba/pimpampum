@@ -31,21 +31,21 @@ const ARCHER_SKILL: SkillDefinition = {
   actions: [
     action({
       id: 'fletxa-a-l-escletxa', name: "Fletxa a l'escletxa", skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 3, dice: d(2, 6),
+      unlock: 1, type: ActionType.Atac, fast: true, dice: d(2, 6),
       effects: [{ type: 'piercing' }],
       desc: "Ignora l'armadura.",
       icon: 'lorc/arrowhead.svg',
     }),
     action({
       id: 'fletxa-de-senyal', name: 'Fletxa de senyal', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Focus, speed: -2,
+      unlock: 2, type: ActionType.Focus,
       effects: [{ type: 'signal_arrow' }],
       desc: `Crida un soldat del foc al combat (com a màxim ${CALL_CAP} per arquer).`,
       icon: 'lorc/flaming-arrow.svg',
     }),
     action({
       id: 'clavar-a-l-arbre', name: "Clavar a l'arbre", skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Atac, speed: 2, dice: d(3, 6),
+      unlock: 3, type: ActionType.Atac, dice: d(3, 6),
       effects: [{ type: 'pin_to_tree' }],
       desc: "No fa dany. Si supera la defensa (o no n'hi ha), fins al final del torn següent ningú no pot defensar l'objectiu, ni ell mateix.",
       icon: 'lorc/pierced-body.svg',

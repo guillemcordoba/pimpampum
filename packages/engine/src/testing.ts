@@ -27,31 +27,31 @@ export const TEST_SKILL = 'test';
 function card(id: string, actionType: ActionType, over: Partial<ActionDefinition>): ActionDefinition {
   return {
     id, name: id, skillId: TEST_SKILL, unlockLevel: 0, actionType,
-    speed: 1, effects: [], description: '', iconPath: '',
+    effects: [], description: '', iconPath: '',
     ...over,
   };
 }
 
-/** An attack, `1d1` at speed 1 unless told otherwise. */
+/** An attack, `1d1` unless told otherwise. */
 export function attackCard(id = 'hit', over: Partial<ActionDefinition> = {}): ActionDefinition {
   return card(id, ActionType.Atac, { dice: new DiceRoll(1, 1), ...over });
 }
 
-/** A defense, speed 5 and effectively unbeatable unless told otherwise. */
+/** A defense, effectively unbeatable unless told otherwise. */
 export function defenseCard(id = 'block', over: Partial<ActionDefinition> = {}): ActionDefinition {
-  return card(id, ActionType.Defensa, { speed: 5, rollBonus: 1000, ...over });
+  return card(id, ActionType.Defensa, { rollBonus: 1000, ...over });
 }
 
 /** A focus with no dice and no effect — playing it does nothing. */
 export function focusCard(id = 'wait', over: Partial<ActionDefinition> = {}): ActionDefinition {
-  return card(id, ActionType.Focus, { speed: 0, ...over });
+  return card(id, ActionType.Focus, { ...over });
 }
 
 /** Passive armour as an equipment item. */
-export function armour(value: number, speedPenalty = 0): EquipmentDefinition {
+export function armour(value: number): EquipmentDefinition {
   return {
     id: `armour-${value}`, name: `Armour ${value}`, slot: EquipmentSlot.Armor,
-    passiveArmor: value, speedPenalty, rollBonuses: [], iconPath: '', description: '',
+    passiveArmor: value, rollBonuses: [], iconPath: '', description: '',
   };
 }
 

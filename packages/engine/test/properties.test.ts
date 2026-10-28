@@ -3,7 +3,7 @@
  * fights someone thought of.
  *
  * A generated fight is two small teams of synthetic fighters (random dice,
- * speeds, types, target counts, armour, fatigue, PV) played by a uniformly
+ * fast flags, types, target counts, armour, fatigue, PV) played by a uniformly
  * random LEGAL chooser, so every legal path gets walked rather than the paths
  * an AI happens to prefer. The engine's own seeded stream does the rest, and
  * fast-check shrinks a failure to the smallest fight that still breaks.
@@ -30,7 +30,7 @@ const cardArb = fc.record({
   type: fc.constantFrom(ActionType.Atac, ActionType.Atac, ActionType.Defensa, ActionType.Focus),
   n: fc.integer({ min: 0, max: 4 }),
   s: fc.constantFrom(4, 6, 8),
-  speed: fc.integer({ min: 0, max: 5 }),
+  fast: fc.boolean(),
   targets: fc.constantFrom(1, 1, 1, 2, 99),
   unlock: fc.integer({ min: 0, max: 3 }),
 });
@@ -55,14 +55,13 @@ const fightArb = fc.record({
 function build(spec: FighterSpec, name: string): Character {
   const actions: ActionDefinition[] = spec.cards.map((c, i) => ({
     id: `${name}-${i}`, name: `${name}-${i}`, skillId: 'test', unlockLevel: c.unlock,
-    actionType: c.type, speed: c.speed,
+    actionType: c.type, fast: c.fast,
     dice: c.n > 0 ? new DiceRoll(c.n, c.s) : undefined,
     targetCount: c.targets, effects: [], description: '', iconPath: '',
   }));
   // Every fighter keeps one card they can always play, as every real hand does.
   actions.push({
-    id: `${name}-last`, name: 'last', skillId: 'test', unlockLevel: 0, actionType: ActionType.Atac,
-    speed: 0, dice: new DiceRoll(1, 4), lastResort: true, effects: [], description: '', iconPath: '',
+    id: `${name}-last`, name: 'last', skillId: 'test', unlockLevel: 0, actionType: ActionType.Atac, dice: new DiceRoll(1, 4), lastResort: true, effects: [], description: '', iconPath: '',
   });
   return fighter(name, actions, {
     pv: spec.pv, level: spec.level, fatigue: spec.fatigue, ai: true,

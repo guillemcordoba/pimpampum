@@ -24,7 +24,8 @@ export interface CardDisplayProps {
 // prepend import.meta.env.BASE_URL themselves.
 
 /** Stat row for an action card: contest dice (attack dice for Atac, defense
- *  dice under the shield icon for Defensa, plus any flat roll bonus) and speed. */
+ *  dice under the shield icon for Defensa, plus any flat roll bonus), and a
+ *  fast badge on fast cards. */
 export function actionStats(def: ActionDefinition): CardStat[] {
   const stats: CardStat[] = [];
   // Flat roll bonus rendered inline with the dice (e.g. "2d6+1", "arma +2").
@@ -45,7 +46,7 @@ export function actionStats(def: ActionDefinition): CardStat[] {
   if (def.effects.some(e => e.type === 'eruption')) {
     stats.push({ iconPath: STAT_ICONS.attack, value: '1d6 ×', suffixIconPath: STAT_ICONS.pressure });
   }
-  stats.push({ iconPath: STAT_ICONS.speed, value: def.speed > 0 ? `+${def.speed}` : String(def.speed) });
+  if (def.fast) stats.push({ iconPath: STAT_ICONS.fast, value: 'ràpida' });
   // Diceless actions (some focus cards) still show a bare roll bonus.
   if (bonusStr && !bonusShown) stats.push({ iconPath: STAT_ICONS.defense, value: bonusStr });
   // Bandolier cost: fixed càrregues for ordnance, or the whole pool (Traca final).
@@ -91,9 +92,9 @@ export function actionToDisplayProps(def: ActionDefinition, classCss: string, sk
 
 export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayProps {
   // An item whose whole identity is one granted card (a shield's raised-shield
-  // defense) renders AS that card: action-type colour, the card's dice + speed.
+  // defense) renders AS that card: action-type colour, the card's dice.
   const granted = eq.grantsActions?.length === 1 ? eq.grantsActions[0] : undefined;
-  if (granted && eq.attackBonus === undefined && !eq.passiveArmor && !eq.speedPenalty && !eq.rollBonuses?.length) {
+  if (granted && eq.attackBonus === undefined && !eq.passiveArmor && !eq.rollBonuses?.length) {
     return {
       name: eq.name,
       subtitle: `${ACTION_TYPE_DISPLAY_NAMES[granted.actionType]} · ${eq.slotLabel ?? eq.slot}`,
@@ -108,7 +109,6 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
   const stats: CardStat[] = [];
   if (eq.attackBonus !== undefined) stats.push({ iconPath: STAT_ICONS.attack, value: `+${eq.attackBonus}` });
   if (eq.passiveArmor) stats.push({ iconPath: STAT_ICONS.defense, value: `+${eq.passiveArmor}` });
-  if (eq.speedPenalty) stats.push({ iconPath: STAT_ICONS.speed, value: `-${eq.speedPenalty}` });
   // Roll bonuses: attack bonuses under the damage icon, defense (or any-roll)
   // bonuses under the shield icon.
   for (const b of eq.rollBonuses ?? []) {
@@ -135,7 +135,7 @@ export function equipmentToDisplayProps(eq: EquipmentDefinition): CardDisplayPro
 const TOKEN_ICON_MAP: Record<string, { icon: string; alt: string }> = {
   '{A}': { icon: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg', alt: 'A' },
   '{D}': { icon: STAT_ICONS.defense, alt: 'D' },
-  '{V}': { icon: STAT_ICONS.speed, alt: 'V' },
+  '{V}': { icon: STAT_ICONS.fast, alt: 'V' },
   '{DAMAGE}': { icon: STAT_ICONS.damage, alt: 'Dany' },
 };
 

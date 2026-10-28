@@ -133,11 +133,11 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
       ctx.engine.log('focus', `${ctx.source.name} llança ${t.name} pels aires: «${launched.action.name}» es resol ara.`, ctx.source.team);
     },
     // Chosen before the reveal (the plan is still empty then): worth it when
-    // an ally holds an Atac slower than the launch.
+    // the launch is fast and an ally holds a normal Atac it can pull forward.
     aiWeight(ctx) {
-      const slowAtac = (c: Character) => c.actions.some(a =>
-        a.def.actionType === ActionType.Atac && !a.def.lastResort && a.def.speed < ctx.action.speed);
-      return ctx.allies.some(slowAtac) ? 0.6 : 0;
+      const normalAtac = (c: Character) => c.actions.some(a =>
+        a.def.actionType === ActionType.Atac && !a.def.lastResort && !a.def.fast);
+      return ctx.action.fast && ctx.allies.some(normalAtac) ? 0.6 : 0;
     },
     // Aimed after the reveal: the ally whose Atac is still to come.
     aiTargetPriority(ctx, candidate) {
@@ -267,69 +267,69 @@ export const ACROBACIA: SkillDefinition = {
   actions: [
     action({
       id: 'escombrada@cal', name: 'Escombrada', skillId: 'acrobacia@cal',
-      unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
       effects: [{ type: 'sweep@cal' }],
       desc: "Si fereix, l'objectiu queda a terra: els atacs contra ell tenen +2 fins al final del torn següent.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({
       id: 'esquiva-i-traveta@cal', name: 'Esquiva i traveta', skillId: 'acrobacia@cal',
-      unlock: 2, type: ActionType.Defensa, speed: 3, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'trip@cal' }],
       desc: "Si aguanta, l'atacant queda a terra.",
       icon: 'felbrigg/dodge.svg',
     }),
     action({
       id: 'trampoli-de-mans@cal', name: 'Trampolí de mans', skillId: 'acrobacia@cal',
-      unlock: 3, type: ActionType.Focus, speed: 4,
+      unlock: 3, type: ActionType.Focus, fast: true,
       effects: [{ type: 'hand_trampoline@cal' }],
       desc: "Un aliat: el seu atac d'aquest torn es resol ara; si fereix, l'objectiu queda a terra.",
       icon: 'delapouite/leapfrog.svg',
     }),
     action({
       id: 'puntada-d-espagat@cal', name: "Puntada d'espagat", skillId: 'acrobacia@cal',
-      unlock: 4, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 2,
+      unlock: 4, type: ActionType.Atac, dice: d(2, 6), targetCount: 2,
       desc: 'Afecta dos enemics.',
       icon: 'delapouite/van-damme-split.svg',
     }),
     action({
       id: 'tombarella-de-rescat@cal', name: 'Tombarella de rescat', skillId: 'acrobacia@cal',
-      unlock: 5, type: ActionType.Defensa, speed: 4, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
       effects: [{ type: 'rescue_roll@cal' }],
       desc: 'Defensa el primer aliat que sigui atacat aquest torn.',
       icon: 'lorc/cartwheel.svg',
     }),
     action({
       id: 'cavalcar-l-enemic@cal', name: "Cavalcar l'enemic", skillId: 'acrobacia@cal',
-      unlock: 6, type: ActionType.Atac, speed: 1, dice: d(3, 6),
+      unlock: 6, type: ActionType.Atac, dice: d(3, 6),
       effects: [{ type: 'ride_enemy@cal' }],
       desc: "Si fereix, l'objectiu no et pot atacar el torn següent.",
       icon: 'delapouite/jump-across.svg',
     }),
     action({
       id: 'trepitjar-caps@cal', name: 'Trepitjar caps', skillId: 'acrobacia@cal',
-      unlock: 7, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
+      unlock: 7, type: ActionType.Atac, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'head_stomp@cal' }],
       desc: 'Afecta tots els enemics; el que triïs queda a terra.',
       icon: 'lorc/boot-stomp.svg',
     }),
     action({
       id: 'salt-mortal@cal', name: 'Salt mortal', skillId: 'acrobacia@cal',
-      unlock: 8, type: ActionType.Atac, speed: 1, dice: d(3, 6),
+      unlock: 8, type: ActionType.Atac, dice: d(3, 6),
       effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'somersault@cal', params: { heights: [2, 4, 6] } }],
       desc: "Puges 1 nivell de fatiga. En revelar, tria +2, +4 o +6; si l'objectiu no cau, perds el mateix en PV.",
       icon: 'lorc/heavy-fall.svg',
     }),
     action({
       id: 'malabars-a-puntades@cal', name: 'Malabars a puntades', skillId: 'acrobacia@cal',
-      unlock: 9, type: ActionType.Atac, speed: 2, dice: d(2, 6),
+      unlock: 9, type: ActionType.Atac, dice: d(2, 6),
       effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'juggling_kicks@cal', params: { blows: 4 } }],
       desc: "Puges 1 nivell de fatiga. Mentre fereixi, el tornes a atacar (4 cops en total); si l'has ferit, queda a terra.",
       icon: 'lorc/juggler.svg',
     }),
     action({
       id: 'capbusso-suicida@cal', name: 'Capbussó suïcida', skillId: 'acrobacia@cal',
-      unlock: 10, type: ActionType.Atac, speed: 0, dice: d(3, 8), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(3, 8), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'suicide_dive@cal' }],
       desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics; els ferits queden a terra, i tu també.',
       icon: 'delapouite/pool-dive.svg',

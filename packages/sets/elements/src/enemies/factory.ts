@@ -37,8 +37,7 @@ export function createEnemyFrom(def: EnemyDefinition, spec: EnemySpec): Characte
       name: 'Armadura natural',
       slot: EquipmentSlot.Armor,
       passiveArmor: def.naturalArmor,
-      speedPenalty: 0,
-      rollBonuses: [],
+            rollBonuses: [],
       iconPath: '',
       description: `Armadura natural ${def.naturalArmor}.`,
     });

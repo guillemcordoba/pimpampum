@@ -40,7 +40,7 @@ const flowSwapHands = computed(() =>
   }));
 
 /**
- * Each revealed action paired with its card instance, in speed order. Kept
+ * Each revealed action paired with its card instance, in resolution order (fast step, then Defense → Attack → Focus). Kept
  * index-aligned with the engine's pending queue (no filtering) so the current /
  * resolved highlighting below maps onto the right card.
  */
@@ -106,7 +106,7 @@ function isHighlighted(team: number, idx: number): boolean {
               >
                 <div class="reveal-card-name">
                   {{ r.actorName }}
-                  <span class="reveal-speed">vel {{ r.speed }}</span>
+                  <span v-if="r.fast" class="reveal-speed">ràpida</span>
                 </div>
                 <MiniCard v-if="action" :action="action" :class-css="r.classCss" readonly />
               </div>

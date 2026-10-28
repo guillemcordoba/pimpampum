@@ -51,14 +51,14 @@ export const METGE: SkillDefinition = {
   actions: [
     action({
       id: 'cures-de-camp@cal', name: 'Cures de camp', skillId: 'metge@cal',
-      unlock: 1, type: ActionType.Focus, speed: 0, dice: d(2, 4),
+      unlock: 1, type: ActionType.Focus, dice: d(2, 4),
       effects: [{ type: 'heal', params: { mode: 'roll' } }],
       desc: 'Cura un aliat o tu mateix: recupera la tirada en PV.',
       icon: 'lorc/bandage-roll.svg',
     }),
     action({
       id: 'injeccio-adrenalina@cal', name: "Injecció d'adrenalina", skillId: 'metge@cal',
-      unlock: 2, type: ActionType.Focus, speed: 5,
+      unlock: 2, type: ActionType.Focus, fast: true,
       effects: [{ type: 'adrenaline@cal', params: { fatigue: 1 } }],
       desc: "Un aliat executa la seva acció d'atac dues vegades aquest torn, i és ell qui puja 1 nivell de fatiga.",
       icon: 'lorc/syringe.svg',

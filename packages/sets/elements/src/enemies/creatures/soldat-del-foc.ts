@@ -18,21 +18,21 @@ const SOLDIER_SKILL: SkillDefinition = {
   actions: [
     action({
       id: 'punyals-de-foc', name: 'Punyals de foc', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 2, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
       effects: [{ type: 'pile_on' }],
       desc: "+2 si l'objectiu ja ha perdut PV aquest torn.",
       icon: 'lorc/fire-dash.svg',
     }),
     action({
       id: 'calar-foc', name: 'Calar foc', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Focus, speed: -2,
+      unlock: 2, type: ActionType.Focus,
       effects: [{ type: 'set_ablaze' }],
       desc: "Durant 2 torns, cada heroi perd 2 PV al final del torn. No s'acumula.",
       icon: 'delapouite/burning-forest.svg',
     }),
     action({
       id: 'foc-en-formacio', name: 'Foc en formació', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(2, 6),
+      unlock: 3, type: ActionType.Atac, dice: d(2, 6),
       effects: [{ type: 'formation' }],
       desc: '+2 per cada altre soldat que també la jugui aquest torn (fins a +6).',
       icon: 'lorc/fire-bowl.svg',

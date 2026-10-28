@@ -14,8 +14,8 @@
  */
 import {
   Character, ActionInstance, ActionDefinition, ActionType, TargetRequirement,
-  EffectRegistry, AIContext, AIView, PlannedAction, DiceRoll, expectedExcess,
-  skillLevelBonus, random, availableActionIndices, getActionTargetCount,
+  EffectRegistry, AIContext, AIView, PlannedAction, PendingSummary, DiceRoll, expectedExcess,
+  skillLevelBonus, random, availableActionIndices, getActionTargetCount, orderKey,
 } from '@pimpampum/engine';
 
 /** Fraction of a character's PV remaining (0..1). */
@@ -140,8 +140,10 @@ interface DecisionFacts {
   woundedAllies: number;
   woundedEnemies: number;
   selfHurt: boolean;
-  /** Per enemy, the speed of its slowest interruptible focus (Infinity: none). */
-  enemyFocusSpeeds: number[];
+  /** Per enemy, the latest place (`orderKey`) any of its playable Focus cards
+   *  would resolve (-Infinity: none) — an attack that resolves before it can
+   *  interrupt it. */
+  enemyFocusKeys: number[];
   guardsOf: (e: Character) => ReturnType<typeof bestDefenseParts>;
   defenses: DefenseModel;
 }
@@ -159,13 +161,13 @@ function decisionFacts(actor: Character, allies: Character[], enemies: Character
     woundedAllies: allies.filter(a => pvFraction(a) < 0.5).length,
     woundedEnemies: enemies.filter(e => pvFraction(e) < 0.4).length,
     selfHurt: pvFraction(actor) < 0.5,
-    enemyFocusSpeeds: enemies.map(e => {
-      let lowest = Infinity;
+    enemyFocusKeys: enemies.map(e => {
+      let latest = -Infinity;
       for (const a of e.actions) {
         if (a.def.actionType === ActionType.Focus && a.isAvailable()
-          && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel) lowest = Math.min(lowest, a.def.speed);
+          && (e.skills.get(a.def.skillId) ?? 0) >= a.def.unlockLevel) latest = Math.max(latest, orderKey(ActionType.Focus, e.isFast(a)));
       }
-      return lowest;
+      return latest;
     }),
     guardsOf: e => {
       if (!guards.has(e)) guards.set(e, bestDefenseParts(e));
@@ -190,15 +192,16 @@ function actionWeight(
       // stay the default plan or fights stall into draws.
       w = 1 + 1.5 * estimateExpectedDamage(actor, def, enemies, facts.guardsOf);
       w += woundedEnemies * 1.5; // finish wounded foes
-      // Interrupt value: an undefended hit cancels a slower pending Focus,
-      // so an attack that outspeeds enemies' focus cards is worth playing
-      // even when its dice are tiny (disruptor jabs). Strong enough to make
-      // the fast knife a real choice next to bigger dice.
-      const disruptable = facts.enemyFocusSpeeds.filter(speed => speed < def.speed).length;
+      // Interrupt value: an undefended hit cancels a Focus that resolves after
+      // it — every normal Focus, for any attack; a fast one only for a fast
+      // attack — so an attack is worth playing against focusers even when its
+      // dice are tiny (disruptor jabs).
+      const atkKey = orderKey(ActionType.Atac, actor.isFast(action));
+      const disruptable = facts.enemyFocusKeys.filter(k => k > atkKey).length;
       w += Math.min(3.6, 1.2 * disruptable);
-      // First-strike prior: a fast attack lands before retaliation — and
-      // before same-round deaths can void it.
-      w += 0.2 * Math.min(4, Math.max(0, actor.getEffectiveSpeed(action)));
+      // First-strike prior: a fast attack lands before every normal defense
+      // and before retaliation.
+      w += actor.isFast(action) ? 0.8 : 0.2;
       break;
     }
     case ActionType.Defensa: {
@@ -237,7 +240,7 @@ function actionWeight(
     }
     case ActionType.Focus: {
       w = 1.2;
-      if (selfHurt && def.speed < 5) w -= 1; // don't telegraph a slow focus while dying
+      if (selfHurt && !actor.isFast(action)) w -= 1; // don't telegraph a normal focus while dying
       break;
     }
   }
@@ -311,12 +314,20 @@ function cardTargetPriority(
   return c => scores.get(c) ?? 0;
 }
 
+/** Where a pending foe attack lands: where it AIMED (every attack aims at
+ *  the reveal, so a defender sees it), or — not aimed yet, as inside a
+ *  heuristic's own guess before the reveal — as that foe would aim it. */
+function landing(view: AIView, p: PendingSummary, team: Character[], aim: AttackAim): readonly Character[] {
+  if (p.targets) return p.targets;
+  const count = getActionTargetCount(p.action);
+  return count >= team.length ? team : pickResolveTargets(view, p.actor, p.action, 'enemy', count, team, aim);
+}
+
 /**
  * WHERE THE BLOWS STILL TO COME WILL LAND, by ally: each foe attack still
- * pending is aimed as that foe would aim it (this same function, on the foe's
- * side), and its expected total is counted on whoever it picks — on all of
- * them for a blow that hits every enemy. A guard covers someone; this is who
- * needs covering. (Guards used to go to the most wounded ally, wherever the
+ * pending lands where it aimed (`landing`), and its expected total is counted
+ * on whoever it picks — on all of them for a blow that hits every enemy. A
+ * guard covers someone; this is who needs covering. (Guards used to go to the most wounded ally, wherever the
  * blows were headed: inside the search's rollouts that made a guard look
  * useless beside a strike, and the AI under-defended — NEXT-STEPS §54.2.)
  */
@@ -325,8 +336,7 @@ function incomingByAlly(view: AIView, actor: Character, allies: Character[], aim
   const team = view.alliesOf(actor, true).filter(c => c.isAlive());
   for (const p of view.pendingSummary()) {
     if (p.resolved || p.cancelled || p.actor.team === actor.team || p.actionType !== ActionType.Atac || !p.actor.isAlive()) continue;
-    const count = getActionTargetCount(p.action);
-    const hit = count >= team.length ? team : pickResolveTargets(view, p.actor, p.action, 'enemy', count, team, p.speed, aim);
+    const hit = landing(view, p, team, aim);
     const dmg = expectedAttackTotal(p.actor, p.action);
     for (const c of hit) if (out.has(c)) out.set(c, out.get(c)! + dmg);
   }
@@ -368,7 +378,7 @@ function guardOrBlock(
   for (const p of view.pendingSummary()) {
     if (p.resolved || p.cancelled || p.actor.team === actor.team || p.actionType !== ActionType.Atac || !p.actor.isAlive()) continue;
     const n = getActionTargetCount(p.action);
-    const hit = n >= team.length ? team : pickResolveTargets(view, p.actor, p.action, 'enemy', n, team, p.speed, 'share');
+    const hit = landing(view, p, team, 'share');
     const dmg = expectedAttackTotal(p.actor, p.action);
     for (const c of hit) if (guardValue.has(c)) guardValue.set(c, guardValue.get(c)! + dmg / Math.max(1, c.maxPV));
     if (n < team.length && enemies.includes(p.actor)) {
@@ -412,15 +422,16 @@ export type AttackAim = 'wounded' | 'share';
 
 /** `pickResolveTargets` with an aim fixed, as a `targetChooser`. */
 export function aimedTargets(aim: AttackAim = 'share') {
-  return (view: AIView, actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, pool: Character[], speed: number): Character[] =>
-    pickResolveTargets(view, actor, def, req, count, pool, speed, aim);
+  return (view: AIView, actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, pool: Character[]): Character[] =>
+    pickResolveTargets(view, actor, def, req, count, pool, aim);
 }
 
 /**
- * Resolution-time target choice for an AI actor. Runs when the action actually
- * resolves, so it sees everything a human at the table sees at that moment:
- * who already died, which guards are up, and which slower focuses are still
- * pending (and can therefore be interrupted by landing a hit).
+ * Target choice for an AI actor, with what a human at the table sees at that
+ * moment. An ATTACK aims at the reveal: every card is face up, but no defense
+ * has chosen whom it guards yet — so cover is predicted from the revealed
+ * Defense cards. Everything else chooses when it resolves: a defense sees
+ * where every attack aimed.
  */
 export function pickResolveTargets(
   view: AIView,
@@ -429,7 +440,6 @@ export function pickResolveTargets(
   req: TargetRequirement,
   count: number,
   pool: Character[],
-  speed: number,
   aim: AttackAim = 'share',
 ): Character[] {
   if (req === 'none') return [];
@@ -494,12 +504,23 @@ export function pickResolveTargets(
       if (ally && (ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
     }
   }
-  // What THIS blow is expected to take off `e`: through the wall already
-  // standing in front of it (its own and its allies' resolved guards, summed —
-  // defensa conjunta), less armour. `share` aim only.
+  // What THIS blow is expected to take off `e`: through the wall in front of
+  // it — its standing guards, and its OWN revealed Defense card still to
+  // resolve (a defense always covers its player; whom an allied defender will
+  // guard is not known when attacks aim) — summed (defensa conjunta), less
+  // armour. `share` aim only.
   const atk = attackParts(actor, def);
+  const ownDefense = (e: Character) => pending.find(p => p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Defensa);
+  const coverOf = (e: Character) => {
+    const standing = e.guards.filter(g => g.defender.isAlive());
+    const own = ownDefense(e);
+    return own && !standing.some(g => g.defender === e && g.action === own.action) ? [...standing, { defender: e, action: own.action }] : standing;
+  };
+  const otherDefenders = (e: Character) => pending.filter(p => p.actor !== e && p.actor.team === e.team && !p.resolved && !p.cancelled
+    && p.actionType === ActionType.Defensa && p.actor.isAlive()).length;
+  const atkKey = orderKey(ActionType.Atac, actor.isFast(def));
   const throughWall = (e: Character): number => {
-    const wall = e.guards.filter(g => g.defender.isAlive());
+    const wall: { defender: Character; action: ActionDefinition; fixedTotal?: number }[] = coverOf(e);
     const armour = e.getPassiveArmor();
     if (!wall.length) return expectedExcess(atk.dice, atk.flat, undefined, 0, armour);
     const flatOf = (g: typeof wall[number]): number => (g.action.rollBonus ?? 0)
@@ -520,8 +541,10 @@ export function pickResolveTargets(
       else if (dmg > 0 && teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= e.currentPV) s += 3;
       const focusing = pending.some(p =>
         p.actor === e && !p.resolved && !p.cancelled
-        && p.actionType === ActionType.Focus && p.speed < speed);
+        && p.actionType === ActionType.Focus && p.step > atkKey);
       if (focusing && !e.hitThisTurn) s += 3;
+      // An allied defender may step in front of it once it has aimed.
+      s -= 0.5 * otherDefenders(e);
       return s;
     }
     // An ATTACK focuses fire on the wounded; anything else aimed at an enemy —
@@ -538,10 +561,11 @@ export function pickResolveTargets(
       }
       const focusing = pending.some(p =>
         p.actor === e && !p.resolved && !p.cancelled
-        && p.actionType === ActionType.Focus && p.speed < speed);
+        && p.actionType === ActionType.Focus && p.step > atkKey);
       if (focusing && !e.hitThisTurn) s += 3; // a hit now cancels their focus
     }
-    if (e.guards.some(g => g.defender.isAlive())) s -= 2; // don't feed active guards
+    if (coverOf(e).length) s -= 2; // don't feed guards (standing, or its own revealed defense)
+    s -= 0.5 * otherDefenders(e); // an allied defender may step in front of it
     return s;
   };
   const scores = new Map(pool.map(e => [e, score(e)]));

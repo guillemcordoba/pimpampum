@@ -18,14 +18,14 @@ export const GEL: SkillDefinition = {
   actions: [
     action({
       id: 'ale-de-gebre@cal', name: 'Alè de gebre', skillId: 'gel@cal',
-      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
       effects: [{ type: 'debuff_on_hit', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } }],
       desc: "Si encertes, l'objectiu té −2 de velocitat el torn següent.",
       icon: 'lorc/ice-bolt.svg',
     }),
     action({
       id: 'paisatge-congelat@cal', name: 'Paisatge congelat', skillId: 'gel@cal',
-      unlock: 2, type: ActionType.Focus, speed: -2,
+      unlock: 2, type: ActionType.Focus,
       effects: [{ type: 'skill_mod', params: { kind: 'speed', amount: -3, duration: 2, target: 'enemies' } }],
       desc: 'Tots els enemics tenen −3 de velocitat durant 2 torns.',
       icon: 'lorc/icebergs.svg',

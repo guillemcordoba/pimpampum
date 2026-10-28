@@ -173,7 +173,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
   actions: [
     action({
       id: 'granada-de-fragmentacio@cal', name: 'Granada de fragmentació', skillId: 'enginyer-explosius@cal',
-      unlock: 1, type: ActionType.Atac, speed: 1, dice: d(1, 6), targetCount: 99, rollPerTarget: true,
+      unlock: 1, type: ActionType.Atac, dice: d(1, 6), targetCount: 99, rollPerTarget: true,
       effects: [{ type: 'charge_cost@cal', params: { amount: 1 } }],
       desc: 'Afecta tots els enemics: tira els daus per a cadascun per separat.',
       icon: 'lorc/grenade.svg',
@@ -184,20 +184,20 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     standingCoverAction({
       skillId: 'enginyer-explosius@cal', unlock: 2,
       id: 'barricada@cal', name: 'Barricada', key: 'barricada@cal', label: 'la barricada',
-      dice: d(2, 6), life: d(1, 6), speed: 1,
+      dice: d(2, 6), life: d(1, 6),
       desc: 'La barricada persisteix: mentre és dreta, els atacs contra el protegit es resolen contra la teva defensa. Té 1d6 de vida i absorbeix el dany que la travessa; es destrueix quan se li acaba.',
       icon: 'delapouite/barricade.svg',
     }),
     action({
       id: 'bomba-de-fum@cal', name: 'Bomba de fum', skillId: 'enginyer-explosius@cal',
-      unlock: 3, type: ActionType.Focus, speed: 3,
+      unlock: 3, type: ActionType.Focus, fast: true,
       effects: [{ type: 'smoke@cal', params: { turns: 2 } }],
       desc: 'Cada enemic que ataca aquest torn i el següent tira un d20: amb 12 o menys, l’atac impacta un personatge a l’atzar.',
       icon: 'darkzaitzev/smoke-bomb.svg',
     }),
     action({
       id: 'camp-minat@cal', name: 'Camp minat', skillId: 'enginyer-explosius@cal',
-      unlock: 4, type: ActionType.Focus, speed: 1,
+      unlock: 4, type: ActionType.Focus,
       effects: [
         { type: 'charge_cost@cal', params: { amount: 1 } },
         { type: 'lay_minefield@cal', params: { mines: 4, damageCount: 3, damageSides: 4 } },
@@ -207,7 +207,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     }),
     action({
       id: 'traca-final@cal', name: 'Traca final', skillId: 'enginyer-explosius@cal',
-      unlock: 5, type: ActionType.Atac, speed: -4, targetCount: 99,
+      unlock: 5, type: ActionType.Atac, targetCount: 99,
       effects: [{ type: 'empty_bandolier@cal', params: { sides: 6, max: 4 } }],
       desc: 'Gasta totes les càrregues: ataca amb 1d6 per càrrega (màx. 4d6). Afecta tots els enemics.',
       icon: 'skoll/carpet-bombing.svg',

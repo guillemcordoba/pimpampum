@@ -244,7 +244,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
   debuff_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target || !ctx.target.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
-      applyMod(ctx.target, str(ctx.params, 'kind', 'speed') as ModKind, -num(ctx.params, 'amount', 2),
+      applyMod(ctx.target, str(ctx.params, 'kind', 'attack') as ModKind, -num(ctx.params, 'amount', 2),
         durParam(ctx.params, 'duration', 'nextTurn'), ctx.action.name, undefined, HARM);
     },
     aiWeight() { return 0.5; },

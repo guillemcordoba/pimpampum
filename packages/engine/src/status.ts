@@ -59,8 +59,9 @@ export interface StatusBehavior {
   // --- Query hooks: pure reads of the combat pipeline (they may still mutate
   // --- the holder, e.g. a one-shot bonus consuming itself). ------------------
 
-  /** Added to the holder's effective action speed. */
-  modifySpeed?(ref: StatusRef): number;
+  /** Grants (true) or strips (false) the FAST step for a card the holder
+   *  plays; nothing: no say. A strip beats any grant. */
+  fast?(ref: StatusRef, action: ActionDefinition): boolean | void;
   /** Roll mode for the holder's contest dice: roll the whole pool twice, keep
    *  worst / best. Disadvantage wins if several statuses disagree. `kind` is
    *  provided at contest sites ('attack'/'defense'/'save') so a stance can
@@ -212,7 +213,7 @@ export interface StatusBehavior {
   skipsRound?(ctx: StatusHookContext): boolean;
   /** The holder's cards resolve PLAIN while this holds: none of their effects
    *  run (no rider, no cost, no focus body) and they aim at one target — only
-   *  the card's type, speed and dice count. Asked whenever an effect would
+   *  the card's type, fast flag and dice count. Asked whenever an effect would
    *  dispatch or a target is chosen. */
   plainCards?(ctx: StatusHookContext): boolean;
   /** The holder has just lost `amount` PV (> 0, after armour and clamps),

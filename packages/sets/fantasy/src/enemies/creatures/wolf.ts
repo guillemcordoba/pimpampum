@@ -42,11 +42,11 @@ const WOLF_SKILL: SkillDefinition = {
   iconPath: ICON + 'lorc/wolf-head.svg',
   actions: [
     // 1d2 was below the floor flat armour sets: leather alone deleted it.
-    action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'wolf', unlock: 1, type: ActionType.Atac, speed: 3, dice: d(1, 4), desc: '', icon: 'delapouite/claws.svg' }),
-    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 2, type: ActionType.Focus, speed: -2, effects: [{ type: 'summon', params: { factory: makeWolf, maxTeam: 6 } }], desc: 'Crida un llop nou al combat, fins a un màxim de 6 llops que hagin participat en la batalla.', icon: 'lorc/wolf-howl.svg' }),
+    action({ id: 'urpa-rapida', name: 'Urpa ràpida', skillId: 'wolf', unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 4), desc: '', icon: 'delapouite/claws.svg' }),
+    action({ id: 'udol', name: 'Udol', skillId: 'wolf', unlock: 2, type: ActionType.Focus, effects: [{ type: 'summon', params: { factory: makeWolf, maxTeam: 6 } }], desc: 'Crida un llop nou al combat, fins a un màxim de 6 llops que hagin participat en la batalla.', icon: 'lorc/wolf-howl.svg' }),
     action({
       id: 'caca-en-manada', name: 'Caça en manada', skillId: 'wolf',
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(1, 6),
+      unlock: 3, type: ActionType.Atac, dice: d(1, 6),
       effects: [{ type: 'pack_hunt', params: { per: 1 } }],
       desc: 'La defensa de l\'objectiu baixa 1 per cada altre llop viu.',
       icon: 'lorc/wolf-howl.svg',

@@ -12,11 +12,13 @@ import { num, tspec, resolveTargets, targetReq, HARM } from '../effects/helpers.
  * Its one guard, Sudari de tomba, condemns whatever it turns away, so even
  * defending feeds the reaping. No pets — a Power-corner attrition controller.
  */
-// The doom mark: every roll at disadvantage, 3 slower.
+// The doom mark: every roll at disadvantage, and no card of theirs is fast.
+// (It was −3 speed; under the priority system the nearest meaning is losing
+// the fast step. Its text awaits the design pass — DESIGN-PROPOSALS.md.)
 const CONDEMNAT: StatusBehavior = {
   rollMode() { return 'disadvantage'; },
-  modifySpeed() { return -3; },
-  /** Disadvantage on every roll plus −3 speed is a real handicap, and one the
+  fast() { return false; },
+  /** Disadvantage on every roll plus no fast cards is a real handicap, and one the
    *  evaluator could not see at all: neither moves PV, bodies or fatigue. A
    *  third of a body, and no more — the marked still act, they just act
    *  worse. */
@@ -137,28 +139,28 @@ export const NIGROMANT: SkillDefinition = {
   actions: [
     action({
       id: 'marca-de-la-perdicio', name: 'Marca de la perdició', skillId: 'nigromant',
-      unlock: 2, type: ActionType.Focus, speed: 3,
+      unlock: 2, type: ActionType.Focus, fast: true,
       effects: [{ type: 'condemn', params: { turns: 3 } }],
       desc: 'Condemna un enemic (3 torns): tira amb desavantatge i té −3 de velocitat.',
       icon: 'lorc/cursed-star.svg',
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Atac, speed: 1, dice: d(2, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',
     }),
     action({
       id: 'sudari-de-tomba', name: 'Sudari de tomba', skillId: 'nigromant',
-      unlock: 4, type: ActionType.Defensa, speed: 2, dice: d(3, 6),
+      unlock: 4, type: ActionType.Defensa, dice: d(3, 6),
       effects: [{ type: 'condemn_on_block', params: { turns: 1 } }],
       desc: "Si bloqueges un atac, l'atacant queda condemnat (1 torn).",
       icon: 'lorc/haunting.svg',
     }),
     action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
-      unlock: 5, type: ActionType.Focus, speed: 1,
+      unlock: 5, type: ActionType.Focus,
       effects: [{ type: 'plague', params: { damage: 3, turns: 3 } }],
       desc: "L'objectiu perd 3 PV en ser infectat i al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 7: queda infectat.",
       icon: 'lorc/virus.svg',
@@ -175,14 +177,14 @@ export const NIGROMANT: SkillDefinition = {
       // cleverer trick and now sits at 2-3, still adjacent so the combo is
       // still learnt in one step. 1d6 was the weakest workhorse in the game
       // (peers run 2d4-2d6 at the same job).
-      unlock: 1, type: ActionType.Atac, speed: 0, dice: d(2, 6),
+      unlock: 1, type: ActionType.Atac, dice: d(2, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',
     }),
     action({
       id: 'invocar-ombra-infern', name: "Invocar l'ombra de l'infern", skillId: 'nigromant',
-      unlock: 6, type: ActionType.Focus, speed: 1, targetCount: 99,
+      unlock: 6, type: ActionType.Focus, targetCount: 99,
       effects: [{ type: 'condemn', params: { turns: 3 } }],
       desc: 'Condemna tots els enemics (3 torns): tiren amb desavantatge i tenen −3 de velocitat.',
       icon: 'lorc/tentacles-skull.svg',

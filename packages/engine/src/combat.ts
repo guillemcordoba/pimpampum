@@ -36,7 +36,10 @@ export interface RevealedAction {
   actionId: string;
   actionName: string;
   actionType: ActionType;
-  speed: number;
+  /** Resolves in the fast step. */
+  fast: boolean;
+  /** Its place in the round's order (`orderKey`): lower resolves first. */
+  step: number;
   classCss: string;
   iconPath: string;
   /** The action never happened: cancelled while pending, its focus was
@@ -106,7 +109,10 @@ export function mergeCombatStats(into: CombatStats, from: CombatStats): void {
 interface PendingAction {
   actor: Character;
   action: ActionInstance;
-  speed: number;
+  /** Its place in the round's order (`orderKey`, rewritten by delay/advance). */
+  key: number;
+  /** The type a reveal-time pick placed it as (`revealAs`); undefined: its printed one. */
+  as?: ActionType;
   /** null until targeted (human prompt) or auto-filled (AI / trivial). */
   targets: Character[] | null;
   /** Set by cancelPendingAction: a cancelled action that never resolves. */
@@ -124,11 +130,23 @@ interface PendingAction {
  */
 export type ActionChooser = (engine: CombatEngine, actor: Character) => number | null;
 
-/** Resolution-time target choice. Also a policy, also injected. */
+/** Target choice — attacks at the reveal, everything else when it resolves.
+ *  Also a policy, also injected. */
 export type TargetChooser = (
   engine: CombatEngine, actor: Character, def: ActionDefinition,
-  req: TargetRequirement, count: number, pool: Character[], speed: number,
+  req: TargetRequirement, count: number, pool: Character[],
 ) => Character[];
+
+/**
+ * Where a card resolves in the round (rules.md): a FAST step first — fast
+ * Defense, fast Attack, fast Focus — then the normal Defense, Attack, Focus.
+ * Lower resolves first; equal keys form one tier. The only place the order is
+ * decided, and it reads nothing but the type and `fast`.
+ */
+export function orderKey(type: ActionType, fast: boolean): number {
+  const step = type === ActionType.Defensa ? 0 : type === ActionType.Atac ? 1 : 2;
+  return (fast ? 0 : 3) + step;
+}
 
 export interface CombatEngineOptions {
   registry: EffectRegistry;
@@ -223,7 +241,9 @@ export class CombatEngine implements EngineApi, AIView {
   // Step-by-step round state.
   private pending: PendingAction[] = [];
   private pendingIndex = 0;
-  private tierSpeed: number | null = null;
+  private tierKey: number | null = null;
+  /** The reveal-time type picks (`revealAs`) have been asked this round. */
+  private revealSettled = false;
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
@@ -319,14 +339,16 @@ export class CombatEngine implements EngineApi, AIView {
       return {
         actor,
         action: idx >= 0 ? actor.actions[idx] : p.action,
-        speed: p.speed,
+        key: p.key,
+        as: p.as,
         targets: p.targets ? p.targets.map(at) : null,
         cancelled: p.cancelled,
         option: p.option,
       };
     });
     e.pendingIndex = this.pendingIndex;
-    e.tierSpeed = this.tierSpeed;
+    e.tierKey = this.tierKey;
+    e.revealSettled = this.revealSettled;
     e.tierAlive = new Set([...this.tierAlive].map(at));
     e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
     e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
@@ -408,7 +430,7 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   /** Cancel `target`'s still-pending action this round. An action that already
-   *  resolved (a faster one) can't be cancelled — cancellation is speed-gated.
+   *  resolved (an earlier step, or earlier in this one) can't be cancelled.
    *  Returns true if something was cancelled. */
   cancelPendingAction(target: Character): boolean {
     for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
@@ -849,8 +871,8 @@ export class CombatEngine implements EngineApi, AIView {
     }
     if (req === 'self') return [actor];
     if (req === 'fallen_ally') return this.teams[actor.team].filter(c => !c.isAlive());
-    // Defense dual choice: an ally to guard (self included) or an enemy to block.
-    if (req === 'defense') return [...this.alliesOf(actor, true), ...this.enemiesOf(actor)];
+    // A defense guards an ally (self included), chosen after the attacks aimed.
+    if (req === 'defense') return this.alliesOf(actor, true);
     const team = this.teams[actor.team];
     return team.filter(c => {
       if (req === 'ally_other' && c === actor) return false;
@@ -894,15 +916,19 @@ export class CombatEngine implements EngineApi, AIView {
     }
     this.pending = [];
     this.pendingIndex = 0;
-    this.tierSpeed = null;
+    this.tierKey = null;
+    this.revealSettled = false;
     return { skipping };
   }
 
-  /** Build the speed-ordered pending queue. Human selections carry actionIdx (targets
-   *  optional); every other living actor is filled by the AI. Returns reveal info. */
+  /** Build the round's queue in resolution order (`orderKey`). Human
+   *  selections carry actionIdx (targets optional), IN THE ORDER THEY WERE
+   *  COMMITTED — inside a step, whoever decided first resolves first; every
+   *  other living actor is filled by the AI. Returns reveal info. */
   planActions(humanSelections: ActionSelection[] = []): RevealedAction[] {
     const selByChar = new Map<Character, ActionSelection>();
-    for (const sel of humanSelections) selByChar.set(this.resolveRef(sel), sel);
+    const committed = new Map<Character, number>();
+    humanSelections.forEach((sel, i) => { const c = this.resolveRef(sel); selByChar.set(c, sel); committed.set(c, i); });
 
     const built: PendingAction[] = [];
     // Whoever chooses after the reveal (choosesAfterReveal) chooses LAST, and
@@ -937,32 +963,38 @@ export class CombatEngine implements EngineApi, AIView {
           ? chosen
           : this.firstLegalActionIdx(c);
         action = c.actions[idx];
-        targets = null; // AI targets at resolution time, with reveal-level info
+        targets = null; // attacks aim at the reveal, the rest when they resolve
       }
       if (!action) continue;
       c.playedActionIdx = c.actions.indexOf(action);
       this.plays.push({ team: c.team, actionId: action.def.id, actionType: action.def.actionType });
-      built.push({ actor: c, action, speed: c.getEffectiveSpeed(action), targets });
+      built.push({ actor: c, action, key: orderKey(action.def.actionType, c.isFast(action)), targets });
     }
 
-    // Speed ties are simultaneous at the table — nobody holds priority. The
-    // queue is built team A first, so a stable sort alone would hand team A
-    // every tie (defenses up before same-speed enemy attacks, etc. — a
-    // measured ~52/48 seat bias). Shuffle before sorting so tie order is fair.
+    // ORDER INSIDE A STEP (rules.md): whoever committed first resolves first.
+    // A seat that is not a person (an AI) has no commit moment, so it lands at
+    // random — the queue is built team A first, and a stable sort alone would
+    // hand team A every tie (a measured ~52/48 seat bias). Shuffle, put the
+    // people back in their commit order on the slots they landed on, then sort
+    // by step (stable).
     this.inSeatStream(CombatEngine.TIE_ORDER_STREAM, () => {
       for (let i = built.length - 1; i > 0; i--) {
         const j = randomInt(i + 1);
         [built[i], built[j]] = [built[j], built[i]];
       }
     });
-    built.sort((a, b) => b.speed - a.speed);
+    const slots = built.map((p, i) => committed.has(p.actor) ? i : -1).filter(i => i >= 0);
+    const inCommitOrder = slots.map(i => built[i]).sort((a, b) => committed.get(a.actor)! - committed.get(b.actor)!);
+    slots.forEach((slot, k) => { built[slot] = inCommitOrder[k]; });
+    built.sort((a, b) => a.key - b.key);
     this.pending = built;
     this.pendingIndex = 0;
-    this.tierSpeed = null;
+    this.tierKey = null;
+    this.revealSettled = false;
     this.aimingIdx = null;
     this.choosingIdx = null;
-    // Cards that aim at the reveal: a seat that already named its targets has
-    // aimed; an AI seat aims now. A human seat that did not is prompted before
+    // Cards that aim at the reveal — every attack, and whatever else says so: a
+    // seat that already named its targets has aimed; an AI seat aims now. A human seat that did not is prompted before
     // anything resolves (`aimAtReveal` in resolveNextAction).
     built.forEach((p, i) => {
       if (!this.aimsAtReveal(p.actor, p.action.def)) return;
@@ -989,7 +1021,8 @@ export class CombatEngine implements EngineApi, AIView {
     const i = this.pending.findIndex((p, j) => j > this.pendingIndex && p.actor === target && !p.cancelled);
     if (i < 0) return false;
     const [p] = this.pending.splice(i, 1);
-    p.speed = Math.min(p.speed, ...this.pending.map(q => q.speed)) - 1;
+    // After every step: it acts last.
+    p.key = Math.max(p.key, ...this.pending.map(q => q.key)) + 1;
     this.pending.push(p);
     return true;
   }
@@ -999,7 +1032,7 @@ export class CombatEngine implements EngineApi, AIView {
     const i = this.pending.findIndex((p, j) => j > this.pendingIndex && p.actor === target && !p.cancelled);
     if (!now || i < 0) return false;
     const [p] = this.pending.splice(i, 1);
-    p.speed = now.speed;
+    p.key = now.key;
     // It joins a tier whose focus snapshot is already taken: a focus whose
     // holder was hit before this tier stays interrupted.
     if (p.action.def.actionType === ActionType.Focus && p.actor.hitThisTurn) this.tierInterrupted.add(p.actor);
@@ -1007,8 +1040,8 @@ export class CombatEngine implements EngineApi, AIView {
     return true;
   }
 
-  plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean }> {
-    return this.pending.map((p, i) => ({ actor: p.actor, action: p.action.def, resolved: i < this.pendingIndex, cancelled: !!p.cancelled }));
+  plannedThisRound(): ReadonlyArray<{ actor: Character; action: ActionDefinition; resolved: boolean; cancelled: boolean; targets: readonly Character[] | null }> {
+    return this.pending.map((p, i) => ({ actor: p.actor, action: p.action.def, resolved: i < this.pendingIndex, cancelled: !!p.cancelled, targets: p.targets }));
   }
 
   private reveal(p: PendingAction): RevealedAction {
@@ -1018,8 +1051,9 @@ export class CombatEngine implements EngineApi, AIView {
       actorName: p.actor.name,
       actionId: p.action.def.id,
       actionName: p.action.def.name,
-      actionType: p.action.def.actionType,
-      speed: p.speed,
+      actionType: p.as ?? p.action.def.actionType,
+      fast: p.key < orderKey(ActionType.Defensa, false),
+      step: p.key,
       classCss: p.actor.characterClass,
       iconPath: p.action.def.iconPath,
       cancelled: !!p.cancelled,
@@ -1038,7 +1072,7 @@ export class CombatEngine implements EngineApi, AIView {
     return this.pending.map((p, i) => {
       if (p.cancelled) return true;
       if (i < this.pendingIndex) return false; // resolved, uncancelled
-      const sameTier = p.speed === this.tierSpeed;
+      const sameTier = p.key === this.tierKey;
       if (!p.actor.isAlive() && !(sameTier && this.tierAlive.has(p.actor))) return true;
       if (p.action.def.actionType === ActionType.Focus && p.actor.hitThisTurn) {
         return sameTier ? this.tierInterrupted.has(p.actor) : true;
@@ -1053,8 +1087,10 @@ export class CombatEngine implements EngineApi, AIView {
     return this.pending.map((p, i) => ({
       actor: p.actor,
       action: p.action.def,
-      actionType: p.action.def.actionType,
-      speed: p.speed,
+      actionType: p.as ?? p.action.def.actionType,
+      fast: p.key < orderKey(ActionType.Defensa, false),
+      step: p.key,
+      targets: p.targets,
       resolved: i < this.pendingIndex,
       cancelled: !!p.cancelled,
     }));
@@ -1095,7 +1131,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   /**
    * Replace a queued actor's chosen action with another from their hand (Estat de
-   * flux). Spends one flow charge, re-targets, re-sorts the queue by speed, and
+   * flux). Spends one flow charge, re-targets (an attack re-aims), re-sorts the queue, and
    * returns the updated reveal list. No-op (no charge spent) if the swap is
    * illegal or the same action. Must be called after planActions, before resolving.
    */
@@ -1117,15 +1153,17 @@ export class CombatEngine implements EngineApi, AIView {
     for (const c of this.allCombatants()) c.guards = c.guards.filter(g => !(g.defender === actor && g.action === old));
 
     p.action = newAction;
-    p.speed = actor.getEffectiveSpeed(newAction);
+    p.key = orderKey(newAction.def.actionType, actor.isFast(newAction));
+    p.as = undefined;
     p.targets = null;
     p.option = undefined;
     actor.playedActionIdx = newActionIdx;
     this.plays.push({ team: actor.team, actionId: newAction.def.id, actionType: newAction.def.actionType });
 
-    this.pending.sort((a, b) => b.speed - a.speed);
+    this.pending.sort((a, b) => a.key - b.key);
     this.pendingIndex = 0;
-    this.tierSpeed = null;
+    this.tierKey = null;
+    this.revealSettled = false;
     return reveal();
   }
 
@@ -1144,8 +1182,11 @@ export class CombatEngine implements EngineApi, AIView {
     if (cur) cur.targets = targets.map(t => this.resolveRef(t));
   }
 
-  /** Whether any of the card's effects aims it at the reveal. */
+  /** Whether the card aims at the reveal: every attack does (rules.md —
+   *  attackers point before any defense chooses), and so does any card whose
+   *  effects say so. */
   private aimsAtReveal(actor: Character, def: ActionDefinition): boolean {
+    if (def.actionType === ActionType.Atac) return true;
     for (const { eff, handler } of this.effectsWith(actor, def, 'aimsAtReveal')) {
       if (handler.aimsAtReveal!(eff.params ?? {})) return true;
     }
@@ -1165,7 +1206,7 @@ export class CombatEngine implements EngineApi, AIView {
       const pool = this.eligibleTargets(p.actor, def, req);
       p.targets = count >= pool.length
         ? pool
-        : this.inSeatStream(this.actStream(p.actor), () => this.autoTargets(p.actor, def, req, count, p.speed));
+        : this.inSeatStream(this.actStream(p.actor), () => this.autoTargets(p.actor, def, req, count));
     }
     this.dispatchAimed(p);
   }
@@ -1180,7 +1221,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  its targets: aim the ones that need no human, prompt for the first that
    *  does. Null once all have aimed. */
   private aimAtReveal(): StepResult | null {
-    if (this.pendingIndex !== 0 || this.tierSpeed !== null) return null;
+    if (this.pendingIndex !== 0 || this.tierKey !== null) return null;
     for (let i = 0; i < this.pending.length; i++) {
       const p = this.pending[i];
       if (p.targets !== null || p.cancelled || !p.actor.isAlive() || !this.aimsAtReveal(p.actor, p.action.def)) continue;
@@ -1220,7 +1261,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  have one picked: an AI seat's is picked now (the card's own hint), a human
    *  seat is prompted, one card at a time. Null once all are picked. */
   private chooseAtReveal(): StepResult | null {
-    if (this.pendingIndex !== 0 || this.tierSpeed !== null) return null;
+    if (this.pendingIndex !== 0 || this.tierKey !== null) return null;
     for (let i = 0; i < this.pending.length; i++) {
       const p = this.pending[i];
       if (p.option !== undefined || p.cancelled || !p.actor.isAlive()) continue;
@@ -1280,6 +1321,24 @@ export class CombatEngine implements EngineApi, AIView {
     });
   }
 
+  /** Once every card has aimed and picked its options, before anything
+   *  resolves: a card whose effects decide at the reveal which type it plays
+   *  as (`revealAs`) takes that type's place in the order. */
+  private settleReveal(): void {
+    if (this.revealSettled) return;
+    this.revealSettled = true;
+    let moved = false;
+    for (const p of this.pending) {
+      if (p.cancelled || !p.actor.isAlive()) continue;
+      for (const { eff, handler } of this.effectsWith(p.actor, p.action.def, 'revealAs')) {
+        const t = this.inSeatStream(this.actStream(p.actor), () => handler.revealAs!(this.ctx(p.actor, p.action.def, eff.params ?? {}, { targets: p.targets ?? [] })));
+        if (t) { p.as = t; p.key = orderKey(t, p.actor.isFast(p.action)); moved = true; }
+        break;
+      }
+    }
+    if (moved) this.pending.sort((a, b) => a.key - b.key);
+  }
+
   /** The roll an attack's effects already made for it (`presetAttackRoll`), if any. */
   private presetAttackRoll(actor: Character, def: ActionDefinition, targets: Character[]): number | undefined {
     for (const { eff, handler } of this.effectsWith(actor, def, 'presetAttackRoll')) {
@@ -1300,14 +1359,15 @@ export class CombatEngine implements EngineApi, AIView {
     if (aiming) return aiming;
     const choosing = this.chooseAtReveal();
     if (choosing) return choosing;
+    if (this.pendingIndex === 0 && this.tierKey === null) this.settleReveal();
     const cur = this.pending[this.pendingIndex];
 
-    // Entering a new speed tier: snapshot living set + focus interruption state.
-    if (this.tierSpeed !== cur.speed) {
-      this.tierSpeed = cur.speed;
+    // Entering a new tier (a step): snapshot living set + focus interruption state.
+    if (this.tierKey !== cur.key) {
+      this.tierKey = cur.key;
       this.tierAlive = new Set(this.allLiving());
       this.tierInterrupted = new Set(
-        this.pending.filter(p => p.speed === cur.speed && p.action.def.actionType === ActionType.Focus && p.actor.hitThisTurn).map(p => p.actor),
+        this.pending.filter(p => p.key === cur.key && (p.as ?? p.action.def.actionType) === ActionType.Focus && p.actor.hitThisTurn).map(p => p.actor),
       );
     }
 
@@ -1348,7 +1408,7 @@ export class CombatEngine implements EngineApi, AIView {
           // In the actor's own stream, like the action: a searched target draws
           // its rollouts' seed, and on the shared stream that draw would shift
           // every later target search in a paired branch.
-          cur.targets = this.inSeatStream(this.actStream(cur.actor), () => this.autoTargets(cur.actor, cur.action.def, req, count, cur.speed));
+          cur.targets = this.inSeatStream(this.actStream(cur.actor), () => this.autoTargets(cur.actor, cur.action.def, req, count));
         } else {
           return {
             kind: 'target',
@@ -1388,7 +1448,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (def.actionType === ActionType.Focus && this.tierInterrupted.has(actor)) return true;
     const hooked = this.hookedStatuses(actor, 'beforeHolderAction');
     if (!hooked.length) return true;
-    // Whether THESE hooks hurt it: an earlier hit in its own speed tier is
+    // Whether THESE hooks hurt it: an earlier hit in its own tier is
     // simultaneous and must not interrupt it now.
     // (Likewise one already felled in its tier still acts: only a fall here
     // stops it.)
@@ -1409,10 +1469,10 @@ export class CombatEngine implements EngineApi, AIView {
     return true;
   }
 
-  private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number, speed: number): Character[] {
+  private autoTargets(actor: Character, def: ActionDefinition, req: TargetRequirement, count: number): Character[] {
     const pool = this.eligibleTargets(actor, def, req);
     return this.targetChooser
-      ? this.targetChooser(this, actor, def, req, count, pool, speed)
+      ? this.targetChooser(this, actor, def, req, count, pool)
       : pool.slice(0, count);   // deterministic, and deliberately not a policy
   }
 
@@ -1423,13 +1483,15 @@ export class CombatEngine implements EngineApi, AIView {
     // attack.
     const aimed = def.actionType === ActionType.Atac ? def : { ...def, actionType: ActionType.Atac };
     return this.targetChooser
-      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool, actor.getEffectiveSpeed(def))
+      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool)
       : pool.slice(0, count);
   }
 
-  /** The type an action resolves as: its printed one, unless an effect's
-   *  `resolveAs` decides otherwise at this moment. */
+  /** The type an action resolves as: the one picked at the reveal
+   *  (`revealAs`), else its printed one unless an effect's `resolveAs`
+   *  decides otherwise at this moment. */
   private resolvedType(cur: PendingAction): ActionType {
+    if (cur.as) return cur.as;
     for (const { eff, handler } of this.effectsWith(cur.actor, cur.action.def, 'resolveAs')) {
       const fn = handler.resolveAs!;
       const t = fn(this.ctx(cur.actor, cur.action.def, eff.params ?? {}, { targets: cur.targets ?? [] }));
@@ -1471,9 +1533,9 @@ export class CombatEngine implements EngineApi, AIView {
       case ActionType.Atac: {
         // Stepping forward to attack may trip enemy hazards — possibly fatally,
         // and a hazard that kills stops the blow. Only THAT death does: an
-        // attacker already felled by someone of the SAME speed still strikes,
-        // because a speed tie is simultaneous and both blows land (rules.md).
-        // Checking plain `isAlive()` here silently turned every same-speed
+        // attacker already felled by someone of the SAME step still strikes,
+        // because a step is simultaneous and both blows land (rules.md).
+        // Checking plain `isAlive()` here silently turned every same-step
         // trade into a first-come-first-served one.
         const aliveBeforeHazards = actor.isAlive();
         this.triggerHazards(actor);
@@ -1909,7 +1971,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.pending = [];
     this.revealedPlan = [];
     this.pendingIndex = 0;
-    this.tierSpeed = null;
+    this.tierKey = null;
+    this.revealSettled = false;
     this.roundPrepared = false;
   }
 
@@ -1941,10 +2004,17 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Safety: auto-fill targets for the current action (used if an AI somehow prompts). */
   private setResolveTargetAuto(): void {
+    if (this.aimingIdx !== null) {
+      // The prompt was a card aiming at the reveal.
+      const i = this.aimingIdx;
+      this.aimingIdx = null;
+      this.aimNow(i);
+      return;
+    }
     const cur = this.pending[this.pendingIndex];
     if (!cur) return;
     const req = this.requirementOf(cur.actor, cur.action.def);
-    cur.targets = this.autoTargets(cur.actor, cur.action.def, req, this.targetCountOf(cur.actor, cur.action.def), cur.speed);
+    cur.targets = this.autoTargets(cur.actor, cur.action.def, req, this.targetCountOf(cur.actor, cur.action.def));
   }
 
   runCombat(stats?: CombatStats): CombatResult {

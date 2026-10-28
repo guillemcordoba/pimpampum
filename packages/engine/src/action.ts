@@ -10,7 +10,7 @@ export class ActionInstance {
 
   get id(): string { return this.def.id; }
   get name(): string { return this.def.name; }
-  get speed(): number { return this.def.speed; }
+  get fast(): boolean { return !!this.def.fast; }
 
   /** Available to play this round (consumables become unavailable once used). */
   isAvailable(): boolean {

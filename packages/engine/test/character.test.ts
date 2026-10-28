@@ -13,7 +13,7 @@ import { armour, attackCard, defenseCard, fighter, TEST_SKILL } from '../src/tes
 
 function item(over: Partial<EquipmentDefinition>): EquipmentDefinition {
   return {
-    id: 'x', name: 'x', slot: EquipmentSlot.Weapon, passiveArmor: 0, speedPenalty: 0,
+    id: 'x', name: 'x', slot: EquipmentSlot.Weapon, passiveArmor: 0,
     rollBonuses: [], iconPath: '', description: '', ...over,
   };
 }
@@ -62,9 +62,10 @@ describe('equipment', () => {
     expect(c.getPassiveArmor()).toBe(0);
   });
 
-  it('heavy armour slows every action it is worn for', () => {
-    const c = fighter('A', [attackCard('a', { speed: 4 })], { equipment: [armour(2, 1)] });
-    expect(c.getEffectiveSpeed(c.actions[0])).toBe(3);
+  it('armour costs nothing but its slot: a card stays as fast as it is printed', () => {
+    const c = fighter('A', [attackCard('a', { fast: true }), attackCard('b')], { equipment: [armour(3)] });
+    expect(c.isFast(c.actions[0])).toBe(true);
+    expect(c.isFast(c.actions[1])).toBe(false);
   });
 
   it('one item per slot: equipping replaces, and takes the old item\'s cards with it', () => {

@@ -780,9 +780,9 @@ export function lookaheadChooser(opts: Partial<LookaheadOptions> = {}, teams: nu
  */
 export function searchTargets(
   engine: CombatEngine, actor: Character, def: ActionDefinition, req: TargetRequirement,
-  count: number, pool: Character[], speed: number, samples: number, aim: AttackAim = 'share',
+  count: number, pool: Character[], samples: number, aim: AttackAim = 'share',
 ): Character[] {
-  const heuristic = pickResolveTargets(engine, actor, def, req, count, pool, speed, aim);
+  const heuristic = pickResolveTargets(engine, actor, def, req, count, pool, aim);
   if (count !== 1 || pool.length < 2 || samples < 1) return heuristic;
   const pairSeed = Math.floor(random() * 1e9);
   const team = actor.team;

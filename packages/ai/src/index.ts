@@ -37,7 +37,7 @@ export interface Policy {
   actionChooser: (engine: CombatEngine, actor: Character) => number | null;
   targetChooser: (
     engine: CombatEngine, actor: Character, def: ActionDefinition,
-    req: TargetRequirement, count: number, pool: Character[], speed: number,
+    req: TargetRequirement, count: number, pool: Character[],
   ) => Character[];
 }
 
@@ -68,8 +68,8 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
       // has to act: fall back to the depth-0 opinion rather than to nothing.
       return pick ?? selectAction(engine, actor).actionIdx;
     },
-    targetChooser: (engine, actor, def, req, count, pool, speed) => depth >= 1
-      ? searchTargets(engine as CombatEngine, actor, def, req, count, pool, speed, full.targetSamples ?? 0, full.attackAim)
-      : pickResolveTargets(engine, actor, def, req, count, pool, speed, full.attackAim),
+    targetChooser: (engine, actor, def, req, count, pool) => depth >= 1
+      ? searchTargets(engine as CombatEngine, actor, def, req, count, pool, full.targetSamples ?? 0, full.attackAim)
+      : pickResolveTargets(engine, actor, def, req, count, pool, full.attackAim),
   };
 }

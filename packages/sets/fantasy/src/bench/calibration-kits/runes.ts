@@ -67,6 +67,10 @@ const RUNA_ESCUT: StatusBehavior = {
     ctx.engine.log('info', `ᛉ La runa de l'escut invisible crida: evita ${prevented} punts de dany (${left} usos restants).`, ctx.holder.team);
     return damage - amount;
   },
+  expectedIncomingDamage(ref, damage) {
+    if (damage <= 0 || ref.entry.value <= 0 || (damage < 3 && damage < ref.holder.currentPV)) return damage;
+    return Math.max(0, damage - num(ref.entry.data ?? {}, 'amount', 4));
+  },
 };
 
 interface RuneSpec {
@@ -115,21 +119,21 @@ export const RUNES: SkillDefinition = {
   actions: [
     action({
       id: 'runa-fulla-esmolada@cal', name: 'Runa de la fulla esmolada', skillId: 'runes@cal',
-      unlock: 1, type: ActionType.Focus, speed: 1,
+      unlock: 1, type: ActionType.Focus,
       effects: [{ type: 'carve_rune@cal', params: { rune: 'fulla', uses: 4, amount: 2 } }],
       desc: "Grava-la a l'arma d'un aliat: 4 usos. Quan el portador encerta un cop, pots activar-la a l'instant: {A}+2.",
       icon: 'lorc/rune-sword.svg',
     }),
     action({
       id: 'runa-confusio@cal', name: 'Runa de la confusió', skillId: 'runes@cal',
-      unlock: 2, type: ActionType.Focus, speed: 1,
+      unlock: 2, type: ActionType.Focus,
       effects: [{ type: 'carve_rune@cal', params: { rune: 'confusio', uses: 4, amount: 4 } }],
       desc: 'Grava-la contra un enemic: 4 usos. Quan aquell enemic fa una tirada, pots activar-la després de veure-la: −4 a la tirada.',
       icon: 'lorc/oily-spiral.svg',
     }),
     action({
       id: 'runa-escut-invisible@cal', name: "Runa de l'escut invisible", skillId: 'runes@cal',
-      unlock: 3, type: ActionType.Focus, speed: 1,
+      unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'carve_rune@cal', params: { rune: 'escut', uses: 4, amount: 4 } }],
       desc: "Grava-la sobre un aliat: 4 usos. Quan el portador rep un atac, pots activar-la a l'instant: evita 4 {DAMAGE}.",
       icon: 'lorc/shield-echoes.svg',

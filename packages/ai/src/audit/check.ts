@@ -142,12 +142,12 @@ export interface AimJudgement extends AimVerdict {
  * card choice is (see the top of this file): its evaluator calls a board at
  * the cap a draw worth 0, and every last-round aim would read as nothing.
  */
-const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool, speed) => withSeed(77_777, () => {
+const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool) => withSeed(77_777, () => {
   // Its own generator: the referee's chance may be enumerated, not drawn.
   const view = engine.clone();
   (view as unknown as { maxRounds: number }).maxRounds = engine.maxRounds + 1;
   const at = (c: Character): Character => view.teams[c.team][engine.teams[c.team].indexOf(c)];
-  const picked = searchTargets(view as CombatEngine, at(actor), def, req, count, pool.map(at), speed, DEFAULT_LOOKAHEAD.targetSamples ?? 0);
+  const picked = searchTargets(view as CombatEngine, at(actor), def, req, count, pool.map(at), DEFAULT_LOOKAHEAD.targetSamples ?? 0);
   return picked.map(c => pool[pool.map(at).indexOf(c)]);
 });
 

@@ -13,7 +13,7 @@ import { ActionDefinition, ActionType, Character, CombatEngine, checkSkillUp, re
 function atkDef(id = 'hit', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
     id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Atac,
-    speed: 1, dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
+    dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
     ...opts,
   };
 }
@@ -21,14 +21,14 @@ function atkDef(id = 'hit', opts: Partial<ActionDefinition> = {}): ActionDefinit
 function focusDef(id = 'wait', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
     id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Focus,
-    speed: 0, effects: [], description: '', iconPath: '', ...opts,
+    effects: [], description: '', iconPath: '', ...opts,
   };
 }
 
 function defenseDef(id = 'block', opts: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
     id, name: id, skillId: 'test', unlockLevel: 0, actionType: ActionType.Defensa,
-    speed: 5, rollBonus: 1000, effects: [], description: '', iconPath: '', ...opts,
+    rollBonus: 1000, effects: [], description: '', iconPath: '', ...opts,
   };
 }
 
@@ -84,12 +84,15 @@ describe('StatusBehavior query seams', () => {
     expect(a.isAlive()).toBe(true);
   });
 
-  it('modifySpeed: added to effective action speed', () => {
-    const SLOW_3: StatusBehavior = { modifySpeed() { return -3; } };
+  it('fast: a status grants or strips the fast step for the holder\'s cards', () => {
+    const WIND: StatusBehavior = { fast() { return true; } };
+    const DOOM: StatusBehavior = { fast() { return false; } };
     const a = makeChar('A', 20, [atkDef()]);
-    expect(a.getEffectiveSpeed(a.actions[0])).toBe(1);
-    a.setStatus('llast', 1, -1, undefined, SLOW_3);
-    expect(a.getEffectiveSpeed(a.actions[0])).toBe(-2);
+    expect(a.isFast(a.actions[0])).toBe(false);
+    a.setStatus('vent', 1, -1, undefined, WIND);
+    expect(a.isFast(a.actions[0])).toBe(true);
+    a.setStatus('condemnat', 1, -1, undefined, DOOM);
+    expect(a.isFast(a.actions[0])).toBe(false);
   });
 
   it('blocksActionType: the holder can only play the types the status allows', () => {
@@ -337,13 +340,17 @@ describe('StatusBehavior engine seams', () => {
 });
 
 describe('bloqueig conjunt (summed wall)', () => {
+  // A generic defense guards allies only (rules.md); blocking an ENEMY is a
+  // card's own effect asking for an 'enemy' target — the interim block cards.
+  const BLOCK = [{ type: 'block_enemy' }];
+  const blockRegistry = (r = new EffectRegistry()) => { r.register('block_enemy', { getTargetRequirement: () => 'enemy' }); return r; };
   /** Two human blockers (1d1 defenses) + an AI enemy attacker (1d1 + bonus). */
   function wallSetup(atkBonus: number, d1Bonus = 0, opts: Partial<ActionDefinition> = {}) {
-    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus })]);
-    const d2 = makeChar('D2', 20, [defenseDef('bloc2', { dice: new DiceRoll(1, 1), rollBonus: 0 }), focusDef()]);
+    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus, effects: BLOCK })]);
+    const d2 = makeChar('D2', 20, [defenseDef('bloc2', { dice: new DiceRoll(1, 1), rollBonus: 0, effects: BLOCK }), focusDef()]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus, ...opts })]);
     e.aiControlled = true;
-    const engine = new CombatEngine([d1, d2], [e], { registry: new EffectRegistry(), actionChooser: firstLegalChooser });
+    const engine = new CombatEngine([d1, d2], [e], { registry: blockRegistry(), actionChooser: firstLegalChooser });
     return { d1, d2, e, engine };
   }
   const blockE = [
@@ -387,11 +394,11 @@ describe('bloqueig conjunt (summed wall)', () => {
    *  the blow. Its card carries a big roll bonus, so a wall that still rolled
    *  it would visibly hold. */
   function bracedWallSetup(atkBonus: number, d1Bonus: number) {
-    const r = new EffectRegistry();
+    const r = blockRegistry();
     const BRACED: StatusBehavior = { absorbsGuard() { return true; } };
     r.register('brace', { onResolve(ctx) { ctx.source.setStatus('braced', 1, 1, undefined, BRACED); } });
-    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus })]);
-    const d2 = makeChar('D2', 20, [defenseDef('brace', { dice: undefined, rollBonus: 5, effects: [{ type: 'brace' }] })]);
+    const d1 = makeChar('D1', 20, [defenseDef('bloc1', { dice: new DiceRoll(1, 1), rollBonus: d1Bonus, effects: BLOCK })]);
+    const d2 = makeChar('D2', 20, [defenseDef('brace', { dice: undefined, rollBonus: 5, effects: [...BLOCK, { type: 'brace' }] })]);
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: atkBonus })]);
     e.aiControlled = true;
     return { d1, d2, engine: new CombatEngine([d1, d2], [e], { registry: r, actionChooser: firstLegalChooser }) };
@@ -560,7 +567,7 @@ describe('combat cloning (the lookahead primitive)', () => {
   });
 
   it('clones statuses, modifiers and consumed cards without sharing them', () => {
-    const BEHAVIOR: StatusBehavior = { modifySpeed() { return 0; } };
+    const BEHAVIOR: StatusBehavior = { fast() { return undefined; } };
     const a = makeChar('A', 20, [atkDef()]);
     const b = sac();
     const engine = new CombatEngine([a], [b], { registry: new EffectRegistry(), actionChooser: firstLegalChooser });
@@ -649,7 +656,7 @@ describe('what a defense sees when it blocks', () => {
     const registry = new EffectRegistry();
     registry.register('watch', { onDefend(ctx) { seen.push(ctx.margin); } });
     const defender = makeChar('Defender', 20, [defenseDef('block', { dice: new DiceRoll(1, 1), rollBonus: 9, effects: [{ type: 'watch' }] })]);
-    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3, speed: 0 })]);
+    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3 })]);
     attacker.aiControlled = true;
     const engine = new CombatEngine([defender], [attacker], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
@@ -705,7 +712,7 @@ describe('what an effect sees of the whole blow (attackTotal)', () => {
     registry.register('watch_defend', { onDefend(ctx) { defended.push(ctx.attackTotal); } });
     registry.register('watch_miss', { onAttackMiss(ctx) { missed.push(ctx.attackTotal); } });
     const defender = makeChar('Defender', 20, [defenseDef('block', { dice: new DiceRoll(1, 1), rollBonus: 9, effects: [{ type: 'watch_defend' }] })]);
-    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3, speed: 0, effects: [{ type: 'watch_miss' }] })]);
+    const attacker = makeChar('Attacker', 20, [atkDef('hit', { rollBonus: 3, effects: [{ type: 'watch_miss' }] })]);
     attacker.aiControlled = true;
     const engine = new CombatEngine([defender], [attacker], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
@@ -751,16 +758,17 @@ describe('an effect that lets its player choose (chooseTargets)', () => {
 });
 
 describe('an action that decides what it is when it resolves (resolveAs)', () => {
-  it('an attack resolved as a defense blocks its target instead of striking it', () => {
-    // The card is printed as an attack on the enemy; at resolution it turns
-    // into a block on that same enemy, whose slower blow is then forced onto
-    // the blocker and stopped there. The ally it aimed at is untouched, and
-    // the enemy took no hit.
+  it('revealAs: an attack that decides AT THE REVEAL to be a defense goes up in the Defense step and blocks its target', () => {
+    // The card is printed as an attack on the enemy; at the reveal it turns
+    // into a block on that same enemy, so it resolves with the defenses —
+    // before the enemy's blow, which is then forced onto the blocker and
+    // stopped there. The ally the enemy aimed at is untouched, and the enemy
+    // took no hit.
     const registry = new EffectRegistry();
-    registry.register('arm', { resolveAs: () => ActionType.Defensa });
-    const arms = makeChar('Arms', 20, [atkDef('braç', { speed: 5, rollBonus: 1000, effects: [{ type: 'arm' }] })]);
+    registry.register('arm', { revealAs: () => ActionType.Defensa });
+    const arms = makeChar('Arms', 20, [atkDef('braç', { rollBonus: 1000, effects: [{ type: 'arm' }] })]);
     const ally = makeChar('Ally', 20, [focusDef()]);
-    const e = makeChar('E', 20, [atkDef('cop', { speed: 0, rollBonus: 5 })]);
+    const e = makeChar('E', 20, [atkDef('cop', { rollBonus: 5 })]);
     e.aiControlled = true;
     const engine = new CombatEngine([ally, arms], [e], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [
@@ -789,8 +797,8 @@ describe('a block-only defense (requirement enemy)', () => {
     // enemy it chose; an attack would have been dragged onto the blocker.
     const registry = new EffectRegistry();
     registry.register('block_only', { getTargetRequirement: () => 'enemy' });
-    const a = makeChar('A', 20, [defenseDef('bloc', { speed: 1, dice: new DiceRoll(1, 1), effects: [{ type: 'block_only' }] })]);
-    const x = makeChar('X', 20, [defenseDef('mur', { speed: 9, dice: new DiceRoll(1, 1) })]);
+    const a = makeChar('A', 20, [defenseDef('bloc', { dice: new DiceRoll(1, 1), effects: [{ type: 'block_only' }] })]);
+    const x = makeChar('X', 20, [defenseDef('mur', { dice: new DiceRoll(1, 1) })]);
     const y = sac();
     x.aiControlled = true;
     a.aiControlled = true;
@@ -840,7 +848,7 @@ describe('round-two seams for the elements kits', () => {
 
   it('a status can make the holder\'s attack undefendable (AttackStatusMods.ignoreDefense)', () => {
     const registry = new EffectRegistry();
-    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 5, speed: 0 })]);
+    const a = makeChar('A', 20, [atkDef('hit', { rollBonus: 5 })]);
     const d = makeChar('D', 20, [defenseDef()]);
     d.aiControlled = true;
     const engine = new CombatEngine([a], [d], { registry, actionChooser: firstLegalChooser });
@@ -866,15 +874,15 @@ describe('round-two seams for the elements kits', () => {
     const registry = new EffectRegistry();
     registry.register('note', { onResolve(ctx) { order.push(ctx.source.name); } });
     registry.register('push', { onResolve(ctx) { ctx.engine.delayPendingAction(ctx.engine.enemiesOf(ctx.source)[0]); } });
-    const a = makeChar('A', 20, [focusDef('push', { speed: 9, effects: [{ type: 'push' }] })]);
-    const slow = makeChar('Slow', 20, [focusDef('slow', { speed: -5, effects: [{ type: 'note' }] })]);
-    const b = makeChar('B', 20, [focusDef('fast', { speed: 5, effects: [{ type: 'note' }] })]);
+    const a = makeChar('A', 20, [focusDef('push', { fast: true, effects: [{ type: 'push' }] })]);
+    const slow = makeChar('Slow', 20, [focusDef('slow', { effects: [{ type: 'note' }] })]);
+    const b = makeChar('B', 20, [focusDef('same-step', { effects: [{ type: 'note' }] })]);
     const engine = new CombatEngine([a, slow], [b], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }]);
     expect(order).toEqual(['Slow', 'B']);
   });
 
-  it('advancePendingAction: the unresolved action resolves next, inside the current speed tier', () => {
+  it('advancePendingAction: the unresolved action resolves next, inside the current step', () => {
     const order: string[] = [];
     const registry = new EffectRegistry();
     registry.register('note', { onResolve(ctx) { order.push(ctx.source.name); } });
@@ -883,26 +891,29 @@ describe('round-two seams for the elements kits', () => {
       const [slow, done] = ctx.engine.alliesOf(ctx.source, false).sort((x, y) => x.name.localeCompare(y.name));
       moved = [ctx.engine.advancePendingAction(slow), ctx.engine.advancePendingAction(done)];
     } });
-    const a = makeChar('A', 20, [focusDef('pull', { speed: 5, effects: [{ type: 'pull' }] })]);
-    const slow = makeChar('Slow', 20, [focusDef('slow', { speed: -5, effects: [{ type: 'note' }] })]);
-    const done = makeChar('Zfast', 20, [focusDef('zfast', { speed: 9, effects: [{ type: 'note' }] })]);
-    const b = makeChar('B', 20, [focusDef('mid', { speed: 2, effects: [{ type: 'note' }] })]);
+    // A fast Focus pulls; Zfast's fast Defense has already resolved; Slow and
+    // B hold normal Focus cards.
+    const a = makeChar('A', 20, [focusDef('pull', { fast: true, effects: [{ type: 'pull' }] })]);
+    const slow = makeChar('Slow', 20, [focusDef('slow', { effects: [{ type: 'note' }] })]);
+    const done = makeChar('Zfast', 20, [defenseDef('zfast', { fast: true, effects: [{ type: 'note' }] })]);
+    const b = makeChar('B', 20, [focusDef('mid', { effects: [{ type: 'note' }] })]);
     const engine = new CombatEngine([a, slow, done], [b], { registry, actionChooser: firstLegalChooser });
-    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }, { idx: 2, actionIdx: 0 }]);
+    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }, { idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 2 }] }]);
     expect(order).toEqual(['Zfast', 'Slow', 'B']);
     expect(moved).toEqual([true, false]);
   });
 
-  it('advancePendingAction: an advanced attack is simultaneous with the tier that launched it', () => {
+  it('advancePendingAction: an advanced attack is simultaneous with the step that launched it', () => {
     const registry = new EffectRegistry();
-    registry.register('pull', { onResolve(ctx) { ctx.engine.advancePendingAction(ctx.engine.alliesOf(ctx.source, false)[0]); } });
-    const a = makeChar('A', 20, [focusDef('pull', { speed: 5, effects: [{ type: 'pull' }] })]);
-    const hitter = makeChar('Hitter', 20, [atkDef('big', { speed: 0, dice: new DiceRoll(1, 1), rollBonus: 49 })]);
-    // B acts at A's speed: felled by the advanced blow, it still acts (a tie).
-    const b = makeChar('B', 5, [atkDef('jab', { speed: 5, dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    registry.register('pull', { onAttackResolved(ctx) { ctx.engine.advancePendingAction(ctx.engine.alliesOf(ctx.source, false)[0]); } });
+    // A's harmless fast attack pulls the hitter's normal blow into the fast
+    // Attack step, where B's fast jab also is: felled by it, B still acts.
+    const a = makeChar('A', 20, [atkDef('pull', { fast: true, rollBonus: -100, effects: [{ type: 'pull' }] })]);
+    const hitter = makeChar('Hitter', 20, [atkDef('big', { dice: new DiceRoll(1, 1), rollBonus: 49 })]);
+    const b = makeChar('B', 5, [atkDef('jab', { fast: true, dice: new DiceRoll(1, 1), rollBonus: 2 })]);
     b.aiControlled = true;
     const engine = new CombatEngine([a, hitter], [b], { registry, actionChooser: firstLegalChooser });
-    runRound(engine, [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
     expect(b.isAlive()).toBe(false);
     expect(a.currentPV + hitter.currentPV).toBe(37);
   });
@@ -910,7 +921,7 @@ describe('round-two seams for the elements kits', () => {
   it('onHolderAttackHit: each blow of the holder, with its damage after armour and its card', () => {
     const seen: [string, number, string][] = [];
     const registry = new EffectRegistry();
-    const a = makeChar('A', 20, [atkDef('sweep', { speed: 1, dice: new DiceRoll(1, 1), rollBonus: 3, targetCount: 99 })]);
+    const a = makeChar('A', 20, [atkDef('sweep', { dice: new DiceRoll(1, 1), rollBonus: 3, targetCount: 99 })]);
     const b = makeChar('B', 20, [focusDef('wait')]);
     const c = makeChar('C', 20, [focusDef('wait')]);
     c.getPassiveArmor = () => 10;
@@ -924,8 +935,8 @@ describe('round-two seams for the elements kits', () => {
     const seen: { names: string[]; resolved: boolean[] }[] = [];
     const registry = new EffectRegistry();
     registry.register('look', { onResolve(ctx) { const p = ctx.engine.plannedThisRound(); seen.push({ names: p.map(x => x.actor.name), resolved: p.map(x => x.resolved) }); } });
-    const a = makeChar('A', 20, [focusDef('look', { speed: 0, effects: [{ type: 'look' }] })]);
-    const b = makeChar('B', 20, [focusDef('wait', { speed: 5 })]);
+    const a = makeChar('A', 20, [focusDef('look', { effects: [{ type: 'look' }] })]);
+    const b = makeChar('B', 20, [focusDef('wait', { fast: true })]);
     const engine = new CombatEngine([a], [b], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
     expect(seen).toEqual([{ names: ['B', 'A'], resolved: [true, false] }]);
@@ -935,13 +946,13 @@ describe('round-two seams for the elements kits', () => {
     const log: string[] = [];
     const registry = new EffectRegistry();
     registry.register('rev', { onReveal(ctx) { log.push(`reveal ${ctx.source.name}`); }, onResolve(ctx) { log.push(`resolve ${ctx.source.name}`); } });
-    const a = makeChar('A', 20, [focusDef('x', { speed: 9, effects: [{ type: 'rev' }] })]);
-    const b = makeChar('B', 20, [focusDef('y', { speed: 0, effects: [{ type: 'rev' }] })]);
+    const a = makeChar('A', 20, [focusDef('x', { effects: [{ type: 'rev' }] })]);
+    const b = makeChar('B', 20, [focusDef('y', { effects: [{ type: 'rev' }] })]);
     b.aiControlled = true;
     const engine = new CombatEngine([a], [b], { registry, actionChooser: firstLegalChooser });
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
     expect(log.slice(0, 2).sort()).toEqual(['reveal A', 'reveal B']);
-    expect(log.slice(2)).toEqual(['resolve A', 'resolve B']);
+    expect(log.slice(2).sort()).toEqual(['resolve A', 'resolve B']);   // one step: order is not the point
   });
 
   it('onRoundStart: runs as a round opens, and a hit there interrupts that round\'s Focus', () => {

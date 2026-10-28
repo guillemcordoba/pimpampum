@@ -26,7 +26,13 @@ export interface PendingSummary {
   /** The card itself. */
   action: ActionDefinition;
   actionType: ActionType;
-  speed: number;
+  /** Resolves in the fast step (rules.md). */
+  fast: boolean;
+  /** Its place in the round's order (`orderKey`): lower resolves first. */
+  step: number;
+  /** Where the card aims, once it has aimed: every attack aims at the reveal,
+   *  so a defender sees these before choosing whom to guard. Null until then. */
+  targets: readonly Character[] | null;
   resolved: boolean;
   cancelled: boolean;
 }

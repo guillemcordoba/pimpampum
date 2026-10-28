@@ -10,9 +10,9 @@ import { describe, it, expect } from 'vitest';
 import { CombatEngine, DiceRoll, EffectRegistry, firstLegalChooser, withSeed } from '../src/index.js';
 import { attackCard, fighter, playRound, punchingBag } from '../src/testing.js';
 
-const small = attackCard('small', { speed: 5, dice: new DiceRoll(1, 2) });
-const big = attackCard('big', { speed: 5, dice: new DiceRoll(6, 20) });
-const later = attackCard('later', { speed: 1, dice: new DiceRoll(1, 20) });
+const small = attackCard('small', { dice: new DiceRoll(1, 2) });
+const big = attackCard('big', { dice: new DiceRoll(6, 20) });
+const later = attackCard('later', { dice: new DiceRoll(1, 20) });
 
 /** What the SECOND hero dealt, when the first plays `card`. */
 function laterDamage(card: 0 | 1, seed: number, streams: boolean): number {

@@ -32,7 +32,7 @@ export { Character, createCharacter } from './character.js';
 export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './character.js';
 
 // Combat engine
-export { CombatEngine, newCombatStats, mergeCombatStats } from './combat.js';
+export { CombatEngine, newCombatStats, mergeCombatStats, orderKey } from './combat.js';
 export type {
   LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser,
   RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,

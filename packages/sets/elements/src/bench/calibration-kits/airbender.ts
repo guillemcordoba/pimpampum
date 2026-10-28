@@ -23,6 +23,7 @@ const FUGA: StatusBehavior = {
     if (damage > 0) ctx.engine.log('defense', `El cop contra ${ctx.holder.name} només troba aire.`, ctx.holder.team);
     return 0;
   },
+  expectedIncomingDamage() { return 0; },
   positionValue() { return 0.1; },
 };
 
@@ -36,15 +37,16 @@ const COIXI: StatusBehavior = {
 
 // --- 3 · Patinet d'aire -----------------------------------------------------
 
-/** Next round: the holder acts first, and the first attack on it misses. */
+/** Next round: the holder's card is fast, and the first attack on it misses. */
 const PATINET: StatusBehavior = {
-  modifySpeed(ref) { return ref.entry.remaining <= 1 ? 10 : 0; },
+  fast(ref) { return ref.entry.remaining <= 1 ? true : undefined; },
   modifyIncomingDamage(ctx, damage) {
     if (ctx.entry.remaining > 1 || damage <= 0) return damage;
     ctx.holder.clearStatus(ctx.key);
     ctx.engine.log('defense', `${ctx.holder.name} s'esmuny amb el patinet d'aire: el cop falla.`, ctx.holder.team);
     return 0;
   },
+  expectedIncomingDamage(ref, damage) { return ref.entry.remaining > 1 ? damage : 0; },
   positionValue() { return 0.08; },
 };
 
@@ -144,70 +146,70 @@ export const AIRBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'palmell-d-aire@cal', name: "Palmell d'aire", skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, speed: 5, dice: d(1, 6),
+      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 6),
       effects: [{ type: 'delay_on_hit' }],
       desc: "Si fereix, l'objectiu actua l'últim aquest torn.",
       icon: 'lorc/palm.svg',
     }),
     action({
       id: 'coixi-de-vent@cal', name: 'Coixí de vent', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, speed: 4, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'cushion@cal' }],
       desc: "Aquest torn, l'aliat que defenses no pot baixar d'1 PV.",
       icon: 'lorc/feather.svg',
     }),
     action({
       id: 'patinet-d-aire@cal', name: "Patinet d'aire", skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus, speed: 4,
+      unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'air_scooter@cal' }],
       desc: 'El torn següent actues primer, i el primer atac contra tu falla.',
       icon: 'lorc/orbital.svg',
     }),
     action({
       id: 'esquivar-los-a-tots@cal', name: 'Esquivar-los a tots', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Defensa, speed: 4, dice: d(3, 4),
+      unlock: 4, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'dodge_them_all@cal' }],
       desc: 'Bloqueja tots els enemics.',
       icon: 'lorc/dodging.svg',
     }),
     action({
       id: 'catapulta-de-vent@cal', name: 'Catapulta de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, speed: 4, dice: d(2, 6),
+      unlock: 5, type: ActionType.Atac, fast: true, dice: d(2, 6),
       effects: [{ type: 'cancel_on_hit' }],
       desc: "Si fereix, l'objectiu perd la seva acció d'aquest torn.",
       icon: 'lorc/tornado.svg',
     }),
     action({
       id: 'remoli-del-mareig@cal', name: 'Remolí del mareig', skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Defensa, speed: 3, dice: d(3, 6),
+      unlock: 6, type: ActionType.Defensa, dice: d(3, 6),
       effects: [{ type: 'block_only' }, { type: 'dizzying_whirl@cal' }],
       desc: 'Bloqueja un enemic. Aquest torn, els seus atacs van contra un combatent a l\'atzar.',
       icon: 'lorc/vortex.svg',
     }),
     action({
       id: 'cop-i-fuga@cal', name: 'Cop i fuga', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Atac, speed: 3, dice: d(3, 6),
+      unlock: 7, type: ActionType.Atac, fast: true, dice: d(3, 6),
       effects: [{ type: 'hit_and_vanish@cal' }],
       desc: "Després de l'atac, els atacs contra tu fallen la resta del torn.",
       icon: 'lorc/run.svg',
     }),
     action({
       id: 'salt-del-meteor@cal', name: 'Salt del meteor', skillId: SKILL_ID,
-      unlock: 8, type: ActionType.Atac, speed: -2, dice: d(2, 6), targetCount: 99,
+      unlock: 8, type: ActionType.Atac, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'meteor_leap@cal' }],
       desc: 'Puges 1 nivell de fatiga. Afecta tots els enemics. Fins que es resol, els atacs contra tu fallen.',
       icon: 'lorc/meteor-impact.svg',
     }),
     action({
       id: 'ull-de-l-huraca@cal', name: "Ull de l'huracà", skillId: SKILL_ID,
-      unlock: 9, type: ActionType.Atac, speed: 7, dice: d(2, 6), targetCount: 99,
+      unlock: 9, type: ActionType.Atac, fast: true, dice: d(2, 6), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'storm_aim@cal' }],
       desc: "Puges 2 nivells de fatiga. Afecta tots els enemics. Aquest torn, els que fereix ataquen un combatent a l'atzar.",
       icon: 'lorc/whirlwind.svg',
     }),
     action({
       id: 'bosc-de-tornados@cal', name: 'Bosc de tornados', skillId: SKILL_ID,
-      unlock: 10, type: ActionType.Atac, speed: 1, dice: d(3, 6), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(3, 6), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'hurl_into_another', params: { alone: 'twice' } }],
       desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics. Cada un que fereix és llançat contra un altre enemic a l\'atzar, que rep el mateix dany; si no n\'hi ha cap, s\'estavella contra el terra i el rep dos cops.',
       icon: 'lorc/tornado-discs.svg',

@@ -33,7 +33,7 @@ describe('BlowInfo: what a blow knows about itself', () => {
     x.setStatus('ear', 1, -1, undefined, listen);
     y.setStatus('ear', 1, -1, undefined, listen);
     const sweeper = fighter('Sweeper', [attackCard('sweep', { targetCount: 99 })]);
-    const striker = fighter('Striker', [attackCard('hit', { speed: 0 })]);
+    const striker = fighter('Striker', [attackCard('hit', {})]);
     playRound(engine(new EffectRegistry(), [x, y], [sweeper, striker]), [
       { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: T(0, 0) },
     ]);
@@ -107,7 +107,7 @@ describe('onAllyTargeted returning true: the blow passes over that ally', () => 
     const hooker = fighter('Hooker', [focusCard()], { pv: 20 });
     hooker.setStatus('yank', 1, 1, undefined, YANK);
     const x = fighter('X', [focusCard()], { pv: 20 });
-    const foe = fighter('Foe', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
+    const foe = fighter('Foe', [focusCard('f', { effects: [{ type: 'strike' }] })]);
     playRound(engine(registry, [hooker, x], [foe]), [{ team: 1, idx: 0, actionIdx: 0, targets: T(0, 1) }]);
     expect(seen).toEqual([{ hit: false, damage: 0 }]);
     expect(x.currentPV).toBe(20);
@@ -126,8 +126,8 @@ describe('guardsBlow: a stand-in for every guard on the side', () => {
     const rolled: number[] = [];
     const maker = fighter('Maker', [focusCard()], { pv: 20 });
     maker.setStatus('colossus', 1, -1, undefined, standIn(defenseCard('colossus'), 2, rolled));
-    const x = fighter('X', [defenseCard('own', { rollBonus: 50, speed: 9 })], { pv: 20 });
-    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 6, speed: 0 })]);
+    const x = fighter('X', [defenseCard('own', { rollBonus: 50 })], { pv: 20 });
+    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 6 })]);
     playRound(engine(new EffectRegistry(), [maker, x], [foe]), [
       { team: 0, idx: 0, actionIdx: 0 }, { team: 0, idx: 1, actionIdx: 0, targets: T(0, 1) },
       { team: 1, idx: 0, actionIdx: 0, targets: T(0, 1) },
@@ -174,7 +174,7 @@ describe('guardsBlow: a stand-in for every guard on the side', () => {
     });
     const maker = fighter('Maker', [focusCard()], { pv: 20 });
     maker.setStatus('colossus', 1, -1, undefined, standIn(defenseCard('colossus'), 4, rolled));
-    const foe = fighter('Foe', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
+    const foe = fighter('Foe', [focusCard('f', { effects: [{ type: 'strike' }] })]);
     playRound(engine(registry, [maker], [foe]), [{ team: 1, idx: 0, actionIdx: 0, targets: T(0, 0) }]);
     expect(maker.currentPV).toBe(18);
     expect(rolled).toHaveLength(1);
@@ -210,19 +210,23 @@ describe('beforeHolderAction: just before the holder\'s card resolves', () => {
     expect([me.currentPV, foe.currentPV]).toEqual([15, 0]);
   });
 
-  it('an earlier hit in the Focus\'s own speed tier still does not interrupt it', () => {
+  it('an earlier hit in the Focus\'s own step still does not interrupt it', () => {
     let resolved = 0;
     const registry = new EffectRegistry();
     registry.register('note', { onResolve() { resolved++; } });
-    const foe = fighter('Foe', [focusCard('f', { speed: 1, effects: [{ type: 'note' }] })], { pv: 20 });
+    // A Focus that wounds: it resolves in the same (Focus) step as the foe's.
+    registry.register('zap', { getTargetRequirement: () => 'enemy', onResolve(ctx) { ctx.engine.applyPvLoss(ctx.targets[0], 1, ctx.source); } });
+    const foe = fighter('Foe', [focusCard('f', { effects: [{ type: 'note' }] })], { pv: 20 });
     foe.setStatus('aimed', 1, -1, undefined, { beforeHolderAction() {} });
-    const me = fighter('Me', [attackCard('hit', { speed: 1 })]);
-    // Whoever goes first in the tie, the Focus is not interrupted by a
-    // simultaneous blow, nor by a hook that dealt nothing.
+    const me = fighter('Me', [focusCard('zap', { effects: [{ type: 'zap' }] })]);
+    // Whoever committed first, the Focus is not interrupted by a simultaneous
+    // blow in its own step, nor by a hook that dealt nothing.
     for (let i = 0; i < 6; i++) {
-      playRound(engine(registry, [me], [foe]), [{ team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 1, idx: 0, actionIdx: 0 }]);
+      const sel = [{ team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 1, idx: 0, actionIdx: 0 }];
+      playRound(engine(registry, [me], [foe]), i % 2 ? sel : [sel[1], sel[0]]);
     }
     expect(resolved).toBe(6);
+    expect(foe.currentPV).toBe(19);   // a fresh combat each round: one zap
   });
 });
 
@@ -235,7 +239,7 @@ describe('performAreaAttack: one roll over several targets', () => {
     });
     const me = fighter('Me', [focusCard('f', { effects: [{ type: 'spin' }] })]);
     const x = fighter('X', [focusCard()], { pv: 20 });
-    const y = fighter('Y', [defenseCard('g', { rollBonus: 1, speed: 9 })], { pv: 20 });
+    const y = fighter('Y', [defenseCard('g', { rollBonus: 1 })], { pv: 20 });
     playRound(engine(registry, [me], [x, y]), [{ team: 0, idx: 0, actionIdx: 0 }, { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: T(1, 1) }]);
     const [[rx, ry]] = seen;
     // One roll r: X takes r, Y takes r − 1.

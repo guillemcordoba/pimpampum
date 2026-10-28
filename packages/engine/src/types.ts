@@ -24,9 +24,10 @@ export enum EquipmentSlot {
 }
 
 /**
- * What kind of target the player must pick for an action. `'defense'` is the
- * defense-action dual choice: one living ally (including self) to guard, OR
- * one living enemy to block. `'fallen_ally'` is one of the actor's own side who
+ * What kind of target the player must pick for an action. `'defense'` is a
+ * defense's choice: one living ally (self included) to guard — chosen after
+ * the attacks have aimed (rules.md). A defense whose effects ask for
+ * `'enemy'` blocks that enemy instead. `'fallen_ally'` is one of the actor's own side who
  * has fallen (0 PV), and nobody standing.
  */
 export type TargetRequirement = 'none' | 'enemy' | 'ally' | 'ally_other' | 'self' | 'defense' | 'fallen_ally';
@@ -58,8 +59,15 @@ export interface ActionDefinition {
    *  learnt (level N = knows the first N actions). */
   unlockLevel: number;
   actionType: ActionType;
-  /** Higher resolves first. Heavy-armour speed penalty is subtracted at runtime. */
-  speed: number;
+  /**
+   * Resolves in the round's FAST step, ahead of every normal card: fast Defense,
+   * fast Attack, fast Focus, then the normal Defense, Attack, Focus (rules.md).
+   * Statuses may grant or strip it (`StatusBehavior.fast`).
+   */
+  fast?: boolean;
+  /** @deprecated Ignored: the priority system replaced speed. Still accepted
+   *  only so the pinned calibration copies compile until they are re-pinned. */
+  speed?: number;
   /**
    * Contest dice: attack dice (Atac) or defense dice (Defensa). Rolled when
    * the action contests — the attack total IS the damage margin. Focus actions
@@ -96,15 +104,16 @@ export interface RollBonus {
   value: number;
 }
 
-/** Passive equipment definition: flat armour, speed penalty and roll bonuses. */
+/** Passive equipment definition: flat armour and roll bonuses. */
 export interface EquipmentDefinition {
   id: string;
   name: string;
   slot: EquipmentSlot;
   /** Flat damage reduction subtracted from each incoming hit (min 0 damage). */
   passiveArmor: number;
-  /** Subtracted from the speed of every action the wearer plays (>= 0). */
-  speedPenalty: number;
+  /** @deprecated Ignored (there is no speed). Accepted until the pinned
+   *  calibration copies are re-pinned. */
+  speedPenalty?: number;
   rollBonuses: RollBonus[];
   /**
    * Weapon attack modifier, added to the roll of actions whose effects read

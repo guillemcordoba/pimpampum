@@ -431,7 +431,7 @@ export class Referee {
     if (++this.sims > this.opts.budget) throw new BudgetExceeded(`over ${this.opts.budget} simulated rounds`);
     const sim = prepared.clone();
     let asked = 0;
-    sim.targetChooser = (_e, actor, def, req, count, pool, speed) => {
+    sim.targetChooser = (_e, actor, def, req, count, pool) => {
       if (asked >= script.length) {
         // A card AIMING (its queue entry still unaimed) is decided by the engine
         // state alone. A choice an effect asks for mid-resolution may sit on
@@ -444,7 +444,7 @@ export class Referee {
         const resolving = aiming && current?.actor === actor && current.action.def === def;
         const key = aiming ? digest(`${midRoundKey(sim, this.idOf)}|${ref(actor)}:#${this.idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`) : null;
         // The AI is asked before anything is thrown, on the engine as it stands.
-        const answer = ai && resolving && actor.team === 0 ? ai(sim, actor, def, req, count, pool, speed).map(c => pool.indexOf(c)) : undefined;
+        const answer = ai && resolving && actor.team === 0 ? ai(sim, actor, def, req, count, pool).map(c => pool.indexOf(c)) : undefined;
         throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer);
       }
       const a = script[asked++];

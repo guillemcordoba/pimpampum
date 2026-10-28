@@ -17,13 +17,13 @@ const ICON = 'icons/000000/transparent/1x1/';
 export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   {
     id: 'armadura-de-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Armor,
-    passiveArmor: 2, speedPenalty: 1, rollBonuses: [],
+    passiveArmor: 2, rollBonuses: [],
     iconPath: ICON + 'lorc/leather-vest.svg', slotLabel: 'Armadura',
     description: '',
   },
   {
     id: 'armadura-de-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Armor,
-    passiveArmor: 3, speedPenalty: 2, rollBonuses: [],
+    passiveArmor: 3, rollBonuses: [],
     iconPath: ICON + 'lorc/armor-vest.svg', slotLabel: 'Armadura',
     description: '',
   },

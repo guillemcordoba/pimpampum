@@ -9,7 +9,7 @@ const ICON = 'icons/000000/transparent/1x1/';
  *  payoff, the mildest of them (everyone can carry a shield). */
 const ESCUT_DE_FUSTA = action({
   id: 'escut-de-fusta', name: 'Escut de fusta', skillId: 'escut', unlock: 0,
-  type: ActionType.Defensa, speed: 2, dice: d(2, 4),
+  type: ActionType.Defensa, dice: d(2, 4),
   effects: [{ type: 'debuff_on_block', params: { kind: 'speed', amount: 2, duration: 'nextTurn' } }],
   desc: 'Si bloqueges un atac, {V}−2 a l\'atacant el proper torn.',
   icon: 'willdabeast/round-shield.svg',
@@ -21,19 +21,19 @@ const ESCUT_DE_FUSTA = action({
 export const ALL_EQUIPMENT: EquipmentDefinition[] = [
   {
     id: 'armadura-de-cuir', name: 'Armadura de cuir', slot: EquipmentSlot.Armor,
-    passiveArmor: 2, speedPenalty: 1, rollBonuses: [],
+    passiveArmor: 2, rollBonuses: [],
     iconPath: ICON + 'lorc/leather-vest.svg', slotLabel: 'Armadura',
     description: '',
   },
   {
     id: 'armadura-de-ferro', name: 'Armadura de ferro', slot: EquipmentSlot.Armor,
-    passiveArmor: 3, speedPenalty: 2, rollBonuses: [],
+    passiveArmor: 3, rollBonuses: [],
     iconPath: ICON + 'lorc/armor-vest.svg', slotLabel: 'Armadura',
     description: '',
   },
   {
     id: 'escut', name: 'Escut de fusta', slot: EquipmentSlot.Shield,
-    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
+    passiveArmor: 0, rollBonuses: [],
     grantsActions: [ESCUT_DE_FUSTA],
     iconPath: ICON + 'willdabeast/round-shield.svg', slotLabel: 'Escut',
     description: '',

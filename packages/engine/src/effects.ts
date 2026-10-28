@@ -112,7 +112,7 @@ export interface EngineApi {
   delayPendingAction(target: Character): boolean;
   /** The counterpart of `delayPendingAction`: `target`'s still-pending action
    *  resolves NEXT, right after the action now resolving, and joins that
-   *  action's speed tier (simultaneous with it). Returns false when it has
+   *  action's tier (simultaneous with it). Returns false when it has
    *  already acted or was cancelled. */
   advancePendingAction(target: Character): boolean;
   /** This round's revealed plan — what everyone at the table sees once the
@@ -205,7 +205,7 @@ export interface AIContext {
  * ones relevant to the action kind and resolution phase.
  */
 export interface EffectHandler {
-  /** Focus/defense action body, run when the action resolves in speed order. */
+  /** Focus/defense action body, run when the action resolves in round order. */
   onResolve?(ctx: EffectContext): void;
   /** Adjust an in-flight attack before it is rolled (piercing, smite, pack…). */
   modifyAttack?(ctx: EffectContext): void;
@@ -242,6 +242,10 @@ export interface EffectHandler {
    *  keep its printed type. The targets are the ones already chosen: an
    *  attack's enemy becomes the enemy a defense blocks. */
   resolveAs?(ctx: EffectContext): ActionType | void;
+  /** The type the card plays as, decided AT THE REVEAL once every card has
+   *  aimed (`ctx.targets` are its own aims): it takes that type's place in the
+   *  round's order and resolves as it. Nothing: its printed type. */
+  revealAs?(ctx: EffectContext): ActionType | void;
   /** Run when the round's cards are revealed, before anything resolves (a
    *  leap that takes its maker out of reach from the very start of the round). */
   onReveal?(ctx: EffectContext): void;
@@ -286,7 +290,7 @@ const NO_HOOKED_EFFECTS: readonly HookedEffect[] = [];
 const HANDLER_HOOKS = [
   'onResolve', 'modifyAttack', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'postRound',
   'getTargetRequirement', 'aiWeight', 'aiTargetPriority', 'onCombatStart', 'canPlay', 'onPlay', 'resolveAs',
-  'onReveal', 'aimsAtReveal', 'onAimed', 'presetAttackRoll', 'onAttackResolved', 'revealOptions',
+  'onReveal', 'aimsAtReveal', 'onAimed', 'revealAs', 'presetAttackRoll', 'onAttackResolved', 'revealOptions',
   'aiRevealOption', 'onRevealOption',
 ] as const satisfies readonly (keyof EffectHandler)[];
 // Fails to compile when EffectHandler grows a hook the list above lacks.

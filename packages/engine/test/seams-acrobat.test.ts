@@ -55,11 +55,14 @@ describe('attackTargetsExcluded: one the holder cannot reach', () => {
   });
 
   it('their block no longer forces the blow onto them', () => {
-    const x = fighter('X', [defenseCard('block', { speed: 9 })], { pv: 20 });
+    // Blocking an enemy is a card's own effect (an 'enemy' target), not the generic defense.
+    const blockRegistry = new EffectRegistry();
+    blockRegistry.register('block_enemy', { getTargetRequirement: () => 'enemy' });
+    const x = fighter('X', [defenseCard('block', { effects: [{ type: 'block_enemy' }] })], { pv: 20 });
     const y = fighter('Y', [focusCard()], { pv: 20 });
-    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 4, speed: 0 })]);
+    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 4 })]);
     foe.setStatus('ridden', 1, 2, undefined, excluding(() => x));
-    playRound(engine(new EffectRegistry(), [x, y], [foe]), [
+    playRound(engine(blockRegistry, [x, y], [foe]), [
       { team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 0, idx: 1, actionIdx: 0 },
       { team: 1, idx: 0, actionIdx: 0, targets: T(0, 1) },
     ]);
@@ -74,7 +77,7 @@ describe('attackTargetsExcluded: one the holder cannot reach', () => {
       onResolve(ctx) { seen.push(ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], flatDice(6))); },
     });
     const x = fighter('X', [focusCard()], { pv: 20 });
-    const foe = fighter('Foe', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
+    const foe = fighter('Foe', [focusCard('f', { effects: [{ type: 'strike' }] })]);
     foe.setStatus('ridden', 1, 2, undefined, excluding(() => x));
     playRound(engine(registry, [x], [foe]), [{ team: 1, idx: 0, actionIdx: 0, targets: T(0, 0) }]);
     expect(seen).toEqual([{ hit: false, damage: 0 }]);
@@ -94,8 +97,8 @@ describe('onAllyTargeted: a defender that dives to whoever is attacked first', (
   it('the guard it raises covers that very blow, and joins the wall there', () => {
     const shield = defenseCard('shield', { rollBonus: 3 });
     const diver = fighter('Diver', [focusCard()], { pv: 20 });
-    const ally = fighter('Ally', [defenseCard('own', { rollBonus: 2, speed: 9 })], { pv: 20 });
-    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 9, speed: 0 })]);
+    const ally = fighter('Ally', [defenseCard('own', { rollBonus: 2 })], { pv: 20 });
+    const foe = fighter('Foe', [attackCard('hit', { rollBonus: 9 })]);
     diver.setStatus('dive', 1, 1, undefined, DIVE(shield));
     playRound(engine(new EffectRegistry(), [diver, ally], [foe]), [
       { team: 0, idx: 0, actionIdx: 0 }, { team: 0, idx: 1, actionIdx: 0, targets: T(0, 1) },
@@ -124,7 +127,7 @@ describe('onAllyTargeted: a defender that dives to whoever is attacked first', (
     });
     const diver = fighter('Diver', [focusCard()], { pv: 20 });
     const ally = fighter('Ally', [focusCard()], { pv: 20 });
-    const foe = fighter('Foe', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
+    const foe = fighter('Foe', [focusCard('f', { effects: [{ type: 'strike' }] })]);
     diver.setStatus('dive', 1, 1, undefined, DIVE(defenseCard()));
     playRound(engine(registry, [diver, ally], [foe]), [{ team: 1, idx: 0, actionIdx: 0, targets: T(0, 1) }]);
     expect(ally.currentPV).toBe(20);
@@ -159,12 +162,12 @@ describe('reveal options: a pick made when the cards are revealed', () => {
     registry.register('note', { onResolve(ctx) { log.push(`resolved:${ctx.source.name}`); } });
     return registry;
   }
-  const leap = () => attackCard('leap', { speed: 0, effects: [{ type: 'height' }] });
+  const leap = () => attackCard('leap', { effects: [{ type: 'height' }] });
 
   it('an AI seat takes the card\'s own pick before anything resolves', () => {
     const log: string[] = [];
     const me = fighter('Me', [leap()], { ai: true });
-    const foe = fighter('Foe', [focusCard('f', { speed: 9, effects: [{ type: 'note' }] })], { pv: 30 });
+    const foe = fighter('Foe', [focusCard('f', { fast: true, effects: [{ type: 'note' }] })], { pv: 30 });
     playRound(engine(registryFor(log), [me], [foe]), [{ team: 1, idx: 0, actionIdx: 0 }]);
     expect(log).toEqual(['picked:1', 'resolved:Foe']);
     // 1 + 4
@@ -174,7 +177,7 @@ describe('reveal options: a pick made when the cards are revealed', () => {
   it('a human seat is asked, and its answer stands', () => {
     const log: string[] = [];
     const me = fighter('Me', [leap()]);
-    const foe = fighter('Foe', [focusCard('f', { speed: 9, effects: [{ type: 'note' }] })], { pv: 30 });
+    const foe = fighter('Foe', [focusCard('f', { fast: true, effects: [{ type: 'note' }] })], { pv: 30 });
     const e = engine(registryFor(log), [me], [foe]);
     e.prepareRound();
     e.planActions([{ team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 1, idx: 0, actionIdx: 0 }]);
@@ -210,9 +213,9 @@ describe('performExtraAttack and the target', () => {
       getTargetRequirement() { return 'enemy'; },
       onResolve(ctx) { seen.push(ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], flatDice(6))); },
     });
-    const me = fighter('Me', [focusCard('f', { speed: 1, effects: [{ type: 'strike' }] })]);
+    const me = fighter('Me', [focusCard('f', { effects: [{ type: 'strike' }] })]);
     const x = fighter('X', [focusCard()], { pv: 20 });
-    const guard = fighter('Guard', [defenseCard('g', { rollBonus: 1, speed: 9 })], { pv: 20 });
+    const guard = fighter('Guard', [defenseCard('g', { rollBonus: 1 })], { pv: 20 });
     x.setStatus('down', 2, 2, undefined, { attackRollAgainstHolder: ref => ref.entry.value });
     playRound(engine(registry, [me], [x, guard]), [
       { team: 0, idx: 0, actionIdx: 0, targets: T(1, 0) }, { team: 1, idx: 0, actionIdx: 0 },

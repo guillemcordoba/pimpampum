@@ -1,31 +1,31 @@
 /**
- * HOW A ROUND FLOWS — speed order, simultaneity, interruption, learning, the
+ * HOW A ROUND FLOWS — the priority order, simultaneity, interruption, learning, the
  * end of a fight — on hand-built positions with exact dice.
  */
 import { describe, it, expect } from 'vitest';
-import { CombatEngine, DiceRoll, EffectRegistry, firstLegalChooser } from '../src/index.js';
+import { CombatEngine, DiceRoll, EffectRegistry, firstLegalChooser, withSeed } from '../src/index.js';
 import { armour, attackCard, defenseCard, fighter, focusCard, playRound, punchingBag } from '../src/testing.js';
 
 const registry = () => new EffectRegistry();
 const at = (team: number, idx: number) => ({ team, idx });
 
-describe('speed', () => {
-  it('the faster action resolves first — a kill before the slower blow lands', () => {
-    const fast = fighter('Fast', [attackCard('stab', { speed: 5, rollBonus: 9 })], { pv: 10 });
-    const slow = fighter('Slow', [attackCard('club', { speed: 1, rollBonus: 9 })], { pv: 10 });
-    const engine = new CombatEngine([fast], [slow], { registry: registry(), actionChooser: firstLegalChooser });
+describe('priority: the order a round resolves in (rules.md)', () => {
+  it('a fast card resolves before every normal one — a kill before the normal blow lands', () => {
+    const quick = fighter('Quick', [attackCard('stab', { fast: true, rollBonus: 9 })], { pv: 10 });
+    const plain = fighter('Plain', [attackCard('club', { rollBonus: 9 })], { pv: 10 });
+    const engine = new CombatEngine([quick], [plain], { registry: registry(), actionChooser: firstLegalChooser });
     playRound(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
       { team: 1, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
     ]);
-    expect(slow.isAlive()).toBe(false);
-    expect(fast.currentPV).toBe(10);
+    expect(plain.isAlive()).toBe(false);
+    expect(quick.currentPV).toBe(10);
     expect(engine.winner()).toBe(0);
   });
 
-  it('equal speed is simultaneous: both blows land, and a double kill is a draw', () => {
-    const a = fighter('A', [attackCard('x', { speed: 3, rollBonus: 9 })], { pv: 10 });
-    const b = fighter('B', [attackCard('y', { speed: 3, rollBonus: 9 })], { pv: 10 });
+  it('cards of one step are simultaneous: both blows land, and a double kill is a draw', () => {
+    const a = fighter('A', [attackCard('x', { rollBonus: 9 })], { pv: 10 });
+    const b = fighter('B', [attackCard('y', { rollBonus: 9 })], { pv: 10 });
     const engine = new CombatEngine([a], [b], { registry: registry(), actionChooser: firstLegalChooser });
     playRound(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
@@ -37,23 +37,130 @@ describe('speed', () => {
     expect(engine.isOver()).toBe(true);
   });
 
-  it('heavy armour costs speed, and speed decides who acts first', () => {
-    const heavy = fighter('Heavy', [attackCard('x', { speed: 3, rollBonus: 9 })], { pv: 10, equipment: [armour(0, 1)] });
-    const light = fighter('Light', [attackCard('y', { speed: 3, rollBonus: 9 })], { pv: 10 });
-    const engine = new CombatEngine([heavy], [light], { registry: registry(), actionChooser: firstLegalChooser });
+  it('the queue is: fast Defense, fast Attack, fast Focus, then Defense, Attack, Focus', () => {
+    const cards = [
+      focusCard('f'), attackCard('a', { rollBonus: -100 }), defenseCard('d'),
+      focusCard('ff', { fast: true }), attackCard('fa', { fast: true, rollBonus: -100 }), defenseCard('fd', { fast: true }),
+    ];
+    const team = cards.map((c, i) => fighter(`P${i}`, [c], { pv: 50 }));
+    const engine = new CombatEngine(team, [fighter('Foe', [focusCard('z')], { pv: 50 })], { registry: registry(), actionChooser: firstLegalChooser });
+    engine.prepareRound();
+    const revealed = engine.planActions([
+      ...team.map((_, i) => ({ team: 0, idx: i, actionIdx: 0, targets: cards[i].actionType === 'Atac' ? [at(1, 0)] : undefined })),
+      { team: 1, idx: 0, actionIdx: 0 },
+    ]);
+    expect(revealed.filter(r => r.actorTeam === 0).map(r => r.actionId)).toEqual(['fd', 'fa', 'ff', 'd', 'a', 'f']);
+  });
+
+  it('a normal Defense is up before a normal Attack, and stops it', () => {
+    const guard = fighter('G', [defenseCard('wall')], { pv: 10 });
+    const striker = fighter('S', [attackCard('hit', { rollBonus: 5 })], { pv: 10 });
+    const engine = new CombatEngine([guard], [striker], { registry: registry(), actionChooser: firstLegalChooser });
     playRound(engine, [
-      { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+      { team: 0, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
       { team: 1, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
     ]);
-    expect(heavy.isAlive()).toBe(false);
-    expect(light.currentPV).toBe(10);
+    expect(guard.currentPV).toBe(10);
+  });
+
+  it('a fast Attack lands before a normal Defense goes up: the target is undefended', () => {
+    const guard = fighter('G', [defenseCard('wall')], { pv: 10 });
+    const striker = fighter('S', [attackCard('hit', { fast: true, rollBonus: 5 })], { pv: 10 });
+    const engine = new CombatEngine([guard], [striker], { registry: registry(), actionChooser: firstLegalChooser });
+    playRound(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
+    ]);
+    expect(guard.currentPV).toBe(4);   // 1d1+5, the full roll
+  });
+
+  it('a fast Defense is up before a fast Attack', () => {
+    const guard = fighter('G', [defenseCard('wall', { fast: true })], { pv: 10 });
+    const striker = fighter('S', [attackCard('hit', { fast: true, rollBonus: 5 })], { pv: 10 });
+    const engine = new CombatEngine([guard], [striker], { registry: registry(), actionChooser: firstLegalChooser });
+    playRound(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [at(0, 0)] },
+    ]);
+    expect(guard.currentPV).toBe(10);
+  });
+
+  it('every attack aims at the reveal; a defense chooses whom to guard only when it resolves, seeing the aims', () => {
+    const guard = fighter('G', [defenseCard('wall')], { pv: 10, ai: true });
+    const ally = fighter('Ally', [focusCard('wait')], { pv: 10, ai: true });
+    const striker = fighter('S', [attackCard('hit', { rollBonus: 5 })], { pv: 10, ai: true });
+    let aimsSeenByDefense: (readonly unknown[] | null)[] = [];
+    const engine = new CombatEngine([guard, ally], [striker], {
+      registry: registry(), actionChooser: firstLegalChooser,
+      // Attacks go for the ally; a defense guards whoever an attack aimed at.
+      targetChooser: (e, actor, def, req, count, pool) => {
+        if (req === 'enemy') return pool.filter(c => c.name === 'Ally').slice(0, count);
+        aimsSeenByDefense = e.pendingSummary().filter(p => p.actionType === 'Atac').map(p => p.targets);
+        const aimed = e.pendingSummary().flatMap(p => p.actionType === 'Atac' ? p.targets ?? [] : []);
+        return pool.filter(c => aimed.includes(c)).slice(0, count);
+      },
+    });
+    engine.prepareRound();
+    engine.planActions([]);
+    const atReveal = engine.pendingSummary();
+    expect(atReveal.find(p => p.actor === striker)!.targets).toEqual([ally]);   // aimed already
+    expect(atReveal.find(p => p.actor === guard)!.targets).toBeNull();          // not yet
+    let r = engine.resolveNextAction();
+    while (r.kind !== 'done') r = engine.resolveNextAction();
+    engine.finishRound();
+    expect(aimsSeenByDefense).toEqual([[ally]]);
+    expect(ally.currentPV).toBe(10);   // guarded
+  });
+
+  it('a defense guards an ally or itself — never an enemy, whatever a seat names', () => {
+    const guard = fighter('G', [defenseCard('wall')], { pv: 10 });
+    const foe = fighter('F', [focusCard('wait')], { pv: 10 });
+    const engine = new CombatEngine([guard], [foe], { registry: registry(), actionChooser: firstLegalChooser });
+    engine.prepareRound();
+    engine.planActions([{ team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 0, actionIdx: 0 }]);
+    // The illegal enemy is dropped; the only legal target (itself) is kept.
+    expect(engine.plannedThisRound().find(p => p.actor === guard)!.targets).toEqual([guard]);
+  });
+
+  it('inside a step, whoever committed first resolves first', () => {
+    for (const first of [0, 1]) {
+      const a = fighter('A', [attackCard('x', { rollBonus: -100 })], { pv: 10 });
+      const b = fighter('B', [attackCard('y', { rollBonus: -100 })], { pv: 10 });
+      const engine = new CombatEngine([a], [b], { registry: registry(), actionChooser: firstLegalChooser });
+      const sel = [{ team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 0, actionIdx: 0, targets: [at(0, 0)] }];
+      playRound(engine, first === 0 ? sel : [sel[1], sel[0]]);
+      expect(engine.history.map(h => h.actor.name)).toEqual(first === 0 ? ['A', 'B'] : ['B', 'A']);
+    }
+  });
+
+  it('seats with no commit moment (AI) land at random inside their step', () => {
+    const orders = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) {
+      withSeed(seed, () => {
+        const a = fighter('A', [attackCard('x', { rollBonus: -100 })], { pv: 10, ai: true });
+        const b = fighter('B', [attackCard('y', { rollBonus: -100 })], { pv: 10, ai: true });
+        const engine = new CombatEngine([a], [b], { registry: registry(), actionChooser: firstLegalChooser });
+        engine.runRound();
+        orders.add(engine.history.map(h => h.actor.name).join(''));
+      });
+    }
+    expect(orders).toEqual(new Set(['AB', 'BA']));
+  });
+
+  it('a status can grant the fast step, and a strip beats a grant', () => {
+    const c = fighter('C', [attackCard('x')], { pv: 10 });
+    expect(c.isFast(c.actions[0])).toBe(false);
+    c.setStatus('wind', 1, 2, undefined, { fast: () => true });
+    expect(c.isFast(c.actions[0])).toBe(true);
+    c.setStatus('doom', 1, 2, undefined, { fast: () => false });
+    expect(c.isFast(c.actions[0])).toBe(false);
   });
 });
 
 describe('focus', () => {
   it('is cancelled when its holder takes damage first', () => {
-    const caster = fighter('C', [focusCard('charge', { speed: 0, effects: [{ type: 'mark' }] })], { pv: 20 });
-    const striker = fighter('S', [attackCard('jab', { speed: 5 })], { pv: 20 });
+    const caster = fighter('C', [focusCard('charge', { effects: [{ type: 'mark' }] })], { pv: 20 });
+    const striker = fighter('S', [attackCard('jab', {})], { pv: 20 });
     const r = registry();
     let resolved = 0;
     r.register('mark', { onResolve: () => { resolved++; } });
@@ -67,8 +174,8 @@ describe('focus', () => {
   });
 
   it('survives a blow that armour absorbs completely', () => {
-    const caster = fighter('C', [focusCard('charge', { speed: 0, effects: [{ type: 'mark' }] })], { pv: 20, equipment: [armour(3)] });
-    const striker = fighter('S', [attackCard('jab', { speed: 5 })], { pv: 20 });
+    const caster = fighter('C', [focusCard('charge', { effects: [{ type: 'mark' }] })], { pv: 20, equipment: [armour(3)] });
+    const striker = fighter('S', [attackCard('jab', {})], { pv: 20 });
     const r = registry();
     let resolved = 0;
     r.register('mark', { onResolve: () => { resolved++; } });
@@ -86,7 +193,7 @@ describe('learning in a real contest', () => {
   it('a defender who loses by ≤2 learns; a winner never does; an undefended hit teaches no one', () => {
     // Attack 1d1+3 = 4 vs defense 1d1+1 = 2: the defender loses by 2 → learns.
     const d = fighter('D', [defenseCard('guard', { dice: new DiceRoll(1, 1), rollBonus: 1 })], { pv: 20 });
-    const a = fighter('A', [attackCard('hit', { rollBonus: 3, speed: 1 })], { pv: 20 });
+    const a = fighter('A', [attackCard('hit', { rollBonus: 3 })], { pv: 20 });
     const engine = new CombatEngine([d], [a], { registry: registry(), actionChooser: firstLegalChooser });
     playRound(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [at(0, 0)] },

@@ -59,7 +59,7 @@ const armourItems = new Map<number, EquipmentDefinition>();
 function armourItem(value: number): EquipmentDefinition {
   let it = armourItems.get(value);
   if (!it) {
-    it = { id: `audit-armour-${value}`, name: `armour ${value}`, slot: EquipmentSlot.Armor, passiveArmor: value, speedPenalty: 0, rollBonuses: [], iconPath: '', description: '' };
+    it = { id: `audit-armour-${value}`, name: `armour ${value}`, slot: EquipmentSlot.Armor, passiveArmor: value, rollBonuses: [], iconPath: '', description: '' };
     armourItems.set(value, it);
   }
   return it;

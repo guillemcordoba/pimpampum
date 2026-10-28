@@ -88,7 +88,7 @@ describe('plainCards: only the dice count', () => {
   it('a focus does nothing, and a defense still guards with its dice but without its rider', () => {
     const log: string[] = [];
     const healer = fighter('Healer', [focusCard('heal', { effects: [{ type: 'cure' }] })]);
-    const guard = fighter('Guard', [defenseCard('wall', { rollBonus: 9, speed: 9, effects: [{ type: 'reprisal' }] })], { pv: 20 });
+    const guard = fighter('Guard', [defenseCard('wall', { rollBonus: 9, effects: [{ type: 'reprisal' }] })], { pv: 20 });
     const foe = fighter('Foe', [attackCard('hit', { rollBonus: 4 })]);
     healer.setStatus('off', 1, 1, undefined, { plainCards: () => true });
     guard.setStatus('off', 1, 1, undefined, { plainCards: () => true });
@@ -153,7 +153,7 @@ describe('AttackModifiers.damageMult: a blow that decides whom it beats and hurt
     });
     const me = fighter('Me', [attackCard('storm', { rollBonus: 9, targetCount: 99, effects: [{ type: 'harmless' }] })], { ai: true });
     const x = fighter('X', [focusCard()], { pv: 20 });
-    const y = fighter('Y', [defenseCard('wall', { rollBonus: 50, speed: 9 })], { pv: 20 });
+    const y = fighter('Y', [defenseCard('wall', { rollBonus: 50 })], { pv: 20 });
     playRound(engine(registry, [me], [x, y]), [{ team: 1, idx: 1, actionIdx: 0, targets: T(1, 1) }]);
     expect(hits).toEqual(['X:0']);
     expect(x.currentPV).toBe(20);
@@ -196,7 +196,7 @@ describe('attackRollOfHolder: every attack the holder rolls', () => {
 
   it('lowers the contested total, not the damage after it', () => {
     const me = fighter('Me', [attackCard('hit', { rollBonus: 9 })], { ai: true });
-    const foe = fighter('Foe', [defenseCard('block', { rollBonus: 3, speed: 9 })], { pv: 20, ai: true });
+    const foe = fighter('Foe', [defenseCard('block', { rollBonus: 3 })], { pv: 20, ai: true });
     me.setStatus('weak', 1, -1, undefined, weak);
     playRound(engine(new EffectRegistry(), [me], [foe]), []);
     // (1 + 9 − 3) − 3 = 4.

@@ -25,7 +25,7 @@ export interface StatusEntry {
 /** The status hooks the engine asks for at every blow, roll, targeting query
  *  or decision — where almost no character holds a status that has one. */
 const GATED_HOOKS = [
-  'modifySpeed', 'rollMode', 'modifyOutgoingDamage', 'modifyIncomingDamage', 'modifyContestTotal',
+  'fast', 'rollMode', 'modifyOutgoingDamage', 'modifyIncomingDamage', 'modifyContestTotal',
   'clampPvLoss', 'attackRollAgainstHolder', 'defensePenaltyAgainst', 'preventsGuard', 'excludesAllyGuards',
   'untargetable', 'ignoresConcealment', 'preventsGuardBypass', 'onAttackAction', 'redirectAttackTarget',
   'attackTargetsOnly', 'attackTargetsExcluded', 'onAllyTargeted', 'onTargeted', 'guardsBlow', 'afterBlow',
@@ -359,22 +359,19 @@ export class Character {
     return Math.max(0, armor);
   }
 
-  getEquipmentSpeedPenalty(): number {
-    return this.equipment.reduce((s, e) => s + e.speedPenalty, 0);
-  }
-
-  /** Resolved speed of an action: base - armour penalty + speed modifiers
-   *  + status speed contributions (StatusBehavior.modifySpeed). */
-  getEffectiveSpeed(action?: ActionInstance | ActionDefinition): number {
-    const base = action ? ('def' in action ? action.def.speed : action.speed) : 0;
-    let statusSpeed = 0;
-    if (this.holdsStatusWith('modifySpeed')) {
-      for (const [key, entry] of this.statuses) {
-        if (entry.behavior?.modifySpeed) statusSpeed += entry.behavior.modifySpeed({ holder: this, key, entry });
-      }
+  /** Whether `action` resolves in the fast step when this character plays
+   *  it: its printed `fast`, unless a status grants or strips it (a strip
+   *  beats a grant). */
+  isFast(action: ActionInstance | ActionDefinition): boolean {
+    const def = 'def' in action ? action.def : action;
+    if (!this.holdsStatusWith('fast')) return !!def.fast;
+    let granted = false;
+    for (const [key, entry] of this.statuses) {
+      const say = entry.behavior?.fast?.({ holder: this, key, entry }, def);
+      if (say === false) return false;
+      if (say === true) granted = true;
     }
-    return base - this.getEquipmentSpeedPenalty()
-      + sumModifiers(this.modifiers, 'speed') + statusSpeed;
+    return granted || !!def.fast;
   }
 
   equip(item: EquipmentDefinition): void {

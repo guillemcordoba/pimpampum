@@ -31,7 +31,8 @@ interface ActionOpts {
   /** Ordinal position within the skill: level N = knows the first N actions. */
   unlock: number;
   type: ActionType;
-  speed: number;
+  /** Resolves in the round's fast step (rules.md). */
+  fast?: boolean;
   /** Contest dice: attack dice (Atac) or defense dice (Defensa). */
   dice?: DiceRoll;
   rollBonus?: number;
@@ -58,7 +59,7 @@ export function action(o: ActionOpts): ActionDefinition {
     skillId: o.skillId,
     unlockLevel: o.unlock,
     actionType: o.type,
-    speed: o.speed,
+    fast: o.fast,
     dice: o.dice,
     rollBonus: o.rollBonus,
     targetCount: o.targetCount,

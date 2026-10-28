@@ -9,7 +9,7 @@ import { ICON_PREFIX } from './types.js';
 export const WEAPONS: EquipmentDefinition[] = [
   {
     id: 'basto', name: 'Bastó', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
+    passiveArmor: 0, rollBonuses: [],
     attackBonus: 0,
     iconPath: ICON_PREFIX + 'delapouite/bo.svg', slotLabel: 'Arma',
     description: '',
@@ -19,8 +19,7 @@ export const WEAPONS: EquipmentDefinition[] = [
   // that it is a weapon at +0 and no parry.
   {
     id: 'espasa-lleugera', name: 'Espasa lleugera', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 0,
-    rollBonuses: [{ skillId: '*', kind: 'defense', value: 1 }],
+    passiveArmor: 0,     rollBonuses: [{ skillId: '*', kind: 'defense', value: 1 }],
     attackBonus: 1,
     bonusRequires: { skillId: 'mestre-armes', level: 2 },
     iconPath: ICON_PREFIX + 'lorc/pointy-sword.svg', slotLabel: 'Arma',
@@ -28,14 +27,14 @@ export const WEAPONS: EquipmentDefinition[] = [
   },
   {
     id: 'destral', name: 'Destral', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 0, rollBonuses: [],
+    passiveArmor: 0, rollBonuses: [],
     attackBonus: 2,
     iconPath: ICON_PREFIX + 'delapouite/sharp-axe.svg', slotLabel: 'Arma',
     description: '',
   },
   {
     id: 'gran-destral', name: 'Gran destral', slot: EquipmentSlot.Weapon,
-    passiveArmor: 0, speedPenalty: 1, rollBonuses: [],
+    passiveArmor: 0, rollBonuses: [],
     attackBonus: 4,
     iconPath: ICON_PREFIX + 'delapouite/war-axe.svg', slotLabel: 'Arma',
     description: '',

@@ -26,10 +26,10 @@ interface Side {
 
 function side(prefix: string, s: Side) {
   return Array.from({ length: s.count ?? 1 }, (_, i) => fighter(`${prefix}${i}`, [
-    attackCard('atk', { dice: s.attack ?? new DiceRoll(2, 6), speed: 2 }),
-    // Faster than the attack, so a raised guard is up before the blow it is
-    // for; at equal speed the order is a coin flip and defense dice barely count.
-    defenseCard('def', { dice: s.defense ?? new DiceRoll(2, 6), rollBonus: 0, speed: 3 }),
+    attackCard('atk', { dice: s.attack ?? new DiceRoll(2, 6) }),
+    // The Defense step comes before the Attack step, so a raised guard is
+    // always up before the blow it is for.
+    defenseCard('def', { dice: s.defense ?? new DiceRoll(2, 6), rollBonus: 0 }),
   ], { pv: 12, ai: true, ...s.opts }));
 }
 
@@ -58,8 +58,8 @@ function expectClearlyAbove(better: { p: number; se: number }, worse: { p: numbe
 
 describe('seats are fair', () => {
   it('a mirror match is a coin flip, whichever seat you sit in (the A/A test)', () => {
-    // Team A is built first and used to win every speed tie through a stable
-    // sort — a measured seat bias. Identical sides must split evenly.
+    // Team A is built first and used to win every tie inside a step through a
+    // stable sort — a measured seat bias. Identical sides must split evenly.
     for (const count of [1, 2, 3]) {
       const { p, se } = winrate({ count }, { count });
       expect(Math.abs(p - 0.5), `${count}v${count}: ${(p * 100).toFixed(1)}%`).toBeLessThan(4 * se);

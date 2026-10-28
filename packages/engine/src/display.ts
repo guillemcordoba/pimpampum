@@ -17,7 +17,7 @@ export const ACTION_TYPE_CSS: Record<ActionType, string> = {
 /** Icon paths for the per-action stat row and character sheets. */
 export const STAT_ICONS = {
   pv: 'icons/000000/transparent/1x1/skoll/hearts.svg',
-  speed: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
+  fast: 'icons/000000/transparent/1x1/darkzaitzev/running-ninja.svg',
   attack: 'icons/000000/transparent/1x1/lorc/crossed-swords.svg',
   damage: 'icons/000000/transparent/1x1/lorc/broken-heart.svg',
   armor: 'icons/000000/transparent/1x1/delapouite/abdominal-armor.svg',
@@ -46,7 +46,7 @@ export const RULES_SUMMARY: RulesSection[] = [
     items: [
       'Tria una acció i posa-la bocaterrosa',
       'Revela totes les accions alhora',
-      'Resol per ordre de velocitat',
+      'Resol primer les ràpides; després defenses, atacs i focus',
     ],
   },
   {
