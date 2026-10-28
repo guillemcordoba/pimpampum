@@ -27,7 +27,7 @@ const at = (team: number, idx: number) => ({ team, idx });
 const cardArb = fc.record({
   type: fc.constantFrom(ActionType.Atac, ActionType.Atac, ActionType.Defensa, ActionType.Focus),
   n: fc.integer({ min: 1, max: 3 }),
-  speed: fc.integer({ min: 0, max: 5 }),
+  fast: fc.boolean(),
   targets: fc.constantFrom(1, 1, 2),
 });
 const fighterArb = fc.record({
@@ -45,7 +45,7 @@ type FightSpec = typeof fightArb extends fc.Arbitrary<infer T> ? T : never;
 function team(specs: FightSpec['a'], prefix: string): Character[] {
   return specs.map((s, i) => fighter(`${prefix}${i}`, s.cards.map((c, j): ActionDefinition => ({
     id: `${prefix}${i}-${j}`, name: `c${j}`, skillId: 'test', unlockLevel: 0, actionType: c.type,
-    speed: c.speed, dice: new DiceRoll(c.n, 6), targetCount: c.targets, effects: [],
+    fast: c.fast, dice: new DiceRoll(c.n, 6), targetCount: c.targets, effects: [],
     description: '', iconPath: '',
   })), { pv: s.pv, ai: true, equipment: s.armour ? [armour(s.armour)] : [] }));
 }
@@ -62,8 +62,8 @@ function playChecked(f: FightSpec, depth: number): { winner: number | null; roun
         expect(idx === null || legal.includes(idx), `${actor.name} chose ${idx}, legal ${legal}`).toBe(true);
         return idx;
       },
-      targetChooser: (e, actor, def, req, count, pool, speed) => {
-        const picked = policy.targetChooser(e, actor, def, req, count, pool, speed);
+      targetChooser: (e, actor, def, req, count, pool) => {
+        const picked = policy.targetChooser(e, actor, def, req, count, pool);
         expect(picked.length).toBeLessThanOrEqual(count);
         for (const t of picked) expect(pool).toContain(t);
         return picked;
@@ -139,8 +139,8 @@ describe('positions with one right answer', () => {
     // One PV left, a certain lethal blow incoming, and an attack that cannot
     // end the fight first. Every rollout that attacks loses; guarding survives.
     const chosen = picks(() => {
-      const hero = fighter('Hero', [attackCard('flail', { speed: 0 }), defenseCard('brace', { speed: 5 })], { pv: 1, ai: true });
-      const foe = fighter('Foe', [attackCard('execute', { rollBonus: 5, speed: 1 })], { pv: 100, ai: true });
+      const hero = fighter('Hero', [attackCard('flail'), defenseCard('brace')], { pv: 1, ai: true });
+      const foe = fighter('Foe', [attackCard('execute', { rollBonus: 5 })], { pv: 100, ai: true });
       const engine = new CombatEngine([hero], [foe], { registry: new EffectRegistry(), ...aiPolicy({ depth: 0 }) });
       return { engine, hero };
     });
@@ -208,7 +208,7 @@ describe('aiming at an enemy: attacks finish the wounded, everything else spares
     const engine = new CombatEngine([hero], [hurt, fresh], { registry: new EffectRegistry(), ...aiPolicy({ depth: 0 }) });
     hurt.loseLife(15);
     engine.prepareRound();
-    return pickResolveTargets(engine, hero, card, 'enemy', 1, [hurt, fresh], 5)[0].name;
+    return pickResolveTargets(engine, hero, card, 'enemy', 1, [hurt, fresh])[0].name;
   }
 
   it('an attack goes for the wounded enemy', () => {
@@ -230,7 +230,7 @@ describe('aiming at an ally: the lowest PV fraction, unless the card says what i
     low.loseLife(15);
     big.loseLife(6);
     engine.prepareRound();
-    return pickResolveTargets(engine, hero, card, 'ally', 1, [hero, low, big], 0)[0].name;
+    return pickResolveTargets(engine, hero, card, 'ally', 1, [hero, low, big])[0].name;
   }
 
   it('with no hint, the lowest fraction', () => {

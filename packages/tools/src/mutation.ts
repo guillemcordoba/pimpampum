@@ -123,7 +123,7 @@ const MUTANTS: Mutant[] = [
     replace: 'const total = (sum: number) => sum + flat;',
   },
   {
-    label: 'ENGINE combat: a speed tie stops being simultaneous (F8 — first come, first served)',
+    label: 'ENGINE combat: a step stops being simultaneous (F8 — first come, first served)',
     file: 'packages/engine/src/combat.ts',
     find: 'if (aliveBeforeHazards && !actor.isAlive()) break;',
     replace: 'if (!actor.isAlive()) break;',
@@ -282,7 +282,7 @@ const MUTANTS: Mutant[] = [
   {
     label: "ENGINE: an effect's 'enemy you choose' ignores the seat's target policy",
     file: 'packages/engine/src/combat.ts',
-    find: "      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool, actor.getEffectiveSpeed(def))",
+    find: "      ? this.targetChooser(this, actor, aimed, 'enemy', count, pool)",
     replace: "      ? pool.slice(0, count)",
   },
   {

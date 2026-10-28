@@ -12,13 +12,14 @@
  * it: real hands (6-10 cards a hero) are cut to the harness's `cards`, real
  * shapes (4 heroes against 1-5) are sized down by the night mix, and PV is
  * rescaled so the fight lasts its rounds left (`position.ts`'s `pace`); the
- * tables still set the ratios between bodies. Speeds, dice, levels, armour,
+ * tables still set the ratios between bodies. Fast shares, dice, levels, armour,
  * the type mix, fatigue costs and the share of priced statuses are as measured.
  */
 export interface Profile {
   /** When these were measured, and from what. */
   measured: string;
-  speed: { attack: readonly (readonly [number, number])[]; defense: readonly (readonly [number, number])[]; focus: readonly (readonly [number, number])[] };
+  /** Share of cards of each type that are fast (resolve in the fast step). */
+  fast: { attack: number; defense: number; focus: number };
   dice: {
     attack: readonly (readonly [string, number])[];
     area: readonly (readonly [string, number])[];
@@ -48,11 +49,9 @@ export interface Profile {
 
 export const PROFILE: Profile = {
   measured: '2026-10-14, fantasy + elements at elements-set 1daa805 (every kit card; reference party vs each calibration shape, 6 fights each)',
-  speed: {
-    attack: [[-4, 3], [-3, 1], [-2, 6], [-1, 5], [0, 14], [1, 39], [2, 21], [3, 8], [4, 2], [5, 1], [6, 2], [7, 1]],
-    defense: [[0, 1], [1, 3], [2, 18], [3, 18], [4, 4]],
-    focus: [[-5, 1], [-4, 1], [-3, 2], [-2, 8], [-1, 3], [0, 5], [1, 15], [2, 5], [3, 2], [4, 3], [5, 2], [8, 1]],
-  },
+  // Measured 2026-10-28 on priority-system (both sets, every kit and enemy
+  // card, fallback excluded): attacks 15/81, defenses 0/33, focuses 7/41.
+  fast: { attack: 0.185, defense: 0, focus: 0.171 },
   dice: {
     attack: [['1d10', 1], ['1d12', 1], ['1d2', 2], ['1d4', 2], ['1d6', 9], ['2d4', 10], ['2d6', 23], ['2d8', 3], ['3d4', 2], ['3d6', 16], ['3d8', 2], ['4d6', 2]],
     area: [['1d6', 3], ['1d8', 1], ['2d6', 11], ['3d6', 8], ['3d8', 4]],

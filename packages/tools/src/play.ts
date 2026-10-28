@@ -95,7 +95,7 @@ function showHand(c: Character, idx: number): void {
   console.log(`  P${idx} ${c.name} (PV ${c.currentPV}, fat ${c.fatigue}):`);
   for (const { a } of cards) {
     const dice = a.def.dice ? a.def.dice.toString() : '—';
-    console.log(`      ${a.def.id.padEnd(22)} ${typeName(a.def.actionType).padEnd(5)} vel ${String(c.getEffectiveSpeed(a)).padStart(3)}  ${dice.padEnd(6)} ${a.def.description ?? ''}`);
+    console.log(`      ${a.def.id.padEnd(22)} ${typeName(a.def.actionType).padEnd(5)} ${c.isFast(a) ? 'ràpida' : '      '}  ${dice.padEnd(6)} ${a.def.description ?? ''}`);
   }
 }
 
@@ -112,10 +112,10 @@ for (const [ri, round] of SCRIPT.entries()) {
   }).filter(Boolean) as { team: number; idx: number; actionIdx: number }[];
 
   const revealed = eng.planActions(sel);
-  console.log(`\n================ ROUND ${eng.round} — REVEAL (speed order) ================`);
+  console.log(`\n================ ROUND ${eng.round} — REVEAL (fast step, then Defense → Attack → Focus) ================`);
   for (const r of revealed) {
     const who = r.actorTeam === 0 ? `P${r.actorIdx}` : `E${r.actorIdx}`;
-    console.log(`  vel ${String(r.speed).padStart(3)}  ${who} ${r.actorName.padEnd(6)} ${r.actionName.padEnd(22)} ${typeName(r.actionType)}`);
+    console.log(`  ${r.fast ? 'ràpida' : '      '}  ${who} ${r.actorName.padEnd(6)} ${r.actionName.padEnd(22)} ${typeName(r.actionType)}`);
   }
 
   if (!round.targets) {

@@ -24,8 +24,9 @@ import { aiPicks, buildEngine, CONTROLS, Referee, type CardSpec, type FighterSpe
 
 // --- positions in the audit's own vocabulary --------------------------------
 
-const fixed = (arch: string, n: number, speed: number, extra: Record<string, number> = {}): CardSpec =>
-  ({ arch, p: { n, s: 1, speed, fatigue: 0, ...extra } });
+/** A fixed-dice card; `fast` exactly where the puzzle needs it to go first. */
+const fixed = (arch: string, n: number, fast = false, extra: Record<string, number> = {}): CardSpec =>
+  ({ arch, p: { n, s: 1, fast: fast ? 1 : 0, fatigue: 0, ...extra } });
 const body = (name: string, pv: number, cards: CardSpec[], maxPv = pv): FighterSpec =>
   ({ name, maxPv, pv, armour: 0, level: 0, fatigue: 0, cards });
 const position = (id: string, roundsLeft: number, us: FighterSpec[], them: FighterSpec[]): Position =>
@@ -62,8 +63,8 @@ function aiAnswer(pos: Position): string[] {
 // is lost, then a strike: hero 10, foe 30−3−4 = 23 → −13. Strike twice: the
 // hero takes 20 and falls, foe 22 → −22.
 const STUN = position('stun', 2,
-  [body('H', 20, [fixed('strike', 4, 2), fixed('stun', 3, 2)])],
-  [body('F', 30, [fixed('strike', 10, 1)])]);
+  [body('H', 20, [fixed('strike', 4), fixed('stun', 3)])],
+  [body('F', 30, [fixed('strike', 10)])]);
 
 // (b) DELAYED DAMAGE, UNPRICED — the audit's `bomb-long-unpriced` control: the
 // 8 lands as round 2 opens, after the leaf was read. Bomb then strike: foe 19,
@@ -73,11 +74,12 @@ const BOMB = CONTROLS.find(c => c.position.id === 'bomb-long-unpriced')!.positio
 // (c) REVIVE — the raised body's worth is what it does NEXT round. Revive B (3
 // PV) now, then A and B strike 12 each for two rounds: 48 ≥ 40, the foe falls
 // in round 3. Strike three times instead: 36, the foe stands on 4 and B stays
-// down. The leaf sees only 3 PV and one more body.
+// down. The leaf sees only 3 PV and one more body. The revive is fast, so the
+// foe's blow cannot interrupt it.
 const REVIVE = position('revive', 3,
-  [body('A', 10, [fixed('strike', 12, 2), { arch: 'revive', p: { amount: 3, speed: 3 } }]),
-    body('B', 0, [fixed('strike', 12, 2)], 40)],
-  [body('F', 40, [fixed('strike', 1, 1)])]);
+  [body('A', 10, [fixed('strike', 12), { arch: 'revive', p: { amount: 3, fast: 1 } }]),
+    body('B', 0, [fixed('strike', 12)], 40)],
+  [body('F', 40, [fixed('strike', 1)])]);
 
 describe('audit defects as puzzles: the referee agrees with the arithmetic', () => {
   it('(a) stun: take the next turn, not 1 more PV', () => expect(refereeAnswer(STUN)).toEqual({ cards: 'stun', p: 1 }));
@@ -93,9 +95,9 @@ describe('audit defects as puzzles: the production AI', () => {
 
 // --- (d) FOCUS FIRE ----------------------------------------------------------
 //
-// Two heroes, two foes, two rounds. Small (20 PV) mauls for 15 at speed −1;
-// Big (100 of 200 PV) clubs for 12 at −2; both go for H1, who is on 14. H0
-// can strike (12, speed 1) or guard H1 (10). H1 strikes.
+// Two heroes, two foes, two rounds. Small (20 PV) mauls for 15; Big (100 of
+// 200 PV) clubs for 12; both go for H1, who is on 14. H0 can strike (12, fast)
+// or guard H1 (10). H1 strikes (fast).
 //   strike: both strikes on Small fell it before it swings; Big's 12 leaves
 //           H1 on 2. Next round Big alone. Small is gone for good.
 //   guard:  Small and Big land 5 and 2 through the guard; H1 hits Big. Next
@@ -105,10 +107,10 @@ describe('audit defects as puzzles: the production AI', () => {
 // at half) — sends both rollout strikes at Big, and the strike looks like 24
 // PV off a 200-PV body while H1 dies.
 const FOCUS = position('focus-fire', 2,
-  [body('H0', 30, [fixed('strike', 12, 1), fixed('guard', 10, 3)]),
-    body('H1', 14, [fixed('strike', 12, 1)], 30)],
-  [body('Big', 100, [fixed('strike', 12, -2)], 200),
-    body('Small', 20, [fixed('strike', 15, -1)])]);
+  [body('H0', 30, [fixed('strike', 12, true), fixed('guard', 10)]),
+    body('H1', 14, [fixed('strike', 12, true)], 30)],
+  [body('Big', 100, [fixed('strike', 12)], 200),
+    body('Small', 20, [fixed('strike', 15)])]);
 
 describe('audit defects as puzzles: focus fire', () => {
   it('(d) the referee strikes with both', () => expect(refereeAnswer(FOCUS)).toEqual({ cards: 'strike,strike', p: 1 }));
@@ -134,7 +136,7 @@ function inlineRegistry(): EffectRegistry {
   });
   return r;
 }
-const hide: ActionDefinition = focusCard('hide', { speed: 3, effects: [{ type: 'hide' }] });
+const hide: ActionDefinition = focusCard('hide', { fast: true, effects: [{ type: 'hide' }] });
 
 // (e1) THE OPPONENT MODEL NEVER HIDES. The rollouts play the other side with
 // the depth-0 heuristic, which prices an attack by its damage and a Focus at a
@@ -143,8 +145,8 @@ const hide: ActionDefinition = focusCard('hide', { speed: 3, effects: [{ type: '
 // The heuristic claws ~98% of the time, so the search plans against a foe that
 // walks into the slam — the real goblins hid 43% of the time, the model 1%.
 function hideEngine(policy: { actionChooser: CombatEngine['actionChooser'] }) {
-  const foe = fighter('Foe', [attackCard('claw', { dice: new DiceRoll(6, 1), speed: 1 }), hide], { pv: 10, ai: true });
-  const hero = fighter('Hero', [attackCard('slam', { dice: new DiceRoll(20, 1), speed: 0 })], { pv: 30, ai: true });
+  const foe = fighter('Foe', [attackCard('claw', { dice: new DiceRoll(6, 1) }), hide], { pv: 10, ai: true });
+  const hero = fighter('Hero', [attackCard('slam', { dice: new DiceRoll(20, 1) })], { pv: 30, ai: true });
   return { engine: new CombatEngine([foe], [hero], { registry: inlineRegistry(), maxRounds: 4, ...policy }), foe };
 }
 
@@ -153,27 +155,29 @@ function hideEngine(policy: { actionChooser: CombatEngine['actionChooser'] }) {
 // 30. The −0.1 price says the exposure is worth one PV of a 100-PV foe.
 function exposeEngine(policy: { actionChooser: CombatEngine['actionChooser'] }, maxRounds: number) {
   const hero = fighter('Hero', [
-    attackCard('strike', { dice: new DiceRoll(15, 1), speed: 2 }),
-    attackCard('trip', { dice: new DiceRoll(1, 1), speed: 2, effects: [{ type: 'expose' }] }),
+    attackCard('strike', { dice: new DiceRoll(15, 1) }),
+    attackCard('trip', { dice: new DiceRoll(1, 1), effects: [{ type: 'expose' }] }),
   ], { pv: 20, ai: true });
-  const foe = fighter('Foe', [attackCard('poke', { speed: 1 })], { pv: 100, ai: true });
+  const foe = fighter('Foe', [attackCard('poke')], { pv: 100, ai: true });
   return { engine: new CombatEngine([hero], [foe], { registry: inlineRegistry(), maxRounds, ...policy }), hero };
 }
 
 // (e1b) …AND THE SEARCH THEREFORE NEVER BREAKS A HIDE (§49.3's Trampolí, in
-// miniature). One round; the foe (10 PV) holds a slow claw (−1) and a hide
-// (speed 3). H1 slams for 20 at speed 0. H0 jabs for 1 at speed 5 — which
-// lands before the hide and breaks it — or strikes for 8 at speed 1, after it.
+// miniature). One round; the foe (10 PV) holds a claw that cannot hurt them
+// (a 0 blow: it was a slow claw the strikes always beat, and there is no slow
+// any more) and a hide (fast). H1 slams for 20. H0 jabs for 1 (fast — ahead
+// of the fast hide, it breaks it) or strikes for 8, a normal blow that lands
+// after it.
 //   jab:    the hide never happens; the slam fells the foe → 60 − 0 = 60.
 //   strike: if the foe hides, nothing wounds it → 60 − 10 = 50; if it claws,
-//           the strike and slam fell it before the claw → 60.
-// The foe loses nothing by hiding and the claw never lands, so in every
+//           the strike and slam fell it → 60.
+// The foe loses nothing by hiding and the claw never matters, so in every
 // equilibrium it hides with some chance and the jab is the only answer. A
 // model in which the foe always claws sees the two as equal and keeps the
 // heuristic's pick, the strike.
 const BREAK_HIDE = position('break-hide', 1,
-  [body('H0', 30, [fixed('strike', 8, 1), fixed('jab', 1, 5)]), body('H1', 30, [fixed('strike', 20, 0)])],
-  [body('F', 10, [fixed('strike', 6, -1), { arch: 'hide', p: { speed: 3 } }])]);
+  [body('H0', 30, [fixed('strike', 8), fixed('jab', 1, true)]), body('H1', 30, [fixed('strike', 20)])],
+  [body('F', 10, [fixed('strike', 0), { arch: 'hide', p: { fast: 1 } }])]);
 
 describe('audit defects as puzzles: breaking a hide', () => {
   it('(e1b) the referee jabs', () => expect(refereeAnswer(BREAK_HIDE)).toEqual({ cards: 'jab,strike', p: 1 }));
@@ -248,8 +252,8 @@ describe('audit defects as puzzles: the AI plays every control\'s answer', () =>
 // and turns the reference party's 69.5% against a basilisk into 14.1%.
 // Pinned both ways so a change to either side is seen.
 const CURRENCY = position('currency', 1,
-  [body('H0', 4, [fixed('strike', 6, 1), fixed('guard', 10, 3)], 40), body('H1', 40, [fixed('strike', 6, 1)])],
-  [body('Boss', 200, [fixed('strike', 5, 0)])]);
+  [body('H0', 4, [fixed('strike', 6), fixed('guard', 10)], 40), body('H1', 40, [fixed('strike', 6)])],
+  [body('Boss', 200, [fixed('strike', 5)])]);
 
 describe('audit defects as puzzles: the referee pays PV, the AI health fractions', () => {
   it('(g) the referee strikes', () => expect(refereeAnswer(CURRENCY)).toEqual({ cards: 'strike,strike', p: 1 }));

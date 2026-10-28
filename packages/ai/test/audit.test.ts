@@ -73,29 +73,30 @@ describe('the referee on hand-made fights', () => {
     });
   }
 
-  // Fixed dice, so the value is arithmetic. The hero's 4 fells either foe; it
-  // must take the 4-PV one that hits for 8, not the weakest: hero 10 − 1, foes
-  // 3 → +6. Aimed at the weakest: hero 10 − 8, foes 4 → −2.
-  const strike = (n: number, speed: number) => ({ arch: 'strike', p: { n, s: 1, speed, fatigue: 0 } });
+  // Fixed dice, so the value is arithmetic. The hero's fast 4 fells either foe
+  // before it swings; it must take the 4-PV one that hits for 8, not the
+  // weakest: hero 10 − 1, foes 3 → +6. Aimed at the weakest: hero 10 − 8, foes 4 → −2.
+  const strike = (n: number, fast = false) => ({ arch: 'strike', p: { n, s: 1, fast: fast ? 1 : 0, fatigue: 0 } });
   const body = (name: string, pv: number, cards: ReturnType<typeof strike>[]) =>
     ({ name, maxPv: pv, pv, armour: 0, level: 0, fatigue: 0, cards });
   const aiming = (hero: ReturnType<typeof body>[], foes: ReturnType<typeof body>[]): Position =>
     ({ id: 'aim', roundsLeft: 1, teams: [hero, foes], tags: { shape: `${hero.length}x${foes.length}`, horizon: 1, side: 'hero' } });
 
-  it('every in-round decision is the seat\'s own, at resolution: it aims at the foe that matters, not the weakest', () => {
-    const pos = aiming([body('H', 10, [strike(4, 2)])], [body('F1', 3, [strike(1, 1)]), body('F2', 4, [strike(8, 1)])]);
+  it('every in-round decision is the seat\'s own: it aims at the foe that matters, not the weakest', () => {
+    const pos = aiming([body('H', 10, [strike(4, true)])], [body('F1', 3, [strike(1)]), body('F2', 4, [strike(8)])]);
     expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(6, 9);
   });
 
   it('the other side decides against you: the foe aims where it hurts most', () => {
-    // The foe's 5 fells the 5-PV hero who hits for 9, not the 4-PV one who
-    // hits for 1: 4 + 0 − (20 − 1) = −15. At the weakest: 0 + 5 − (20 − 9) = −6.
-    const pos = aiming([body('A', 4, [strike(1, 1)]), body('B', 5, [strike(9, 1)])], [body('F', 20, [strike(5, 2)])]);
+    // The foe's fast 5 fells the 5-PV hero who hits for 9 before he swings, not
+    // the 4-PV one who hits for 1: 4 + 0 − (20 − 1) = −15. At the weakest:
+    // 0 + 5 − (20 − 9) = −6.
+    const pos = aiming([body('A', 4, [strike(1)]), body('B', 5, [strike(9)])], [body('F', 20, [strike(5, true)])]);
     expect(new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0).value).toBeCloseTo(-15, 9);
   });
 
-  it('the AI\'s own aiming is judged where it resolves: the right aim loses nothing, and the worth of each aim is the arithmetic', () => {
-    const pos = aiming([body('H', 10, [strike(4, 2)])], [body('F1', 3, [strike(1, 1)]), body('F2', 4, [strike(8, 1)])]);
+  it('the AI\'s own aiming is judged where it aims: the right aim loses nothing, and the worth of each aim is the arithmetic', () => {
+    const pos = aiming([body('H', 10, [strike(4, true)])], [body('F1', 3, [strike(1)]), body('F2', 4, [strike(8)])]);
     const state = buildEngine(pos, { actionChooser: () => null });
     const row = [{ idx: 0, actionIdx: 0 }];
     const col = [{ idx: 0, actionIdx: 0 }, { idx: 1, actionIdx: 0 }];
@@ -108,14 +109,14 @@ describe('the referee on hand-made fights', () => {
   });
 
   it('enumerating chance, the value is the exact expectation: a 1d2 blow is worth 1.5, not a sample of it', () => {
-    const d2 = { arch: 'strike', p: { n: 1, s: 2, speed: 2, fatigue: 0 } };
-    const pos = aiming([body('H', 10, [d2 as ReturnType<typeof strike>])], [body('F', 10, [strike(1, 1)])]);
+    const d2 = { arch: 'strike', p: { n: 1, s: 2, fast: 0, fatigue: 0 } };
+    const pos = aiming([body('H', 10, [d2 as ReturnType<typeof strike>])], [body('F', 10, [strike(1)])]);
     const root = new Referee({ chance: 'enumerate' }).solve(buildEngine(pos, { actionChooser: () => null }), 0);
     expect(root.value).toBe(0.5);
     expect(root.cellSE.flat().every(se => se === 0)).toBe(true);
   });
 
-  it('a fixed-dice position leaves nothing to chance but tie order, so its exact solve agrees with the sampled one', () => {
+  it('a fixed-dice position leaves nothing to chance but the order inside a step, so its exact solve agrees with the sampled one', () => {
     const pos = generatePosition(5, { shape: '2x1', cards: 2, roundsLeft: 1, fixedDice: true });
     for (const c of pos.teams.flat().flatMap(f => f.cards)) if (typeof c.p.s === 'number') expect(c.p.s).toBeLessThanOrEqual(1);
     const exact = new Referee({ chance: 'enumerate' }).solve(buildEngine(pos, { actionChooser: () => null }), 0).value;

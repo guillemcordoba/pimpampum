@@ -9,7 +9,7 @@
  * beside them, so drift is visible.
  *
  * Measured:
- *  - every card of every kit, both sides: speed and dice by type, area dice,
+ *  - every card of every kit, both sides: fast share and dice by type, area dice,
  *    the type mix, fatigue costs;
  *  - the reference party and every calibration shape's solved encounter: hand
  *    sizes, skill levels, PV, armour, bodies per side;
@@ -28,7 +28,7 @@ const bump = (t: Table, k: string | number, n = 1): void => { t.set(k, (t.get(k)
 const show = (t: Table): string => `[${[...t.entries()].sort((a, b) => (typeof a[0] === 'number' ? (a[0] as number) - (b[0] as number) : String(a[0]).localeCompare(String(b[0])))).map(([k, v]) => `[${typeof k === 'number' ? k : `'${k}'`}, ${v}]`).join(', ')}]`;
 
 const t = {
-  speed: { attack: new Map() as Table, defense: new Map() as Table, focus: new Map() as Table },
+  fast: { attack: new Map() as Table, defense: new Map() as Table, focus: new Map() as Table },
   dice: { attack: new Map() as Table, area: new Map() as Table, defense: new Map() as Table },
   types: new Map() as Table,
   fatigue: { costs: 0, cards: 0 },
@@ -51,7 +51,7 @@ function cards(set: GameSet): void {
       for (const d of set.kit(id)?.actions ?? []) {
         if (d.lastResort) continue;
         const type = typeOf(d);
-        bump(t.speed[type], d.speed);
+        bump(t.fast[type], d.fast ? 'fast' : 'normal');
         bump(t.types, type);
         const dice = diceOf(d);
         if (dice) {
@@ -121,9 +121,8 @@ const line = (name: string, measured: string, frozen: unknown): void => {
   console.log(`  ${name}: ${measured}`);
   console.log(`  ${' '.repeat(name.length)}  frozen ${JSON.stringify(frozen)}`);
 };
-line('speed.attack', show(t.speed.attack), PROFILE.speed.attack);
-line('speed.defense', show(t.speed.defense), PROFILE.speed.defense);
-line('speed.focus', show(t.speed.focus), PROFILE.speed.focus);
+const share = (m: Table): string => { const f = m.get('fast') ?? 0, n = f + (m.get('normal') ?? 0); return n ? (f / n).toFixed(3) : '0'; };
+line('fast', `{ attack: ${share(t.fast.attack)}, defense: ${share(t.fast.defense)}, focus: ${share(t.fast.focus)} }`, PROFILE.fast);
 line('dice.attack', show(t.dice.attack), PROFILE.dice.attack);
 line('dice.area', show(t.dice.area), PROFILE.dice.area);
 line('dice.defense', show(t.dice.defense), PROFILE.dice.defense);

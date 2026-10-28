@@ -52,7 +52,7 @@ export interface Archetype {
 function card(uid: string, type: ActionType, p: Params, over: Partial<ActionDefinition>): ActionDefinition {
   return {
     id: uid, name: uid, skillId: AUDIT_SKILL, unlockLevel: 0, actionType: type,
-    speed: p.speed ?? 0,
+    fast: !!p.fast,
     dice: p.n ? new DiceRoll(p.n, p.s) : undefined,
     effects: [],
     description: '', iconPath: '',
@@ -67,7 +67,7 @@ function dice(r: Draw, ladder: readonly (readonly [string, number])[]): Params {
   const [n, s] = weighted(r, ladder).split('d').map(Number);
   return { n, s };
 }
-const speed = (r: Draw, type: 'attack' | 'defense' | 'focus'): number => weighted(r, PROFILE.speed[type]);
+const fast = (r: Draw, type: 'attack' | 'defense' | 'focus'): number => (r() < PROFILE.fast[type] ? 1 : 0);
 const fatigueCost = (r: Draw): number => (r() < PROFILE.fatigueCostShare ? 1 : 0);
 const priced = (r: Draw): number => (r() < PROFILE.pricedShare ? 1 : 0);
 
@@ -292,19 +292,19 @@ export const ARCHETYPES: Record<string, Archetype> = {
   strike: {
     id: 'strike', summary: 'attack',
     build: (p, uid) => card(uid, ActionType.Atac, p, {}),
-    draw: r => ({ ...dice(r, PROFILE.dice.attack), speed: speed(r, 'attack'), fatigue: fatigueCost(r) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.attack), fast: fast(r, 'attack'), fatigue: fatigueCost(r) }),
     horizon: () => 1,
   },
   jab: {
-    id: 'jab', summary: 'fast interrupt (small dice, high speed)',
+    id: 'jab', summary: 'fast interrupt (small dice, fast)',
     build: (p, uid) => card(uid, ActionType.Atac, p, {}),
-    draw: r => ({ n: 1, s: pick(r, [2, 3, 4]), speed: int(r, 4, 7), fatigue: 0 }),
+    draw: r => ({ n: 1, s: pick(r, [2, 3, 4]), fast: 1, fatigue: 0 }),
     horizon: () => 1,
   },
   sweep: {
     id: 'sweep', summary: 'area attack (every enemy, one roll)',
     build: (p, uid) => card(uid, ActionType.Atac, p, { targetCount: 99 }),
-    draw: r => ({ ...dice(r, PROFILE.dice.area), speed: speed(r, 'attack') - 1, fatigue: fatigueCost(r) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.area), fast: fast(r, 'attack'), fatigue: fatigueCost(r) }),
     horizon: () => 1,
   },
   pierce: {
@@ -312,105 +312,104 @@ export const ARCHETYPES: Record<string, Archetype> = {
     build: (p, uid) => card(uid, ActionType.Atac, p, { effects: fx('audit:pierce', { armour: p.armour, defense: p.defense }) }),
     draw: r => {
       const undefendable = r() < 0.5 ? 1 : 0;
-      return { ...dice(r, PROFILE.dice.attack), speed: speed(r, 'attack'), armour: 1 - undefendable, defense: undefendable, fatigue: fatigueCost(r) };
+      return { ...dice(r, PROFILE.dice.attack), fast: fast(r, 'attack'), armour: 1 - undefendable, defense: undefendable, fatigue: fatigueCost(r) };
     },
     horizon: () => 1,
   },
   guard: {
     id: 'guard', summary: 'defense: guard an ally (or yourself)',
     build: (p, uid) => card(uid, ActionType.Defensa, p, { effects: fx('audit:guard', {}) }),
-    draw: r => ({ ...dice(r, PROFILE.dice.defense), speed: speed(r, 'defense') }),
+    draw: r => ({ ...dice(r, PROFILE.dice.defense), fast: fast(r, 'defense') }),
     horizon: () => 1,
   },
   block: {
     id: 'block', summary: 'defense: block an enemy (its blows come at you)',
     build: (p, uid) => card(uid, ActionType.Defensa, p, { effects: fx('audit:block', {}) }),
-    draw: r => ({ ...dice(r, PROFILE.dice.defense), speed: speed(r, 'defense') }),
+    draw: r => ({ ...dice(r, PROFILE.dice.defense), fast: fast(r, 'defense') }),
     horizon: () => 1,
   },
   heal: {
     id: 'heal', summary: 'focus: heal an ally',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:heal', { amount: p.amount }) }),
-    draw: r => ({ amount: int(r, 2, 6), speed: speed(r, 'focus') }),
+    draw: r => ({ amount: int(r, 2, 6), fast: fast(r, 'focus') }),
     horizon: () => 1,
   },
   revive: {
     id: 'revive', summary: 'focus: raise a fallen ally (they act next round)',
     build: (p, uid) => card(uid, ActionType.Focus, p, { canReviveTarget: true, effects: fx('audit:revive', { amount: p.amount }) }),
-    draw: r => ({ amount: int(r, 3, 6), speed: speed(r, 'focus') }),
+    draw: r => ({ amount: int(r, 3, 6), fast: fast(r, 'focus') }),
     horizon: () => 2,
   },
   cleanse: {
     id: 'cleanse', summary: 'focus: strip every harmful status from an ally',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:cleanse', {}) }),
-    draw: r => ({ speed: int(r, 1, 4) }),
+    draw: r => ({ fast: fast(r, 'focus') }),
     horizon: () => 2,
   },
   setup: {
-    id: 'setup', summary: 'slow focus: your next attack is +bonus',
+    id: 'setup', summary: 'focus: your next attack is +bonus',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:setup', { bonus: p.bonus, priced: p.priced }) }),
-    draw: r => ({ bonus: int(r, 3, 8), speed: int(r, -1, 1), priced: priced(r) }),
+    draw: r => ({ bonus: int(r, 3, 8), fast: 0, priced: priced(r) }),
     horizon: () => 2,
   },
   bomb: {
     id: 'bomb', summary: 'delayed damage: lands on an enemy as next round opens',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:bomb', { dmg: p.dmg, priced: p.priced }) }),
-    draw: r => ({ dmg: int(r, 3, 8), speed: speed(r, 'focus'), priced: priced(r) }),
+    draw: r => ({ dmg: int(r, 3, 8), fast: fast(r, 'focus'), priced: priced(r) }),
     horizon: () => 2,
   },
   doom: {
     id: 'doom', summary: 'delayed-death mark: big damage at the end of round +delay−1',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:doom', { dmg: p.dmg, delay: p.delay, priced: p.priced }) }),
-    draw: r => ({ dmg: int(r, 6, 14), delay: int(r, 2, 3), speed: speed(r, 'focus'), priced: priced(r) }),
+    draw: r => ({ dmg: int(r, 6, 14), delay: int(r, 2, 3), fast: fast(r, 'focus'), priced: priced(r) }),
     horizon: p => p.delay,
   },
   device: {
     id: 'device', summary: 'device: hits the weakest enemy at every round end, for N rounds',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:device', { dmg: p.dmg, rounds: p.rounds, priced: p.priced }) }),
-    draw: r => ({ dmg: int(r, 1, 4), rounds: int(r, 2, 4), speed: speed(r, 'focus'), priced: priced(r) }),
+    draw: r => ({ dmg: int(r, 1, 4), rounds: int(r, 2, 4), fast: fast(r, 'focus'), priced: priced(r) }),
     horizon: p => p.rounds,
   },
   stun: {
     id: 'stun', summary: 'attack that, if it wounds, takes the target\'s next round',
     build: (p, uid) => card(uid, ActionType.Atac, p, { effects: fx('audit:stun', {}) }),
-    draw: r => ({ ...dice(r, PROFILE.dice.control), speed: speed(r, 'attack'), fatigue: fatigueCost(r) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.control), fast: fast(r, 'attack'), fatigue: fatigueCost(r) }),
     horizon: () => 2,
   },
   lock: {
     id: 'lock', summary: 'attack that, if it wounds, forbids the target\'s attacks until next round ends',
     build: (p, uid) => card(uid, ActionType.Atac, p, { effects: fx('audit:lock', { priced: p.priced }) }),
-    draw: r => ({ ...dice(r, PROFILE.dice.control), speed: speed(r, 'attack'), priced: priced(r) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.control), fast: fast(r, 'attack'), priced: priced(r) }),
     horizon: () => 2,
   },
   weaken: {
     id: 'weaken', summary: 'attack that, if it wounds, makes the target\'s attacks −by',
     build: (p, uid) => card(uid, ActionType.Atac, p, { effects: fx('audit:weaken', { by: p.by, rounds: p.rounds, priced: p.priced }) }),
-    draw: r => ({ ...dice(r, PROFILE.dice.control), speed: speed(r, 'attack'), by: int(r, 2, 4), rounds: 2, priced: priced(r) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.control), fast: fast(r, 'attack'), by: int(r, 2, 4), rounds: 2, priced: priced(r) }),
     horizon: () => 2,
   },
   advance: {
     id: 'advance', summary: 'fast focus: an ally\'s pending card resolves right now',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:advance', {}) }),
-    draw: r => ({ speed: int(r, 5, 8) }),
+    draw: () => ({ fast: 1 }),
     horizon: () => 1,
   },
   taunt: {
     id: 'taunt', summary: 'fast focus: every enemy\'s attacks must target you',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:taunt', { rounds: p.rounds, priced: p.priced }) }),
-    draw: r => ({ speed: int(r, 4, 7), rounds: int(r, 1, 2), priced: priced(r) }),
+    draw: r => ({ fast: 1, rounds: int(r, 1, 2), priced: priced(r) }),
     horizon: p => p.rounds,
   },
   hide: {
     id: 'hide', summary: 'focus: dodge every blow that lands after it, this round',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:hide', {}) }),
-    // The real hides sit in the fast half of the focus ladder: one that
-    // resolves after the blows has nothing left to dodge.
-    draw: r => ({ speed: int(r, 1, 4) }),
+    // A hide is fast: one that resolves after the blows has nothing left to dodge.
+    draw: () => ({ fast: 1 }),
     horizon: () => 1,
   },
   desperate: {
     id: 'desperate', summary: 'the universal fallback: only when nothing else is legal',
-    build: (p, uid) => card(uid, ActionType.Atac, { n: 1, s: 4, speed: -2 }, { lastResort: true, effects: fx('audit:selfwound', {}) }),
+    build: (p, uid) => card(uid, ActionType.Atac, { n: 1, s: 4 }, { lastResort: true, effects: fx('audit:selfwound', {}) }),
     draw: () => ({}),
     horizon: () => 1,
   },

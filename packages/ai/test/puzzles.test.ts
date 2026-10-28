@@ -28,9 +28,9 @@ function registry(): EffectRegistry {
   return r;
 }
 
-const doom = (speed: number): ActionDefinition => focusCard('doom', { speed, effects: [{ type: 'doom' }] });
-const mend = (speed: number): ActionDefinition => ({
-  id: 'mend', name: 'mend', skillId: 'test', unlockLevel: 0, actionType: ActionType.Focus, speed,
+const doom = (fast = false): ActionDefinition => focusCard('doom', { fast, effects: [{ type: 'doom' }] });
+const mend = (fast = false): ActionDefinition => ({
+  id: 'mend', name: 'mend', skillId: 'test', unlockLevel: 0, actionType: ActionType.Focus, fast,
   effects: [{ type: 'mend' }], description: '', iconPath: '',
 });
 
@@ -50,13 +50,13 @@ const engineOf = (a: Character[], b: Character[]) =>
   new CombatEngine(a, b, { registry: registry(), maxRounds: 12, ...aiPolicy({ depth: 0 }) });
 
 describe('puzzles with one right play', () => {
-  it('interrupt: a fast jab breaks a deadly focus that a slow slam would arrive too late for', () => {
+  it('interrupt: a fast jab breaks a deadly fast focus that a normal slam would arrive too late for', () => {
     const chosen = picks(() => {
       const hero = fighter('Hero', [
-        attackCard('jab', { speed: 5, rollBonus: 1 }),
-        attackCard('slam', { speed: 0, dice: new DiceRoll(3, 6) }),
+        attackCard('jab', { fast: true, rollBonus: 1 }),
+        attackCard('slam', { dice: new DiceRoll(3, 6) }),
       ], { pv: 10, ai: true });
-      const foe = fighter('Foe', [doom(2)], { pv: 50, ai: true });
+      const foe = fighter('Foe', [doom(true)], { pv: 50, ai: true });
       return { engine: engineOf([hero], [foe]), hero };
     });
     expect(chosen.every(c => c === 'jab'), `picked ${chosen}`).toBe(true);
@@ -66,7 +66,7 @@ describe('puzzles with one right play', () => {
     const chosen = picks(() => {
       const hero = fighter('Hero', [attackCard('hit', { dice: new DiceRoll(1, 6) }), defenseCard('guard')], { pv: 20, ai: true });
       const ally = fighter('Ally', [attackCard('poke')], { pv: 20, ai: true });
-      const foe = fighter('Foe', [attackCard('execute', { speed: 3, rollBonus: 5 })], { pv: 100, ai: true });
+      const foe = fighter('Foe', [attackCard('execute', { rollBonus: 5 })], { pv: 100, ai: true });
       const engine = engineOf([hero, ally], [foe]);
       ally.currentPV = 1;   // after the engine: its constructor restores full health
       return { engine, hero };
@@ -88,9 +88,10 @@ describe('puzzles with one right play', () => {
 
   it('heal: mend the ally a blow would otherwise kill', () => {
     const chosen = picks(() => {
-      const hero = fighter('Hero', [mend(5), attackCard('hit', { dice: new DiceRoll(1, 6), speed: 0 })], { pv: 20, ai: true });
+      // The mend is fast: it lands before the foe's normal club.
+      const hero = fighter('Hero', [mend(true), attackCard('hit', { dice: new DiceRoll(1, 6) })], { pv: 20, ai: true });
       const ally = fighter('Ally', [focusCard('wait')], { pv: 20, ai: true });
-      const foe = fighter('Foe', [attackCard('club', { speed: 3, rollBonus: 3 })], { pv: 100, ai: true });
+      const foe = fighter('Foe', [attackCard('club', { rollBonus: 3 })], { pv: 100, ai: true });
       const engine = engineOf([hero, ally], [foe]);
       ally.currentPV = 1;   // after the engine: its constructor restores full health
       return { engine, hero };
@@ -100,7 +101,7 @@ describe('puzzles with one right play', () => {
 
   it('no waste: a heal is not spent on a party at full health', () => {
     const chosen = picks(() => {
-      const hero = fighter('Hero', [mend(5), attackCard('hit', { dice: new DiceRoll(2, 6) })], { pv: 20, ai: true });
+      const hero = fighter('Hero', [mend(true), attackCard('hit', { dice: new DiceRoll(2, 6) })], { pv: 20, ai: true });
       const ally = fighter('Ally', [attackCard('poke')], { pv: 20, ai: true });
       const foe = fighter('Foe', [attackCard('poke')], { pv: 40, ai: true });
       return { engine: engineOf([hero, ally], [foe]), hero };
@@ -114,8 +115,8 @@ describe('puzzles with one right play', () => {
     let survived = 0;
     for (let s = 0; s < 20; s++) {
       withSeed(s, () => {
-        const hero = fighter('Hero', [attackCard('stab', { speed: 5, rollBonus: 5 })], { pv: 10, ai: true });
-        const doomsayer = fighter('Doomsayer', [doom(2)], { pv: 3, ai: true });
+        const hero = fighter('Hero', [attackCard('stab', { fast: true, rollBonus: 5 })], { pv: 10, ai: true });
+        const doomsayer = fighter('Doomsayer', [doom(true)], { pv: 3, ai: true });
         const bystander = fighter('Bystander', [focusCard('wait')], { pv: 3, ai: true });
         const engine = new CombatEngine([hero], [bystander, doomsayer], { registry: registry(), maxRounds: 12, ...aiPolicy({ depth: 1 }) });
         playRound(engine, []);

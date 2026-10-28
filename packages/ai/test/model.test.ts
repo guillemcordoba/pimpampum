@@ -24,7 +24,7 @@ import { estimateExpectedDamage, expectedAttackTotal, lookaheadChooser, position
 function act(id: string, actionType: ActionType, over: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
     id, name: id, skillId: 'probe', unlockLevel: 0, actionType,
-    speed: 1, dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
+    dice: new DiceRoll(1, 1), effects: [], description: '', iconPath: '',
     ...over,
   };
 }
@@ -127,8 +127,8 @@ describe('a restricted search plays only what it is allowed to', () => {
    */
   const hand = () => [
     atk('a1'), atk('a2'),
-    act('d1', ActionType.Defensa, { speed: 5 }),
-    act('f1', ActionType.Focus, { speed: 0, dice: undefined }),
+    act('d1', ActionType.Defensa, {}),
+    act('f1', ActionType.Focus, { dice: undefined }),
   ];
   const mk = (name: string) => createCharacter({
     name, pv: 200, classCss: 'x', skills: { probe: 1 }, actions: hand(),
@@ -296,7 +296,7 @@ describe('the AI predicts the blow the engine actually throws', () => {
 
   it('single target: the estimate matches the mean total rolled', () => {
     const level = 5;
-    const def = act('swing', ActionType.Atac, { dice: new DiceRoll(2, 6), rollBonus: 1, speed: 9 });
+    const def = act('swing', ActionType.Atac, { dice: new DiceRoll(2, 6), rollBonus: 1, fast: true });
     const attacker = createCharacter({
       name: 'A', pv: 500, classCss: 'x', skills: { probe: level }, actions: [def],
     });
@@ -315,7 +315,7 @@ describe('the AI predicts the blow the engine actually throws', () => {
     const level = 3;
     const victims = 3;
     const def = act('sweep', ActionType.Atac, {
-      dice: new DiceRoll(2, 6), targetCount: victims, speed: 9,
+      dice: new DiceRoll(2, 6), targetCount: victims, fast: true,
     });
     const attacker = createCharacter({
       name: 'A', pv: 500, classCss: 'x', skills: { probe: level }, actions: [def],

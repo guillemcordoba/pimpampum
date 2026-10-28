@@ -15,7 +15,7 @@ describe('the shrinker', () => {
     return p.teams[0].some(f => f.cards.some(c => c.arch === 'strike')) && p.teams[1].length >= 2;
   };
   const start = generatePosition(11, { shape: '4x4', cards: 4 });
-  start.teams[0][0].cards[0] = { arch: 'strike', p: { n: 3, s: 6, speed: 1, fatigue: 0 } };
+  start.teams[0][0].cards[0] = { arch: 'strike', p: { n: 3, s: 6, fast: 0, fatigue: 0 } };
 
   it('reaches the smallest position that still fails', () => {
     expect(fails(start)).toBe(true);
