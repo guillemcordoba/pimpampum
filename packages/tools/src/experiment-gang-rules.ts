@@ -95,7 +95,10 @@ for (const rule of rules) {
       t.defenseTwo += defenseShare(twoSide === 0 ? root.rows : root.cols, twoSide === 0 ? root.sol.row : root.sol.col, twoSide);
       t.defenseOne += defenseShare(twoSide === 0 ? root.cols : root.rows, twoSide === 0 ? root.sol.col : root.sol.row, 1 - twoSide);
 
-      // Where the two-body side's attacks aimed, on the likely cells.
+      // Where the two-body side's attacks aimed, on the likely cells. Walking
+      // the paths costs rounds too: a position whose walk runs out of budget
+      // is skipped whole, its solve undone from the tally.
+      try {
       root.rows.forEach((row, i) => root.cols.forEach((col, j) => {
         const p = root.sol.row[i] * root.sol.col[j];
         if (p < 0.01) return;
@@ -112,6 +115,12 @@ for (const rule of rules) {
           }
         }
       }));
+      } catch (e) {
+        if (!(e instanceof BudgetExceeded)) throw e;
+        Object.assign(t, before);
+        t.skipped++;
+        continue;
+      }
       if (PER_POSITION) console.log(JSON.stringify({ rule: rule === 'flank' && FLANK !== 2 ? `flank${FLANK}` : rule, slice, catalogue: CATALOGUE, seed, ...snapshot(t, before) }));
     }
     const n = t.solved;

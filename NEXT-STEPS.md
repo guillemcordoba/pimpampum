@@ -6628,3 +6628,109 @@ The old engine was measured from `elements-set` in a worktree, with the same con
 - On the shared slices it is no worse.
 
 **Not run:** the kit suites and `/analyze`. They read through the AI, so run them after the heuristic retune.
+
+## 56. The exact layer first: shortcuts graded, a prototype equilibrium player, and eight rules for ganging up (2026-10-28 → 29, branch `priority-system`)
+
+**Supersedes §55's "retune the heuristic".** The user rejected the depth-0 constants outright: they encode how the game played under one engine and one AI, and fitting them only re-stamps them. Method (memory `exact-layer-first`):
+- build the most precise layer first;
+- add shortcuts only where cost forces them;
+- grade every shortcut against the precise layer.
+
+Plan: `AI-EQUILIBRIUM-PLAN.md`, "Revised".
+
+### 56.1 The exact layer
+
+**The referee is L0.** It plays:
+- every joint card choice;
+- every in-round decision, as a max or min;
+- every round to the real end of the fight.
+
+**It had a bug.** It wasn't exact with respect to order: in-round chance was seeded from keys that numbered objects in visit order and held dead bookkeeping (the blow counter, a stale step snapshot). Two identical games drew different dice, and the memo kept whichever came first.
+- **Fixed:** seeds now come from stable ids, the engine clears the step snapshot at the end of a round, and the signature now holds `hitThisCombat`, which fantasy content reads.
+- **Test:** memo on or off, same value to the last digit.
+- **Impact on past audits:** their values were biased by sampling noise, not systematically.
+
+**L1, a double-oracle mode.** It returns the same value as the full matrix (an identity test). It needs 1.4–3.3× fewer simulated rounds on 1v2 and 2v1 positions; 2v2 with 2 rounds left is still over budget.
+- **The real cost is the in-round decision tree:** every aim and guard is a nested max/min, so the tree grows with the power of the number of decisions.
+
+**Composed cards (`audit/compose.ts`).** Imaginary cards drawn part by part, so a verdict isn't about one hand-written list of 20 effects:
+- type, with the profile's dice and fast share;
+- trigger: hit, miss, after the attack, block (every card in a wall that holds), breach, resolve, reveal;
+- effect: 9 harms, 6 helps;
+- subject: the trigger's own, self, a side, the weakest, random.
+
+2,000 draws gave more than 500 distinct cards, covering every trigger, effect and subject.
+
+### 56.2 Shortcuts, graded by the exact referee
+
+**The metric:** what a perfect opponent gains against the shortcut's root mixes (`Referee.grade`), in PV of margin. Slices: 1v1 with 4 cards and 4 rounds left; 2v1 and 1v2 with 3 cards and 3 rounds left. 13–20 solved positions per slice.
+
+| Shortcut | Gap (composed / archetypes) | Cost vs exact |
+|---|---|---|
+| ε = 0.5 | ≤ 0.02 | ~same |
+| Per-seat best response | 0.00–0.60 | 0.4–1.0× |
+| Chance samples 4,2,1 | 0.08–0.51 | 0.4–0.9× |
+| One decision sample | 0.00–2.67 | 0.06–1× |
+| Horizon 2, PV-margin leaf | 0.56–1.32 | ~3% |
+| Horizon 2, `positionScore` leaf | 0.89–2.83 | ~3% |
+| Horizon 1, random-playout leaf ×8 / ×16 / ×32 | ~1.6 / ~1.2 / ~1.0 | 0.6% / 1.2% / 2.4% |
+| Horizon 1, PV-margin leaf | 2.75–6.33 | 0.1% |
+| Horizon 1, `positionScore` leaf | 2.96–5.75 | 0.1% |
+| Greedy decisions (8 / 1 samples) | 0.14–0.86 / 0.15–0.77 | 0.6–2× / 0.5–0.8× |
+| *Today's AI, side A* | *0.65–3.12* | — |
+
+- **The ranking holds on both card sets.**
+- **`positionScore`'s weights are a worse leaf than the plain PV margin,** at both horizons.
+- **Random playouts (no constants) are the best cheap leaf,** and improve steadily with their count.
+- **Greedy decisions aren't a saving at these sizes,** because exact decisions memoize by state and greedy ones don't. Their case is 4v4, where the exact solver can't be graded.
+
+### 56.3 The equilibrium player, a prototype (`ai/src/equilibrium.ts`)
+
+**Configuration:** double oracle, horizon 1, random-playout leaf ×8, greedy decisions, ε = 0.5, 4 chance samples. Each side draws its cards from its equilibrium mix.
+
+**Against today's depth-1 AI:** duplicate pairs (each position twice, sides swapped), scored by PV margin, 30 positions; the 1v1 slice was re-run with 100.
+
+| Slice | Composed | Archetypes |
+|---|---|---|
+| 2v2, 3 cards, 2 rounds | +4.95 ±2.01 | +6.47 ±1.57 |
+| 1v2, 3 cards, 3 rounds | +5.75 ±1.92 | +6.12 ±1.68 |
+| 2v1, 3 cards, 3 rounds | +2.37 ±1.89 | +2.78 ±0.97 |
+| 1v1, 4 cards, 4 rounds (100 positions) | +2.33 ±0.64 | +1.20 ±0.59 |
+
+- Every round was solved by the prototype itself, with no fallback.
+- Cost: 0.1–6 s per position. Still far too slow for real hands (hundreds of joints a side).
+
+### 56.4 Eight rules for several attacks on one defended body (`gangRule`, experimental)
+
+**The rules:**
+- **separate** (today): each attack its own contest; the defense rolls afresh against each.
+- **sum:** attacks on one target in a step are one contest, totals added.
+- **wear:** the defense rolls once a round; each stop spends it.
+- **flank:** +N per other attack on the same target (N = 2, 3, 4).
+- **single:** the defense stops one attack, picked after the aims.
+- **swarm:** from the second attack a body meets, its defenses roll twice and keep the worse.
+- **divided:** the defense rolls once and its halves go to attackers of the defender's choice.
+- **unguarded:** a body two attacks aim at keeps only its own defense.
+
+**How measured:** the exact referee's equilibrium, composed cards, positions solved under every rule, 90% bootstrap intervals.
+
+**Gain of the bigger side vs separate (PV), 2 rounds left:**
+
+| Shape | flank +2 | flank +3 | flank +4 | sum | wear | single | divided | swarm | unguarded |
+|---|---|---|---|---|---|---|---|---|---|
+| 1v2 | +1.4 | +2.7 | +4.0 | +2.8 | +2.6 | +3.3 | +2.4 | +0.2 | +0.1 |
+| 2v1 | +0.5 | +1.5 | +2.1 | +2.2 | +2.3 | +2.6 | +2.1 | +0.2 | −0.1 |
+
+The intervals on sum, wear, single and divided are wide (about ±2.5).
+
+**2v2, 1 round left, 48 positions (divided 34): when a side throws two attacks, the share on the same body:**
+
+| separate | sum | flank +2 | divided | unguarded | single | swarm | wear |
+|---|---|---|---|---|---|---|---|
+| 0.36 [0.22, 0.48] | **0.56** [0.42, 0.69] | **0.58** [0.45, 0.69] | 0.50 | 0.50 | 0.43 | 0.41 | 0.38 |
+
+- **unguarded** raises how often two attacks are thrown (0.25 → 0.41) and halves defending (0.27 → 0.13).
+- **No rule collapses the value of reading:** it stays 0.5–1.0 PV on 2v2 for every rule, highest under flank.
+- **sum** lowers it for the bigger side on 2v1 (0.99 → 0.52), a mild drift toward a dogpile routine.
+
+**Not decided: the user picks.** The losing rules and `experiment-gang-rules.ts` go once they do.

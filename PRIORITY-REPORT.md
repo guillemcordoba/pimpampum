@@ -177,6 +177,21 @@ Four `card-designer` batches, each judged round by round by a fresh `card-taste`
 
 Final texts are in `DESIGN-PROPOSALS.md`. Nothing is implemented: you pick first.
 
+## Night 2 (2026-10-28 → 29): the exact layer, shortcuts, a prototype, and ganging up
+
+Full numbers in `NEXT-STEPS.md` §56.
+
+- **The exact referee was not quite exact.** In-round dice depended on the order it explored the game. Fixed; it's now order-exact (memo on or off, same value to the last digit).
+- **Composed cards.** The audit now also deals imaginary cards built from parts (type, trigger, effect, subject), so verdicts aren't about one list of 20 effects. On-block payoffs are among them.
+- **Shortcuts graded against the exact layer.** The ranking holds on both card sets:
+  - two rounds of exact solving: 0.6–1.3 PV gap;
+  - one round plus random playouts: 1.0–1.6;
+  - today's AI: 0.7–3.1;
+  - one round scored by PV, or by today's evaluator: 2.8–6.3.
+  - **Today's hand-weighted evaluator is a worse leaf than plain PV.**
+- **The prototype equilibrium player beats today's AI** on every small slice: +1.2 to +6.5 PV of margin, both seats, with no hand-set weights. It's far too slow for real hands yet.
+- **Eight rules for several attacks on one defended body:** see the decision below.
+
 ## Decisions for the user
 
 1. **The design picks** (`DESIGN-PROPOSALS.md`):
@@ -191,18 +206,13 @@ Final texts are in `DESIGN-PROPOSALS.md`. Nothing is implemented: you pick first
    - an AoE "apunta" each of its targets;
    - the order of end-of-round events;
    - whether a Cometa that never lands still costs its fatigue.
-3. **The depth-0 heuristic: retune now, or wait for the equilibrium night?** It now plays worse than random (41.8%) because it attacks two-thirds of the time. It's also the opponent model inside the search.
-   - **My recommendation: a short retune first** (the Defense and Focus weights), verified by the referee audit and the bot ladder per the memory rules.
-   - **Why:**
-     - every kit verdict and every balance number is read through this AI;
-     - the equilibrium AI is a bigger, riskier change;
-     - it would arrive after a lot of content decisions had been made against a biased instrument.
+3. ~~**The depth-0 heuristic: retune now?**~~ **Decided (2026-10-28): no.** Its constants go; the equilibrium AI replaces it, built from the exact layer up. See "Night 2" above.
 4. **The balance direction.** Defense got much stronger:
    - fights went from 4.3 to 6.0 rounds;
    - Aggro > Power is broken (22.6%; the culprit is Cures de camp);
    - card-value prices Guard at +28.9.
    - `intentions.md` prescribes buffing the corner that beats the winner. Here that's attacks that break through: Focus effects that pump attacks, and the defense payoffs, which shorten fights when blocks pay. It's the direction we chose together.
-   - **Recommendation:** do the AI first (decision 3), re-measure, then tune numbers. Some of the shift is likely the AI.
+   - **Recommendation:** do the AI first (the equilibrium player), re-measure, then tune numbers. Some of the shift is likely the AI.
 5. **The encounter-speed test** (3 s budget) fails only because fights are longer. Keep it red until fights shorten (recommended), or raise the budget.
 6. **Armour:** without its speed penalty, armour still moves a fight ≤15 points. Keep its values as they are (the default), or price it some other way.
 7. **The interim defaults:**
@@ -211,6 +221,17 @@ Final texts are in `DESIGN-PROPOSALS.md`. Nothing is implemented: you pick first
    - Cop desesperat is a normal card;
    - the 7 enemy-block cards keep working until their batch-B designs land.
    - Confirm them, or change any.
+9. **Several attacks on one defended body: pick a rule** (2v2 numbers in §56.4).
+   - **sum** (attacks in a step add up into one blow) and **flank** (+N per other attack on the target) are the two that make best play concentrate fire: 0.56 and 0.58 of paired attacks share a target, against 0.36 today.
+   - **sum** is the lore you asked for ("add their dice"), and it mirrors walls. It mildly lowers the bigger side's reading value on 2v1.
+   - **flank** keeps reading the most valuable, and N tunes its strength: +3 or +4 matches sum's power shift.
+   - **wear** shifts power but barely changes focus fire.
+   - **unguarded** ("swarmed means you can't protect") stacks with any of them; it halves defending in 2v2.
+   - **My recommendation: sum,** optionally with unguarded. Then I delete the other rules and the experiment.
+10. **The equilibrium player's next step: making it affordable for real hands** (hundreds of joint plans a side). The candidates:
+   - per-seat best response;
+   - greedy decisions, whose saving only shows with many decisions;
+   - fewer joints through dominance pruning, graded against the exact layer as before.
 8. **The merge path:** `priority-system` → `elements-set` once you accept it, then the usual question for `main`. Nothing has been merged.
 
 ## Notes
