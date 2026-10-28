@@ -96,7 +96,19 @@ Branch `priority-system`, cut from `elements-set`. Nothing merged. The plan is i
 
 ## The measurement tiers
 
-_Pending:_ smoke tier, slow tier, the triangle and armour tests, `/analyze`, the referee audit and the bot ladder.
+### Smoke tier: done
+
+Every slow file at 2 games: **88 of 90 files execute.** The failures:
+- **bench `positions.test`:** it failed before this branch.
+- **bench `card-value.slow`:** a real finding, so the test stays as it is.
+  - Its "overwhelming" control ("20d6 at every enemy, first") was speed 9 and is now fast. With that fix, at full size it ranks first again (30.8).
+  - Two assertions still fail because **the synthetic brawler's Guard is now worth +28.9 and its attacks −12 to −26.** The spread between real cards is bigger than the controls' gap.
+  - Under priority a defense resolves before every normal attack, and the instrument sees it.
+- **The same signal as the longer fights:** defense became much stronger.
+  - `intentions.md` wants Protect ahead of Aggro, but not by this much.
+  - The answer its rules point to is "buff the corner that beats it": Focus effects that pump attacks so they break through.
+
+_Pending:_ the slow tier, the triangle and armour tests, `/analyze`, the referee audit and the bot ladder.
 
 ## Design pass (P3)
 
