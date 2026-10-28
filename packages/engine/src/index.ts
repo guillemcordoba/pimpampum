@@ -34,7 +34,7 @@ export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './ch
 // Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats, orderKey } from './combat.js';
 export type {
-  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser,
+  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, GangRule, ActionChooser, TargetChooser,
   RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,
 } from './combat.js';
 

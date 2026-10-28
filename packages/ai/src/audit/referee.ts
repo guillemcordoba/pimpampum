@@ -622,6 +622,29 @@ export class Referee {
     throw new Error('referee: a round with more than 64 decisions');
   }
 
+  /**
+   * One sampled path through the round `state` is about to play, side A on
+   * `row` and side B on `col`, every in-round decision taken as the referee
+   * would take it: the engine as that round ends. What best play DOES in a
+   * round (where the attacks aimed, who guarded whom), not only what it is
+   * worth.
+   */
+  bestPath(state: CombatEngine, row: Joint, col: Joint, path: number): CombatEngine {
+    const { sig, prepared } = this.prepare(state);
+    const selections = [...toSelections(0, row), ...toSelections(1, col)];
+    const seed0 = hash(sig, this.opts.seed * 31 + 2000 + path);
+    const script: Scripted[] = [];
+    for (let step = 0; step < 64; step++) {
+      const ask = this.replay(prepared, selections, seed0, script);
+      if (ask instanceof Draw) { script.push({ draw: (path + step) % ask.outcomes }); continue; }
+      if (!(ask instanceof Ask)) return ask;
+      const stats = this.optionStats(prepared, selections, seed0, script, 0, ask, this.opts.decisionSamples[0]);
+      const top = stats.reduce((b, s) => (ask.team === 0 ? s.mean > b.mean : s.mean < b.mean) ? s : b);
+      script.push({ pick: top.pick, seed: hash(`${sig}#${path}#${script.length}`, this.opts.seed * 23) });
+    }
+    throw new Error('referee: a round with more than 64 decisions');
+  }
+
   /** Re-run the round from its start under a script of answers: the state at
    *  its end, or the first decision (or, enumerating, chance draw) the script
    *  does not answer. */

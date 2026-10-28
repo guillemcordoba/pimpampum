@@ -280,3 +280,23 @@ describe('the end of a fight', () => {
     expect(bag.currentPV).toBe(99);
   });
 });
+
+describe('gang rules (experimental): two attacks, 5 and 4, on one defense of 6', () => {
+  const play = (gangRule: 'separate' | 'sum' | 'wear' | 'flank' | 'single') => {
+    const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
+    const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
+    const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
+    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
+    playRound(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+      { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+      { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+    ]);
+    return d.currentPV;
+  };
+  it('separate: each faces a fresh 6 and is held', () => expect(play('separate')).toBe(20));
+  it('sum: one blow of 9 against 6 — 3 through', () => expect(play('sum')).toBe(17));
+  it('wear: the 5 is held and spends 5 of the 6; the 4 meets 1 — 3 through', () => expect(play('wear')).toBe(17));
+  it('flank: 7 against 6 — 1 through; 6 against 6 is held', () => expect(play('flank')).toBe(19));
+  it('single: the defense stops one blow (the first, with no chooser); the 4 lands in full', () => expect(play('single')).toBe(16));
+});

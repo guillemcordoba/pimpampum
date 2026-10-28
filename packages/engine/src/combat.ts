@@ -168,7 +168,26 @@ export interface CombatEngineOptions {
    *  the eligible targets in order — deterministic, and deliberately not a
    *  policy. */
   targetChooser?: TargetChooser;
+  /**
+   * EXPERIMENTAL (2026-10-28): what happens when several attacks meet one
+   * defended body. Measured by the exact referee, then all but the chosen
+   * rule go (PRIORITY-REPORT.md).
+   *  - `separate` (today): each attack is its own contest; the defense rolls
+   *    afresh against each.
+   *  - `sum`: attacks on one target in the same step are ONE contest, their
+   *    totals added — the mirror of a wall of defenses.
+   *  - `wear`: a defense rolls once a round; each attack it stops spends
+   *    that much of its total, the rest facing what is left.
+   *  - `flank`: each attack gets +`flankBonus` for every other attack aimed
+   *    at the same target this round.
+   *  - `single`: a defense stops ONE attack — the defender picks which after
+   *    the aims; the others come through undefended.
+   */
+  gangRule?: GangRule;
+  flankBonus?: number;
 }
+
+export type GangRule = 'separate' | 'sum' | 'wear' | 'flank' | 'single';
 
 const NO_STATUSES: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
 const NO_HOOKED: readonly HookedEffect[] = [];
@@ -187,6 +206,12 @@ export class CombatEngine implements EngineApi, AIView {
   actionChooser?: ActionChooser;
   targetChooser?: TargetChooser;
   round = 0;
+  readonly gangRule: GangRule;
+  readonly flankBonus: number;
+  /** `wear`: each defender's defense total left this round. */
+  private worn: Map<Character, number> = new Map();
+  /** `sum`: attacks on a target waiting for the last of their step to roll. */
+  private gangs: Map<Character, { total: number; members: { source: Character; def: ActionDefinition }[] }> = new Map();
   logEntries: LogEntry[] = [];
   /**
    * A clone never has its log read — `clone()` deliberately starts it empty and
@@ -279,6 +304,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
     this.aiSharpness = opts.aiSharpness ?? 2;
+    this.gangRule = opts.gangRule ?? 'separate';
+    this.flankBonus = opts.flankBonus ?? 2;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
     this.teams = [teamA, teamB];
@@ -318,8 +345,13 @@ export class CombatEngine implements EngineApi, AIView {
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
       maxRounds: number; aiSharpness: number; history: ActionEvent[];
+      gangRule: GangRule; flankBonus: number;
     };
     fixed.registry = this.registry;
+    fixed.gangRule = this.gangRule;
+    fixed.flankBonus = this.flankBonus;
+    e.worn = new Map([...this.worn].map(([c, v]) => [at(c), v]));
+    e.gangs = new Map([...this.gangs].map(([c, g]) => [at(c), { total: g.total, members: g.members.map(m => ({ source: at(m.source), def: m.def })) }]));
     fixed.teams = teams;
     fixed.maxRounds = this.maxRounds;
     fixed.aiSharpness = this.aiSharpness;
@@ -701,9 +733,57 @@ export class CombatEngine implements EngineApi, AIView {
    *  bonuses — or, for a guard already rolled (`fixedTotal`), that total. */
   private rollGuard(g: Guard): { roll: number; bonus: number } {
     if (g.fixedTotal !== undefined) return { roll: g.fixedTotal, bonus: 0 };
+    if (this.gangRule === 'wear') {
+      const left = this.worn.get(g.defender);
+      if (left !== undefined) return { roll: left, bonus: 0 };
+    }
     const roll = this.rollDiceFor(g.defender, g.action.dice, 'defense');
     const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
+    if (this.gangRule === 'wear') this.worn.set(g.defender, Math.max(0, roll + bonus));
     return { roll, bonus };
+  }
+
+  /** `single`: the defense just raised stops one attack on the bodies it
+   *  covers — the defender's pick, among those aimed there. */
+  private guardOneAttack(actor: Character, def: ActionDefinition, covered: Character[]): void {
+    const attackers = [...new Set(this.pending
+      .filter(p => !p.cancelled && p.actor.isAlive() && (p.as ?? p.action.def.actionType) === ActionType.Atac
+        && p.actor.team !== actor.team && !!p.targets?.some(t => covered.includes(t)))
+      .map(p => p.actor))];
+    if (!attackers.length) return;
+    const chosen = attackers.length === 1 || !this.targetChooser
+      ? attackers[0]
+      : this.targetChooser(this, actor, def, 'enemy', 1, attackers)[0] ?? attackers[0];
+    for (const c of covered) for (const g of c.guards) if (g.defender === actor && g.action === def) g.onlyAgainst = chosen;
+  }
+
+  /** `wear`: what a stopped attack spends of the defenses that stopped it,
+   *  in order; a breach spends them all. */
+  private wearDown(defenders: Character[], spent: number, breached: boolean): void {
+    if (this.gangRule !== 'wear') return;
+    for (const d of defenders) {
+      const left = this.worn.get(d) ?? 0;
+      const used = breached ? left : Math.min(left, spent);
+      this.worn.set(d, left - used);
+      spent -= used;
+    }
+  }
+
+  /** The attack resolving now, when `source` is the one resolving it (not a
+   *  counter or an extra blow an effect throws). */
+  private resolvingAttack(source: Character): PendingAction | null {
+    const cur = this.pending[this.pendingIndex];
+    return cur && cur.actor === source && (cur.as ?? cur.action.def.actionType) === ActionType.Atac ? cur : null;
+  }
+
+  /** Other attacks this round aimed at `target`: all of them, or only those
+   *  still to resolve in the current step. */
+  private otherAttacksOn(target: Character, cur: PendingAction, laterInStep: boolean): PendingAction[] {
+    const i = this.pending.indexOf(cur);
+    return this.pending.filter((p, j) => p !== cur && !p.cancelled
+      && (p.as ?? p.action.def.actionType) === ActionType.Atac
+      && !!p.targets?.includes(target)
+      && (!laterInStep || (j > i && p.key === cur.key && this.tierAlive.has(p.actor))));
   }
 
   addCombatant(team: number, c: Character): void {
@@ -895,6 +975,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.log('round', `⚔️ Ronda ${this.round}`);
     const skipping: TargetRef[] = [];
     this.skippingThisRound = new Set();
+    this.worn = new Map();
+    this.gangs = new Map();
     for (const c of this.allLiving()) {
       if (c.resetForNewRound()) {
         this.skippingThisRound.add(c);
@@ -1519,6 +1601,7 @@ export class CombatEngine implements EngineApi, AIView {
         for (const ally of allies) {
           if (ally !== actor) ally.guards.push({ defender: actor, action: action.def });
         }
+        if (this.gangRule === 'single') this.guardOneAttack(actor, action.def, [actor, ...allies]);
         // Block: the enemy loses target choice — every attack roll they make
         // from now on is made against the blockers. Blocks stack: two or more
         // blockers form a wall that contests with the SUM of their defenses.
@@ -1784,9 +1867,11 @@ export class CombatEngine implements EngineApi, AIView {
       + this.attackRollBonusAgainst(target) + this.attackRollBonusOf(source);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
-    const attackTotal = Math.max(0,
+    let attackTotal = Math.max(0,
       (baseRoll + extraDice + atkBonus + (statusMods.attackRollBonus ?? 0))
       * (statusMods.attackTotalMult ?? 1));
+    const cur = this.resolvingAttack(source);
+    if (cur && this.gangRule === 'flank') attackTotal += this.flankBonus * this.otherAttacksOn(target, cur, false).length;
 
     // Feints bypass the guard entirely (treated as undefended) — unless a
     // status on the target vetoes the bypass (seismic awareness & co.).
@@ -1794,6 +1879,22 @@ export class CombatEngine implements EngineApi, AIView {
     // surfaces where nobody saw it dive).
     // A status on the target may have opened its guard to this attacker, too.
     const bypass = this.bypassesDefense(source, target, mods.ignoreDefense || !!statusMods.ignoreDefense);
+    // `sum`: an attack with partners still to come in its step joins their
+    // gang and waits; the last one rolls the gang's total as one blow.
+    let gangMembers: { source: Character; def: ActionDefinition }[] = [];
+    if (cur && this.gangRule === 'sum' && !bypass) {
+      const gang = this.gangs.get(target);
+      if (this.otherAttacksOn(target, cur, true).length) {
+        if (gang) { gang.total += attackTotal; gang.members.push({ source, def }); } else this.gangs.set(target, { total: attackTotal, members: [{ source, def }] });
+        this.log('attack', `${source.name} «${def.name}» s'uneix a l'atac contra ${target.name} (${attackTotal}).`, source.team);
+        return;
+      }
+      if (gang) {
+        attackTotal += gang.total;
+        gangMembers = gang.members;
+        this.gangs.delete(target);
+      }
+    }
     // A weak spot the attacker's side found weakens whatever defends it.
     mods.defensePenalty += this.defensePenaltyOn(target, source);
     // Defensa conjunta: when several defenses cover the same attack — a wall
@@ -1811,7 +1912,7 @@ export class CombatEngine implements EngineApi, AIView {
           ? blockWall
           : this.activeGuards(target, source, mods.ignoreAllyGuards));
       if (guards.length >= 2) {
-        this.resolveAttackOnWall(source, action, guards, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus);
+        this.resolveAttackOnWall(source, action, guards, mods, statusMods, attackTotal, baseRoll + extraDice, atkBonus, gangMembers);
         return;
       }
     }
@@ -1880,8 +1981,10 @@ export class CombatEngine implements EngineApi, AIView {
       }
     }
 
+    if (guard && !guardAbsorbs) this.wearDown([guard.defender], contestAttack, hit);
     if (!hit && guard) {
       this.log('defense', `🛡️ ${guard.defender.name} «${guard.action.name}» atura l'atac de ${source.name} «${def.name}».`, guard.defender.team);
+      for (const m of gangMembers) this.dispatch('onAttackMiss', m.source, m.def, { targets: [target], target: recipient, hit: false, margin, attackTotal: contestAttack });
       this.dispatch('onAttackMiss', source, def, { targets: [target], target: recipient, hit: false, margin, attackTotal: contestAttack });
       this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });
       return;
@@ -1901,6 +2004,7 @@ export class CombatEngine implements EngineApi, AIView {
     // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
     this.applyPvLoss(recipient, dmg, source);
+    for (const m of gangMembers) this.dispatch('onAttackHit', m.source, m.def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin, attackTotal: contestAttack });
     this.dispatch('onAttackHit', source, def, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin, attackTotal: contestAttack });
     this.holderAttackHit(source, recipient, dmg, def);
     if (guard && recipient === guard.defender && dmg > 0) {
@@ -1913,9 +2017,11 @@ export class CombatEngine implements EngineApi, AIView {
    *  breaks, the member with the lowest individual total (the weak link)
    *  takes the penetrating damage; on a close breach (≤ SKILL_UP_MARGIN)
    *  every member learns — they failed together. */
-  private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0): void {
+  private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0, gangMembers: { source: Character; def: ActionDefinition }[] = []): void {
     const def = action.def;
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal);
+    const res0 = resolveAttack(adjustedAttacker, Math.max(0, sum - mods.defensePenalty));
+    this.wearDown(wall.map(g => g.defender), adjustedAttacker, res0.hit);
     // A defense penalty bites the wall's joint total once, not once per member.
     const wallTotal = Math.max(0, sum - mods.defensePenalty);
     if (!this.silent) this.log('roll', `🎲 ${source.name} «${def.name}»: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
@@ -1923,6 +2029,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(def.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${source.name} «${def.name}».`, wall[0].defender.team);
+      for (const m of gangMembers) this.dispatch('onAttackMiss', m.source, m.def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin, attackTotal: adjustedAttacker });
       this.dispatch('onAttackMiss', source, def, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin, attackTotal: adjustedAttacker });
       for (const g of wall) this.dispatch('onDefend', g.defender, g.action, { targets: [source], target: source, margin: res.margin, attackTotal: adjustedAttacker });
       return;
@@ -1938,6 +2045,7 @@ export class CombatEngine implements EngineApi, AIView {
     dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, adjustedAttacker));
     this.log('attack', `💥 ${source.name} «${def.name}» trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
     this.applyPvLoss(recipient, dmg, source);
+    for (const m of gangMembers) this.dispatch('onAttackHit', m.source, m.def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
     this.dispatch('onAttackHit', source, def, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
     this.holderAttackHit(source, recipient, dmg, def);
     if (dmg > 0) {
@@ -1983,6 +2091,8 @@ export class CombatEngine implements EngineApi, AIView {
     // (the referee keys and seeds positions by their state).
     this.tierAlive = new Set();
     this.tierInterrupted = new Set();
+    this.worn = new Map();
+    this.gangs = new Map();
     this.revealSettled = false;
     this.roundPrepared = false;
   }
