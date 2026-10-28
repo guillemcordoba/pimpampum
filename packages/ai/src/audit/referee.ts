@@ -38,9 +38,10 @@
  * decision is an independent draw and the replayed prefix is identical.
  */
 import {
-  Character, seededRng, setRng, withChance, withSeed,
+  Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
   type ActionSelection, type CombatEngine, type TargetChooser,
 } from '@pimpampum/engine';
+import { positionScore } from '../lookahead.js';
 import { solveZeroSum, rowValues, type MatrixSolution } from './zero-sum.js';
 
 export interface RefereeOptions {
@@ -71,10 +72,35 @@ export interface RefereeOptions {
    * equilibrium needs are never played.
    */
   strategies: 'enumerate' | 'oracle';
+  // --- SHORTCUTS. Each one trades exactness for reach; each is graded by
+  // `grade` against a referee without it (AI-EQUILIBRIUM-PLAN.md, L2).
+  /** Rounds solved before the board is scored as it stands, by the payoff
+   *  itself (`margin`: PV on A minus PV on B) — no weights, nothing but the
+   *  currency the fight is scored in. Omit: to the real end. */
+  horizon?: number;
+  /**
+   * How a board is scored at the horizon. `margin`: the PV margin as it
+   * stands. `score`: the lookahead's evaluator (`positionScore`: PV, bodies,
+   * statuses that price themselves) — every payoff, finished fights too, in
+   * its units, so the tree is in one currency. `playout`: the fight played to
+   * its end `playouts` times with every seat on a uniformly random legal
+   * card and target, scored by the margin — no weights, and no opinion of
+   * good play either.
+   */
+  leaf: 'margin' | 'score' | 'playout';
+  playouts: number;
+  /** Under `oracle`: a best response joins the matrix only if it beats the
+   *  value by more than this (payoff units). 0: exact. */
+  epsilon: number;
+  /** Under `oracle`: how a side's best response is found. `joint`: every
+   *  joint of the side. `seat`: one seat at a time, the others held, until
+   *  no seat improves — a local best response. */
+  bestResponse: 'joint' | 'seat';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
   seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin', strategies: 'enumerate',
+  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8,
 };
 
 /** One seat's committed card. */
@@ -314,11 +340,22 @@ export class Referee {
 
   /** Value of a between-rounds state to team 0, with the whole remaining fight solved. */
   value(state: CombatEngine, depth: number): number {
-    if (finished(state)) return this.opts.payoff === 'outcome' ? outcome(state) : pvDiff(state);
-    const sig = signature(state);
+    if (finished(state)) {
+      if (this.opts.leaf === 'score') return positionScore(state, 0);
+      return this.opts.payoff === 'outcome' ? outcome(state) : pvDiff(state);
+    }
+    if (this.opts.horizon !== undefined && depth >= this.opts.horizon) {
+      if (this.opts.payoff !== 'margin') throw new Error('referee: a horizon scores the board by the margin');
+      if (this.opts.leaf === 'score') return positionScore(state, 0);
+      if (this.opts.leaf === 'playout') return this.playout(state);
+      return pvDiff(state);
+    }
+    // Under a horizon the same board is worth more or less depending on how
+    // many rounds are left to solve from it.
+    const sig = this.opts.horizon === undefined ? signature(state) : `${depth}|${signature(state)}`;
     const hit = this.table.get(sig);
     if (hit !== undefined) return hit;
-    const v = this.solve(state, depth).value;
+    const v = this.roundValue(state, depth);
     this.table.set(sig, v);
     return v;
   }
@@ -326,7 +363,60 @@ export class Referee {
   /** Solve the round `state` is about to play; `mustInclude` are team-0 joints
    *  that must be among the candidates (kept for callers; every joint already is). */
   solve(state: CombatEngine, depth: number, mustInclude: Joint[] = []): RootSolution {
-    const { sig, prepared, seats } = this.prepare(state);
+    const { seats, cell, random } = this.cells(state, depth);
+    // A root is one position: its round-start chance would be one draw
+    // standing in for all of them. (A live engine passes its round prepared.)
+    if (random) throw new Unsupported('chance at the start of a round');
+    return this.matrix(seats, cell, mustInclude);
+  }
+
+  /** A between-rounds state's value: its round's matrix game — or, when the
+   *  round opens on chance the seats see before choosing, the mean over
+   *  `samples` draws of each draw's game. */
+  private roundValue(state: CombatEngine, depth: number): number {
+    const first = this.cells(state, depth);
+    if (!first.random) return this.matrix(first.seats, first.cell, []).value;
+    const K = this.opts.chance === 'enumerate' ? 1 : this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
+    if (this.opts.chance === 'enumerate') throw new Unsupported('enumerated chance at the start of a round');
+    let total = 0;
+    for (let d = 0; d < K; d++) {
+      const c = d === 0 ? first : this.cells(state, depth, d);
+      total += this.matrix(c.seats, c.cell, []).value;
+    }
+    return total / K;
+  }
+
+  /**
+   * HOW FAR A STRATEGY IS FROM THE REFEREE'S: what a perfect opponent gains
+   * against it, in this referee's game. `rows` is side A's mix (joint key →
+   * probability), `cols` side B's; either may be omitted. A gap of 0 is an
+   * equilibrium strategy; the gap is in the payoff's own units.
+   *
+   * This is how a shortcut is judged (AI-EQUILIBRIUM-PLAN.md): solve the same
+   * position cheaply, hand its mixes here, and the exact layer says what the
+   * shortcut cost. Not "did it pick the referee's card" — a right mix often
+   * holds no single right card.
+   */
+  grade(state: CombatEngine, mixes: { rows?: Map<string, number>; cols?: Map<string, number> }): { value: number; rowGap?: number; colGap?: number } {
+    const value = this.solve(state, 0).value;
+    const { seats, cell } = this.cells(state, 0);
+    const all = [cartesian(seats[0]), cartesian(seats[1])];
+    const against = (mix: Map<string, number>, mine: Joint[], theirs: Joint[], asRow: boolean): number[] => {
+      const support = mine.filter(j => (mix.get(jointKey(j)) ?? 0) > 0);
+      const known = new Set(mine.map(jointKey));
+      for (const k of mix.keys()) if (!known.has(k)) throw new Error(`referee: ${k} is not a legal joint here`);
+      return theirs.map(t => support.reduce((acc, j) => acc + mix.get(jointKey(j))! * (asRow ? cell(j, t) : cell(t, j)).mean, 0));
+    };
+    const out: { value: number; rowGap?: number; colGap?: number } = { value };
+    if (mixes.rows) out.rowGap = value - Math.min(...against(mixes.rows, all[0], all[1], true));
+    if (mixes.cols) out.colGap = Math.max(...against(mixes.cols, all[1], all[0], false)) - value;
+    return out;
+  }
+
+  /** The round `state` is about to play, as a matrix game: each seat's legal
+   *  cards, and the value of any one cell. */
+  private cells(state: CombatEngine, depth: number, draw = 0): { seats: [SeatOption[][], SeatOption[][]]; cell: (row: Joint, col: Joint) => CellStat; random: boolean } {
+    const { sig, prepared, seats, random } = this.prepare(state, draw);
     const K = this.opts.chance === 'enumerate' ? 1 : this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
     const cell = (row: Joint, col: Joint): CellStat => {
       const selections = [...toSelections(0, row), ...toSelections(1, col)];
@@ -338,29 +428,36 @@ export class Referee {
       const variance = K > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (K - 1) : 0;
       return { mean, se: Math.sqrt(variance / K) };
     };
-    return this.matrix(seats, cell, mustInclude);
+    return { seats, cell, random };
   }
 
   /** The round `state` is about to play, prepared, with every seat's legal cards. */
-  private prepare(state: CombatEngine): { sig: string; prepared: CombatEngine; seats: [SeatOption[][], SeatOption[][]] } {
-    const sig = signature(state);
+  /**
+   * The round `state` is about to play, prepared, with every seat's legal
+   * cards. A state whose round is ALREADY prepared (a live engine waiting for
+   * cards) is taken as it stands. Otherwise the round is opened here, its
+   * chance (a round-start burn, a status that rolls) drawn from `draw`;
+   * `random` says whether it drew any, in which case each draw is a
+   * different position the seats see before they choose (`value`).
+   */
+  private prepare(state: CombatEngine, draw = 0): { sig: string; prepared: CombatEngine; seats: [SeatOption[][], SeatOption[][]]; random: boolean } {
+    const base = signature(state);
+    const sig = draw ? `${base}~${draw}` : base;
     const prepared = state.clone();
     for (const c of [...prepared.teams[0], ...prepared.teams[1]]) c.aiControlled = true;
-    // The matrix is built on the prepared round, so chance there would be one
-    // draw standing in for all of them.
     let draws = 0;
-    const prep = withSeed(hash(sig, this.opts.seed), () => {
-      const gen = seededRng(hash(sig, this.opts.seed + 1));
-      setRng(() => { draws++; return gen(); });
-      return prepared.prepareRound();
-    });
-    if (draws) throw new Unsupported('chance at the start of a round');
-    const skipping = new Set(prep.skipping.map(r => `${r.team}.${r.idx}`));
+    if (!prepared.roundPrepared) {
+      withSeed(hash(sig, this.opts.seed), () => {
+        const gen = seededRng(hash(sig, this.opts.seed + 1));
+        setRng(() => { draws++; return gen(); });
+        prepared.prepareRound();
+      });
+    }
     const seatsOf = (team: number): SeatOption[][] => prepared.teams[team]
       .map((c, idx) => ({ c, idx }))
-      .filter(({ c, idx }) => c.isAlive() && !skipping.has(`${team}.${idx}`))
+      .filter(({ c }) => c.isAlive() && !prepared.isSkippingRound(c))
       .map(({ c, idx }) => this.seatOptions(prepared, c, idx));
-    return { sig, prepared, seats: [seatsOf(0), seatsOf(1)] };
+    return { sig, prepared, seats: [seatsOf(0), seatsOf(1)], random: draws > 0 };
   }
 
   private matrix(seats: [SeatOption[][], SeatOption[][]], cell: (row: Joint, col: Joint) => CellStat, mustInclude: Joint[]): RootSolution {
@@ -387,6 +484,8 @@ export class Referee {
    */
   private oracle(rows: Joint[], cols: Joint[], cell: (row: Joint, col: Joint) => CellStat): RootSolution {
     const played = new Map<number, CellStat>();
+    const rowIndex = new Map(rows.map((j, i) => [jointKey(j), i]));
+    const colIndex = new Map(cols.map((j, i) => [jointKey(j), i]));
     const at = (i: number, j: number): CellStat => {
       const k = i * cols.length + j;
       let c = played.get(k);
@@ -400,19 +499,33 @@ export class Referee {
     for (;;) {
       const sub = solveZeroSum(R.map(i => C.map(j => at(i, j).mean)));
       const spread = Math.max(1, ...R.flatMap(i => C.map(j => Math.abs(at(i, j).mean))));
-      const tol = 1e-7 * spread;
+      const tol = Math.max(1e-7 * spread, this.opts.epsilon);
       const vsCols = (i: number): number => C.reduce((s, j, k) => (sub.col[k] > 0 ? s + sub.col[k] * at(i, j).mean : s), 0);
       const vsRows = (j: number): number => R.reduce((s, i, k) => (sub.row[k] > 0 ? s + sub.row[k] * at(i, j).mean : s), 0);
-      let bestRow = -1, bestRowValue = sub.value + tol;
-      for (let i = 0; i < rows.length; i++) {
-        const v = vsCols(i);
-        if (v > bestRowValue && !R.includes(i)) { bestRow = i; bestRowValue = v; }
-      }
-      let bestCol = -1, bestColValue = sub.value - tol;
-      for (let j = 0; j < cols.length; j++) {
-        const v = vsRows(j);
-        if (v < bestColValue && !C.includes(j)) { bestCol = j; bestColValue = v; }
-      }
+      const best = (n: number, worth: (i: number) => number, sign: number, pool: number[], index: Map<string, number>, joints: Joint[]): number => {
+        const bar = sign * sub.value + tol;
+        if (this.opts.bestResponse === 'seat') {
+          // From the pool's best joint, one seat at a time.
+          let cur = pool.reduce((b, i) => (sign * worth(i) > sign * worth(b) ? i : b), pool[0]);
+          for (let improved = true; improved;) {
+            improved = false;
+            for (let seat = 0; seat < joints[cur].length; seat++) {
+              for (const alt of seatAlternatives(joints, cur, seat, index)) {
+                if (sign * worth(alt) > sign * worth(cur) + 1e-12) { cur = alt; improved = true; }
+              }
+            }
+          }
+          return sign * worth(cur) > bar && !pool.includes(cur) ? cur : -1;
+        }
+        let pick = -1, top = bar;
+        for (let i = 0; i < n; i++) {
+          const v = sign * worth(i);
+          if (v > top && !pool.includes(i)) { pick = i; top = v; }
+        }
+        return pick;
+      };
+      const bestRow = best(rows.length, vsCols, 1, R, rowIndex, rows);
+      const bestCol = best(cols.length, vsRows, -1, C, colIndex, cols);
       if (bestRow < 0 && bestCol < 0) {
         const pad = (strategy: number[], pool: number[], n: number): number[] => {
           const out = new Array<number>(n).fill(0);
@@ -422,8 +535,13 @@ export class Referee {
         const sol = { value: sub.value, row: pad(sub.row, R, rows.length), col: pad(sub.col, C, cols.length) };
         const payoff = rows.map((_, i) => cols.map((_, j) => played.get(i * cols.length + j)?.mean ?? NaN));
         const cellSE = rows.map((_, i) => cols.map((_, j) => played.get(i * cols.length + j)?.se ?? NaN));
-        const rowValue = rows.map((_, i) => vsCols(i));
-        const rowSE = rows.map((_, i) => Math.sqrt(C.reduce((s, j, k) => (sub.col[k] > 0 ? s + (sub.col[k] * at(i, j).se) ** 2 : s), 0)));
+        // Every row was already played against the mix under `joint`; under
+        // `seat` only the pool's were, and scanning the rest would undo the
+        // shortcut, so they are NaN.
+        const valued = (i: number): boolean => this.opts.bestResponse === 'joint' || R.includes(i);
+        const rowValue = rows.map((_, i) => (valued(i) ? vsCols(i) : NaN));
+        const rowSE = rows.map((_, i) => (valued(i)
+          ? Math.sqrt(C.reduce((s, j, k) => (sub.col[k] > 0 ? s + (sub.col[k] * at(i, j).se) ** 2 : s), 0)) : NaN));
         return { value: sub.value, rows, cols, payoff, cellSE, sol, rowValue, rowSE, sims: this.sims };
       }
       if (bestRow >= 0) R.push(bestRow);
@@ -563,6 +681,30 @@ export class Referee {
     return sim;
   }
 
+  /** The mean margin of `playouts` random fights from `state` to its end. */
+  private playout(state: CombatEngine): number {
+    const sig = signature(state);
+    let total = 0;
+    for (let k = 0; k < this.opts.playouts; k++) {
+      total += withSeed(hash(sig, this.opts.seed * 977 + k), () => {
+        const sim = state.clone();
+        sim.actionChooser = (e, a) => {
+          const legal = availableActionIndices(a, e.registry);
+          return legal.length ? legal[Math.floor(random() * legal.length)] : null;
+        };
+        sim.targetChooser = (_e, _a, _d, _r, count, pool) => {
+          const left = [...pool];
+          const out: Character[] = [];
+          while (out.length < count && left.length) out.push(left.splice(Math.floor(random() * left.length), 1)[0]);
+          return out;
+        };
+        while (!finished(sim)) { this.sims++; sim.runRound(); }
+        return pvDiff(sim);
+      });
+    }
+    return total / this.opts.playouts;
+  }
+
   /** A seat's legal cards. */
   seatOptions(e: CombatEngine, c: Character, idx: number): SeatOption[] {
     if (c.holdsStatusWith('choosesAfterReveal')) throw new Unsupported(`${c.name} chooses after the reveal`);
@@ -577,6 +719,18 @@ export class Referee {
     if (!out.length) out.push({ idx, actionIdx: -1 });
     return out;
   }
+}
+
+/** The joints that differ from `joints[cur]` in `seat`'s card alone. */
+function seatAlternatives(joints: Joint[], cur: number, seat: number, index: Map<string, number>): number[] {
+  const base = joints[cur];
+  const out: number[] = [];
+  for (const i of index.values()) {
+    if (i === cur) continue;
+    const j = joints[i];
+    if (j.every((o, s) => (s === seat ? o.actionIdx !== base[s].actionIdx : o.actionIdx === base[s].actionIdx))) out.push(i);
+  }
+  return out;
 }
 
 function cartesian(seats: SeatOption[][]): Joint[] {

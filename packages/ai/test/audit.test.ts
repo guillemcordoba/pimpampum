@@ -5,7 +5,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import type { Character } from '@pimpampum/engine';
+import { CombatEngine, EffectRegistry, randomInt, withSeed, type Character, type StatusBehavior } from '@pimpampum/engine';
+import { attackCard, fighter, focusCard } from '@pimpampum/engine/testing';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -175,6 +176,29 @@ describe('the referee as a double oracle', () => {
     // No row beats the value against the oracle's mix: it is an equilibrium of the WHOLE matrix.
     expect(Math.max(...oracle.rowValue)).toBeLessThanOrEqual(oracle.value + 1e-6);
     expect(oracle.sol.row.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+  });
+});
+
+describe('the referee on a live engine', () => {
+  // A foe that rots 1 or 2 PV at the start of every round, and a hero who
+  // hits it for 1 each round; two rounds. The live engine has opened round 1
+  // (its rot already drawn); round 2's rot is chance the seats see before
+  // they choose, so the referee averages over it: hero 10, foe 10 − rot₁ − 1
+  // − rot₂ − 1, worth 2 + rot₁ + E[rot₂] = 3.5 + rot₁.
+  const ROT: StatusBehavior = { onRoundStart(ctx) { ctx.holder.loseLife(randomInt(2) + 1); } };
+  const live = () => {
+    const hero = fighter('Hero', [attackCard('hit')], { pv: 10, ai: true });
+    const foe = fighter('Foe', [focusCard('wait')], { pv: 10, ai: true });
+    const engine = new CombatEngine([hero], [foe], { registry: new EffectRegistry(), maxRounds: 2, actionChooser: () => null });
+    foe.setStatus('rot', 1, 99, undefined, ROT); // after the engine: a new combat clears statuses
+    withSeed(5, () => engine.prepareRound());
+    return { engine, rot1: 10 - foe.currentPV };
+  };
+
+  it('takes a prepared round as it stands, and averages the chance that opens a later one', () => {
+    const { engine, rot1 } = live();
+    const v = new Referee({ samples: [1, 400] }).solve(engine, 0).value;
+    expect(v).toBeCloseTo(3.5 + rot1, 1);
   });
 });
 

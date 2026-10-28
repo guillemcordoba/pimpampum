@@ -269,6 +269,12 @@ export class CombatEngine implements EngineApi, AIView {
    */
   roundPrepared = false;
 
+  /** Whether `c` loses the round `prepareRound` just opened — for a policy
+   *  that reads a round already prepared rather than preparing its own. */
+  isSkippingRound(c: Character): boolean {
+    return this.skippingThisRound.has(c);
+  }
+
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
     this.maxRounds = opts.maxRounds ?? 50;
