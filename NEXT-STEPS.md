@@ -6584,3 +6584,47 @@ decision for the user, with this table.
 
 `ai-audit.ts` at GAMES=2 alone, quiet machine: 4 s, exit 0. Its 600 s in
 both tier runs is load (the kit suites beside it), not the harness.
+
+## 55. The priority system replaces speed: what moved (2026-10-28, branch `priority-system`, not merged)
+
+**The rules.** Speed is gone; a round resolves in steps:
+- the fast step first: fast Defense → fast Attack → fast Focus;
+- then Defense → Attack → Focus.
+
+Plan: `PRIORITY-MIGRATION.md`. Report and open decisions: `PRIORITY-REPORT.md`. Card proposals: `DESIGN-PROPOSALS.md`.
+
+The old engine was measured from `elements-set` in a worktree, with the same content.
+
+**Fights.** 4 heroes at level 3 against 5 goblins with 10 PV:
+
+| | old | new |
+|---|---|---|
+| rounds per fight | 4.3 | 6.0 |
+| party winrate, depth 1 | 85% | 48% |
+| AI cost per round | 5.1 ms | 5.0 ms |
+
+- **It conflicts with `intentions.md`** ("no more than ~5 rounds").
+- `encounter-speed.test` fails because of the extra rounds, not because the AI got slower.
+
+**Slow-tier pieces:**
+- **Smoke:** 88/90 files execute.
+  - `positions.test` already failed on the base.
+  - `card-value.slow` prices the synthetic Guard at +28.9 and its attacks at −12 to −26.
+- **Fantasy triangle:** Power > Protect 77.9%, Protect > Aggro 74.7%, **Aggro > Power 22.6% ✗**. The culprit is Cures de camp (+39.8 points), then Riu de lava (+10.9).
+- **Armour:** the ≤15-point bound holds.
+- **Bot ladder:** 8/9.
+  - **depth1x vs depth1: 45.8% ±1.8 ✗.** The bigger budget plays worse.
+
+**AI benchmark, 200 combats per cell (old → new):**
+- production vs spam: 57.5% → 98.0%;
+- depth 0 vs spam: 10.2% → 33.5%;
+- **depth 0 vs uniform: 86.8% → 41.8%.**
+- Production's mix when carrying the party, A/D/F: 62/10/28 → 17/42/41.
+
+**The cause is the same for the AI findings.** The depth-0 heuristic still attacks about 66% of the time, and it is the rollouts' opponent model. So the search plans against opponents who attack too much.
+
+**Referee audit:** 9.3% ±4.4 of positions confirmed as mismatches; 7.0% of decisions; 43 small solved positions.
+- It isn't comparable with §53.4's 21.3%, which covered 2,757 positions including big shapes.
+- On the shared slices it is no worse.
+
+**Not run:** the kit suites and `/analyze`. They read through the AI, so run them after the heuristic retune.

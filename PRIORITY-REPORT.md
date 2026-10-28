@@ -3,7 +3,7 @@
 Branch `priority-system`, cut from `elements-set`. Nothing merged. The plan is in
 `PRIORITY-MIGRATION.md`.
 
-> **Status: in progress.** Sections marked _pending_ are still running.
+> **Status: the night's work is done.** Still not run: the kit suites (slow tier) and `/analyze`. Your decisions are at the end.
 
 ## What changed
 
@@ -153,21 +153,65 @@ Every slow file at 2 games: **88 of 90 files execute.** The failures:
   - **Or replace the opponent model** on the equilibrium-AI night.
 - **The balance shift:** production now defends and focuses far more than it attacks. That's the same shift as the broken Aggro > Power edge and the longer fights.
 
-_Pending:_ the rest of the slow tier (kit suites), `/analyze`, the referee audit.
+### Referee audit (`ai-audit.ts`, exact Nash solver): done
 
-## Design pass (P3)
+- 50 generated positions plus 9 controls; 86% solved within budget (7 over budget).
+- **Positions with a confirmed mismatch: 9.3% ±4.4.** AI decisions that are mismatches: 7.0% ±3.9.
+- **Not directly comparable** with the old engine's 21.3% (NEXT-STEPS §53.4). That number covered 2,757 positions, big shapes included; this run covered 43 small solved ones.
+  - Comparing only the slices both runs share, I see no sign the AI got worse.
+- **Where the mismatches sit:**
+  - the 2v1 and 1v2 shapes with 3 rounds left (20–25%);
+  - hands holding a `block` card (12.5%);
+  - the `lock` and `stun` archetypes (small samples).
+  - That's the defensive side, where the depth-0 heuristic's attack bias would show.
 
-_Pending:_ four `card-designer` batches, each judged by a fresh `card-taste`:
-- **A:** speed effects that lost their meaning;
-- **B:** the 7 enemy-block cards;
-- **C:** timing that the fast step doesn't carry;
-- **D:** defenses with no on-block payoff.
+_Not run:_ the kit suites (slow tier) and `/analyze`. Their verdicts are read through the AI, so they're worth running after the heuristic retune (decision 3), not before.
 
-Proposals in `DESIGN-PROPOSALS.md`, for the user to pick.
+## Design pass (P3): done, not implemented
+
+Four `card-designer` batches, each judged round by round by a fresh `card-taste`:
+- **A:** speed effects that lost their meaning (closed);
+- **B:** the 7 enemy-block cards (closed);
+- **C:** timing that the fast step doesn't carry (closed);
+- **D:** defenses with no on-block payoff (6 closed, 2 open).
+
+Final texts are in `DESIGN-PROPOSALS.md`. Nothing is implemented: you pick first.
 
 ## Decisions for the user
 
-_Filled in at the end._
+1. **The design picks** (`DESIGN-PROPOSALS.md`):
+   - accept or overrule each final text;
+   - **two title changes:** Gel del mestre → Retorn glaçat, and Esquivar-los a tots → Fer-los xocar;
+   - **the optional renames** in batch A (not Entumit for Glaçat: Mestre del xi already uses it);
+   - **two open cards:**
+     - **Colós de butxaca:** Corda would count rounds instead of blows, and the card would join each ally's wall. That's much stronger against a horde.
+     - **Coixí de vent:** keep its payoff, cut it, or give it a new one. Cutting it breaks your "every defense pays" rule.
+2. **The rulings:**
+   - the wall rule (every card in a wall that holds pays);
+   - an AoE "apunta" each of its targets;
+   - the order of end-of-round events;
+   - whether a Cometa that never lands still costs its fatigue.
+3. **The depth-0 heuristic: retune now, or wait for the equilibrium night?** It now plays worse than random (41.8%) because it attacks two-thirds of the time. It's also the opponent model inside the search.
+   - **My recommendation: a short retune first** (the Defense and Focus weights), verified by the referee audit and the bot ladder per the memory rules.
+   - **Why:**
+     - every kit verdict and every balance number is read through this AI;
+     - the equilibrium AI is a bigger, riskier change;
+     - it would arrive after a lot of content decisions had been made against a biased instrument.
+4. **The balance direction.** Defense got much stronger:
+   - fights went from 4.3 to 6.0 rounds;
+   - Aggro > Power is broken (22.6%; the culprit is Cures de camp);
+   - card-value prices Guard at +28.9.
+   - `intentions.md` prescribes buffing the corner that beats the winner. Here that's attacks that break through: Focus effects that pump attacks, and the defense payoffs, which shorten fights when blocks pay. It's the direction we chose together.
+   - **Recommendation:** do the AI first (decision 3), re-measure, then tune numbers. Some of the shift is likely the AI.
+5. **The encounter-speed test** (3 s budget) fails only because fights are longer. Keep it red until fights shorten (recommended), or raise the budget.
+6. **Armour:** without its speed penalty, armour still moves a fight ≤15 points. Keep its values as they are (the default), or price it some other way.
+7. **The interim defaults:**
+   - a vanished aim retargets;
+   - no slow keyword;
+   - Cop desesperat is a normal card;
+   - the 7 enemy-block cards keep working until their batch-B designs land.
+   - Confirm them, or change any.
+8. **The merge path:** `priority-system` → `elements-set` once you accept it, then the usual question for `main`. Nothing has been merged.
 
 ## Notes
 
