@@ -61,13 +61,13 @@ These are card concepts from `card-designer`. Each round, a **new** `card-taste`
 
 **Statuses to price:** Glaçat, Estàtua de gel, the shield's "next attack fast", the potion's fast status.
 
-## Batch C: timing that the fast step doesn't carry — _closing_ (round 4 checks the last title)
+## Batch C: timing that the fast step doesn't carry — **closed** (4 rounds)
 
 | Card | Final text | Note |
 |---|---|---|
 | Llamp de sang freda (Mestre del foc 9, Atac 4d6) | «Puges 1 nivell de fatiga. Es resol al final del torn; no es pot defensar. Si t'han ferit aquest torn, et fereix a tu en lloc de l'objectiu.» | The reviewers' favourite. Allies see the aims and wall the bender. |
 | Salt del meteor (Mestre de l'aire 8, Atac) | «Puges 1 nivell de fatiga. Aquest torn, els atacs contra tu fallen. Es resol al final del torn: afecta tots els enemics.» | The designer kept A over the reviewer's B: A is the scene (in the air until you land), and it can't interrupt a Focus. |
-| **Punyals en tenalla** (Soldat del foc 1, Atac) | «+2 si un altre atac apunta el mateix objectiu.» | It was "Punyals de foc". _Title in round-4 review._ |
+| **Punyals en tenalla** (Soldat del foc 1, Atac) | «+2 si un altre atac apunta el mateix objectiu.» | It was "Punyals de foc". "En tenalla" is the Catalan for a pincer move; it keeps "Pinça" free for Mestre del xi. Passed in round 4. |
 | Punyalada traïdora (goblin 2, Atac) | «Si un altre atac apunta el mateix objectiu, la defensa contra aquest atac té −3.» | |
 | Caiguda de cometa (Mestre del foc 10, Focus) | «Puges 2 nivells de fatiga. No es pot interrompre. Cau a l'inici del torn següent: afecta tots els enemics, i cap aliat no els pot defensar.» | Only killing the bender stops it. A reviewer suggests 4d6 so it feels bigger than card 8; a number, for tuning. |
 | Ganxo salvavides (Artífex 5, Defensa) | «Tria un atac contra l'aliat que defenses: no l'impacta.» | Watch it: an uncontested negation every round. If it measures dominant, brake it with fatigue. |
@@ -78,17 +78,17 @@ These are card concepts from `card-designer`. Each round, a **new** `card-taste`
 - Whether a Cometa that never resolves still costs its fatigue.
 - **For the implementer:** the generic `flanking` handler must read this round's **aims**, not resolved history.
 
-## Batch D: defenses with no on-block payoff — _closing_ (round 3 checks the last three texts)
+## Batch D: defenses with no on-block payoff — **6 closed, 2 for the user** (4 rounds)
 
 | Card | Final text | Note |
 |---|---|---|
 | **Barricada explosiva** (Enginyer d'explosius 2, Defensa) | «Queda dreta amb 1d6 de vida i defensa el protegit cada torn. Si aguanta, pots gastar 1 càrrega: esclata i l'atacant perd N PV.» | Needs a "may spend" choice hook. |
 | Mur de pedra (Gòlem de pedra, enemy, Defensa) | «Defensa el protegit cada torn fins que un atac el superi.» | The 2d6 life goes; staying up is the payoff. |
 | Paraigua blindat (Artífex 4, Defensa) | «Contra els atacs que afecten més d'un de vosaltres, defensa tot el grup. Si aguanta, l'atac regalima sobre un enemic a l'atzar, amb el mateix tir.» | It spills once per held attack, also on single-target attacks, and can hit the attacker. |
-| Colós de butxaca (Artífex 9, Defensa) | «Puges 2 nivells de fatiga. Corda 3: els atacs contra vosaltres es resolen contra la seva defensa. Quan s'atura, cau sobre cada enemic contra qui ha aguantat, o sobre un a l'atzar si no n'hi ha cap.» | _In round-3 review._ |
-| Forma del pop (Mestre de l'aigua 4, Defensa) | «Defensa tots els aliats. Si aguanta, l'atacant queda agafat: fins al final del torn següent, els atacs contra ell tenen +N.» | _In round-3 review._ |
+| Colós de butxaca (Artífex 9, Defensa) | «Puges 2 nivells de fatiga. Corda 3: cada torn defensa tot el grup; el dany que el supera el rep l'objectiu. Quan s'atura, cau sobre cada enemic contra qui ha aguantat, o sobre un a l'atzar si no n'hi ha cap.» | **For the user, open.** Two changes on the way: "la seva defensa" was ambiguous, and round 4 asked to say who takes a breach (otherwise the inventor soaks every hit on the party). **This changes how the card works:** Corda counts **rounds** instead of blows, and it joins each ally's wall instead of replacing their guards. Much stronger against a horde; confirm it. |
+| Forma del pop (Mestre de l'aigua 4, Defensa) | «Defensa tots els aliats. Si aguanta, l'atacant queda agafat: fins al final del torn següent, els atacs contra ell tenen +N.» | Passed in round 3. |
 | Cúpula de pedra (Mestre de la terra 7) | unchanged | Its persistence already depends on holding. |
-| Coixí de vent (Mestre de l'aire 2, Defensa) | «Aquest torn, ni tu ni qui defenses podeu baixar d'1 PV. Si aguanta, el torn següent l'atacant no pot atacar qui has defensat.» | _In round-3 review._ The floor must cover the airbender too, since a beaten guard's damage hits the defender. |
+| Coixí de vent (Mestre de l'aire 2, Defensa) | «Aquest torn, tu i qui defenses no baixeu d'1 PV. Si aguanta, el torn següent l'atacant no pot tornar a atacar el mateix objectiu.» | **For the user, the reviewers disagree.** Round 1 picked this payoff. Round 4 wants the second sentence cut: "flung away" suggests the attacker can reach nobody, it staples two pictures onto a card-2 move, and it copies the gold card Fora d'abast (Esgrima+Aire). Cutting it leaves Coixí with **no on-block payoff**, against your rule. The options: keep it, cut it (and raise the dice instead), or give it a different payoff. |
 | Capbussada (Unagi, enemy, Defensa) | «Si aguanta, el torn següent els seus atacs contra l'atacant no es poden defensar.» | |
 
 **Statuses to price:** "agafat", Capbussada's ambush, Coixí's ban, the Colós's list of stopped enemies.
@@ -111,4 +111,7 @@ These are card concepts from `card-designer`. Each round, a **new** `card-taste`
   - round 3 asked for a clearer Punyals title.
 - **D:**
   - round 1 changed four picks (Golem C, Paraigua B, Pop B, Coixí B) and trimmed Barricada;
-  - round 2 fixed Coixí's floor and Colós's double "aturar".
+  - round 2 fixed Coixí's floor and Colós's double "aturar";
+  - round 3 fixed "la seva defensa" and Coixí's target;
+  - round 4 asked who takes a Colós breach, and to cut Coixí's payoff.
+  - **The loop stopped there:** the reviewers had started to contradict earlier rounds.
