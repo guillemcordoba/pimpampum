@@ -31,10 +31,10 @@ function fencer(name: string, cards: ActionDefinition[], pv = 30, weapon = true)
   });
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
-/** A defense of exactly `total`, at `speed`. */
-const guard = (total: number, speed = 5) => defenseCard('guarda', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
+/** A defense of exactly `total`, fast or not. */
+const guard = (total: number, fast = false) => defenseCard('guarda', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
 const wait = focusCard();
 
 function engineFor(team0: Character[], team1: Character[]): CombatEngine {
@@ -128,8 +128,8 @@ describe('Esgrima', () => {
 
   it("Bardissa d'acer: its roll also defends against the target's blows, the faster ones too", () => {
     const me = fencer('Esgrimista', [card('bardissa-d-acer', 6)]);
-    const foe = fighter('Foe', [blow(8, 9)], { pv: 30 });
-    const other = fighter('Altre', [blow(5, 9)], { pv: 30 });
+    const foe = fighter('Foe', [blow(8, true)], { pv: 30 });
+    const other = fighter('Altre', [blow(5, true)], { pv: 30 });
     playRound(engineFor([me], [foe, other]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
     // The hedge is 6 + 2 = 8: it holds the foe's 8; the other's 5 lands whole.
     expect(me.currentPV).toBe(25);
@@ -140,7 +140,7 @@ describe('Esgrima', () => {
   it("Bardissa d'acer: an AI fencer aims it at the reveal", () => {
     const me = fencer('Esgrimista', [card('bardissa-d-acer', 6)]);
     me.aiControlled = true;
-    const foe = fighter('Foe', [blow(8, 9)], { pv: 30 });
+    const foe = fighter('Foe', [blow(8, true)], { pv: 30 });
     playRound(engineFor([me], [foe]), [sel(1, 0, 0, T(0, 0))]);
     expect(me.currentPV).toBe(30);
     expect(foe.currentPV).toBe(22);

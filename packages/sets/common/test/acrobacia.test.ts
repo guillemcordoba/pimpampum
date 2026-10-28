@@ -26,10 +26,10 @@ function acrobat(name: string, cards: ActionDefinition[], pv = 30): Character {
   return createCharacter({ name, classCss: 'test', pv, skills: { acrobacia: 0 }, actions: cards });
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
-/** A defense of exactly `total`, at `speed` (test defenses roll no dice). */
-const guard = (total: number, speed = 5) => defenseCard('guarda', { rollBonus: total, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
+/** A defense of exactly `total` (test defenses roll no dice). */
+const guard = (total: number) => defenseCard('guarda', { rollBonus: total });
 const wait = focusCard();
 
 function engineFor(team0: Character[], team1: Character[]): CombatEngine {
@@ -86,9 +86,9 @@ describe('Acrobàcia', () => {
 
   it("Trampolí de mans: the ally's slow attack resolves now — before the enemy's faster one — and floors whoever it wounds", () => {
     const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
-    const friend = fighter('Amic', [blow(3, 0)], { pv: 30 });
-    // A speed-2 focus: the launched blow lands first and interrupts it.
-    const foe = fighter('Foe', [focusCard('carrega', { speed: 2 })], { pv: 30 });
+    const friend = fighter('Amic', [blow(3)], { pv: 30 });
+    // A normal Focus: the launched blow lands first and interrupts it.
+    const foe = fighter('Foe', [focusCard('carrega')], { pv: 30 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
     expect(foe.currentPV).toBe(27);
@@ -112,7 +112,7 @@ describe('Acrobàcia', () => {
 
   it('Trampolí de mans: wasted on an ally who has already attacked, or who plays no Atac', () => {
     const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
-    const fast = fighter('Ràpid', [blow(3, 9)], { pv: 30 });
+    const fast = fighter('Ràpid', [blow(3, true)], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 30 });
     const e = engineFor([me, fast], [foe]);
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
@@ -121,7 +121,7 @@ describe('Acrobàcia', () => {
 
     const me2 = acrobat('Acròbata', [card('trampoli-de-mans')]);
     const waiter = fighter('Quiet', [wait], { pv: 30 });
-    const foe2 = fighter('Foe', [blow(4, 2)], { pv: 30 });
+    const foe2 = fighter('Foe', [blow(4)], { pv: 30 });
     const e2 = engineFor([me2, waiter], [foe2]);
     playRound(e2, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
     expect(waiter.currentPV).toBe(26);
@@ -130,8 +130,8 @@ describe('Acrobàcia', () => {
 
   it('Trampolí de mans: a wounded acrobat never launches (a Focus)', () => {
     const me = acrobat('Acròbata', [card('trampoli-de-mans')]);
-    const friend = fighter('Amic', [blow(3, 0)], { pv: 30 });
-    const foe = fighter('Foe', [blow(4, 9), focusCard('carrega', { speed: 2 })], { pv: 30 });
+    const friend = fighter('Amic', [blow(3)], { pv: 30 });
+    const foe = fighter('Foe', [blow(4, true), focusCard('carrega')], { pv: 30 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(me.currentPV).toBe(26);
@@ -152,9 +152,9 @@ describe('Acrobàcia', () => {
     const me = acrobat('Acròbata', [card('tombarella-de-rescat', 0, 10)]);
     const x = fighter('X', [wait], { pv: 30 });
     const y = fighter('Y', [wait], { pv: 30 });
-    const f1 = fighter('F1', [blow(6, 0)], { pv: 30 });
-    const f2 = fighter('F2', [blow(5, -1)], { pv: 30 });
-    const f3 = fighter('F3', [blow(7, -2)], { pv: 30 });
+    const f1 = fighter('F1', [blow(6)], { pv: 30 });
+    const f2 = fighter('F2', [blow(5)], { pv: 30 });
+    const f3 = fighter('F3', [blow(7)], { pv: 30 });
     playRound(engineFor([me, x, y], [f1, f2, f3]), [
       sel(0, 0, 0), sel(0, 1, 0), sel(0, 2, 0),
       sel(1, 0, 0, T(0, 2)), sel(1, 1, 0, T(0, 1)), sel(1, 2, 0, T(0, 0)),

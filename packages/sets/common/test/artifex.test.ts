@@ -29,11 +29,11 @@ function artificer(name: string, cards: ActionDefinition[], pv = 60): Character 
   return createCharacter({ name, classCss: 'test', pv, skills: { artifex: LEVEL }, actions: cards });
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0, over: Partial<ActionDefinition> = {}) =>
-  attackCard(`cop-${total}`, { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed, ...over });
-/** A defense of exactly `total`, at `speed` (test defenses roll no dice). */
-const guard = (total: number, speed = 5) => defenseCard('guarda', { rollBonus: total, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false, over: Partial<ActionDefinition> = {}) =>
+  attackCard(`cop-${total}`, { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast, ...over });
+/** A defense of exactly `total`, fast or not (test defenses roll no dice). */
+const guard = (total: number, fast = false) => defenseCard('guarda', { rollBonus: total, fast });
 const wait = focusCard();
 
 function engineFor(team0: Character[], team1: Character[]): CombatEngine {
@@ -121,8 +121,8 @@ describe('Artífex', () => {
     const me = artificer('Artífex', [card('paraigua-blindat', 0, 1)]);
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
-    const sweeper = fighter('Sweeper', [blow(10, 0, { targetCount: 99 })], { pv: 30 });
-    const striker = fighter('Striker', [blow(10, 0)], { pv: 30 });
+    const sweeper = fighter('Sweeper', [blow(10, false, { targetCount: 99 })], { pv: 30 });
+    const striker = fighter('Striker', [blow(10)], { pv: 30 });
     playRound(engineFor([me, a, b], [sweeper, striker]), [
       sel(0, 0, 0, T(0, 0)), sel(0, 1, 0), sel(0, 2, 0), sel(1, 0, 0), sel(1, 1, 0, T(0, 1)),
     ]);
@@ -136,13 +136,13 @@ describe('Artífex', () => {
   it('Ganxo salvavides: the first attack this round on an ally does not touch them — not on you, not the second', () => {
     const me = artificer('Artífex', [card('ganxo-salvavides', 0, 1)]);
     const ally = fighter('Amic', [wait], { pv: 30 });
-    const f1 = fighter('F1', [blow(10, 0)], { pv: 30 });
-    const f2 = fighter('F2', [blow(10, 0)], { pv: 30 });
+    const f1 = fighter('F1', [blow(10)], { pv: 30 });
+    const f2 = fighter('F2', [blow(10)], { pv: 30 });
     playRound(engineFor([me, ally], [f1, f2]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0, T(0, 1))]);
     expect(ally.currentPV).toBe(20);
     const me2 = artificer('Artífex', [card('ganxo-salvavides', 0, 1)]);
     const ally2 = fighter('Amic', [wait], { pv: 30 });
-    const f3 = fighter('F3', [blow(10, 0)], { pv: 30 });
+    const f3 = fighter('F3', [blow(10)], { pv: 30 });
     playRound(engineFor([me2, ally2], [f3]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 0))]);
     // On the artificer: its own 2d6 (here 1) + 5 guards it.
     expect(me2.currentPV).toBe(56);
@@ -154,15 +154,18 @@ describe('Artífex', () => {
     for (const [type, h] of Object.entries({ ...COMMON_EFFECTS, ...ARTIFEX.effects })) reg.register(type, h);
     reg.register('note', { onResolve(ctx) { resolved.push(ctx.source.name); } });
     const me = artificer('Artífex', [card('ballesta-sentinella', 2), wait]);
-    const foe = fighter('Foe', [blow(3, 0), focusCard('pensar', { effects: [{ type: 'note' }] })], { pv: 40 });
+    const foe = fighter('Foe', [blow(3), focusCard('pensar', { effects: [{ type: 'note' }] }), wait], { pv: 40 });
     const e = new CombatEngine([me], [foe], { registry: reg, actionChooser: firstLegalChooser });
-    playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    expect([foe.currentPV, me.currentPV]).toEqual([38, 57]);
+    // The crossbow is a Focus: hit first and it never goes up, so it is set up
+    // in a round the foe only waits — committed first, it is up before the
+    // foe's card in the same step, and shoots it.
+    playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 2)]);
+    expect([foe.currentPV, me.currentPV]).toEqual([38, 60]);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 1)]);
     expect(foe.currentPV).toBe(36);
     expect(resolved).toEqual([]);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
-    expect(foe.currentPV).toBe(34);
+    expect([foe.currentPV, me.currentPV]).toEqual([34, 57]);
     expect(foe.statuses.size).toBe(0);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 1)]);
     expect(foe.currentPV).toBe(34);
@@ -171,7 +174,7 @@ describe('Artífex', () => {
 
   it('Trepant incansable: through the armour; stuck, it wounds again at two round ends, through any guard', () => {
     const me = artificer('Artífex', [card('trepant-incansable', 2), wait]);
-    const foe = fighter('Foe', [wait, guard(100, 5)], { pv: 40, equipment: [armour(2)] });
+    const foe = fighter('Foe', [wait, guard(100, true)], { pv: 40, equipment: [armour(2)] });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
     // 2 + 5, armour ignored; then 2 at the round's end.
@@ -184,7 +187,7 @@ describe('Artífex', () => {
 
   it('Trepant incansable: a drill that does not wound does not stick, and pulls the old one out', () => {
     const me = artificer('Artífex', [card('trepant-incansable', 2), wait]);
-    const foe = fighter('Foe', [wait, guard(100, 5)], { pv: 40 });
+    const foe = fighter('Foe', [wait, guard(100, true)], { pv: 40 });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
     expect(foe.statuses.size).toBe(1);
@@ -209,9 +212,9 @@ describe('Artífex', () => {
 
   it('Colós de butxaca: attacks on you meet its defense instead of yours, an area attack once; at 0 it falls on an enemy; +2 fatigue', () => {
     const me = artificer('Artífex', [card('colos-de-butxaca', 3), wait]);
-    const ally = fighter('Amic', [guard(50, 9), wait], { pv: 30 });
-    const sweeper = fighter('Sweeper', [blow(10, 0, { targetCount: 99 }), wait], { pv: 40 });
-    const striker = fighter('Striker', [blow(10, 0), wait], { pv: 40 });
+    const ally = fighter('Amic', [guard(50, true), wait], { pv: 30 });
+    const sweeper = fighter('Sweeper', [blow(10, false, { targetCount: 99 }), wait], { pv: 40 });
+    const striker = fighter('Striker', [blow(10), wait], { pv: 40 });
     const e = engineFor([me, ally], [sweeper, striker]);
     playRound(e, [sel(0, 0, 0), sel(0, 1, 0, T(0, 1)), sel(1, 0, 0), sel(1, 1, 0, T(0, 1))]);
     // Every blow meets the colossus's 3 (the ally's own 50 is passed over):
@@ -228,8 +231,8 @@ describe('Artífex', () => {
 
   it('Boa mecànica: coiled, the target cannot defend, and is squeezed with 4, 5 and 6 dice; +2 fatigue', () => {
     const me = artificer('Artífex', [card('boa-mecanica', 3), wait]);
-    const friend = fighter('Amic', [wait, blow(5, 0)], { pv: 30 });
-    const foe = fighter('Foe', [wait, guard(100, 9)], { pv: 60 });
+    const friend = fighter('Amic', [wait, blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [wait, guard(100, true)], { pv: 60 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0)]);
     // 3 + 5, then 4.

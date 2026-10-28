@@ -35,10 +35,10 @@ function master(name: string, cards: ActionDefinition[], pv = 30): Character {
   return createCharacter({ name, classCss: 'test', pv, skills: { 'mestre-del-xi': 0 }, actions: cards });
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
-/** A defense of exactly `total`, at `speed` (test defenses roll no dice). */
-const guard = (total: number, speed = 5) => defenseCard('guarda', { rollBonus: total, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
+/** A defense of exactly `total`, fast or not (test defenses roll no dice). */
+const guard = (total: number, fast = false) => defenseCard('guarda', { rollBonus: total, fast });
 const wait = focusCard();
 
 function engineFor(team0: Character[], team1: Character[]): CombatEngine {
@@ -69,7 +69,7 @@ describe('Mestre del xi', () => {
   });
 
   it('Cop al nervi: the −3 is on the attack roll, not on the damage after the defense', () => {
-    const me = master('Mestre', [card('cop-al-nervi', 3), guard(5, 9)]);
+    const me = master('Mestre', [card('cop-al-nervi', 3), guard(5, true)]);
     const foe = fighter('Foe', [blow(10)], { pv: 40 });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
@@ -165,7 +165,7 @@ describe('Mestre del xi', () => {
 
   it('Poder apagat: a wound means next round its card has no effect — only its dice', () => {
     const me = master('Mestre', [card('poder-apagat', 3), wait], 40);
-    const foe = fighter('Foe', [attackCard('cop', { dice: new DiceRoll(1, 1), speed: 0, effects: [{ type: 'test_rider' }] })], { pv: 40 });
+    const foe = fighter('Foe', [attackCard('cop', { dice: new DiceRoll(1, 1), effects: [{ type: 'test_rider' }] })], { pv: 40 });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(37);

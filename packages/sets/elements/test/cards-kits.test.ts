@@ -29,10 +29,10 @@ function enemyCard(id: string): ActionDefinition {
   throw new Error(`no card ${id}`);
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
-/** A defense of exactly `total`, at `speed`. */
-const guard = (total: number, speed = 5) => defenseCard('guarda', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
+/** A defense of exactly `total`, fast or not. */
+const guard = (total: number, fast = false) => defenseCard('guarda', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
 
 function engineFor(team0: ReturnType<typeof fighter>[], team1: ReturnType<typeof fighter>[]): CombatEngine {
   return new CombatEngine(team0, team1, { registry, actionChooser: firstLegalChooser });
@@ -85,7 +85,7 @@ describe('Mestre de la terra', () => {
 
   it('Sorra movedissa: a wounded target cannot play Defenses next turn', () => {
     const earth = fighter('Terra', [flat('sorra-movedissa', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [guard(1, 0), wait], { pv: 30 });
+    const foe = fighter('Foe', [guard(1), wait], { pv: 30 });
     const engine = engineFor([earth], [foe]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 1)]);
     engine.prepareRound();
@@ -236,7 +236,7 @@ describe('Mestre del foc', () => {
 
   it('Llamp de sang freda: wounded before it fires, the bolt strikes its caster instead', () => {
     const fire = fighter('Foc', [flat('llamp-de-sang-freda', 1, 5)], { pv: 30 });
-    const foe = fighter('Foe', [blow(2, 9)], { pv: 30 });
+    const foe = fighter('Foe', [blow(2, true)], { pv: 30 });
     playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(30);
     expect(fire.currentPV).toBe(30 - 2 - 1);
@@ -245,7 +245,7 @@ describe('Mestre del foc', () => {
   it('Caiguda de cometa: called this round, it falls on every enemy as the next round opens, before any guard; 2 fatigue', () => {
     const fire = fighter('Foc', [flat('caiguda-de-cometa', 1, 3)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [guard(100, 0)], { pv: 30 });
+    const b = fighter('B', [guard(100)], { pv: 30 });
     const engine = engineFor([fire], [a, b]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
     expect([a.currentPV, b.currentPV]).toEqual([30, 30]);
@@ -258,8 +258,8 @@ describe('Mestre del foc', () => {
 describe("Mestre de l'aire", () => {
   it("Palmell d'aire: a wounded target acts last this round", () => {
     const air = fighter('Aire', [flat('palmell-d-aire', 1)], { pv: 30 });
-    const slow = fighter('Lent', [focusCard('lent', { speed: -5 })], { pv: 30 });
-    const foe = fighter('Foe', [blow(1, 4)], { pv: 30 });
+    const slow = fighter('Lent', [focusCard('lent', {})], { pv: 30 });
+    const foe = fighter('Foe', [blow(1, true)], { pv: 30 });
     const engine = engineFor([air, slow], [foe]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
     const order = engine.history.map(ev => ev.actor.name);
@@ -275,13 +275,14 @@ describe("Mestre de l'aire", () => {
     expect(air.currentPV).toBe(1);
   });
 
-  it("Patinet d'aire: next round the bender acts first and the first attack on it misses", () => {
+  it("Patinet d'aire: next round the bender's card is fast, and the first attack on it misses", () => {
     const air = fighter('Aire', [getAction('patinet-d-aire')!, wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(5, 9)], { pv: 30 });
+    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
     const engine = engineFor([air], [foe]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     const reveal = (engine.prepareRound(), engine.planActions([sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]));
-    expect(reveal[0].actorName).toBe('Aire');
+    // Its plain wait goes in the fast step, ahead of the foe's normal blow.
+    expect(reveal[0]).toMatchObject({ actorName: 'Aire', fast: true });
     let r = engine.resolveNextAction();
     while (r.kind !== 'done') r = engine.resolveNextAction();
     engine.finishRound();
@@ -300,7 +301,7 @@ describe("Mestre de l'aire", () => {
 
   it('Catapulta de vent: a wounded target loses its action this round', () => {
     const air = fighter('Aire', [flat('catapulta-de-vent', 1, 1)], { pv: 30 });
-    const foe = fighter('Foe', [blow(9, 0)], { pv: 30 });
+    const foe = fighter('Foe', [blow(9)], { pv: 30 });
     playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(air.currentPV).toBe(30);
   });
@@ -323,7 +324,7 @@ describe("Mestre de l'aire", () => {
 
   it('Cop i fuga: after the strike, attacks on the bender miss for the rest of the round', () => {
     const air = fighter('Aire', [flat('cop-i-fuga', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [blow(6, 0)], { pv: 30 });
+    const foe = fighter('Foe', [blow(6)], { pv: 30 });
     playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(25);
     expect(air.currentPV).toBe(30);
@@ -331,7 +332,7 @@ describe("Mestre de l'aire", () => {
 
   it('Salt del meteor: until it lands nothing touches the bender, then it hits every enemy', () => {
     const air = fighter('Aire', [flat('salt-del-meteor', 1, 2)], { pv: 30 });
-    const a = fighter('A', [blow(6, 9)], { pv: 30 });
+    const a = fighter('A', [blow(6, true)], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
     expect(air.currentPV).toBe(30);
@@ -344,8 +345,8 @@ describe("Mestre de l'aire", () => {
     for (let s = 0; s < 20; s++) {
       withSeed(s + 1, () => {
         const air = fighter('Aire', [flat('ull-de-l-huraca', 1, 1)], { pv: 30 });
-        const a = fighter('A', [blow(3, 0)], { pv: 30 });
-        const b = fighter('B', [blow(3, 0)], { pv: 30 });
+        const a = fighter('A', [blow(3)], { pv: 30 });
+        const b = fighter('B', [blow(3)], { pv: 30 });
         playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
         expect(air.fatigue).toBe(2);
         if (a.currentPV < 28 || b.currentPV < 28) ownSide++;
@@ -373,9 +374,9 @@ describe("Mestre de l'aire", () => {
 
 describe('Soldat del foc', () => {
   it('Punyals de foc: +2 against a target that already lost PV this round', () => {
-    const s = fighter('Soldat', [flat('punyals-de-foc', 1, 1, { speed: 0 })], { pv: 30 });
+    const s = fighter('Soldat', [flat('punyals-de-foc', 1, 1, {})], { pv: 30 });
     const hero = fighter('Heroi', [wait], { pv: 30 });
-    const hitter = fighter('Primer', [blow(1, 9)], { pv: 30 });
+    const hitter = fighter('Primer', [blow(1, true)], { pv: 30 });
     playRound(engineFor([s, hitter], [hero]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
     expect(hero.currentPV).toBe(30 - 1 - 4);
   });

@@ -23,8 +23,8 @@ function flat(id: string, n: number, bonus = 0, over: Partial<ActionDefinition> 
   return { ...card, dice: new DiceRoll(n, 1), rollBonus: bonus, ...over };
 }
 
-/** A plain attack of exactly `total`, at `speed`. */
-const blow = (total: number, speed = 0) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, speed });
+/** A plain attack of exactly `total`, fast or not. */
+const blow = (total: number, fast = false) => attackCard('cop', { dice: new DiceRoll(1, 1), rollBonus: total - 1, fast });
 
 function engineFor(team0: ReturnType<typeof fighter>[], team1: ReturnType<typeof fighter>[]): CombatEngine {
   return new CombatEngine(team0, team1, { registry, actionChooser: firstLegalChooser });
@@ -35,10 +35,11 @@ const sel = (team: number, idx: number, actionIdx: number, targets?: Selection['
 
 describe("Mestre de l'aigua", () => {
   it("Fuet d'aigua: a lash that does not wound guards the bender for the rest of the round", () => {
-    // The lash (11) breaks on an unbeatable guard; the water comes back and
-    // stops a later blow of 5 with the same 11.
+    // The lash (11, fast) breaks on an unbeatable guard that is up before it
+    // (a fast defense); the water comes back and stops a later blow of 5 with
+    // the same 11.
     const water = fighter('Aigua', [flat('fuet-d-aigua', 1, 10)], { pv: 30 });
-    const wall = fighter('Mur', [defenseCard('mur')], { pv: 30 });
+    const wall = fighter('Mur', [defenseCard('mur', { fast: true })], { pv: 30 });
     const foe = fighter('Foe', [blow(5)], { pv: 30 });
     const engine = engineFor([water], [wall, foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 1, 0, [{ team: 0, idx: 0 }])]);
@@ -90,7 +91,7 @@ describe("Mestre de l'aigua", () => {
   });
 
   it("Braços d'aigua: against an enemy yet to act, the arms block it", () => {
-    // The foe acts later (speed 0) and aims at the ally; blocked, its blow is
+    // The foe acts later (a normal attack) and aims at the ally; blocked, its blow is
     // forced onto the bender and stopped there. The foe is not struck.
     const water = fighter('Aigua', [flat('bracos-d-aigua', 1, 100)], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
@@ -104,7 +105,7 @@ describe("Mestre de l'aigua", () => {
 
   it("Braços d'aigua: against an enemy that already acted, the arms strike it", () => {
     const water = fighter('Aigua', [flat('bracos-d-aigua', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [blow(1, 9)], { pv: 30 });
+    const foe = fighter('Foe', [blow(1, true)], { pv: 30 });
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0, [{ team: 0, idx: 0 }])]);
     expect(foe.currentPV).toBe(25);

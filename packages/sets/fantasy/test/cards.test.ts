@@ -19,6 +19,17 @@ const focusDef = focusCard;
 const makeChar = (name: string, pv: number, actions: ActionDefinition[]) => fighter(name, actions, { pv });
 const sac = punchingBag;
 /** A round where team-0 humans play the given selections. */
+/** One round with explicit selections for any seat, on both teams. */
+function runRoundRawTop(engine: CombatEngine, selections: Selection[]): void {
+  engine.prepareRound();
+  engine.planActions(selections);
+  let r = engine.resolveNextAction();
+  while (r.kind !== 'done') {
+    if (r.kind === 'target') throw new Error('unexpected target prompt in test');
+    r = engine.resolveNextAction();
+  }
+  engine.finishRound();
+}
 const runRound = (engine: CombatEngine, selections: Omit<Selection, 'team'>[]) =>
   playRound(engine, selections.map(s => ({ team: 0, ...s })));
 const theRegistry = () => registry;
@@ -36,8 +47,8 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
       { idx: 0, actionIdx: injIdx, targets: [{ team: 0, idx: 1 }] },
       { idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 0 }] },
     ]);
-    // The injection (speed 5) lands before the swing (speed 1), so both
-    // swings already carry the new level: two hits of 3 − 1.
+    // The injection (a fast Focus) lands before the swing (a normal Attack),
+    // so both swings already carry the new level: two hits of 3 − 1.
     expect(lluitador.fatigue).toBe(1); // the injection; playing cards costs none
     expect(enemy.currentPV).toBe(46);
     expect(lluitador.hasStatus('adrenalina')).toBe(false);
@@ -75,12 +86,13 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
     engine.finishRound();
   }
 
-  /** Two AI-free enemy attackers vs one self-guarding player. E1 (fast, plain)
-   *  opens the target; E2 (slow, `flanking`) should find a weakened defense. */
+  /** Two AI-free enemy attackers vs one self-guarding player. E1 (plain,
+   *  committed first) opens the target; E2 (`flanking`, same step, after it)
+   *  should find a weakened defense. */
   function flankSetup(defBonus: number, flankBonus: number) {
     const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: defBonus }), focusDef()]);
-    const e1 = makeChar('E1', 50, [atkDef('obre', { speed: 3 })]);
-    const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: flankBonus, effects: [{ type: 'flanking' }] })]);
+    const e1 = makeChar('E1', 50, [atkDef('obre', {})]);
+    const e2 = makeChar('E2', 50, [atkDef('traidora', { rollBonus: flankBonus, effects: [{ type: 'flanking' }] })]);
     const engine = new CombatEngine([d], [e1, e2], { registry: theRegistry(), actionChooser: firstLegalChooser });
     return { d, engine };
   }
@@ -101,7 +113,7 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
   it('without an ally opening the target there is no penalty', () => {
     // Same numbers, but E2 attacks alone: 4 vs 6 → blocked.
     const d = makeChar('D', 20, [defenseDef('parada', { dice: new DiceRoll(1, 1), rollBonus: 5 })]);
-    const e2 = makeChar('E2', 50, [atkDef('traidora', { speed: 1, rollBonus: 3, effects: [{ type: 'flanking' }] })]);
+    const e2 = makeChar('E2', 50, [atkDef('traidora', { rollBonus: 3, effects: [{ type: 'flanking' }] })]);
     const engine = new CombatEngine([d], [e2], { registry: theRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
@@ -129,7 +141,7 @@ describe('standing wall: the wall has life', () => {
   function wallDef(): ActionDefinition {
     return {
       id: 'mur-test', name: 'Mur', skillId: 'test', unlockLevel: 0,
-      actionType: ActionType.Defensa, speed: 5, dice: new DiceRoll(0, 0, 10),
+      actionType: ActionType.Defensa, dice: new DiceRoll(0, 0, 10),
       effects: [{ type: 'standing_wall' }], description: '', iconPath: '',
     };
   }
@@ -176,14 +188,15 @@ describe('Berserk: Entrar en Fúria', () => {
     // end of the round it was set in, so set to 2 it held for round 2 only,
     // while the card's +5 (a modifier that skips its first tick) ran on.
     const berserker = buildCharacter({ name: 'Berserker', pv: 12, skills: { berserk: 4 }, equipment: ['destral'] });
-    // Slower than the rage, which a blow landing first would interrupt.
-    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 5, speed: -5 })], { pv: 500, ai: true });
+    // The rage is a Focus: any blow landing first would interrupt it, so the
+    // foe waits the round it is cast, and strikes every round after.
+    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 5 }), focusDef()], { pv: 500, ai: true });
     const engine = new CombatEngine([berserker], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
     const rage = berserker.actions.findIndex(a => a.def.id === 'entrar-en-furia');
     const swing = berserker.actions.findIndex(a => a.def.id === 'atac-temerari');
     const strike = [{ idx: 0, actionIdx: swing, targets: [{ team: 1, idx: 0 }] }];
 
-    runRound(engine, [{ idx: 0, actionIdx: rage }]);
+    runRoundRawTop(engine, [{ team: 0, idx: 0, actionIdx: rage }, { team: 1, idx: 0, actionIdx: 1 }]);
     expect(berserker.currentPV).toBe(1);
     runRound(engine, strike);
     runRound(engine, strike);
@@ -198,8 +211,8 @@ describe('Berserk: Aguantar el cop', () => {
     // Banked for the rest of combat, a berserker blocking round after round
     // stacked the bonus without limit and hit for 45 (NEXT-STEPS §32).
     const berserker = buildCharacter({ name: 'Berserker', pv: 30, skills: { berserk: 3 }, equipment: ['destral'] });
-    // Slower than the brace, so the blow lands on a braced body, in full: 8.
-    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 7, speed: -5 })], { pv: 500, ai: true });
+    // The brace is a Defense, up before the blow: it lands on a braced body, in full: 8.
+    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 7 })], { pv: 500, ai: true });
     const engine = new CombatEngine([berserker], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
     const brace = berserker.actions.findIndex(a => a.def.id === 'aguantar-el-cop');
     const swing = berserker.actions.findIndex(a => a.def.id === 'atac-temerari');
@@ -215,7 +228,7 @@ describe('Berserk: Aguantar el cop', () => {
 describe('Berserk: Aguantar el cop holds the line', () => {
   it('a braced berserker cannot be felled this turn, however hard the blow', () => {
     const berserker = buildCharacter({ name: 'Berserker', pv: 12, skills: { berserk: 3 }, equipment: ['destral'] });
-    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 49, speed: -5 })], { pv: 500, ai: true });
+    const foe = fighter('Foe', [atkDef('hit', { dice: new DiceRoll(1, 1), rollBonus: 49 })], { pv: 500, ai: true });
     const engine = new CombatEngine([berserker], [foe], { registry: theRegistry(), actionChooser: firstLegalChooser });
     const brace = berserker.actions.findIndex(a => a.def.id === 'aguantar-el-cop');
     runRound(engine, [{ idx: 0, actionIdx: brace, targets: [{ team: 0, idx: 0 }] }]);

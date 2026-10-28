@@ -72,7 +72,7 @@ describe('a pinned kit works', () => {
       const live = getSkill(unpin(s.id))!;
       if (drifted.has(live.id)) continue;
       const shape = (a: typeof s.actions[number]) => ({
-        id: a.id.replace(PIN, ''), speed: a.speed, type: a.actionType, dice: a.dice?.toString(),
+        id: a.id.replace(PIN, ''), fast: !!a.fast, type: a.actionType, dice: a.dice?.toString(),
         unlock: a.unlockLevel, targets: a.targetCount, effects: a.effects.map(e => e.type.replace(PIN, '')),
       });
       expect(s.actions.map(shape), s.id).toEqual(live.actions.map(shape));
@@ -128,7 +128,8 @@ describe('drift', () => {
     let after = before;
     if (edited) {
       const file = path.join(dir, `${edited}.ts`);
-      fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/speed: (-?\d+)/, (_, n) => `speed: ${Number(n) + 1}`));
+      // One die face more on the kit's first card: a real edit to a pinned number.
+      fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\bd\((\d+), (\d+)\)/, (_, n, sides) => `d(${n}, ${Number(sides) + 1})`));
       after = calibrationDrift(dir);
       expect(after.filter(d => !before.includes(d))).toEqual([edited]);
     }

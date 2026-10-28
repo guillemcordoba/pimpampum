@@ -34,9 +34,10 @@ describe('every card', () => {
     for (const c of playerCards) expect(getAction(c.id), c.id).toBe(c);
   });
 
-  it('has sane numbers: speed an integer, dice real dice, target count at least one', () => {
+  it('has sane numbers: fast a flag, dice real dice, target count at least one', () => {
     for (const c of everyCard) {
-      expect(Number.isInteger(c.speed), c.id).toBe(true);
+      expect(c.fast === undefined || typeof c.fast === 'boolean', c.id).toBe(true);
+      expect(c.speed, `${c.id}: speed is gone (the priority system)`).toBeUndefined();
       if (c.dice) {
         expect(c.dice.numDice, c.id).toBeGreaterThanOrEqual(0);
         expect(c.dice.numDice === 0 || c.dice.sides >= 1, c.id).toBe(true);
@@ -78,11 +79,10 @@ describe('every kit', () => {
 });
 
 describe('every piece of equipment', () => {
-  it('has whole, non-negative numbers — a NaN speed plays silently, scrambling turn order', () => {
+  it('has whole, non-negative numbers, and no speed penalty (there is no speed)', () => {
     for (const e of ALL_EQUIPMENT) {
-      for (const [field, v] of [['passiveArmor', e.passiveArmor], ['speedPenalty', e.speedPenalty]] as const) {
-        expect(Number.isInteger(v) && v >= 0, `${e.id}.${field} = ${v}`).toBe(true);
-      }
+      expect(Number.isInteger(e.passiveArmor) && e.passiveArmor >= 0, `${e.id}.passiveArmor = ${e.passiveArmor}`).toBe(true);
+      expect(e.speedPenalty, `${e.id}: speed penalties are gone`).toBeUndefined();
       for (const b of e.rollBonuses) expect(Number.isFinite(b.value), `${e.id} roll bonus`).toBe(true);
     }
   });
