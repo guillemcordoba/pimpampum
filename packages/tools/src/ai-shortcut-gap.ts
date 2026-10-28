@@ -20,7 +20,7 @@ import {
   aiPicks, BudgetExceeded, buildEngine, generatePosition, jointKey, Referee, Unsupported,
   type GeneratorConfig, type RefereeOptions, type Position,
 } from '@pimpampum/ai/audit';
-import { flag, games } from '@pimpampum/bench';
+import { flag, games, SMOKE } from '@pimpampum/bench';
 
 const SLICES: Record<string, GeneratorConfig> = {
   '1x1-c4-r4': { shape: '1x1', cards: 4, roundsLeft: 4, multiShare: 0.8 },
@@ -44,7 +44,9 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
 };
 
 const POSITIONS = games(8);
-const BUDGET = Number(flag('--budget') ?? 4_000_000);
+// The smoke run (GAMES=2) only checks the harness executes: a small budget
+// skips the positions that take minutes.
+const BUDGET = Number(flag('--budget') ?? (SMOKE ? 300_000 : 4_000_000));
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
 /** `--only leaf`: just the candidates whose name holds this text. */
 const only = flag('--only');
