@@ -62,10 +62,19 @@ export interface RefereeOptions {
    *  engine's own stall rule) — the game's own result, for a fight played to
    *  its real end. */
   payoff: 'margin' | 'outcome';
+  /**
+   * How each node's matrix is built. `enumerate`: every joint against every
+   * joint. `oracle`: a DOUBLE ORACLE — start from one joint a side, solve,
+   * add each side's exact best response (every joint, against the other's
+   * mix) while it beats the value, repeat. The cells are the same pure
+   * functions of their seeds, so the value is the same; only the cells no
+   * equilibrium needs are never played.
+   */
+  strategies: 'enumerate' | 'oracle';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
-  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin',
+  seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin', strategies: 'enumerate',
 };
 
 /** One seat's committed card. */
@@ -84,7 +93,8 @@ export interface RootSolution {
   rows: Joint[];
   cols: Joint[];
   payoff: number[][];
-  /** Standard error of each cell's mean over its samples. */
+  /** Standard error of each cell's mean over its samples. Under `oracle`,
+   *  both are NaN in the cells the double oracle never played. */
   cellSE: number[][];
   sol: MatrixSolution;
   /** Each row's value against the equilibrium column strategy. */
@@ -117,8 +127,7 @@ const finished = (e: CombatEngine): boolean => e.isOver() || e.round >= e.maxRou
  * Everything about a between-rounds engine that the next rounds can read —
  * two states with the same signature are the same game from here on. Guards,
  * the queue and per-round flags are reset by `prepareRound`, so they are left
- * out; so are `lastWound`, `hitThisCombat` and the history, which no audit card
- * reads.
+ * out; so are `lastWound` and the history, which no audit card reads.
  */
 export function signature(e: CombatEngine): string {
   const ref = (c: Character): string => `@${c.team}.${e.teams[c.team].indexOf(c)}`;
@@ -128,7 +137,7 @@ export function signature(e: CombatEngine): string {
     for (const c of team) {
       const st = [...c.statuses].map(([k, s]) => `${k}=${s.value}/${s.remaining}/${s.data ? JSON.stringify(s.data, replacer) : ''}`).sort();
       parts.push([
-        c.currentPV, c.fatigue, c.skipTurns, [...c.skills.values()].join(','),
+        c.currentPV, c.fatigue, c.skipTurns, c.hitThisCombat ? 1 : 0, [...c.skills.values()].join(','),
         c.actions.map(a => (a.consumed ? 1 : 0)).join(''),
         st.join(';'),
         c.modifiers.map(m => `${m.stat}:${m.value}:${JSON.stringify(m.duration)}`).join(';'),
@@ -175,8 +184,23 @@ export function identities(): IdOf {
     return i;
   };
 }
+/**
+ * Identities that do not depend on the order objects were met in: a card or
+ * an item by its id, anything else as one shared 0. NOT a memo key — two
+ * states can share one — only a SEED: chance drawn from it must not change
+ * with the order a solve happens to visit its cells in (the double oracle
+ * visits them in another order than the full matrix, and must land on the
+ * same value). Two states sharing a seed only share their dice.
+ */
+const stableIdOf: IdOf = o => {
+  const id = (o as { id?: unknown }).id;
+  return typeof id === 'string' ? hash(id, 7) : 0;
+};
+// `blowSeq` only numbers blows: a card compares a stored blow id with a new
+// one, and every new id is above every stored one whatever the count, so two
+// states that differ in it alone are the same game.
 const SKIP = new Set(['registry', 'logEntries', 'silent', 'actionChooser', 'targetChooser', 'history', 'plays',
-  'seatStreams', 'seatStreamSeed', 'teams']);
+  'seatStreams', 'seatStreamSeed', 'teams', 'blowSeq']);
 const BY_IDENTITY = new Set(['def', 'behavior', 'equipment']);
 
 export function midRoundKey(e: CombatEngine, idOf: IdOf): string {
@@ -239,6 +263,9 @@ class Ask {
   constructor(
     readonly team: number, readonly poolSize: number, readonly count: number, readonly key: string | null,
     readonly actorIdx: number, readonly resolving: boolean, readonly ai?: number[],
+    /** The same state named without visit-order identities: what the
+     *  chance after the decision is seeded from (see `stableIdOf`). */
+    readonly seedKey: string | null = key,
   ) {}
 }
 
@@ -342,6 +369,7 @@ export class Referee {
     for (const j of mustInclude) {
       if (!rows.some(r => jointKey(r) === jointKey(j))) throw new Error(`referee: ${jointKey(j)} is not a legal joint`);
     }
+    if (this.opts.strategies === 'oracle') return this.oracle(rows, cols, cell);
     const stats = rows.map(rw => cols.map(c => cell(rw, c)));
     const payoff = stats.map(r => r.map(c => c.mean));
     const sol = solveZeroSum(payoff);
@@ -349,6 +377,58 @@ export class Referee {
     const rowValue = rowValues(payoff, sol.col);
     const rowSE = cellSE.map(r => Math.sqrt(r.reduce((s, se, k) => s + (sol.col[k] * se) ** 2, 0)));
     return { value: sol.value, rows, cols, payoff, cellSE, sol, rowValue, rowSE, sims: this.sims };
+  }
+
+  /**
+   * The double oracle over `rows` × `cols`. Every row's value against the
+   * final column mix is exact (each was played against the mix's support to
+   * check it is no better response), so `rowValue` and `rowSE` cover every
+   * row, as under `enumerate`; `payoff` holds only the cells played.
+   */
+  private oracle(rows: Joint[], cols: Joint[], cell: (row: Joint, col: Joint) => CellStat): RootSolution {
+    const played = new Map<number, CellStat>();
+    const at = (i: number, j: number): CellStat => {
+      const k = i * cols.length + j;
+      let c = played.get(k);
+      if (!c) { c = cell(rows[i], cols[j]); played.set(k, c); }
+      return c;
+    };
+    // Any joint will do as a start: whatever it is, the loop only stops at an
+    // equilibrium of the whole matrix. Not a guess at a good one — nothing
+    // here may lean on an opinion of what is good play.
+    const R = [0], C = [0];
+    for (;;) {
+      const sub = solveZeroSum(R.map(i => C.map(j => at(i, j).mean)));
+      const spread = Math.max(1, ...R.flatMap(i => C.map(j => Math.abs(at(i, j).mean))));
+      const tol = 1e-7 * spread;
+      const vsCols = (i: number): number => C.reduce((s, j, k) => (sub.col[k] > 0 ? s + sub.col[k] * at(i, j).mean : s), 0);
+      const vsRows = (j: number): number => R.reduce((s, i, k) => (sub.row[k] > 0 ? s + sub.row[k] * at(i, j).mean : s), 0);
+      let bestRow = -1, bestRowValue = sub.value + tol;
+      for (let i = 0; i < rows.length; i++) {
+        const v = vsCols(i);
+        if (v > bestRowValue && !R.includes(i)) { bestRow = i; bestRowValue = v; }
+      }
+      let bestCol = -1, bestColValue = sub.value - tol;
+      for (let j = 0; j < cols.length; j++) {
+        const v = vsRows(j);
+        if (v < bestColValue && !C.includes(j)) { bestCol = j; bestColValue = v; }
+      }
+      if (bestRow < 0 && bestCol < 0) {
+        const pad = (strategy: number[], pool: number[], n: number): number[] => {
+          const out = new Array<number>(n).fill(0);
+          pool.forEach((idx, k) => { out[idx] += strategy[k]; });
+          return out;
+        };
+        const sol = { value: sub.value, row: pad(sub.row, R, rows.length), col: pad(sub.col, C, cols.length) };
+        const payoff = rows.map((_, i) => cols.map((_, j) => played.get(i * cols.length + j)?.mean ?? NaN));
+        const cellSE = rows.map((_, i) => cols.map((_, j) => played.get(i * cols.length + j)?.se ?? NaN));
+        const rowValue = rows.map((_, i) => vsCols(i));
+        const rowSE = rows.map((_, i) => Math.sqrt(C.reduce((s, j, k) => (sub.col[k] > 0 ? s + (sub.col[k] * at(i, j).se) ** 2 : s), 0)));
+        return { value: sub.value, rows, cols, payoff, cellSE, sol, rowValue, rowSE, sims: this.sims };
+      }
+      if (bestRow >= 0) R.push(bestRow);
+      if (bestCol >= 0) C.push(bestCol);
+    }
   }
 
   /**
@@ -379,7 +459,7 @@ export class Referee {
    *  continuations of the chance after it (the same draws for every answer). */
   private optionStats(prepared: CombatEngine, selections: ActionSelection[], seed0: number, script: Scripted[], depth: number, ask: Ask, samples: number): OptionStat[] {
     // Seeded by the state, not the path: the same state is the same decision.
-    const at = ask.key === null ? `${seed0}#${script.map(a => (isDraw(a) ? `d${a.draw}` : `${a.pick.join('+')}@${a.seed}`)).join('/')}` : `${depth}|${ask.key}`;
+    const at = ask.seedKey === null ? `${seed0}#${script.map(a => (isDraw(a) ? `d${a.draw}` : `${a.pick.join('+')}@${a.seed}`)).join('/')}` : `${depth}|${ask.seedKey}`;
     // Enumerated chance: one continuation is the exact value.
     const n = this.opts.chance === 'enumerate' ? 1 : samples;
     const seeds = Array.from({ length: n }, (_, m) => hash(at, this.opts.seed * 131 + m));
@@ -442,10 +522,12 @@ export class Referee {
         const queue = pendingOf(sim);
         const current = queue[(sim as unknown as { pendingIndex: number }).pendingIndex];
         const resolving = aiming && current?.actor === actor && current.action.def === def;
-        const key = aiming ? digest(`${midRoundKey(sim, this.idOf)}|${ref(actor)}:#${this.idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`) : null;
+        const named = (idOf: IdOf): string => digest(`${midRoundKey(sim, idOf)}|${ref(actor)}:#${idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`);
+        const key = aiming ? named(this.idOf) : null;
+        const seedKey = aiming ? named(stableIdOf) : null;
         // The AI is asked before anything is thrown, on the engine as it stands.
         const answer = ai && resolving && actor.team === 0 ? ai(sim, actor, def, req, count, pool).map(c => pool.indexOf(c)) : undefined;
-        throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer);
+        throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer, seedKey);
       }
       const a = script[asked++];
       if (isDraw(a)) throw new Error('referee: a replay out of step with its script');

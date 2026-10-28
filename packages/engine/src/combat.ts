@@ -1972,6 +1972,11 @@ export class CombatEngine implements EngineApi, AIView {
     this.revealedPlan = [];
     this.pendingIndex = 0;
     this.tierKey = null;
+    // The step snapshots are retaken before the next round reads them;
+    // cleared anyway, so two engines in the same game hold the same state
+    // (the referee keys and seeds positions by their state).
+    this.tierAlive = new Set();
+    this.tierInterrupted = new Set();
     this.revealSettled = false;
     this.roundPrepared = false;
   }

@@ -21,7 +21,41 @@ The referee (`audit/referee.ts`) already solves rounds as zero-sum matrix games,
 positions. This plan brings the same idea into play at production scale, approximately, and uses the
 referee to grade the approximation.
 
-## Design: a double oracle per round, live
+## Revised 2026-10-28: exact layer first, shortcuts measured against it
+
+**The user's decisions:**
+- The hand-set depth-0 constants (card weights, the "30% defend" guess) are to **go**. They encode how the game happened to play under one engine and one AI, which is how they went stale when priority replaced speed. Fitting them was rejected for the same reason.
+- **The method:** build the most precise, expensive layer first and measure it. Add shortcuts only where we need them, and keep the expensive layer as the fallback that measures whether each shortcut is right.
+
+So the design below is built bottom-up, in layers:
+
+1. **L0, the referee (exists).** It is exact:
+   - every joint card choice, and every in-round decision (aim, guard) as a max or min;
+   - every round to the real end of the fight;
+   - payoff: PV on one side minus PV on the other, or the outcome. No leaf heuristic.
+   - Only chance is sampled, with common random numbers.
+   - It scales only to tiny positions, because it builds the full matrix (every joint against every joint) at every node.
+2. **L1, the referee with a double oracle (first build).** The same solver and the same cells, but each node grows its matrix only by **exact best responses**: every joint, against the opponent's current mix.
+   - Cells are pure functions of their seeds, so with ε = 0 it returns **the same value as L0**. That's tested as an identity.
+   - It computes about (rows + cols) × support cells instead of rows × cols.
+   - Measure: how much further it reaches (positions solved, simulated rounds, time).
+3. **L2, the live player.** L1 runs at the current round, with shortcuts only where cost forces them. Each shortcut is measured against L1, or L0, on positions where they reach:
+   - a horizon with a leaf evaluator (`positionScore`) in place of the real end;
+   - fewer chance samples;
+   - ε > 0 (stop when a best response gains less than noise);
+   - in-round decisions by the existing target rules instead of max/min;
+   - iterated per-seat best response instead of enumerating every joint.
+   - The real content also needs what the referee rejects today: chance at the start of a round, reveal options, and seats that choose after the reveal.
+4. **Then:** the ladder, cost, `calibration:refresh`, and removing depth 0 (the heuristic rung, the rollout opponent model, `opponentSearch`).
+
+**What this supersedes in the design below:**
+- pool seeding from the depth-0 odds;
+- rollouts against depth-0 opponents;
+- "depth 0 stays as the cheap opinion".
+
+The rest (exploitability reported per decision, the routine audit, read value, referee grading) stands.
+
+## Design (first draft): a double oracle per round, live
 
 For each round, for each pair of teams, the AI searches for the equilibrium of the round game.
 

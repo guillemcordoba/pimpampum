@@ -135,6 +135,49 @@ describe('the referee on hand-made fights', () => {
   });
 });
 
+describe('the referee as a double oracle', () => {
+  // The cells are pure functions of their seeds, so growing each node's
+  // matrix by exact best responses must land on the full matrix's value — an
+  // identity, not a tolerance on noise. What it buys is the cells it skips.
+  const both = (pos: Position) => {
+    const full = new Referee();
+    const oracle = new Referee({ strategies: 'oracle' });
+    return {
+      full: full.solve(buildEngine(pos, { actionChooser: () => null }), 0).value, fullSims: full.sims,
+      oracle: oracle.solve(buildEngine(pos, { actionChooser: () => null }), 0).value, oracleSims: oracle.sims,
+    };
+  };
+
+  for (const c of CONTROLS) {
+    it(`${c.position.id}: the same value as the full matrix`, () => {
+      const r = both(c.position);
+      expect(r.oracle).toBeCloseTo(r.full, 5);
+      expect(r.oracleSims).toBeLessThanOrEqual(r.fullSims);
+    });
+  }
+
+  it('on generated positions: the same value, from fewer simulated rounds', () => {
+    let fullSims = 0, oracleSims = 0;
+    for (const [seed, shape] of [[1, '1x1'], [2, '2x1'], [3, '1x2'], [4, '2x1'], [5, '1x1']] as const) {
+      const r = both(generatePosition(seed, { shape, cards: 3, roundsLeft: 2 }));
+      expect(r.oracle, `seed ${seed}`).toBeCloseTo(r.full, 5);
+      fullSims += r.fullSims;
+      oracleSims += r.oracleSims;
+    }
+    expect(oracleSims).toBeLessThan(fullSims);
+  });
+
+  it('every row is valued against the final mix, so the check reads it as it reads the full matrix', () => {
+    const pos = generatePosition(2, { shape: '2x1', cards: 3, roundsLeft: 2 });
+    const full = new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0);
+    const oracle = new Referee({ strategies: 'oracle' }).solve(buildEngine(pos, { actionChooser: () => null }), 0);
+    expect(oracle.rows.length).toBe(full.rows.length);
+    // No row beats the value against the oracle's mix: it is an equilibrium of the WHOLE matrix.
+    expect(Math.max(...oracle.rowValue)).toBeLessThanOrEqual(oracle.value + 1e-6);
+    expect(oracle.sol.row.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+  });
+});
+
 describe('the generator', () => {
   it('is a pure function of its seed', () => {
     expect(generatePosition(77, { shape: '2x2', cards: 3 })).toEqual(generatePosition(77, { shape: '2x2', cards: 3 }));
