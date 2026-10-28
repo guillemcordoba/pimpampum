@@ -108,7 +108,25 @@ Every slow file at 2 games: **88 of 90 files execute.** The failures:
   - `intentions.md` wants Protect ahead of Aggro, but not by this much.
   - The answer its rules point to is "buff the corner that beats it": Focus effects that pump attacks so they break through.
 
-_Pending:_ the slow tier, the triangle and armour tests, `/analyze`, the referee audit and the bot ladder.
+### The strategy triangle and the armour bound (fantasy): done
+
+| Test | Result |
+|---|---|
+| Armour moves a fight ≤15 points | ✅ passes |
+| Power > Protect | ✅ 77.9% ±1.5 |
+| Protect > Aggro | ✅ 74.7% ±1.5 |
+| Aggro > Power | ❌ **22.6% ±1.5.** It held on the old engine (`KNOWN_BROKEN` was empty since 2026-10-05). |
+
+**What held up Aggro > Power,** according to the test (each Power card taken out in turn):
+- **Cures de camp: +39.8 points.**
+- Riu de lava: +10.9.
+- Atac temerari: +8.8.
+
+**The likely mechanism:** a heal in the Focus step undoes the round's attacks unless the attackers interrupt the healer. Aggro is now the corner that loses to both others. This matches the longer fights and the Guard the card-value instrument now overvalues.
+
+**The answer `intentions.md` prescribes:** buff the corner that beats the winner. Here the broken edge is Aggro > Power, so Aggro needs a reason to win. It also may be partly the AI port: attackers now aim before any guard is up. The bot ladder checks that.
+
+_Pending:_ the bot ladder (`ai-strength.slow`), the rest of the slow tier, `/analyze`, and the referee audit.
 
 ## Design pass (P3)
 
