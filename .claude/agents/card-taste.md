@@ -169,7 +169,7 @@ isn't the card, the title fails.
 - A copy of the source's effect.
 - **Wordy cards.** A description is one short line of brief, mechanical text
   stating only what deviates from a vanilla action ("Afecta tots els
-  enemics.", "Ignora l'armadura."); it never restates the dice, speed or type,
+  enemics.", "Ignora l'armadura."); it never restates the dice, the fast badge or the type,
   carries no flavour, and says *fereix* for "deals damage". If the effect
   needs exceptions on exceptions, the design is wrong, not the wording.
 
@@ -177,8 +177,7 @@ isn't the card, the title fails.
 
 Real balance is the simulator's job (`/analyze`). Flag only a card that is
 **obviously dead** (no fight where it is the right play) or **obviously
-dominant** (always better than another card of its kit). Do not tune dice or
-speeds. Never judge a design by how easy it is to implement: the project
+dominant** (always better than another card of its kit). Do not tune dice. Never judge a design by how easy it is to implement: the project
 designs lore-first.
 
 ## What you return (reviews)

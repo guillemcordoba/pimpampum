@@ -21,7 +21,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
       <section>
         <h2>Habilitats i accions</h2>
         <p>Cada personatge té un conjunt d'<strong>habilitats</strong>. Cada nivell d'una habilitat dona una <strong>acció</strong> nova: el nivell és el nombre d'accions que el personatge coneix d'aquesta habilitat (Esgrima 3 = les 3 primeres accions d'Esgrima).</p>
-        <p>Cada acció pertany a una habilitat i té una <strong>velocitat</strong> (determina quan es resol), un <strong>tipus</strong> (Atac, Defensa o Focus) i uns <strong>daus</strong>: daus d'atac per a les accions d'atac, daus de defensa per a les de defensa.</p>
+        <p>Cada acció pertany a una habilitat i té un <strong>tipus</strong> (Atac, Defensa o Focus) i uns <strong>daus</strong>: daus d'atac per a les accions d'atac, daus de defensa per a les de defensa. Algunes poques són <strong>ràpides</strong>.</p>
       </section>
 
       <section>
@@ -29,13 +29,15 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <ol>
           <li>Cada jugador tria una acció i la posa de cap per avall.</li>
           <li>Es revelen totes les accions alhora.</li>
-          <li>Es resolen per ordre de velocitat (de més alta a més baixa). En cas d'empat, es resolen simultàniament.</li>
+          <li>Els atacants trien el seu objectiu, veient totes les cartes.</li>
+          <li>Es resolen per prioritat: primer les ràpides (defenses, atacs, focus), després les altres: <strong>defenses, atacs i focus</strong>. Cada defensa tria a qui protegeix (a si mateixa o a un aliat) quan es resol, veient on apunten els atacs.</li>
+          <li>Dins d'un mateix pas, tot passa alhora per a qui cau; els efectes que una carta deixa per a una altra segueixen l'ordre en què s'han triat les cartes.</li>
         </ol>
       </section>
 
       <section>
         <h2>Accions d'atac</h2>
-        <p>L'atacant tria un objectiu i tira els daus d'atac de l'acció (més els modificadors). <strong>El dany és el marge</strong>:</p>
+        <p>L'atacant tria un objectiu en revelar i, quan es resol, tira els daus d'atac de l'acció (més els modificadors). <strong>El dany és el marge</strong>:</p>
         <p class="formula">dany = tirada d'atac − tirada de defensa</p>
         <p>Si l'objectiu està defensat, el defensor tira els seus daus de defensa: si iguala o supera l'atac, la defensa aguanta i no passa res; si l'atac supera la defensa, la diferència és el dany. Si l'objectiu <strong>no</strong> està defensat, l'atac impacta automàticament i el dany és la tirada d'atac sencera.</p>
         <p>Del dany se'n resta l'<strong>armadura passiva</strong> de qui el rep (mínim 0), i el resultat es resta dels seus PV. No hi ha tirada de dany separada: els daus de la carta són alhora la precisió i la potència de l'atac.</p>
@@ -75,7 +77,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
 
       <section>
         <h2>Objectes i equipament</h2>
-        <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana del dany a cada impacte), <strong>bonificacions de tirada</strong> (modificadors a les tirades d'atac o de defensa de certes accions) i <strong>penalització de velocitat</strong> (les armadures pesades alenteixen totes les accions). Només un objecte per ranura.</p>
+        <p>Els objectes passius poden donar <strong>armadura passiva</strong> (reducció plana del dany a cada impacte), <strong>bonificacions de tirada</strong> (modificadors a les tirades d'atac o de defensa de certes accions). Només un objecte per ranura.</p>
       </section>
 
       <section>

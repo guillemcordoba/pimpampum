@@ -16,7 +16,8 @@ Pim Pam Pum has these intentions as a combat system:
   - This is deliberately in tension with "prefer many smaller dice": tight dice make the *contest* predictable, which is what lets the READ, rather than the roll, carry the swing. Swing comes from the size of the payoff, not the variance of the roll.
 - Combats should be dynamic, not stuck repeating the same move.
 - **Combats should not go on for more than ~5 rounds.** This applies to all combats, including symmetric AI-vs-AI mirror matches — they may not stall longer either. The starting PV (provisionally 12) and the dice on the cards are the main levers; tune them via simulation.
-- **Speed ordering: most defenses are faster than most attacks, and most focuses are slow.** Exceptions are allowed and interesting (a lightning-fast strike, a heavy slow guard), but the bulk of cards should follow the ordering.
+- **Priority, not speed (decided 2026-10-28).** A round resolves a fast step first (fast Defense → fast Attack → fast Focus), then Defense → Attack → Focus. Attacks aim at the reveal; defenses choose whom to guard after seeing the aims. Fast is a rare keyword, the exception that makes a card interesting (a lightning strike, a hide that beats the blow), never the bulk. There is no slow.
+- **A correct read is never wasted, and never lost to information the player could not have had.** A rule or card that lets a right guess do nothing, or decides a round by something hidden rather than by the guess, is rejected however well it measures.
 - **At the same skill level, a defense card should be stronger than an attack card.** Attacks always threaten (an undefended target takes the full roll); a defense only pays off when it intercepts, so the card itself gets a premium.
   - **The premium is big, not a nudge: a defense card should beat an attack card of the same level ~80% of the time.** Slightly larger dice is not enough — reading the attack correctly is supposed to shut it down, not shave a couple of points off it. The 80% is the target for the *contest itself* (defense total ≥ attack total, ties held by the defense); getting there is a dice job, and the gap can be closed with defense dice, attack dice or roll bonuses, whichever keeps the felt power curve intact.
   - **Read the 80% as the MEAN across same-level attacks, never as a floor against the worst of them.** This was calibrated the other way on 2026-08-08 — every defense sized so it beat the *strongest* same-level attack 80% of the time — which put the mean at ~90% and made a four-hero party of 85-90% guards effectively invulnerable: the kit analyzer's turtle test then had a defenses-only party beating a thinking one by up to 42pp. One die came back off every defense; the mean is 78% and the turtle collapsed. A guard that stops everything is not a premium, it is a win condition. Measured by `tools/src/experiment-defense-vs-attack.ts` — re-run it after touching any contest dice, and re-run the strategy-triangle test (`sets/fantasy/test/triangle.slow.test.ts`) after touching defenses at all.
@@ -34,10 +35,10 @@ Pim Pam Pum has these intentions as a combat system:
 The system aims for a **Power > Protect > Aggro** triangle, now expressed through the skill mechanics:
 
 - **Power** (focus-heavy play) beats **Protect** (defense-heavy play) — powerful buffs/transformations eventually overwhelm pure defense, which doesn't advance the win condition.
-- **Protect** (defense-heavy play) beats **Aggro** (attack-heavy play) — defenses are faster than most attacks and stronger at equal level, so their dice reliably absorb the attack margin; the defender eats penetrating hits so the protected ally stays safe, or blocks a dangerous enemy to force its attacks onto themself.
-- **Aggro** (attack-heavy play) beats **Power** (focus-heavy play) — focus actions are slow, so fast attacks land first and interrupt an undefended focus before it resolves.
+- **Protect** (defense-heavy play) beats **Aggro** (attack-heavy play) — defenses resolve before attacks and are stronger at equal level, so their dice reliably absorb the attack margin; the defender eats penetrating hits so the protected ally stays safe, and every defense card pays off when it blocks.
+- **Aggro** (attack-heavy play) beats **Power** (focus-heavy play) — focus actions resolve after attacks, so any attack that lands interrupts an undefended focus before it resolves.
 
-This emerges because the strongest focus actions are **high risk / high reward**: very powerful but slow, so the best play is often protecting an ally who is committing to a big focus. Lighter, faster focus actions (dodges, small buffs) add variety without demanding full team protection.
+This emerges because the strongest focus actions are **high risk / high reward**: very powerful but resolving last, so the best play is often protecting an ally who is committing to a big focus. A few fast focus actions (dodges, small buffs) add variety without demanding full team protection. A focus that pumps an attack enough lets that attack break through a defense — the prepared attacker who sweeps is a pattern the game wants.
 
 **When a corner of the triangle dominates, BUFF THE CORNER THAT BEATS IT.** The
 reflex is to nerf whatever is winning; the rule here is the opposite. If Protect
@@ -58,8 +59,8 @@ goes unpunished.
 
 Balance levers that maintain the triangle (being tuned via simulation):
 - **Focus power** — a resolved high-impact focus should be game-changing (large skill buffs, transformations).
-- **Focus speed** — slow enough (low speed values) that most attacks resolve first.
-- **Defense speed** — fast enough (high speed values) to reliably intercept attacks.
+- **Fast cards** — how many there are, and of which type: fast attacks land before normal defenses, fast focuses before normal attacks.
+- **Defense payoffs** — what a block pays when it holds.
 - **Attack dice vs defense dice and armour** — damage is the margin, so small unbuffed attacks should struggle to get through a defense plus armour; buffs and coordination make them land.
 - **PV pools** — low enough that clean hits threaten characters and combats end in time.
 

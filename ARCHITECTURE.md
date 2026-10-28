@@ -92,7 +92,7 @@ A status gets ALL its mechanics from a `StatusBehavior` attached to the status
 instance by whoever sets it (`setStatus(key, value, turns, data, BEHAVIOR)` —
 no registration). The engine invokes behaviour hooks at fixed seams:
 
-**Query hooks** — `modifySpeed`, `rollMode` (advantage/disadvantage rolls the
+**Query hooks** — `fast` (grants or strips the fast step for a card the holder plays; a strip beats a grant), `rollMode` (advantage/disadvantage rolls the
 whole pool twice), `modifyOutgoingDamage`, `modifyIncomingDamage`,
 `modifyContestTotal` (clutch adjust of a contested total seeing both sides;
 content-side save contests route through `EngineApi.adjustContestTotal`),
@@ -160,8 +160,8 @@ returns the `recipient` who took the blow.
 Added 2026-10-14 for Trampolí de mans (tests in `engine/test/seams.test.ts`,
 beside `delayPendingAction`): `EngineApi.advancePendingAction(target)`, the
 counterpart of `delayPendingAction` — the target's still-pending action
-resolves NEXT, right after the one now resolving, and joins that one's speed
-tier (simultaneous with it: a body it fells in that tier still acts); false
+resolves NEXT, right after the one now resolving, and joins that one's step
+(simultaneous with it: a body it fells in that step still acts); false
 when it already acted or was cancelled. `StatusBehavior.onHolderAttackHit(ctx,
 target, damage, action)` — every blow of the holder that hit, with its damage
 after armour (0 when the armour took it) and its card, after the card's own
@@ -186,7 +186,7 @@ front of the whole party — not asked for undefendable blows nor for a target
 that cannot be guarded); `beforeHolderAction` runs just before the holder's
 card resolves (alive, not cancelled, not an already-interrupted Focus) —
 damage dealt there interrupts a Focus and a fall there cancels the card, but
-an earlier hit in the card's own speed tier still does not;
+an earlier hit in the card's own step still does not;
 `EngineApi.performAreaAttack` is an extra attack over several targets with
 ONE roll, each defending separately. A content guard whose card is copied
 with `skillId: ''` teaches nobody when its contest is close (Artífex's gadget
@@ -199,7 +199,7 @@ this round, not even Cop desesperat; asked as the round begins, AFTER the
 `skipTurns`, so it can price itself); `plainCards` (the holder's cards
 resolve plain: every effect dispatch reads its effects through
 `effectsOf(actor, def)`, which is empty, the target requirement falls back to
-the card type's own and the count to one — only type, speed and dice count);
+the card type's own and the count to one — only type, fast and dice count);
 `onPvLost(ctx, amount, source)` (after any PV loss > 0, armour and clamps
 applied, for the statuses of the one who lost it: a sleeper wakes, a curse
 counts wounds or PV); `AttackModifiers.damageMult` (per
@@ -224,17 +224,24 @@ that target this round.
 
 1. `prepareRound()` — advance round, apply stun/skip.
 2. `planActions(humanSelections)` — build the pending queue (humans supply
-   action ids; AI fills the rest via `selectAction`), **shuffle it, then sort by
-   speed** (tie fairness); returns `RevealedAction[]`. Between plan and resolve,
-   `flowSwapRefs()`/`flowSwap()` let card-swap statuses (Guàrdia camaleó) replace
-   a revealed card. Cards whose effect `aimsAtReveal` are aimed here (AI seats
-   and choiceless pools); `onAimed` runs once they have targets.
+   action ids, IN COMMIT ORDER; AI fills the rest via the action chooser),
+   **shuffle it, put the humans back in commit order on their slots, then sort
+   by `orderKey(type, fast)`** — the fast step (fast Defense, fast Attack, fast
+   Focus) then Defense, Attack, Focus; equal keys are one step. Returns
+   `RevealedAction[]`. Between plan and resolve, `flowSwapRefs()`/`flowSwap()`
+   let card-swap statuses (Guàrdia camaleó) replace a revealed card. **Every
+   attack aims here** (AI seats now, humans prompted before anything resolves),
+   as does any card whose effect `aimsAtReveal`; `onAimed` runs once they
+   have targets, and the aims are visible in `pendingSummary()`/`plannedThisRound()`.
 3. `resolveNextAction()` — returns `{kind:'target'|'resolved'|'done'}`. On
    `'target'` the UI prompts and calls `setResolveTarget(targets)`. Before the
    first card resolves, a human seat whose `aimsAtReveal` card named no target
    is prompted for it first; then a human seat whose card offers
-   `revealOptions` gets a `'choice'` prompt (`setResolveChoice`). Speed ties
-   resolve simultaneously (per-tier alive/interrupt snapshots). Blocked
+   `revealOptions` gets a `'choice'` prompt (`setResolveChoice`). Then a card
+   whose effect decides its type at the reveal (`revealAs`) moves to that type's
+   step. A step resolves simultaneously for who falls (per-step alive/interrupt
+   snapshots). Defenses choose whom they guard when they resolve — after every
+   aim. Blocked
    attackers have every chosen slot forced onto their blocker. Attacks roll once
    per pass; each target defends against that roll; `attackRepeats` statuses
    grant extra full passes (re-rolled).
@@ -307,12 +314,13 @@ engine is now consistent with the one card that said so on its face.
 **This re-bases every balance number in the repo** — every roll moved, by more
 on late-unlock cards than early ones.
 
-**Defense (dual target).** At resolution the defender picks an **ally** (guard:
-attacks on that ally also resolve against the defender's defense; penetrating
-damage hits the **defender**, not the ally) **or an enemy** (block: "els enemics
-bloquejats fan totes les seves tirades d'atac contra el defensor" — the blocked
-enemy loses target choice; attacks that don't choose targets, i.e. full-coverage
-AoE, are unaffected).
+**Defense.** At resolution — after every attack has aimed — the defender picks
+**itself or one ally** (guard: attacks on that ally also resolve against the
+defender's defense; penetrating damage hits the **defender**, not the ally).
+There is no generic enemy block since 2026-10-28; a defense whose own effect asks
+for an `'enemy'` target still blocks it (the blocked enemy's attacks are forced
+onto the blocker; full-coverage AoE unaffected) — kept for the interim cards
+awaiting redesign.
 
 Defenses covering the same attack **sum** (*defensa conjunta*): 2+ blockers on
 the same enemy, or 2+ guards on the same target (the target's own self-defense
@@ -322,8 +330,7 @@ breach (≤ `SKILL_UP_MARGIN`) **all** wall members learn. Extra attacks
 (counters) respect walls too. Either way the defender **always also defends
 themselves**, rolling their defense dice separately against each incoming
 attack. Engine: `Character.guards` + `Character.blockers`, round-scoped,
-resolved at resolution time in speed order; `TargetRequirement 'defense'` drives
-the dual prompt.
+resolved in round order; `TargetRequirement 'defense'` is the guard prompt (allies, self included).
 
 **Every defense card pays off when it blocks** (`intentions.md`: the premium is
 what keeps Protect ahead of Aggro). The rider rides `onDefend`, which fires once
@@ -346,11 +353,11 @@ attacks fly past a standing wall.
 **Focus interrupts.** Cancelled if the actor takes DAMAGE before it resolves; a
 hit fully absorbed by armour does NOT interrupt (rule changed 2026-07-18).
 
-**Speed ties** resolve simultaneously (per-tier alive/interrupt snapshots) — an
-attacker felled earlier in its own tier still strikes (fixed 2026-09-23: a
-hazard check had made ties first-come-first-served); the
-engine shuffles the queue before the speed sort so no seat holds tie priority —
-this fixed a measured seat bias.
+**A step** resolves simultaneously (per-step alive/interrupt snapshots) — an
+attacker felled earlier in its own step still strikes (fixed 2026-09-23 for
+speed ties: a hazard check had made them first-come-first-served); inside a step
+people resolve in commit order and AI seats at random (the queue is shuffled
+before the sort, so no seat holds priority — this fixed a measured seat bias).
 
 **Fatigue.** `Character.fatigue` is a LEVEL 0-5 (`fatigue.ts`: Fresc, Cansat,
 Fatigat, Extenuat, Exhaust, Esgotat), set by the DM — `setFatigue()` from a
@@ -369,8 +376,7 @@ attack, 1 PV self-damage hit or miss — `sets/fantasy/src/players/desperation.t
 ONLY when nothing else is (the generic `ActionDefinition.lastResort` flag).
 
 **Equipment** (simplified 2026-07-19 to three slots, one item each — no
-body-part inventory, no main/off/two-hand). An item gives passive armour, a
-speed penalty, roll bonuses, a **weapon attack modifier** (`attackBonus`;
+body-part inventory, no main/off/two-hand). An item gives passive armour, roll bonuses, a **weapon attack modifier** (`attackBonus`;
 present = the item is a weapon: bastó +0, espasa lleugera +1 (and +1 to Defensa
 rolls, both only at Esgrima 2+ — `bonusRequires`), destral +2, gran destral +4;
 shared by every set in `set-common/src/equipment.ts`) and/or
@@ -595,7 +601,7 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 |---|---|
 | `zero-sum.ts` | Nash equilibrium of a zero-sum matrix game: tableau simplex (Bland's rule) after merging duplicate rows/columns; regret matching+ as the fallback and the tests' second opinion |
 | `catalogue.ts` | 19 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt, hide (dodge every later blow this round) — and the universal fallback. Each says its payoff `horizon` |
-| `profile.ts` | the generator's distributions — speeds, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
+| `profile.ts` | the generator's distributions — fast shares, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
 | `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
 | `referee.ts` | the solver of the fight |
 | `check.ts` | the AI's picks vs the referee's verdict |

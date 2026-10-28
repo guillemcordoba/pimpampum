@@ -20,7 +20,7 @@ Les accions són les capacitats que un personatge pot fer servir, tant en combat
 
 Cada acció té:
 - **Habilitat**: l'habilitat associada.
-- **Velocitat**: un valor que determina quan es resol l'acció (més alt = es resol primer).
+- **Ràpida** (només algunes cartes): es resol abans que totes les altres (vegeu *Resolució de combat*).
 - **Tipus**: Atac, Defensa o Focus.
 - **Daus**: els daus que es tiren quan l'acció es resol (per exemple, 1d8, 2d6). Les accions d'atac tenen daus d'atac; les accions de defensa tenen daus de defensa.
 
@@ -38,7 +38,7 @@ de com de perillós és, i no només de quantes cartes té.
 
 ### Accions d'atac
 
-Quan es resol una acció d'atac, l'atacant tria un objectiu i tira els **daus d'atac** de l'acció (més els modificadors que tingui).
+En revelar les cartes, cada atacant tria el seu objectiu, veient totes les cartes revelades. Quan l'atac es resol, tira els **daus d'atac** de l'acció (més els modificadors que tingui).
 
 **El dany és el marge**: la tirada d'atac menys la tirada de defensa.
 
@@ -53,28 +53,28 @@ Quan una carta diu que un atac **fereix**, vol dir que fa dany: treu almenys 1 P
 
 ### Accions de defensa
 
-Quan una acció de defensa es resol, el defensor tria un objectiu: un **aliat** (defensar) o un **enemic** (bloquejar). En tots dos casos, el defensor es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.
+Quan una acció de defensa es resol, el defensor tria **a qui protegeix: ell mateix o un aliat**, veient a qui apunta cada atac. El defensor sempre es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.
 
 - **Defensar un aliat**: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el **defensor**, no l'aliat.
-- **Bloquejar un enemic**: els enemics bloquejats fan totes les seves tirades d'atac contra el defensor. Els atacs que no trien objectiu (com els que afecten tots els enemics) no en són afectats.
-- **Defensa conjunta**: si diverses defenses cobreixen el mateix atac — més d'un defensor defensant el mateix aliat (la defensa pròpia de l'aliat inclosa, si també s'ha defensat), o més d'un bloquejant el mateix enemic — formen un mur: l'atac es resol contra la **suma** de totes les seves tirades de defensa. Si l'atac supera la suma, el dany (el marge menys l'armadura) el rep el defensor que ha tret la tirada individual més baixa. Si el mur perd per 2 o menys, **tots** els defensors del mur poden pujar de nivell: han fallat junts, aprenen junts.
+- **Defensa conjunta**: si diverses defenses cobreixen el mateix atac — més d'un defensor defensant el mateix aliat (la defensa pròpia de l'aliat inclosa, si també s'ha defensat) — formen un mur: l'atac es resol contra la **suma** de totes les seves tirades de defensa. Si l'atac supera la suma, el dany (el marge menys l'armadura) el rep el defensor que ha tret la tirada individual més baixa. Si el mur perd per 2 o menys, **tots** els defensors del mur poden pujar de nivell: han fallat junts, aprenen junts.
 
-Com que els objectius es trien quan cada acció es resol, una defensa no afecta les accions que ja s'han resolt abans (per ser més ràpides).
+Una defensa no afecta les accions que ja s'han resolt abans (les ràpides).
 
 ### Accions de focus
 
-Les accions de focus tenen efectes especials. Normalment són lentes (velocitat baixa). Una acció de focus no es resol si, abans que es resolgui, el jugador rep dany durant aquest torn.
+Les accions de focus tenen efectes especials. Es resolen després dels atacs, i una acció de focus no es resol si, abans que es resolgui, el jugador rep dany durant aquest torn: qualsevol atac la pot interrompre (una de ràpida, només un atac ràpid).
 
 ## Resolució de combat
 
 El combat consisteix en una sèrie de rondes:
 
 1. Tots els jugadors trien una acció de la seva mà, la posen de cap per avall, i es revelen alhora.
-2. Les accions es resolen per ordre de velocitat (de més alta a més baixa). Les penalitzacions de velocitat per armadura pesada s'apliquen.
-3. En cas d'empat de velocitat, les accions es resolen simultàniament (ambdós impacten).
-4. Cada acció de defensa tria el seu objectiu (aliat a defensar o enemic a bloquejar) quan es resol, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
-5. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
-6. **Caure i tornar.** Un personatge que arriba a 0 PV cau fora de combat i, si la seva acció encara no s'ha resolt, no la juga. Una curació pot triar un aliat caigut: el torna al combat amb els PV curats, i si arriba abans que li toqui actuar, juga la seva acció d'aquesta ronda.
+2. **Els atacants apunten**: cada atac tria el seu objectiu, veient totes les cartes revelades.
+3. Les accions es resolen per **prioritat**: primer les **ràpides** (defenses, després atacs, després focus) i després les altres: **defenses, atacs i focus**.
+4. Dins d'un mateix pas, les accions es resolen alhora per a qui cau (dos atacs que es maten l'un a l'altre impacten tots dos); els efectes que una deixa per a una altra (un estat, una guàrdia, una cancel·lació) segueixen l'ordre en què els jugadors han decidit la carta: qui ha triat primer, primer.
+5. Cada acció de defensa tria a qui protegeix quan es resol, veient on apunten els atacs, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
+6. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
+7. **Caure i tornar.** Un personatge que arriba a 0 PV cau fora de combat i, si la seva acció encara no s'ha resolt, no la juga. Una curació pot triar un aliat caigut: el torna al combat amb els PV curats, i si arriba abans que li toqui actuar, juga la seva acció d'aquesta ronda.
 
 Un **efecte negatiu** és qualsevol estat que una carta enemiga t'ha deixat a sobre: penalitzacions, verí, cremades, marques, accions perdudes, son…
 
@@ -107,7 +107,7 @@ Només un **descans llarg de 4 hores o més** neteja la fatiga, i la neteja tota
 
 **Els enemics no tenen mai fatiga.** És una eina del màster sobre els jugadors.
 
-L'esgotament de cartes no et deixa mai sense opcions: quan no pots jugar cap altra carta (totes consumides o bloquejades), entra a la teva mà el **Cop desesperat**, una carta universal — un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.
+L'esgotament de cartes no et deixa mai sense opcions: quan no pots jugar cap altra carta (totes consumides o bloquejades), entra a la teva mà el **Cop desesperat**, una carta universal — un atac feble (1d4) que et fa perdre 1 PV després de l'atac, encertis o no.
 
 ## Objectes i equipament
 
@@ -122,9 +122,7 @@ Els personatges poden portar objectes passius que modifiquen les seves capacitat
 Només es pot portar un objecte per espai. Els objectes poden donar:
 - **Armadura passiva**: reducció plana del dany a cada impacte rebut.
 - **Bonificacions de tirada**: modificadors que se sumen a les tirades d'atac o de defensa de certes accions.
-- **Penalització de velocitat**: les armadures pesades redueixen la velocitat de totes les accions del portador.
-
-La decisió entre armadura pesada (més protecció, més lenta) i armadura lleugera (menys protecció, menys penalització) és una elecció tàctica important — i també quants del grup la porten: en un grup sencer d'armadures, la lentitud pesa més que la protecció. Armadura de cuir: +2 d'armadura, −1 de velocitat. Armadura de ferro: +3 d'armadura, −2 de velocitat.
+Armadura de cuir: +2 d'armadura. Armadura de ferro: +3 d'armadura. (Abans costaven velocitat; sense velocitat, el seu preu està pendent de revisar.)
 
 ## Canvis d'equipament
 
