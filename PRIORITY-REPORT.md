@@ -221,6 +221,7 @@ Full numbers in `NEXT-STEPS.md` §56.
    - Cop desesperat is a normal card;
    - the 7 enemy-block cards keep working until their batch-B designs land.
    - Confirm them, or change any.
+8. **The merge path:** `priority-system` → `elements-set` once you accept it, then the usual question for `main`. Nothing has been merged.
 9. **Several attacks on one defended body: pick a rule** (2v2 numbers in §56.4).
    - **sum** (attacks in a step add up into one blow) and **flank** (+N per other attack on the target) are the two that make best play concentrate fire: 0.56 and 0.58 of paired attacks share a target, against 0.36 today.
    - **sum** is the lore you asked for ("add their dice"), and it mirrors walls. It mildly lowers the bigger side's reading value on 2v1.
@@ -232,7 +233,6 @@ Full numbers in `NEXT-STEPS.md` §56.
    - per-seat best response;
    - greedy decisions, whose saving only shows with many decisions;
    - fewer joints through dominance pruning, graded against the exact layer as before.
-8. **The merge path:** `priority-system` → `elements-set` once you accept it, then the usual question for `main`. Nothing has been merged.
 
 ## Notes
 
