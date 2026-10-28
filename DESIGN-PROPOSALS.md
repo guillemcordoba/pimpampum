@@ -162,8 +162,89 @@ The designer's picks are 1A–6A. All six keep their titles and slots.
 
 ## Batch A: speed effects that lost their meaning
 
-_Pending_ (designer).
+### Gel kit (fantasy): card 1 Atac, card 2 Focus
+
+**The kit rule, printed once:**
+
+> **Glaçat:** el torn següent, la seva carta es resol després de totes les altres.
+
+A frozen enemy's attack lands after your Focus step, and its Defense comes up too late. It's the faithful port of the old −speed.
+
+**Card 1 (Atac):**
+
+| Option | Text | Scene |
+|---|---|---|
+| **A** · Alè de gebre | «Si fereix, l'objectiu queda glaçat.» | A plume of hoarfrost stiffens its joints; next round it moves after everyone. |
+| B · Gebre trencadís | «Si fereix, el proper atac que el fereixi li treu 2 PV més.» | Its flesh goes glassy and brittle. |
+
+**Card 2 (Focus):**
+
+| Option | Text | Scene |
+|---|---|---|
+| **A** · Paisatge congelat | «Tots els enemics queden glaçats.» | The staff strikes the ground and frost rimes the enemy line. Likely strong; brake with fatigue if so. |
+| B · Estàtua de gel | «Un enemic queda de gel fins al final del torn següent: no juga carta i cap atac no el fereix.» | A total lock at card 2, so it probably needs fatigue or a contest. |
+
+The designer cut a third option, Gebre a la gola: dead in fantasy, because focusing enemies are rarely guarded.
+
+### Tombarella de rescat (Acrobàcia, card 5, Defensa)
+
+| Option | Text | Scene |
+|---|---|---|
+| **A** | «Si aguanta, la resta del torn els atacs contra tu i l'aliat que defenses fallen.» | Cartwheel in, take the first blow, roll your ally away; the next blows hit bare ground. |
+| B · Enemic projectil | «Si aguanta, l'atacant i un altre enemic que triïs queden a terra.» | A tomoe nage onto a second enemy. It reads as card 2 plus one. |
+
+### Escut de fusta (the shield everyone may carry; granted Defensa 2d4, must stay mild)
+
+| Option | Text | Notes |
+|---|---|---|
+| **C** · Embranzida d'escut | «Si aguanta, el teu Atac del torn següent és ràpid.» | Parry, then strike first. May need a word at the table. |
+| B · Cop de cantell | «Si aguanta, l'atacant perd 1 PV.» | Plain fallback. |
+
+### Poció de rapidesa (fantasy potion, Focus, single use)
+
+| Option | Text |
+|---|---|
+| **A** | «Els 3 torns següents, les teves cartes són ràpides. Un sol ús.» (the duration can be tuned to 2–3) |
+| B | «La resta del combat, els teus Atacs són ràpids. Un sol ús.» |
+
+### Patinet d'aire (Mestre de l'aire, card 3, Focus)
+
+Keep the concept; only the text changes: «El torn següent, la teva carta és ràpida, i el primer atac contra tu falla.» Update elements/DESIGN.md to match.
+
+### Clause changes
+
+| Card | Pick | Alternative |
+|---|---|---|
+| Marca de la perdició | «Condemna un enemic (3 torns): tira amb desavantatge.» (drop the clause) | «…i cap carta seva no és ràpida» (what the code does today) |
+| Invocar l'ombra de l'infern | «Condemna tots els enemics (3 torns): tiren amb desavantatge.» | — |
+| Udol de terror | «Tots els enemics reben {A}−2 i {D}−2 durant 2 torns.» | «…i no poden jugar cartes ràpides» |
+
+**Statuses to price:** Glaçat, Estàtua de gel, the shield's fast next attack, the potion's fast status. Also check that the evaluator values "fast" at all.
+
+**Reviewer verdict:** _pending_.
 
 ## Batch D: defenses with no on-block payoff
 
-_Pending_ (designer).
+### Rulings to settle first
+
+- **Walls:** does every card in a wall that holds pay its payoff? The designer assumes yes, once each per held attack.
+- **Standing guards are public:** Barricada, Mur de pedra, Cúpula de pedra and Colós de butxaca sit face up on the table. Their payoff makes attacking into them expensive rather than rewarding a read.
+
+### The cards
+
+| Card | Pick | Alternatives |
+|---|---|---|
+| Barricada (Enginyer d'explosius, card 2) | **A · Barricada explosiva:** «Si aguanta, pots gastar 1 càrrega per fer-la esclatar: l'atacant perd N PV i la barricada cau.» (the charge in the sandbags goes off in its face) | B: «Cada cop que aguanta, el protegit té +N al seu proper atac.» (firing from cover); C · Barricada de filferro: the attacker tangled, +N to attacks against it until the end of next round |
+| Mur de pedra (Gòlem de pedra, enemy) | **A:** «Si aguanta, l'atacant té −N als atacs durant 2 torns.» (stone numbs the arms; the user's own third example) | B: stone chips, the attacker loses N PV; C: «El mur es queda dret mentre aguanti; el primer atac que el supera l'esfondra.» |
+| Paraigua blindat (Artífex, card 4) | **A:** «Si aguanta, queda obert. Corda 2: cada torn torna a defensar així.» (the ribs click into place and it stays up) | B: the attack spills off the rim onto another enemy, with the same roll |
+| Colós de butxaca (Artífex, card 9) | **A:** «Quan s'atura, cau sobre cada enemic que ha aturat (si no n'ha aturat cap, sobre un a l'atzar).» | B: «Un atac que aguanta no li gasta corda.»; C: it hits back, an attack of Nd6 per hold |
+| Forma del pop (Mestre de l'aigua, card 4) | **A:** «Defensa tots els aliats. Cada atacant contra qui aguanta té −N als atacs fins al final del torn següent.» (the arm stays wrapped around the attacker) | B: +N to attacks against each held attacker; C: a slap, the attacker loses 1 PV per hold |
+| Cúpula de pedra (Mestre de la terra, card 7) | **0:** keep it unchanged; its persistence already depends on holding | A: «Cada atac que aguanta, una punxa de pedra surt contra l'atacant: perd N PV.» |
+| Coixí de vent (Mestre de l'aire, card 2) | **A:** «Si aguanta, l'atacant cau en el buit: fins al final del torn següent, els atacs contra ell tenen +N.» (lead into emptiness) | B: «…el torn següent no pot atacar l'aliat que has defensat.» (repeats a gold-card draft) |
+| Capbussada (Unagi, enemy) | **A:** «Si aguanta, el torn següent els seus atacs contra l'atacant no es poden defensar.» | B: it drags the attacker under, and the attacker loses its next action |
+
+**Notes:**
+- Barricada explosiva needs a "may spend" choice hook.
+- Statuses to price: the −N and +N effects, Capbussada's ambush, Colós's list of stopped enemies, the open umbrella.
+
+**Reviewer verdict:** _pending_.
