@@ -187,6 +187,10 @@ export interface CombatEngineOptions {
    *  - `swarmAll`: the same, order-free — once two or more attacks aim at a
    *    body this round, its defenses roll twice and keep the worse against
    *    every one of them.
+   *  - `swarmStack`: with n attacks aimed at a body, its defenses roll n
+   *    times and keep the worst.
+   *  - `swarmFlank`: `swarmAll`, and each attack gets +`flankBonus` per other
+   *    attack aimed at the same target.
    *  - `divided`: a defense facing two or more attackers rolls once, and the
    *    defender gives each half of the total to an attacker of their choice
    *    (all to one, or half each); an attacker given nothing meets nothing.
@@ -197,7 +201,7 @@ export interface CombatEngineOptions {
   flankBonus?: number;
 }
 
-export type GangRule = 'separate' | 'sum' | 'wear' | 'flank' | 'single' | 'swarm' | 'swarmAll' | 'divided' | 'unguarded';
+export type GangRule = 'separate' | 'sum' | 'wear' | 'flank' | 'single' | 'swarm' | 'swarmAll' | 'swarmStack' | 'swarmFlank' | 'divided' | 'unguarded';
 
 const NO_STATUSES: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
 const NO_HOOKED: readonly HookedEffect[] = [];
@@ -747,7 +751,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** One guard's defense roll: a fresh roll of its action's dice plus its
    *  bonuses — or, for a guard already rolled (`fixedTotal`), that total. */
-  private rollGuard(g: Guard, attacker?: Character, swarmed = false): { roll: number; bonus: number } {
+  private rollGuard(g: Guard, attacker?: Character, rolls = 1): { roll: number; bonus: number } {
     if (g.fixedTotal !== undefined) return { roll: g.fixedTotal, bonus: 0 };
     const parry = this.parries.get(g.defender);
     if (parry && attacker) return { roll: parry.get(attacker) ?? 0, bonus: 0 };
@@ -756,7 +760,8 @@ export class CombatEngine implements EngineApi, AIView {
       if (left !== undefined) return { roll: left, bonus: 0 };
     }
     const first = this.rollDiceFor(g.defender, g.action.dice, 'defense');
-    const roll = swarmed ? Math.min(first, this.rollDiceFor(g.defender, g.action.dice, 'defense')) : first;
+    let roll = first;
+    for (let k = 1; k < rolls; k++) roll = Math.min(roll, this.rollDiceFor(g.defender, g.action.dice, 'defense'));
     const bonus = (g.action.rollBonus ?? 0) + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
     if (this.gangRule === 'wear') this.worn.set(g.defender, Math.max(0, roll + bonus));
     return { roll, bonus };
@@ -1915,7 +1920,7 @@ export class CombatEngine implements EngineApi, AIView {
       (baseRoll + extraDice + atkBonus + (statusMods.attackRollBonus ?? 0))
       * (statusMods.attackTotalMult ?? 1));
     const cur = this.resolvingAttack(source);
-    if (cur && this.gangRule === 'flank') attackTotal += this.flankBonus * this.otherAttacksOn(target, cur, false).length;
+    if (cur && (this.gangRule === 'flank' || this.gangRule === 'swarmFlank')) attackTotal += this.flankBonus * this.otherAttacksOn(target, cur, false).length;
 
     // Feints bypass the guard entirely (treated as undefended) — unless a
     // status on the target vetoes the bypass (seismic awareness & co.).
@@ -1950,8 +1955,11 @@ export class CombatEngine implements EngineApi, AIView {
     // every guard there (guardsBlow).
     // `swarm`: the second attack this body meets, and every later one, finds
     // its defenders stretched.
-    const swarmed = (this.gangRule === 'swarm' && (this.met.get(target) ?? 0) >= 1)
-      || (this.gangRule === 'swarmAll' && this.pending.filter(p => !p.cancelled && (p.as ?? p.action.def.actionType) === ActionType.Atac && !!p.targets?.includes(target)).length >= 2);
+    const aimed = this.pending.filter(p => !p.cancelled && (p.as ?? p.action.def.actionType) === ActionType.Atac && !!p.targets?.includes(target)).length;
+    const swarmed = this.gangRule === 'swarm' ? ((this.met.get(target) ?? 0) >= 1 ? 2 : 1)
+      : this.gangRule === 'swarmAll' || this.gangRule === 'swarmFlank' ? (aimed >= 2 ? 2 : 1)
+        : this.gangRule === 'swarmStack' ? Math.max(1, aimed)
+          : 1;
     if (this.gangRule === 'swarm') this.met.set(target, (this.met.get(target) ?? 0) + 1);
     let guards: Guard[] = [];
     if (!bypass) {
@@ -2066,7 +2074,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  breaks, the member with the lowest individual total (the weak link)
    *  takes the penetrating damage; on a close breach (≤ SKILL_UP_MARGIN)
    *  every member learns — they failed together. */
-  private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0, gangMembers: { source: Character; def: ActionDefinition }[] = [], swarmed = false): void {
+  private resolveAttackOnWall(source: Character, action: ActionInstance, wall: Guard[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll = attackTotal, atkBonus = 0, gangMembers: { source: Character; def: ActionDefinition }[] = [], swarmed = 1): void {
     const def = action.def;
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal, swarmed);
     const res0 = resolveAttack(adjustedAttacker, Math.max(0, sum - mods.defensePenalty));
@@ -2106,7 +2114,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  the clutch-adjusted attacker total and defense sum (the attacker sees
    *  the whole wall; each member adjusts their own share), the weak link
    *  (lowest raw individual total, earliest on ties), and a log detail. */
-  private rollWall(source: Character, wall: Guard[], attackTotal: number, swarmed = false): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
+  private rollWall(source: Character, wall: Guard[], attackTotal: number, swarmed = 1): { adjustedAttacker: number; sum: number; weak: { g: Guard; total: number }; detail: string } {
     // An ABSORBING member (absorbsGuard: takes the blow, rolls nothing) adds
     // nothing to the wall and is the one hit if it breaks. Rolled like any
     // other member, a no-roll defense used to lend the wall its skill level

@@ -18,6 +18,12 @@
  * loses when that type's cards are taken from its hands (the position solved
  * again, exactly). How strong a rule makes each kind of card.
  *
+ * ROUTINES (also under `--type-values`): for each side and type, the best
+ * this round can do if every seat plays that type (a seat without one plays
+ * anything), against the other side's best reply — the later rounds still
+ * solved exactly — and how much that loses against the equilibrium. Near 0:
+ * "always attack" (or defend, or focus) is as good as reading.
+ *
  * One JSON line per position (`--per-position`), so the rules can be
  * compared on the positions every one of them solved: a budget skips
  * different positions under different rules.
@@ -40,7 +46,7 @@ const SLICES: Record<string, GeneratorConfig> = {
   '2x1-c3-r3': { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '1x2-c3-r3': { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 },
 };
-const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single', 'swarm', 'swarmAll', 'divided', 'unguarded'];
+const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single', 'swarm', 'swarmAll', 'swarmStack', 'swarmFlank', 'divided', 'unguarded'];
 const TYPES = [ActionType.Atac, ActionType.Defensa, ActionType.Focus];
 const TYPE_VALUES = process.argv.includes('--type-values');
 
@@ -129,6 +135,21 @@ for (const rule of rules) {
           Object.assign(t, before);
           t.skipped++;
           continue;
+        }
+        // Routines, from the root matrix: rows (or columns) where every seat
+        // that holds the type plays it.
+        const typeOf = (team: number, o: { idx: number; actionIdx: number }) =>
+          o.actionIdx < 0 ? null : engine.teams[team][o.idx].actions[o.actionIdx].def.actionType;
+        for (const [team, joints] of [[0, root.rows], [1, root.cols]] as const) {
+          for (const type of TYPES) {
+            const holds = new Set(joints.flatMap(j => j.filter(o => typeOf(team, o) === type).map(o => o.idx)));
+            const idx = joints.map((j, i) => ({ j, i })).filter(({ j }) => holds.size > 0 && j.every(o => !holds.has(o.idx) || typeOf(team, o) === type)).map(({ i }) => i);
+            if (!idx.length) continue;
+            const best = team === 0
+              ? Math.max(...idx.map(i => Math.min(...root.payoff[i])))
+              : Math.min(...idx.map(j => Math.max(...root.payoff.map(r => r[j]))));
+            out[`routine${team}${type}`] = team === 0 ? root.value - best : best - root.value;
+          }
         }
         if (PER_POSITION) console.log(JSON.stringify({ rule, slice, catalogue: CATALOGUE, seed, typeValues: true, ...out }));
         continue;
