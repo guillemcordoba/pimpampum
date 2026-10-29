@@ -184,6 +184,9 @@ export interface CombatEngineOptions {
    *    the aims; the others come through undefended.
    *  - `swarm`: from the second attack a body meets in a round, its
    *    defenses roll twice and keep the worse.
+   *  - `swarmAll`: the same, order-free — once two or more attacks aim at a
+   *    body this round, its defenses roll twice and keep the worse against
+   *    every one of them.
    *  - `divided`: a defense facing two or more attackers rolls once, and the
    *    defender gives each half of the total to an attacker of their choice
    *    (all to one, or half each); an attacker given nothing meets nothing.
@@ -194,7 +197,7 @@ export interface CombatEngineOptions {
   flankBonus?: number;
 }
 
-export type GangRule = 'separate' | 'sum' | 'wear' | 'flank' | 'single' | 'swarm' | 'divided' | 'unguarded';
+export type GangRule = 'separate' | 'sum' | 'wear' | 'flank' | 'single' | 'swarm' | 'swarmAll' | 'divided' | 'unguarded';
 
 const NO_STATUSES: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
 const NO_HOOKED: readonly HookedEffect[] = [];
@@ -1947,7 +1950,8 @@ export class CombatEngine implements EngineApi, AIView {
     // every guard there (guardsBlow).
     // `swarm`: the second attack this body meets, and every later one, finds
     // its defenders stretched.
-    const swarmed = this.gangRule === 'swarm' && (this.met.get(target) ?? 0) >= 1;
+    const swarmed = (this.gangRule === 'swarm' && (this.met.get(target) ?? 0) >= 1)
+      || (this.gangRule === 'swarmAll' && this.pending.filter(p => !p.cancelled && (p.as ?? p.action.def.actionType) === ActionType.Atac && !!p.targets?.includes(target)).length >= 2);
     if (this.gangRule === 'swarm') this.met.set(target, (this.met.get(target) ?? 0) + 1);
     let guards: Guard[] = [];
     if (!bypass) {

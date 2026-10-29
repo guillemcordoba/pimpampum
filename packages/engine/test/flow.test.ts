@@ -357,4 +357,24 @@ describe('gang rules (experimental), the second batch', () => {
     });
     expect(mean('swarm') - mean('separate')).toBeGreaterThan(0.2);
   });
+
+  it('swarmAll: once two attacks aim at a body, BOTH meet the worse of two rolls — more through than swarm', () => {
+    const mean = (gangRule: 'swarm' | 'swarmAll') => withSeed(7, () => {
+      let lost = 0;
+      for (let i = 0; i < 3000; i++) {
+        const a1 = fighter('A1', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
+        const a2 = fighter('A2', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
+        const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 20 });
+        const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
+        playRound(engine, [
+          { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+          { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+          { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
+        ]);
+        lost += 20 - d.currentPV;
+      }
+      return lost / 3000;
+    });
+    expect(mean('swarmAll') - mean('swarm')).toBeGreaterThan(0.2);
+  });
 });

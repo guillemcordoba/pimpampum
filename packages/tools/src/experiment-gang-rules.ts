@@ -13,6 +13,11 @@
  *  - FOCUS FIRE: when the two-body side throws two attacks, how often they
  *    aim at the same body (on the referee's own in-round decisions).
  *
+ * TYPE VALUES (`--type-values`): each side's share of Attack, Defense and
+ * Focus at the equilibrium, and what each type is WORTH to it — the value it
+ * loses when that type's cards are taken from its hands (the position solved
+ * again, exactly). How strong a rule makes each kind of card.
+ *
  * One JSON line per position (`--per-position`), so the rules can be
  * compared on the positions every one of them solved: a budget skips
  * different positions under different rules.
@@ -22,7 +27,7 @@
  */
 import { ActionType, type CombatEngine, type GangRule } from '@pimpampum/engine';
 import {
-  BudgetExceeded, buildEngine, generatePosition, Referee, Unsupported, type GeneratorConfig,
+  ARCHETYPES, BudgetExceeded, buildEngine, generatePosition, Referee, Unsupported, type GeneratorConfig, type Position,
 } from '@pimpampum/ai/audit';
 import { flag, games, SMOKE } from '@pimpampum/bench';
 
@@ -35,7 +40,18 @@ const SLICES: Record<string, GeneratorConfig> = {
   '2x1-c3-r3': { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '1x2-c3-r3': { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 },
 };
-const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single', 'swarm', 'divided', 'unguarded'];
+const RULES: GangRule[] = ['separate', 'sum', 'wear', 'flank', 'single', 'swarm', 'swarmAll', 'divided', 'unguarded'];
+const TYPES = [ActionType.Atac, ActionType.Defensa, ActionType.Focus];
+const TYPE_VALUES = process.argv.includes('--type-values');
+
+/** `pos` with side `team`'s cards of `type` taken away (each hand keeps
+ *  its fallback, as every built hand does). */
+function without(pos: Position, team: number, type: ActionType): Position {
+  const teams = pos.teams.map((t, ti) => ti !== team ? t : t.map(f => ({
+    ...f, cards: f.cards.filter(c => ARCHETYPES[c.arch].build(c.p, 'probe').actionType !== type),
+  }))) as Position['teams'];
+  return { ...pos, teams };
+}
 
 const rules = flag('--rule') ? [flag('--rule') as GangRule] : RULES;
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
@@ -95,6 +111,28 @@ for (const rule of rules) {
       t.defenseTwo += defenseShare(twoSide === 0 ? root.rows : root.cols, twoSide === 0 ? root.sol.row : root.sol.col, twoSide);
       t.defenseOne += defenseShare(twoSide === 0 ? root.cols : root.rows, twoSide === 0 ? root.sol.col : root.sol.row, 1 - twoSide);
 
+      if (TYPE_VALUES) {
+        // Shares at the equilibrium, and the worth of each type to each side.
+        const share = (joints: typeof root.rows, mix: number[], team: number, type: ActionType) => joints.reduce((acc, j, i) =>
+          acc + mix[i] * j.filter(o => o.actionIdx >= 0 && engine.teams[team][o.idx].actions[o.actionIdx].def.actionType === type).length / Math.max(1, j.length), 0);
+        const out: Record<string, number> = {};
+        try {
+          for (const [team, joints, mix] of [[0, root.rows, root.sol.row], [1, root.cols, root.sol.col]] as const) {
+            for (const type of TYPES) {
+              out[`share${team}${type}`] = share(joints, mix, team, type);
+              const v = new Referee({ budget: BUDGET }).solve(buildEngine(without(pos, team, type), { actionChooser: () => null }, { rules: { gangRule: rule, flankBonus: FLANK } }), 0).value;
+              out[`worth${team}${type}`] = team === 0 ? root.value - v : v - root.value;
+            }
+          }
+        } catch (e) {
+          if (!(e instanceof BudgetExceeded || e instanceof Unsupported)) throw e;
+          Object.assign(t, before);
+          t.skipped++;
+          continue;
+        }
+        if (PER_POSITION) console.log(JSON.stringify({ rule, slice, catalogue: CATALOGUE, seed, typeValues: true, ...out }));
+        continue;
+      }
       // Where the two-body side's attacks aimed, on the likely cells. Walking
       // the paths costs rounds too: a position whose walk runs out of budget
       // is skipped whole, its solve undone from the tally.
