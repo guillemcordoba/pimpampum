@@ -98,6 +98,11 @@ export interface RefereeOptions {
   /** Under `playout`: rounds played out before the margin is read. Omit:
    *  to the fight's end. */
   playoutRounds?: number;
+  /** Under `playout` with `playoutRounds`: how the board a cut playout
+   *  stops on is read. `margin`: the PV margin. `score`: the lookahead's
+   *  evaluator (`positionScore`, PV and bodies plus the prices statuses give
+   *  themselves), in the margin's units. */
+  playoutEnd?: 'margin' | 'score';
   /** Under `oracle`: a best response joins the matrix only if it beats the
    *  value by more than this (payoff units). 0: exact. */
   epsilon: number;
@@ -381,6 +386,14 @@ export class Referee {
   }
 
   /** Value of a between-rounds state to team 0, with the whole remaining fight solved. */
+  /** The board as this referee's leaf reads it, side A's view — what a live
+   *  decision taken outside a solve (an aim, a guard, an option) is weighed
+   *  by, so it agrees with the solve that chose the cards. Needs a horizon. */
+  leafValue(state: CombatEngine): number {
+    if (this.opts.horizon === undefined) throw new Error('referee: a leaf value needs a horizon');
+    return this.value(state, this.opts.horizon);
+  }
+
   value(state: CombatEngine, depth: number): number {
     if (finished(state)) {
       if (this.opts.leaf === 'score') return positionScore(state, 0);
@@ -821,6 +834,7 @@ export class Referee {
           this.sims++;
           if (this.opts.playoutPolicy === 'greedy') this.greedyRound(sim); else sim.runRound();
         }
+        if (!finished(sim) && this.opts.playoutEnd === 'score') return scoreInPv(sim);
         return pvDiff(sim);
       });
     }
@@ -901,6 +915,18 @@ function seatAlternatives(joints: Joint[], cur: number, seat: number, index: Map
     if (j.every((o, s) => (s === seat ? o.actionIdx !== base[s].actionIdx : o.actionIdx === base[s].actionIdx))) out.push(i);
   }
   return out;
+}
+
+/**
+ * `positionScore` (side A's view) in PV units, so a playout cut on the
+ * evaluator adds up with the margin finished fights score: the evaluator's
+ * PV term is ten points for the mean fraction of health on each side, so a
+ * point is worth (total max PV / 2) / 10 PV.
+ */
+function scoreInPv(e: CombatEngine): number {
+  let all = 0;
+  for (const c of [...e.teams[0], ...e.teams[1]]) all += Math.max(1, c.maxPV);
+  return positionScore(e, 0) * (all / 2) / 10;
 }
 
 const choosesLater = (c: Character): boolean =>

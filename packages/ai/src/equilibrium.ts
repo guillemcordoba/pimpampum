@@ -48,6 +48,8 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
   const fallback = aiPolicy({ depth: 1 });
   const stats = { solved: 0, fallback: 0 };
   let plan: { engine: CombatEngine; round: number; picks: Map<Character, number> | null } | null = null;
+  /** The solve's leaf, for live decisions (a fresh referee: its memo is per board). */
+  const leafReferee = (): Referee => new Referee({ ...options, seed: Math.floor(random() * 1e9) });
 
   const solveRound = (engine: CombatEngine): Map<Character, number> | null => {
     try {
@@ -78,15 +80,15 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
       const pick = plan.picks?.get(actor);
       return pick !== undefined && pick >= 0 ? pick : fallback.actionChooser(engine, actor);
     },
-    targetChooser: (engine, actor, def, req, count, pool) => playoutTargets(engine as CombatEngine, actor, def, req, count, pool, targetSamples, options.playouts ?? 8),
-    optionChooser: (engine, actor, _def, opts) => playoutOption(engine as CombatEngine, actor, opts.length, targetSamples, options.playouts ?? 8),
+    targetChooser: (engine, actor, def, req, count, pool) => playoutTargets(engine as CombatEngine, actor, def, req, count, pool, targetSamples, leafReferee()),
+    optionChooser: (engine, actor, _def, opts) => playoutOption(engine as CombatEngine, actor, opts.length, targetSamples, leafReferee()),
   };
 }
 
 /** A card's reveal option, weighed as `playoutTargets` weighs an aim: each
  *  option played through the rest of the round at random, the fight then
  *  finished by random playouts. */
-function playoutOption(engine: CombatEngine, actor: Character, count: number, samples: number, playouts: number): number {
+function playoutOption(engine: CombatEngine, actor: Character, count: number, samples: number, leaf: Referee): number {
   if (count <= 1) return 0;
   const pairSeed = Math.floor(random() * 1e9);
   let best = 0, top = -Infinity;
@@ -101,7 +103,7 @@ function playoutOption(engine: CombatEngine, actor: Character, count: number, sa
         // The option being weighed for the card the engine is asking about —
         // the first question the clone hears — and random ones after.
         sim.optionChooser = (_e, _a, _d, options) => (first ? (first = false, option) : Math.floor(random() * options.length));
-        return finishAndScore(sim, actor.team, playouts);
+        return finishAndScore(sim, actor.team, leaf);
       });
     }
     if (total / samples > top) { top = total / samples; best = option; }
@@ -109,8 +111,8 @@ function playoutOption(engine: CombatEngine, actor: Character, count: number, sa
   return best;
 }
 
-/** Play the round out, then score it by `playouts` random fights to the end. */
-function finishAndScore(sim: CombatEngine, team: number, playouts: number): number {
+/** Play the round out, then read it by the solve's own leaf, `team`'s view. */
+function finishAndScore(sim: CombatEngine, team: number, leaf: Referee): number {
   let step = sim.resolveNextAction();
   for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
     if (step.kind === 'target') sim.setResolveTarget([]);
@@ -118,13 +120,8 @@ function finishAndScore(sim: CombatEngine, team: number, playouts: number): numb
     step = sim.resolveNextAction();
   }
   sim.finishRound();
-  let acc = 0;
-  for (let k = 0; k < playouts; k++) {
-    const play = sim.clone();
-    while (!play.isOver() && play.round < play.maxRounds) play.runRound();
-    acc += margin(play, team);
-  }
-  return acc / playouts;
+  const v = leaf.leafValue(sim);
+  return team === 0 ? v : -v;
 }
 
 /** A uniformly random legal card, from the engine's stream. */
@@ -139,20 +136,20 @@ const randomTargets = (_e: unknown, _a: unknown, _d: unknown, _r: unknown, count
   return out;
 };
 
-/** PV on `team`'s side minus the other's. */
-const margin = (e: CombatEngine, team: number): number =>
-  e.teams[team].reduce((s, c) => s + Math.max(0, c.currentPV), 0) - e.teams[1 - team].reduce((s, c) => s + Math.max(0, c.currentPV), 0);
-
 /**
  * An in-round decision taken the way the solve assumed: each answer played
  * through the rest of the round with every later decision at random, the
- * fight then finished by random playouts; the answer that does best, on the
- * same draws for every answer. A multi-target choice weighs each set of
- * targets, while there are few.
+ * board then read by the SOLVE'S OWN LEAF (`Referee.leafValue`); the answer
+ * that does best, on the same draws for every answer. A multi-target choice
+ * weighs each set of targets, while there are few.
+ *
+ * It used to finish every answer with random playouts to the fight's end
+ * whatever leaf the solve used — the leaf real fights showed to misjudge them
+ * (NEXT-STEPS §57) — so every live guard and aim was weighed on it.
  */
 function playoutTargets(
   engine: CombatEngine, actor: Character, _def: ActionDefinition, _req: TargetRequirement,
-  count: number, pool: Character[], samples: number, playouts: number,
+  count: number, pool: Character[], samples: number, leaf: Referee,
 ): Character[] {
   const sets = subsets(pool, count);
   if (sets.length <= 1) return sets[0] ?? [];
@@ -168,20 +165,7 @@ function playoutTargets(
         sim.targetChooser = randomTargets;
         sim.optionChooser = (_e, _a, _d, options) => Math.floor(random() * options.length);
         sim.setResolveTarget(refs);
-        let step = sim.resolveNextAction();
-        for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
-          if (step.kind === 'target') sim.setResolveTarget([]);
-          else if (step.kind === 'choice') sim.setResolveChoice();
-          step = sim.resolveNextAction();
-        }
-        sim.finishRound();
-        let acc = 0;
-        for (let k = 0; k < playouts; k++) {
-          const play = sim.clone();
-          while (!play.isOver() && play.round < play.maxRounds) play.runRound();
-          acc += margin(play, actor.team);
-        }
-        return acc / playouts;
+        return finishAndScore(sim, actor.team, leaf);
       });
     }
     return total / samples;

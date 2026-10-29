@@ -37,6 +37,7 @@ const LEAVES: Record<string, Partial<RefereeOptions>> = {
   'random playouts ×8, 2 rounds': { leaf: 'playout', playouts: 8, playoutRounds: 2 },
   'greedy playouts ×4': { leaf: 'playout', playouts: 4, playoutPolicy: 'greedy' },
   'greedy playouts ×4, 2 rounds': { leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2 },
+  'greedy ×4, 2 rounds, then evaluator': { leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, playoutEnd: 'score' },
 };
 
 /** A real-kit position: a slice of a calibration party against the set's own
