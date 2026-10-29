@@ -298,18 +298,34 @@ class Draw {
 }
 
 /** Thrown by the scripted chooser at the first unscripted decision. */
+type Name = string | null | (() => string | null);
+
 class Ask {
+  private keyMemo?: string | null;
+  private seedMemo?: string | null;
   /** `key` is null when the state cannot name the decision (see `replay`).
    *  `resolving`: the card about to resolve is the one aiming (not one that
    *  aims at the reveal, nor an effect's own question). `ai`: what the AI
-   *  under audit answered there, when it was asked. */
+   *  under audit answered there, when it was asked. The names may come as
+   *  thunks: walking the whole state to name it was most of a greedy solve's
+   *  time, and greedy decisions never read a name. */
   constructor(
-    readonly team: number, readonly poolSize: number, readonly count: number, readonly key: string | null,
+    readonly team: number, readonly poolSize: number, readonly count: number, private readonly keyName: Name,
     readonly actorIdx: number, readonly resolving: boolean, readonly ai?: number[],
     /** The same state named without visit-order identities: what the
      *  chance after the decision is seeded from (see `stableIdOf`). */
-    readonly seedKey: string | null = key,
+    private readonly seedName: Name = keyName,
   ) {}
+
+  get key(): string | null {
+    if (this.keyMemo === undefined) this.keyMemo = typeof this.keyName === 'function' ? this.keyName() : this.keyName;
+    return this.keyMemo;
+  }
+
+  get seedKey(): string | null {
+    if (this.seedMemo === undefined) this.seedMemo = typeof this.seedName === 'function' ? this.seedName() : this.seedName;
+    return this.seedMemo;
+  }
 }
 
 /** One option of an in-round decision: its value and that value's standard error. */
@@ -732,8 +748,10 @@ export class Referee {
         const current = queue[(sim as unknown as { pendingIndex: number }).pendingIndex];
         const resolving = aiming && current?.actor === actor && current.action.def === def;
         const named = (idOf: IdOf): string => digest(`${midRoundKey(sim, idOf)}|${ref(actor)}:#${idOf(def)}:${req}:${count}:${pool.map(ref).join('+')}`);
-        const key = aiming ? named(this.idOf) : null;
-        const seedKey = aiming ? named(stableIdOf) : null;
+        // Named lazily: the replay is abandoned once this throws, so the
+        // state stays as it is until a name is asked for.
+        const key = aiming ? () => named(this.idOf) : null;
+        const seedKey = aiming ? () => named(stableIdOf) : null;
         // The AI is asked before anything is thrown, on the engine as it stands.
         const answer = ai && resolving && actor.team === 0 ? ai(sim, actor, def, req, count, pool).map(c => pool.indexOf(c)) : undefined;
         throw new Ask(actor.team, pool.length, count, key, sim.teams[actor.team].indexOf(actor), resolving, answer, seedKey);
