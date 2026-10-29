@@ -27,6 +27,10 @@ const SLICES: Record<string, GeneratorConfig> = {
   '2x1-c3-r3': { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '1x2-c3-r3': { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '2x2-c3-r2': { shape: '2x2', cards: 3, roundsLeft: 2, multiShare: 0.8 },
+  // Long horizons: where a leaf's view of the rest of the fight matters.
+  '1x1-c3-r6': { shape: '1x1', cards: 3, roundsLeft: 6, multiShare: 0.8 },
+  '1x1-c4-r5': { shape: '1x1', cards: 4, roundsLeft: 5, multiShare: 0.8 },
+  '2x1-c3-r4': { shape: '2x1', cards: 3, roundsLeft: 4, multiShare: 0.8 },
 };
 
 /** The shortcuts, one at a time and then stacked the way a live player would. */
@@ -44,6 +48,10 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
   'horizon 1 · random-playout leaf ×16': { horizon: 1, leaf: 'playout', playouts: 16 },
   'horizon 1 · random-playout leaf ×32': { horizon: 1, leaf: 'playout', playouts: 32 },
   'horizon 2 · evaluator leaf': { horizon: 2, leaf: 'score' },
+  'horizon 1 · greedy-playout leaf': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy' },
+  'horizon 1 · greedy-playout leaf, 2 rounds': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2 },
+  'horizon 1 · greedy 2 rounds then evaluator leaf': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, playoutEnd: 'score' },
+  'horizon 1 · random-playout leaf, 2 rounds': { horizon: 1, leaf: 'playout', playouts: 8, playoutRounds: 2 },
   'stacked: h1 · seat · dec 1 · 4 samples': { horizon: 1, bestResponse: 'seat', decisionSamples: [1], samples: [4] },
   'stacked: h1 playout · greedy · ε0.5 · 4 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', epsilon: 0.5, samples: [4] },
   'stacked + decisions on the round margin': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', epsilon: 0.5, samples: [4] },

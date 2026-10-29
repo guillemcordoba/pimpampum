@@ -22,6 +22,10 @@ const SLICES: Record<string, GeneratorConfig> = {
   '2x1-c3-r3': { shape: '2x1', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '1x2-c3-r3': { shape: '1x2', cards: 3, roundsLeft: 3, multiShare: 0.8 },
   '2x2-c3-r2': { shape: '2x2', cards: 3, roundsLeft: 2, multiShare: 0.8 },
+  // Real size, played to the real end: a party of four against four, five
+  // cards a hand, health paced for about eight rounds.
+  '2x2-c4-end': { shape: '2x2', cards: 4, roundsLeft: 6, multiShare: 0.8, toTheEnd: true },
+  '4x4-c5-end': { shape: '4x4', cards: 5, roundsLeft: 8, multiShare: 0.8, toTheEnd: true },
 };
 const POSITIONS = games(20);
 const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalogue'];
@@ -31,6 +35,10 @@ const CONFIG = {
   ...(process.argv.includes('--fast') ? FAST_EQUILIBRIUM : {}),
   ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
   ...(flag('--decisions') ? { decisions: flag('--decisions') as 'exact' | 'greedy' } : {}),
+  ...(flag('--policy') ? { playoutPolicy: flag('--policy') as 'random' | 'greedy' } : {}),
+  ...(flag('--playout-rounds') ? { playoutRounds: Number(flag('--playout-rounds')) } : {}),
+  ...(flag('--playout-end') ? { playoutEnd: flag('--playout-end') as 'margin' | 'score' } : {}),
+  ...(flag('--leaf') ? { leaf: flag('--leaf') as 'margin' | 'score' | 'playout' } : {}),
 };
 
 function play(pos: Position, team0: Policy, team1: Policy, seed: number): number {
