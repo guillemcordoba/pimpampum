@@ -76,5 +76,5 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
   };
 }
 
-export { equilibriumPolicy, DEFAULT_EQUILIBRIUM, FAST_EQUILIBRIUM } from './equilibrium.js';
+export { equilibriumPolicy, DEFAULT_EQUILIBRIUM, FAST_EQUILIBRIUM, MEDIUM_EQUILIBRIUM } from './equilibrium.js';
 export type { EquilibriumPolicy } from './equilibrium.js';

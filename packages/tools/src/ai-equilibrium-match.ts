@@ -13,7 +13,7 @@
  *      … --games 30 --slice 2x1-c3-r3 --catalogue composed
  */
 import { withSeed, type CombatEngine } from '@pimpampum/engine';
-import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, type Policy } from '@pimpampum/ai';
+import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, MEDIUM_EQUILIBRIUM, type Policy } from '@pimpampum/ai';
 import { buildEngine, generatePosition, pvDiff, twoHeaded, type GeneratorConfig, type Position } from '@pimpampum/ai/audit';
 import { flag, games } from '@pimpampum/bench';
 
@@ -25,14 +25,19 @@ const SLICES: Record<string, GeneratorConfig> = {
   // Real size, played to the real end: a party of four against four, five
   // cards a hand, health paced for about eight rounds.
   '2x2-c4-end': { shape: '2x2', cards: 4, roundsLeft: 6, multiShare: 0.8, toTheEnd: true },
+  '3x3-c4-end': { shape: '3x3', cards: 4, roundsLeft: 7, multiShare: 0.8, toTheEnd: true },
   '4x4-c5-end': { shape: '4x4', cards: 5, roundsLeft: 8, multiShare: 0.8, toTheEnd: true },
 };
 const POSITIONS = games(20);
+const FROM = Number(flag('--from') ?? 1);
+const PER_POSITION = process.argv.includes('--per-position');
 const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalogue'];
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
 /** The prototype's own knobs, to compare its configurations. */
 const CONFIG = {
   ...(process.argv.includes('--fast') ? FAST_EQUILIBRIUM : {}),
+  ...(process.argv.includes('--medium') ? MEDIUM_EQUILIBRIUM : {}),
+  ...(flag('--samples') ? { samples: [Number(flag('--samples'))] } : {}),
   ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
   ...(flag('--decisions') ? { decisions: flag('--decisions') as 'exact' | 'greedy' } : {}),
   ...(flag('--policy') ? { playoutPolicy: flag('--policy') as 'random' | 'greedy' } : {}),
@@ -54,13 +59,14 @@ for (const slice of slices) {
   const scores: number[] = [];
   let solved = 0, fallback = 0;
   const started = performance.now();
-  for (let seed = 1; seed <= POSITIONS; seed++) {
+  for (let seed = FROM; seed < FROM + POSITIONS; seed++) {
     const pos = generatePosition(seed, { ...SLICES[slice], catalogue: CATALOGUE });
     const eqA = equilibriumPolicy(CONFIG);
     const asA = play(pos, eqA, aiPolicy({ depth: 1 }), 50_000 + seed);
     const eqB = equilibriumPolicy(CONFIG);
     const asB = -play(pos, aiPolicy({ depth: 1 }), eqB, 50_000 + seed);
     scores.push((asA + asB) / 2);
+    if (PER_POSITION) console.log(JSON.stringify({ slice, catalogue: CATALOGUE, seed, score: (asA + asB) / 2 }));
     solved += eqA.stats.solved + eqB.stats.solved;
     fallback += eqA.stats.fallback + eqB.stats.fallback;
   }

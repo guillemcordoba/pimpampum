@@ -11,7 +11,7 @@
  *
  * Run: pnpm --filter @pimpampum/tools exec tsx src/ai-noise.ts --games 12 --only greedy
  */
-import { DEFAULT_EQUILIBRIUM } from '@pimpampum/ai';
+import { DEFAULT_EQUILIBRIUM, MEDIUM_EQUILIBRIUM } from '@pimpampum/ai';
 import { buildEngine, generatePosition, jointKey, Referee, type GeneratorConfig, type RefereeOptions, type RootSolution } from '@pimpampum/ai/audit';
 import { flag, games, SMOKE } from '@pimpampum/bench';
 
@@ -34,6 +34,9 @@ const CONFIGS: Record<string, Partial<RefereeOptions>> = {
   'greedy playouts ×4, 2 rounds': { ...BASE, playoutPolicy: 'greedy', playouts: 4, playoutRounds: 2 },
   'evaluator leaf': { ...BASE, leaf: 'score' },
   'PV margin leaf': { ...BASE, leaf: 'margin' },
+  'medium ×4, 4 samples': { ...MEDIUM_EQUILIBRIUM, budget: Infinity },
+  'medium ×8, 8 samples': { ...MEDIUM_EQUILIBRIUM, playouts: 8, samples: [8], budget: Infinity },
+  'medium ×4, 16 samples': { ...MEDIUM_EQUILIBRIUM, samples: [16], budget: Infinity },
 };
 
 const mixOf = (joints: RootSolution['rows'], p: number[]) => new Map(joints.map((j, i) => [jointKey(j), p[i]] as const).filter(([, x]) => x > 0));

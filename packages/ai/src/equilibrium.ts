@@ -37,6 +37,20 @@ export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
   decisionLeaf: 'margin', playouts: 4,
 };
 
+/**
+ * A MIDDLE ROAD, from the night of 2026-10-29 (NEXT-STEPS §58): of the fast
+ * shortcuts, keep only those whose cost the careful solve could not tell
+ * from noise (one seat at a time, decisions on the round's margin), drop the
+ * pool cap (the costliest), and take the leaf the exact referee found least
+ * biased over long horizons — greedy playouts cut at two rounds — with
+ * enough samples to quiet it. `samples`/`playouts` are what trades noise
+ * for time.
+ */
+export const MEDIUM_EQUILIBRIUM: Partial<RefereeOptions> = {
+  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2],
+  epsilon: 0.5, leaf: 'playout', playoutPolicy: 'greedy', playoutRounds: 2, playouts: 4, samples: [4],
+};
+
 export interface EquilibriumPolicy extends Policy {
   /** Rounds solved, and rounds handed to today's AI because the referee could
    *  not represent them (a card it does not support) or ran out of budget. */
