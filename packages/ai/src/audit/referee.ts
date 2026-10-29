@@ -89,6 +89,15 @@ export interface RefereeOptions {
    */
   leaf: 'margin' | 'score' | 'playout';
   playouts: number;
+  /** Under `playout`: how the playouts' seats play. `random`: a uniformly
+   *  random legal card and target. `greedy`: each round, each seat in turn
+   *  takes the card that does best for its side's PV margin over that round,
+   *  the others' cards held (targets still random) — no weights either, but
+   *  a continuation that plays its cards for what they do. */
+  playoutPolicy: 'random' | 'greedy';
+  /** Under `playout`: rounds played out before the margin is read. Omit:
+   *  to the fight's end. */
+  playoutRounds?: number;
   /** Under `oracle`: a best response joins the matrix only if it beats the
    *  value by more than this (payoff units). 0: exact. */
   epsilon: number;
@@ -117,7 +126,7 @@ export interface RefereeOptions {
 
 export const DEFAULT_REFEREE: RefereeOptions = {
   seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin', strategies: 'enumerate',
-  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8, decisions: 'exact', decisionLeaf: 'full',
+  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8, playoutPolicy: 'random', decisions: 'exact', decisionLeaf: 'full',
 };
 
 /** One seat's committed card. */
@@ -808,11 +817,66 @@ export class Referee {
           while (out.length < count && left.length) out.push(left.splice(Math.floor(random() * left.length), 1)[0]);
           return out;
         };
-        while (!finished(sim)) { this.sims++; sim.runRound(); }
+        for (let r = 0; !finished(sim) && (this.opts.playoutRounds === undefined || r < this.opts.playoutRounds); r++) {
+          this.sims++;
+          if (this.opts.playoutPolicy === 'greedy') this.greedyRound(sim); else sim.runRound();
+        }
         return pvDiff(sim);
       });
     }
     return total / this.opts.playouts;
+  }
+
+  /**
+   * One playout round with `playoutPolicy: 'greedy'`: every seat starts on a
+   * random legal card, then each in turn (random order) takes the card whose
+   * round — the others' cards held, the dice and targets of the same draw —
+   * leaves its side the best PV margin. Then the round is played.
+   */
+  private greedyRound(sim: CombatEngine): void {
+    sim.prepareRound();
+    if (sim.isOver()) return;
+    const seats = [...sim.teams[0], ...sim.teams[1]].filter(c => c.isAlive() && !sim.isSkippingRound(c) && !choosesLater(c));
+    const choice = new Map<Character, number>();
+    for (const c of seats) {
+      const legal = availableActionIndices(c, sim.registry);
+      if (legal.length) choice.set(c, legal[Math.floor(random() * legal.length)]);
+    }
+    const selections = (): ActionSelection[] => [...choice].map(([c, actionIdx]) => ({ team: c.team, idx: sim.teams[c.team].indexOf(c), actionIdx }));
+    const order = [...choice.keys()].sort(() => random() - 0.5);
+    for (const c of order) {
+      const legal = availableActionIndices(c, sim.registry);
+      if (legal.length < 2) continue;
+      const seed = Math.floor(random() * 1e9);
+      let best = choice.get(c)!, top = -Infinity;
+      for (const idx of legal) {
+        choice.set(c, idx);
+        const v = withSeed(seed, () => {
+          const trial = sim.clone();
+          this.sims++;
+          trial.planActions(selections());
+          let step = trial.resolveNextAction();
+          for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
+            if (step.kind === 'target') trial.setResolveTarget([]);
+            else if (step.kind === 'choice') trial.setResolveChoice();
+            step = trial.resolveNextAction();
+          }
+          trial.finishRound();
+          return pvDiff(trial);
+        });
+        const mine = c.team === 0 ? v : -v;
+        if (mine > top) { top = mine; best = idx; }
+      }
+      choice.set(c, best);
+    }
+    sim.planActions(selections());
+    let step = sim.resolveNextAction();
+    for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
+      if (step.kind === 'target') sim.setResolveTarget([]);
+      else if (step.kind === 'choice') sim.setResolveChoice();
+      step = sim.resolveNextAction();
+    }
+    sim.finishRound();
   }
 
   /** A seat's legal cards. */

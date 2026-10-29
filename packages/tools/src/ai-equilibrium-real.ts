@@ -26,6 +26,8 @@ const SETTINGS = {
   ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
   ...(flag('--samples') ? { samples: [Number(flag('--samples'))] } : {}),
   ...(flag('--pool') ? { pool: Number(flag('--pool')) } : {}),
+  ...(flag('--leaf') ? { leaf: flag('--leaf') as 'margin' | 'score' | 'playout' } : {}),
+  ...(flag('--horizon') ? { horizon: Number(flag('--horizon')) } : {}),
 };
 
 function margin(e: CombatEngine, team: number): number {
@@ -62,7 +64,7 @@ function fight(seed: number, eqTeam: number): { margin: number; result: number; 
   });
 }
 
-console.log(`EQUILIBRI ${JSON.stringify({ playouts: SETTINGS.playouts, samples: SETTINGS.samples, pool: SETTINGS.pool })} contra l'AI d'avui · joc ${chosen.id} · colla de calibratge ${COMPANY} · ${FIGHTS} parelles duplicades`);
+console.log(`EQUILIBRI ${JSON.stringify({ leaf: SETTINGS.leaf, horizon: SETTINGS.horizon, playouts: SETTINGS.playouts, samples: SETTINGS.samples, pool: SETTINGS.pool })} contra l'AI d'avui · joc ${chosen.id} · colla de calibratge ${COMPANY} · ${FIGHTS} parelles duplicades`);
 const margins: number[] = [];
 let wins = 0, seconds = 0, rounds = 0, fallback = 0;
 for (let i = 0; i < FIGHTS; i++) {
