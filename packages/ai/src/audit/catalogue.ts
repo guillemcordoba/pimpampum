@@ -155,6 +155,9 @@ export const STATUS_BEHAVIORS: Record<string, readonly StatusBehavior[]> = {
   'audit.bomb': B.bomb, 'audit.doom': B.doom, 'audit.device': B.device, 'audit.charged': B.charged,
   'audit.weak': B.weak, 'audit.lock': B.lock, 'audit.taunted': B.taunted,
   ...COMPOSED_STATUSES,
+  // A seat that picks its card after seeing everyone else's (the status a
+  // real kit grants for a round): for testing the referee's handling of it.
+  'audit.later': [{ choosesAfterReveal: () => true }, { choosesAfterReveal: () => true }],
 };
 
 // --- the registry ---------------------------------------------------------

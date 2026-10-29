@@ -96,6 +96,9 @@ export interface RefereeOptions {
    *  joint of the side. `seat`: one seat at a time, the others held, until
    *  no seat improves — a local best response. */
   bestResponse: 'joint' | 'seat';
+  /** Under `oracle`: a side's matrix stops growing at this many joints (its
+   *  mix is then the equilibrium of what it holds). Omit: no cap. */
+  pool?: number;
   /**
    * How an in-round decision (an aim, a guard) is taken. `exact`: the best
    * answer, every later decision of the round answered best in turn — a tree
@@ -105,11 +108,16 @@ export interface RefereeOptions {
    * no opinion of good play in it.
    */
   decisions: 'exact' | 'greedy';
+  /** Under `greedy`: how a decision's rollouts score the round's end.
+   *  `full`: as any round's end (the next rounds solved, or the horizon's
+   *  leaf). `margin`: the PV margin as the round leaves it — the decision
+   *  weighed on this round alone, far cheaper when the leaf plays fights out. */
+  decisionLeaf: 'full' | 'margin';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
   seed: 1, samples: [16, 4, 1], decisionSamples: [8, 4, 4], budget: 20_000_000, chance: 'sample', payoff: 'margin', strategies: 'enumerate',
-  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8, decisions: 'exact',
+  epsilon: 0, bestResponse: 'joint', leaf: 'margin', playouts: 8, decisions: 'exact', decisionLeaf: 'full',
 };
 
 /** One seat's committed card. */
@@ -464,7 +472,9 @@ export class Referee {
     }
     const seatsOf = (team: number): SeatOption[][] => prepared.teams[team]
       .map((c, idx) => ({ c, idx }))
-      .filter(({ c }) => c.isAlive() && !prepared.isSkippingRound(c))
+      // A seat that chooses after the reveal is in no joint: its card is an
+      // in-round decision, taken once the others' are on the table.
+      .filter(({ c }) => c.isAlive() && !prepared.isSkippingRound(c) && !choosesLater(c))
       .map(({ c, idx }) => this.seatOptions(prepared, c, idx));
     return { sig, prepared, seats: [seatsOf(0), seatsOf(1)], random: draws > 0 };
   }
@@ -533,8 +543,9 @@ export class Referee {
         }
         return pick;
       };
-      const bestRow = best(rows.length, vsCols, 1, R, rowIndex, rows);
-      const bestCol = best(cols.length, vsRows, -1, C, colIndex, cols);
+      const full = (pool: number[]): boolean => this.opts.pool !== undefined && pool.length >= this.opts.pool;
+      const bestRow = full(R) ? -1 : best(rows.length, vsCols, 1, R, rowIndex, rows);
+      const bestCol = full(C) ? -1 : best(cols.length, vsRows, -1, C, colIndex, cols);
       if (bestRow < 0 && bestCol < 0) {
         const pad = (strategy: number[], pool: number[], n: number): number[] => {
           const out = new Array<number>(n).fill(0);
@@ -605,7 +616,7 @@ export class Referee {
     for (let guard = 0; guard < 64; guard++) {
       const out = this.replay(prepared, selections, seed0, path);
       if (out instanceof Draw) { path.push({ draw: hash(`${seed0}#${path.length}`, this.opts.seed) % out.outcomes }); continue; }
-      if (!(out instanceof Ask)) return this.value(out, depth + 1);
+      if (!(out instanceof Ask)) return this.opts.decisionLeaf === 'margin' ? pvDiff(out) : this.value(out, depth + 1);
       const options = subsets(out.poolSize, out.count);
       const h = hash(`${seed0}#r${path.length}#${path.map(a => (isDraw(a) ? `d${a.draw}` : a.pick.join('+'))).join('/')}`, this.opts.seed * 139);
       path.push({ pick: options[h % options.length], seed: h });
@@ -692,6 +703,23 @@ export class Referee {
     if (++this.sims > this.opts.budget) throw new BudgetExceeded(`over ${this.opts.budget} simulated rounds`);
     const sim = prepared.clone();
     let asked = 0;
+    // The other in-round decisions, answered by the same script in the order
+    // the engine asks them: the card of a seat that chooses after the reveal
+    // (it is in no joint — it reads the others' cards first), and a card's
+    // reveal option. Neither is ever left to an outside policy or a card's
+    // hint. Solved every time they are met: no state key names them.
+    const scripted = (actor: Character, options: number): number => {
+      if (asked >= script.length) throw new Ask(actor.team, options, 1, null, sim.teams[actor.team].indexOf(actor), false);
+      const a = script[asked++];
+      if (isDraw(a)) throw new Error('referee: a replay out of step with its script');
+      if (this.opts.chance === 'sample') setRng(seededRng(a.seed));
+      return a.pick[0];
+    };
+    sim.actionChooser = (e, actor) => {
+      const legal = availableActionIndices(actor, e.registry);
+      return legal.length ? legal[scripted(actor, legal.length)] : null;
+    };
+    sim.optionChooser = (_e, actor, _def, options) => scripted(actor, options.length);
     sim.targetChooser = (_e, actor, def, req, count, pool) => {
       if (asked >= script.length) {
         // A card AIMING (its queue entry still unaimed) is decided by the engine
@@ -755,6 +783,7 @@ export class Referee {
           const legal = availableActionIndices(a, e.registry);
           return legal.length ? legal[Math.floor(random() * legal.length)] : null;
         };
+        sim.optionChooser = (_e, _a, _d, options) => Math.floor(random() * options.length);
         sim.targetChooser = (_e, _a, _d, _r, count, pool) => {
           const left = [...pool];
           const out: Character[] = [];
@@ -770,13 +799,9 @@ export class Referee {
 
   /** A seat's legal cards. */
   seatOptions(e: CombatEngine, c: Character, idx: number): SeatOption[] {
-    if (c.holdsStatusWith('choosesAfterReveal')) throw new Unsupported(`${c.name} chooses after the reveal`);
     const out: SeatOption[] = [];
     for (let i = 0; i < c.actions.length; i++) {
       if (!e.canPlayActionIdx(c, i)) continue;
-      if (e.registry.effectsWith(c.actions[i].def.effects, 'revealOptions').length) {
-        throw new Unsupported(`${c.actions[i].def.id} has reveal options`);
-      }
       out.push({ idx, actionIdx: i });
     }
     if (!out.length) out.push({ idx, actionIdx: -1 });
@@ -795,6 +820,9 @@ function seatAlternatives(joints: Joint[], cur: number, seat: number, index: Map
   }
   return out;
 }
+
+const choosesLater = (c: Character): boolean =>
+  c.holdsStatusWith('choosesAfterReveal') && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
 
 function cartesian(seats: SeatOption[][]): Joint[] {
   let acc: Joint[] = [[]];

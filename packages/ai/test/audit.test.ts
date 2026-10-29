@@ -210,6 +210,40 @@ describe('the referee on a live engine', () => {
   });
 });
 
+describe('the referee on decisions that are not aims', () => {
+  it('a card\'s reveal option is the seat\'s own decision: it takes the option worth 5', () => {
+    const registry = new EffectRegistry();
+    registry.register('pick', {
+      revealOptions: () => ['big', 'nothing'],
+      onRevealOption(ctx, option) { if (option === 0) for (const e of ctx.engine.enemiesOf(ctx.source)) ctx.engine.applyPvLoss(e, 5); },
+    });
+    const hero = fighter('Hero', [focusCard('choose', { effects: [{ type: 'pick' }] })], { pv: 10, ai: true });
+    const foe = fighter('Foe', [focusCard('wait')], { pv: 10, ai: true });
+    const engine = new CombatEngine([hero], [foe], { registry, maxRounds: 1, actionChooser: () => null });
+    expect(new Referee({ chance: 'enumerate' }).solve(engine, 0).value).toBeCloseTo(5, 9);
+  });
+
+  it('a seat that chooses after the reveal reads the other card first: matching pennies becomes a sure thing', () => {
+    // Hero (5 of 10 PV): strike 6 or heal 4. Foe (10): a fast hide, or strike 5.
+    //   strike vs hide 0 · strike vs strike −5 +6 = +1 · heal vs hide +4 · heal vs strike −5 (interrupted)
+    // Blind, the hero mixes (10% heal): +0.4. Reading the foe's card: heal on
+    // a hide, strike on a strike — the foe strikes: +1. Payoff 5 − 10 + that.
+    const pos = (later: boolean): Position => ({
+      id: 'later', roundsLeft: 1, tags: { shape: '1x1', horizon: 1, side: 'hero' },
+      teams: [
+        [{ name: 'H', maxPv: 10, pv: 5, armour: 0, level: 0, fatigue: 0,
+          cards: [{ arch: 'strike', p: { n: 6, s: 1, fast: 0, fatigue: 0 } }, { arch: 'heal', p: { amount: 4, fast: 0 } }],
+          statuses: later ? [{ key: 'audit.later', value: 1, priced: 0 }] : [] }],
+        [{ name: 'E', maxPv: 10, pv: 10, armour: 0, level: 0, fatigue: 0,
+          cards: [{ arch: 'hide', p: { fast: 1 } }, { arch: 'strike', p: { n: 5, s: 1, fast: 0, fatigue: 0 } }] }],
+      ],
+    });
+    const solve = (p: Position) => new Referee({ chance: 'enumerate' }).solve(buildEngine(p, { actionChooser: () => null }), 0).value;
+    expect(solve(pos(false))).toBeCloseTo(-4.6, 9);
+    expect(solve(pos(true))).toBeCloseTo(-4, 9);
+  });
+});
+
 describe('the generator', () => {
   it('is a pure function of its seed', () => {
     expect(generatePosition(77, { shape: '2x2', cards: 3 })).toEqual(generatePosition(77, { shape: '2x2', cards: 3 }));

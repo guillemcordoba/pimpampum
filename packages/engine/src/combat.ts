@@ -137,6 +137,12 @@ export type TargetChooser = (
   req: TargetRequirement, count: number, pool: Character[],
 ) => Character[];
 
+/** Picks a reveal option (an index into `options`) for an AI seat's card;
+ *  null leaves it to the card's own hint (`aiRevealOption`). */
+export type OptionChooser = (
+  engine: CombatEngine, actor: Character, def: ActionDefinition, options: readonly string[],
+) => number | null;
+
 /**
  * Where a card resolves in the round (rules.md): a FAST step first — fast
  * Defense, fast Attack, fast Focus — then the normal Defense, Attack, Focus.
@@ -168,6 +174,9 @@ export interface CombatEngineOptions {
    *  the eligible targets in order — deterministic, and deliberately not a
    *  policy. */
   targetChooser?: TargetChooser;
+  /** How an AI seat picks a card's reveal option. Without one, the card's
+   *  own hint picks — which is what a policy with no opinion of its own gets. */
+  optionChooser?: OptionChooser;
 }
 
 const NO_STATUSES: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
@@ -186,6 +195,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
   targetChooser?: TargetChooser;
+  optionChooser?: OptionChooser;
   round = 0;
   logEntries: LogEntry[] = [];
   /**
@@ -281,6 +291,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.aiSharpness = opts.aiSharpness ?? 2;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
+    this.optionChooser = opts.optionChooser;
     this.teams = [teamA, teamB];
     teamA.forEach(c => { c.team = 0; });
     teamB.forEach(c => { c.team = 1; });
@@ -325,6 +336,7 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.aiSharpness = this.aiSharpness;
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
+    e.optionChooser = this.optionChooser;
     fixed.history = this.history.map(ev => ({
       round: ev.round,
       actor: at(ev.actor),
@@ -1277,7 +1289,8 @@ export class CombatEngine implements EngineApi, AIView {
       const options = this.revealOptionsOf(p.actor, p.action.def);
       if (!options) continue;
       if (p.actor.aiControlled) {
-        this.pickOption(i, undefined);
+        const chooser = this.optionChooser;
+        this.pickOption(i, chooser ? chooser(this, p.actor, p.action.def, options) ?? undefined : undefined);
         continue;
       }
       this.choosingIdx = i;

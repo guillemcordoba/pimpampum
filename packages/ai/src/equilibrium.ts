@@ -109,6 +109,7 @@ function playoutTargets(
         const sim = engine.clone();
         sim.actionChooser = randomCard;
         sim.targetChooser = randomTargets;
+        sim.optionChooser = (_e, _a, _d, options) => Math.floor(random() * options.length);
         sim.setResolveTarget(refs);
         let step = sim.resolveNextAction();
         for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
