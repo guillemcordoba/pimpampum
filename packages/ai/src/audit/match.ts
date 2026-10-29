@@ -27,6 +27,7 @@ export function twoHeaded(team0: Policy, team1: Policy): Policy {
   return {
     actionChooser: (e, a) => of(a).actionChooser(e, a),
     targetChooser: (e, a, ...rest) => of(a).targetChooser(e, a, ...rest),
+    optionChooser: (e, a, ...rest) => of(a).optionChooser?.(e, a, ...rest) ?? null,
   };
 }
 

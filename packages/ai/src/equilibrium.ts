@@ -25,6 +25,18 @@ export const DEFAULT_EQUILIBRIUM: Partial<RefereeOptions> = {
   epsilon: 0.5, samples: [4], decisionSamples: [4], budget: 20_000_000,
 };
 
+/**
+ * The settings that make a real round affordable (a few seconds for four
+ * heroes against five goblins): one combination added at a time per seat, at
+ * most four a side, a looser stop, fewer samples, in-round decisions weighed
+ * on the round's own margin. Each is graded against the exact referee
+ * (`tools/src/ai-shortcut-gap.ts`).
+ */
+export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
+  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', pool: 4, epsilon: 2, samples: [2], decisionSamples: [2],
+  decisionLeaf: 'margin', playouts: 4,
+};
+
 export interface EquilibriumPolicy extends Policy {
   /** Rounds solved, and rounds handed to today's AI because the referee could
    *  not represent them (a card it does not support) or ran out of budget. */
@@ -67,7 +79,52 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
       return pick !== undefined && pick >= 0 ? pick : fallback.actionChooser(engine, actor);
     },
     targetChooser: (engine, actor, def, req, count, pool) => playoutTargets(engine as CombatEngine, actor, def, req, count, pool, targetSamples, options.playouts ?? 8),
+    optionChooser: (engine, actor, _def, opts) => playoutOption(engine as CombatEngine, actor, opts.length, targetSamples, options.playouts ?? 8),
   };
+}
+
+/** A card's reveal option, weighed as `playoutTargets` weighs an aim: each
+ *  option played through the rest of the round at random, the fight then
+ *  finished by random playouts. */
+function playoutOption(engine: CombatEngine, actor: Character, count: number, samples: number, playouts: number): number {
+  if (count <= 1) return 0;
+  const pairSeed = Math.floor(random() * 1e9);
+  let best = 0, top = -Infinity;
+  for (let option = 0; option < count; option++) {
+    let total = 0;
+    for (let s = 0; s < samples; s++) {
+      total += withRng(seededRng(pairSeed + s * 7919), () => {
+        const sim = engine.clone();
+        let first = true;
+        sim.actionChooser = randomCard;
+        sim.targetChooser = randomTargets;
+        // The option being weighed for the card the engine is asking about —
+        // the first question the clone hears — and random ones after.
+        sim.optionChooser = (_e, _a, _d, options) => (first ? (first = false, option) : Math.floor(random() * options.length));
+        return finishAndScore(sim, actor.team, playouts);
+      });
+    }
+    if (total / samples > top) { top = total / samples; best = option; }
+  }
+  return best;
+}
+
+/** Play the round out, then score it by `playouts` random fights to the end. */
+function finishAndScore(sim: CombatEngine, team: number, playouts: number): number {
+  let step = sim.resolveNextAction();
+  for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {
+    if (step.kind === 'target') sim.setResolveTarget([]);
+    else if (step.kind === 'choice') sim.setResolveChoice();
+    step = sim.resolveNextAction();
+  }
+  sim.finishRound();
+  let acc = 0;
+  for (let k = 0; k < playouts; k++) {
+    const play = sim.clone();
+    while (!play.isOver() && play.round < play.maxRounds) play.runRound();
+    acc += margin(play, team);
+  }
+  return acc / playouts;
 }
 
 /** A uniformly random legal card, from the engine's stream. */

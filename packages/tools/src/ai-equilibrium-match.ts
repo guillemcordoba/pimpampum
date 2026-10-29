@@ -13,7 +13,7 @@
  *      … --games 30 --slice 2x1-c3-r3 --catalogue composed
  */
 import { withSeed, type CombatEngine } from '@pimpampum/engine';
-import { aiPolicy, equilibriumPolicy, type Policy } from '@pimpampum/ai';
+import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, type Policy } from '@pimpampum/ai';
 import { buildEngine, generatePosition, pvDiff, twoHeaded, type GeneratorConfig, type Position } from '@pimpampum/ai/audit';
 import { flag, games } from '@pimpampum/bench';
 
@@ -28,6 +28,7 @@ const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalo
 const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
 /** The prototype's own knobs, to compare its configurations. */
 const CONFIG = {
+  ...(process.argv.includes('--fast') ? FAST_EQUILIBRIUM : {}),
   ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
   ...(flag('--decisions') ? { decisions: flag('--decisions') as 'exact' | 'greedy' } : {}),
 };

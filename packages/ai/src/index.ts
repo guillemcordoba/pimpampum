@@ -39,6 +39,8 @@ export interface Policy {
     engine: CombatEngine, actor: Character, def: ActionDefinition,
     req: TargetRequirement, count: number, pool: Character[],
   ) => Character[];
+  /** How a card's reveal option is picked; omit for the card's own hint. */
+  optionChooser?: (engine: CombatEngine, actor: Character, def: ActionDefinition, options: readonly string[]) => number | null;
 }
 
 /**
@@ -74,5 +76,5 @@ export function aiPolicy(opts: Partial<LookaheadOptions> = {}): Policy {
   };
 }
 
-export { equilibriumPolicy, DEFAULT_EQUILIBRIUM } from './equilibrium.js';
+export { equilibriumPolicy, DEFAULT_EQUILIBRIUM, FAST_EQUILIBRIUM } from './equilibrium.js';
 export type { EquilibriumPolicy } from './equilibrium.js';

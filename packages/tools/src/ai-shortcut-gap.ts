@@ -47,6 +47,7 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
   'stacked: h1 · seat · dec 1 · 4 samples': { horizon: 1, bestResponse: 'seat', decisionSamples: [1], samples: [4] },
   'stacked: h1 playout · greedy · ε0.5 · 4 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', epsilon: 0.5, samples: [4] },
   'stacked + decisions on the round margin': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', epsilon: 0.5, samples: [4] },
+  'FAST_EQUILIBRIUM (the real-fight settings)': { horizon: 1, leaf: 'playout', playouts: 4, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', pool: 4, epsilon: 2, samples: [2] },
   'stacked + round margin · seat · 2 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [2] },
 };
 
