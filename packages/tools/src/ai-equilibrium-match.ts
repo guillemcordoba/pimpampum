@@ -32,7 +32,8 @@ const POSITIONS = games(20);
 const FROM = Number(flag('--from') ?? 1);
 const PER_POSITION = process.argv.includes('--per-position');
 const CATALOGUE = (flag('--catalogue') ?? 'composed') as GeneratorConfig['catalogue'];
-const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES);
+// The long fights to the end cost minutes a position: asked for by name only.
+const slices = flag('--slice') ? [flag('--slice')!] : Object.keys(SLICES).filter(k => !k.endsWith('-end'));
 /** The prototype's own knobs, to compare its configurations. */
 const CONFIG = {
   ...(process.argv.includes('--fast') ? FAST_EQUILIBRIUM : {}),
