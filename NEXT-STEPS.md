@@ -6773,3 +6773,49 @@ The intervals on sum, wear, single and divided are wide (about ±2.5).
 - **The swarm family** leaves every type's strength and every routine's cost as they are today.
 - **2v1 and 1v2 with 2 rounds left agree.**
 - **Warning, rule-independent:** 2v1 with 3 rounds left (8 positions) has always-attack losing only 1.3 PV under every rule, with defense worth ~0.5. That may be a priority-system property of longer fights. Check it at a larger size.
+
+## 57. The equilibrium player meets real fights (2026-10-29, branch `priority-system`)
+
+**Rules locked in:** swarmStack is the engine's rule («Envoltat», §56.5). The other rules and their experiment are deleted.
+
+**Real cards the referee used to refuse now play:**
+- a card's reveal option is an in-round decision, through a new engine seam, `optionChooser`;
+- a seat that chooses after the reveal is in no joint: its card is an in-round decision too.
+
+Both are tested on hand-made positions with arithmetic answers.
+
+**Cost of a real round** (4 heroes vs 5 goblins, 504 × 1,024 joints):
+
+| Settings | Time per round |
+|---|---|
+| Greedy decisions scored by the full leaf | over 20M simulated rounds, unsolved |
+| Decisions on the round's margin | 325 s |
+| Plus a pool of 4, ε 2, 2 samples, 4 playouts | 27 s |
+| Plus lazily-named decision states (same result) | **3.5 s** |
+
+What remains is engine time: clone, garbage collection, and replays from the round start.
+
+**Real fights vs today's AI** (`ai-equilibrium-real.ts`: mirrored calibration parties, both seats):
+
+| Leaf | Fights | Fantasy | Elements |
+|---|---|---|---|
+| Random playouts ×4 (fast) | 2 | −33.5 | — |
+| Random ×16, 4 samples, pool 6 | 8 | −8.6 ±4.6 (13% wins) | — |
+| Today's evaluator | 12 | +1.8 ±8.8 (50%) | — |
+| Greedy playouts to the end | 16 | −19.5 ±3.7 (9%) | −9.4 ±7.8 (31%) |
+| Greedy playouts, 2 rounds | 16 | −2.6 ±6.7 (38%) | −1.1 ±7.9 (41%) |
+
+On the audit's small synthetic positions the same player beats today's AI (+5.9 on 2v2, fast settings).
+
+**Leaves graded by the exact referee on real-kit positions** (`ai-leaf-real.ts`: 1–2 heroes vs 1–2 of the set's creatures, mid-fight, cut at 2–3 rounds, 30 positions):
+- **Greedy playouts are best on every slice of both sets:** 0.07–0.55 PV.
+- Random playouts: 0.15–0.78.
+- PV margin: 0.14–1.06.
+- Today's evaluator: 0.33–3.45, the worst on fantasy.
+- Today's AI: 1.0–8.2.
+
+**The contradiction:** the exact grading on positions cut at 2–3 rounds rewards short-horizon play. Real fights last about 11 rounds and punish what no graded leaf yet sees: setups, fatigue, single-use cards, keeping bodies alive. The next grading needs longer real-kit positions.
+
+**Longer fights and routines** (`reads-vs-routines.ts`, 40 positions per slice):
+- In 1v1 with 4–5 rounds left, always attacking this round loses only 1.2–1.8 PV, and attack is 60–77% of best play: duels lean toward attack.
+- In 2v1 and 1v2 with 3 rounds left, it loses 3–4 PV; in shorter and team fights, 4–5.
