@@ -332,6 +332,13 @@ themselves**, rolling their defense dice separately against each incoming
 attack. Engine: `Character.guards` + `Character.blockers`, round-scoped,
 resolved in round order; `TargetRequirement 'defense'` is the guard prompt (allies, self included).
 
+**Swarmed** (2026-10-29): with n attacks aimed at a body this round (its
+pending attacks' targets, AoE included), every defense covering it — a lone
+guard or each wall member — rolls n times and keeps the worst
+(`contestAttackOnTarget`'s `defenseRolls`). One defense still covers every
+attack. Extra attacks thrown by effects are not aimed attacks and roll
+normally. Picked by the exact referee over seven other rules (NEXT-STEPS §56.4–5).
+
 **Every defense card pays off when it blocks** (`intentions.md`: the premium is
 what keeps Protect ahead of Aggro). The rider rides `onDefend`, which fires once
 per blocked attack for a guard and for every member of a joint wall:

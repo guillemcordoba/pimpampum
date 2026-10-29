@@ -281,110 +281,30 @@ describe('the end of a fight', () => {
   });
 });
 
-describe('gang rules (experimental): two attacks, 5 and 4, on one defense of 6', () => {
-  const play = (gangRule: 'separate' | 'sum' | 'wear' | 'flank' | 'single') => {
-    const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
-    const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
-    const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
-    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
-    playRound(engine, [
-      { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-      { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
-      { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-    ]);
-    return d.currentPV;
-  };
-  it('separate: each faces a fresh 6 and is held', () => expect(play('separate')).toBe(20));
-  it('sum: one blow of 9 against 6 — 3 through', () => expect(play('sum')).toBe(17));
-  it('wear: the 5 is held and spends 5 of the 6; the 4 meets 1 — 3 through', () => expect(play('wear')).toBe(17));
-  it('flank: 7 against 6 — 1 through; 6 against 6 is held', () => expect(play('flank')).toBe(19));
-  it('single: the defense stops one blow (the first, with no chooser); the 4 lands in full', () => expect(play('single')).toBe(16));
-});
-
-describe('gang rules (experimental), the second batch', () => {
-  it('divided: the defense rolls once and its halves go where the defender sends them (no chooser: all to the first) — the 4 meets nothing', () => {
-    const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
-    const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
-    const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
-    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule: 'divided' });
-    playRound(engine, [
-      { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-      { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
-      { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-    ]);
-    expect(d.currentPV).toBe(16);
-  });
-
-  it('unguarded: a body two attacks aim at loses its ally\'s guard — both blows land in full', () => {
-    const play = (gangRule: 'separate' | 'unguarded') => {
-      const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
-      const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
-      const x = fighter('X', [focusCard()], { pv: 20 });
-      const y = fighter('Y', [defenseCard('ten', { rollBonus: 0, dice: new DiceRoll(10, 1) })], { pv: 20 });
-      const engine = new CombatEngine([a1, a2], [x, y], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
+describe('swarmed: n attacks aimed at a body, its defenses keep the worst of n rolls (rules.md)', () => {
+  /** Mean PV lost by a d6 defender against `n` attacks of 9, over 3000
+   *  rounds. 9 against a d6 always wins by 3 or more, so nobody learns a
+   *  level mid-round and the arithmetic stays clean. */
+  const lostTo = (n: number) => withSeed(11, () => {
+    let lost = 0;
+    for (let i = 0; i < 3000; i++) {
+      const as = Array.from({ length: n }, (_, k) => fighter(`A${k}`, [attackCard('nine', { dice: new DiceRoll(9, 1) })], { pv: 10 }));
+      const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 40 });
+      const engine = new CombatEngine(as, [d], { registry: registry(), actionChooser: firstLegalChooser });
       playRound(engine, [
-        { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-        { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
-        { team: 1, idx: 0, actionIdx: 0 },
-        { team: 1, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
+        ...as.map((_, k) => ({ team: 0, idx: k, actionIdx: 0, targets: [at(1, 0)] })),
+        { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
       ]);
-      return x.currentPV;
-    };
-    expect(play('separate')).toBe(20);
-    expect(play('unguarded')).toBe(11);
+      lost += 40 - d.currentPV;
+    }
+    return lost / 3000;
   });
 
-  it('swarm: the second blow meets a defense rolled twice, the worse kept — clearly more gets through', () => {
-    // Two 3s against a d6: E[max(0, 3 − d6)] = 0.5 per blow; with the worse
-    // of two d6, 31/36 for the second — +0.36. Less than that here: a
-    // defender who loses by ≤ 2 learns a level, and defends the second blow
-    // with it either way.
-    const mean = (gangRule: 'separate' | 'swarm') => withSeed(7, () => {
-      let lost = 0;
-      for (let i = 0; i < 3000; i++) {
-        const a1 = fighter('A1', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
-        const a2 = fighter('A2', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
-        const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 20 });
-        const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
-        playRound(engine, [
-          { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-          { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
-          { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-        ]);
-        lost += 20 - d.currentPV;
-      }
-      return lost / 3000;
-    });
-    expect(mean('swarm') - mean('separate')).toBeGreaterThan(0.2);
-  });
-
-  it('swarmAll: once two attacks aim at a body, BOTH meet the worse of two rolls — more through than swarm', () => {
-    const mean = (gangRule: 'swarm' | 'swarmAll') => withSeed(7, () => {
-      let lost = 0;
-      for (let i = 0; i < 3000; i++) {
-        const a1 = fighter('A1', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
-        const a2 = fighter('A2', [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 });
-        const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 20 });
-        const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
-        playRound(engine, [
-          { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-          { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
-          { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-        ]);
-        lost += 20 - d.currentPV;
-      }
-      return lost / 3000;
-    });
-    expect(mean('swarmAll') - mean('swarm')).toBeGreaterThan(0.2);
-  });
-});
-
-describe('gang rules (experimental), stronger swarms', () => {
-  it('swarmFlank on fixed dice: +1 each for the other attack — 6 and 5 against 6, both held', () => {
+  it('one defense still covers every attack: on fixed dice nothing changes — 5 and 4 against 6, both held', () => {
     const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
     const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
     const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
-    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule: 'swarmFlank', flankBonus: 1 });
+    const engine = new CombatEngine([a1, a2], [d], { registry: registry(), actionChooser: firstLegalChooser });
     playRound(engine, [
       { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
       { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
@@ -393,21 +313,10 @@ describe('gang rules (experimental), stronger swarms', () => {
     expect(d.currentPV).toBe(20);
   });
 
-  it('swarmStack: three attacks on a body — the worst of three rolls lets more through than swarmAll\'s worst of two', () => {
-    const mean = (gangRule: 'swarmAll' | 'swarmStack') => withSeed(11, () => {
-      let lost = 0;
-      for (let i = 0; i < 3000; i++) {
-        const as = [0, 1, 2].map(k => fighter(`A${k}`, [attackCard('three', { dice: new DiceRoll(3, 1) })], { pv: 10 }));
-        const d = fighter('D', [defenseCard('d6', { rollBonus: 0, dice: new DiceRoll(1, 6) })], { pv: 30 });
-        const engine = new CombatEngine(as, [d], { registry: registry(), actionChooser: firstLegalChooser, gangRule });
-        playRound(engine, [
-          ...as.map((_, k) => ({ team: 0, idx: k, actionIdx: 0, targets: [at(1, 0)] })),
-          { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
-        ]);
-        lost += 30 - d.currentPV;
-      }
-      return lost / 3000;
-    });
-    expect(mean('swarmStack') - mean('swarmAll')).toBeGreaterThan(0.2);
+  it('each of two attacks gets through more than one attack alone, and each of three more than each of two', () => {
+    // 9 − E[worst of k d6]: 5.50, 6.47, 6.96 per attack.
+    expect(lostTo(1)).toBeCloseTo(5.5, 1);
+    expect(lostTo(2) / 2).toBeCloseTo(6.47, 1);
+    expect(lostTo(3) / 3).toBeCloseTo(6.96, 1);
   });
 });

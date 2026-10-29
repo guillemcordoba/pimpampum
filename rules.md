@@ -56,6 +56,7 @@ Quan una carta diu que un atac **fereix**, vol dir que fa dany: treu almenys 1 P
 Quan una acció de defensa es resol, el defensor tria **a qui protegeix: ell mateix o un aliat**, veient a qui apunta cada atac. El defensor sempre es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.
 
 - **Defensar un aliat**: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el **defensor**, no l'aliat.
+- **Envoltat**: si **n** atacs apunten el mateix personatge aquest torn, cada defensa que el cobreix tira els seus daus **n vegades i es queda la pitjor**, contra cada un d'aquests atacs. Una defensa continua cobrint tots els atacs, però no els pot vigilar tots alhora.
 - **Defensa conjunta**: si diverses defenses cobreixen el mateix atac — més d'un defensor defensant el mateix aliat (la defensa pròpia de l'aliat inclosa, si també s'ha defensat) — formen un mur: l'atac es resol contra la **suma** de totes les seves tirades de defensa. Si l'atac supera la suma, el dany (el marge menys l'armadura) el rep el defensor que ha tret la tirada individual més baixa. Si el mur perd per 2 o menys, **tots** els defensors del mur poden pujar de nivell: han fallat junts, aprenen junts.
 
 Una defensa no afecta les accions que ja s'han resolt abans (les ràpides).

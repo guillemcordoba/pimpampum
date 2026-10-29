@@ -10,7 +10,7 @@
  */
 import {
   ActionType, CombatEngine, createCharacter, EquipmentSlot, seededRng, type ActionChooser, type Character,
-  type CombatEngineOptions, type EquipmentDefinition, type TargetChooser,
+  type EquipmentDefinition, type TargetChooser,
 } from '@pimpampum/engine';
 import { ARCHETYPES, AUDIT_SKILL, DEALT, STATUS_BEHAVIORS, auditRegistry, int, pick, weighted, type Draw, type Params } from './catalogue.js';
 import { PROFILE } from './profile.js';
@@ -85,11 +85,11 @@ function buildFighter(f: FighterSpec, team: number, idx: number): Character {
 export function buildEngine(
   pos: Position,
   policy: { actionChooser: ActionChooser; targetChooser?: TargetChooser },
-  opts: { extraRounds?: number; ai?: boolean; rules?: Pick<CombatEngineOptions, 'gangRule' | 'flankBonus'> } = {},
+  opts: { extraRounds?: number; ai?: boolean } = {},
 ): CombatEngine {
   const teams = pos.teams.map((t, ti) => t.map((f, i) => buildFighter(f, ti, i)));
   const engine = new CombatEngine(teams[0], teams[1], {
-    registry: REGISTRY, maxRounds: pos.roundsLeft + (opts.extraRounds ?? 0), ...opts.rules,
+    registry: REGISTRY, maxRounds: pos.roundsLeft + (opts.extraRounds ?? 0),
     actionChooser: policy.actionChooser, targetChooser: policy.targetChooser,
   });
   // After the engine: its constructor restores full health and clears statuses.

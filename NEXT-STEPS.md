@@ -6741,7 +6741,7 @@ The intervals on sum, wear, single and divided are wide (about ±2.5).
 - **No rule collapses the value of reading:** it stays 0.5–1.0 PV on 2v2 for every rule, highest under flank.
 - **sum** lowers it for the bigger side on 2v1 (0.99 → 0.52), a mild drift toward a dogpile routine.
 
-**Not decided: the user picks.** The losing rules and `experiment-gang-rules.ts` go once they do.
+**Decided 2026-10-29: swarmStack** ("swarmed": n attacks aimed at a body, its defenses keep the worst of n rolls). It's in the engine as the rule, in `rules.md` as «Envoltat». The other rules and `experiment-gang-rules.ts` are deleted.
 
 ### 56.5 Card-type strength and routines per ganging rule (2026-10-29)
 
