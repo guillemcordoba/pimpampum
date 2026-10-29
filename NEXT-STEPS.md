@@ -6742,3 +6742,34 @@ The intervals on sum, wear, single and divided are wide (about ±2.5).
 - **sum** lowers it for the bigger side on 2v1 (0.99 → 0.52), a mild drift toward a dogpile routine.
 
 **Not decided: the user picks.** The losing rules and `experiment-gang-rules.ts` go once they do.
+
+### 56.5 Card-type strength and routines per ganging rule (2026-10-29)
+
+**Why measured:** the user worried that **sum** weakens defense cards, and favoured "defense rolls with disadvantage when swarmed".
+- **Two more variants:** `swarmStack` (n attacks on a body → its defense rolls n times and keeps the worst) and `swarmFlank` (swarmAll plus +1 per other attack).
+- **The order-free swarm:** `swarmAll` (every attack meets the disadvantage once two or more aim at the body).
+
+**Two measures**, both from the exact referee:
+- **Worth of a type:** the value a side loses when its cards of that type are removed.
+- **Routine loss:** how much the best "every seat plays type X" this round loses against the equilibrium, with later rounds still solved.
+
+**2v2, composed, 48 positions, averaged over both sides:**
+
+| Rule | Always attack | Always defend | Always focus | Attack worth | Defense worth | Focus worth |
+|---|---|---|---|---|---|---|
+| separate | 4.8 | 6.8 | 11.0 | 10.0 | 4.9 | 1.5 |
+| swarm | 4.8 | 6.7 | 10.7 | 10.0 | 4.7 | 1.4 |
+| swarmAll | 4.7 | 7.0 | 11.0 | 10.2 | 4.8 | 1.5 |
+| swarmStack | 4.7 | 6.9 | 11.1 | 10.1 | 4.9 | 1.6 |
+| swarmFlank | 4.2 | 7.2 | 11.2 | 10.3 | 4.4 | 1.3 |
+| flank +2 | 4.2 | 7.3 | 11.4 | 10.6 | 4.6 | 1.3 |
+| wear | 2.7 | 7.4 | 12.0 | 11.8 | 3.2 | 0.8 |
+| sum | 2.5 | 7.1 | 12.0 | 11.6 | 2.8 | 0.8 |
+| single | 2.2 | 7.4 | 12.7 | 12.0 | 2.7 | 0.7 |
+| unguarded | 2.0 | 8.9 | 12.2 | 13.2 | 2.0 | 0.9 |
+
+- **No type dominates under today's rule.**
+- **sum, wear, single and unguarded** cut defense's worth by 35–60%, halve Focus's, and halve the cost of always attacking: a drift toward dogpiling.
+- **The swarm family** leaves every type's strength and every routine's cost as they are today.
+- **2v1 and 1v2 with 2 rounds left agree.**
+- **Warning, rule-independent:** 2v1 with 3 rounds left (8 positions) has always-attack losing only 1.3 PV under every rule, with defense worth ~0.5. That may be a priority-system property of longer fights. Check it at a larger size.
