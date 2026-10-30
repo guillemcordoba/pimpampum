@@ -194,6 +194,22 @@ Full numbers in `NEXT-STEPS.md` §56.
   - It's far too slow for real hands yet.
 - **Eight rules for several attacks on one defended body:** see the decision below.
 
+## Night 4 (2026-10-29 → 30): the equilibrium player wins long fights
+
+Full numbers in `NEXT-STEPS.md` §57–58. Everything is on the audit's composed cards; the real cards aren't migrated yet.
+
+- **Why the fast player lost long fights:**
+  - **Noise:** two careful solves of one round disagree by ~10 PV.
+  - **Two costly shortcuts:** the pool cap and round-margin decisions.
+  - **A bug:** live aims and guards were weighed by random playouts whatever the leaf.
+- **The least biased leaf over long horizons,** graded exactly: greedy playouts cut at 2 rounds.
+- **`MEDIUM_EQUILIBRIUM`** beats today's AI in long fights at every size:
+  - 2v2: +10.8 ±5.1 over 60 pairs;
+  - 3v3: +18.4 ±11.8 over 60 pairs;
+  - 4v4: +118 ±36.5 over 16 pairs.
+  - Graded exactly, it is closer to best play than today's AI on every long small slice.
+- **Its cost:** ~1.7 s a round on 3v3, ~16 s on 4v4. Not switched in; that's your call, and waits for the migrated cards.
+
 ## Decisions for the user
 
 1. **The design picks** (`DESIGN-PROPOSALS.md`):

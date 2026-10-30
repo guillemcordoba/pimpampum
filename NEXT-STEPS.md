@@ -6819,3 +6819,74 @@ On the audit's small synthetic positions the same player beats today's AI (+5.9 
 **Longer fights and routines** (`reads-vs-routines.ts`, 40 positions per slice):
 - In 1v1 with 4–5 rounds left, always attacking this round loses only 1.2–1.8 PV, and attack is 60–77% of best play: duels lean toward attack.
 - In 2v1 and 1v2 with 3 rounds left, it loses 3–4 PV; in shorter and team fights, 4–5.
+
+## 58. The equilibrium player on rule-native cards: noise, bias and a medium setting (2026-10-29 → 30, branch `priority-system`)
+
+**Real cards are off-limits:** they aren't migrated to the priority rules yet (user, 2026-10-29), so nothing here rests on them. §57's real-kit numbers are labelled unmigrated. Everything below uses the audit's composed cards.
+
+**A bug fixed first:** the player's live aims, guards and reveal options were weighed by random playouts to the end of the fight, whatever leaf the solve used. They now use the solve's own leaf (`Referee.leafValue`).
+
+**The phenomenon reproduces on rule-native cards.** The player wins short positions (+5.9 on 2v2 cut at 2 rounds), but long fights fought to the end go differently. On 2v2 with 4 cards, 10 pairs:
+- fast settings: −9 to −39;
+- careful settings: +15.2 ±12.2; with 20 more pairs, −1.0 ±15.7, so about +4 over all 30.
+
+Margins of fights fought to the end swing ±30–50 PV per pair.
+
+**Each fast shortcut's cost per round** (`ai-breadth.ts`, long 2v2 positions, graded in a careful solve's game, 12 positions):
+- **The noise floor** (the careful settings again, on other dice) is **10.6 ±1.6 PV**: two careful solves of one round disagree that much.
+- **Above the floor:**
+  - all shortcuts together: +6.2 ±2.8;
+  - the pool cap of 4: +2.4 ±1.1;
+  - decisions on the round margin: +1.3 ±1.1, at 18× less time;
+  - ε 2, 2 samples, one seat at a time, 4 playouts: ≈ 0.
+
+**Noise** (`ai-noise.ts`: the same settings, two seeds, graded in each other's game, 10 positions):
+
+| Leaf | Noise (PV) |
+|---|---|
+| The evaluator | 0.19 |
+| PV margin | 0.98 |
+| Random playouts ×8, cut at 2 rounds | 3.24 |
+| Greedy playouts ×4, cut at 2 rounds | 5.21 |
+| Random ×8 with 16 samples, or random ×32 | ~5.7 |
+| Random ×8 to the end | 8.90 |
+| Greedy ×4 to the end | 12.1 |
+
+**Bias over long horizons, exact** (`ai-shortcut-gap.ts`, composed 1v1 with 6 and 5 rounds left, 20 positions):
+- **Greedy playouts cut at 2 rounds:** 0.32 / 0.53.
+- Greedy to the end: 0.80 / 0.46.
+- Random ×32: 0.50 / 1.31.
+- Hybrid: 0.99 / 1.99.
+- The evaluator: 2.17 / 4.18.
+- Today's AI: 0.74 / 1.48.
+
+**So:** the evaluator is quiet but biased; random playouts to the end are noisy and biased; greedy playouts cut at 2 rounds are the least biased, and their noise can be bought down with samples.
+
+**`MEDIUM_EQUILIBRIUM`:**
+- **Settings:** one seat at a time, round-margin decisions, no pool cap, ε 0.5, greedy playouts cut at 2 rounds.
+- **Noise:** 4.1 PV with ×4 playouts and 4 samples (0.9 s per long-2v2 solve); 2.2 with ×8 and 8 samples (2.7 s). The careful settings: 8.9 at 17 s.
+- **Time per round:** ~1.7 s on 3v3, ~16 s on 4v4. The 4v4 cost is the greedy leaf trying every card of every seat each playout round.
+- **Long 2v2 fights vs today's AI** (×4/4, 30 pairs): **+8.3 ±8.0 PV**, 20 better / 10 worse.
+
+**The verdict** (`MEDIUM_EQUILIBRIUM` vs today's AI, long composed fights fought to the end, duplicate pairs):
+
+| Shape | Pairs | PV margin | Better / worse |
+|---|---|---|---|
+| 2v2 (×8 playouts / 8 samples) | 60 | **+10.8 ±5.1** | 39 / 20 |
+| 3v3 (×4 / 4) | 60 | **+18.4 ±11.8** | 36 / 23 |
+| 4v4 (×4 / 4) | 16 | **+118 ±36.5** | 14 / 2 |
+
+**Exact grading on long small positions** (gap in PV):
+
+| Slice | Medium | Today's AI |
+|---|---|---|
+| 1v1, 6 rounds left | **0.55** | 0.74 |
+| 1v1, 5 rounds left | **0.68** | 1.48 |
+| 1v2, 3 rounds left | **1.77** | 2.58 |
+| 2v1, 3 rounds left | **1.82** | 2.17 |
+
+It beats today's AI at every size it was tried on, and is closer to exact play everywhere it can be graded.
+
+**Open:**
+- **Cost:** ~16 s per round at 4v4 (target ~5 s). The greedy leaf is the multiplier; engine time (clone, garbage collection, resolution) is the rest.
+- **The switch:** production still runs today's AI. Switching waits for the user and for the migrated cards; then `calibration:refresh`.
