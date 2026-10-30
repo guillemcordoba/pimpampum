@@ -57,6 +57,7 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
   'stacked + decisions on the round margin': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', epsilon: 0.5, samples: [4] },
   'FAST_EQUILIBRIUM (the real-fight settings)': { horizon: 1, leaf: 'playout', playouts: 4, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', pool: 4, epsilon: 2, samples: [2] },
   'MEDIUM_EQUILIBRIUM (greedy-2, seat, margin decisions)': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
+  'MEDIUM_EQUILIBRIUM, informed playout targets': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, playoutTargets: 'informed', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
   'stacked + round margin · seat · 2 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [2] },
 };
 

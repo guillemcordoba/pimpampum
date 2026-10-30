@@ -6921,3 +6921,42 @@ Composed cards mostly pay off within 1–3 rounds. The exact long-horizon leaf g
   - low exploitability is not the same as beating today's AI head to head;
   - scale and length beyond what the exact solver reaches.
 - **On the 3-round slices, medium trails its own leaf by 0.8–1.0:** the cost of its search shortcuts (one seat at a time, round-margin decisions, 4 samples).
+
+**Archetypes: short positions win, long fights don't.**
+
+| Medium vs today's AI on archetypes | Pairs | PV margin | Better / worse |
+|---|---|---|---|
+| 1v1, 4 cards, 4 rounds left | 40 | +1.9 ±0.7 | 20 / 10 |
+| 2v1, 3 rounds | 40 | +2.6 ±1.2 | 20 / 12 |
+| 1v2, 3 rounds | 40 | +4.7 ±1.2 | 23 / 7 |
+| 2v2, 2 rounds | 40 | +5.3 ±1.8 | 27 / 8 |
+| Long 2v2, careful settings | 12 | −12 ±24 | 7 / 4 (inconclusive) |
+
+**Fight length doesn't separate the families:** long fights run ~15–22 rounds on both.
+
+**Card usage** in 12 long archetype 2v2 positions, medium vs today's AI:
+
+| Archetype | Medium | Today's AI |
+|---|---|---|
+| hide | 0 | 40 |
+| guard | 39 | 64 |
+| block | 85 | 102 |
+| lock | 17 | 44 |
+| pierce | 53 | 16 |
+| device | 27 | 11 |
+| strike | 100 | 77 |
+| jab | 24 | 12 |
+
+It under-defends and over-attacks again. Hide is worthless under exact aiming (attacks aim at the reveal and avoid a hider), so its 0 is right. The guard, block and lock gaps are not explained.
+
+**A fix tried and ruled out:** `playoutTargets: 'informed'` (playout guards cover the most-aimed ally; attacks go to a foe without a revealed Defense).
+- Exact grading on multi-body archetype slices improves slightly: 1.69 → 1.29, 1.30 → 1.10, 0.29 → 0.28.
+- Long 2v2 fights, paired with the random-target runs, 30 positions each: archetypes −2.1 ±8.5, composed −2.2 ±8.8. No effect.
+
+**Where it stands:** the medium player is closer to exact play than today's AI everywhere the exact solver reaches (≤6 rounds, ≤2 bodies a side), and wins short positions on both families. It wins long composed fights but not long archetype ones.
+
+**The unexplained part:** long multi-body fights on slow cards, beyond the exact solver's reach.
+
+**Next, for understanding:**
+- replay the biggest archetype losses decision by decision against a careful solve;
+- grade at 3v3 against a careful reference (`ai-breadth.ts`) on archetypes.

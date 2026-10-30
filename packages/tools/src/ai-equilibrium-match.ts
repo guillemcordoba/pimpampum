@@ -45,6 +45,7 @@ const CONFIG = {
   ...(flag('--playout-rounds') ? { playoutRounds: Number(flag('--playout-rounds')) } : {}),
   ...(flag('--playout-end') ? { playoutEnd: flag('--playout-end') as 'margin' | 'score' } : {}),
   ...(flag('--leaf') ? { leaf: flag('--leaf') as 'margin' | 'score' | 'playout' } : {}),
+  ...(flag('--playout-targets') ? { playoutTargets: flag('--playout-targets') as 'random' | 'informed' } : {}),
 };
 
 function play(pos: Position, team0: Policy, team1: Policy, seed: number): number {

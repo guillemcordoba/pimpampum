@@ -38,7 +38,7 @@
  * decision is an independent draw and the replayed prefix is identical.
  */
 import {
-  Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
+  ActionType, Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
   type ActionSelection, type CombatEngine, type TargetChooser,
 } from '@pimpampum/engine';
 import { positionScore } from '../lookahead.js';
@@ -103,6 +103,16 @@ export interface RefereeOptions {
    *  evaluator (`positionScore`, PV and bodies plus the prices statuses give
    *  themselves), in the margin's units. */
   playoutEnd?: 'margin' | 'score';
+  /**
+   * Under `playout`: how the playouts' seats pick targets. `random`: any
+   * legal one. `informed`: from what the reveal shows, with no weights — a
+   * defense guards the ally most revealed attacks aim at (itself on a tie),
+   * an attack goes to a foe that revealed no Defense (the most wounded
+   * first), a card aimed at an ally goes to the most wounded one. Random
+   * targets make every guard in the imagined future cover a random ally, so
+   * defense looks weaker there than it is (NEXT-STEPS §58).
+   */
+  playoutTargets?: 'random' | 'informed';
   /** Under `oracle`: a best response joins the matrix only if it beats the
    *  value by more than this (payoff units). 0: exact. */
   epsilon: number;
@@ -824,7 +834,7 @@ export class Referee {
           return legal.length ? legal[Math.floor(random() * legal.length)] : null;
         };
         sim.optionChooser = (_e, _a, _d, options) => Math.floor(random() * options.length);
-        sim.targetChooser = (_e, _a, _d, _r, count, pool) => {
+        sim.targetChooser = this.opts.playoutTargets === 'informed' ? informedTargets : (_e, _a, _d, _r, count, pool) => {
           const left = [...pool];
           const out: Character[] = [];
           while (out.length < count && left.length) out.push(left.splice(Math.floor(random() * left.length), 1)[0]);
@@ -928,6 +938,25 @@ function scoreInPv(e: CombatEngine): number {
   for (const c of [...e.teams[0], ...e.teams[1]]) all += Math.max(1, c.maxPV);
   return positionScore(e, 0) * (all / 2) / 10;
 }
+
+/** `playoutTargets: 'informed'`: targets read off the reveal, no weights. */
+const informedTargets: TargetChooser = (e, actor, def, _req, count, pool) => {
+  const plan = e.pendingSummary();
+  const aimedAt = (c: Character): number => plan.filter(p => !p.cancelled && p.actor.team !== actor.team && p.actionType === ActionType.Atac && !!p.targets?.includes(c)).length;
+  const revealedDefense = (c: Character): boolean => plan.some(p => p.actor === c && !p.cancelled && p.actionType === ActionType.Defensa);
+  const health = (c: Character): number => c.currentPV / Math.max(1, c.maxPV);
+  const shuffled = [...pool].sort(() => random() - 0.5);
+  let ranked: Character[];
+  if (pool.every(c => c.team === actor.team)) {
+    ranked = def.actionType === ActionType.Defensa
+      // Most attacks aimed at it first; the guard itself wins a tie.
+      ? shuffled.sort((a, b) => aimedAt(b) - aimedAt(a) || (b === actor ? 1 : 0) - (a === actor ? 1 : 0))
+      : shuffled.sort((a, b) => health(a) - health(b));
+  } else {
+    ranked = shuffled.sort((a, b) => Number(revealedDefense(a)) - Number(revealedDefense(b)) || health(a) - health(b));
+  }
+  return ranked.slice(0, count);
+};
 
 const choosesLater = (c: Character): boolean =>
   c.holdsStatusWith('choosesAfterReveal') && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));

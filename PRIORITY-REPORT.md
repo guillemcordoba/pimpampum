@@ -211,7 +211,9 @@ Full numbers in `NEXT-STEPS.md` §57–58. Everything is on the audit's composed
 - **But on the hand-written archetypes (slow cards) it loses:**
   - 2v2: −6.0 ±7.2 over 60 pairs;
   - 3v3: −33.5 ±18.1 over 30 pairs.
-  - The leaf is likely blind to payoffs past its 2-round cut, and greedy play never sets up. Not solved yet.
+  - On short archetype positions it wins (+1.9 to +5.3), and graded exactly it beats today's AI on every archetype slice. So the loss is specific to long, multi-body fights with slow cards, beyond what the exact solver reaches.
+  - It under-defends there (guard 39 vs 64, lock 17 vs 44). Two fixes were tried and ruled out: a different leaf, and informed playout targets.
+  - **Open: needs understanding before the AI can be trusted at full size.**
 - **Its cost:** ~1.7 s a round on 3v3, ~16 s on 4v4. Not switched in; that's your call, and waits for the migrated cards.
 
 ## Decisions for the user
