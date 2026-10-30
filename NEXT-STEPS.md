@@ -6885,7 +6885,20 @@ Margins of fights fought to the end swing ±30–50 PV per pair.
 | 1v2, 3 rounds left | **1.77** | 2.58 |
 | 2v1, 3 rounds left | **1.82** | 2.17 |
 
-It beats today's AI at every size it was tried on, and is closer to exact play everywhere it can be graded.
+On composed cards it beats today's AI at every size tried, and is closer to exact play everywhere it can be graded.
+
+**But not on the archetypes** (the second card family, full of slow cards: dooms, devices, setups, stuns, locks). Long fights, the same duplicate pairs:
+
+| Shape | Pairs | PV margin | Better / worse |
+|---|---|---|---|
+| 2v2 (×8 / 8) | 60 | −6.0 ±7.2 | 29 / 27 |
+| 3v3 (×4 / 4) | 30 | **−33.5 ±18.1** | 12 / 18 |
+
+**The suspected cause:** the leaf is blind to slow cards.
+- Greedy play picks for this round's margin, so it never plays a setup or a doom.
+- The cut at 2 rounds hides payoffs that land later.
+
+Composed cards mostly pay off within 1–3 rounds. The exact long-horizon leaf grading is being repeated on archetypes (§58, below).
 
 **Open:**
 - **Cost:** ~16 s per round at 4v4 (target ~5 s). The greedy leaf is the multiplier; engine time (clone, garbage collection, resolution) is the rest.

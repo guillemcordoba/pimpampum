@@ -203,11 +203,15 @@ Full numbers in `NEXT-STEPS.md` §57–58. Everything is on the audit's composed
   - **Two costly shortcuts:** the pool cap and round-margin decisions.
   - **A bug:** live aims and guards were weighed by random playouts whatever the leaf.
 - **The least biased leaf over long horizons,** graded exactly: greedy playouts cut at 2 rounds.
-- **`MEDIUM_EQUILIBRIUM`** beats today's AI in long fights at every size:
+- **`MEDIUM_EQUILIBRIUM`** beats today's AI in long fights at every size **on composed cards**:
   - 2v2: +10.8 ±5.1 over 60 pairs;
   - 3v3: +18.4 ±11.8 over 60 pairs;
   - 4v4: +118 ±36.5 over 16 pairs.
   - Graded exactly, it is closer to best play than today's AI on every long small slice.
+- **But on the hand-written archetypes (slow cards) it loses:**
+  - 2v2: −6.0 ±7.2 over 60 pairs;
+  - 3v3: −33.5 ±18.1 over 30 pairs.
+  - The leaf is likely blind to payoffs past its 2-round cut, and greedy play never sets up. Not solved yet.
 - **Its cost:** ~1.7 s a round on 3v3, ~16 s on 4v4. Not switched in; that's your call, and waits for the migrated cards.
 
 ## Decisions for the user
