@@ -6903,3 +6903,21 @@ Composed cards mostly pay off within 1–3 rounds. The exact long-horizon leaf g
 **Open:**
 - **Cost:** ~16 s per round at 4v4 (target ~5 s). The greedy leaf is the multiplier; engine time (clone, garbage collection, resolution) is the rest.
 - **The switch:** production still runs today's AI. Switching waits for the user and for the migrated cards; then `calibration:refresh`.
+
+**Exact long-horizon grading on archetypes** (20 positions per slice; 13 on 2v1 with 4 rounds left), gap in PV:
+
+| Slice | 1v1 r6 | 1v1 r5 | 2v1 r4 | 2v1 r3 | 1v2 r3 |
+|---|---|---|---|---|---|
+| Greedy playouts cut at 2 rounds | 0.69 | 0.93 | 0.32 | 0.66 | 0.52 |
+| **Medium** | **0.73** | **1.03** | **0.29** | 1.69 | 1.30 |
+| Random playouts ×32 | 1.36 | 1.01 | 0.80 | 1.08 | 0.90 |
+| Hybrid | 0.80 | 1.47 | 1.43 | 0.66 | 0.52 |
+| Two rounds deep, then the evaluator | 1.08 | 1.53 | 1.64 | 1.05 | 1.62 |
+| The evaluator | 5.25 | 7.21 | 3.68 | 2.77 | 3.79 |
+| *Today's AI* | *1.21* | *1.77* | *1.61* | *2.51* | *1.55* |
+
+- **Greedy-2 is still the best leaf on archetypes,** and the medium setting is closer to exact play than today's AI on every slice.
+- **So the long-fight loss on archetypes isn't leaf blindness within 6 rounds.** The candidates:
+  - low exploitability is not the same as beating today's AI head to head;
+  - scale and length beyond what the exact solver reaches.
+- **On the 3-round slices, medium trails its own leaf by 0.8–1.0:** the cost of its search shortcuts (one seat at a time, round-margin decisions, 4 samples).
