@@ -30,6 +30,7 @@ const SETTINGS = {
   ...(flag('--horizon') ? { horizon: Number(flag('--horizon')) } : {}),
   ...(flag('--policy') ? { playoutPolicy: flag('--policy') as 'random' | 'greedy' } : {}),
   ...(flag('--playout-rounds') ? { playoutRounds: Number(flag('--playout-rounds')) } : {}),
+  ...(flag('--playout-end') ? { playoutEnd: flag('--playout-end') as 'margin' | 'score' } : {}),
 };
 
 function margin(e: CombatEngine, team: number): number {
@@ -66,7 +67,7 @@ function fight(seed: number, eqTeam: number): { margin: number; result: number; 
   });
 }
 
-console.log(`EQUILIBRI ${JSON.stringify({ leaf: SETTINGS.leaf, policy: SETTINGS.playoutPolicy, rounds: SETTINGS.playoutRounds, horizon: SETTINGS.horizon, playouts: SETTINGS.playouts, samples: SETTINGS.samples, pool: SETTINGS.pool })} contra l'AI d'avui · joc ${chosen.id} · colla de calibratge ${COMPANY} · ${FIGHTS} parelles duplicades`);
+console.log(`EQUILIBRI ${JSON.stringify({ leaf: SETTINGS.leaf, policy: SETTINGS.playoutPolicy, rounds: SETTINGS.playoutRounds, end: SETTINGS.playoutEnd, horizon: SETTINGS.horizon, playouts: SETTINGS.playouts, samples: SETTINGS.samples, pool: SETTINGS.pool })} contra l'AI d'avui · joc ${chosen.id} · colla de calibratge ${COMPANY} · ${FIGHTS} parelles duplicades`);
 const margins: number[] = [];
 let wins = 0, seconds = 0, rounds = 0, fallback = 0;
 for (let i = 0; i < FIGHTS; i++) {
