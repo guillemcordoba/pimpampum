@@ -7069,3 +7069,18 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
 
 - **The pool:** ×2 to ×2.9 on 4 workers. Batches are small under one-seat-at-a-time best responses (one seat's alternatives against the other side's support).
 - **Full-leaf decisions don't scale.** They cost 4× on 2v2, where they were measured, but 33× on a 4v4 opening round. That is over the 20M-round budget, so a live 4v4 player falls back to today's AI. The in-round decisions multiply with the bodies, and each one now plays greedy playouts. **`MEDIUM_EQUILIBRIUM`'s decision leaf needs deciding again** (open, for the user).
+
+### 58.4 Decisions weighed by the evaluator (2026-10-31)
+
+`decisionLeaf: 'score'`: each in-round aim, guard or option is weighed by the lookahead's evaluator on the board the round leaves. It sees PV, bodies and the prices statuses give themselves. Medium vs today's AI, long fights to the end, paired with medium (margin decisions) on the same seeds:
+
+| Slice | Pairs | Paired gain | Better / worse | Full-leaf decisions (§58.2) |
+|---|---|---|---|---|
+| 2v2 archetypes (×8/8) | 300 | +4.1 ±2.6 | 157 / 123 | +5.9 ±2.6 |
+| 2v2 composed (×8/8) | 300 | +2.5 ±2.7 | 170 / 113 | +3.9 ±2.7 |
+| 3v3 archetypes (×4/4) | 300 | +10.8 ±5.9 | 171 / 126 | unaffordable |
+
+- **Pooled over the 900 pairs: about +4.0 ±1.8.** It keeps most of the full leaf's gain on 2v2, where both could be measured.
+- **Cost:** about the margin's; on opening rounds (4 workers) 0.4–0.7 s on 3v3 and 22 s on 4v4, against margin decisions' 0.5–1.5 s and 12 s.
+- **Medium (margin decisions) vs today's AI, 3v3 archetypes, now 300 pairs:** +1.0 ±5.9.
+- **Its blind spot:** the evaluator sees a status only if it prices itself (`StatusBehavior.positionValue`). Most audit statuses do; an unpriced real card would be invisible to these decisions, as it is to today's AI.
