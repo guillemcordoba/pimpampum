@@ -208,13 +208,28 @@ Full numbers in `NEXT-STEPS.md` §57–58. Everything is on the audit's composed
   - 3v3: +18.4 ±11.8 over 60 pairs;
   - 4v4: +118 ±36.5 over 16 pairs.
   - Graded exactly, it is closer to best play than today's AI on every long small slice.
-- **But on the hand-written archetypes (slow cards) it loses:**
+- **But on the hand-written archetypes (slow cards) it loses** *(corrected in Night 5: small samples; at 300 pairs it draws)*:
   - 2v2: −6.0 ±7.2 over 60 pairs;
   - 3v3: −33.5 ±18.1 over 30 pairs.
   - On short archetype positions it wins (+1.9 to +5.3), and graded exactly it beats today's AI on every archetype slice. So the loss is specific to long, multi-body fights with slow cards, beyond what the exact solver reaches.
   - It under-defends there (guard 39 vs 64, lock 17 vs 44). Two fixes were tried and ruled out: a different leaf, and informed playout targets.
   - **Open: needs understanding before the AI can be trusted at full size.**
 - **Its cost:** ~1.7 s a round on 3v3, ~16 s on 4v4. Not switched in; that's your call, and waits for the migrated cards.
+
+## Night 5 (2026-10-30 → 31): no archetype loss, and one setting that helps
+
+Full numbers in `NEXT-STEPS.md` §58.1–58.2.
+
+- **The archetype loss was small samples.** At scale the medium player draws with today's AI on archetypes:
+  - 2v2: +0.9 ±2.6 over 300 pairs;
+  - 3v3: −0.3 ±6.9 over 230 pairs.
+  - Replays of the worst losses still show real habits: fragile bodies left open, no focus fire, lock and stun chains, attacks into a block that stays up.
+- **The leaf isn't the problem:** greedy to the end (+4.4 ±7.9) and the evaluator at the cut (−0.2 ±11.1) do nothing in long fights.
+- **One search setting helps: in-round decisions weighed on the full leaf,** +5.9 ±2.6 over 300 paired seeds, at 4× the time.
+  - Joint best response: −0.1 ±1.6.
+  - ×16 samples: +2.2 ±2.7.
+- **Speed:** playout leaves are cached by board, with identical results. A round now takes ~0.8 s on 3v3 and ~12 s on 4v4.
+  - A one-draw greedy round was rejected: 11–14% cheaper, but measurably worse when graded exactly.
 
 ## Decisions for the user
 

@@ -6993,3 +6993,47 @@ With §58's informed targets and hybrid leaf, that is four leaf changes with no 
 - 2v2: 2× faster;
 - 3v3: 1.7 → 0.8 s;
 - 4v4: 16 → 12 s.
+
+**Where a medium 4v4 round's time goes** (CPU profile, one composed 4v4 solve, 2026-10-31):
+- greedy trial rounds inside playouts: 65%;
+- in-round decisions (random rests of the round): 27%.
+
+The top engine functions are spread thin: `Character.holds` 9% self (already a bitmask cache, just called very often), state copy 8%, `planActions` 7%, garbage collection 6%.
+
+**Tried and rejected: one dice draw per greedy playout round.** Each seat then reuses the previous seat's best value instead of replaying it. It saves 11–14% of simulated rounds, but medium's exact gap on archetypes gets worse:
+- 1v1 with 6 rounds left: 0.73 → 1.32;
+- 2v1 with 4 rounds left: 0.37 → 0.94.
+
+A whole round of greedy choices then hangs on one draw. Not landed. The remaining big lever is running a solve's independent cells in parallel.
+
+### 58.2 The night run: there is no archetype loss (2026-10-31)
+
+Medium (×8/8 on 2v2, ×4/4 on 3v3) vs today's AI, long archetype fights to the end, duplicate pairs. Each setting was played on the same 300 seeds, so every comparison is paired.
+
+**The medium player against today's AI, at scale:**
+
+| Shape | Pairs | PV margin | Median | Better / worse |
+|---|---|---|---|---|
+| 2v2 | 300 | +0.9 ±2.6 | +0.5 | 147 / 133 |
+| 3v3 | 230 | −0.3 ±6.9 | +6 | 126 / 102 |
+
+On the 200 new 3v3 seeds alone it's +4.7 ±7.4.
+
+**§58's archetype loss was small samples.** It reported −6.0 ±7.2 over 60 pairs on 2v2, and −33.5 ±18.1 over 30 on 3v3; the first 30 3v3 seeds are an unlucky draw. On archetypes the medium player draws with today's AI; on composed cards it wins (§58). The replays in §58.1 show real weaknesses, but they don't add up to a loss.
+
+**Search settings, one at a time, paired with medium on the same 300 seeds (2v2):**
+
+| Medium + | Paired gain | Better / worse | Time per position |
+|---|---|---|---|
+| **decisions on the full leaf** | **+5.9 ±2.6** | 156 / 122 | 75 s (4.0×) |
+| ×16 playouts and samples | +2.2 ±2.7 | 148 / 130 | 54 s (2.9×) |
+| joint best response | −0.1 ±1.6 | 152 / 125 | 25 s (1.4×) |
+| *(medium itself)* | — | — | 19 s |
+
+Times were measured with 4–14 lanes in parallel at nice 19, so only the ratios mean anything.
+
+- **Only decisions on the full leaf help.** In-round aims and guards are then weighed by what happens after the round, not just within it. On composed cards this shortcut cost only +1.3 ±1.1 above the noise floor (§58), so its value is card-family dependent. That fits slow cards (stun, lock, doom), whose payoff lands after the round.
+- **Joint best response is free to skip:** one seat at a time is as good.
+- **More samples:** at most a small gain; not significant.
+
+**Lesson:** a long fight to the end swings ±30–50 PV a pair. Read nothing from fewer than about 200 pairs; at 60 the standard error is about 7, at 300 about 2.6. With the leaf cache, 300 long 2v2 pairs cost about 25 minutes on an idle machine.
