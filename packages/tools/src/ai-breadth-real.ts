@@ -41,12 +41,11 @@ const VARIANTS: Record<string, Partial<RefereeOptions>> = {
  *  snapshotted with its round opened. */
 function snapshots(seed: number): CombatEngine[] {
   return withSeed(seed, () => {
-    const today = aiPolicy({ depth: 1 });
     const a = theSet().buildParty(calibrationParty(seed % 2));
     const b = theSet().buildParty(calibrationParty(seed % 2));
     setAIControlled(a);
     setAIControlled(b);
-    const e = new CombatEngine(a, b, { registry: theRegistry(), maxRounds: 40, ...today });
+    const e = new CombatEngine(a, b, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
     const out: CombatEngine[] = [];
     for (let r = 0; r < ROUNDS && !e.isOver(); r++) {
       e.prepareRound();

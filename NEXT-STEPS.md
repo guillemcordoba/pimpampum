@@ -7037,3 +7037,14 @@ Times were measured with 4–14 lanes in parallel at nice 19, so only the ratios
 - **More samples:** at most a small gain; not significant.
 
 **Lesson:** a long fight to the end swings ±30–50 PV a pair. Read nothing from fewer than about 200 pairs; at 60 the standard error is about 7, at 300 about 2.6. With the leaf cache, 300 long 2v2 pairs cost about 25 minutes on an idle machine.
+
+**The same check on composed cards** (2v2 long fights, 300 seeds, paired):
+- the medium player vs today's AI: +6.0 ±3.1 (174 better / 114 worse);
+- **with decisions on the full leaf: +3.9 ±2.7 over medium** (176 / 112), at 4.4× the time per position (159 s vs 36 s).
+
+It doesn't hurt on composed cards and leans positive; pooled with archetypes it's about +4.9 ±1.9 over 600 pairs.
+
+**`MEDIUM_EQUILIBRIUM` now weighs in-round decisions on the full leaf** (2026-10-31).
+- Exact grading on the long slices is unchanged: 1v1 with 6 rounds left 0.73 (a 1v1 has almost no in-round decisions); 2v1 with 4 rounds left 0.40 against 0.37. The gain shows only in long multi-body fights.
+- **Cost:** about 4× per round, so roughly 3 s on 3v3 and 50 s on 4v4. That makes parallel cells the next speed lever.
+- The match harness's `--medium` now means this setting; `--decision-leaf margin` reproduces the old one.

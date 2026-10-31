@@ -39,15 +39,19 @@ export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
 
 /**
  * A MIDDLE ROAD, from the night of 2026-10-29 (NEXT-STEPS §58): of the fast
- * shortcuts, keep only those whose cost the careful solve could not tell
- * from noise (one seat at a time, decisions on the round's margin), drop the
- * pool cap (the costliest), and take the leaf the exact referee found least
- * biased over long horizons — greedy playouts cut at two rounds — with
- * enough samples to quiet it. `samples`/`playouts` are what trades noise
- * for time.
+ * shortcuts, keep only the one whose cost no measurement could tell from
+ * noise (one seat at a time), drop the pool cap (the costliest), and take the
+ * leaf the exact referee found least biased over long horizons — greedy
+ * playouts cut at two rounds — with enough samples to quiet it.
+ * `samples`/`playouts` are what trades noise for time.
+ *
+ * In-round decisions are weighed on that leaf, not on the round's margin:
+ * a stun, a lock or a doom pays after the round, where the margin cannot see
+ * it. It costs about four times the time; what it bought is in §58.2.
+ * `decisionLeaf: 'margin'` is the cheap road back.
  */
 export const MEDIUM_EQUILIBRIUM: Partial<RefereeOptions> = {
-  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2],
+  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', decisions: 'greedy', decisionLeaf: 'full', decisionSamples: [2],
   epsilon: 0.5, leaf: 'playout', playoutPolicy: 'greedy', playoutRounds: 2, playouts: 4, samples: [4],
 };
 

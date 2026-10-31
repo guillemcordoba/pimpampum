@@ -13,7 +13,7 @@
  */
 import { CombatEngine, setAIControlled, withSeed, type Character } from '@pimpampum/engine';
 import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, type Policy } from '@pimpampum/ai';
-import { calibrationParty, flag, games, theRegistry, theSet, useSet } from '@pimpampum/bench';
+import { calibrationParty, flag, games, pctCoarse, theRegistry, theSet, useSet } from '@pimpampum/bench';
 import { chosenSet } from './sets.js';
 
 const chosen = await chosenSet();
@@ -82,5 +82,5 @@ for (let i = 0; i < FIGHTS; i++) {
   const n = margins.length;
   const mean = margins.reduce((x, y) => x + y, 0) / n;
   const se = Math.sqrt(margins.reduce((x, y) => x + (y - mean) ** 2, 0) / Math.max(1, n - 1) / n);
-  console.log(`   ${n} combats: guanya ${(100 * wins / n).toFixed(0)}% · marge ${mean.toFixed(2)} ±${se.toFixed(2)} PV · ${(seconds / Math.max(1, rounds)).toFixed(1)} s per ronda · ${(rounds / n).toFixed(1)} rondes · rondes a l'AI d'avui ${fallback}`);
+  console.log(`   ${n} combats: guanya ${pctCoarse(wins / n, n)} · marge ${mean.toFixed(2)} ±${se.toFixed(2)} PV · ${(seconds / Math.max(1, rounds)).toFixed(1)} s per ronda · ${(rounds / n).toFixed(1)} rondes · rondes a l'AI d'avui ${fallback}`);
 }
