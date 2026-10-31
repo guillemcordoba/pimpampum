@@ -42,10 +42,13 @@ const CONFIG = {
   ...(flag('--playouts') ? { playouts: Number(flag('--playouts')) } : {}),
   ...(flag('--decisions') ? { decisions: flag('--decisions') as 'exact' | 'greedy' } : {}),
   ...(flag('--policy') ? { playoutPolicy: flag('--policy') as 'random' | 'greedy' } : {}),
+  // '--playout-rounds Infinity' plays the leaf's playouts to the fight's end.
   ...(flag('--playout-rounds') ? { playoutRounds: Number(flag('--playout-rounds')) } : {}),
   ...(flag('--playout-end') ? { playoutEnd: flag('--playout-end') as 'margin' | 'score' } : {}),
   ...(flag('--leaf') ? { leaf: flag('--leaf') as 'margin' | 'score' | 'playout' } : {}),
   ...(flag('--playout-targets') ? { playoutTargets: flag('--playout-targets') as 'random' | 'informed' } : {}),
+  ...(flag('--decision-leaf') ? { decisionLeaf: flag('--decision-leaf') as 'full' | 'margin' } : {}),
+  ...(flag('--best-response') ? { bestResponse: flag('--best-response') as 'joint' | 'seat' } : {}),
 };
 
 function play(pos: Position, team0: Policy, team1: Policy, seed: number): number {

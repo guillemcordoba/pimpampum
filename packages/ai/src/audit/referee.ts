@@ -390,6 +390,9 @@ export class Referee {
   /** In-round decisions already solved, by the state they are taken in. */
   private decisions = new Map<string, number>();
   private readonly idOf = identities();
+  /** Playout leaves by board: a playout is seeded from the board alone, so
+   *  every cell that ends on the same board gets the same value. */
+  private leaves = new Map<string, number>();
 
   constructor(opts: Partial<RefereeOptions> = {}) {
     this.opts = { ...DEFAULT_REFEREE, ...opts };
@@ -825,6 +828,8 @@ export class Referee {
   /** The mean margin of `playouts` random fights from `state` to its end. */
   private playout(state: CombatEngine): number {
     const sig = signature(state);
+    const hit = this.leaves.get(sig);
+    if (hit !== undefined) return hit;
     let total = 0;
     for (let k = 0; k < this.opts.playouts; k++) {
       total += withSeed(hash(sig, this.opts.seed * 977 + k), () => {
@@ -848,7 +853,9 @@ export class Referee {
         return pvDiff(sim);
       });
     }
-    return total / this.opts.playouts;
+    const v = total / this.opts.playouts;
+    this.leaves.set(sig, v);
+    return v;
   }
 
   /**

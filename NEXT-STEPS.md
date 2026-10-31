@@ -6960,3 +6960,36 @@ It under-defends and over-attacks again. Hide is worthless under exact aiming (a
 **Next, for understanding:**
 - replay the biggest archetype losses decision by decision against a careful solve;
 - grade at 3v3 against a careful reference (`ai-breadth.ts`) on archetypes.
+
+### 58.1 The archetype losses, replayed (2026-10-31)
+
+**Replays of the four worst pairs** (2v2 seeds 5, 21, 54; 3v3 seed 24). The same patterns appear in all four:
+- **its own fragile bodies die early:** a 9-PV body with three guards attacks instead of guarding; a 30-PV body plays a block aimed elsewhere;
+- **it doesn't focus fire:** it hits a 305-PV tank while the 49-PV stunner keeps stunning;
+- **lock and stun chains:** today's AI chains a lock or stun on one body round after round; the medium player neither breaks a chain nor sustains its own;
+- **attacks into a block that stays up:** today's AI keeps the same block up for 10–40 rounds and the medium player keeps attacking into it.
+
+These positions are extreme: bodies range from 12 to 502 PV, and fights run 25–50 rounds.
+
+**Graded against careful references on the critical early rounds** (2v2 seeds 5 and 54):
+- **The 2-round cut misses things:** on seed 54, round 1, the 9-PV body attacks 100% under both the medium player and a careful solve with the same greedy-2 leaf. Careful solves that play to the end (random or greedy) guard with it 28–70% of the time.
+- **Medium's gap in those games:** often 20–60 PV a round, up to 108.
+
+**On 12 unselected 2v2 archetype positions the grading can't separate settings:**
+- In careful, greedy-to-end and greedy-2 games, the medium player gives up 3–12 PV a round.
+- Every one-setting variant lands within the references' own noise: decisions on the full leaf, a cut at 4, greedy or random to the end, joint best response.
+- Per-round grading against careful references is noise-limited here (about 10 PV, §58). A 3v3 version would be noisier and cost about 10× more, so it wasn't run.
+
+**Leaf variants in long fights** (medium ×8/8 vs today's AI, archetype 2v2, paired by seed with the §58 runs):
+
+| Leaf | Pairs | Paired gain over medium |
+|---|---|---|
+| Greedy playouts to the end | 60 | +4.4 ±7.9 |
+| Greedy-2, read by the evaluator at the cut (`playoutEnd: 'score'`) | 32 | −0.2 ±11.1 |
+
+With §58's informed targets and hybrid leaf, that is four leaf changes with no effect. **The leaf is not the cause.** What's left is the search and the mixing, measured over long fights, where a pair swings ±30–50 PV and the standard error at 60 pairs is about 8.
+
+**Speed:** the referee now caches playout leaves by board. A playout is seeded from the board alone, so results are unchanged (same margins on every re-run). Time per round:
+- 2v2: 2× faster;
+- 3v3: 1.7 → 0.8 s;
+- 4v4: 16 → 12 s.
