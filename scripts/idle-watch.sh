@@ -13,7 +13,9 @@ echo active > "$STATE"
 # Not exec'd: the shell must outlive swayidle to remove the file (an exec'd
 # script left a stale "active" behind when killed). `wait` lets a signal in at once.
 watcher=
-cleanup() { [ -n "$watcher" ] && kill "$watcher" 2>/dev/null; rm -f "$STATE"; }
+# swayidle may run its resume command as it dies, rewriting the file: wait for
+# it to be gone before removing the file.
+cleanup() { [ -n "$watcher" ] && { kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null || true; }; rm -f "$STATE"; }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
