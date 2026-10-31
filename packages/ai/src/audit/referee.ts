@@ -135,8 +135,12 @@ export interface RefereeOptions {
   /** Under `greedy`: how a decision's rollouts score the round's end.
    *  `full`: as any round's end (the next rounds solved, or the horizon's
    *  leaf). `margin`: the PV margin as the round leaves it — the decision
-   *  weighed on this round alone, far cheaper when the leaf plays fights out. */
-  decisionLeaf: 'full' | 'margin';
+   *  weighed on this round alone, far cheaper when the leaf plays fights out.
+   *  `score`: the lookahead's evaluator on the board the round leaves (PV and
+   *  bodies plus the prices statuses give themselves, in PV units) — about the
+   *  margin's cost, but a stun or a lock that pays next round shows when its
+   *  status prices itself. A finished fight is read by its margin. */
+  decisionLeaf: 'full' | 'margin' | 'score';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
@@ -757,7 +761,10 @@ export class Referee {
     for (let guard = 0; guard < 64; guard++) {
       const out = this.replay(prepared, selections, seed0, path);
       if (out instanceof Draw) { path.push({ draw: hash(`${seed0}#${path.length}`, this.opts.seed) % out.outcomes }); continue; }
-      if (!(out instanceof Ask)) return this.opts.decisionLeaf === 'margin' ? pvDiff(out) : this.value(out, depth + 1);
+      if (!(out instanceof Ask)) {
+        if (this.opts.decisionLeaf === 'margin' || (this.opts.decisionLeaf === 'score' && finished(out))) return pvDiff(out);
+        return this.opts.decisionLeaf === 'score' ? scoreInPv(out) : this.value(out, depth + 1);
+      }
       const options = subsets(out.poolSize, out.count);
       const h = hash(`${seed0}#r${path.length}#${path.map(a => (isDraw(a) ? `d${a.draw}` : a.pick.join('+'))).join('/')}`, this.opts.seed * 139);
       path.push({ pick: options[h % options.length], seed: h });

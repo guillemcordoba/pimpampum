@@ -56,9 +56,10 @@ const CANDIDATES: Record<string, Partial<RefereeOptions>> = {
   'stacked: h1 playout · greedy · ε0.5 · 4 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', epsilon: 0.5, samples: [4] },
   'stacked + decisions on the round margin': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', epsilon: 0.5, samples: [4] },
   'FAST_EQUILIBRIUM (the real-fight settings)': { horizon: 1, leaf: 'playout', playouts: 4, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', pool: 4, epsilon: 2, samples: [2] },
-  'MEDIUM_EQUILIBRIUM (greedy-2, seat, full-leaf decisions)': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'full', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
-  'medium until 2026-10-31 (margin decisions)': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
-  'medium (margin decisions), informed playout targets': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, playoutTargets: 'informed', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
+  'medium + full-leaf decisions': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'full', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
+  'medium + evaluator decisions': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'score', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
+  'MEDIUM_EQUILIBRIUM (greedy-2, seat, margin decisions)': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
+  'MEDIUM_EQUILIBRIUM, informed playout targets': { horizon: 1, leaf: 'playout', playouts: 4, playoutPolicy: 'greedy', playoutRounds: 2, playoutTargets: 'informed', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [4] },
   'stacked + round margin · seat · 2 samples': { horizon: 1, leaf: 'playout', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2], bestResponse: 'seat', epsilon: 0.5, samples: [2] },
 };
 

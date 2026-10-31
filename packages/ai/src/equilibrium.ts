@@ -45,13 +45,14 @@ export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
  * playouts cut at two rounds — with enough samples to quiet it.
  * `samples`/`playouts` are what trades noise for time.
  *
- * In-round decisions are weighed on that leaf, not on the round's margin:
- * a stun, a lock or a doom pays after the round, where the margin cannot see
- * it. What it bought, and what it costs as the bodies grow, is in §58.2–58.3.
- * `decisionLeaf: 'margin'` is the cheap road back.
+ * In-round decisions are weighed on the round's margin. On the leaf
+ * (`decisionLeaf: 'full'`) they see a stun, a lock or a doom that pays after
+ * the round, and that won long 2v2 fights — but each decision then plays
+ * playouts, and decisions multiply with the bodies: 33 times the work on a
+ * 4v4 round, over the budget (§58.2–58.3).
  */
 export const MEDIUM_EQUILIBRIUM: Partial<RefereeOptions> = {
-  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', decisions: 'greedy', decisionLeaf: 'full', decisionSamples: [2],
+  ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', decisions: 'greedy', decisionLeaf: 'margin', decisionSamples: [2],
   epsilon: 0.5, leaf: 'playout', playoutPolicy: 'greedy', playoutRounds: 2, playouts: 4, samples: [4],
 };
 
