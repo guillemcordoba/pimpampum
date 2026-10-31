@@ -1,7 +1,7 @@
 // Dice
 export { diceDistribution, expectedExcess } from './dice.js';
 export { DiceRoll, rollDie } from './dice.js';
-export { mirrored, random, randomInt, setRng, seededRng, withChance, withRng, withSeed } from './rng.js';
+export { mirrored, random, randomInt, setRng, seededRng, withChance, withRng, withSeed, withSeedAsync } from './rng.js';
 
 
 // Core types
@@ -33,6 +33,7 @@ export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './ch
 
 // Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats, orderKey } from './combat.js';
+export type { ContentDeref, ContentRefOf, EngineSnapshot } from './snapshot.js';
 export type {
   LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser, OptionChooser,
   RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,

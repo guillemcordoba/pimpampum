@@ -39,7 +39,7 @@
  */
 import {
   ActionType, Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
-  type ActionSelection, type CombatEngine, type TargetChooser,
+  type ActionSelection, type CombatEngine, type ContentDeref, type ContentRefOf, type EffectRegistry, type EngineSnapshot, type TargetChooser,
 } from '@pimpampum/engine';
 import { positionScore } from '../lookahead.js';
 import { solveZeroSum, rowValues, type MatrixSolution } from './zero-sum.js';
@@ -172,7 +172,39 @@ export interface RootSolution {
   sims: number;
 }
 
-interface CellStat { mean: number; se: number }
+export interface CellStat { mean: number; se: number }
+
+/**
+ * What a copy of a state on another thread needs from the content: the
+ * effect handlers, and names for the objects a snapshot cannot copy (status
+ * behaviours) — `CombatEngine.snapshot` / `restore`.
+ */
+export interface RefereeContent {
+  registry: EffectRegistry;
+  refOf: ContentRefOf;
+  deref: ContentDeref;
+}
+
+/** A solve's root round, as a cell evaluator elsewhere receives it. */
+export interface RootRound {
+  snapshot: EngineSnapshot;
+  /** The round's signature, which every cell's seeds are drawn from. */
+  sig: string;
+  opts: RefereeOptions;
+  depth: number;
+}
+
+/**
+ * Cells computed elsewhere — worker threads (`@pimpampum/ai/parallel`).
+ * `begin` hands over the round, `cells` evaluates a batch of it
+ * (`Referee.evaluateCell`), in any order, each with the simulated rounds it
+ * cost.
+ */
+export interface CellPool {
+  readonly refOf: ContentRefOf;
+  begin(root: RootRound): void;
+  cells(pairs: { row: Joint; col: Joint }[]): Promise<{ stat: CellStat; sims: number }[]>;
+}
 
 /** +1 if team 0 won, −1 if it lost, 0 for a draw (`CombatEngine.winner`). */
 export function outcome(e: CombatEngine): number {
@@ -438,6 +470,30 @@ export class Referee {
     return this.matrix(seats, cell, mustInclude);
   }
 
+  /**
+   * `solve`, with the root's cells computed by `pool` — the same answer,
+   * number for number: a cell is a pure function of the round and its seeds,
+   * and the double oracle reads them in the same order. Only the double
+   * oracle batches; any other strategy solves here, as `solve` would.
+   */
+  async solveAsync(state: CombatEngine, pool: CellPool): Promise<RootSolution> {
+    if (this.opts.strategies !== 'oracle') return this.solve(state, 0);
+    const { seats, cell, random, prepared, sig } = this.cells(state, 0);
+    if (random) throw new Unsupported('chance at the start of a round');
+    const rows = cartesian(seats[0]), cols = cartesian(seats[1]);
+    pool.begin({ snapshot: prepared.snapshot(pool.refOf), sig, opts: this.opts, depth: 0 });
+    const played = new Map<number, CellStat>();
+    const steps = this.oracleSteps(rows, cols, cell, played);
+    for (;;) {
+      const step = steps.next();
+      if (step.done) return step.value;
+      const need = [...new Set(step.value.map(([i, j]) => i * cols.length + j))].filter(k => !played.has(k));
+      if (!need.length) continue;
+      const got = await pool.cells(need.map(k => ({ row: rows[Math.floor(k / cols.length)], col: cols[k % cols.length] })));
+      need.forEach((k, n) => { played.set(k, got[n].stat); this.sims += got[n].sims; });
+    }
+  }
+
   /** A between-rounds state's value: its round's matrix game — or, when the
    *  round opens on chance the seats see before choosing, the mean over
    *  `samples` draws of each draw's game. */
@@ -483,20 +539,29 @@ export class Referee {
 
   /** The round `state` is about to play, as a matrix game: each seat's legal
    *  cards, and the value of any one cell. */
-  private cells(state: CombatEngine, depth: number, draw = 0): { seats: [SeatOption[][], SeatOption[][]]; cell: (row: Joint, col: Joint) => CellStat; random: boolean } {
+  private cells(state: CombatEngine, depth: number, draw = 0): {
+    seats: [SeatOption[][], SeatOption[][]]; cell: (row: Joint, col: Joint) => CellStat; random: boolean; prepared: CombatEngine; sig: string;
+  } {
     const { sig, prepared, seats, random } = this.prepare(state, draw);
+    return { seats, cell: (row, col) => this.evaluateCell(prepared, sig, depth, row, col), random, prepared, sig };
+  }
+
+  /**
+   * One cell of a round's matrix: `row` against `col` from the prepared
+   * round, over the samples its seeds give. A pure function of its arguments
+   * and this referee's options — so any copy of the referee, on any thread,
+   * given the same round (`CombatEngine.snapshot`), returns the same numbers.
+   */
+  evaluateCell(prepared: CombatEngine, sig: string, depth: number, row: Joint, col: Joint): CellStat {
     const K = this.opts.chance === 'enumerate' ? 1 : this.opts.samples[Math.min(depth, this.opts.samples.length - 1)];
-    const cell = (row: Joint, col: Joint): CellStat => {
-      const selections = [...toSelections(0, row), ...toSelections(1, col)];
-      const vals: number[] = [];
-      for (let s = 0; s < K; s++) {
-        vals.push(this.round(prepared, selections, hash(sig, this.opts.seed * 31 + s + 1), [], depth));
-      }
-      const mean = vals.reduce((a, b) => a + b, 0) / K;
-      const variance = K > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (K - 1) : 0;
-      return { mean, se: Math.sqrt(variance / K) };
-    };
-    return { seats, cell, random };
+    const selections = [...toSelections(0, row), ...toSelections(1, col)];
+    const vals: number[] = [];
+    for (let s = 0; s < K; s++) {
+      vals.push(this.round(prepared, selections, hash(sig, this.opts.seed * 31 + s + 1), [], depth));
+    }
+    const mean = vals.reduce((a, b) => a + b, 0) / K;
+    const variance = K > 1 ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (K - 1) : 0;
+    return { mean, se: Math.sqrt(variance / K) };
   }
 
   /** The round `state` is about to play, prepared, with every seat's legal cards. */
@@ -553,7 +618,23 @@ export class Referee {
    * row, as under `enumerate`; `payoff` holds only the cells played.
    */
   private oracle(rows: Joint[], cols: Joint[], cell: (row: Joint, col: Joint) => CellStat): RootSolution {
-    const played = new Map<number, CellStat>();
+    const steps = this.oracleSteps(rows, cols, cell, new Map());
+    for (;;) {
+      // Synchronously every cell is computed when first read: the batches
+      // announced are only for a solve that fetches them elsewhere.
+      const step = steps.next();
+      if (step.done) return step.value;
+    }
+  }
+
+  /**
+   * The double oracle, as steps: before reading a batch of cells it yields
+   * them (`[row, col]` index pairs), so a caller may have them computed
+   * elsewhere, in parallel, and put in `played` (`solveAsync`). A cell not
+   * there when read is computed here, so the answer never depends on what
+   * was fetched — only the time does.
+   */
+  private *oracleSteps(rows: Joint[], cols: Joint[], cell: (row: Joint, col: Joint) => CellStat, played: Map<number, CellStat>): Generator<[number, number][], RootSolution, void> {
     const rowIndex = new Map(rows.map((j, i) => [jointKey(j), i]));
     const colIndex = new Map(cols.map((j, i) => [jointKey(j), i]));
     const at = (i: number, j: number): CellStat => {
@@ -567,19 +648,27 @@ export class Referee {
     // here may lean on an opinion of what is good play.
     const R = [0], C = [0];
     for (;;) {
+      yield R.flatMap(i => C.map(j => [i, j] as [number, number]));
       const sub = solveZeroSum(R.map(i => C.map(j => at(i, j).mean)));
       const spread = Math.max(1, ...R.flatMap(i => C.map(j => Math.abs(at(i, j).mean))));
       const tol = Math.max(1e-7 * spread, this.opts.epsilon);
       const vsCols = (i: number): number => C.reduce((s, j, k) => (sub.col[k] > 0 ? s + sub.col[k] * at(i, j).mean : s), 0);
       const vsRows = (j: number): number => R.reduce((s, i, k) => (sub.row[k] > 0 ? s + sub.row[k] * at(i, j).mean : s), 0);
-      const best = (n: number, worth: (i: number) => number, sign: number, pool: number[], index: Map<string, number>, joints: Joint[]): number => {
+      // The cells a joint's worth reads: it against the other side's support.
+      const rowCells = (is: number[]): [number, number][] => is.flatMap(i => C.filter((_, k) => sub.col[k] > 0).map(j => [i, j] as [number, number]));
+      const colCells = (js: number[]): [number, number][] => js.flatMap(j => R.filter((_, k) => sub.row[k] > 0).map(i => [i, j] as [number, number]));
+      const self = this;
+      function* best(n: number, worth: (i: number) => number, sign: number, pool: number[], index: Map<string, number>, joints: Joint[],
+        needs: (is: number[]) => [number, number][]): Generator<[number, number][], number, void> {
         const bar = sign * sub.value + tol;
-        if (this.opts.bestResponse === 'seat') {
+        if (self.opts.bestResponse === 'seat') {
           // From the pool's best joint, one seat at a time.
+          yield needs(pool);
           let cur = pool.reduce((b, i) => (sign * worth(i) > sign * worth(b) ? i : b), pool[0]);
           for (let improved = true; improved;) {
             improved = false;
             for (let seat = 0; seat < joints[cur].length; seat++) {
+              yield needs([cur, ...seatAlternatives(joints, cur, seat, index)]);
               for (const alt of seatAlternatives(joints, cur, seat, index)) {
                 if (sign * worth(alt) > sign * worth(cur) + 1e-12) { cur = alt; improved = true; }
               }
@@ -587,16 +676,17 @@ export class Referee {
           }
           return sign * worth(cur) > bar && !pool.includes(cur) ? cur : -1;
         }
+        yield needs(Array.from({ length: n }, (_, i) => i));
         let pick = -1, top = bar;
         for (let i = 0; i < n; i++) {
           const v = sign * worth(i);
           if (v > top && !pool.includes(i)) { pick = i; top = v; }
         }
         return pick;
-      };
+      }
       const full = (pool: number[]): boolean => this.opts.pool !== undefined && pool.length >= this.opts.pool;
-      const bestRow = full(R) ? -1 : best(rows.length, vsCols, 1, R, rowIndex, rows);
-      const bestCol = full(C) ? -1 : best(cols.length, vsRows, -1, C, colIndex, cols);
+      const bestRow = full(R) ? -1 : yield* best(rows.length, vsCols, 1, R, rowIndex, rows, rowCells);
+      const bestCol = full(C) ? -1 : yield* best(cols.length, vsRows, -1, C, colIndex, cols, colCells);
       if (bestRow < 0 && bestCol < 0) {
         const pad = (strategy: number[], pool: number[], n: number): number[] => {
           const out = new Array<number>(n).fill(0);

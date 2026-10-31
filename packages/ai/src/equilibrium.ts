@@ -17,7 +17,7 @@
  * small positions, against the exact referee and against today's AI.
  */
 import { Character, availableActionIndices, random, seededRng, withRng, type CombatEngine, type ActionDefinition, type TargetRequirement } from '@pimpampum/engine';
-import { BudgetExceeded, Referee, Unsupported, type RefereeOptions } from './audit/referee.js';
+import { BudgetExceeded, Referee, Unsupported, type CellPool, type RefereeOptions, type RootSolution } from './audit/referee.js';
 import { aiPolicy, type Policy } from './index.js';
 
 export const DEFAULT_EQUILIBRIUM: Partial<RefereeOptions> = {
@@ -47,7 +47,7 @@ export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
  *
  * In-round decisions are weighed on that leaf, not on the round's margin:
  * a stun, a lock or a doom pays after the round, where the margin cannot see
- * it. It costs about four times the time; what it bought is in §58.2.
+ * it. What it bought, and what it costs as the bodies grow, is in §58.2–58.3.
  * `decisionLeaf: 'margin'` is the cheap road back.
  */
 export const MEDIUM_EQUILIBRIUM: Partial<RefereeOptions> = {
@@ -59,9 +59,18 @@ export interface EquilibriumPolicy extends Policy {
   /** Rounds solved, and rounds handed to today's AI because the referee could
    *  not represent them (a card it does not support) or ran out of budget. */
   stats: { solved: number; fallback: number };
+  /**
+   * Solve the round `engine` has just prepared (`prepareRound`) on the
+   * policy's cell pool, before the engine asks for cards — which it does
+   * synchronously, so a solve that waits on worker threads must come first:
+   * `engine.prepareRound(); await policy.plan(engine); engine.playPreparedRound();`.
+   * The same picks the engine's own call would make. Without a pool, a no-op.
+   */
+  plan(engine: CombatEngine): Promise<void>;
 }
 
-export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamples = 4): EquilibriumPolicy {
+/** `pool`: the root's cells on worker threads (`@pimpampum/ai/parallel`), for `plan`. */
+export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamples = 4, pool?: CellPool): EquilibriumPolicy {
   const options = { ...DEFAULT_EQUILIBRIUM, ...opts };
   const fallback = aiPolicy({ depth: 1 });
   const stats = { solved: 0, fallback: 0 };
@@ -71,26 +80,40 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
 
   const solveRound = (engine: CombatEngine): Map<Character, number> | null => {
     try {
-      const root = new Referee({ ...options, seed: Math.floor(random() * 1e9) }).solve(engine, 0);
-      const picks = new Map<Character, number>();
-      const draw = (joints: typeof root.rows, mix: number[], team: number) => {
-        let x = random();
-        let k = mix.findIndex(p => (x -= p) <= 0);
-        if (k < 0) k = mix.length - 1;
-        for (const o of joints[k]) picks.set(engine.teams[team][o.idx], o.actionIdx);
-      };
-      draw(root.rows, root.sol.row, 0);
-      draw(root.cols, root.sol.col, 1);
-      stats.solved++;
-      return picks;
+      return drawJointPerSide(engine, new Referee({ ...options, seed: Math.floor(random() * 1e9) }).solve(engine, 0));
     } catch (e) {
       if (e instanceof Unsupported || e instanceof BudgetExceeded) { stats.fallback++; return null; }
       throw e;
     }
   };
+  const solveRoundAsync = async (engine: CombatEngine, cells: CellPool): Promise<Map<Character, number> | null> => {
+    try {
+      return drawJointPerSide(engine, await new Referee({ ...options, seed: Math.floor(random() * 1e9) }).solveAsync(engine, cells));
+    } catch (e) {
+      if (e instanceof Unsupported || e instanceof BudgetExceeded) { stats.fallback++; return null; }
+      throw e;
+    }
+  };
+  const drawJointPerSide = (engine: CombatEngine, root: RootSolution): Map<Character, number> => {
+    const picks = new Map<Character, number>();
+    const draw = (joints: typeof root.rows, mix: number[], team: number) => {
+      let x = random();
+      let k = mix.findIndex(p => (x -= p) <= 0);
+      if (k < 0) k = mix.length - 1;
+      for (const o of joints[k]) picks.set(engine.teams[team][o.idx], o.actionIdx);
+    };
+    draw(root.rows, root.sol.row, 0);
+    draw(root.cols, root.sol.col, 1);
+    stats.solved++;
+    return picks;
+  };
 
   return {
     stats,
+    async plan(engine) {
+      if (!pool) return;
+      plan = { engine, round: engine.round, picks: await solveRoundAsync(engine, pool) };
+    },
     actionChooser(engine, actor) {
       if (!plan || plan.engine !== engine || plan.round !== engine.round) {
         plan = { engine, round: engine.round, picks: solveRound(engine) };

@@ -8,6 +8,7 @@ import {
 } from './effects.js';
 import { StatusBehavior, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo } from './status.js';
 import { resolveAttack, checkSkillUp, skillLevelBonus } from './resolution.js';
+import { SnapshotDecoder, SnapshotEncoder, type ContentDeref, type ContentRefOf, type EngineSnapshot } from './snapshot.js';
 import { AIView, PendingSummary, availableActionIndices, typeBlocked } from './policy.js';
 
 export interface LogEntry {
@@ -376,6 +377,81 @@ export class CombatEngine implements EngineApi, AIView {
     // Carried, or the clone cannot tell an already-begun round from a fresh
     // one — which is the whole point of the flag for the lookahead.
     e.roundPrepared = this.roundPrepared;
+    return e;
+  }
+
+  /**
+   * The state as plain data (`snapshot.ts`), to rebuild with `restore` where
+   * this object cannot go. It holds what `clone()` copies — not the choosers,
+   * the log, nor the seat streams — and `refOf` names whatever holds
+   * functions (status behaviours).
+   */
+  snapshot(refOf: ContentRefOf): EngineSnapshot {
+    const enc = new SnapshotEncoder(this.teams, refOf);
+    const teams = this.teams.map(t => t.map(c => enc.character(c)));
+    const out: Omit<EngineSnapshot, 'shared'> = {
+      teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, round: this.round,
+      history: enc.value(this.history), plays: this.plays.map(p => ({ ...p })), blowSeq: this.blowSeq,
+      pending: this.pending.map(p => ({
+        actor: enc.char(p.actor), hand: p.actor.actions.indexOf(p.action), def: enc.share(p.action.def),
+        key: p.key, as: p.as, targets: p.targets ? p.targets.map(t => enc.char(t)) : null, cancelled: p.cancelled, option: p.option,
+      })),
+      pendingIndex: this.pendingIndex, tierKey: this.tierKey, revealSettled: this.revealSettled,
+      tierAlive: [...this.tierAlive].map(c => enc.char(c)),
+      tierInterrupted: [...this.tierInterrupted].map(c => enc.char(c)),
+      skippingThisRound: [...this.skippingThisRound].map(c => enc.char(c)),
+      revealedPlan: this.revealedPlan.map(s => ({ ...s })),
+      aimingIdx: this.aimingIdx, choosingIdx: this.choosingIdx, roundPrepared: this.roundPrepared,
+    };
+    // Last: every card met on the way is in the table by now.
+    return { ...out, shared: enc.shared.map(o => enc.sharedValue(o)) };
+  }
+
+  /** A state rebuilt from `snapshot`, on `registry`, with `deref` turning
+   *  the content's names back into its objects. No choosers: set them. */
+  static restore(snap: EngineSnapshot, registry: EffectRegistry, deref: ContentDeref): CombatEngine {
+    const dec = new SnapshotDecoder(deref);
+    dec.readShared(snap.shared);
+    const teams = dec.characters(snap.teams) as [Character[], Character[]];
+    const at = ([t, i]: [number, number]): Character => teams[t][i];
+    // As in clone: past the constructor, which would reset the combatants.
+    const e = Object.create(CombatEngine.prototype) as CombatEngine;
+    const fixed = e as unknown as {
+      registry: EffectRegistry; teams: [Character[], Character[]];
+      maxRounds: number; aiSharpness: number; history: ActionEvent[];
+    };
+    fixed.registry = registry;
+    fixed.teams = teams;
+    fixed.maxRounds = snap.maxRounds;
+    fixed.aiSharpness = snap.aiSharpness;
+    // In clone's order: a state's key reads its fields in order.
+    e.actionChooser = undefined;
+    e.targetChooser = undefined;
+    e.optionChooser = undefined;
+    fixed.history = dec.value(snap.history) as ActionEvent[];
+    e.round = snap.round;
+    e.logEntries = [];
+    e.silent = true;
+    e.plays = snap.plays.map(p => ({ ...p }));
+    e.blowSeq = snap.blowSeq;
+    e.pending = snap.pending.map(p => {
+      const actor = at(p.actor);
+      return {
+        actor,
+        action: p.hand >= 0 ? actor.actions[p.hand] : new ActionInstance(dec.def(p.def)),
+        key: p.key, as: p.as, targets: p.targets ? p.targets.map(at) : null, cancelled: p.cancelled, option: p.option,
+      };
+    });
+    e.pendingIndex = snap.pendingIndex;
+    e.tierKey = snap.tierKey;
+    e.revealSettled = snap.revealSettled;
+    e.tierAlive = new Set(snap.tierAlive.map(at));
+    e.tierInterrupted = new Set(snap.tierInterrupted.map(at));
+    e.skippingThisRound = new Set(snap.skippingThisRound.map(at));
+    e.revealedPlan = snap.revealedPlan.map(s => ({ ...s }));
+    e.aimingIdx = snap.aimingIdx;
+    e.choosingIdx = snap.choosingIdx;
+    e.roundPrepared = snap.roundPrepared;
     return e;
   }
 
@@ -2025,6 +2101,12 @@ export class CombatEngine implements EngineApi, AIView {
   /** One fully-AI round (simulator). */
   runRound(): void {
     this.prepareRound();
+    this.playPreparedRound();
+  }
+
+  /** The rest of `runRound` once `prepareRound` has run — for a caller that
+   *  must do something between the two (an AI that plans asynchronously). */
+  playPreparedRound(): void {
     this.planActions([]);
     let r = this.resolveNextAction();
     while (r.kind !== 'done') {

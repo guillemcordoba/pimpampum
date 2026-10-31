@@ -13,6 +13,10 @@
     "./audit": {
       "types": "./dist/audit/index.d.ts",
       "import": "./dist/audit/index.js"
+    },
+    "./parallel": {
+      "types": "./dist/parallel/index.d.ts",
+      "import": "./dist/parallel/index.js"
     }
   },
   "scripts": {
@@ -25,6 +29,7 @@
   "devDependencies": {
     "typescript": "^5.4.0",
     "vitest": "^3",
-    "fast-check": "^4"
+    "fast-check": "^4",
+    "@types/node": "^22"
   }
 }

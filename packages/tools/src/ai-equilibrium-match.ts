@@ -11,9 +11,13 @@
  *
  * Run: pnpm --filter @pimpampum/tools exec tsx src/ai-equilibrium-match.ts
  *      … --games 30 --slice 2x1-c3-r3 --catalogue composed
+ *      … --workers 12   (each solve's cells on 12 worker threads: the same
+ *      play, but the prototype then solves before today's AI draws its dice,
+ *      so the fights differ from a run without it — compare like with like)
  */
-import { withSeed, type CombatEngine } from '@pimpampum/engine';
-import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, MEDIUM_EQUILIBRIUM, type Policy } from '@pimpampum/ai';
+import { withSeed, withSeedAsync, type CombatEngine } from '@pimpampum/engine';
+import { aiPolicy, equilibriumPolicy, FAST_EQUILIBRIUM, MEDIUM_EQUILIBRIUM, type EquilibriumPolicy, type Policy } from '@pimpampum/ai';
+import { auditCellPool } from '@pimpampum/ai/parallel';
 import { buildEngine, generatePosition, pvDiff, twoHeaded, type GeneratorConfig, type Position } from '@pimpampum/ai/audit';
 import { flag, games } from '@pimpampum/bench';
 
@@ -51,10 +55,24 @@ const CONFIG = {
   ...(flag('--best-response') ? { bestResponse: flag('--best-response') as 'joint' | 'seat' } : {}),
 };
 
-function play(pos: Position, team0: Policy, team1: Policy, seed: number): number {
-  return withSeed(seed, () => {
+const WORKERS = Number(flag('--workers') ?? 0);
+const pool = WORKERS > 0 ? auditCellPool(WORKERS) : undefined;
+
+async function play(pos: Position, team0: Policy, team1: Policy, seed: number, planner: EquilibriumPolicy): Promise<number> {
+  if (!pool) {
+    return withSeed(seed, () => {
+      const e: CombatEngine = buildEngine(pos, twoHeaded(team0, team1), { ai: true });
+      e.runCombat();
+      return pvDiff(e);
+    });
+  }
+  return withSeedAsync(seed, async () => {
     const e: CombatEngine = buildEngine(pos, twoHeaded(team0, team1), { ai: true });
-    e.runCombat();
+    while (!e.isOver() && e.round < e.maxRounds) {
+      e.prepareRound();
+      await planner.plan(e);
+      e.playPreparedRound();
+    }
     return pvDiff(e);
   });
 }
@@ -66,10 +84,10 @@ for (const slice of slices) {
   const started = performance.now();
   for (let seed = FROM; seed < FROM + POSITIONS; seed++) {
     const pos = generatePosition(seed, { ...SLICES[slice], catalogue: CATALOGUE });
-    const eqA = equilibriumPolicy(CONFIG);
-    const asA = play(pos, eqA, aiPolicy({ depth: 1 }), 50_000 + seed);
-    const eqB = equilibriumPolicy(CONFIG);
-    const asB = -play(pos, aiPolicy({ depth: 1 }), eqB, 50_000 + seed);
+    const eqA = equilibriumPolicy(CONFIG, 4, pool);
+    const asA = await play(pos, eqA, aiPolicy({ depth: 1 }), 50_000 + seed, eqA);
+    const eqB = equilibriumPolicy(CONFIG, 4, pool);
+    const asB = -(await play(pos, aiPolicy({ depth: 1 }), eqB, 50_000 + seed, eqB));
     scores.push((asA + asB) / 2);
     if (PER_POSITION) console.log(JSON.stringify({ slice, catalogue: CATALOGUE, seed, score: (asA + asB) / 2 }));
     solved += eqA.stats.solved + eqB.stats.solved;
@@ -82,3 +100,4 @@ for (const slice of slices) {
   console.log(`   ${slice.padEnd(10)} marge a favor de l'equilibri ${mean.toFixed(2)} ±${se.toFixed(2)} PV · millor ${better}, pitjor ${worse}, igual ${n - better - worse}`
     + ` · rondes resoltes ${solved}, a l'AI d'avui ${fallback} · ${((performance.now() - started) / 1000 / n).toFixed(1)} s per posició`);
 }
+await pool?.close();

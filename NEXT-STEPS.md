@@ -7046,5 +7046,26 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
 
 **`MEDIUM_EQUILIBRIUM` now weighs in-round decisions on the full leaf** (2026-10-31).
 - Exact grading on the long slices is unchanged: 1v1 with 6 rounds left 0.73 (a 1v1 has almost no in-round decisions); 2v1 with 4 rounds left 0.40 against 0.37. The gain shows only in long multi-body fights.
-- **Cost:** about 4× per round, so roughly 3 s on 3v3 and 50 s on 4v4. That makes parallel cells the next speed lever.
+- **Cost:** about 4× per round on 2v2. *Corrected the same day (§58.3): the cost grows with the bodies — 33× more simulated rounds on a 4v4 opening round, over the referee's budget.*
 - The match harness's `--medium` now means this setting; `--decision-leaf margin` reproduces the old one.
+
+### 58.3 A solve's cells on worker threads (2026-10-31)
+
+**What:** `Referee.solveAsync(state, pool)` computes the root's cells on a pool of worker threads (`@pimpampum/ai/parallel`, Node only). The answers are the same as on one thread.
+- The double oracle is written once, as steps that announce each batch of cells before reading it; the synchronous solve ignores the announcements.
+- The round reaches the workers as a snapshot: `CombatEngine.snapshot` / `restore`, a new generic engine seam. The audit names its status behaviours from `STATUS_BEHAVIORS`.
+- `equilibriumPolicy(opts, samples, pool).plan(engine)` solves between `prepareRound()` and the new `playPreparedRound()`.
+- The match harness takes `--workers n`. The fights then differ from a run without it (the prototype solves before today's AI draws its dice), so compare like with like.
+- **Tested:** a restored audit state has the same full key; `solveAsync` on 3 workers gives the same values and mixes as `solve`; a whole fight planned on the pool is the same fight move for move.
+
+**Speed, opening rounds** (4 workers, the user at the computer; seed 1 of each slice):
+
+| Slice | Margin decisions, 1 thread | Margin decisions, 4 workers | Full-leaf decisions, 4 workers | Simulated rounds, margin → full |
+|---|---|---|---|---|
+| 2v2 archetypes | 0.1 s | 0.1 s | 0.2 s | — |
+| 3v3 composed | 3.0 s | 1.5 s | 8.2 s | 0.2M → 1.4M |
+| 3v3 archetypes | 0.9 s | 0.5 s | 4.3 s | 0.1M → 0.9M |
+| 4v4 composed | 34.6 s | 11.9 s | 419 s | 2.2M → 72M |
+
+- **The pool:** ×2 to ×2.9 on 4 workers. Batches are small under one-seat-at-a-time best responses (one seat's alternatives against the other side's support).
+- **Full-leaf decisions don't scale.** They cost 4× on 2v2, where they were measured, but 33× on a 4v4 opening round. That is over the 20M-round budget, so a live 4v4 player falls back to today's AI. The in-round decisions multiply with the bodies, and each one now plays greedy playouts. **`MEDIUM_EQUILIBRIUM`'s decision leaf needs deciding again** (open, for the user).

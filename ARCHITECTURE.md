@@ -23,12 +23,14 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── status.ts             # StatusBehavior, StatusRef, StatusHookContext
 │   │   ├── character.ts          # Character, createCharacter
 │   │   ├── combat.ts             # CombatEngine — the step-by-step state machine (takes an INJECTED chooser)
+│   │   ├── snapshot.ts           # a state as plain data and back (CombatEngine.snapshot / restore)
 │   │   ├── policy.ts             # the policy SEAM: AIView, legality (availableActionIndices), firstLegalChooser
 │   │   ├── display.ts            # ACTION_TYPE_*, STAT_ICONS, RULES_SUMMARY
 │   │   └── testing.ts            # @pimpampum/engine/testing — content-free fixtures for every package's tests
 │   └── test/                     # resolution oracles, properties (fast-check), metamorphic relations, seams, flow
 ├── ai/                           # @pimpampum/ai — the policy. An INSTRUMENT
 │   ├── src/                      # aiPolicy(), policy.ts (depth 0), lookahead.ts (depth ≥1, positionScore)
+│   │   └── parallel/             # @pimpampum/ai/parallel (Node only): a solve's cells on worker threads
 │   └── test/                     # legality, purity, no side effects, known-answer positions, evaluator symmetry
 ├── combat-balancer/              # @pimpampum/combat-balancer — solves PV for a target winrate
 │   ├── src/index.ts              # simulateEncounter/solveEncounter over EncounterContent<P>
@@ -213,6 +215,17 @@ enemy card leaves carries `harm: 1` in its data (`CombatModifier.data` is an
 inert payload like `StatusEntry.data`), lost actions are `skipTurns`, and a
 status that takes the body out of the fight (the unagi's swallow) carries
 `bodyOut: 1` instead. `clearHarm(c)` is the one cleanse.
+
+**State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into
+plain, structured-cloneable data and `CombatEngine.restore(snap, registry, deref)`
+rebuilds it (`engine/src/snapshot.ts`): what `clone()` copies, for where objects
+cannot go (a worker thread). Cards and items travel by value, once each, so
+identity survives; characters by seat. Whatever holds functions (status
+behaviours) the CONTENT names (`refOf`) and finds again (`deref`), so the engine
+still never knows a status — the audit names its behaviours from
+`STATUS_BEHAVIORS` (`ai/src/audit/content.ts`). `playPreparedRound()` is
+`runRound()` after its `prepareRound()`, for a caller that must act between
+the two (an AI solving on worker threads).
 
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
@@ -610,7 +623,8 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 | `catalogue.ts` | 19 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt, hide (dodge every later blow this round) — and the universal fallback. Each says its payoff `horizon` |
 | `profile.ts` | the generator's distributions — fast shares, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
 | `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
-| `referee.ts` | the solver of the fight |
+| `referee.ts` | the solver of the fight. `solveAsync(state, pool)` is `solve` with the root's cells computed by a `CellPool` — the same numbers, since a cell is a pure function of the round and its seeds and the double oracle (written once, as steps that announce each batch) reads them in the same order |
+| `content.ts` | `AUDIT_CONTENT`: the registry and the names of the audit's status behaviours, for `CombatEngine.snapshot`/`restore` on another thread |
 | `check.ts` | the AI's picks vs the referee's verdict |
 | `controls.ts` | hand-made positions whose equilibrium is arithmetic, in long/short twins |
 
