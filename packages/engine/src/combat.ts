@@ -2101,12 +2101,6 @@ export class CombatEngine implements EngineApi, AIView {
   /** One fully-AI round (simulator). */
   runRound(): void {
     this.prepareRound();
-    this.playPreparedRound();
-  }
-
-  /** The rest of `runRound` once `prepareRound` has run — for a caller that
-   *  must do something between the two (an AI that plans asynchronously). */
-  playPreparedRound(): void {
     this.planActions([]);
     let r = this.resolveNextAction();
     while (r.kind !== 'done') {

@@ -227,7 +227,7 @@ Full numbers in `NEXT-STEPS.md` §58.1–58.2.
 - **The leaf isn't the problem:** greedy to the end (+4.4 ±7.9) and the evaluator at the cut (−0.2 ±11.1) do nothing in long fights.
 - **One search setting helps: in-round decisions weighed on the full leaf,** +5.9 ±2.6 over 300 paired seeds, at 4× the time.
   - On composed cards it doesn't hurt: +3.9 ±2.7 over 300 pairs. **It is now part of `MEDIUM_EQUILIBRIUM`.** Its cost is 4× on 2v2 but 33× on a 4v4 opening round, over the budget — to be decided again (§58.3).
-- **A solve's cells on worker threads** (`solveAsync`, `@pimpampum/ai/parallel`): the same answers, ×2 to ×2.9 on 4 workers.
+- **A solve's cells on worker threads** (`@pimpampum/ai/parallel`, synchronous: the player on a pool is still a plain `Policy`): the same answers and the same fights, ×2 to ×2.9 on 4 workers.
   - Joint best response: −0.1 ±1.6.
   - ×16 samples: +2.2 ±2.7.
 - **Speed:** playout leaves are cached by board, with identical results. A round now takes ~0.8 s on 3v3 and ~12 s on 4v4.

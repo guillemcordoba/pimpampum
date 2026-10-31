@@ -43,6 +43,12 @@ function fight(seed: number): CombatEngine {
 }
 
 const pvs = (e: CombatEngine) => e.teams.map(t => t.map(c => c.currentPV));
+/** The rest of a round `prepareRound` has opened, every seat choosing for itself. */
+function playPrepared(e: CombatEngine): void {
+  e.planActions([]);
+  for (let step = e.resolveNextAction(); step.kind !== 'done'; step = e.resolveNextAction()) { /* AI seats aim themselves */ }
+  e.finishRound();
+}
 
 describe('engine snapshot', () => {
   it('a restored state snapshots the same, and plays on the same', () => {
@@ -56,8 +62,8 @@ describe('engine snapshot', () => {
       expect(back.snapshot(refOf), `seed ${seed}`).toEqual(snap);
       back.actionChooser = randomLegalChooser;
       const original = e.clone();
-      withSeed(seed * 7, () => { original.playPreparedRound(); for (let r = 0; r < 3 && !original.isOver(); r++) original.runRound(); });
-      withSeed(seed * 7, () => { back.playPreparedRound(); for (let r = 0; r < 3 && !back.isOver(); r++) back.runRound(); });
+      withSeed(seed * 7, () => { playPrepared(original); for (let r = 0; r < 3 && !original.isOver(); r++) original.runRound(); });
+      withSeed(seed * 7, () => { playPrepared(back); for (let r = 0; r < 3 && !back.isOver(); r++) back.runRound(); });
       expect(pvs(back), `seed ${seed}`).toEqual(pvs(original));
     }
   });

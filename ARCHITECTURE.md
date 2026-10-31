@@ -223,9 +223,7 @@ cannot go (a worker thread). Cards and items travel by value, once each, so
 identity survives; characters by seat. Whatever holds functions (status
 behaviours) the CONTENT names (`refOf`) and finds again (`deref`), so the engine
 still never knows a status — the audit names its behaviours from
-`STATUS_BEHAVIORS` (`ai/src/audit/content.ts`). `playPreparedRound()` is
-`runRound()` after its `prepareRound()`, for a caller that must act between
-the two (an AI solving on worker threads).
+`STATUS_BEHAVIORS` (`ai/src/audit/content.ts`).
 
 **Combat history** — `EngineApi.history` records every RESOLVED action as an
 `ActionEvent` `{round, actor, action, targets}` (targets = the final list after
@@ -623,7 +621,7 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 | `catalogue.ts` | 19 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt, hide (dodge every later blow this round) — and the universal fallback. Each says its payoff `horizon` |
 | `profile.ts` | the generator's distributions — fast shares, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
 | `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
-| `referee.ts` | the solver of the fight. `solveAsync(state, pool)` is `solve` with the root's cells computed by a `CellPool` — the same numbers, since a cell is a pure function of the round and its seeds and the double oracle (written once, as steps that announce each batch) reads them in the same order |
+| `referee.ts` | the solver of the fight. Given a `CellPool` (`new Referee(opts, pool)`), `solve` has the root's cells computed on worker threads, blocking until each batch is done — the same numbers, since a cell is a pure function of the round and its seeds and the double oracle (written once, as steps that announce each batch) reads them in the same order. So an equilibrium player on a pool is still a plain, synchronous `Policy` |
 | `content.ts` | `AUDIT_CONTENT`: the registry and the names of the audit's status behaviours, for `CombatEngine.snapshot`/`restore` on another thread |
 | `check.ts` | the AI's picks vs the referee's verdict |
 | `controls.ts` | hand-made positions whose equilibrium is arithmetic, in long/short twins |

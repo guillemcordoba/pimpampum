@@ -1,6 +1,6 @@
 /**
- * A SOLVE'S CELLS ON WORKER THREADS — `Referee.solveAsync` with a cell pool
- * must give the solve on one thread, number for number: the root round
+ * A SOLVE'S CELLS ON WORKER THREADS — a `Referee` given a cell pool must
+ * give the solve on one thread, number for number: the root round
  * travels as a snapshot, every cell is a pure function of it and its seeds,
  * and the double oracle reads them in the same order.
  *
@@ -8,9 +8,9 @@
  * `pnpm build`, as `pnpm test` does.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { CombatEngine, withSeed, withSeedAsync } from '@pimpampum/engine';
-import { equilibriumPolicy, MEDIUM_EQUILIBRIUM, DEFAULT_EQUILIBRIUM, FAST_EQUILIBRIUM } from '../src/index.js';
-import { AUDIT_CONTENT, buildEngine, generatePosition, pvDiff, Referee, type GeneratorConfig, type RefereeOptions } from '../src/audit/index.js';
+import { CombatEngine, withSeed } from '@pimpampum/engine';
+import { aiPolicy, equilibriumPolicy, MEDIUM_EQUILIBRIUM, DEFAULT_EQUILIBRIUM, FAST_EQUILIBRIUM, type Policy } from '../src/index.js';
+import { AUDIT_CONTENT, buildEngine, generatePosition, pvDiff, Referee, twoHeaded, type GeneratorConfig, type RefereeOptions } from '../src/audit/index.js';
 import { identities, midRoundKey } from '../src/audit/referee.js';
 import { createCellPool } from '../src/parallel/index.js';
 
@@ -42,18 +42,18 @@ describe('engine snapshot on the audit\'s cards', () => {
   });
 });
 
-describe('solveAsync on a worker pool', () => {
+describe('solve on a worker pool', () => {
   const settings: Record<string, Partial<RefereeOptions>> = {
     medium: { ...MEDIUM_EQUILIBRIUM, budget: Infinity },
     'joint best response': { ...DEFAULT_EQUILIBRIUM, samples: [2], decisionSamples: [2], playouts: 2, budget: Infinity },
   };
   for (const [name, opts] of Object.entries(settings)) {
-    it(`gives the same solve as one thread (${name})`, async () => {
+    it(`gives the same solve as one thread (${name})`, () => {
       for (const cfg of SLICES) {
         for (let seed = 1; seed <= 2; seed++) {
           const state = () => buildEngine(generatePosition(seed, cfg), idle);
           const one = new Referee({ ...opts, seed: 5 }).solve(state(), 0);
-          const many = await new Referee({ ...opts, seed: 5 }).solveAsync(state(), pool);
+          const many = new Referee({ ...opts, seed: 5 }, pool).solve(state(), 0);
           const at = `${cfg.shape} ${cfg.catalogue} seed ${seed}`;
           expect(many.value, at).toBe(one.value);
           expect(many.sol, at).toEqual(one.sol);
@@ -65,28 +65,18 @@ describe('solveAsync on a worker pool', () => {
   }
 });
 
-describe('the equilibrium policy planning on a pool', () => {
-  it('plays the same fight as the policy solving on one thread', async () => {
+describe('the equilibrium policy on a pool', () => {
+  it('plays the same fight as on one thread', () => {
     const cfg: GeneratorConfig = { shape: '2x2', cards: 3, roundsLeft: 4, multiShare: 0.8, catalogue: 'archetypes' };
     for (let seed = 1; seed <= 3; seed++) {
       const pos = generatePosition(seed, cfg);
-      // One policy on both sides: its solve is the first draw of every round.
-      const sync = withSeed(seed, () => {
-        const e = buildEngine(pos, equilibriumPolicy(MEDIUM_EQUILIBRIUM), { ai: true });
+      const fight = (policy: Policy) => withSeed(seed, () => {
+        // Today's AI on one side: its dice come out in the same order either way.
+        const e = buildEngine(pos, twoHeaded(policy, aiPolicy({ depth: 1 })), { ai: true });
         e.runCombat();
         return { margin: pvDiff(e), plays: e.history.map(h => h.action.id) };
       });
-      const planned = await withSeedAsync(seed, async () => {
-        const policy = equilibriumPolicy(MEDIUM_EQUILIBRIUM, 4, pool);
-        const e = buildEngine(pos, policy, { ai: true });
-        while (!e.isOver() && e.round < e.maxRounds) {
-          e.prepareRound();
-          await policy.plan(e);
-          e.playPreparedRound();
-        }
-        return { margin: pvDiff(e), plays: e.history.map(h => h.action.id) };
-      });
-      expect(planned, `seed ${seed}`).toEqual(sync);
+      expect(fight(equilibriumPolicy(MEDIUM_EQUILIBRIUM, 4, pool)), `seed ${seed}`).toEqual(fight(equilibriumPolicy(MEDIUM_EQUILIBRIUM)));
     }
   }, 120_000);
 });

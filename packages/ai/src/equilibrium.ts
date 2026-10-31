@@ -60,18 +60,11 @@ export interface EquilibriumPolicy extends Policy {
   /** Rounds solved, and rounds handed to today's AI because the referee could
    *  not represent them (a card it does not support) or ran out of budget. */
   stats: { solved: number; fallback: number };
-  /**
-   * Solve the round `engine` has just prepared (`prepareRound`) on the
-   * policy's cell pool, before the engine asks for cards — which it does
-   * synchronously, so a solve that waits on worker threads must come first:
-   * `engine.prepareRound(); await policy.plan(engine); engine.playPreparedRound();`.
-   * The same picks the engine's own call would make. Without a pool, a no-op.
-   */
-  plan(engine: CombatEngine): Promise<void>;
 }
 
-/** `pool`: the root's cells on worker threads (`@pimpampum/ai/parallel`), for `plan`. */
-export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamples = 4, pool?: CellPool): EquilibriumPolicy {
+/** `cellPool`: each round's cells on worker threads (`@pimpampum/ai/parallel`) —
+ *  the same play, sooner. */
+export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamples = 4, cellPool?: CellPool): EquilibriumPolicy {
   const options = { ...DEFAULT_EQUILIBRIUM, ...opts };
   const fallback = aiPolicy({ depth: 1 });
   const stats = { solved: 0, fallback: 0 };
@@ -81,15 +74,7 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
 
   const solveRound = (engine: CombatEngine): Map<Character, number> | null => {
     try {
-      return drawJointPerSide(engine, new Referee({ ...options, seed: Math.floor(random() * 1e9) }).solve(engine, 0));
-    } catch (e) {
-      if (e instanceof Unsupported || e instanceof BudgetExceeded) { stats.fallback++; return null; }
-      throw e;
-    }
-  };
-  const solveRoundAsync = async (engine: CombatEngine, cells: CellPool): Promise<Map<Character, number> | null> => {
-    try {
-      return drawJointPerSide(engine, await new Referee({ ...options, seed: Math.floor(random() * 1e9) }).solveAsync(engine, cells));
+      return drawJointPerSide(engine, new Referee({ ...options, seed: Math.floor(random() * 1e9) }, cellPool).solve(engine, 0));
     } catch (e) {
       if (e instanceof Unsupported || e instanceof BudgetExceeded) { stats.fallback++; return null; }
       throw e;
@@ -111,10 +96,6 @@ export function equilibriumPolicy(opts: Partial<RefereeOptions> = {}, targetSamp
 
   return {
     stats,
-    async plan(engine) {
-      if (!pool) return;
-      plan = { engine, round: engine.round, picks: await solveRoundAsync(engine, pool) };
-    },
     actionChooser(engine, actor) {
       if (!plan || plan.engine !== engine || plan.round !== engine.round) {
         plan = { engine, round: engine.round, picks: solveRound(engine) };

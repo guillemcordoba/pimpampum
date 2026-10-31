@@ -202,12 +202,14 @@ export interface RootRound {
  * Cells computed elsewhere — worker threads (`@pimpampum/ai/parallel`).
  * `begin` hands over the round, `cells` evaluates a batch of it
  * (`Referee.evaluateCell`), in any order, each with the simulated rounds it
- * cost.
+ * cost — and returns only when the whole batch is done, so a solve on a pool
+ * is as synchronous as one without: the engine asks its AI for a card and
+ * waits for the answer.
  */
 export interface CellPool {
   readonly refOf: ContentRefOf;
   begin(root: RootRound): void;
-  cells(pairs: { row: Joint; col: Joint }[]): Promise<{ stat: CellStat; sims: number }[]>;
+  cells(pairs: { row: Joint; col: Joint }[]): { stat: CellStat; sims: number }[];
 }
 
 /** +1 if team 0 won, −1 if it lost, 0 for a draw (`CombatEngine.winner`). */
@@ -430,7 +432,10 @@ export class Referee {
    *  every cell that ends on the same board gets the same value. */
   private leaves = new Map<string, number>();
 
-  constructor(opts: Partial<RefereeOptions> = {}) {
+  /** `pool`: the root's cells on worker threads, under the double oracle —
+   *  the same answers, sooner (`solve`). Not an option: options travel to
+   *  the workers, a pool does not. */
+  constructor(opts: Partial<RefereeOptions> = {}, private readonly pool?: CellPool) {
     this.opts = { ...DEFAULT_REFEREE, ...opts };
   }
 
@@ -467,25 +472,19 @@ export class Referee {
   /** Solve the round `state` is about to play; `mustInclude` are team-0 joints
    *  that must be among the candidates (kept for callers; every joint already is). */
   solve(state: CombatEngine, depth: number, mustInclude: Joint[] = []): RootSolution {
-    const { seats, cell, random } = this.cells(state, depth);
+    const { seats, cell, random, prepared, sig } = this.cells(state, depth);
     // A root is one position: its round-start chance would be one draw
     // standing in for all of them. (A live engine passes its round prepared.)
     if (random) throw new Unsupported('chance at the start of a round');
-    return this.matrix(seats, cell, mustInclude);
-  }
-
-  /**
-   * `solve`, with the root's cells computed by `pool` — the same answer,
-   * number for number: a cell is a pure function of the round and its seeds,
-   * and the double oracle reads them in the same order. Only the double
-   * oracle batches; any other strategy solves here, as `solve` would.
-   */
-  async solveAsync(state: CombatEngine, pool: CellPool): Promise<RootSolution> {
-    if (this.opts.strategies !== 'oracle') return this.solve(state, 0);
-    const { seats, cell, random, prepared, sig } = this.cells(state, 0);
-    if (random) throw new Unsupported('chance at the start of a round');
+    if (!this.pool || this.opts.strategies !== 'oracle') return this.matrix(seats, cell, mustInclude);
+    // On the pool: the same double oracle, each batch it announces computed
+    // by the workers before it reads it — the same numbers, as a cell is a
+    // pure function of the round and its seeds, read in the same order.
     const rows = cartesian(seats[0]), cols = cartesian(seats[1]);
-    pool.begin({ snapshot: prepared.snapshot(pool.refOf), sig, opts: this.opts, depth: 0 });
+    for (const j of mustInclude) {
+      if (!rows.some(r => jointKey(r) === jointKey(j))) throw new Error(`referee: ${jointKey(j)} is not a legal joint`);
+    }
+    this.pool.begin({ snapshot: prepared.snapshot(this.pool.refOf), sig, opts: this.opts, depth });
     const played = new Map<number, CellStat>();
     const steps = this.oracleSteps(rows, cols, cell, played);
     for (;;) {
@@ -493,7 +492,7 @@ export class Referee {
       if (step.done) return step.value;
       const need = [...new Set(step.value.map(([i, j]) => i * cols.length + j))].filter(k => !played.has(k));
       if (!need.length) continue;
-      const got = await pool.cells(need.map(k => ({ row: rows[Math.floor(k / cols.length)], col: cols[k % cols.length] })));
+      const got = this.pool.cells(need.map(k => ({ row: rows[Math.floor(k / cols.length)], col: cols[k % cols.length] })));
       need.forEach((k, n) => { played.set(k, got[n].stat); this.sims += got[n].sims; });
     }
   }
@@ -634,7 +633,7 @@ export class Referee {
   /**
    * The double oracle, as steps: before reading a batch of cells it yields
    * them (`[row, col]` index pairs), so a caller may have them computed
-   * elsewhere, in parallel, and put in `played` (`solveAsync`). A cell not
+   * elsewhere, in parallel, and put in `played` (`solve` on a pool). A cell not
    * there when read is computed here, so the answer never depends on what
    * was fetched — only the time does.
    */

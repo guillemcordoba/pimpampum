@@ -88,21 +88,3 @@ export function withRng<T>(gen: () => number, fn: () => T): T {
     integer = previousInt;
   }
 }
-
-/**
- * `withSeed` for an async `fn`: the seeded generator stays in place across
- * its awaits. Nothing else on this thread may draw meanwhile — one seeded
- * fight at a time (an AI awaiting worker threads mid-fight).
- */
-export async function withSeedAsync<T>(seed: number, fn: () => Promise<T>): Promise<T> {
-  const previous = current;
-  const previousInt = integer;
-  current = seededRng(seed);
-  integer = null;
-  try {
-    return await fn();
-  } finally {
-    current = previous;
-    integer = previousInt;
-  }
-}

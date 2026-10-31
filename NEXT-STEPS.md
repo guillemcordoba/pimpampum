@@ -7051,12 +7051,12 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
 
 ### 58.3 A solve's cells on worker threads (2026-10-31)
 
-**What:** `Referee.solveAsync(state, pool)` computes the root's cells on a pool of worker threads (`@pimpampum/ai/parallel`, Node only). The answers are the same as on one thread.
+**What:** a `Referee` given a cell pool (`new Referee(opts, pool)`) computes the root's cells on worker threads (`@pimpampum/ai/parallel`, Node only). The answers are the same as on one thread.
+- **Synchronous** (user, 2026-10-31): the solving thread blocks on shared memory (`Atomics.wait`) until each batch is done. So the equilibrium player on a pool is still a plain `Policy`, any fight loop can use it, and its fights are the same as without the pool. A first version was async; it needed a `plan()` before every round and a different fight loop, and drew dice in another order, so it was replaced.
 - The double oracle is written once, as steps that announce each batch of cells before reading it; the synchronous solve ignores the announcements.
 - The round reaches the workers as a snapshot: `CombatEngine.snapshot` / `restore`, a new generic engine seam. The audit names its status behaviours from `STATUS_BEHAVIORS`.
-- `equilibriumPolicy(opts, samples, pool).plan(engine)` solves between `prepareRound()` and the new `playPreparedRound()`.
-- The match harness takes `--workers n`. The fights then differ from a run without it (the prototype solves before today's AI draws its dice), so compare like with like.
-- **Tested:** a restored audit state has the same full key; `solveAsync` on 3 workers gives the same values and mixes as `solve`; a whole fight planned on the pool is the same fight move for move.
+- `equilibriumPolicy(opts, samples, cellPool)`; the match harness takes `--workers n`, for one fight at a time.
+- **Tested:** a restored audit state has the same full key; a solve on 3 workers gives the same values and mixes as on one thread; a fight against today's AI is the same fight move for move with or without the pool.
 
 **Speed, opening rounds** (4 workers, the user at the computer; seed 1 of each slice):
 
