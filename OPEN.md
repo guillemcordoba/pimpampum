@@ -9,14 +9,15 @@ message — never into a growing log.
 
 ## Decided, to implement
 
-- **Real cards during structural work:** mechanical changes only (no design or balance edits).
+- **Every card is redesigned** (2026-11-01): the player kits (same skills, 10 cards each), the enemies, the gold cards and the item cards, through the `card-designer` / `card-taste` loop. The batch A–D proposals (`DESIGN-PROPOSALS.md`) are dropped. Pilot: the firebender, from the user's concept doc ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb): all ten concepts kept, in the order 1 Bola de foc · 2 Mantell de flames · 3 Esclat · 4 Tempesta d'espurnes · 5 Pell d'obsidiana · 6 Alè de drac · 7 Foc interior · 8 Anell de foc · 9 Llamp · 10 Supernova.
+- **Old cards until their kit is redesigned:** mechanical changes only (no design or balance edits).
 - **Encounter-speed test:** stays red until fights shorten.
 
 ## Decisions for the owner
 
-- A1. Card picks, batches A–D (`DESIGN-PROPOSALS.md`): final texts, two title changes, batch A renames, Colós de butxaca, Coixí de vent.
-- A2. Rulings for `rules.md`: the wall rule, an AoE "apunta" each target, the end-of-round order, a Cometa that never lands and its fatigue, *desavantatge*.
-- A3. Interim defaults: a vanished aim retargets; no slow keyword; Cop desesperat is a normal card; the 7 enemy-block cards until batch B.
+- A11. The power ramp, now that a level enters no roll: how much stronger card N is than card 1 (a rule for `intentions.md`, needed before the firebender gets its dice).
+- A2. Rulings for `rules.md`, when a redesigned card needs them: the wall rule (every card in a holding wall pays its payoff), what "apunta" means for an area attack, the end-of-round order.
+- A3. Interim defaults: a vanished aim retargets; no slow keyword; Cop desesperat is a normal card.
 - A4. Balance direction: fights 4.3 → 6.0 rounds, Aggro > Power at 22.6% (Cures de camp), Guard +28.9 in card value. Report's advice: the AI first, then numbers.
 - A6. Armour's price now that speed is gone (default: keep).
 - A7. The equilibrium player: (a) its decision leaf; (b) when it replaces today's AI; (c) whether the balancer and bench switch too (about 160× today's cost on 3v3).
@@ -37,7 +38,6 @@ message — never into a growing log.
 - B4. [S] `isBlindSpot` requires a gain when best; empties `KNOWN_BLIND`.
 - B5. [M] Pin calibration data, not code; drop `speed`/`speedPenalty`; the control kits' "fastest" cards become `fast`.
 - B6. [S] Card legality from one engine source.
-- B11. [S] `bench/test/positions.test.ts`: read stalls as saturated (or field a shape that cannot stall).
 - B12. [M] Re-run the content-free slow tests never run under priority (bench pipeline, card value, playtest controls) and fix the instrument.
 - B13. [S] Check the web app in a real browser.
 - B14. [S] `bench/combatlog.ts` from structured log events; the balancer's `HETEROGENEITY` from a clustered error bar.
@@ -48,12 +48,10 @@ message — never into a growing log.
 
 ## Waits for the card migration (real cards are frozen)
 
-- C1. Implement the picks (A1), building statuses from the engine's kinds (`applyKind`) or pricing bespoke ones (the 28 in `status-pricing.test.ts`), the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`; delete the enemy-block machinery.
-- C2. Real-card bugs: `silenced` never read (`attack-effects.ts:166`); putrefacció's `WeakSet` not cloned (`nigromant.ts:34`); 15 behaviour-less status keys.
-- C3. `TODO(balance)` constants from the d20 era (`runes.ts:81`, `explosives-engineer.ts:10`, the `*-effects.ts`).
+- C1. Redesign kit by kit, firebender first: concepts → the review loop → the user's picks → mechanics and dice on the ramp (A11) → a final review → implement, statuses from the engine's kinds (`applyKind`) or priced bespoke → `/analyze`. Along the way: the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`, delete the enemy-block machinery, and check that the old cards' bugs (`silenced` never read, putrefacció's uncloned `WeakSet`, 15 behaviour-less status keys), their `TODO(balance)` constants and the 28 unpriced statuses in `status-pricing.test.ts` all went with them.
 - C4. One recalibration for the migration and the AI switch (`calibration:refresh`; the pinned copies still add a level by hand in places, and `skillLevelBonus` lives on for them until then), then the kit suites, both triangles, the armour bound, `/analyze`, and tuning per A4.
 - C5. Elements questions: the unagi as boss or creature (needs a cards-per-round seam), the Cop i fuga ★ text, the lopsided calibration cells, the shirshu and the puppeteer alone.
-- C6. The 80 gold cards: a pass for the priority rules, then picking (`sets/common/DESIGN.md`).
+- C6. The 80 gold cards, redesigned with the rest (`sets/common/DESIGN.md`).
 - C7. Toc de la mort's rule, re-decided after C4.
 
 ## Last
