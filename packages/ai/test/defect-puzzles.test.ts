@@ -271,9 +271,11 @@ describe('audit defects as puzzles: the referee pays PV, the AI health fractions
 //   (h) a sacrifice of 6 a foe (18 in all, a strike's worth spread thin): the
 //       referee strikes, and so does the AI.
 //   (i) a sacrifice of 9 a foe against foes that hit for 7: the referee
-//       sacrifices — scored by the PV left at the horizon, 27 dealt beats 18 —
-//       and the AI, its leaf one round deep and counting the fallen body,
-//       still strikes. Open.
+//       sacrifices — it pays PV in a cut fight, and 27 dealt beats 18 — while
+//       the AI, pricing the fallen body (the turns it no longer takes), keeps
+//       the hero. The currency of (g), not a misplay: pinned both ways. (Two
+//       more rounds of play before the leaf make the AI throw it, and break
+//       (d), (e1) and the hide control, 2026-11-02.)
 const sacrificeAt = (dmg: number, foeHit: number) => position(`sacrifice-${dmg}-${foeHit}`, 2,
   [body('H0', 12, [fixed('strike', 6), fixed('sacrifice', dmg)]), body('H1', 12, [fixed('strike', 6)]), body('H2', 12, [fixed('strike', 6)])],
   [body('F0', 30, [fixed('strike', foeHit)]), body('F1', 30, [fixed('strike', foeHit)]), body('F2', 30, [fixed('strike', foeHit)])]);
@@ -284,5 +286,5 @@ describe('audit defects as puzzles: a sacrifice', () => {
   it('(h) the referee keeps the hero', () => expect(refereeAnswer(WASTED)).toEqual({ cards: 'strike,strike,strike', p: 1 }), 60_000);
   it('(h) the AI keeps the hero', () => expect(aiAnswer(WASTED)).toEqual(Array(4).fill('strike,strike,strike')));
   it('(i) the referee throws the sacrifice', () => expect(refereeAnswer(PAYING)).toEqual({ cards: 'sacrifice,strike,strike', p: 1 }));
-  it.fails('(i) the AI throws the sacrifice', () => expect(aiAnswer(PAYING)).toEqual(Array(4).fill('sacrifice,strike,strike')));
+  it('(i) the AI keeps the hero', () => expect(aiAnswer(PAYING)).toEqual(Array(4).fill('strike,strike,strike')));
 });
