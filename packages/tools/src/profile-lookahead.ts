@@ -23,7 +23,7 @@ function fresh(): CombatEngine {
   const enemies = buildComposition([{ enemyId: 'goblin', count: 4, level: 3, pv: 20 }]);
   // Depth 0 by design: this script drives `bestResponse` by hand to time it,
   // so the engine must NOT be running a lookahead of its own.
-  return new CombatEngine(players, enemies, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 0 }) });
+  return new CombatEngine(players, enemies, { registry: theRegistry(), ...aiPolicy({ depth: 0 }) });
 }
 
 /** Scales every timing loop, so the smoke run can do two reps of each. */

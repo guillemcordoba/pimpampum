@@ -88,7 +88,7 @@ function fights(set: GameSet, perShape: number): void {
           enemies.forEach(c => body(c, 'enemy'));
           bump(t.shapes, `${heroes.length}x${enemies.length}`);
         }
-        const engine = new CombatEngine(heroes, enemies, { registry, maxRounds: 30, ...aiPolicy({ depth: 1 }) });
+        const engine = new CombatEngine(heroes, enemies, { registry, ...aiPolicy({ depth: 1 }) });
         while (!engine.isOver() && engine.round < engine.maxRounds) {
           engine.runRound();
           for (const c of [...engine.teams[0], ...engine.teams[1]]) {

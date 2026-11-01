@@ -50,7 +50,7 @@ function fight(seed: number, eqTeam: number): { margin: number; result: number; 
     setAIControlled(b);
     let seconds = 0;
     const e = new CombatEngine(a, b, {
-      registry: theRegistry(), maxRounds: 40,
+      registry: theRegistry(),
       actionChooser: (en, c) => {
         if (c.team !== eqTeam) return today.actionChooser(en, c);
         const t = performance.now();
@@ -62,19 +62,20 @@ function fight(seed: number, eqTeam: number): { margin: number; result: number; 
       optionChooser: (en, c, ...rest) => of(c).optionChooser?.(en, c, ...rest) ?? null,
     });
     const res = e.runCombat();
-    const result = res.winner === eqTeam ? 1 : res.winner === null ? 0.5 : 0;
+    // A stall (stopped at the cap) is unresolved: no result.
+    const result = res.capped ? null : res.winner === eqTeam ? 1 : res.winner === null ? 0.5 : 0;
     return { margin: margin(e, eqTeam), result, seconds, rounds: res.rounds, fallback: eq.stats.fallback };
   });
 }
 
 console.log(`EQUILIBRI ${JSON.stringify({ leaf: SETTINGS.leaf, policy: SETTINGS.playoutPolicy, rounds: SETTINGS.playoutRounds, end: SETTINGS.playoutEnd, horizon: SETTINGS.horizon, playouts: SETTINGS.playouts, samples: SETTINGS.samples, pool: SETTINGS.pool })} contra l'AI d'avui · joc ${chosen.id} · colla de calibratge ${COMPANY} · ${FIGHTS} parelles duplicades`);
 const margins: number[] = [];
-let wins = 0, seconds = 0, rounds = 0, fallback = 0;
+let wins = 0, resolved = 0, seconds = 0, rounds = 0, fallback = 0;
 for (let i = 0; i < FIGHTS; i++) {
   for (const eqTeam of [0, 1]) {
     const r = fight(77_000 + i, eqTeam);
     margins.push(r.margin);
-    wins += r.result;
+    if (r.result !== null) { wins += r.result; resolved++; }
     seconds += r.seconds;
     rounds += r.rounds;
     fallback += r.fallback;
@@ -82,5 +83,5 @@ for (let i = 0; i < FIGHTS; i++) {
   const n = margins.length;
   const mean = margins.reduce((x, y) => x + y, 0) / n;
   const se = Math.sqrt(margins.reduce((x, y) => x + (y - mean) ** 2, 0) / Math.max(1, n - 1) / n);
-  console.log(`   ${n} combats: guanya ${pctCoarse(wins / n, n)} · marge ${mean.toFixed(2)} ±${se.toFixed(2)} PV · ${(seconds / Math.max(1, rounds)).toFixed(1)} s per ronda · ${(rounds / n).toFixed(1)} rondes · rondes a l'AI d'avui ${fallback}`);
+  console.log(`   ${n} combats: guanya ${pctCoarse(resolved ? wins / resolved : 0.5, Math.max(1, resolved))} · marge ${mean.toFixed(2)} ±${se.toFixed(2)} PV · ${(seconds / Math.max(1, rounds)).toFixed(1)} s per ronda · ${(rounds / n).toFixed(1)} rondes · rondes a l'AI d'avui ${fallback}`);
 }

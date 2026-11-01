@@ -78,9 +78,20 @@ export type StepResult =
 
 export interface RoundPrep { skipping: TargetRef[]; }
 
+/**
+ * THE ROUND CAP, everywhere a fight is simulated: a safety stop, not a game
+ * result — a table has no cap. A fight still going at it is UNRESOLVED
+ * (`CombatResult.capped`): measurement reports it as a stall and leaves it
+ * out of winrates, and the AI does not play toward it.
+ */
+export const ROUND_CAP = 40;
+
 export interface CombatResult {
-  winner: number | null; // 0 or 1, null = draw / timeout
+  /** 0 or 1; null: no winner — a mutual wipe, or a fight stopped at the cap. */
+  winner: number | null;
   rounds: number;
+  /** Stopped at `maxRounds` with both sides standing: unresolved, not a draw. */
+  capped: boolean;
 }
 
 export interface CombatStats {
@@ -288,7 +299,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   constructor(teamA: Character[], teamB: Character[], opts: CombatEngineOptions) {
     this.registry = opts.registry;
-    this.maxRounds = opts.maxRounds ?? 50;
+    this.maxRounds = opts.maxRounds ?? ROUND_CAP;
     this.aiSharpness = opts.aiSharpness ?? 2;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
@@ -2129,7 +2140,7 @@ export class CombatEngine implements EngineApi, AIView {
     while (!this.isOver() && this.round < this.maxRounds) this.runRound();
     const winner = this.winner();
     if (stats) this.recordStats(stats, winner);
-    return { winner, rounds: this.round };
+    return { winner, rounds: this.round, capped: !this.isOver() };
   }
 
   private recordStats(stats: CombatStats, winner: number | null): void {

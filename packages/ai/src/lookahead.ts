@@ -181,21 +181,9 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   if (livingThem.length === 0) return 100 + w.pv * pvFrac(us);
   if (livingUs.length === 0) return -100 - w.pv * pvFrac(them);
 
-  // OUT OF ROUNDS IS A RESULT, AND THE RESULT IS A DRAW.
-  //
-  // `runCombat` loops `while (!isOver() && round < maxRounds)` and then
-  // `winner()` returns null — the engine's own word for a draw, the same
-  // outcome a mutual wipe produces, which this function already scores 0. A
-  // position at the cap is therefore TERMINAL and worth nothing to either side,
-  // however the board looks.
-  //
-  // Without this the evaluator read a stalled board with a PV lead as a
-  // comfortable win right up to the final round, which is not a taste about
-  // how to value tempo — it contradicts what the engine will actually return.
-  // (It is only the terminal case. Pricing an unfinished fight that is HEADING
-  // for the cap is the harder, open problem, and it needs a design decision
-  // rather than a correction — NEXT-STEPS §20.6.)
-  if (engine.round >= engine.maxRounds) return 0;
+  // THE CAP IS NOT A RESULT (`ROUND_CAP`): a board there is scored like any
+  // other. It used to score a draw worth 0 — what `winner()` returns — and a
+  // side that could not win learned to turtle toward it (NEXT-STEPS §54.3).
   // Dead members count as 0 PV rather than being dropped, else wiping out our
   // own wounded would read as an improvement.
   const pvDiff = pvFrac(us) - pvFrac(them);
@@ -233,12 +221,12 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
  * THE LEAF AS THE LOOKAHEAD READS IT (`LookaheadOptions.tempo`): `positionScore`
  * on a SETTLED board — the next round prepared on `sim` itself, so round-start
  * effects land and the bodies that lose it are known — plus `tempo` times each
- * side's blows for that round. SPENDS `sim`. Not when that round is the cap: a
- * board there is a draw whatever it holds. Shared with the referee's
+ * side's blows for that round. SPENDS `sim`. The round cap does not count: it
+ * is a safety stop, not a result (`ROUND_CAP`). Shared with the referee's
  * `decisionLeaf: 'settled'`, so both read a board the same way.
  */
 export function settledScore(sim: CombatEngine, team: number, weights: EvaluatorWeights | undefined, tempo: number): number {
-  if (tempo && !sim.isOver() && sim.round + 1 < sim.maxRounds) {
+  if (tempo && !sim.isOver()) {
     const { skipping } = sim.prepareRound();
     // A round-start effect may have ended the fight: no blows follow a
     // result (they were once added on top of the win, so a bomb that
@@ -554,8 +542,7 @@ function evaluate(
       for (let k = 0; k < (opts.continuation ?? 0) && !sim.isOver() && sim.round < sim.maxRounds; k++) sim.runRound();
       // SETTLE THE LEAF (`LookaheadOptions.tempo`): prepare the next round —
       // round-start effects land, the bodies that lose it are known — and
-      // price its blows. Not when that round is the cap: a board there is a
-      // draw whatever it holds.
+      // price its blows (`settledScore`).
       return settledScore(sim, team, opts.weights, opts.tempo ?? 0);
     });
     if (known && cached === undefined) known[s] = one;

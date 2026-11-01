@@ -254,18 +254,18 @@ describe('area attacks', () => {
 });
 
 describe('the end of a fight', () => {
-  it('a fight nobody can win ends as a draw at the round cap', () => {
+  it('a fight nobody can win stops at the round cap, unresolved', () => {
     const a = fighter('A', [focusCard()], { pv: 10, ai: true });
     const b = fighter('B', [focusCard()], { pv: 10, ai: true });
     const engine = new CombatEngine([a], [b], { registry: registry(), actionChooser: firstLegalChooser, maxRounds: 7 });
-    expect(engine.runCombat()).toEqual({ winner: null, rounds: 7 });
+    expect(engine.runCombat()).toEqual({ winner: null, rounds: 7, capped: true });
   });
 
   it('the side left standing wins', () => {
     const a = fighter('A', [attackCard('k', { rollBonus: 20 })], { pv: 10, ai: true });
     const b = fighter('B', [focusCard()], { pv: 10, ai: true });
     const engine = new CombatEngine([a], [b], { registry: registry(), actionChooser: firstLegalChooser });
-    expect(engine.runCombat()).toEqual({ winner: 0, rounds: 1 });
+    expect(engine.runCombat()).toEqual({ winner: 0, rounds: 1, capped: false });
   });
 
   it('a stunned character loses exactly the turns they were told to', () => {

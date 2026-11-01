@@ -45,7 +45,7 @@ function snapshots(seed: number): CombatEngine[] {
     const b = theSet().buildParty(calibrationParty(seed % 2));
     setAIControlled(a);
     setAIControlled(b);
-    const e = new CombatEngine(a, b, { registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: 1 }) });
+    const e = new CombatEngine(a, b, { registry: theRegistry(), ...aiPolicy({ depth: 1 }) });
     const out: CombatEngine[] = [];
     for (let r = 0; r < ROUNDS && !e.isOver(); r++) {
       e.prepareRound();

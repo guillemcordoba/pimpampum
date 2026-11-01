@@ -107,7 +107,7 @@ export function useGame() {
     // Players are human-controlled; the factory marks enemies aiControlled.
     // The enemies think one round ahead (aiDepth 1) — the same AI the balancer
     // priced the encounter with, so the fight plays out as advertised.
-    engine.value = new CombatEngine(players, enemies, { registry, maxRounds: 50, ...aiPolicy({ depth: 1 }) });
+    engine.value = new CombatEngine(players, enemies, { registry, ...aiPolicy({ depth: 1 }) });
     combatLog.value = [];
     winner.value = null;
     startNewRound();

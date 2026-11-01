@@ -216,6 +216,12 @@ inert payload like `StatusEntry.data`), lost actions are `skipTurns`, and a
 status that takes the body out of the fight (the unagi's swallow) carries
 `bodyOut: 1` instead. `clearHarm(c)` is the one cleanse.
 
+**The round cap** (2026-11-01) — `ROUND_CAP` (40) is the engine's default
+`maxRounds` and the only cap any simulation uses. A fight stopped there is
+UNRESOLVED (`CombatResult.capped`), not a draw: measurement reports it as a
+stall and leaves it out of winrates (a mutual wipe is a draw: ½), and the AI
+scores a board at the cap like any other, so it never plays toward it.
+
 **State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into
 plain, structured-cloneable data and `CombatEngine.restore(snap, registry, deref)`
 rebuilds it (`engine/src/snapshot.ts`): what `clone()` copies, for where objects
@@ -655,10 +661,9 @@ capped targets at three, committed them with the card, and solved big sides by
 double oracle; NEXT-STEPS §54 measured what that cost.
 
 **The check.** The AI picks team 0's cards (`bestResponse` at
-`DEFAULT_LOOKAHEAD`, four seeds) on an engine with ONE MORE round than the
-referee scores — its evaluator calls a board at `maxRounds` a draw worth 0, a
-real-game rule that would make every last-round play look worthless on an
-audit's artificial cap. Only cards are judged (the referee takes the in-round decisions itself). A pick is a MISMATCH when its equilibrium probability
+`DEFAULT_LOOKAHEAD`, four seeds) on the same engine the referee scores (the
+round cap is not a result to the AI since 2026-11-01, so the audit's cut needs
+no extra round). Only cards are judged (the referee takes the in-round decisions itself). A pick is a MISMATCH when its equilibrium probability
 is under 2%, it loses more than ε = 1 PV and 2 standard errors against the
 equilibrium opponent, and two re-solves under independent referee seeds agree.
 `CheckOptions.rival` asks a second AI setting the same position and judges it

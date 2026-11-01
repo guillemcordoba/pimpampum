@@ -278,10 +278,11 @@ function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: nu
   sim.finishRound();
 }
 
-/** Play one candidate card from this position and score where the fight ends. */
+/** Play one candidate card from this position and score where the fight ends;
+ *  `won` is null for a stall (unresolved: left out of the win share). */
 function rollout(
   engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions, streamSeed: number,
-): { score: number; won: number } {
+): { score: number; won: number | null } {
   const sim = engine.clone();
   // Per-seat streams, or the pairing below holds only until the first card
   // that draws a different number of dice (`CombatEngine.seatStreamSeed`).
@@ -301,7 +302,7 @@ function rollout(
   const res = sim.runCombat();
   return {
     score: pvDifferential(sim, opts.team),
-    won: res.winner === opts.team ? 1 : res.winner === null ? 0.5 : 0,
+    won: res.capped ? null : res.winner === opts.team ? 1 : res.winner === null ? 0.5 : 0,
   };
 }
 
@@ -333,16 +334,16 @@ export function valuePosition(
 
   const seed = Math.floor(random() * 1e9);
   const branches: Branch[] = legal.map(actionIdx => {
-    let won = 0;
+    let won = 0, resolved = 0;
     const samples: number[] = [];
     for (let s = 0; s < opts.samples; s++) {
       const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts, seed + s * 7919));
       samples.push(r.score);
-      won += r.won;
+      if (r.won !== null) { won += r.won; resolved++; }
     }
     return {
       actionIdx, cardId: actor.actions[actionIdx].def.id,
-      score: samples.reduce((a, x) => a + x, 0) / opts.samples, won: won / opts.samples, samples,
+      score: samples.reduce((a, x) => a + x, 0) / opts.samples, won: resolved ? won / resolved : 0.5, samples,
     };
   });
 
@@ -519,7 +520,7 @@ function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<Regre
       const players = theSet().buildParty(setup.party);
       _setAI(players);
       const engine = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
-        registry: theRegistry(), maxRounds: 40, actionChooser: _look(CELL_AI), targetChooser: TARGETS,
+        registry: theRegistry(), actionChooser: _look(CELL_AI), targetChooser: TARGETS,
       });
       const subject = engine.teams[setup.subjectTeam][0];
       const fight = fights++;

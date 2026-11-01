@@ -129,17 +129,19 @@ function blindChooser(team: number) {
 
 function winrate(chooser: Chooser, m: (typeof MATCHUPS)[number], games: number, seed: number): number {
   return withSeed(seed, () => {
-    let wins = 0;
+    let wins = 0, resolved = 0;
     for (let i = 0; i < games; i++) {
       const { players, enemies } = build(m);
       setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
-        registry: theRegistry(), maxRounds: 40, actionChooser: orAI(chooser), targetChooser: AI.targetChooser,
+        registry: theRegistry(), actionChooser: orAI(chooser), targetChooser: AI.targetChooser,
       });
-      const w = engine.runCombat().winner;
-      if (w === 0) wins++; else if (w === null) wins += 0.5;
+      const res = engine.runCombat();
+      if (res.capped) continue; // a stall is unresolved: out of the winrate
+      resolved++;
+      if (res.winner === 0) wins++; else if (res.winner === null) wins += 0.5;
     }
-    return wins / games;
+    return resolved ? wins / resolved : 0.5;
   });
 }
 
@@ -175,7 +177,7 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
       const { players, enemies } = build(m);
       setAIControlled(players);
       const engine = new CombatEngine(players, enemies, {
-        registry: theRegistry(), maxRounds: 40, actionChooser: chooser, targetChooser: AI.targetChooser,
+        registry: theRegistry(), actionChooser: chooser, targetChooser: AI.targetChooser,
       });
       engine.runCombat();
 

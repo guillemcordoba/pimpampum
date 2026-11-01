@@ -34,7 +34,7 @@
  */
 import {
   ActionType, availableActionIndices, type Character, CombatEngine, random, setAIControlled,
-  withSeed,
+  ROUND_CAP, withSeed,
 } from '@pimpampum/engine';
 import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser, selectAction } from '@pimpampum/ai';
 
@@ -206,7 +206,7 @@ export function headToHead(
 ): HeadToHead {
   const half = Math.max(1, Math.round(games / 2));
   const play = (a: Chooser, b: Chooser, xFirst: boolean): number => {
-    let wins = 0;
+    let wins = 0, resolved = 0;
     // COMMON RANDOM NUMBERS: the same seed for both seats, so the two halves
     // meet the same dice and differ only by which policy sat where.
     withSeed(seed, () => {
@@ -217,13 +217,16 @@ export function headToHead(
         setAIControlled(teamB);
         if (prepare) { if (xFirst) prepare(teamA, teamB); else prepare(teamB, teamA); }
         const res = new CombatEngine(teamA, teamB, {
-          registry: theRegistry(), maxRounds: 40, actionChooser: split(a, b), targetChooser: TARGETS,
+          registry: theRegistry(), maxRounds: ROUND_CAP, actionChooser: split(a, b), targetChooser: TARGETS,
         }).runCombat();
+        // A stall is unresolved: left out (`CombatResult.capped`).
+        if (res.capped) continue;
+        resolved++;
         if (res.winner === 0) wins++;
         else if (res.winner === null) wins += 0.5;
       }
     });
-    return wins / half;
+    return resolved ? wins / resolved : 0.5;
   };
   return { winrate: (play(x, y, true) + (1 - play(y, x, false))) / 2, games: half * 2 };
 }

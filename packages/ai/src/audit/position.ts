@@ -78,18 +78,17 @@ function buildFighter(f: FighterSpec, team: number, idx: number): Character {
 }
 
 /**
- * The position as a live engine at the start of its next round. `maxRounds` is
- * `roundsLeft` unless `extraRounds` says otherwise (the AI under test is shown
- * one more round than the referee scores; see `check.ts`).
+ * The position as a live engine at the start of its next round; `maxRounds` is
+ * `roundsLeft`.
  */
 export function buildEngine(
   pos: Position,
   policy: { actionChooser: ActionChooser; targetChooser?: TargetChooser },
-  opts: { extraRounds?: number; ai?: boolean } = {},
+  opts: { ai?: boolean } = {},
 ): CombatEngine {
   const teams = pos.teams.map((t, ti) => t.map((f, i) => buildFighter(f, ti, i)));
   const engine = new CombatEngine(teams[0], teams[1], {
-    registry: REGISTRY, maxRounds: pos.roundsLeft + (opts.extraRounds ?? 0),
+    registry: REGISTRY, maxRounds: pos.roundsLeft,
     actionChooser: policy.actionChooser, targetChooser: policy.targetChooser,
   });
   // After the engine: its constructor restores full health and clears statuses.

@@ -122,7 +122,7 @@ const watch = instrument;
  *  Also times the run: a balancer solve is thousands of combats, so cost per
  *  combat decides whether a policy is usable at all. */
 function runParty(chooser: Chooser, enemyChooser: Chooser, games: number, u?: Usage): { winrate: number; rounds: number; msPerCombat: number } {
-  let wins = 0, rounds = 0;
+  let wins = 0, resolved = 0, rounds = 0;
   const base = split(chooser, enemyChooser);
   const driver = u ? watch(base, 0, u) : base;
   const started = performance.now();
@@ -131,14 +131,16 @@ function runParty(chooser: Chooser, enemyChooser: Chooser, games: number, u?: Us
       const players = theSet().buildParty(PARTY);
       setAIControlled(players);
       const enemies = theSet().buildEncounter(ENCOUNTER);
-      const res = new CombatEngine(players, enemies, { registry: theRegistry(), maxRounds: 40, actionChooser: driver })
+      const res = new CombatEngine(players, enemies, { registry: theRegistry(), actionChooser: driver })
         .runCombat();
       rounds += res.rounds;
+      if (res.capped) continue; // a stall is unresolved: out of the winrate
+      resolved++;
       if (res.winner === 0) wins++;
       else if (res.winner === null) wins += 0.5;
     }
   });
-  return { winrate: wins / games, rounds: rounds / games, msPerCombat: (performance.now() - started) / games };
+  return { winrate: resolved ? wins / resolved : 0.5, rounds: rounds / games, msPerCombat: (performance.now() - started) / games };
 }
 
 // --- Report -----------------------------------------------------------------

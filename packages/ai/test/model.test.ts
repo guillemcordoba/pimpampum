@@ -188,14 +188,9 @@ describe('a restricted search plays only what it is allowed to', () => {
 describe('the leaf evaluator agrees with the engine about how a fight ends', () => {
   /*
    * `positionScore` is what the search maximises, so its TERMINAL values have
-   * to be the engine's actual outcomes. Three of the four were already right —
-   * a wipe is ±100, a mutual wipe is 0. The fourth was missing: the engine
-   * stops at `maxRounds` and `winner()` returns null, which is a DRAW, and the
-   * evaluator went on reading the board as a comfortable lead instead.
-   *
-   * These are agreement checks, not judgements about play: whatever the right
-   * value of tempo is, "this position is worth a PV lead" and "this position
-   * returns null" cannot both be true.
+   * to be the engine's actual outcomes: a wipe is ±100, a mutual wipe is 0.
+   * The round cap is NOT an outcome (`ROUND_CAP`, 2026-11-01): a fight stopped
+   * there is unresolved, and the board is scored as it stands.
    */
   function atCap(pvUs: number, pvThem: number): CombatEngine {
     const hero = fighter('Hero');
@@ -207,10 +202,11 @@ describe('the leaf evaluator agrees with the engine about how a fight ends', () 
     return engine;
   }
 
-  it('a board at the round cap is a draw, however far ahead it looks', () => {
-    // Winning on PV and running out of rounds still returns `winner: null`.
-    expect(positionScore(atCap(10, 1), 0), 'a huge PV lead at the cap is still a draw').toBe(0);
-    expect(positionScore(atCap(1, 10), 0), 'and so is a huge PV deficit').toBe(0);
+  it('a board at the round cap is scored like any other: the cap is not a result', () => {
+    // The cap is a safety stop (`ROUND_CAP`), not a draw to play toward: a
+    // side that cannot win must not see it as a way out (NEXT-STEPS §54.3).
+    expect(positionScore(atCap(10, 1), 0), 'a PV lead at the cap is still a lead').toBeGreaterThan(0);
+    expect(positionScore(atCap(1, 10), 0), 'and a deficit a deficit').toBeLessThan(0);
   });
 
   it('but a WIPE on the final round is still a win', () => {

@@ -23,7 +23,7 @@
  * same seed, so candidates differ by their own merits rather than by dice
  * noise. This is what makes a bisection on a stochastic function stable.
  */
-import { CombatEngine, EffectRegistry, Character, withSeed, setAIControlled } from '@pimpampum/engine';
+import { CombatEngine, EffectRegistry, Character, ROUND_CAP, withSeed, setAIControlled } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
 
 /**
@@ -162,8 +162,10 @@ export interface ChunkJob {
   maxRounds?: number;
 }
 
-/** What a chunk of fights produced. Draws count ½ in `wins`. */
-export interface ChunkTotals { games: number; wins: number; rounds: number; roundsSq: number }
+/** What a chunk of fights produced. A mutual wipe counts ½ in `wins`; a
+ *  stall (stopped at the round cap) is unresolved — counted in `stalls`, out
+ *  of the winrate. */
+export interface ChunkTotals { games: number; wins: number; stalls: number; rounds: number; roundsSq: number }
 
 /** Split one simulation into its seeded chunks. */
 export function chunkJobs(groups: FieldedGroup[], opts: SimOptions = {}): ChunkJob[] {
@@ -183,21 +185,22 @@ export function chunkJobs(groups: FieldedGroup[], opts: SimOptions = {}): ChunkJ
 export function playChunk<P>(content: EncounterContent<P>, party: P, job: ChunkJob, registry?: EffectRegistry): ChunkTotals {
   const reg = registry ?? content.registry();
   return withSeed(job.seed, () => {
-    let wins = 0, rounds = 0, roundsSq = 0;
+    let wins = 0, stalls = 0, rounds = 0, roundsSq = 0;
     for (let i = 0; i < job.games; i++) {
       const players = content.buildParty(party);
       setAIControlled(players);
       const enemies = content.buildEncounter(job.groups);
       const result = new CombatEngine(players, enemies, {
-        registry: reg, maxRounds: job.maxRounds ?? 40,
+        registry: reg, maxRounds: job.maxRounds ?? ROUND_CAP,
         ...aiPolicy({ depth: job.aiDepth ?? BALANCER_DEPTH, ...job.aiLookahead }),
       }).runCombat();
-      if (result.winner === 0) wins += 1;
+      if (result.capped) stalls++;
+      else if (result.winner === 0) wins += 1;
       else if (result.winner === null) wins += 0.5;
       rounds += result.rounds;
       roundsSq += result.rounds * result.rounds;
     }
-    return { games: job.games, wins, rounds, roundsSq };
+    return { games: job.games, wins, stalls, rounds, roundsSq };
   });
 }
 
@@ -205,7 +208,9 @@ export function playChunk<P>(content: EncounterContent<P>, party: P, job: ChunkJ
 export function mergeChunks<P>(content: EncounterContent<P>, party: P, totals: ChunkTotals[]): SimResult {
   const games = totals.reduce((n, t) => n + t.games, 0);
   if (games === 0) return { winrate: 1, games: 0, avgRounds: 0, roundsStderr: 0, stderr: 0 };
-  const winrate = totals.reduce((n, t) => n + t.wins, 0) / games;
+  // Over the fights that ended: a stall is unresolved, not half a win.
+  const resolved = games - totals.reduce((n, t) => n + (t.stalls ?? 0), 0);
+  const winrate = resolved ? totals.reduce((n, t) => n + t.wins, 0) / resolved : 0.5;
   const avgRounds = totals.reduce((n, t) => n + t.rounds, 0) / games;
   const roundsVar = Math.max(0, totals.reduce((n, t) => n + t.roundsSq, 0) / games - avgRounds * avgRounds);
   // A DRAWN party makes games not quite iid Bernoulli: the party is redrawn
@@ -220,7 +225,7 @@ export function mergeChunks<P>(content: EncounterContent<P>, party: P, totals: C
     games,
     avgRounds,
     roundsStderr: Math.sqrt(roundsVar / games),
-    stderr: HETEROGENEITY * Math.sqrt(Math.max(0.0001, winrate * (1 - winrate)) / games),
+    stderr: HETEROGENEITY * Math.sqrt(Math.max(0.0001, winrate * (1 - winrate)) / Math.max(1, resolved)),
   };
 }
 

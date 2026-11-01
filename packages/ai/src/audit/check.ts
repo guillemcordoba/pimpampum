@@ -16,12 +16,6 @@
  *
  * Only the cards are judged: the referee takes every in-round decision (the
  * targets) itself, at its best, so a pick is a card choice.
- *
- * ONE ROUND MORE FOR THE AI. The referee scores the fight at its round cap; the
- * AI's evaluator treats a board AT `maxRounds` as a draw worth 0 (a real-game
- * rule for 50-round stalls). Shown the true cap, the AI would see every
- * last-round play as worth nothing and the audit would report that artefact.
- * So the AI's engine has `maxRounds + 1` — its depth-1 search never reaches it.
  */
 import { withSeed, type Character, type CombatEngine, type TargetChooser } from '@pimpampum/engine';
 import { pickResolveTargets, selectAction } from '../policy.js';
@@ -112,7 +106,7 @@ export function aiPicks(
     withSeed(9_000_000 + s, () => {
       const engine = buildEngine(pos, {
         actionChooser: (e, a) => selectAction(e, a).actionIdx, targetChooser: pickResolveTargets,
-      }, { extraRounds: 1, ai: true });
+      }, { ai: true });
       const prep = engine.prepareRound();
       const skipping = new Set(prep.skipping.filter(r => r.team === 0).map(r => r.idx));
       const choices = bestResponse(engine, 0, lookahead).choices;
@@ -137,19 +131,11 @@ export interface AimJudgement extends AimVerdict {
 }
 
 /**
- * The production AI's aiming (`aiPolicy`'s target chooser at depth 1), asked on
- * an engine with one more round than the referee scores — for the reason the
- * card choice is (see the top of this file): its evaluator calls a board at
- * the cap a draw worth 0, and every last-round aim would read as nothing.
+ * The production AI's aiming (`aiPolicy`'s target chooser at depth 1).
  */
-const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool) => withSeed(77_777, () => {
+const AI_AIM: TargetChooser = (engine, actor, def, req, count, pool) => withSeed(77_777, () =>
   // Its own generator: the referee's chance may be enumerated, not drawn.
-  const view = engine.clone();
-  (view as unknown as { maxRounds: number }).maxRounds = engine.maxRounds + 1;
-  const at = (c: Character): Character => view.teams[c.team][engine.teams[c.team].indexOf(c)];
-  const picked = searchTargets(view as CombatEngine, at(actor), def, req, count, pool.map(at), DEFAULT_LOOKAHEAD.targetSamples ?? 0);
-  return picked.map(c => pool[pool.map(at).indexOf(c)]);
-});
+  searchTargets(engine as CombatEngine, actor, def, req, count, pool, DEFAULT_LOOKAHEAD.targetSamples ?? 0));
 
 interface Judged { loss: number; value: number; eqProb: number; noise: number; flagged: boolean }
 

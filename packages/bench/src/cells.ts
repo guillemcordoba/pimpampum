@@ -13,7 +13,7 @@
  * measurement. `instrument()` below is now the only one.
  */
 import {
-  Character, CombatEngine, CombatStats, availableActionIndices, mergeCombatStats, newCombatStats, setAIControlled, withSeed,
+  Character, CombatEngine, CombatStats, ROUND_CAP, availableActionIndices, mergeCombatStats, newCombatStats, setAIControlled, withSeed,
 } from '@pimpampum/engine';
 import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
@@ -114,8 +114,10 @@ export interface CellSetup {
 }
 
 export interface CellRun {
-  /** Raw winrate of the subject side in this cell (draws count as half). */
+  /** Winrate of the subject side over the fights that ended (a mutual wipe
+   *  counts half; a stall is left out — `stallRate`). */
   winrate: number;
+  /** Mutual wipes: draws that ended. */
   drawRate: number;
   /**
    * Fights still unresolved at the round cap — the ones that never end. NOT
@@ -176,8 +178,6 @@ export function cellResult(
   return cacheKey ? countedCached<CachedCell>('cell', cacheKey, compute) : compute();
 }
 
-/** The round cap every cell fight is played to; a fight still going at it is a stall. */
-export const CELL_MAX_ROUNDS = 40;
 
 /** Take one card out of every hand on a team. */
 export function dropCard(team: Character[], cardId: string): void {
@@ -202,17 +202,18 @@ function runOneCell(
       const enemies = theSet().buildEncounter(setup.enemies);
       if (setup.withoutCard) dropCard(setup.subjectTeam === 0 ? players : enemies, setup.withoutCard);
       const res = new CombatEngine(players, enemies, {
-        registry: theRegistry(), maxRounds: CELL_MAX_ROUNDS, actionChooser, targetChooser: CELL_TARGETS,
+        registry: theRegistry(), maxRounds: ROUND_CAP, actionChooser, targetChooser: CELL_TARGETS,
       }).runCombat(stats);
       rounds.push(res.rounds);
-      if (res.winner === setup.subjectTeam) wins++;
-      else if (res.winner === null) {
-        draws++; wins += 0.5;
-        if (res.rounds >= CELL_MAX_ROUNDS) stalls++;
-      }
+      // A stall (stopped at the cap) is unresolved: out of the winrate,
+      // reported as the stall rate. A mutual wipe is a draw that ENDED: ½.
+      if (res.capped) stalls++;
+      else if (res.winner === setup.subjectTeam) wins++;
+      else if (res.winner === null) { draws++; wins += 0.5; }
     }
   });
-  return { winrate: wins / games, drawRate: draws / games, stallRate: stalls / games, rounds };
+  const resolved = games - stalls;
+  return { winrate: resolved ? wins / resolved : 0.5, drawRate: draws / games, stallRate: stalls / games, rounds };
 }
 
 export interface MatrixResult {

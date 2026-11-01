@@ -104,8 +104,9 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
       const gen = generateEncounter(template, bodiesFor(template.id), party, target, { games: searchGames(120), searchGames: searchGames(80) });
       if (!gen) continue;
       const g = gen.groups[0];
-      const wins = withSeed(31337, () => {
-        let wins = 0;
+      // A stall (stopped at the cap) is unresolved: out of the winrate.
+      const { wins, resolved } = withSeed(31337, () => {
+        let wins = 0, resolved = 0;
         for (let i = 0; i < games; i++) {
           const players = buildReferenceParty(party);
           const enemies = Array.from({ length: g.count }, (_, k) =>
@@ -114,14 +115,16 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
             }));
           setAIControlled(players);
           const engine = new CombatEngine(players, enemies, {
-            registry: theRegistry(), maxRounds: 40, ...aiPolicy({ depth: REPLAY_DEPTH }),
+            registry: theRegistry(), ...aiPolicy({ depth: REPLAY_DEPTH }),
           });
-          const w = engine.runCombat().winner;
-          if (w === 0) wins++; else if (w === null) wins += 0.5;
+          const res = engine.runCombat();
+          if (res.capped) continue;
+          resolved++;
+          if (res.winner === 0) wins++; else if (res.winner === null) wins += 0.5;
         }
-        return wins;
+        return { wins, resolved };
       });
-      const replay = wins / games;
+      const replay = resolved ? wins / resolved : 0.5;
       const flag = gen.clamped ? '!' : gen.durationCapped ? '⏱' : '';
       cells.push(
         `${template.id.slice(0, 10)} ${g.count}×pv${g.pv} `

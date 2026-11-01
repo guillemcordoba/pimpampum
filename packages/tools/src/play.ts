@@ -64,7 +64,7 @@ const players = PLAYERS.map(p => buildCharacter(
 const enemies = Array.from({ length: ENEMY_COUNT }, (_, i) => {
   return createEnemy('goblin', { level: ENEMY_LEVEL, name: `Gob${i + 1}`, pv: ENEMY_PV })!;
 });
-const eng = new CombatEngine(players, enemies, { registry: reg, maxRounds: 40, ...aiPolicy({ depth: AI_DEPTH }) });
+const eng = new CombatEngine(players, enemies, { registry: reg, ...aiPolicy({ depth: AI_DEPTH }) });
 
 
 const TYPE_NAMES: Record<string, string> = {
