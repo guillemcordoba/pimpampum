@@ -43,108 +43,79 @@ const sel = (team: number, idx: number, actionIdx: number, targets?: Selection['
 const T = (team: number, idx: number) => [{ team, idx }];
 
 describe('Mestre de la terra', () => {
-  it('Guant de pedra: after the punch, the rock defends the bender for the rest of the round', () => {
-    const earth = fighter('Terra', [flat('guant-de-pedra', 1, 10)], { pv: 30 });
-    const bag = fighter('Sac', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(5)], { pv: 30 });
-    playRound(engineFor([earth], [bag, foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(0, 0))]);
-    expect(bag.currentPV).toBe(19);
-    expect(earth.currentPV).toBe(30);
-  });
-
-  it('Mur ariet: a block that holds rams the attacker once with the card\'s own dice', () => {
-    // The ram rolls the card's dice (1d1 = 1), undefended.
-    const earth = fighter('Terra', [flat('mur-ariet', 1, 100)], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(4)], { pv: 30 });
-    playRound(engineFor([earth, ally], [foe]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(30);
-    expect(foe.currentPV).toBe(29);
-  });
-
-  it('Sentit sísmic: next round the bender\'s side chooses after the enemies, and sees their cards', () => {
-    const earth = fighter('Terra', [getAction('sentit-sismic')!, wait], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(3)], { pv: 30 });
+  it('Armadura de terra: an ally has +3 on its defenses for the next rounds', () => {
+    const earth = fighter('Terra', [flat('armadura-de-terra', 0), wait], { pv: 30 });
+    const ally = fighter('Amic', [guard(4)], { pv: 30 });
+    const foe = fighter('Foe', [wait, blow(6)], { pv: 30 });
     const engine = engineFor([earth, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
-    engine.prepareRound();
-    engine.planActions([sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 0))]);
-    expect(engine.revealedPlanFor(earth)).toEqual([{ team: 1, idx: 0, actionIdx: 1 }]);
-    expect(engine.revealedPlanFor(ally)).toEqual([{ team: 1, idx: 0, actionIdx: 1 }]);
-    expect(engine.revealedPlanFor(foe)).toEqual([]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(0, 1)), sel(1, 0, 0)]);
+    // 6 against the guard's 4 + 3: it holds.
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0, T(0, 1)), sel(1, 0, 1, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
   });
 
-  it('Armadura de roca: +1 armour for the rest of the fight each time, up to +3', () => {
-    const earth = fighter('Terra', [flat('armadura-de-roca', 1, 100)], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30 });
-    const engine = engineFor([earth], [foe]);
-    for (let i = 0; i < 4; i++) playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0)]);
-    expect(earth.getPassiveArmor()).toBe(3);
+  it("Túnel: next round the ally's first attack cannot be defended", () => {
+    const earth = fighter('Terra', [flat('tunel', 0), wait], { pv: 30 });
+    const ally = fighter('Amic', [wait, blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    const engine = engineFor([earth, ally], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(1, 0))]);
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.currentPV).toBe(25);
   });
 
-  it('Sorra movedissa: a wounded target cannot play Defenses next turn', () => {
-    const earth = fighter('Terra', [flat('sorra-movedissa', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [guard(1), wait], { pv: 30 });
+  it('Trampa de terra: an attacker it holds is trapped — no attacks next turn', () => {
+    const earth = fighter('Terra', [flat('trampa-de-terra', 1, 100)], { pv: 30 });
+    const foe = fighter('Foe', [blow(4), wait], { pv: 30 });
     const engine = engineFor([earth], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 1)]);
+    playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(earth.currentPV).toBe(30);
     engine.prepareRound();
     expect(engine.canPlayActionIdx(foe, 0)).toBe(false);
+    expect(engine.canPlayActionIdx(foe, 1)).toBe(true);
   });
 
-  it('Doblegar el metall: ignores armour, and a wound strips the target\'s armour for good', () => {
-    const earth = fighter('Terra', [flat('doblegar-el-metall', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30, equipment: [armour(2)] });
-    playRound(engineFor([earth], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+  it("Sorres movedisses: the chosen enemy's card resolves last — a Defense after the blow it was for", () => {
+    const earth = fighter('Terra', [flat('sorres-movedisses', 0)], { pv: 30 });
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([earth, ally], [foe]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
     expect(foe.currentPV).toBe(25);
-    expect(foe.getPassiveArmor()).toBe(0);
   });
 
-  it('Cúpula de pedra: the dome keeps defending the party in later rounds until a blow beats it', () => {
-    const earth = fighter('Terra', [flat('cupula-de-pedra', 1, 100), wait], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(10)], { pv: 30 });
-    const engine = engineFor([earth, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
+  it('Allau: a target it wounds is buried and loses its next turn', () => {
+    const earth = fighter('Terra', [flat('allau', 1, 2)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([earth], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(27);
+    expect(foe.skipTurns).toBe(1);
+  });
+
+  it('Búnquer: one defense over the whole party, and nobody on the side attacks', () => {
+    const earth = fighter('Terra', [flat('bunquer', 1, 100)], { pv: 30 });
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [blow(6)], { pv: 30 });
+    playRound(engineFor([earth, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(0, 1))]);
     expect(ally.currentPV).toBe(30);
-    expect(ally.hasStatus('cupula-de-pedra')).toBe(true);
+    expect(foe.currentPV).toBe(30);
   });
 
-  it('Mà de la terra: the wounded target is hurled into another enemy, who takes the same damage', () => {
-    const earth = fighter('Terra', [flat('ma-de-la-terra', 1, 4)], { pv: 30 });
-    const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    playRound(engineFor([earth], [a, b]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([25, 25]);
-  });
-
-  it('Puny de la muntanya: +1 per attack aimed at the bender this fight, and it costs a fatigue level', () => {
-    const earth = fighter('Terra', [wait, flat('puny-de-la-muntanya', 1)], { pv: 30 });
-    const f1 = fighter('F1', [blow(1), wait], { pv: 30 });
-    const f2 = fighter('F2', [blow(1), wait], { pv: 30 });
-    const engine = engineFor([earth], [f1, f2]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
-    playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 1), sel(1, 1, 1)]);
-    expect(f1.currentPV).toBe(27);
+  it('Roca viva: a stone golem joins the side; 1 fatigue', () => {
+    const earth = fighter('Terra', [flat('roca-viva', 0)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const engine = engineFor([earth], [foe]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
+    expect(engine.teams[0].length).toBe(2);
+    expect(engine.teams[0][1].maxPV).toBe(10);
     expect(earth.fatigue).toBe(1);
   });
 
-  it('Partir la terra: every enemy wounded falls in; next round each climbs out (its action) or takes the wound again', () => {
-    // 3 to each. A (30) can afford it: stays, and the earth closes on it for 3
-    // more as the next round opens. B (8) cannot: it climbs out, losing its
-    // next action.
-    const earth = fighter('Terra', [flat('partir-la-terra', 1, 2)], { pv: 30 });
+  it('Terratrèmol: every enemy is struck', () => {
+    const earth = fighter('Terra', [flat('terratremol', 1, 3)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 8 });
-    const engine = engineFor([earth], [a, b]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([27, 5]);
-    expect(b.skipTurns).toBe(1);
-    expect(earth.fatigue).toBe(2);
-    engine.prepareRound();
-    expect(a.currentPV).toBe(24);
-    expect(b.currentPV).toBe(5);
+    const b = fighter('B', [wait], { pv: 30 });
+    playRound(engineFor([earth], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([26, 26]);
   });
 });
 
@@ -187,41 +158,39 @@ describe('Mestre del foc', () => {
     expect(held(0)).toBe(29);
   });
 
-  it('Esclat: an enemy still to attack that rolls low hits a random combatant — never itself', () => {
-    withSeed(7, () => {
-      const fire = fighter('Foc', [flat('esclat', 0, 0, { effects: [{ type: 'flare', params: { below: 20 } }] })], { pv: 30 });
-      const ally = fighter('Amic', [wait], { pv: 30 });
-      const foe = fighter('Foe', [blow(5)], { pv: 30 });
-      const friend = fighter('Company', [wait], { pv: 30 });
-      playRound(engineFor([fire, ally], [foe, friend]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
-      expect(foe.currentPV).toBe(30);
-      expect(fire.currentPV + ally.currentPV + friend.currentPV).toBe(90 - 5);
-    });
+  it('Esclat encegador: an enemy still to attack that rolls low misses; one already struck is untouched', () => {
+    const fire = fighter('Foc', [flat('esclat-encegador', 0, 0, { effects: [{ type: 'flare', params: { below: 20 } }] })], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const quick = fighter('Ràpid', [blow(2, true)], { pv: 30 });
+    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    playRound(engineFor([fire, ally], [quick, foe]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0, T(0, 1))]);
+    // The fast blow landed before the flash; the slow one never does.
+    expect(ally.currentPV).toBe(28);
   });
 
-  it('Esclat: a roll above the threshold leaves the attack where it aimed', () => {
-    const fire = fighter('Foc', [flat('esclat', 0, 0, { effects: [{ type: 'flare', params: { below: 0 } }] })], { pv: 30 });
+  it('Esclat encegador: a roll above the threshold leaves the attack alone', () => {
+    const fire = fighter('Foc', [flat('esclat-encegador', 0, 0, { effects: [{ type: 'flare', params: { below: 0 } }] })], { pv: 30 });
     const foe = fighter('Foe', [blow(5)], { pv: 30 });
     const friend = fighter('Company', [wait], { pv: 30 });
     playRound(engineFor([fire], [foe, friend]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
     expect(fire.currentPV).toBe(25);
   });
 
-  it("Tempesta d'espurnes: every enemy loses 2 PV, through any defense", () => {
-    const fire = fighter('Foc', [flat('tempesta-d-espurnes', 0, 0)], { pv: 30 });
+  it("Tempesta d'espurnes: every enemy loses the dice in PV, through any defense and armour", () => {
+    const fire = fighter('Foc', [flat('tempesta-d-espurnes', 2, 0)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [guard(100)], { pv: 30 });
     playRound(engineFor([fire], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 1))]);
     expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
   });
 
-  it("Pell d'obsidiana: it still defends the round after, then falls", () => {
-    const fire = fighter('Foc', [flat('pell-d-obsidiana', 1, 9), wait], { pv: 30 });
+  it('Cortina de fum: it still defends the round after, then falls', () => {
+    const fire = fighter('Foc', [flat('cortina-de-fum', 1, 9), wait], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
     const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
     const engine = engineFor([fire, ally], [foe]);
     playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
-    // Next round the skin still stands before the ally: 5 against 1 + 9.
+    // Next round the smoke still hangs before the ally: 5 against 1 + 9.
     playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
     expect(ally.currentPV).toBe(30);
     playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
@@ -262,6 +231,13 @@ describe('Mestre del foc', () => {
     expect(idle.currentPV).toBe(30);
   });
 
+  it('Llamp: fast, it lands before a normal defense goes up', () => {
+    const fire = fighter('Foc', [flat('llamp', 1, 5)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.currentPV).toBe(24);
+  });
+
   it('Supernova: every enemy, then the bender drops to 0 PV', () => {
     const fire = fighter('Foc', [flat('supernova', 1, 4)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
@@ -274,119 +250,89 @@ describe('Mestre del foc', () => {
 });
 
 describe("Mestre de l'aire", () => {
-  it("Palmell d'aire: a wounded target acts last this round", () => {
-    const air = fighter('Aire', [flat('palmell-d-aire', 1)], { pv: 30 });
-    const slow = fighter('Lent', [focusCard('lent', {})], { pv: 30 });
-    const foe = fighter('Foe', [blow(1, true)], { pv: 30 });
-    const engine = engineFor([air, slow], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    const order = engine.history.map(ev => ev.actor.name);
-    expect(order.indexOf('Foe')).toBeGreaterThan(order.indexOf('Lent'));
+  it('Ventada: fast, every enemy; a foe it wounds acts last — its guard comes too late', () => {
+    const air = fighter('Aire', [flat('ventada', 1, 1)], { pv: 30 });
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.currentPV).toBe(30 - 2 - 5);
   });
 
-  it('Coixí de vent: neither the ally it defends nor the bender (who takes what gets through) drop below 1 PV this round', () => {
-    const air = fighter('Aire', [flat('coixi-de-vent', 1)], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 10 });
-    const foe = fighter('Foe', [blow(50)], { pv: 30 });
-    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(10);
-    expect(air.currentPV).toBe(1);
+  it('Ràfega desviadora: a held blow is turned, whole, on an enemy', () => {
+    const air = fighter('Aire', [flat('rafega-desviadora', 1, 100)], { pv: 30 });
+    const foe = fighter('Foe', [blow(6)], { pv: 30 });
+    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(air.currentPV).toBe(30);
+    expect(foe.currentPV).toBe(24);
   });
 
-  it("Patinet d'aire: next round the bender's card is fast, and the first attack on it misses", () => {
-    const air = fighter('Aire', [getAction('patinet-d-aire')!, wait], { pv: 30 });
+  it('Asfíxia: the chosen enemy has −3 on its attacks for the next two rounds', () => {
+    const air = fighter('Aire', [flat('asfixia', 0), wait], { pv: 30 });
     const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
     const engine = engineFor([air], [foe]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
-    const reveal = (engine.prepareRound(), engine.planActions([sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]));
-    // Its plain wait goes in the fast step, ahead of the foe's normal blow.
-    expect(reveal[0]).toMatchObject({ actorName: 'Aire', fast: true });
-    let r = engine.resolveNextAction();
-    while (r.kind !== 'done') r = engine.resolveNextAction();
-    engine.finishRound();
-    expect(air.currentPV).toBe(30);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    for (let r = 0; r < 3; r++) playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
+    expect(air.currentPV).toBe(30 - 2 - 2 - 5);
   });
 
-  it('Esquivar-los a tots: every enemy must attack the bender', () => {
-    const air = fighter('Aire', [flat('esquivar-los-a-tots', 1, 100)], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const f1 = fighter('F1', [blow(6)], { pv: 30 });
-    const f2 = fighter('F2', [blow(6)], { pv: 30 });
-    playRound(engineFor([air, ally], [f1, f2]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(30);
-    expect(air.currentPV).toBe(30);
-  });
-
-  it('Catapulta de vent: a wounded target loses its action this round', () => {
-    const air = fighter('Aire', [flat('catapulta-de-vent', 1, 1)], { pv: 30 });
-    const foe = fighter('Foe', [blow(9)], { pv: 30 });
-    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    expect(air.currentPV).toBe(30);
-  });
-
-  it('Remolí del mareig: the blocked enemy\'s blows go at random combatants', () => {
-    // Over many seeds, the dizzy foe's blow lands somewhere other than its aim.
-    let elsewhere = 0;
-    for (let s = 0; s < 20; s++) {
-      withSeed(s + 1, () => {
-        const air = fighter('Aire', [flat('remoli-del-mareig', 1, 100)], { pv: 30 });
-        const ally = fighter('Amic', [wait], { pv: 30 });
-        const foe = fighter('Foe', [blow(3)], { pv: 30 });
-        const friend = fighter('Company', [wait], { pv: 30 });
-        playRound(engineFor([air, ally], [foe, friend]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0)]);
-        if (friend.currentPV < 30) elsewhere++;
-      });
-    }
-    expect(elsewhere).toBeGreaterThan(0);
-  });
-
-  it('Cop i fuga: after the strike, attacks on the bender miss for the rest of the round', () => {
-    const air = fighter('Aire', [flat('cop-i-fuga', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [blow(6)], { pv: 30 });
-    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
+  it("Vent a favor: the ally's card resolves right after it, before the normal guards", () => {
+    const air = fighter('Aire', [flat('vent-a-favor', 0)], { pv: 30 });
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
     expect(foe.currentPV).toBe(25);
-    expect(air.currentPV).toBe(30);
   });
 
-  it('Salt del meteor: until it lands nothing touches the bender, then it hits every enemy', () => {
-    const air = fighter('Aire', [flat('salt-del-meteor', 1, 2)], { pv: 30 });
-    const a = fighter('A', [blow(6, true)], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
-    expect(air.currentPV).toBe(30);
-    expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
+  it("Fulles de vent: ignores armour", () => {
+    const air = fighter('Aire', [flat('fulles-de-vent', 1, 4)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30, equipment: [armour(2)] });
+    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(25);
   });
 
-  it("Ull de l'huracà: every enemy, and this round the wounded strike random combatants; 2 fatigue", () => {
-    // Over many seeds, a dizzy enemy's blow lands on its own side at least once.
-    let ownSide = 0;
-    for (let s = 0; s < 20; s++) {
-      withSeed(s + 1, () => {
-        const air = fighter('Aire', [flat('ull-de-l-huraca', 1, 1)], { pv: 30 });
-        const a = fighter('A', [blow(3)], { pv: 30 });
-        const b = fighter('B', [blow(3)], { pv: 30 });
-        playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
-        expect(air.fatigue).toBe(2);
-        if (a.currentPV < 28 || b.currentPV < 28) ownSide++;
-      });
-    }
-    expect(ownSide).toBeGreaterThan(0);
+  it("Escut d'aire: what gets through is halved", () => {
+    const air = fighter('Aire', [flat('escut-d-aire', 1, 0)], { pv: 30 });
+    const foe = fighter('Foe', [blow(9)], { pv: 30 });
+    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    // 9 against 1: 8 through, halved.
+    expect(air.currentPV).toBe(26);
   });
 
-  it('Bosc de tornados: each wounded enemy is hurled into another, who takes the same damage', () => {
-    const air = fighter('Aire', [flat('bosc-de-tornados', 1, 2)], { pv: 30 });
+  it("Coixí d'aire: this round every blow on the side lands 3 softer", () => {
+    const air = fighter('Aire', [flat('coixi-d-aire', 0)], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const f1 = fighter('F1', [blow(5)], { pv: 30 });
+    const f2 = fighter('F2', [blow(2)], { pv: 30 });
+    playRound(engineFor([air, ally], [f1, f2]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0, T(0, 0))]);
+    expect([air.currentPV, ally.currentPV]).toEqual([30, 28]);
+  });
+
+  it('Corrent ascendent: attacks on the lifted ally miss, and it loses its own card', () => {
+    const air = fighter('Aire', [flat('corrent-ascendent', 0)], { pv: 30 });
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [blow(6)], { pv: 30 });
+    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(0, 1))]);
+    expect([ally.currentPV, foe.currentPV]).toEqual([30, 30]);
+  });
+
+  it('Remolí: next round the chosen enemy plays no card and nobody can aim at it', () => {
+    const air = fighter('Aire', [flat('remoli-de-vent', 0), wait], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const other = fighter('Altre', [wait], { pv: 30 });
+    const engine = engineFor([air], [foe, other]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect(foe.skipTurns).toBe(1);
+    expect(engine.enemiesOf(air)).toEqual([other]);
+  });
+
+  it('Tornado: every enemy; the wounded lose their next turn; 1 fatigue', () => {
+    const air = fighter('Aire', [flat('tornado', 1, 2)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    // Each takes 3 from the tornado and 3 more from the other one thrown in.
-    expect([a.currentPV, b.currentPV]).toEqual([24, 24]);
-  });
-
-  it('Bosc de tornados: a lone enemy slams into the ground and takes it twice', () => {
-    const air = fighter('Aire', [flat('bosc-de-tornados', 1, 2)], { pv: 30 });
-    const a = fighter('A', [wait], { pv: 30 });
-    playRound(engineFor([air], [a]), [sel(0, 0, 0), sel(1, 0, 0)]);
-    expect(a.currentPV).toBe(24);
+    expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
+    expect([a.skipTurns, b.skipTurns]).toEqual([1, 1]);
+    expect(air.fatigue).toBe(1);
   });
 });
 
@@ -399,13 +345,13 @@ describe('Soldat del foc', () => {
     expect(hero.currentPV).toBe(30 - 1 - 4);
   });
 
-  it('Calar foc: every hero loses 2 PV at the end of the next two rounds; a second torch does not stack', () => {
+  it('Calar foc: every hero is burned, 2 PV at the end of this round and the next; a second torch does not stack', () => {
     const s1 = fighter('S1', [getAction('calar-foc') ?? flat('calar-foc', 0), wait], { pv: 30 });
     const s2 = fighter('S2', [flat('calar-foc', 0), wait], { pv: 30 });
     const hero = fighter('Heroi', [wait], { pv: 30 });
     const engine = engineFor([s1, s2], [hero]);
     playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
-    expect(hero.currentPV).toBe(30);
+    expect(hero.currentPV).toBe(28);
     for (let i = 0; i < 3; i++) playRound(engine, [sel(0, 0, 1), sel(0, 1, 1), sel(1, 0, 0)]);
     expect(hero.currentPV).toBe(26);
   });

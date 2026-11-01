@@ -109,46 +109,44 @@ alive knows he was once an air novice.
 - **Easter eggs** that he was once an air novice are wanted (the air kit's
   first card and his first card as twins, and the like).
 
-## Mestre de l'aigua — `waterbender` (landed 2026-10-06)
+## Mestre de l'aigua — `waterbender` (redesigned 2026-11-01)
 
-*Tai chi: water does not fight with its own force, it takes the enemy's and
-sends it somewhere else.* The redirect is the spine and grows with the level:
-the leftover of a blow turned aside (2), the whole blow frozen and thrown back
-(6), the enemy's blows aimed for him (9), every blow of a round swallowed and
-returned (10). Healing, ice and the moon sit around it. Concepts by the
-`card-taste` agent, picked by the user.
+*The defensive, healing bender, fire's opposite.* The user's design ("Maestre
+de l'aigua — conceptes de cartes", https://claude.ai/artifact/71tTJ3a6L55VVgNATDCXvE);
+dice and small mechanics by the main session.
 
-| # | card | the scene |
-|---|---|---|
-| 1 | Fuet d'aigua | Katara's first lash: a miss snaps back into a guard |
-| 2 | Cop desviat | push and pull: the blade turned aside into another foe |
-| 3 | Bàlsam de lluna | the glowing water over a wound |
-| 4 | Forma del pop | eight arms over the whole party |
-| 5 | Braços d'aigua | Ming-Hua's arms: a blade or a shield, chosen as it lands |
-| 6 | Gel del mestre | Pakku freezes the blow and throws it back whole |
-| 7 | Pluja de dagues | the rain stopped mid-air and turned to daggers |
-| 8 | Presó de gel | an attacker locked in ice the moment it strikes |
-| 9 | Sang sota la lluna | bloodbending under the full moon |
-| 10 | Ira de l'oceà | the ocean rises, swallows the round and breaks on everyone (costs 2 fatigue levels) |
+| # | card | type | what it does |
+|---|---|---|---|
+| 1 | Fuet d'aigua | Atac | the plain lash |
+| 2 | Mur d'aigua | Defensa | the plain wall |
+| 3 | Font curativa | Focus | heals an ally and puts out Cremat |
+| 4 | Boira | Focus | next round no enemy can aim at your allies |
+| 5 | Cúpula de gel | Defensa | the strong shell |
+| 6 | Llança de gel | Atac | the strong single blow |
+| 7 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn |
+| 8 | Forma de pop | Defensa | defends every ally |
+| 9 | Control de la sang | Focus | next round the chosen enemy's blows land on its own side; 1 fatigue |
+| 10 | Tsunami | Atac | every enemy |
 
-## Mestre de la terra — `earthbender` (landed 2026-10-07)
+## Mestre de la terra — `earthbender` (redesigned 2026-11-01)
 
-*Hung gar: stand, take the blow, answer it with your own weight at the same
-attacker* (water sends the force elsewhere). Threads: stone on the body (1, 4,
-7), the answer (2, 9), the ground that holds the enemy (5, 8, 10), listening (3).
+*The robust, defensive bender: heavy defense where water's is fluid.* The
+user's design ("Maestre de la terra — conceptes de cartes",
+https://claude.ai/artifact/FqXxmnJn9npJndCcDcrsCG); dice and small mechanics by
+the main session.
 
-| # | card | what it does |
-|---|---|---|
-| 1 | Guant de pedra | punch; the rock defends you for the rest of the round |
-| 2 | Mur ariet | block; if it holds, ram the attacker with the card's dice |
-| 3 | Sentit sísmic | next round your side chooses after the enemies reveal |
-| 4 | Armadura de roca | +1 armour for the fight, up to +3 |
-| 5 | Sorra movedissa | a wounded target can't play Defenses next turn |
-| 6 | Doblegar el metall | ignores armour; a wound strips it for good |
-| 7 | Cúpula de pedra | a dome over the party that holds until beaten |
-| 8 | Mà de la terra | the target is hurled into another enemy of your choice |
-| 9 | Puny de la muntanya | +1 per attack aimed at you this fight; 1 fatigue |
-| 10 | Partir la terra | every enemy; the wounded lose 2 actions; 2 fatigue |
+| # | card | type | what it does |
+|---|---|---|---|
+| 1 | Llançament de roca | Atac | the plain throw |
+| 2 | Mur de pedra | Defensa | the plain wall, sturdier than water's |
+| 3 | Armadura de terra | Focus | an ally has +3 on its defenses for 3 rounds |
+| 4 | Túnel | Focus | next round an ally's first attack cannot be defended |
+| 5 | Trampa de terra | Defensa | an attacker it holds cannot attack next round |
+| 6 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last |
+| 7 | Allau | Atac | a wounded target loses its next turn |
+| 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
+| 9 | Roca viva | Focus | summons a stone golem (10 PV, attack and defense 2d6); 1 fatigue |
+| 10 | Terratrèmol | Atac | every enemy |
 
 ## Mestre del foc — `firebender` (redesigned 2026-11-01)
 
@@ -162,37 +160,38 @@ next; burning again restarts it, never stacks (the engine's damage over time).
 |---|---|---|---|
 | 1 | Bola de foc | Atac | a wounded target is burned |
 | 2 | Mantell de flames | Defensa | whoever attacks someone it defends is burned, held or not |
-| 3 | Esclat | Focus, fast | each enemy still to attack rolls 1d20; at 8 or less it hits a random combatant |
-| 4 | Tempesta d'espurnes | Atac | every enemy loses 2 PV |
-| 5 | Pell d'obsidiana | Defensa | it still defends the round after |
+| 3 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 8 or less its attack misses |
+| 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
+| 5 | Cortina de fum | Defensa | it still defends the round after |
 | 6 | Alè de drac | Atac | two enemies; the wounded are burned |
 | 7 | Foc interior | Focus | +6 on your attacks for the next 2 rounds |
 | 8 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 3 PV and is burned |
-| 9 | Llamp | Atac | the big single blow, nothing else |
+| 9 | Llamp | Atac, fast | the big single blow, before normal defenses |
 | 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
 
 Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold
 card), Mur de foc, Dia assolellat, Foc blau / Llança roent. The armour-melting
 idea may return elsewhere.
 
-## Mestre de l'aire — `airbender` (landed 2026-10-07)
+## Mestre de l'aire — `airbender` (redesigned 2026-11-01)
 
-*Baguazhang: circle, never meet force, never be where the blow lands.* Threads:
-throwing (1, 5, 9, 10) and evading (3, 4, 7, 8). Card 1 twins the Mestre de la
-Por's first card.
+*The utility bender: it decides who acts first, who acts last and whom a blow
+can reach.* The user's design ("Maestre de l'aire — conceptes de cartes",
+https://claude.ai/artifact/CaegUh49CiqAgnK9LUsVte); dice and small mechanics by
+the main session.
 
-| # | card | what it does |
-|---|---|---|
-| 1 | Palmell d'aire | very fast; a wounded target acts last |
-| 2 | Coixí de vent | the defended ally (and you) can't drop below 1 PV this round |
-| 3 | Patinet d'aire | next round you act first and the first attack on you misses |
-| 4 | Esquivar-los a tots | block every enemy |
-| 5 | Catapulta de vent | a wounded target loses this round's action |
-| 6 | Remolí del mareig | block; the enemy's attacks go at random combatants |
-| 7 | Cop i fuga | after the strike, attacks on you miss this round |
-| 8 | Salt del meteor | untouchable until it lands, then every enemy |
-| 9 | Ull de l'huracà | every enemy; the wounded lose this round's action; 2 fatigue |
-| 10 | Bosc de tornados | every enemy hurled into another; alone, into the ground; 2 fatigue |
+| # | card | type | what it does |
+|---|---|---|---|
+| 1 | Ventada | Atac, fast | every enemy; the wounded act last this round |
+| 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
+| 3 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds |
+| 4 | Vent a favor | Focus, fast | an ally's card resolves right after it |
+| 5 | Fulles de vent | Atac | ignores armour |
+| 6 | Escut d'aire | Defensa | you and whoever you defend take half of what gets through |
+| 7 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
+| 8 | Corrent ascendent | Focus, fast | attacks on an ally miss this round; it loses its card |
+| 9 | Remolí | Focus | the chosen enemy is out of the fight next round |
+| 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 1 fatigue |
 
 ## Creatures (landed 2026-10-07)
 

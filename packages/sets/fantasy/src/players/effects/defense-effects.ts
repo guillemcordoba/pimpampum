@@ -1,6 +1,5 @@
-import { EffectHandler } from '@pimpampum/engine';
+import { EffectHandler, applyKind } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, applyMod, ModKind, HARM } from './helpers.js';
-import { DOT } from './status-behaviors.js';
 
 /** Defense-rider effects: onDefend runs when a block lands; onBlockFail when it
  *  fails. `counter` is shared with other sets and lives in @pimpampum/set-common. */
@@ -25,7 +24,7 @@ export const DEFENSE_EFFECTS: Record<string, EffectHandler> = {
       if (!ctx.target) return;
       const dmg = num(ctx.params, 'damage', 2);
       const name = str(ctx.params, 'name', 'crema');
-      ctx.target.setStatus(name, dmg, num(ctx.params, 'turns', 2), { dot: dmg, ...HARM }, DOT);
+      applyKind(ctx.target, 'damageOverTime', name, dmg, num(ctx.params, 'turns', 2), { dot: dmg, source: ctx.source, ...HARM });
       ctx.engine.log('defense', `${ctx.target.name} queda amb ${name} (${dmg}/torn).`, ctx.source.team);
     },
     aiWeight() { return 0.5; },

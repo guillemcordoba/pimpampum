@@ -1,6 +1,6 @@
-import { ActionType } from '@pimpampum/engine';
+import { ActionType, applyKind } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../../players/types.js';
-import { burn } from '../../players/effects/generic.js';
+import { BURN_KEY } from '../../players/effects/cremat.js';
 import { EnemyDefinition, ICON } from '../types.js';
 
 /**
@@ -27,7 +27,7 @@ const SOLDIER_SKILL: SkillDefinition = {
       id: 'calar-foc', name: 'Calar foc', skillId: SKILL_ID,
       unlock: 2, type: ActionType.Focus,
       effects: [{ type: 'set_ablaze' }],
-      desc: "Durant 2 torns, cada heroi perd 2 PV al final del torn. No s'acumula.",
+      desc: "Cada heroi queda cremat: perd 2 PV al final d'aquest torn i del següent. No s'acumula.",
       icon: 'delapouite/burning-forest.svg',
     }),
     action({
@@ -45,15 +45,16 @@ const SOLDIER_SKILL: SkillDefinition = {
         if (ctx.attackMods && ctx.target?.hitThisTurn) ctx.attackMods.rollBonus += 2;
       },
     },
-    // Calar foc: the field burns — every hero 1 PV at each of the next two
-    // round ends. A second torch only relights the same fire.
+    // Calar foc: the field burns — every hero is Cremat at 2 PV, at the end
+    // of this round and the next (the set's shared burn, so water puts it
+    // out). A second torch only relights the same fire.
     set_ablaze: {
       getTargetRequirement() { return 'none'; },
       onResolve(ctx) {
-        for (const h of ctx.engine.enemiesOf(ctx.source)) burn(h, 2, 2, ctx.action.name, ctx.engine.round);
+        for (const h of ctx.engine.enemiesOf(ctx.source)) applyKind(h, 'damageOverTime', BURN_KEY, 2, 2, { source: ctx.source });
         ctx.engine.log('focus', `${ctx.source.name} cala foc al camp.`, ctx.source.team);
       },
-      aiWeight(ctx) { return ctx.enemies.some(e => e.hasStatus('cremant')) ? -1 : 0.8; },
+      aiWeight(ctx) { return ctx.enemies.some(e => e.hasStatus(BURN_KEY)) ? -1 : 0.8; },
     },
     // Foc en formació: +2 for every other soldier playing it this round, +6 at most.
     formation: {

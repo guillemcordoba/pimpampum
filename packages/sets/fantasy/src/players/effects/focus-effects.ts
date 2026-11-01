@@ -1,6 +1,5 @@
-import { EffectHandler, Character, StatusBehavior } from '@pimpampum/engine';
+import { EffectHandler, Character, StatusBehavior, applyKind } from '@pimpampum/engine';
 import { num, str, diceParam, durParam, tspec, resolveTargets, targetReq, applyMod, ModKind, HARM, clearHarm } from './helpers.js';
-import { DOT, REGEN } from './status-behaviors.js';
 
 // Attack rolls against the marked holder get +value (mark_target).
 const MARCA_OBJECTIU: StatusBehavior = {
@@ -130,7 +129,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
   regen: {
     onResolve(ctx) {
       const amt = num(ctx.params, 'amount', 1);
-      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) t.setStatus('regeneració', amt, num(ctx.params, 'turns', 3), { regen: amt }, REGEN);
+      for (const t of resolveTargets(ctx, tspec(ctx.params, 'self'))) applyKind(t, 'healOverTime', 'regeneració', amt, num(ctx.params, 'turns', 3), { regen: amt, source: ctx.source });
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'self')); },
     aiWeight(ctx) { return ctx.actor.currentPV < ctx.actor.maxPV ? 1.2 : 0.4; },
@@ -142,7 +141,7 @@ export const FOCUS_EFFECTS: Record<string, EffectHandler> = {
       const dmg = num(ctx.params, 'damage', 2);
       // A shaman's sagnia bleeds its own side: a price, not an efecte negatiu.
       for (const t of resolveTargets(ctx, tspec(ctx.params, 'enemy'))) {
-        t.setStatus(str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg, ...(t.team !== ctx.source.team ? HARM : {}) }, DOT);
+        applyKind(t, 'damageOverTime', str(ctx.params, 'name', 'crema'), dmg, num(ctx.params, 'turns', 3), { dot: dmg, source: ctx.source, ...(t.team !== ctx.source.team ? HARM : {}) });
       }
     },
     getTargetRequirement(p) { return targetReq(tspec(p, 'enemy')); },

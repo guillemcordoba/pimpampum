@@ -1,12 +1,13 @@
-import { ActionType, type Character, type EffectHandler, type EngineApi, type StatusBehavior } from '@pimpampum/engine';
+import { ActionType, applyKind, type Character, type EffectHandler, type EngineApi, type StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../../players/types.js';
 import { applyMod, num } from '../../players/effects/helpers.js';
 import { EnemyDefinition, ICON } from '../types.js';
 
-/** Hidden in the horde: nobody can pick the goblin out until the round ends. */
-const AMAGAT: StatusBehavior = { untargetable() { return true; } };
 /** Just came out of hiding: the horde has moved on, it cannot vanish again at once. */
-const DESCOBERT: StatusBehavior = {};
+const DESCOBERT: StatusBehavior = {
+  // A marker the card reads (canPlay), not a state of the fight.
+  positionValue() { return 0; },
+};
 
 /**
  * A goblin HIDES IN THE HORDE — it slips behind the others, and comes back out
@@ -33,7 +34,7 @@ const GOBLIN_EFFECTS: Record<string, EffectHandler> = {
         ctx.engine.log('focus', `${ctx.source.name} no té on amagar-se.`, ctx.source.team);
         return;
       }
-      ctx.source.setStatus('amagant-se', 1, 1, undefined, AMAGAT);
+      applyKind(ctx.source, 'untargetable', 'amagant-se', 1, 1);
       ctx.source.setStatus('descobert', 1, 2, undefined, DESCOBERT);
       applyMod(ctx.source, 'attack', num(ctx.params, 'amount', 1), 'nextTurn', ctx.action.name);
     },

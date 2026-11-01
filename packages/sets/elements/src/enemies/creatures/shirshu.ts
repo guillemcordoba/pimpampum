@@ -24,6 +24,8 @@ const CEGUES: StatusBehavior = {
     const everyone = [...ctx.engine.livingTeam(0), ...ctx.engine.livingTeam(1)].filter(c => c !== ctx.holder);
     return everyone.length ? everyone[Math.floor(random() * everyone.length)] : intended;
   },
+  // Set and spent by the same card in the same round: worth nothing on a board.
+  positionValue() { return 0; },
 };
 
 /** Paralyse `t` for `turns` actions — unless it already has to lose one. */

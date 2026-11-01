@@ -3,9 +3,8 @@ import { SkillDefinition, action, d } from '../../players/types.js';
 import { EnemyDefinition, ICON } from '../types.js';
 
 const BASILISK_EFFECTS: Record<string, EffectHandler> = {
-  // Mirada petrificant: the basilisk's own contest — its gaze dice + its
-  // skill LEVEL (a card-printed level-enters-the-roll exception) against each
-  // enemy's resist dice; losers freeze solid for `turns`.
+  // Mirada petrificant: the basilisk's own contest — its gaze dice against
+  // each enemy's resist dice; losers freeze solid for `turns`.
   petrify_gaze: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -33,9 +32,9 @@ const BASILISK_SKILL: SkillDefinition = {
   actions: [
     action({ id: 'esclafament', name: 'Esclafament', skillId: 'basilisk', unlock: 3, type: ActionType.Atac, dice: d(3, 6), desc: '', icon: 'lorc/stoned-skull.svg' }),
     action({ id: 'mirada-petrificant', name: 'Mirada petrificant', skillId: 'basilisk', unlock: 4, type: ActionType.Focus, dice: d(1, 20), effects: [{ type: 'petrify_gaze', params: { turns: 3, resist: d(1, 20) } }], desc: 'Tira 1d20 contra 1d20 de cada enemic: qui perdi queda petrificat (salta els 3 propers torns).', icon: 'lorc/gaze.svg' }),
-    action({ id: 'mossegada-verinosa', name: 'Mossegada verinosa', skillId: 'basilisk', unlock: 1, type: ActionType.Atac, dice: d(2, 8), effects: [{ type: 'poison_on_hit', params: { damage: 4, turns: 1, name: 'verí' } }], desc: "Si impacta, l'enemic perd 4 de vida addicional el següent torn.", icon: 'lorc/snake-bite.svg' }),
+    action({ id: 'mossegada-verinosa', name: 'Mossegada verinosa', skillId: 'basilisk', unlock: 1, type: ActionType.Atac, dice: d(2, 8), effects: [{ type: 'poison_on_hit', params: { damage: 4, turns: 1, name: 'verí' } }], desc: "Si fereix, l'enemic perd 4 de vida addicional el següent torn.", icon: 'lorc/snake-bite.svg' }),
     action({ id: 'cop-de-cua', name: 'Cop de cua', skillId: 'basilisk', unlock: 2, type: ActionType.Atac, dice: d(2, 6), targetCount: 3, desc: 'Colpeja fins a 3 enemics amb la cua.', icon: 'lorc/spiked-tail.svg' }),
-    action({ id: 'regeneracio', name: 'Regeneració', skillId: 'basilisk', unlock: 5, type: ActionType.Focus, effects: [{ type: 'heal', params: { amount: 10, target: 'self' } }], desc: 'Cura 10 vides.', icon: 'lorc/snake.svg' }),
+    action({ id: 'regeneracio', name: 'Regeneració', skillId: 'basilisk', unlock: 5, type: ActionType.Focus, effects: [{ type: 'heal', params: { amount: 10, target: 'self' } }], desc: 'Recupera 10 PV.', icon: 'lorc/snake.svg' }),
   ],
   effects: BASILISK_EFFECTS,
 };

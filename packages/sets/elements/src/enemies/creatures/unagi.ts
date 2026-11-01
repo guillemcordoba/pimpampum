@@ -31,6 +31,8 @@ const PANXA: StatusBehavior = {
     ctx.entry.data = data;
     return damage;
   },
+  // Bookkeeping for the spit, not a state of the fight: worth nothing itself.
+  positionValue() { return 0; },
 };
 
 /** Swallowed: out of the fight and out of reach, digesting, until spat out. */

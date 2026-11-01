@@ -1,34 +1,23 @@
-import { ActionType, Character, CombatModifier, EffectHandler, EngineApi, StatusBehavior, applyKind } from '@pimpampum/engine';
+import { ActionType, Character, CombatModifier, EffectHandler, StatusBehavior, applyKind } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
 import { num } from '../effects/helpers.js';
+import { BURN_PV, BURN_TURNS, setAlight } from '../effects/cremat.js';
 
 /**
  * MESTRE DEL FOC — the user's design ("Maestre del foc — conceptes de cartes",
  * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 6, 8); the
- * rest is raw heat — a blinding flash, a storm of sparks, a skin of cooled
- * lava, a chi that stokes every blow, a bolt, and the supernova that burns the
+ * rest is raw heat — a blinding flash, a storm of sparks, a curtain of smoke,
+ * a chi that stokes every blow, a bolt, and the supernova that burns the
  * bender out. The numbers are this file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'firebender';
 
-// --- Cremat (cards 1, 2, 6, 8) ----------------------------------------------
-// The engine's damage over time: BURN_PV at the end of this round and the
-// next. Burning again restarts the two rounds; it never stacks.
+// Cremat (cards 1, 2, 6, 8) is the set's shared burn (`effects/cremat.ts`).
 
-const BURN_KEY = 'cremat';
-const BURN_PV = 1;
-const BURN_TURNS = 2;
+// --- 5 · Cortina de fum ------------------------------------------------------
 
-function setAlight(target: Character, source: Character, engine: EngineApi): void {
-  if (!target.isAlive()) return;
-  applyKind(target, 'damageOverTime', BURN_KEY, BURN_PV, BURN_TURNS, { source });
-  engine.log('attack', `${target.name} queda cremat.`, source.team);
-}
-
-// --- 5 · Pell d'obsidiana -----------------------------------------------------
-
-const OBSIDIAN_KEY = "pell-d-obsidiana";
+const SMOKE_KEY = 'cortina-de-fum';
 
 // --- 8 · Anell de foc ---------------------------------------------------------
 
@@ -67,8 +56,8 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Esclat: every enemy still to attack this round rolls 1d20; at `below`
-  // or less its attack goes to a random combatant, its own allies included.
+  // 3 · Esclat encegador: every enemy still to attack this round rolls 1d20;
+  // at `below` or less, blinded, its attack misses.
   flare: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -82,39 +71,37 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
           ctx.engine.log('focus', `🎲 ${p.actor.name} treu ${roll}: hi veu prou.`, ctx.source.team);
           continue;
         }
-        const pool = [...ctx.engine.alliesOf(p.actor, false), ...ctx.engine.enemiesOf(p.actor)].filter(c => c.isAlive());
-        if (!pool.length) continue;
-        const to = pool[ctx.engine.rollDie(pool.length) - 1];
-        applyKind(p.actor, 'redirected', 'enlluernat', 1, 1, { to });
-        ctx.engine.log('focus', `🎲 ${p.actor.name} treu ${roll}: enlluernat, ataca ${to.name}.`, ctx.source.team);
+        ctx.engine.cancelPendingAction(p.actor);
+        ctx.engine.log('focus', `🎲 ${p.actor.name} treu ${roll}: enlluernat, el seu atac falla.`, ctx.source.team);
       }
     },
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.5 : 0.2; },
   },
 
-  // 4 · Tempesta d'espurnes: every enemy loses `loss` PV — no roll, no defense.
+  // 4 · Tempesta d'espurnes: every enemy loses the card's dice in PV, rolled
+  // for each — no contest, no defense, no armour.
   ember_storm: {
     modifyAttack(ctx) {
       if (!ctx.attackMods || !ctx.target) return;
       ctx.attackMods.skip = true;
-      const loss = num(ctx.params, 'loss', 2);
+      const loss = ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: SKILL_ID, rollBonus: ctx.action.rollBonus }).total;
       ctx.engine.log('attack', `Les espurnes cremen ${ctx.target.name}: ${loss} PV.`, ctx.source.team);
       ctx.engine.applyPvLoss(ctx.target, loss, ctx.source);
     },
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.9 : 0.2; },
   },
 
-  // 5 · Pell d'obsidiana: next round the skin still stands — a standing wall
+  // 5 · Cortina de fum: next round the smoke still hangs — a standing wall
   // with the card's dice before the bender and whoever it defended.
-  obsidian_skin: {
+  smoke_screen: {
     postRound(ctx) {
       const dice = ctx.action.dice;
       if (!dice || !ctx.source.isAlive()) return;
       const covered = new Set([ctx.source, ...ctx.targets.filter(t => t.team === ctx.source.team)]);
       for (const c of covered) {
         if (!c.isAlive()) continue;
-        applyKind(c, 'standingWall', OBSIDIAN_KEY, 1, 2,
-          { caster: ctx.source, dice, skillId: SKILL_ID, rollBonus: ctx.action.rollBonus ?? 0, name: "Pell d'obsidiana" });
+        applyKind(c, 'standingWall', SMOKE_KEY, 1, 2,
+          { caster: ctx.source, dice, skillId: SKILL_ID, rollBonus: ctx.action.rollBonus ?? 0, name: 'Cortina de fum' });
       }
     },
     aiWeight() { return 0.5; },
@@ -176,25 +163,25 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/fire-silhouette.svg',
     }),
     action({
-      id: 'esclat', name: 'Esclat', skillId: SKILL_ID,
+      id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus, fast: true,
       effects: [{ type: 'flare', params: { below: 8 } }],
-      desc: 'Cada enemic que encara hagi d\'atacar aquest torn tira 1d20: amb 8 o menys, el seu atac va contra un combatent a l\'atzar, aliats seus inclosos.',
+      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 8 o menys, el seu atac falla.",
       icon: 'lorc/sunbeams.svg',
     }),
     action({
       id: 'tempesta-d-espurnes', name: "Tempesta d'espurnes", skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Atac, targetCount: 99,
-      effects: [{ type: 'ember_storm', params: { loss: 2 } }],
-      desc: 'Cada enemic perd 2 PV.',
+      unlock: 4, type: ActionType.Atac, dice: d(1, 4), targetCount: 99,
+      effects: [{ type: 'ember_storm' }],
+      desc: 'Cada enemic perd 1d4 PV.',
       icon: 'lorc/circle-sparks.svg',
     }),
     action({
-      id: 'pell-d-obsidiana', name: "Pell d'obsidiana", skillId: SKILL_ID,
+      id: 'cortina-de-fum', name: 'Cortina de fum', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Defensa, dice: d(2, 6),
-      effects: [{ type: 'obsidian_skin' }],
+      effects: [{ type: 'smoke_screen' }],
       desc: 'Defensa també el torn següent.',
-      icon: 'lorc/dripping-stone.svg',
+      icon: 'delapouite/fog.svg',
     }),
     action({
       id: 'ale-de-drac', name: 'Alè de drac', skillId: SKILL_ID,
@@ -219,7 +206,7 @@ export const FIREBENDER: SkillDefinition = {
     }),
     action({
       id: 'llamp', name: 'Llamp', skillId: SKILL_ID,
-      unlock: 9, type: ActionType.Atac, dice: d(4, 6),
+      unlock: 9, type: ActionType.Atac, fast: true, dice: d(4, 6),
       desc: '',
       icon: 'lorc/heavy-lightning.svg',
     }),

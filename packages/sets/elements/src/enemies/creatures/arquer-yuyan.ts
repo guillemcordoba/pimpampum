@@ -22,6 +22,8 @@ const CLAVAT: StatusBehavior = {
 /** The holder's next blow deals no damage (a pinning shot), once. */
 const SENSE_DANY: StatusBehavior = {
   onAttackAction(ctx) { ctx.holder.clearStatus(ctx.key); return { damageMult: 0 }; },
+  // Set and spent by the same card in the same round: worth nothing on a board.
+  positionValue() { return 0; },
 };
 
 const ARCHER_SKILL: SkillDefinition = {

@@ -1,6 +1,5 @@
-import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
+import { ActionType, Character, DiceRoll, EffectContext, EffectHandler, StatusBehavior, applyKind, random } from '@pimpampum/engine';
 import { applyMod, diceParam, durParam, HARM, ModKind, num, str } from './helpers.js';
-import { DOT } from './status-behaviors.js';
 
 /**
  * THE ELEMENTS SET'S SHARED MECHANICS — the handlers several kits reach for.
@@ -69,10 +68,6 @@ const MARKED: StatusBehavior = {
   positionValue(ref) { return -0.04 * ref.entry.value; },
 };
 
-/** Out of reach this round. */
-const VANISHED: StatusBehavior = {
-  untargetable() { return true; },
-};
 
 /** A ward: while it stands, no new harm takes hold of its holder. */
 export const WARD_KEY = 'protegit';
@@ -257,7 +252,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
       if (!ctx.target) return;
       const dmg = num(ctx.params, 'damage', 2);
       const name = str(ctx.params, 'name', 'cremada');
-      ctx.target.setStatus(name, dmg, num(ctx.params, 'turns', 2), { dot: dmg, harm: 1 }, DOT);
+      applyKind(ctx.target, 'damageOverTime', name, dmg, num(ctx.params, 'turns', 2), { dot: dmg, source: ctx.source, harm: 1 });
       ctx.engine.log('defense', `${ctx.target.name} crema (${dmg} per torn).`, ctx.source.team);
     },
     aiWeight() { return 0.5; },
@@ -299,7 +294,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     getTargetRequirement() { return 'none'; },
     canPlay(actor) { return !actor.hasStatus('sense-ale'); },
     onResolve(ctx) {
-      ctx.source.setStatus('fos', 1, 1, undefined, VANISHED);
+      applyKind(ctx.source, 'untargetable', 'fos', 1, 1);
       ctx.source.setStatus('sense-ale', 1, 2);
       const bonus = num(ctx.params, 'attack', 0);
       if (bonus) applyMod(ctx.source, 'attack', bonus, 'nextTurn', ctx.action.name);
@@ -430,7 +425,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
 
 function away(ctx: EffectContext): void {
   if (ctx.source.hasStatus('fos')) return;
-  ctx.source.setStatus('fos', 1, 1, undefined, VANISHED);
+  applyKind(ctx.source, 'untargetable', 'fos', 1, 1);
   ctx.source.setStatus('sense-ale', 1, 2);
   ctx.engine.log('attack', `${ctx.source.name} desapareix de l'abast.`, ctx.source.team);
 }
