@@ -53,5 +53,5 @@ time('clone + resolve one round', Math.max(1, Math.round(500 * SCALE)), () => {
   }
   sim.finishRound();
 });
-time('bestResponse d1 s2 p1 k3', Math.max(1, Math.round(100 * SCALE)), () => { bestResponse(e, 0, { depth: 1, samples: 2, passes: 1, topK: 3 }); });
+time('bestResponse d1 s2 p1', Math.max(1, Math.round(100 * SCALE)), () => { bestResponse(e, 0, { depth: 1, samples: 2, passes: 1 }); });
 console.log('');

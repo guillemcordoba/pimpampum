@@ -115,8 +115,8 @@ export interface FieldedGroup {
 export interface SimOptions {
   /** Combats per evaluation. 200 → ±3.5pp, 500 → ±2.2pp (1σ). */
   games?: number;
-  /** Lookahead budget when aiDepth ≥ 1 (samples/passes/topK). */
-  aiLookahead?: { samples?: number; passes?: number; topK?: number };
+  /** Lookahead budget when aiDepth ≥ 1 (samples/passes). */
+  aiLookahead?: { samples?: number; passes?: number };
   /** How hard the AI thinks while pricing (engine `aiDepth`). Defaults to
    *  BALANCER_DEPTH. Lower it to trade accuracy for speed — every number a
    *  solve produces is the winrate of play AT THIS SETTING, so a solve and its

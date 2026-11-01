@@ -31,7 +31,7 @@ import {
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
-  selectAction, actionOdds, drawAction, pickResolveTargets, aimedTargets, expectedAttackTotal, type ActionOdds, type AttackAim, type DefenseModel,
+  selectAction, actionOdds, drawAction, pickResolveTargets, expectedAttackTotal, type ActionOdds,
 } from './policy.js';
 
 /** How hard the lookahead thinks. Depth 0 never reaches this module. */
@@ -42,10 +42,6 @@ export interface LookaheadOptions {
   samples: number;
   /** Iterated best-response passes over the team. */
   passes: number;
-  /** Only look ahead on the best K candidates by depth-0 score (0 = all). Most
-   *  cards in a hand are obviously wrong, and rolling them out costs the same
-   *  as rolling out the plausible ones. */
-  topK: number;
   /** Restrict the AI to these card types. This is how "is attack-spam actually
    *  optimal?" gets asked FAIRLY: both sides think equally hard, one of them
    *  merely has a smaller strategy space. A restriction that leaves nothing
@@ -56,49 +52,13 @@ export interface LookaheadOptions {
    *  round, before the leaf is read. Omit or 0: read it right after. Each
    *  round costs about as much as the searched one. */
   continuation?: number;
-  /** Rollout OPPONENTS weigh a defense by the PV it expects to save
-   *  (`DefenseModel` 'prevented'). The flat model is still the depth-0
-   *  policy's, because it predicted the spam baselines best (§20.8); but in a
-   *  rollout it never raised the block an advance races or a strike runs
-   *  into. (The same for our own seats added nothing on top: §54.3.) */
-  opponentDefense?: boolean;
   /** Rollouts in ANTITHETIC pairs: every odd sample replays the one before it
    *  with each die mirrored (high where it rolled low), so the dice's luck
    *  largely cancels in the mean. Same cost per sample. */
   antithetic?: boolean;
-  /** How the heuristic aims attacks — in every rollout, and as the target
-   *  search's fallback (`AttackAim`). Omit: `share`. */
-  attackAim?: AttackAim;
   /** Leaf evaluator weights. Omit for `DEFAULT_EVAL_WEIGHTS`; set only to
    *  A/B the evaluator against itself (see `EvaluatorWeights`). */
   weights?: EvaluatorWeights;
-  /**
-   * How greedily the OPPONENTS play inside a rollout (their `aiSharpness`).
-   * Omit to leave the clone as it is.
-   *
-   * A rollout is not a prediction of one enemy move, it is an integral over the
-   * moves they might make — the searching side has not seen their card. A
-   * greedy model collapses that integral onto one line; a soft one covers more
-   * of the hand. Which is better is an empirical question, and the reason it is
-   * worth asking is §20.8: making the opponent model play BETTER made the
-   * search measurably worse, so what it owes the search is accuracy, not
-   * quality.
-   */
-  rolloutSharpness?: number;
-  /**
-   * Stop sampling a candidate once its OWN rollouts say it cannot beat the
-   * incumbent (see `evaluate`'s `floor`). On by default.
-   *
-   * Set false to spend the full sample on every candidate, which is what an
-   * A/B of the racing rule itself needs — and the only way to show that the
-   * saving is free rather than paid for in decision quality.
-   */
-  race?: boolean;
-  /**
-   * Give every seat its own random stream inside a rollout
-   * (`CombatEngine.seatStreamSeed`). On by default; set false only to A/B it.
-   */
-  seatStreams?: boolean;
   /**
    * Rollouts per candidate when an action's single target is chosen at
    * resolution (`searchTargets`); 0 keeps the resolution heuristic alone.
@@ -165,56 +125,20 @@ export interface EvaluatorWeights {
   /** What each side's statuses say they are worth
    *  (`StatusBehavior.positionValue`). */
   status: number;
-  /** Share of the PV term read in ABSOLUTE PV (both sides' PV over their
-   *  mean total) rather than mean fractions. 0 or omitted: fractions only. */
-  absolutePv?: number;
 }
 
 export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatigue: 0.5, status: 10 };
 
 /**
- * NO PRUNING (`topK: 0`), AND THAT IS THE SINGLE BIGGEST THING THE AI HAS EVER
- * GAINED.
- *
- * It used to be `topK: 3`, which on a six-card kit kept roughly half the hand
- * out of the search entirely — ranked out by SAMPLING `selectAction`, i.e. by
- * the depth-0 heuristic. That heuristic plays `Contraatac` on 0.6% of the turns
- * it is legal (the full search plays it ~50%), because it prices a defence at a
- * flat 1.5 beside an attack that scales with damage, and then squares the gap
- * through `aiSharpness`. Using a policy measured WORSE THAN UNIFORM RANDOM to
- * decide what the good policy is allowed to look at is not an optimisation; it
- * is a bottleneck, and it was excluding exactly the cards the search needed.
- *
- * Measured 2026-09-22, 300 mirror combats a cell, against `spam`:
- *
- *   s2 p1 k3   53.0%±2.9   0.0% draws   3.7 rounds   2.3 ms/combat
- *   s2 p1 k0   88.7%±1.8   0.0% draws   3.3 rounds   3.2 ms
- *   s4 p1 k0   94.7%±1.3   0.0% draws   3.1 rounds   6.0 ms
- *   s4 p2 k0   94.0%±1.4   0.0% draws   3.0 rounds  10.2 ms
- *
- * Removing the pruner is worth +36pp where TRIPLING the sample is worth +9pp,
- * and `s4 p1 k0` beats `s8 p3 k3` while costing half as much. A second pass
- * buys nothing once the first one can see the whole hand.
- *
- * THE OLD COMMENT'S FEAR WAS REAL AND IS NOW PAID FOR. It recorded that
- * `topK: 5` once sent draws from ~2% to 17.8% with p90 at the round cap — a
- * wider search finding STALLING lines — and said the fix was "the leaf
- * evaluator [pricing] an unfinished fight first". That is exactly the terminal
- * check `positionScore` now carries: a board at `maxRounds` is a DRAW, worth 0,
- * because that is what `winner()` returns. With it, draws measure 0.0% at every
- * budget above and fights get SHORTER, not longer.
- *
- * Cost is the honest trade: 6.0 ms against the old 2.3. Worth it — at 53%
- * against a one-line strategy the instrument was measuring its own blind spot
- * rather than the game.
- *
- * SIX SAMPLES AND TWO PASSES since 2026-10-05 (one pass before). With cards
+ * EVERY LEGAL CARD IS SEARCHED. A pruner that kept only the cards the depth-0
+ * heuristic reached for once excluded exactly the defences the search needed
+ * (NEXT-STEPS §20.7); racing (`evaluate`'s `floor`) cuts a candidate on its own
+ * rollouts instead. Six samples and two passes since 2026-10-05: with cards
  * that reward coordination, a second pass — each hero reconsidering once its
- * teammates have chosen — bought more than more samples did, and at less cost
- * (NEXT-STEPS §29, §38).
+ * teammates have chosen — bought more than more samples did (§29, §38).
  */
 export const DEFAULT_LOOKAHEAD: LookaheadOptions = {
-  depth: 1, samples: 6, passes: 2, topK: 0, targetSamples: 2, tempo: 1, antithetic: true,
+  depth: 1, samples: 6, passes: 2, targetSamples: 2, tempo: 1, antithetic: true,
   opponentSearch: { samples: 1, margin: 10, sharpness: 1 },
 };
 
@@ -269,18 +193,12 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   // comfortable win right up to the final round, which is not a taste about
   // how to value tempo — it contradicts what the engine will actually return.
   // (It is only the terminal case. Pricing an unfinished fight that is HEADING
-  // for the cap is the harder, open problem the `topK` comment names, and that
-  // one needs a design decision rather than a correction — NEXT-STEPS §20.6.)
+  // for the cap is the harder, open problem, and it needs a design decision
+  // rather than a correction — NEXT-STEPS §20.6.)
   if (engine.round >= engine.maxRounds) return 0;
   // Dead members count as 0 PV rather than being dropped, else wiping out our
   // own wounded would read as an improvement.
-  let pvDiff = pvFrac(us) - pvFrac(them);
-  if (w.absolutePv) {
-    const sum = (t: Character[], f: (c: Character) => number) => t.reduce((s, c) => s + f(c), 0);
-    const scale = (sum(us, c => Math.max(1, c.maxPV)) + sum(them, c => Math.max(1, c.maxPV))) / 2;
-    const abs = (sum(us, c => Math.max(0, c.currentPV)) - sum(them, c => Math.max(0, c.currentPV))) / scale;
-    pvDiff = (1 - w.absolutePv) * pvDiff + w.absolutePv * abs;
-  }
+  const pvDiff = pvFrac(us) - pvFrac(them);
   const bodyDiff = (livingUs.length - livingThem.length) / Math.max(1, livingUs.length + livingThem.length);
   const fatigue = (t: Character[]) => (t.length ? t.reduce((s, c) => s + c.fatigue, 0) / t.length : 0);
   const fatigueDiff = (fatigue(livingThem) - fatigue(livingUs)) / FATIGUE_MAX_LEVEL;
@@ -371,13 +289,7 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
       }
       if (best > 0) out += best + exposure;
     }
-    let units = Math.min(out, foeMax) / foeMax;
-    if (w.absolutePv) {
-      let all = 0;
-      for (const c of engine.allCombatants()) all += Math.max(1, c.maxPV);
-      units = (1 - w.absolutePv) * units + w.absolutePv * Math.min(out, foeMax) / (all / 2);
-    }
-    acc += (side === team ? 1 : -1) * w.pv * units;
+    acc += (side === team ? 1 : -1) * w.pv * Math.min(out, foeMax) / foeMax;
   }
   return acc;
 }
@@ -508,11 +420,6 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
   return { indices: base.indices, weights, total: weights.reduce((s, w) => s + w, 0) };
 }
 
-/** How a rollout seat weighs its defenses (`opponentDefense`). */
-function defenseModel(opts: LookaheadOptions, team: number, a: Character): DefenseModel {
-  return a.team !== team && opts.opponentDefense ? 'prevented' : 'flat';
-}
-
 /**
  * The rollouts' chooser for everyone the plan does not fix, weighing each seat
  * ONCE per decision.
@@ -526,20 +433,15 @@ function defenseModel(opts: LookaheadOptions, team: number, a: Character): Defen
  * seat that chooses after the reveal (it reads the plan).
  */
 function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatEngine, a: Character) => number | null {
-  const model = (a: Character): DefenseModel => defenseModel(shared.opts, shared.team, a);
-  if (!root.roundPrepared) return (e, a) => selectAction(e, a, model(a)).actionIdx;
+  if (!root.roundPrepared) return (e, a) => selectAction(e, a).actionIdx;
   return (e, a) => {
-    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a, model(a)).actionIdx;
+    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a).actionIdx;
     const pos = e.teams[a.team].indexOf(a);
     const seat = a.team * 1000 + pos;
     let odds = shared.odds.get(seat);
     if (!odds) {
-      // `base` is shared with the opponent-search memo, whose own seats are
-      // not ours: keyed by model as well as seat.
-      const m = model(a);
-      const baseKey = seat + (m === 'prevented' ? 500 : 0);
-      let base = shared.base.get(baseKey);
-      if (!base) shared.base.set(baseKey, base = actionOdds(e, a, m));
+      let base = shared.base.get(seat);
+      if (!base) shared.base.set(seat, base = actionOdds(e, a));
       odds = a.team !== shared.team && shared.opts.opponentSearch && base.indices.length > 1
         ? searchedOdds(root, root.teams[a.team][pos], base, shared)
         : base;
@@ -570,7 +472,7 @@ function evaluate(
    * Stop early once this candidate cannot beat `floor` — the value the search
    * would keep anyway. Omit to always spend the full sample.
    *
-   * RACING, not pruning. `topK` used to drop candidates on the depth-0
+   * RACING, not pruning. A pruner used to drop candidates on the depth-0
    * heuristic's OPINION, before any rollout, and cost 36 points by excluding
    * the defences (§20.7). This drops them on their OWN measured rollouts, after
    * at least half the budget, and only when the remaining samples cannot
@@ -609,7 +511,7 @@ function evaluate(
     if (!known) shared.plans.set(key, known = []);
   }
   const opponentModel = shared ? rolloutOpponents(engine, shared)
-    : (e: CombatEngine, a: Character) => selectAction(e, a, defenseModel(opts, team, a)).actionIdx;
+    : (e: CombatEngine, a: Character) => selectAction(e, a).actionIdx;
   for (let s = 0; s < opts.samples; s++) {
     if (floor !== undefined && s >= minSamples) {
       // Two sigma of the running mean, floored so a run of identical rollouts
@@ -626,7 +528,8 @@ function evaluate(
     const mirror = !!opts.antithetic && (s & 1) === 1;
     const one = cached !== undefined ? cached : withRng(mirror ? mirrored(seededRng(seed)) : seededRng(seed), () => {
       const sim = engine.clone();
-      if (opts.seatStreams !== false) { sim.seatStreamSeed = seed; sim.seatStreamMirror = mirror; }
+      sim.seatStreamSeed = seed;
+      sim.seatStreamMirror = mirror;
       // Rollouts think at depth 0 — otherwise the search recurses into itself
       // once per sample per candidate and never returns. The clone also drops any
       // external chooser, which may be a lookahead wrapper for the same reason.
@@ -636,8 +539,7 @@ function evaluate(
       sim.actionChooser = opponentModel;
       // Rollouts aim by the heuristic: searching targets inside a rollout would
       // nest a search per target choice per sample per candidate.
-      sim.targetChooser = aimedTargets(opts.attackAim);
-      if (opts.rolloutSharpness !== undefined) sim.aiSharpness = opts.rolloutSharpness;
+      sim.targetChooser = pickResolveTargets;
       const mapped = new Map<Character, number>();
       for (const [pos, idx] of seats) mapped.set(sim.teams[team][pos], idx);
       playRound(sim, team, mapped);
@@ -707,45 +609,15 @@ export function bestResponse(
   for (let pass = 0; pass < opts.passes; pass++) {
     let improved = false;
     for (const actor of actors) {
-      let candidates = legal(engine, actor, opts.restrictTo);
+      const candidates = legal(engine, actor, opts.restrictTo);
       if (candidates.length <= 1) continue;
-      if (opts.topK > 0 && candidates.length > opts.topK) {
-        // Prune by the depth-0 opinion: sample it a few times and keep the
-        // cards it actually reaches for. Cheap, and it never drops the card
-        // depth 0 would have played.
-        //
-        // EVERY SAMPLE IS FILTERED THROUGH `allowed`. `selectAction` knows
-        // nothing about `restrictTo` — it samples the actor's whole legal hand
-        // — so without this filter the pruner handed back cards the restriction
-        // had just excluded, and a search restricted to attacks would evaluate,
-        // and play, defenses. That silently corrupted every restricted
-        // measurement: the "attacks only" arm was only ~74% attacks.
-        const allowed = new Set(candidates);
-        const seen = new Map<number, number>();
-        for (let i = 0; i < opts.topK * 2; i++) {
-          const idx = selectAction(engine, actor).actionIdx;
-          if (idx >= 0 && allowed.has(idx)) seen.set(idx, (seen.get(idx) ?? 0) + 1);
-        }
-        const ranked = [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([i]) => i);
-        const current = choices.get(actor);
-        if (current !== undefined && allowed.has(current) && !ranked.includes(current)) ranked.push(current);
-        // Sampling can miss allowed cards entirely (it is weighted and random,
-        // and under a restriction most draws may be rejected). Top up from the
-        // allowed list so the search always has `topK` real options.
-        for (const idx of candidates) {
-          if (ranked.length >= opts.topK) break;
-          if (!ranked.includes(idx)) ranked.push(idx);
-        }
-        if (ranked.length > 0) candidates = ranked.slice(0, opts.topK);
-      }
       for (const idx of candidates) {
         if (choices.get(actor) === idx) continue;
         const trial = new Map(choices);
         trial.set(actor, idx);
         // `value` is the incumbent, measured on the SAME paired rollouts, so a
         // candidate that cannot reach it is not worth finishing.
-        const v = evaluate(engine, team, trial, opts, opts.depth, pairSeed,
-          opts.race === false ? undefined : value, memo);
+        const v = evaluate(engine, team, trial, opts, opts.depth, pairSeed, value, memo);
         if (v > value) { value = v; choices.set(actor, idx); improved = true; }
       }
     }
@@ -791,9 +663,9 @@ export function lookaheadChooser(opts: Partial<LookaheadOptions> = {}, teams: nu
  */
 export function searchTargets(
   engine: CombatEngine, actor: Character, def: ActionDefinition, req: TargetRequirement,
-  count: number, pool: Character[], samples: number, aim: AttackAim = 'share',
+  count: number, pool: Character[], samples: number,
 ): Character[] {
-  const heuristic = pickResolveTargets(engine, actor, def, req, count, pool, aim);
+  const heuristic = pickResolveTargets(engine, actor, def, req, count, pool);
   if (count !== 1 || pool.length < 2 || samples < 1) return heuristic;
   const pairSeed = Math.floor(random() * 1e9);
   const team = actor.team;
@@ -805,7 +677,7 @@ export function searchTargets(
         const sim = engine.clone();
         sim.seatStreamSeed = pairSeed + s * 7919;
         sim.actionChooser = (e, a) => selectAction(e, a).actionIdx;
-        sim.targetChooser = aimedTargets(aim);
+        sim.targetChooser = pickResolveTargets;
         sim.setResolveTarget([ref]);
         let step = sim.resolveNextAction();
         for (let guard = 0; step.kind !== 'done' && guard < 400; guard++) {

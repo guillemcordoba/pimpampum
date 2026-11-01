@@ -110,7 +110,7 @@ describe('the search simulates the round it is choosing for', () => {
 describe('a restricted search plays only what it is allowed to', () => {
   /*
    * §16's first bug, and the one that silently corrupted the most: `restrictTo`
-   * leaked through the `topK` pruner. `bestResponse` prunes candidates by
+   * leaked through the `topK` pruner (since removed), which pruned candidates by
    * SAMPLING `selectAction`, which knows nothing about the restriction, so a
    * search restricted to attacks evaluated — and played — defenses. The
    * "attacks only" arm was measured at only ~74% attacks.
@@ -139,7 +139,7 @@ describe('a restricted search plays only what it is allowed to', () => {
     const heroes = [mk('H1'), mk('H2')];
     const villains = [mk('V1'), mk('V2')];
     const chooser = lookaheadChooser(
-      { depth: 1, samples: 2, passes: 1, topK: 3, restrictTo: restrict }, [0],
+      { depth: 1, samples: 2, passes: 1, restrictTo: restrict }, [0],
     );
     const engine = new CombatEngine(heroes, villains, {
       registry: new EffectRegistry(), maxRounds: 40, actionChooser: chooser,

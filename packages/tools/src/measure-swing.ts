@@ -167,7 +167,7 @@ function anatomy(m: (typeof MATCHUPS)[number], games: number, seed: number): Ana
     contested: 0, prevented: 0, preventedFracSum: 0,
     postFocusAttack: 0, postFocusCount: 0, plainAttack: 0, plainCount: 0,
   };
-  const chooser = lookaheadChooser({ depth: 1, samples: 2, passes: 1, topK: 3 });
+  const chooser = lookaheadChooser({ depth: 1, samples: 2, passes: 1 });
 
   let parsed = 0;
   withSeed(seed, () => {
