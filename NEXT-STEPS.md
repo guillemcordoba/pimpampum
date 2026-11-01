@@ -7095,3 +7095,74 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
 - **The direction holds at full size,** and at no extra cost. A 4v4 pair swings ±300–500 PV, so the means are wide, but the better/worse counts are clear (145 / 51 is about 6.7 standard errors from a coin flip).
 - **Every slice measured is positive** (2v2 and 3v3 archetypes, 2v2 composed, 4v4 both). Pooled over all 1,300 pairs: about +4.4 ±1.8.
 - **Medium (margin decisions) vs today's AI on 4v4, at scale:** archetypes +17.7 ±13.6, composed +53.8 ±11.1. The +118 ±36.5 of §58 was 16 pairs.
+
+## 59. Statuses move to the engine; patches that want a structure (2026-11-01, branch `priority-system`)
+
+### 59.1 The decision (user, 2026-11-01)
+- **The problem:** the AI's evaluator (`positionScore`) sees a status only through `StatusBehavior.positionValue`, so a status is invisible unless its card's author priced it. The cause is structural: a status's meaning lives in opaque content hooks.
+- **The decision:** statuses move to a generic, parameterised **engine vocabulary that prices itself**. The rule "the engine never names a status" is dropped (CLAUDE.md updated); it still never names a card or a skill.
+- **One-of-a-kind statuses:** allowed as a card's own `StatusBehavior`, but they must price themselves (a convention test will enforce it).
+- **Scope:** the whole vocabulary at once, built and checked on the audit's cards. Real cards wait for the migration.
+
+### 59.2 What content's statuses do (survey of the three sets)
+- **79 distinct status behaviours; 26 don't price themselves.** By set: fantasy 6 of 22 priced, elements 22 of 26, common 25 of 31.
+- **The two biggest blind spots are engine fields, not statuses:**
+  - `skipTurns` (stuns, freeze, paralysis): 13 write sites, priced nowhere;
+  - `CombatModifier`: 23 `applyMod` sites, priced nowhere.
+- 15 status keys are set with no behaviour at all.
+- **By mechanic** (how many / how many priced):
+
+| Mechanic | Statuses | Priced |
+|---|---|---|
+| Lose next turn | 2 | 2 |
+| Card type locked | 3 | 3 |
+| Roll or damage debuff on the holder | 8 | 6 |
+| Can't be guarded | 5 | 4 |
+| Damage over time | 6 | 5 |
+| Delayed doom on a victim | 8 | 8 |
+| Delayed strike by the holder | 4 | 2 |
+| Ward or standing guard | 11 | 9 |
+| Ally interception | 3 | 0 |
+| Taunt or target rule | 2 | 2 |
+| Redirected attacks | 5 | 3 |
+| Untargetable | 3 | 1 |
+| Heal over time | 1 | 0 |
+| Set-up (next attack +N or ×N) | 7 | 2 |
+| Resource counter | 4 | 3 |
+| Choose after reveal | 2 | 2 |
+| Inert marker | 5 | 1 |
+
+- **About 20 are genuinely one of a kind:** the six death-touch variants, the waterbender's swallow, putrefaction spreading, the eel's swallow, the crack that lets its victim choose, and others.
+- **Bugs found in real cards** (fix them at the migration; real cards are frozen until then):
+  - `silenced` is set by `silence_on_hit` (`attack-effects.ts:166`) and read nowhere, so the effect does nothing;
+  - putrefacció keeps state in a module-level `WeakSet` (`nigromant.ts:36`), which `clone()` doesn't copy, so the AI's simulations get it wrong;
+  - the fantasy Mur de pedra's standing guard (`standing-wall.ts:26`) adds no skill level to its roll; the earthbender's dome does.
+- The elements' `status-behaviors.ts` is a byte-for-byte copy of fantasy's, and belongs in `sets/common`.
+
+### 59.3 Patches that want a structure (read-only sweep, ranked by benefit for effort)
+0. **Inside the vocabulary change** (the same root as `positionValue`):
+   - the AI-only `expectedIncomingDamage`, a hand copy of `modifyIncomingDamage`;
+   - `nextRoundThreat` reading one roll hook of five;
+   - the referee's `unpricedChange` and its settled/adaptive decision leaves;
+   - the audit's hand-priced statuses;
+   - `harm: 1` / `bodyOut: 1` as data conventions;
+   - content writing raw `skipTurns`, `guards`, `blockers` and `currentPV`;
+   - 33 generic handlers no card uses.
+1. **One owner for the contest roll** (M, high). Three blow paths in the engine, extra blows without level, walls or Envoltat; content adding totals by hand; AI estimates that model neither Envoltat nor roll modes.
+2. **The round cap is an abort, not a draw** (S, med). Patched in the evaluator, the audit, the balancer (draw = half a win), and the `positions.test` failure; the cap's value is scattered (40, 50, 30).
+3. **The round as a first-class value** (M–L, high):
+   - the "answer prompts until done" loop is copied 10 times;
+   - `roundPrepared` is public;
+   - seats are remapped after `clone()`;
+   - the referee replays rounds by throwing from callbacks and reads private fields.
+4. **Fix `isBlindSpot`** rather than growing `KNOWN_BLIND` (S, med).
+5. **Delete concluded experiments** (S, med): in lookahead, topK, `absolutePv`, `opponentDefense`, `rolloutSharpness`, `continuation`; in policy, the `'wounded'` aim; the referee's losing decision leaves, once §58.4's measurement closes.
+6. **The depth-0 opponent model**, patched from outside (L, high; already in AI-EQUILIBRIUM-PLAN.md).
+7. **Pin calibration data, not code** (M, med). The pinned kits import live helpers, `calibrationDrift` misses that, and they keep the deprecated `speed` fields alive (so the control kits still claim "fastest on the field").
+8. **Engine facts re-derived outside the engine** (S, low–med): card legality is implemented 5 times.
+9. **The interim enemy block** (M, med; waits on batch B's designs).
+10. **Small measurement patches**:
+    - 6 of `mutation.ts`'s 48 find-strings no longer match exactly once;
+    - `combatlog.ts` parses the Catalan log with regexes;
+    - the balancer's `HETEROGENEITY` constant was measured once;
+    - `engine/display.ts` still says "bloquejar un atacant".
