@@ -100,14 +100,14 @@ describe('Mestre de la terra', () => {
     expect(foe.currentPV).toBe(30);
   });
 
-  it('Roca viva: a stone golem joins the side; 1 fatigue', () => {
+  it('Roca viva: a stone golem joins the side; 2 fatigue', () => {
     const earth = fighter('Terra', [flat('roca-viva', 0)], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 30 });
     const engine = engineFor([earth], [foe]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     expect(engine.teams[0].length).toBe(2);
     expect(engine.teams[0][1].maxPV).toBe(10);
-    expect(earth.fatigue).toBe(1);
+    expect(earth.fatigue).toBe(2);
   });
 
   it('Terratrèmol: every enemy is struck', () => {
@@ -250,12 +250,14 @@ describe('Mestre del foc', () => {
 });
 
 describe("Mestre de l'aire", () => {
-  it('Ventada: fast, every enemy; a foe it wounds acts last — its guard comes too late', () => {
+  it('Ventada: every enemy; a foe it wounds before its attack acts last', () => {
     const air = fighter('Aire', [flat('ventada', 1, 1)], { pv: 30 });
-    const ally = fighter('Amic', [blow(5)], { pv: 30 });
-    const foe = fighter('Foe', [guard(100)], { pv: 30 });
-    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
-    expect(foe.currentPV).toBe(30 - 2 - 5);
+    const a = fighter('A', [blow(3)], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    const engine = engineFor([air], [a, b]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
+    expect(engine.logEntries.some(l => /actua l'últim/.test(l.message))).toBe(true);
   });
 
   it('Ràfega desviadora: a held blow is turned, whole, on an enemy', () => {

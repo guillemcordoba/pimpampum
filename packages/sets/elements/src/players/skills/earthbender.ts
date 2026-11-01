@@ -122,7 +122,7 @@ export const EARTHBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'llancament-de-roca', name: 'Llançament de roca', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, dice: d(1, 8),
+      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 8),
       desc: '',
       icon: 'lorc/stone-sphere.svg',
     }),
@@ -177,8 +177,8 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'roca-viva', name: 'Roca viva', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'living_rock' }],
-      desc: 'Puges 1 nivell de fatiga. Invoca un gòlem de pedra (10 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'living_rock' }],
+      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (10 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
       icon: 'delapouite/rock-golem.svg',
     }),
     action({

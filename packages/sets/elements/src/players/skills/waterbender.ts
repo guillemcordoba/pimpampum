@@ -112,8 +112,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
       unlock: 7, type: ActionType.Focus,
-      effects: [{ type: 'ice_trap' }],
-      desc: "L'enemic que triïs queda congelat: perd el torn següent.",
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'ice_trap' }],
+      desc: "Puges 1 nivell de fatiga. L'enemic que triïs queda congelat: perd el torn següent.",
       icon: 'lorc/frozen-block.svg',
     }),
     action({

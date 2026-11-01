@@ -123,7 +123,7 @@ dice and small mechanics by the main session.
 | 4 | Boira | Focus | next round no enemy can aim at your allies |
 | 5 | Cúpula de gel | Defensa | the strong shell |
 | 6 | Llança de gel | Atac | the strong single blow |
-| 7 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn |
+| 7 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn; 1 fatigue |
 | 8 | Forma de pop | Defensa | defends every ally |
 | 9 | Control de la sang | Focus | next round the chosen enemy's blows land on its own side; 1 fatigue |
 | 10 | Tsunami | Atac | every enemy |
@@ -137,7 +137,7 @@ the main session.
 
 | # | card | type | what it does |
 |---|---|---|---|
-| 1 | Llançament de roca | Atac | the plain throw |
+| 1 | Llançament de roca | Atac, fast | the quick throw |
 | 2 | Mur de pedra | Defensa | the plain wall, sturdier than water's |
 | 3 | Armadura de terra | Focus | an ally has +3 on its defenses for 3 rounds |
 | 4 | Túnel | Focus | next round an ally's first attack cannot be defended |
@@ -145,7 +145,7 @@ the main session.
 | 6 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last |
 | 7 | Allau | Atac | a wounded target loses its next turn |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
-| 9 | Roca viva | Focus | summons a stone golem (10 PV, attack and defense 2d6); 1 fatigue |
+| 9 | Roca viva | Focus | summons a stone golem (10 PV, attack and defense 2d6); 2 fatigue |
 | 10 | Terratrèmol | Atac | every enemy |
 
 ## Mestre del foc — `firebender` (redesigned 2026-11-01)
@@ -182,7 +182,7 @@ the main session.
 
 | # | card | type | what it does |
 |---|---|---|---|
-| 1 | Ventada | Atac, fast | every enemy; the wounded act last this round |
+| 1 | Ventada | Atac | every enemy; the wounded act last this round |
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds |
 | 4 | Vent a favor | Focus, fast | an ally's card resolves right after it |

@@ -154,7 +154,7 @@ export const AIRBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'ventada', name: 'Ventada', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 4), targetCount: 99,
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4), targetCount: 99,
       effects: [{ type: 'delay_on_hit' }],
       desc: 'Afecta tots els enemics. Els que fereix actuen els últims aquest torn.',
       icon: 'lorc/wind-slap.svg',
@@ -182,7 +182,7 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'fulles-de-vent', name: 'Fulles de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, dice: d(2, 6),
+      unlock: 5, type: ActionType.Atac, dice: d(2, 8),
       effects: [{ type: 'piercing' }],
       desc: "Ignora l'armadura.",
       icon: 'lorc/air-zigzag.svg',

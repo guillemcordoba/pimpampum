@@ -75,6 +75,7 @@ describe("Mestre de l'aigua", () => {
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0)]);
     expect(foe.skipTurns).toBe(1);
+    expect(water.fatigue).toBe(1);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
     expect(water.currentPV).toBe(30);
   });
