@@ -259,3 +259,30 @@ describe('audit defects as puzzles: the referee pays PV, the AI health fractions
   it('(g) the referee strikes', () => expect(refereeAnswer(CURRENCY)).toEqual({ cards: 'strike,strike', p: 1 }));
   it('(g) the AI guards the body', () => expect(aiAnswer(CURRENCY)).toEqual(Array(4).fill('guard,strike')));
 });
+
+// --- (h, i) A SACRIFICE: AN AREA BLOW THAT FELLS ITS OWN PLAYER -------------
+//
+// Three heroes (12 PV, strikes of 6), three foes (30 PV, strikes of 7); H0 may
+// instead throw a sacrifice at every foe and fall. The rollouts' aim used to
+// send every foe blow at the first hero in the list — H0 — so the sacrifice
+// looked free: those blows were "wasted" on a body that falls anyway, and the
+// others lived. The aim now leaves alone a body its own card fells
+// (`aiFellsItsPlayer`) and one its allies' aimed blows already fell.
+//   (h) a sacrifice of 6 a foe (18 in all, a strike's worth spread thin): the
+//       referee strikes, and so does the AI.
+//   (i) a sacrifice of 9 a foe against foes that hit for 7: the referee
+//       sacrifices — scored by the PV left at the horizon, 27 dealt beats 18 —
+//       and the AI, its leaf one round deep and counting the fallen body,
+//       still strikes. Open.
+const sacrificeAt = (dmg: number, foeHit: number) => position(`sacrifice-${dmg}-${foeHit}`, 2,
+  [body('H0', 12, [fixed('strike', 6), fixed('sacrifice', dmg)]), body('H1', 12, [fixed('strike', 6)]), body('H2', 12, [fixed('strike', 6)])],
+  [body('F0', 30, [fixed('strike', foeHit)]), body('F1', 30, [fixed('strike', foeHit)]), body('F2', 30, [fixed('strike', foeHit)])]);
+const WASTED = sacrificeAt(6, 5);
+const PAYING = sacrificeAt(9, 7);
+
+describe('audit defects as puzzles: a sacrifice', () => {
+  it('(h) the referee keeps the hero', () => expect(refereeAnswer(WASTED)).toEqual({ cards: 'strike,strike,strike', p: 1 }), 60_000);
+  it('(h) the AI keeps the hero', () => expect(aiAnswer(WASTED)).toEqual(Array(4).fill('strike,strike,strike')));
+  it('(i) the referee throws the sacrifice', () => expect(refereeAnswer(PAYING)).toEqual({ cards: 'sacrifice,strike,strike', p: 1 }));
+  it.fails('(i) the AI throws the sacrifice', () => expect(aiAnswer(PAYING)).toEqual(Array(4).fill('sacrifice,strike,strike')));
+});

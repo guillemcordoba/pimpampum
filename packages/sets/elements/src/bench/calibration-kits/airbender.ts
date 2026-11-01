@@ -55,16 +55,23 @@ const LIFTED: StatusBehavior = {
   positionValue() { return 0; },
 };
 
+/** A deflected blow is in flight (Ràfega desviadora). */
+let deflecting = false;
+
 const AIR_EFFECTS: Record<string, EffectHandler> = {
   // 2 · Ràfega desviadora: a blow the defense holds is turned, whole, on an
-  // enemy the bender chooses — its total as it is.
+  // enemy the bender chooses — its total as it is. A blow already being turned
+  // aside is not turned again (two of these facing each other would bounce one
+  // blow back and forth forever; rules.md leaves loops to the cards).
   'deflecting_gust@cal': {
     onDefend(ctx) {
       const total = ctx.attackTotal ?? 0;
-      if (total <= 0) return;
+      if (total <= 0 || deflecting) return;
       const [t] = ctx.engine.chooseTargets(ctx.source, ctx.action, ctx.engine.enemiesOf(ctx.source), 1);
       if (!t) return;
-      ctx.engine.performExtraAttack(ctx.source, t, total, { label: `${ctx.source.name} desvia el cop` });
+      deflecting = true;
+      try { ctx.engine.performExtraAttack(ctx.source, t, total, { label: `${ctx.source.name} desvia el cop` }); }
+      finally { deflecting = false; }
     },
     aiWeight() { return 0.5; },
   },

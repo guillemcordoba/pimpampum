@@ -416,15 +416,27 @@ export function pickResolveTargets(
   // finish — and every rollout of the search aimed that way too: a strike
   // whose worth was a joint kill read as a scratch on the boss (NEXT-STEPS §52).
   // The teammates' attacks still to resolve this round count toward it.
+  // Allies' attacks still to resolve this round: the ones that have AIMED
+  // already land where they aimed (`incoming`); the rest may still join a kill.
   let teamFollowUp = 0;
+  const incoming = new Map<Character, number>();
   if (def.actionType === ActionType.Atac) {
     for (const p of pending) {
       if (p.resolved || p.cancelled || p.actor === actor || p.actor.team !== actor.team
         || p.actionType !== ActionType.Atac || p.actor.playedActionIdx === null || !p.actor.isAlive()) continue;
       const ally = p.actor.actions[p.actor.playedActionIdx]?.def;
-      if (ally && (ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
+      if (!ally) continue;
+      if (p.targets) {
+        for (const t of p.targets) incoming.set(t, (incoming.get(t) ?? 0) + Math.max(0, expectedAttackTotal(p.actor, ally) - t.getPassiveArmor()));
+      } else if ((ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
     }
   }
+  // A body that falls this round anyway — to the blows already aimed at it, or
+  // to its own revealed card (a sacrifice) — is a wasted aim: the targeting
+  // search, which plays the round out, never picks one while another remains.
+  const fellsItself = (e: Character) => pending.some(p => p.actor === e && !p.resolved && !p.cancelled
+    && view.registry.effectsWith(p.action.effects, 'aiFellsItsPlayer').some(({ handler }) => handler.aiFellsItsPlayer!()));
+  const left = (e: Character) => (fellsItself(e) ? 0 : e.currentPV - (incoming.get(e) ?? 0));
   // What THIS blow is expected to take off `e`: through the wall in front of
   // it — its standing guards, and its OWN revealed Defense card still to
   // resolve (a defense always covers its player; whom an allied defender will
@@ -457,12 +469,15 @@ export function pickResolveTargets(
     // through the target's wall — what the leaf evaluator scores, and so what
     // the target SEARCH reaches for (NEXT-STEPS §54.3).
     if (def.actionType === ActionType.Atac) {
+      const remaining = left(e);
+      if (remaining <= 0) return -2;
       const dmg = afterHolderStatuses(e, throughWall(e));
-      let s = 4 * Math.min(dmg, e.currentPV) / Math.max(1, e.maxPV);
-      // A dangerous foe is worth wounding — not worth a blow that cannot wound.
-      if (dmg > 0) s += Math.min(2, bestAttackAverage(e) / 6);
-      if (dmg >= e.currentPV) s += 4;
-      else if (dmg > 0 && teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= e.currentPV) s += 3;
+      let s = 4 * Math.min(dmg, remaining) / Math.max(1, e.maxPV);
+      // Danger breaks ties between equal blows; weighed like a blow, it
+      // herded every attack onto the strongest foe, where the search spreads.
+      if (dmg > 0) s += Math.min(0.5, bestAttackAverage(e) / 24);
+      if (dmg >= remaining) s += 4;
+      else if (dmg > 0 && teamFollowUp > 0 && dmg + Math.max(0, teamFollowUp - e.getPassiveArmor()) >= remaining) s += 3;
       const focusing = pending.some(p =>
         p.actor === e && !p.resolved && !p.cancelled
         && p.actionType === ActionType.Focus && p.step > atkKey);

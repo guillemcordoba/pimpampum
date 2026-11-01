@@ -137,6 +137,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
 
   // 10 · Supernova: once it has struck, the bender burns out — 0 PV, unconscious.
   'supernova@cal': {
+    aiFellsItsPlayer() { return true; },
     onAttackResolved(ctx) {
       if (!ctx.source.isAlive()) return;
       ctx.engine.log('attack', `${ctx.source.name} es consumeix en la supernova i cau inconscient.`, ctx.source.team);

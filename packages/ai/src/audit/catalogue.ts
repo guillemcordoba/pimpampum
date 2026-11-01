@@ -176,6 +176,10 @@ export function auditRegistry(): EffectRegistry {
       if (P(ctx, 'defense')) ctx.attackMods!.ignoreDefense = true;
     },
   });
+  r.register('audit:sacrifice', {
+    aiFellsItsPlayer: () => true,
+    onAttackResolved(ctx) { if (ctx.source.isAlive()) ctx.engine.applyPvLoss(ctx.source, ctx.source.currentPV, undefined); },
+  });
   r.register('audit:guard', { getTargetRequirement: () => 'ally' });
   r.register('audit:block', { getTargetRequirement: () => 'enemy' });
   r.register('audit:heal', {
@@ -400,6 +404,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
     draw: drawComposed,
     horizon: composedHorizon,
   },
+  sacrifice: {
+    id: 'sacrifice', summary: 'area attack that fells its own player once it has struck',
+    build: (p, uid) => card(uid, ActionType.Atac, p, { targetCount: 99, effects: fx('audit:sacrifice', {}) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.area), fast: 0, fatigue: 0 }),
+    horizon: () => 1,
+  },
   desperate: {
     id: 'desperate', summary: 'the universal fallback: only when nothing else is legal',
     build: (p, uid) => card(uid, ActionType.Atac, { n: 1, s: 4 }, { lastResort: true, effects: fx('audit:selfwound', {}) }),
@@ -409,7 +419,9 @@ export const ARCHETYPES: Record<string, Archetype> = {
 };
 
 /** Archetypes the generator deals (the fallback is added to every hand). */
-export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed');
+// `sacrifice` is a puzzle's archetype, kept out of the draws so the catalogues
+// drawn before it existed stay the same.
+export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice');
 
 /** A card in words, for the report. */
 export const describeCard = (arch: string, p: Params): string => (arch === 'composed' ? describeComposed(p) : arch);

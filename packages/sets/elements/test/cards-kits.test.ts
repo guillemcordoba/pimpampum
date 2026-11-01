@@ -268,6 +268,15 @@ describe("Mestre de l'aire", () => {
     expect(foe.currentPV).toBe(24);
   });
 
+  it('Ràfega desviadora: a blow already turned aside is not turned again (no endless bounce)', () => {
+    const air = fighter('Aire', [flat('rafega-desviadora', 1, 100)], { pv: 30 });
+    const striker = fighter('Foe', [blow(6)], { pv: 30 });
+    const mirror = fighter('Mirall', [flat('rafega-desviadora', 1, 100)], { pv: 30 });
+    playRound(engineFor([air], [striker, mirror]), [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(1, 0))]);
+    // Turned on the striker, held by the mirror's gust, and there it stops.
+    expect([air.currentPV, striker.currentPV, mirror.currentPV]).toEqual([30, 30, 30]);
+  });
+
   it('Asfíxia: the chosen enemy has −3 on its attacks for the next two rounds', () => {
     const air = fighter('Aire', [flat('asfixia', 0), wait], { pv: 30 });
     const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });

@@ -245,6 +245,9 @@ export interface EffectHandler {
    *  the lowest PV fraction — wrong for a card whose worth depends on
    *  something else about the ally (the size of its last wound, say). */
   aiTargetPriority?(ctx: AIContext, candidate: Character): number;
+  /** A hint: the card fells its own player once it resolves (a sacrifice), so
+   *  a blow aimed at that player this round is wasted. */
+  aiFellsItsPlayer?(): boolean;
   /** Run once per combatant at the start of combat (initialise resources/pools). */
   onCombatStart?(ctx: EffectContext): void;
   /** Availability gate: return false to make the action unplayable this round
@@ -305,7 +308,7 @@ const NO_HOOKED_EFFECTS: readonly HookedEffect[] = [];
 
 const HANDLER_HOOKS = [
   'onResolve', 'modifyAttack', 'onAttackHit', 'onAttackMiss', 'onDefend', 'onBlockFail', 'postRound',
-  'getTargetRequirement', 'aiWeight', 'aiTargetPriority', 'onCombatStart', 'canPlay', 'onPlay', 'resolveAs',
+  'getTargetRequirement', 'aiWeight', 'aiTargetPriority', 'aiFellsItsPlayer', 'onCombatStart', 'canPlay', 'onPlay', 'resolveAs',
   'onReveal', 'aimsAtReveal', 'onAimed', 'revealAs', 'presetAttackRoll', 'onAttackResolved', 'revealOptions',
   'aiRevealOption', 'onRevealOption',
 ] as const satisfies readonly (keyof EffectHandler)[];
