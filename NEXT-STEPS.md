@@ -7166,3 +7166,24 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
     - `combatlog.ts` parses the Catalan log with regexes;
     - the balancer's `HETEROGENEITY` constant was measured once;
     - `engine/display.ts` still says "bloquejar un atacant".
+
+### 59.4 The quick wins (2026-11-01)
+- **Theme 5, concluded experiments deleted:**
+  - in lookahead: the topK pruner, `opponentDefense` and the 'prevented' defense model, `rolloutSharpness`, `absolutePv`, the race and seat-stream off switches;
+  - in policy: the `'wounded'` aim.
+  - Today's AI plays identically: a fixed-seed digest of 12 mirrored fantasy fights and 4 audit fights matches exactly.
+  - **`continuation` stays:** §54 leaves it open for the user (+0.036, over the encounter test's budget).
+  - The referee's losing decision leaves go once §58.4's measurement closes.
+- **Theme 2, the round cap is a safety stop:**
+  - `ROUND_CAP` (40) is the engine default and the only cap; the 50 (web), 30 (calibrate) and the scattered 40s are gone.
+  - `CombatResult.capped` marks an unresolved fight.
+  - Every winrate (cells, the strength ladder, regret's win share, the balancer, the harnesses) leaves stalls out and reports them as stalls; a mutual wipe stays ½ (user, 2026-11-01).
+  - The AI scores a board at the cap like any other, so the audit's extra-round workaround is gone.
+  - The fantasy digest is unchanged; on the audit's short positions, today's AI now plays the last round for real.
+  - Still red as before: `bench/test/positions.test.ts` (it fails on the main branch too).
+- **Theme 10, small fixes:**
+  - mutation testing runs in a temporary worktree (HEAD plus tracked changes) and never edits the live tree;
+  - the mutants live in `tools/src/mutants.ts`, with a fast test that each still applies;
+  - the six stale mutants are repaired;
+  - the rules summary's Defense text matches `rules.md`.
+  - Mutation testing can't run end to end until the fast tier is green: `positions.test` and the encounter-speed test are red.
