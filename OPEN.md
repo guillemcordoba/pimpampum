@@ -9,7 +9,7 @@ message — never into a growing log.
 
 ## Decided, to implement
 
-- **Every card is redesigned** (2026-11-01): the player kits (same skills, 10 cards each), the enemies, the gold cards and the item cards, through the `card-designer` / `card-taste` loop. The batch A–D proposals (`DESIGN-PROPOSALS.md`) are dropped. Pilot: the firebender, from the user's concept doc ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb): all ten concepts kept, in the order 1 Bola de foc · 2 Mantell de flames · 3 Esclat · 4 Tempesta d'espurnes · 5 Pell d'obsidiana · 6 Alè de drac · 7 Foc interior · 8 Anell de foc · 9 Llamp · 10 Supernova.
+- **Every card is redesigned** (2026-11-01): the player kits (same skills, 10 cards each), the enemies, the gold cards and the item cards, each from a design doc the user writes (CLAUDE.md, "The user designs each kit"). The batch A–D proposals (`DESIGN-PROPOSALS.md`) are dropped. Pilot: the firebender, from the user's concept doc ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb): all ten concepts kept, in the order 1 Bola de foc · 2 Mantell de flames · 3 Esclat · 4 Tempesta d'espurnes · 5 Pell d'obsidiana · 6 Alè de drac · 7 Foc interior · 8 Anell de foc · 9 Llamp · 10 Supernova.
 - **Old cards until their kit is redesigned:** mechanical changes only (no design or balance edits).
 - **Encounter-speed test:** stays red until fights shorten.
 
@@ -47,7 +47,7 @@ message — never into a growing log.
 
 ## Waits for the card migration (real cards are frozen)
 
-- C1. Redesign kit by kit, firebender first: concepts → the review loop → the user's picks → mechanics and dice on the ramp (`intentions.md`) → a final review → implement, statuses from the engine's kinds (`applyKind`) or priced bespoke → `/analyze`. Along the way: the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`, delete the enemy-block machinery, and check that the old cards' bugs (`silenced` never read, putrefacció's uncloned `WeakSet`, 15 behaviour-less status keys), their `TODO(balance)` constants and the 28 unpriced statuses in `status-pricing.test.ts` all went with them.
+- C1. Redesign kit by kit, firebender first: the user's design doc → mechanics and dice on the ramp (`intentions.md`) → implement, statuses from the engine's kinds (`applyKind`) or priced bespoke → `/analyze` and tuning → one fresh `card-taste` read → the results into the user's doc. Along the way: the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`, delete the enemy-block machinery, and check that the old cards' bugs (`silenced` never read, putrefacció's uncloned `WeakSet`, 15 behaviour-less status keys), their `TODO(balance)` constants and the 28 unpriced statuses in `status-pricing.test.ts` all went with them.
 - C4. One recalibration for the migration and the AI switch (`calibration:refresh`; the pinned copies still add a level by hand in places, and `skillLevelBonus` lives on for them until then), then the kit suites, both triangles, the armour bound, `/analyze`, and tuning per A4.
 - C5. Elements questions: the unagi as boss or creature (needs a cards-per-round seam), the Cop i fuga ★ text, the lopsided calibration cells, the shirshu and the puppeteer alone.
 - C6. The 80 gold cards, redesigned with the rest (`sets/common/DESIGN.md`).
