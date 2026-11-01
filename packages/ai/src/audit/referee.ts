@@ -41,7 +41,7 @@ import {
   ActionType, Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
   type ActionSelection, type CombatEngine, type ContentDeref, type ContentRefOf, type EffectRegistry, type EngineSnapshot, type TargetChooser,
 } from '@pimpampum/engine';
-import { positionScore } from '../lookahead.js';
+import { positionScore, settledScore } from '../lookahead.js';
 import { solveZeroSum, rowValues, type MatrixSolution } from './zero-sum.js';
 
 export interface RefereeOptions {
@@ -139,8 +139,14 @@ export interface RefereeOptions {
    *  `score`: the lookahead's evaluator on the board the round leaves (PV and
    *  bodies plus the prices statuses give themselves, in PV units) — about the
    *  margin's cost, but a stun or a lock that pays next round shows when its
-   *  status prices itself. A finished fight is read by its margin. */
-  decisionLeaf: 'full' | 'margin' | 'score';
+   *  status prices itself. A finished fight is read by its margin.
+   *  `settled`: the board as today's AI reads its leaf (`settledScore`) — the
+   *  next round prepared, so a turn lost to a stun or a blow landing as it
+   *  opens shows, and that round's blows priced. `adaptive`: `settled`,
+   *  unless the round set, changed or removed a status that does not price
+   *  itself — the evaluator cannot read it, so that rollout takes the full
+   *  leaf; the cost grows only with what the evaluator is blind to. */
+  decisionLeaf: 'full' | 'margin' | 'score' | 'settled' | 'adaptive';
 }
 
 export const DEFAULT_REFEREE: RefereeOptions = {
@@ -761,8 +767,13 @@ export class Referee {
       const out = this.replay(prepared, selections, seed0, path);
       if (out instanceof Draw) { path.push({ draw: hash(`${seed0}#${path.length}`, this.opts.seed) % out.outcomes }); continue; }
       if (!(out instanceof Ask)) {
-        if (this.opts.decisionLeaf === 'margin' || (this.opts.decisionLeaf === 'score' && finished(out))) return pvDiff(out);
-        return this.opts.decisionLeaf === 'score' ? scoreInPv(out) : this.value(out, depth + 1);
+        const leaf = this.opts.decisionLeaf;
+        if (leaf === 'full' || (leaf === 'adaptive' && unpricedChange(prepared, out))) return this.value(out, depth + 1);
+        if (leaf === 'margin' || finished(out)) return pvDiff(out);
+        if (leaf === 'score') return scoreInPv(out);
+        // Settling prepares the next round, which may draw: from the path, so
+        // the cell stays a function of its seeds.
+        return withSeed(hash(`${seed0}#settle#${path.map(a => (isDraw(a) ? `d${a.draw}` : a.pick.join('+'))).join('/')}`, this.opts.seed * 149), () => settledInPv(out));
       }
       const options = subsets(out.poolSize, out.count);
       const h = hash(`${seed0}#r${path.length}#${path.map(a => (isDraw(a) ? `d${a.draw}` : a.pick.join('+'))).join('/')}`, this.opts.seed * 139);
@@ -1040,6 +1051,40 @@ function scoreInPv(e: CombatEngine): number {
   let all = 0;
   for (const c of [...e.teams[0], ...e.teams[1]]) all += Math.max(1, c.maxPV);
   return positionScore(e, 0) * (all / 2) / 10;
+}
+
+/** `settledScore` (side A's view) in PV units, as `scoreInPv`; spends `e`. A
+ *  fight that ends as the next round opens is read by its margin. */
+function settledInPv(e: CombatEngine): number {
+  let all = 0;
+  for (const c of [...e.teams[0], ...e.teams[1]]) all += Math.max(1, c.maxPV);
+  const v = settledScore(e, 0, undefined, 1);
+  return e.isOver() ? pvDiff(e) : v * (all / 2) / 10;
+}
+
+/** Whether a round set, changed or removed a status the evaluator cannot read
+ *  (no `positionValue`) on anyone: `before` is the round prepared, `after`
+ *  as it ended. A status only ticking down its turns does not count — or every
+ *  unpriced status would send every round to the full leaf. */
+function unpricedChange(before: CombatEngine, after: CombatEngine): boolean {
+  const unpriced = (e: CombatEngine, t: number, i: number): Map<string, string> => {
+    const out = new Map<string, string>();
+    const c = e.teams[t][i];
+    if (!c.isAlive()) return out;
+    for (const [key, entry] of c.statuses) {
+      if (entry.behavior?.positionValue) continue;
+      out.set(key, `${entry.value}|${entry.data ? JSON.stringify(entry.data, (_k, v) => (v instanceof Character ? `@${v.team}.${e.teams[v.team].indexOf(v)}` : v)) : ''}`);
+    }
+    return out;
+  };
+  for (let t = 0; t < 2; t++) {
+    for (let i = 0; i < after.teams[t].length; i++) {
+      const was = unpriced(before, t, i), is = unpriced(after, t, i);
+      if (was.size !== is.size) return true;
+      for (const [k, v] of is) if (was.get(k) !== v) return true;
+    }
+  }
+  return false;
 }
 
 /** `playoutTargets: 'informed'`: targets read off the reveal, no weights. */

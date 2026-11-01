@@ -312,6 +312,27 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
 }
 
 /**
+ * THE LEAF AS THE LOOKAHEAD READS IT (`LookaheadOptions.tempo`): `positionScore`
+ * on a SETTLED board — the next round prepared on `sim` itself, so round-start
+ * effects land and the bodies that lose it are known — plus `tempo` times each
+ * side's blows for that round. SPENDS `sim`. Not when that round is the cap: a
+ * board there is a draw whatever it holds. Shared with the referee's
+ * `decisionLeaf: 'settled'`, so both read a board the same way.
+ */
+export function settledScore(sim: CombatEngine, team: number, weights: EvaluatorWeights | undefined, tempo: number): number {
+  if (tempo && !sim.isOver() && sim.round + 1 < sim.maxRounds) {
+    const { skipping } = sim.prepareRound();
+    // A round-start effect may have ended the fight: no blows follow a
+    // result (they were once added on top of the win, so a bomb that
+    // fells the foe next round outscored a strike that fells it now).
+    if (sim.isOver()) return positionScore(sim, team, weights);
+    const lost = new Set(skipping.map(r => sim.teams[r.team][r.idx]));
+    return positionScore(sim, team, weights) + tempo * nextRoundThreat(sim, team, lost, weights ?? DEFAULT_EVAL_WEIGHTS);
+  }
+  return positionScore(sim, team, weights);
+}
+
+/**
  * NEXT ROUND'S BLOWS, ours minus theirs, in the PV term's own units: each body
  * that acts next round lands the best attack it may legally play (plus the
  * largest exposure a foe carries — `attackRollAgainstHolder`), spread over the
@@ -633,17 +654,7 @@ function evaluate(
       // round-start effects land, the bodies that lose it are known — and
       // price its blows. Not when that round is the cap: a board there is a
       // draw whatever it holds.
-      if (opts.tempo && !sim.isOver() && sim.round + 1 < sim.maxRounds) {
-        const { skipping } = sim.prepareRound();
-        // A round-start effect may have ended the fight: no blows follow a
-        // result (they were once added on top of the win, so a bomb that
-        // fells the foe next round outscored a strike that fells it now).
-        if (sim.isOver()) return positionScore(sim, team, opts.weights);
-        const lost = new Set(skipping.map(r => sim.teams[r.team][r.idx]));
-        return positionScore(sim, team, opts.weights)
-          + opts.tempo * nextRoundThreat(sim, team, lost, opts.weights ?? DEFAULT_EVAL_WEIGHTS);
-      }
-      return positionScore(sim, team, opts.weights);
+      return settledScore(sim, team, opts.weights, opts.tempo ?? 0);
     });
     if (known && cached === undefined) known[s] = one;
     total += one;

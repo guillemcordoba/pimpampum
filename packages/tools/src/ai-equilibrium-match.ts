@@ -50,7 +50,7 @@ const CONFIG = {
   ...(flag('--playout-end') ? { playoutEnd: flag('--playout-end') as 'margin' | 'score' } : {}),
   ...(flag('--leaf') ? { leaf: flag('--leaf') as 'margin' | 'score' | 'playout' } : {}),
   ...(flag('--playout-targets') ? { playoutTargets: flag('--playout-targets') as 'random' | 'informed' } : {}),
-  ...(flag('--decision-leaf') ? { decisionLeaf: flag('--decision-leaf') as 'full' | 'margin' | 'score' } : {}),
+  ...(flag('--decision-leaf') ? { decisionLeaf: flag('--decision-leaf') as 'full' | 'margin' | 'score' | 'settled' | 'adaptive' } : {}),
   ...(flag('--best-response') ? { bestResponse: flag('--best-response') as 'joint' | 'seat' } : {}),
 };
 
