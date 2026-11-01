@@ -9,7 +9,6 @@ message — never into a growing log.
 
 ## Decided, to implement
 
-- **Contest roll (B2) rulings:** extra blows follow every rule of an attack (level, fatigue, Envoltat, standing walls, absorbing guards, triggers), with no chain cap — content avoids loops. Standing walls defend like a live defense; pre-rolled totals stay fixed, once per blow. Fatigue and roll bonuses apply to every roll, gadgets included. Envoltat counts blows where they land, extra blows included.
 - **Statuses (B1):** an engine vocabulary that prices itself; a one-of-a-kind status may bring its own behaviour but must price itself.
 - **Real cards during structural work:** mechanical changes only (no design or balance edits).
 - **Encounter-speed test:** stays red until fights shorten.
@@ -28,7 +27,7 @@ message — never into a growing log.
 
 ## Work (assistant), in order
 
-- B2. [M] One owner for the contest roll — the rulings above; the AI's estimates from the same spec (bot ladder and referee after).
+- B2. [M] The AI's estimates from the engine's contest (the engine side landed 2026-11-01, rulings in `rules.md`): the weapon bonus only with `weapon_damage`, a diceless attack is 0 not 3, Envoltat, roll modes, the status roll hooks, standing walls, `onlyAgainst` guards; then the bot ladder and the referee audit.
 - B1. [L] The status vocabulary, on the audit's cards first; absorbs `expectedIncomingDamage`, `nextRoundThreat`'s gaps, `unpricedChange`, the audit's hand prices, `harm`/`bodyOut`, raw `skipTurns`/guards/blockers/PV writes, the 33 unused handlers, a pricing convention test, `status-behaviors.ts` into `sets/common`.
 - B10. [S] Close the decision-leaf measurement (needs A7a); delete the losing leaves.
 - B3. [M–L] The round as a first-class value (one prompt loop, no public `roundPrepared`, no seat remapping, a referee that branches instead of replaying).
@@ -47,7 +46,7 @@ message — never into a growing log.
 ## Waits for the card migration (real cards are frozen)
 
 - C1. Implement the picks (A1), price their statuses (B1), delete the enemy-block machinery.
-- C2. Real-card bugs: `silenced` never read (`attack-effects.ts:166`); putrefacció's `WeakSet` not cloned (`nigromant.ts:34`); 26 unpriced behaviours and 15 behaviour-less keys (the wall's missing level is fixed by B2).
+- C2. Real-card bugs: `silenced` never read (`attack-effects.ts:166`); putrefacció's `WeakSet` not cloned (`nigromant.ts:34`); 26 unpriced behaviours and 15 behaviour-less keys.
 - C3. `TODO(balance)` constants from the d20 era (`runes.ts:81`, `explosives-engineer.ts:10`, the `*-effects.ts`).
 - C4. One recalibration for the migration and the AI switch (`calibration:refresh`), then the kit suites, both triangles, the armour bound, `/analyze`, and tuning per A4.
 - C5. Elements questions: the unagi as boss or creature (needs a cards-per-round seam), the Cop i fuga ★ text, the lopsided calibration cells, the shirshu and the puppeteer alone.
