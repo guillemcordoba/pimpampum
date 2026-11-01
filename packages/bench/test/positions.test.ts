@@ -14,7 +14,9 @@ import {
 import { SYNTHETIC } from '../src/testing.js';
 
 const FIXED: Record<string, { enemyId: string; count: number; level: number; pv: number }[]> = {
-  pack: [{ enemyId: 'grunt', count: 4, level: 2, pv: 15 }],
+  // An even fight under today's rules, picked by measuring the synthetic set
+  // (re-pick it when the rules move and this cell reads as saturated).
+  pack: [{ enemyId: 'grunt', count: 8, level: 2, pv: 20 }],
   // A fight nobody can lose, and one nobody can win: both must be thrown out.
   boss: [{ enemyId: 'brute', count: 1, level: 2, pv: 1 }],
   mixed: [{ enemyId: 'brute', count: 3, level: 2, pv: 400 }],
