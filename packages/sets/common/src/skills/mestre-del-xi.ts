@@ -408,7 +408,8 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
       if (!target || !dice) return;
       let wounds = first && roundOf(first.data) === ctx.engine.round ? 1 : 0;
       const skillId = ctx.action.skillId;
-      const rollBonus = (ctx.action.rollBonus ?? 0) + ctx.source.getSkillLevel(skillId);
+      // The engine adds the level, as to every blow.
+      const rollBonus = ctx.action.rollBonus ?? 0;
       const blows = num(ctx.params, 'blows', 3);
       for (let blow = 2; blow <= blows; blow++) {
         if (!target.isAlive() || !ctx.source.isAlive()) break;

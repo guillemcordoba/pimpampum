@@ -1,5 +1,6 @@
 import type { Character, Guard, StatusEntry } from './character.js';
 import type { ActionDefinition, ActionType } from './types.js';
+import type { DiceRoll } from './dice.js';
 import type { EngineApi } from './effects.js';
 import type { AIView } from './policy.js';
 
@@ -54,6 +55,21 @@ export interface BlowInfo {
 
 /** Which contested dice total is being adjusted (see modifyContestTotal). */
 export type ContestKind = 'attack' | 'defense' | 'save';
+
+/**
+ * A standing defense a status raises (`StatusBehavior.standingGuard`): who
+ * defends, and with what. The engine rolls it as it rolls a live defense —
+ * level, roll bonuses, fatigue, Envoltat — and it joins any other defense
+ * covering the blow into a wall.
+ */
+export interface StandingGuard {
+  defender: Character;
+  dice?: DiceRoll;
+  skillId: string;
+  rollBonus?: number;
+  /** For the log; the status key when omitted. */
+  name?: string;
+}
 
 export interface StatusBehavior {
   // --- Query hooks: pure reads of the combat pipeline (they may still mutate
@@ -240,11 +256,11 @@ export interface StatusBehavior {
    *  EffectHandler's postRound, which only runs for actions played this round.
    *  Runs before modifiers/statuses advance. Damage-over-time ticks live here. */
   onRoundEnd?(ctx: StatusHookContext): void;
-  /** A standing defense (wall, ward…) that contests attacks on the holder
-   *  when nobody is actively guarding them: return the defense TOTAL to beat
-   *  (roll it inside, with the engine on ctx). The best total among such
-   *  statuses is used. Bypassed by ignore-defense attacks (unless vetoed). */
-  standingGuard?(ctx: StatusHookContext): number | void;
+  /** A standing defense (wall, ward…) covering the holder: who defends it and
+   *  with what (`StandingGuard`), or nothing when it stands down. The engine
+   *  rolls it like a live defense, and it joins any other defense on the blow
+   *  into a wall. Bypassed by ignore-defense attacks (unless vetoed). */
+  standingGuard?(ctx: StatusHookContext): StandingGuard | void;
   /** An attack penetrated this status's standing guard — typically clear the
    *  status (the wall shatters). Called before the damage lands. */
   onStandingGuardBroken?(ctx: StatusHookContext): void;

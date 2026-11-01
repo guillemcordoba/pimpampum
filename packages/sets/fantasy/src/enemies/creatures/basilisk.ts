@@ -12,10 +12,9 @@ const BASILISK_EFFECTS: Record<string, EffectHandler> = {
       const turns = typeof ctx.params.turns === 'number' ? ctx.params.turns : 3;
       const resist = ctx.params.resist instanceof DiceRoll ? ctx.params.resist : undefined;
       for (const t of ctx.engine.enemiesOf(ctx.source)) {
-        const gazeRaw = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'save')
-          + ctx.source.getRollBonus(ctx.action.skillId)
-          + ctx.source.getSkillLevel(ctx.action.skillId);
-        const saveRaw = ctx.engine.rollDiceFor(t, resist, 'save');
+        // Both are rolls their makers make: bonuses and fatigue apply to each.
+        const gazeRaw = ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'save', skillId: ctx.action.skillId, rollBonus: ctx.action.rollBonus }).total;
+        const saveRaw = ctx.engine.contestRoll(t, resist, { kind: 'save' }).total;
         const gaze = ctx.engine.adjustContestTotal(ctx.source, gazeRaw, saveRaw, 'save');
         const save = ctx.engine.adjustContestTotal(t, saveRaw, gaze, 'save');
         const ok = gaze > save;

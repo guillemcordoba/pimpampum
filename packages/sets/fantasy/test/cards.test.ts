@@ -153,30 +153,30 @@ describe('standing wall: the wall has life', () => {
     attacker.aiControlled = true;
     const engine = new CombatEngine([caster], [attacker], { registry: theRegistry(), actionChooser: firstLegalChooser });
 
-    // Round 1: the caster raises the wall on themselves and guards normally, so
-    // this breach hits the caster, not the stone.
+    // Round 1: the caster raises the wall on themselves and guards normally:
+    // the live guard and the fresh wall defend together, 10 + 10 against 13.
     runRound(engine, [{ idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }]);
     expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(10);
-    expect(caster.currentPV).toBe(27);
+    expect(caster.currentPV).toBe(30);
 
     // Rounds 2-3: no live guard — the standing wall contests and eats the margin.
     runRound(engine, [{ idx: 0, actionIdx: 1 }]);
     expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(7);
-    expect(caster.currentPV).toBe(27);
+    expect(caster.currentPV).toBe(30);
     runRound(engine, [{ idx: 0, actionIdx: 1 }]);
     expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(4);
-    expect(caster.currentPV).toBe(27);
+    expect(caster.currentPV).toBe(30);
 
     // Round 4: 4 life left against a breach of 3 → 1 left, still standing.
     runRound(engine, [{ idx: 0, actionIdx: 1 }]);
     expect(caster.getStatus('mur-de-pedra')!.data!.life).toBe(1);
-    expect(caster.currentPV).toBe(27);
+    expect(caster.currentPV).toBe(30);
 
     // Round 5: the last point of stone absorbs 1, the wall crumbles and the
     // remaining 2 carry through.
     runRound(engine, [{ idx: 0, actionIdx: 1 }]);
     expect(caster.hasStatus('mur-de-pedra')).toBe(false);
-    expect(caster.currentPV).toBe(25);
+    expect(caster.currentPV).toBe(28);
   });
 });
 

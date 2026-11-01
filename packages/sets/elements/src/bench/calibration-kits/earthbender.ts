@@ -31,14 +31,13 @@ const SENTIT: StatusBehavior = {
 // --- 7 · Cúpula de pedra ----------------------------------------------------
 
 /** The dome stands over each of the party until an attack gets through it:
- *  it contests every blow aimed at a holder nobody is actively guarding. */
+ *  the caster defends every blow on a holder with it, joined to any guard. */
 const CUPULA: StatusBehavior = {
   standingGuard(ctx) {
     const caster = ctx.entry.data?.['caster'];
     const dice = ctx.entry.data?.['dice'];
     if (!(caster instanceof Character) || !caster.isAlive() || !(dice instanceof DiceRoll)) return;
-    return Math.max(0, ctx.engine.rollDiceFor(caster, dice, 'defense')
-      + caster.getRollBonus(SKILL_ID, 'defense') + caster.getSkillLevel(SKILL_ID) + ((ctx.entry.data?.['bonus'] as number) ?? 0));
+    return { defender: caster, dice, skillId: SKILL_ID, rollBonus: (ctx.entry.data?.['bonus'] as number) ?? 0, name: 'Cúpula de pedra' };
   },
   onStandingGuardBroken(ctx) {
     const caster = ctx.entry.data?.['caster'];

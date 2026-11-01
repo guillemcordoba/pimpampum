@@ -1,5 +1,4 @@
 import { ActionType, Character, DiceRoll, EffectHandler, EngineApi, StatusBehavior } from '@pimpampum/engine';
-import { fixedBlow } from '../effects/generic.js';
 import { SkillDefinition, action, d } from '../types.js';
 
 /**
@@ -54,11 +53,9 @@ const COMETA: StatusBehavior = {
     ctx.holder.clearStatus(ctx.key);
     const dice = ctx.entry.data?.['dice'];
     if (!(dice instanceof DiceRoll)) return;
-    const total = ctx.engine.rollDiceFor(ctx.holder, dice, 'attack') + ctx.holder.getSkillLevel(SKILL_ID) + ((ctx.entry.data?.['bonus'] as number) ?? 0);
-    ctx.engine.log('attack', `El cometa cau: ${total} contra tots els enemics.`, ctx.holder.team);
-    for (const e of ctx.engine.enemiesOf(ctx.holder)) {
-      ctx.engine.performExtraAttack(ctx.holder, e, fixedBlow(total), { label: 'Caiguda de cometa' });
-    }
+    ctx.engine.log('attack', `El cometa cau contra tots els enemics.`, ctx.holder.team);
+    ctx.engine.performAreaAttack(ctx.holder, ctx.engine.enemiesOf(ctx.holder), dice,
+      { skillId: SKILL_ID, rollBonus: (ctx.entry.data?.['bonus'] as number) ?? 0, label: 'Caiguda de cometa' });
   },
   positionValue() { return 0.3; },
 };
@@ -121,7 +118,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     modifyAttack(ctx) {
       if (!ctx.attackMods || !ctx.source.hitThisTurn) return;
       ctx.attackMods.skip = true;
-      const total = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'attack') + ctx.source.getSkillLevel(SKILL_ID);
+      const { total } = ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: SKILL_ID, rollBonus: ctx.action.rollBonus });
       const dmg = Math.max(0, total - ctx.source.getPassiveArmor());
       ctx.engine.log('attack', `${ctx.source.name} perd la calma: el llamp li esclata a les mans (${dmg}).`, ctx.source.team);
       ctx.engine.applyPvLoss(ctx.source, dmg, ctx.source);

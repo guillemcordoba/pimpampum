@@ -1,3 +1,5 @@
+// bench-exempt(sample): data, not a harness — the mutants `mutation.ts` injects;
+// it samples nothing.
 /**
  * The faults `mutation.ts` injects, each one this project has actually shipped,
  * in the line it shipped in. Data only, so the fast tier can check that every
@@ -157,7 +159,7 @@ export const MUTANTS: Mutant[] = [
   {
     label: 'ENGINE wall: a bracing member is rolled like any other (lends its level, dodges the breach)',
     file: 'packages/engine/src/combat.ts',
-    find: '      if (absorbs(g)) return { g, total: 0, absorbing: true };',
+    find: '      if (this.absorbs(g)) return { g, total: 0, absorbing: true };',
     replace: '      if (false) return { g, total: 0, absorbing: true };',
   },
   {
@@ -247,8 +249,8 @@ export const MUTANTS: Mutant[] = [
   {
     label: "ENGINE: an attack over the line still meets the target's allies' guards",
     file: 'packages/engine/src/combat.ts',
-    find: '          : this.activeGuards(target, source, mods.ignoreAllyGuards));',
-    replace: '          : this.activeGuards(target, source));',
+    find: '          : [...this.activeGuards(target, source, mods.ignoreAllyGuards), ...this.standingGuards(target)]);',
+    replace: '          : [...this.activeGuards(target, source), ...this.standingGuards(target)]);',
   },
   {
     label: "ENGINE: a tracked target's allies still guard it against its hunter",

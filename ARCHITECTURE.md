@@ -222,6 +222,20 @@ UNRESOLVED (`CombatResult.capped`), not a draw: measurement reports it as a
 stall and leaves it out of winrates (a mutual wipe is a draw: ½), and the AI
 scores a board at the cap like any other, so it never plays toward it.
 
+**One contest for every blow** (2026-11-01, rulings in `rules.md`) — an extra
+blow (`performExtraAttack`/`performAreaAttack`: counters, strikes again,
+rams) goes through the card attack's own path (`contestAttackOnTarget`), as a
+card with its dice, skill and roll bonus and NO effects: level, roll bonuses,
+fatigue, Envoltat, walls and standing walls, absorbing guards, statuses and the
+defenders' cards all apply, and no card's own effects run for it. A number for
+`dice` is a total thrown on, contested as it is; `opts.roll` is dice already
+rolled. `standingGuard` returns a `StandingGuard` (who defends, with what) and
+the engine rolls it like a live defense, in a wall with any guard; a breach
+lands on the holder (`Guard.standing`). Envoltat's n is `blowsOn`: blows that
+landed this round plus attacks still to land, where they land.
+`EngineApi.contestRoll` is every other roll a character makes (a filter, a
+save, a self-hit), with the same terms.
+
 **State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into
 plain, structured-cloneable data and `CombatEngine.restore(snap, registry, deref)`
 rebuilds it (`engine/src/snapshot.ts`): what `clone()` copies, for where objects
@@ -370,9 +384,7 @@ dice when it goes up (its own knob, separate from the dice it defends with —
 2d10 of life behind a 4d6 guard) and stores the result in `data.life`; a breach no longer
 shatters it — `onStandingGuardBroken` flags `data.breaching` and the status's
 own `modifyIncomingDamage` charges that damage to the wall, passing only the
-excess to the protected and clearing the status when the stone runs out. Note
-`performExtraAttack` consults ACTIVE guards only, so counters and other extra
-attacks fly past a standing wall.
+excess to the protected and clearing the status when the stone runs out.
 
 **Focus interrupts.** Cancelled if the actor takes DAMAGE before it resolves; a
 hit fully absorbed by armour does NOT interrupt (rule changed 2026-07-18).

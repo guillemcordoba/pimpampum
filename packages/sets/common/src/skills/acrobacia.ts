@@ -232,7 +232,8 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
       const wounded = new Set<Character>();
       if (ctx.target) wounded.add(ctx.target);
       const total = num(ctx.params, 'blows', 4);
-      const rollBonus = (ctx.action.rollBonus ?? 0) + ctx.source.getSkillLevel(ctx.action.skillId);
+      // The engine adds the level, as to every blow.
+      const rollBonus = ctx.action.rollBonus ?? 0;
       for (let blow = 2; blow <= total; blow++) {
         if (!target.isAlive() || !ctx.source.isAlive()) break;
         const r = ctx.engine.performExtraAttack(ctx.source, target, dice, {

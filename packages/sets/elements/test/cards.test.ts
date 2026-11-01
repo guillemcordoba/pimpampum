@@ -166,8 +166,9 @@ describe("Mestre de l'aigua", () => {
 
   it("Ira de l'oceà: a blow that does not beat the ocean's roll sinks and is owed back; one that beats it lands whole; then the wave hits every enemy", () => {
     // The ocean rolls 1 + 10 = 11 once. F1's 5 sinks (owed back); F2's 20
-    // beats it and lands on the ally whole. At round end the wave (its own 1)
-    // hits each enemy, F1 plus the 5 it owes.
+    // beats it and lands on the ally whole. At round end the wave (its own 1,
+    // under the ocean's price of 2 fatigue — on every roll) hits each enemy,
+    // F1 plus the 5 it owes: 4 and 0.
     const water = fighter('Aigua', [flat('ira-de-l-ocea', 1, 10)], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
     const f1 = fighter('F1', [blow(5)], { pv: 30 });
@@ -176,7 +177,7 @@ describe("Mestre de l'aigua", () => {
     playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, [{ team: 0, idx: 0 }]), sel(1, 1, 0, [{ team: 0, idx: 1 }])]);
     expect(water.currentPV).toBe(30);
     expect(ally.currentPV).toBe(10);
-    expect([f1.currentPV, f2.currentPV]).toEqual([24, 29]);
+    expect([f1.currentPV, f2.currentPV]).toEqual([26, 30]);
     expect(water.fatigue).toBe(2);   // the ocean's price
   });
 });

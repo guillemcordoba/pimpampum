@@ -201,13 +201,14 @@ describe('Artífex', () => {
     const x = fighter('X', [wait], { pv: 40 });
     const y = fighter('Y', [wait], { pv: 40 });
     const e = engineFor([me], [x, y]);
+    // The maker's fatigue (1, the card's own) is on every gadget roll: −1 a blow.
     playRound(e, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([30, 30]);
+    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
     expect(me.fatigue).toBe(1);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([29, 29]);
+    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([29, 29]);
+    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
   });
 
   it('Colós de butxaca: attacks on you meet its defense instead of yours, an area attack once; at 0 it falls on an enemy; +2 fatigue', () => {
@@ -223,10 +224,11 @@ describe('Artífex', () => {
     expect(me.getStatusValue('colos-de-butxaca')).toBe(1);
     expect(me.fatigue).toBe(2);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1), sel(1, 0, 1), sel(1, 1, 0, T(0, 0))]);
-    // Its last turn, then it falls: 3 on one of them.
-    expect(me.currentPV).toBe(46);
+    // Its last turn, then it falls on one of them — now under the maker's
+    // fatigue of 2, on its defense and on its fall: 3 − 2 = 1.
+    expect(me.currentPV).toBe(44);
     expect(me.hasStatus('colos-de-butxaca')).toBe(false);
-    expect(80 - sweeper.currentPV - striker.currentPV).toBe(3);
+    expect(80 - sweeper.currentPV - striker.currentPV).toBe(1);
   });
 
   it('Boa mecànica: coiled, the target cannot defend, and is squeezed with 4, 5 and 6 dice; +2 fatigue', () => {
@@ -235,16 +237,16 @@ describe('Artífex', () => {
     const foe = fighter('Foe', [wait, guard(100, true)], { pv: 60 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0)]);
-    // 3 + 5, then 4.
-    expect(foe.currentPV).toBe(48);
+    // 3 + 5, then the squeeze 4 − the maker's fatigue 2 (on every gadget roll).
+    expect(foe.currentPV).toBe(50);
     expect(me.fatigue).toBe(2);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
-    // Its guard does not count: 5, then 5.
-    expect(foe.currentPV).toBe(38);
+    // Its guard does not count: 5, then 5 − 2.
+    expect(foe.currentPV).toBe(42);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(32);
+    expect(foe.currentPV).toBe(38);
     // Uncoiled: the guard holds again.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
-    expect(foe.currentPV).toBe(32);
+    expect(foe.currentPV).toBe(38);
   });
 });

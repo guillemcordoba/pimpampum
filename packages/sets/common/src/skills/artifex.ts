@@ -262,7 +262,9 @@ const COLOS: StatusBehavior = {
       if (ctx.entry.value <= 0) return;
       ctx.entry.value--;
       data['blow'] = blow.id;
-      data['total'] = card.dice.roll() + (card.rollBonus ?? 0);
+      // The maker's roll of the gadget's dice: its bonuses and fatigue apply
+      // to every roll, a gadget's too (the gadget has no skill to level).
+      data['total'] = ctx.engine.contestRoll(ctx.holder, card.dice, { kind: 'defense', rollBonus: card.rollBonus }).total;
       ctx.engine.log('defense', `El colós de butxaca es posa davant (${data['total'] as number}).`, ctx.holder.team);
     }
     return [{ defender: target, action: asGadget(card), fixedTotal: data['total'] as number }];

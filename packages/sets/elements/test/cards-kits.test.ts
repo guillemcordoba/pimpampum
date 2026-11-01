@@ -239,7 +239,8 @@ describe('Mestre del foc', () => {
     const foe = fighter('Foe', [blow(2, true)], { pv: 30 });
     playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(foe.currentPV).toBe(30);
-    expect(fire.currentPV).toBe(30 - 2 - 1);
+    // The bolt is the card's own roll: its dice and its roll bonus, 1 + 5.
+    expect(fire.currentPV).toBe(30 - 2 - 6);
   });
 
   it('Caiguda de cometa: called this round, it falls on every enemy as the next round opens, before any guard; 2 fatigue', () => {
@@ -251,7 +252,8 @@ describe('Mestre del foc', () => {
     expect([a.currentPV, b.currentPV]).toEqual([30, 30]);
     expect(fire.fatigue).toBe(2);
     engine.prepareRound();
-    expect([a.currentPV, b.currentPV]).toEqual([26, 26]);
+    // 1 + 3, under the caster's fatigue of 2 (on every roll): 2 on each.
+    expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
   });
 });
 

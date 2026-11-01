@@ -203,6 +203,7 @@ export interface EngineSnapshot {
   pending: { actor: Ref; hand: number; def: number; key: number; as?: ActionType; targets: Ref[] | null; cancelled?: boolean; option?: number }[];
   pendingIndex: number; tierKey: number | null; revealSettled: boolean;
   tierAlive: Ref[]; tierInterrupted: Ref[]; skippingThisRound: Ref[];
+  landed: [Ref, number][];
   revealedPlan: { team: number; idx: number; actionIdx: number }[];
   aimingIdx: number | null; choosingIdx: number | null; roundPrepared: boolean;
 }

@@ -14,9 +14,19 @@ export interface ActionEvent {
   targets: Character[];
 }
 
+/**
+ * An extra blow (a counter, a ram, a second strike…). It is contested like
+ * any attack — the skill's level, roll bonuses, fatigue, Envoltat, walls and
+ * standing walls, absorbing guards, the statuses and the defenders' cards —
+ * but it is not a card play: no card's own effects run for it.
+ */
 export interface ExtraAttackOptions {
+  /** The skill it is rolled with: its level and its roll bonuses; who learns from a close loss. */
   skillId?: string;
   rollBonus?: number;
+  /** The dice already rolled (one roll shared by several blows); every term
+   *  is still added. */
+  roll?: number;
   ignoreArmor?: boolean;
   /** Nobody can defend it: the target's guards and walls are passed over
    *  (unless a status on the target vetoes the bypass, as for any feint). */
@@ -77,7 +87,9 @@ export interface EngineApi {
    * source is NOT re-forced here — the scripted target stands. Returns how it
    * went, so a chain of blows can stop at the first that does not wound.
    */
-  performExtraAttack(source: Character, target: Character, dice: DiceRoll, opts?: ExtraAttackOptions): ExtraAttackResult;
+  /** `dice` as a number: a total rolled elsewhere (a blow thrown back),
+   *  contested as it is — no dice, no terms added. */
+  performExtraAttack(source: Character, target: Character, dice: DiceRoll | number, opts?: ExtraAttackOptions): ExtraAttackResult;
   /** An extra attack on several targets with ONE roll of `dice` (an area
    *  blow outside the turn order): every target defends against that same
    *  roll separately, as an area attack's targets do. One result per target,
@@ -96,6 +108,10 @@ export interface EngineApi {
    *  uncontexted rolls. Route content-side contests (saves, heals) through
    *  this. */
   rollDiceFor(c: Character, dice: DiceRoll | undefined, kind?: import('./status.js').ContestKind): number;
+  /** A roll that is not a blow (a filter, a save, a self-inflicted hit),
+   *  made the way every roll is: the dice (roll mode honoured), the card's
+   *  `rollBonus`, the skill's roll bonuses and fatigue, and its level. */
+  contestRoll(c: Character, dice: DiceRoll | undefined, opts: { kind: import('./status.js').ContestKind; skillId?: string; rollBonus?: number }): { roll: number; bonus: number; total: number };
   /** Cancel a still-pending (not yet resolved) action by `target` this round.
    *  Returns true if an action was cancelled (i.e. it hadn't resolved yet). */
   cancelPendingAction(target: Character): boolean;

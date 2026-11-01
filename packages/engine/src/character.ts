@@ -108,6 +108,11 @@ export interface Guard {
   /** The guard covers only attacks by this character — raised against one
    *  opponent's blows, not against everyone's. */
   onlyAgainst?: Character;
+  /** A STANDING defense (a wall, a dome): raised by a status on `holder`
+   *  (`StatusBehavior.standingGuard`), rolled like a live defense by its
+   *  `defender`, but a blow through it lands on `holder` — whose status
+   *  hears it first (`onStandingGuardBroken`). */
+  standing?: { holder: Character; key: string };
 }
 
 /** Copy a modifier duration (the object form carries mutable countdown state). */

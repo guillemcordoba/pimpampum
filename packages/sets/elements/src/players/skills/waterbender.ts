@@ -21,9 +21,6 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
   who.guards.push({ defender, action: ctx.action });
 }
 
-/** The attack total of a fixed blow — zero dice and the total as modifier. */
-const fixed = (total: number) => d(0, 1, Math.max(0, total));
-
 // --- 9 · Sang sota la lluna -------------------------------------------------
 
 /** Under the full moon the holder's blows go where the bender says: every
@@ -73,13 +70,15 @@ const MAREA: StatusBehavior = {
     const src = ctx.holder;
     if (!src.isAlive()) return;
     const dice = ctx.entry.data?.['dice'];
-    const own = dice instanceof DiceRoll ? ctx.engine.rollDiceFor(src, dice, 'attack') : 0;
-    const base = own + src.getSkillLevel(SKILL_ID);
+    // One roll of the ocean against every enemy, each also paying back what
+    // it owes (its swallowed blow) as a bonus; the engine adds every term.
+    const waves = dice instanceof DiceRoll ? dice : d(0, 1, 0);
+    const roll = ctx.engine.rollDiceFor(src, waves, 'attack');
     ctx.engine.log('attack', `L'oceà es desferma contra tots els enemics.`, src.team);
     for (const e of ctx.engine.enemiesOf(src)) {
       const owed = e.getStatusValue(DEUTE_KEY, 0);
       e.clearStatus(DEUTE_KEY);
-      ctx.engine.performExtraAttack(src, e, fixed(base + owed), { label: owed ? `Ira de l'oceà (+${owed} del seu cop)` : `Ira de l'oceà` });
+      ctx.engine.performExtraAttack(src, e, waves, { skillId: SKILL_ID, rollBonus: owed, roll, label: owed ? `Ira de l'oceà (+${owed} del seu cop)` : `Ira de l'oceà` });
     }
   },
   positionValue() { return 0.1; },
@@ -139,7 +138,8 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
       if (total <= 0) return;
       const [t] = ctx.engine.chooseTargets(ctx.source, ctx.action, ctx.engine.enemiesOf(ctx.source), 1);
       if (!t) return;
-      ctx.engine.performExtraAttack(ctx.source, t, fixed(total), { label: `${ctx.source.name} llança el cop glaçat` });
+      // The stopped blow itself, thrown: its total as it is.
+      ctx.engine.performExtraAttack(ctx.source, t, total, { label: `${ctx.source.name} llança el cop glaçat` });
     },
     aiWeight() { return 0.6; },
   },
@@ -178,7 +178,7 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.skip = true; },
     onPlay(ctx) {
       // The ocean rolls ONCE: every blow at the party this round contests it.
-      const wall = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'defense') + ctx.source.getSkillLevel(SKILL_ID) + (ctx.action.rollBonus ?? 0);
+      const wall = ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'defense', skillId: SKILL_ID, rollBonus: ctx.action.rollBonus }).total;
       ctx.source.setStatus(MAREA_KEY, 0, 1, { dice: ctx.action.dice }, MAREA);
       for (const c of ctx.engine.alliesOf(ctx.source, true)) {
         c.setStatus('engolit-per-l-ocea', wall, 1, undefined, ENGOLIT);

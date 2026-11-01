@@ -443,7 +443,9 @@ function again(ctx: EffectContext): void {
   ctx.engine.performExtraAttack(ctx.source, t, dice, { skillId: ctx.action.skillId, label: `${ctx.source.name} torna a colpejar` });
 }
 
-/** The attack total of a fixed blow: zero dice, the total as modifier. */
+/** A fixed blow as dice (zero dice, the total as modifier). Live content
+ *  passes the total itself to `performExtraAttack`; this stays only because
+ *  the pinned calibration copies import it (`OPEN.md` B5). */
 export function fixedBlow(total: number): DiceRoll {
   return new DiceRoll(0, 1, Math.max(0, total));
 }
@@ -454,7 +456,8 @@ function hitDefenders(ctx: EffectContext): void {
   if (!t || total <= 0) return;
   const defenders = [...new Set(t.guards.map(g => g.defender))].filter(d => d !== t && d.isAlive());
   for (const d of defenders) {
-    ctx.engine.performExtraAttack(ctx.source, d, fixedBlow(total), { label: `${ctx.action.name} (${d.name}, que defensava)` });
+    // The same blow, thrown on: its total as it is.
+    ctx.engine.performExtraAttack(ctx.source, d, total, { label: `${ctx.action.name} (${d.name}, que defensava)` });
   }
 }
 
