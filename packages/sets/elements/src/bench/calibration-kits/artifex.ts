@@ -3,7 +3,7 @@
 // baselines should follow it.
 import {
   ActionDefinition, ActionType, Character, DiceRoll, EffectContext, EffectHandler, EngineApi, StatusBehavior,
-  StatusEntry, StatusHookContext, random, skillLevelBonus,
+  StatusEntry, StatusHookContext, random,
 } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../../players/types.js';
 import { num } from '../../players/effects/helpers.js';
@@ -125,7 +125,7 @@ const PARANY: StatusBehavior = {
     if (ctx.entry.data!['sprung'] !== undefined) return;
     ctx.entry.data!['sprung'] = blow.id;
     const total = Math.max(0, ctx.engine.rollDiceFor(maker, card.dice, 'defense') + (card.rollBonus ?? 0)
-      + skillLevelBonus(maker, card) + maker.getRollBonus(card.skillId, 'defense'));
+      + maker.getRollBonus(card.skillId, 'defense'));
     ctx.holder.guards.push({ defender: ctx.holder, action: asGadget(card), fixedTotal: total });
     ctx.engine.log('defense', `El parany de molla salta als peus de ${ctx.holder.name} (${total}).`, ctx.holder.team);
   },
@@ -265,7 +265,9 @@ const COLOS: StatusBehavior = {
       if (ctx.entry.value <= 0) return;
       ctx.entry.value--;
       data['blow'] = blow.id;
-      data['total'] = card.dice.roll() + (card.rollBonus ?? 0);
+      // The maker's roll of the gadget's dice: its bonuses and fatigue apply
+      // to every roll, a gadget's too (the gadget has no skill to level).
+      data['total'] = ctx.engine.contestRoll(ctx.holder, card.dice, { kind: 'defense', rollBonus: card.rollBonus }).total;
       ctx.engine.log('defense', `El colós de butxaca es posa davant (${data['total'] as number}).`, ctx.holder.team);
     }
     return [{ defender: target, action: asGadget(card), fixedTotal: data['total'] as number }];
@@ -460,7 +462,7 @@ const ARTIFEX_EFFECTS: Record<string, EffectHandler> = {
 
 export const ARTIFEX: SkillDefinition = {
   id: 'artifex@cal', displayName: 'Artífex', classCss: 'artifex@cal', category: 'player',
-  description: "Corda N: la carta es queda a la taula amb un dau a N. Cada cop que el giny actua (amb els daus de la carta, sense el teu nivell), el dau baixa 1, també amb l'atac que fa en jugar-la, si és un Atac; a 0, s'atura. Tornar-la a jugar li torna la corda. Els ginys actuen al final del torn, tret que la carta digui quan.",
+  description: "Corda N: la carta es queda a la taula amb un dau a N. Cada cop que el giny actua (amb els daus de la carta), el dau baixa 1, també amb l'atac que fa en jugar-la, si és un Atac; a 0, s'atura. Tornar-la a jugar li torna la corda. Els ginys actuen al final del torn, tret que la carta digui quan.",
   iconPath: ICON_PREFIX + 'lorc/clockwork.svg',
   actions: [
     action({
