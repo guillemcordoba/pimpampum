@@ -159,8 +159,8 @@ export const MUTANTS: Mutant[] = [
   {
     label: 'ENGINE wall: a bracing member is rolled like any other (lends its level, dodges the breach)',
     file: 'packages/engine/src/combat.ts',
-    find: '      if (this.absorbs(g)) return { g, total: 0, absorbing: true };',
-    replace: '      if (false) return { g, total: 0, absorbing: true };',
+    find: '      if (this.absorbs(d)) return { d, total: 0, absorbing: true };',
+    replace: '      if (false) return { d, total: 0, absorbing: true };',
   },
   {
     label: 'ENGINE streams: an action resolves on the shared stream (the lookahead pairs nothing)',
@@ -219,14 +219,14 @@ export const MUTANTS: Mutant[] = [
   {
     label: "ENGINE: a defense's onDefend never learns the margin it won by (Cop desviat returns nothing)",
     file: 'packages/engine/src/combat.ts',
-    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });",
-    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, attackTotal: contestAttack });",
+    find: "      if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, margin, attackTotal: contestAttack });",
+    replace: "      if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, attackTotal: contestAttack });",
   },
   {
     label: "ENGINE: a defense's onDefend sees only the margin, never the whole blow (Gel del mestre throws nothing back)",
     file: 'packages/engine/src/combat.ts',
-    find: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin, attackTotal: contestAttack });",
-    replace: "      this.dispatch('onDefend', guard.defender, guard.action, { targets: [target], target: source, margin });",
+    find: "      if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, margin, attackTotal: contestAttack });",
+    replace: "      if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, margin });",
   },
   {
     label: "ENGINE: an effect's 'enemy you choose' ignores the seat's target policy",
@@ -249,8 +249,8 @@ export const MUTANTS: Mutant[] = [
   {
     label: "ENGINE: an attack over the line still meets the target's allies' guards",
     file: 'packages/engine/src/combat.ts',
-    find: '          : [...this.activeGuards(target, source, mods.ignoreAllyGuards), ...this.standingGuards(target)]);',
-    replace: '          : [...this.activeGuards(target, source), ...this.standingGuards(target)]);',
+    find: '          : [...this.activeGuards(target, source, mods.ignoreAllyGuards).map(defenseOf), ...this.standingDefenses(target)];',
+    replace: '          : [...this.activeGuards(target, source).map(defenseOf), ...this.standingDefenses(target)];',
   },
   {
     label: "ENGINE: a tracked target's allies still guard it against its hunter",

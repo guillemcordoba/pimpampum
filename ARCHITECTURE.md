@@ -222,19 +222,21 @@ UNRESOLVED (`CombatResult.capped`), not a draw: measurement reports it as a
 stall and leaves it out of winrates (a mutual wipe is a draw: ½), and the AI
 scores a board at the cap like any other, so it never plays toward it.
 
-**One contest for every blow** (2026-11-01, rulings in `rules.md`) — an extra
-blow (`performExtraAttack`/`performAreaAttack`: counters, strikes again,
-rams) goes through the card attack's own path (`contestAttackOnTarget`), as a
-card with its dice, skill and roll bonus and NO effects: level, roll bonuses,
-fatigue, Envoltat, walls and standing walls, absorbing guards, statuses and the
-defenders' cards all apply, and no card's own effects run for it. A number for
-`dice` is a total thrown on, contested as it is; `opts.roll` is dice already
-rolled. `standingGuard` returns a `StandingGuard` (who defends, with what) and
-the engine rolls it like a live defense, in a wall with any guard; a breach
-lands on the holder (`Guard.standing`). Envoltat's n is `blowsOn`: blows that
-landed this round plus attacks still to land, where they land.
-`EngineApi.contestRoll` is every other roll a character makes (a filter, a
-save, a self-hit), with the same terms.
+**One contest for every blow** (2026-11-01, rulings in `rules.md`) — the
+engine contests a `Blow`: who strikes, the roll, the skill and roll bonus, a
+label, and the card it comes from when there is one. A card's attack is a blow
+with its card, so the card's effects fire; an extra blow
+(`performExtraAttack`/`performAreaAttack`: counters, strikes again, rams) is a
+blow with no card, so every rule of an attack applies — level, roll bonuses,
+fatigue, Envoltat, walls, standing walls, absorbing guards, statuses and the
+defenders' cards — and no card's own effects run. A number for `dice` is a
+total thrown on, contested as it is; `opts.roll` is dice already rolled. What a
+blow meets is a list of `Defense`s: each guard (with its defense card) and each
+standing wall the target holds (`standingGuard` returns who defends with what;
+no card; a breach lands on the holder), summed into a wall when there are two
+or more. Envoltat's n is `blowsOn`: blows that landed this round plus attacks
+still to land, where they land. `EngineApi.contestRoll` is every other roll a
+character makes (a filter, a save, a self-hit), with the same terms.
 
 **State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into
 plain, structured-cloneable data and `CombatEngine.restore(snap, registry, deref)`
