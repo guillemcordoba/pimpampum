@@ -15,7 +15,6 @@ message — never into a growing log.
 
 ## Decisions for the owner
 
-- A11. The power ramp, now that a level enters no roll: how much stronger card N is than card 1 (a rule for `intentions.md`, needed before the firebender gets its dice).
 - A2. Rulings for `rules.md`, when a redesigned card needs them: the wall rule (every card in a holding wall pays its payoff), what "apunta" means for an area attack, the end-of-round order.
 - A3. Interim defaults: a vanished aim retargets; no slow keyword; Cop desesperat is a normal card.
 - A4. Balance direction: fights 4.3 → 6.0 rounds, Aggro > Power at 22.6% (Cures de camp), Guard +28.9 in card value. Report's advice: the AI first, then numbers.
@@ -48,7 +47,7 @@ message — never into a growing log.
 
 ## Waits for the card migration (real cards are frozen)
 
-- C1. Redesign kit by kit, firebender first: concepts → the review loop → the user's picks → mechanics and dice on the ramp (A11) → a final review → implement, statuses from the engine's kinds (`applyKind`) or priced bespoke → `/analyze`. Along the way: the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`, delete the enemy-block machinery, and check that the old cards' bugs (`silenced` never read, putrefacció's uncloned `WeakSet`, 15 behaviour-less status keys), their `TODO(balance)` constants and the 28 unpriced statuses in `status-pricing.test.ts` all went with them.
+- C1. Redesign kit by kit, firebender first: concepts → the review loop → the user's picks → mechanics and dice on the ramp (`intentions.md`) → a final review → implement, statuses from the engine's kinds (`applyKind`) or priced bespoke → `/analyze`. Along the way: the `harm`/`bodyOut` marks onto `harmful`, the duplicated `status-behaviors.ts` into `sets/common`, delete the enemy-block machinery, and check that the old cards' bugs (`silenced` never read, putrefacció's uncloned `WeakSet`, 15 behaviour-less status keys), their `TODO(balance)` constants and the 28 unpriced statuses in `status-pricing.test.ts` all went with them.
 - C4. One recalibration for the migration and the AI switch (`calibration:refresh`; the pinned copies still add a level by hand in places, and `skillLevelBonus` lives on for them until then), then the kit suites, both triangles, the armour bound, `/analyze`, and tuning per A4.
 - C5. Elements questions: the unagi as boss or creature (needs a cards-per-round seam), the Cop i fuga ★ text, the lopsided calibration cells, the shirshu and the puppeteer alone.
 - C6. The 80 gold cards, redesigned with the rest (`sets/common/DESIGN.md`).
