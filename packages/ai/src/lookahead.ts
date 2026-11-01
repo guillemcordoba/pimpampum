@@ -27,7 +27,7 @@
  * encounters needs.
  */
 import {
-  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, random, withSeed, withRng, seededRng, mirrored,
+  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, fieldValue, random, withSeed, withRng, seededRng, mirrored,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
@@ -200,14 +200,18 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
   //
   // Averaged per body, like the PV term, so a big team does not out-score a
   // small one simply by holding more statuses.
+  // The engine fields the vocabulary prices too (`fieldValue`: turns to lose,
+  // roll modifiers) count beside them.
   const statusValue = (t: Character[]): number => {
     if (t.length === 0) return 0;
     let acc = 0;
     for (const c of t) {
-      if (!c.isAlive() || !c.holdsStatusWith('positionValue')) continue;
+      if (!c.isAlive()) continue;
+      acc += fieldValue(c, engine);
+      if (!c.holdsStatusWith('positionValue')) continue;
       for (const [key, entry] of c.statuses) {
         const price = entry.behavior?.positionValue;
-        if (price) acc += price({ holder: c, key, entry });
+        if (price) acc += price({ holder: c, key, entry }, engine);
       }
     }
     return acc / t.length;

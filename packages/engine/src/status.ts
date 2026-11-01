@@ -21,6 +21,12 @@ export interface StatusRef {
   entry: StatusEntry;
 }
 
+/** What a status's price may read of the board (`StatusBehavior.positionValue`). */
+export interface PriceBoard {
+  enemiesOf(c: Character): Character[];
+  alliesOf(c: Character, includeSelf?: boolean): Character[];
+}
+
 /** Query hooks get a StatusRef; engine-level hooks get this richer context. */
 export interface StatusHookContext extends StatusRef {
   engine: EngineApi;
@@ -151,9 +157,13 @@ export interface StatusBehavior {
    * failure in the other direction.
    *
    * The engine never interprets `data`; a behaviour reads its own payload and
-   * returns a number.
+   * returns a number. `board`: what a price may read of the fight around the
+   * holder (its foes and allies) — absent where nobody is asking.
    */
-  positionValue?(ref: StatusRef): number;
+  positionValue?(ref: StatusRef, board?: PriceBoard): number;
+  /** Bad for its holder (a debuff, a poison, a lock): what a cleanse strips.
+   *  Typed here, so nothing has to agree on a data convention. */
+  harmful?: boolean;
   /**
    * AI ONLY, never called by the engine: what a blow of `damage` (after
    * armour) is expected to do to the holder — a PURE estimate of

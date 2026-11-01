@@ -19,7 +19,7 @@ export { EffectRegistry, newAttackModifiers } from './effects.js';
 export type { EngineApi, EffectContext, EffectHandler, HookedEffect, AttackModifiers, AIContext, ActionEvent, ExtraAttackOptions, ExtraAttackResult } from './effects.js';
 
 // Status behaviours
-export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo, StandingGuard } from './status.js';
+export type { StatusBehavior, StatusRef, StatusHookContext, AttackStatusMods, ContestKind, BlowInfo, StandingGuard, PriceBoard } from './status.js';
 
 // Actions
 export { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
@@ -34,6 +34,8 @@ export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './ch
 // Combat engine
 export { CombatEngine, newCombatStats, mergeCombatStats, orderKey, ROUND_CAP } from './combat.js';
 export type { ContentDeref, ContentRefOf, EngineSnapshot } from './snapshot.js';
+export { STATUS_KINDS, applyKind, expectedBlow, fieldValue, kindName, kindNamed } from './status-kinds.js';
+export type { StatusKind } from './status-kinds.js';
 export type {
   LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser, OptionChooser,
   RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,

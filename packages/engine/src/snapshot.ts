@@ -15,6 +15,7 @@ import { ActionInstance } from './action.js';
 import { Character, StatusMap } from './character.js';
 import { DiceRoll } from './dice.js';
 import { CombatModifier } from './modifier.js';
+import { kindName, kindNamed } from './status-kinds.js';
 import type { StatusBehavior } from './status.js';
 import type { ActionDefinition, ActionType, EquipmentDefinition } from './types.js';
 
@@ -48,7 +49,10 @@ export class SnapshotEncoder {
   private readonly sharedIndex = new Map<object, number>();
   private readonly charRefs = new Map<Character, [number, number]>();
 
-  constructor(teams: readonly Character[][], private readonly refOf: ContentRefOf) {
+  // The engine names its own status kinds; the content names the rest.
+  private readonly refOf: ContentRefOf;
+  constructor(teams: readonly Character[][], contentRefOf: ContentRefOf) {
+    this.refOf = o => kindName(o) ?? contentRefOf(o);
     teams.forEach((team, t) => team.forEach((c, i) => this.charRefs.set(c, [t, i])));
   }
 
@@ -119,7 +123,10 @@ export class SnapshotDecoder {
   shared: object[] = [];
   teams: Character[][] = [];
 
-  constructor(private readonly deref: ContentDeref) {}
+  private readonly deref: ContentDeref;
+  constructor(contentDeref: ContentDeref) {
+    this.deref = name => kindNamed(name) ?? contentDeref(name);
+  }
 
   /** The cards and items, by value — before any character, which holds them. */
   readShared(shared: Encoded[]): void {

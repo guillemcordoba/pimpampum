@@ -222,6 +222,19 @@ UNRESOLVED (`CombatResult.capped`), not a draw: measurement reports it as a
 stall and leaves it out of winrates (a mutual wipe is a draw: ½), and the AI
 scores a board at the cap like any other, so it never plays toward it.
 
+**The status vocabulary** (2026-11-01, `engine/src/status-kinds.ts`) —
+generic, parameterised status KINDS that carry their rules and their price:
+damage and heal over time, a delayed blow, a primed attack, a card-type lock,
+a ward, a standing wall, untargetable, unguardable, taunted, redirected.
+Content applies one under its own key (`applyKind(target, kind, key, value,
+turns, data)`) instead of writing hooks, and the evaluator sees it; a snapshot
+names kinds itself (`kind:<name>`). Prices take the board
+(`positionValue(ref, board)`, `PriceBoard`), and `fieldValue` prices the
+engine fields statuses don't hold (turns to lose, roll modifiers) beside
+them. `StatusBehavior.harmful` says a kind is bad for its holder; the cleanse
+strips one an enemy applied. A one-of-a-kind behaviour must price itself
+(`tools/test/status-pricing.test.ts`, with today's unpriced ones listed).
+
 **One contest for every blow** (2026-11-01, rulings in `rules.md`) — the
 engine contests a `Blow`: who strikes, the roll, the skill and roll bonus, a
 label, and the card it comes from when there is one. A card's attack is a blow

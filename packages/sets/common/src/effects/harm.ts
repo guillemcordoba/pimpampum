@@ -11,7 +11,12 @@ import type { Character, StatusEntry } from '@pimpampum/engine';
  *  - lost actions are the `skipTurns` counter, and only enemy cards raise it;
  *  - a status that takes the BODY out of the fight (swallowed whole) carries
  *    `bodyOut: 1` instead: it is not an effect on the body but where the body
- *    is, and nothing but the fight frees it.
+ *    is, and nothing but the fight frees it;
+ *  - an ENGINE status kind (`STATUS_KINDS`) knows whether it is bad for its
+ *    holder (`StatusBehavior.harmful`): it is an efecte negatiu when its
+ *    `data.source` is not on the holder's side (a kind applied with no source
+ *    counts as an enemy's). A cost a card makes its own player pay passes its
+ *    player as the source.
  */
 export const HARM = { harm: 1 } as const;
 export const BODY_OUT = { bodyOut: 1 } as const;
@@ -27,7 +32,13 @@ export function isTakenOut(c: Character): boolean {
 
 /** The statuses on `c` an enemy card left there. */
 export function harmfulStatuses(c: Character): [string, StatusEntry][] {
-  return [...c.statuses].filter(([, entry]) => isHarm(entry.data));
+  return [...c.statuses].filter(([, entry]) => isHarm(entry.data) || leftByAnEnemy(c, entry));
+}
+
+function leftByAnEnemy(c: Character, entry: StatusEntry): boolean {
+  if (!entry.behavior?.harmful) return false;
+  const source = entry.data?.['source'] as Character | undefined;
+  return !source || source.team !== c.team;
 }
 
 /** Clears every efecte negatiu on `c` (statuses, modifiers, lost actions);
