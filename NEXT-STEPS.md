@@ -7084,3 +7084,14 @@ It doesn't hurt on composed cards and leans positive; pooled with archetypes it'
 - **Cost:** about the margin's; on opening rounds (4 workers) 0.4–0.7 s on 3v3 and 22 s on 4v4, against margin decisions' 0.5–1.5 s and 12 s.
 - **Medium (margin decisions) vs today's AI, 3v3 archetypes, now 300 pairs:** +1.0 ±5.9.
 - **Its blind spot:** the evaluator sees a status only if it prices itself (`StatusBehavior.positionValue`). Most audit statuses do; an unpriced real card would be invisible to these decisions, as it is to today's AI.
+
+**4v4, long fights to the end** (×4/4, 200 seeds per family, paired; 2026-11-01):
+
+| Slice | Pairs | Evaluator decisions over margin | Better / worse | Time per position |
+|---|---|---|---|---|
+| 4v4 archetypes | 200 | +15.7 ±11.9 | 126 / 73 | 588 s vs 644 s |
+| 4v4 composed | 200 | +8.2 ±11.4 | 145 / 51 | 911 s vs 903 s |
+
+- **The direction holds at full size,** and at no extra cost. A 4v4 pair swings ±300–500 PV, so the means are wide, but the better/worse counts are clear (145 / 51 is about 6.7 standard errors from a coin flip).
+- **Every slice measured is positive** (2v2 and 3v3 archetypes, 2v2 composed, 4v4 both). Pooled over all 1,300 pairs: about +4.4 ±1.8.
+- **Medium (margin decisions) vs today's AI on 4v4, at scale:** archetypes +17.7 ±13.6, composed +53.8 ±11.1. The +118 ±36.5 of §58 was 16 pairs.
