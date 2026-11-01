@@ -32,6 +32,7 @@ message — never into a growing log.
 
 - B2. [M] The AI's estimates from the engine's contest (the engine side landed 2026-11-01, rulings in `rules.md`): the weapon bonus only with `weapon_damage`, a diceless attack is 0 not 3, Envoltat, roll modes, the status roll hooks, standing walls, `onlyAgainst` guards; then the bot ladder and the referee audit.
 - B1. [M] The status vocabulary landed 2026-11-01 (`status-kinds.ts`, prices, `fieldValue`, `harmful`, the pricing test). Left: move the audit's statuses onto the kinds; drop `expectedIncomingDamage` and `unpricedChange` once nothing needs them; the 33 unused generic handlers. (Real cards move onto the kinds in C1.)
+- B16. [M] The AI misvalues the new firebender (kit analyzer, 2026-11-01): it plays Supernova, which drops the bender to 0 PV, on 41% of the turns it may (the worst card, −8 PV against the hand: the evaluator's body term is cheap beside enemy PV); it never plays Foc interior (best 13%, played 0.2%) and rarely Mantell de flames (best 17%, played 2.8%, in `KNOWN_BLIND`). Each gets a generic puzzle and a fix, then the bot ladder and the referee.
 - B10. [S] Close the decision-leaf measurement (needs A7a); delete the losing leaves.
 - B3. [M–L] The round as a first-class value (one prompt loop, no public `roundPrepared`, no seat remapping, a referee that branches instead of replaying).
 - B4. [S] `isBlindSpot` requires a gain when best; empties `KNOWN_BLIND`.

@@ -149,111 +149,127 @@ describe('Mestre de la terra', () => {
 });
 
 describe('Mestre del foc', () => {
-  it('Punys encesos: +2 when the bender attacked last round', () => {
-    const fire = fighter('Foc', [flat('punys-encesos', 1, 2)], { pv: 30 });
+  it('Bola de foc: a target it wounds is burned — 1 PV at the end of this round and the next', () => {
+    const fire = fighter('Foc', [flat('bola-de-foc', 1, 2), wait], { pv: 30 });
     const bag = fighter('Sac', [wait], { pv: 30 });
     const engine = engineFor([fire], [bag]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(30 - 3 - 5);
-  });
-
-  it('Escut roent: every attack on whoever it defends costs the attacker 2 PV, held or not', () => {
-    const fire = fighter('Foc', [flat('escut-roent', 1, 100)], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(4)], { pv: 30 });
-    playRound(engineFor([fire, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(30);
-    expect(foe.currentPV).toBe(28);
-  });
-
-  it("Atiar les brases: the bender's next attack has +5", () => {
-    const fire = fighter('Foc', [getAction('atiar-les-brases')!, blow(1)], { pv: 30 });
-    const bag = fighter('Sac', [wait], { pv: 30 });
-    const engine = engineFor([fire], [bag]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
-    playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(24);
-  });
-
-  it('Anell de flames: a wounded target loses 3 PV as the next round opens', () => {
-    const fire = fighter('Foc', [flat('anell-de-flames', 1, 1), wait], { pv: 30 });
-    const bag = fighter('Sac', [wait], { pv: 30 });
-    const engine = engineFor([fire], [bag]);
-    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(28);
-    engine.prepareRound();
+    expect(bag.currentPV).toBe(30 - 3 - 1);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(bag.currentPV).toBe(25);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
     expect(bag.currentPV).toBe(25);
   });
 
-  it("Vol propulsat: the target's allies cannot defend it", () => {
-    const fire = fighter('Foc', [flat('vol-propulsat', 1, 5)], { pv: 30 });
-    const target = fighter('Objectiu', [wait], { pv: 30 });
-    const guardian = fighter('Guardià', [guard(100)], { pv: 30 });
-    playRound(engineFor([fire], [target, guardian]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
-    expect(target.currentPV).toBe(24);
+  it('Bola de foc: burning again restarts the two rounds, never stacks', () => {
+    const fire = fighter('Foc', [flat('bola-de-foc', 1, 0), wait], { pv: 30 });
+    const bag = fighter('Sac', [wait], { pv: 30 });
+    const engine = engineFor([fire], [bag]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    // Two hits of 1, a burn each round end; the second restarts it.
+    expect(bag.currentPV).toBe(30 - 1 - 1 - 1 - 1);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(bag.currentPV).toBe(25);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(bag.currentPV).toBe(25);
   });
 
-  it('Foc blau: ignores armour, and the defense against it has −3', () => {
-    const fire = fighter('Foc', [flat('foc-blau', 1, 5)], { pv: 30 });
-    const foe = fighter('Foe', [guard(4)], { pv: 30, equipment: [armour(2)] });
-    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
-    // 6 against a defense of 4 − 3 = 1: 5 through, no armour.
-    expect(foe.currentPV).toBe(25);
+  it('Mantell de flames: whoever attacks someone it defends is burned, held or not', () => {
+    const held = (bonus: number) => {
+      const fire = fighter('Foc', [flat('mantell-de-flames', 1, bonus)], { pv: 30 });
+      const ally = fighter('Amic', [wait], { pv: 30 });
+      const foe = fighter('Foe', [blow(4)], { pv: 30 });
+      playRound(engineFor([fire, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+      return foe.currentPV;
+    };
+    expect(held(100)).toBe(29);
+    expect(held(0)).toBe(29);
   });
 
-  it("Esclat del tercer ull: also lands, whole, on everyone defending the target", () => {
-    const fire = fighter('Foc', [flat('esclat-del-tercer-ull', 1, 7)], { pv: 30 });
-    const target = fighter('Objectiu', [wait], { pv: 30 });
-    const guardian = fighter('Guardià', [guard(5)], { pv: 30 });
-    playRound(engineFor([fire], [target, guardian]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
-    // 8 against the guardian's 5 on the target (3 through, to the guardian),
-    // then 8 again at the guardian, who defends with 5 (3 more).
-    expect(guardian.currentPV).toBe(24);
+  it('Esclat: an enemy still to attack that rolls low hits a random combatant — never itself', () => {
+    withSeed(7, () => {
+      const fire = fighter('Foc', [flat('esclat', 0, 0, { effects: [{ type: 'flare', params: { below: 20 } }] })], { pv: 30 });
+      const ally = fighter('Amic', [wait], { pv: 30 });
+      const foe = fighter('Foe', [blow(5)], { pv: 30 });
+      const friend = fighter('Company', [wait], { pv: 30 });
+      playRound(engineFor([fire, ally], [foe, friend]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
+      expect(foe.currentPV).toBe(30);
+      expect(fire.currentPV + ally.currentPV + friend.currentPV).toBe(90 - 5);
+    });
   });
 
-  it('Alè de drac: every enemy, the wounded burn 2 PV at the end of the next round, and it costs a fatigue level', () => {
-    const fire = fighter('Foc', [flat('ale-de-drac', 1, 2), wait], { pv: 30 });
-    const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    const engine = engineFor([fire], [a, b]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
-    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([25, 25]);
-    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([25, 25]);
-    expect(fire.fatigue).toBe(1);
+  it('Esclat: a roll above the threshold leaves the attack where it aimed', () => {
+    const fire = fighter('Foc', [flat('esclat', 0, 0, { effects: [{ type: 'flare', params: { below: 0 } }] })], { pv: 30 });
+    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    const friend = fighter('Company', [wait], { pv: 30 });
+    playRound(engineFor([fire], [foe, friend]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
+    expect(fire.currentPV).toBe(25);
   });
 
-  it('Llamp de sang freda: cannot be defended', () => {
-    const fire = fighter('Foc', [flat('llamp-de-sang-freda', 1, 5)], { pv: 30 });
-    const foe = fighter('Foe', [guard(100)], { pv: 30 });
-    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
-    expect(foe.currentPV).toBe(24);
-    expect(fire.fatigue).toBe(1);
-  });
-
-  it('Llamp de sang freda: wounded before it fires, the bolt strikes its caster instead', () => {
-    const fire = fighter('Foc', [flat('llamp-de-sang-freda', 1, 5)], { pv: 30 });
-    const foe = fighter('Foe', [blow(2, true)], { pv: 30 });
-    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    expect(foe.currentPV).toBe(30);
-    // The bolt is the card's own roll: its dice and its roll bonus, 1 + 5.
-    expect(fire.currentPV).toBe(30 - 2 - 6);
-  });
-
-  it('Caiguda de cometa: called this round, it falls on every enemy as the next round opens, before any guard; 2 fatigue', () => {
-    const fire = fighter('Foc', [flat('caiguda-de-cometa', 1, 3)], { pv: 30 });
+  it("Tempesta d'espurnes: every enemy loses 2 PV, through any defense", () => {
+    const fire = fighter('Foc', [flat('tempesta-d-espurnes', 0, 0)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [guard(100)], { pv: 30 });
-    const engine = engineFor([fire], [a, b]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
-    expect([a.currentPV, b.currentPV]).toEqual([30, 30]);
-    expect(fire.fatigue).toBe(2);
-    engine.prepareRound();
-    // 1 + 3, under the caster's fatigue of 2 (on every roll): 2 on each.
+    playRound(engineFor([fire], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 1))]);
     expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
+  });
+
+  it("Pell d'obsidiana: it still defends the round after, then falls", () => {
+    const fire = fighter('Foc', [flat('pell-d-obsidiana', 1, 9), wait], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
+    const engine = engineFor([fire, ally], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
+    // Next round the skin still stands before the ally: 5 against 1 + 9.
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
+    expect(ally.currentPV).toBe(25);
+  });
+
+  it('Alè de drac: two enemies, and the ones it wounds are burned', () => {
+    const fire = fighter('Foc', [flat('ale-de-drac', 1, 2)], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    const c = fighter('C', [wait], { pv: 30 });
+    playRound(engineFor([fire], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
+    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([26, 26, 30]);
+  });
+
+  it('Foc interior: +6 on the bender\'s attacks for the next two rounds', () => {
+    const fire = fighter('Foc', [getAction('foc-interior')!, blow(1)], { pv: 30 });
+    const bag = fighter('Sac', [wait], { pv: 30 });
+    const engine = engineFor([fire], [bag]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
+    for (let r = 0; r < 3; r++) playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 0)]);
+    expect(bag.currentPV).toBe(30 - 7 - 7 - 1);
+  });
+
+  it('Anell de foc: for the next two rounds, every enemy that attacks loses 3 PV and is burned', () => {
+    const fire = fighter('Foc', [getAction('anell-de-foc')!, wait], { pv: 60 });
+    const foe = fighter('Foe', [wait, blow(2)], { pv: 30 });
+    const idle = fighter('Quiet', [wait], { pv: 30 });
+    const engine = engineFor([fire], [foe, idle]);
+    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
+    expect(foe.currentPV).toBe(30 - 3 - 1);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
+    expect(foe.currentPV).toBe(22);
+    // The ring is gone; the last burn still ticks once.
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
+    expect(foe.currentPV).toBe(21);
+    expect(idle.currentPV).toBe(30);
+  });
+
+  it('Supernova: every enemy, then the bender drops to 0 PV', () => {
+    const fire = fighter('Foc', [flat('supernova', 1, 4)], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    playRound(engineFor([fire], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([25, 25]);
+    expect(fire.currentPV).toBe(0);
+    expect(fire.isAlive()).toBe(false);
   });
 });
 

@@ -150,23 +150,30 @@ attacker* (water sends the force elsewhere). Threads: stone on the body (1, 4,
 | 9 | Puny de la muntanya | +1 per attack aimed at you this fight; 1 fatigue |
 | 10 | Partir la terra | every enemy; the wounded lose 2 actions; 2 fatigue |
 
-## Mestre del foc — `firebender` (landed 2026-10-07)
+## Mestre del foc — `firebender` (redesigned 2026-11-01)
 
-*Northern shaolin: fire uses only its own force and keeps raising it, and
-whatever touches it burns.* One Defensa only: fire does not step back.
+*Fire burns: whoever touches it, crosses it or defies it.* The user's design
+("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb),
+the pilot of the full card redesign; dice and small mechanics by the main
+session. **Cremat** (printed on card 1): 1 PV at the end of this round and the
+next; burning again restarts it, never stacks (the engine's damage over time).
 
-| # | card | what it does |
-|---|---|---|
-| 1 | Punys encesos | +2 if you attacked last round |
-| 2 | Escut roent | every attack on whoever you defend costs the attacker 2 PV |
-| 3 | Atiar les brases | your next attack +5 |
-| 4 | Anell de flames | a wounded target burns 3 as the next round opens |
-| 5 | Vol propulsat | the target's allies can't defend it |
-| 6 | Foc blau | ignores armour; the defense −3 |
-| 7 | Esclat del tercer ull | also hits everyone defending the target |
-| 8 | Alè de drac | every enemy, burning next round; 1 fatigue |
-| 9 | Llamp de sang freda | undefendable; wounded first, it strikes you; 1 fatigue |
-| 10 | Caiguda de cometa | fastest; every enemy, no ally guards, the wounded lose next round's action; 2 fatigue |
+| # | card | type | what it does |
+|---|---|---|---|
+| 1 | Bola de foc | Atac | a wounded target is burned |
+| 2 | Mantell de flames | Defensa | whoever attacks someone it defends is burned, held or not |
+| 3 | Esclat | Focus, fast | each enemy still to attack rolls 1d20; at 8 or less it hits a random combatant |
+| 4 | Tempesta d'espurnes | Atac | every enemy loses 2 PV |
+| 5 | Pell d'obsidiana | Defensa | it still defends the round after |
+| 6 | Alè de drac | Atac | two enemies; the wounded are burned |
+| 7 | Foc interior | Focus | +6 on your attacks for the next 2 rounds |
+| 8 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 3 PV and is burned |
+| 9 | Llamp | Atac | the big single blow, nothing else |
+| 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
+
+Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold
+card), Mur de foc, Dia assolellat, Foc blau / Llança roent. The armour-melting
+idea may return elsewhere.
 
 ## Mestre de l'aire — `airbender` (landed 2026-10-07)
 
