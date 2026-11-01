@@ -24,13 +24,14 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 | `rules.md` | The mechanics, in prose (Catalan). **Read before changing combat logic.** |
 | `intentions.md` | Balance/design intentions — strategy triangle, dice, fatigue. |
 | `ARCHITECTURE.md` | Engine seams, effect-handler catalogue, AI and audit internals, balancer, web. **Read the relevant section before touching a subsystem.** |
-| `NEXT-STEPS.md` | Open work and every measured finding, dated. Read the relevant sections before changing kits or the AI. |
+| `OPEN.md` | Everything still to do, and the rulings decided but not yet implemented. Delete an item when it is done. |
+| `NEXT-STEPS.md` | FROZEN history (2026-08 → 11), cited by code comments; being retired (`OPEN.md`, last item). Never append to it. |
 | An action's `description` | What that card does. If the implementation disagrees, **the description wins** and the handler is fixed. |
 
 ## Non-negotiables
 
 - **The engine never knows about content.** It never names a card or a skill and never interprets `StatusEntry.data`; effects dispatch through an `EffectRegistry`. **A new card must never require an engine edit**: if no seam fits, add a *generic, parameterised* seam and keep the content in the set.
-- **Statuses price themselves.** The AI's evaluator sees PV, bodies, fatigue and what each status says it is worth (`StatusBehavior.positionValue`), nothing else. Statuses are moving to a generic engine vocabulary that prices itself (decided 2026-11-01, `NEXT-STEPS.md` §59); a card that needs something it does not cover may bring its own `StatusBehavior`, which must price itself. A card the AI never plays is usually an unpriced status, not a weak card (`isBlindSpot`, `KNOWN_BLIND`).
+- **Statuses price themselves.** The AI's evaluator sees PV, bodies, fatigue and what each status says it is worth (`StatusBehavior.positionValue`), nothing else. Statuses are moving to a generic engine vocabulary that prices itself (decided 2026-11-01, `OPEN.md` B1); a card that needs something it does not cover may bring its own `StatusBehavior`, which must price itself. A card the AI never plays is usually an unpriced status, not a weak card (`isBlindSpot`, `KNOWN_BLIND`).
 - **Co-location.** A skill's handlers and the `StatusBehavior`s they attach live in the skill's own file (`SkillDefinition.effects`). `players/effects/` holds only generic handlers reused by several skills; what several SETS share lives in `sets/common`.
 - **One registry per set**: `createRegistry()` registers every handler, player and enemy.
 - **The calibration is a snapshot.** Baselines are measured with PINNED copies of the player kits (`sets/fantasy/src/bench/calibration-kits/`, ids `berserk@cal`), never the live ones; never edit the copies. `pnpm calibration:refresh` re-pins them (and recalibrates everything, once).
@@ -58,7 +59,7 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 ## Measurement: three rules (the full account: `packages/tools/README.md`)
 
 - **A harness must run at `GAMES=2`** — `tools/test/harnesses.slow.test.ts` runs every script that way. Read the sample size through bench's `games()`, never a hardcoded const.
-- **A one-off experiment is deleted** once its conclusion is written in `NEXT-STEPS.md` with a date. Only a standing question earns a permanent harness.
+- **A one-off experiment is deleted** once its conclusion is written down, dated, in the doc it changes (`rules.md`, `intentions.md`, `ARCHITECTURE.md`) or the commit message. Only a standing question earns a permanent harness.
 - **A claim that can go stale must be executable** (assert it), computed at print time, or dated in a doc — never a measured number in a comment.
 
 ## Adding content
