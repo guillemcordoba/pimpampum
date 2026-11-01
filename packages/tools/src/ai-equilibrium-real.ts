@@ -39,7 +39,7 @@ function margin(e: CombatEngine, team: number): number {
 }
 
 /** One fight, the equilibrium player on `eqTeam`; its margin, result and cost. */
-function fight(seed: number, eqTeam: number): { margin: number; result: number; seconds: number; rounds: number; fallback: number } {
+function fight(seed: number, eqTeam: number): { margin: number; result: number | null; seconds: number; rounds: number; fallback: number } {
   return withSeed(seed, () => {
     const eq = equilibriumPolicy(SETTINGS);
     const today: Policy = aiPolicy({ depth: 1 });

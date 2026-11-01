@@ -65,7 +65,7 @@ export const RULES_SUMMARY: RulesSection[] = [
     title: 'Defensa',
     icon: STAT_ICONS.defense,
     type: 'text',
-    text: "Tria: defensar un aliat, redirigint tots els atacs cap a ell a tu, o bloquejar un atacant, fent que només et pugui atacar a tu.",
+    text: "Quan es resol, tria a qui protegeixes, tu o un aliat, veient a qui apunta cada atac. Sempre et defenses a tu mateix.",
   },
   {
     title: 'Focus',
