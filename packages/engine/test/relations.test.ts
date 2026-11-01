@@ -4,10 +4,11 @@
  *
  * No single fight has a right answer, but the relation between two populations
  * of fights does: the same fight with the seats swapped is a coin flip; more
- * armour, bigger dice, more training can only help; fatigue can only hurt.
+ * armour or bigger dice can only help; fatigue can only hurt; a level alone,
+ * which enters no roll, changes nothing.
  *
  * Kept in the fast tier on purpose. Every effect here is large BY CONSTRUCTION
- * (a whole die, two points of armour, three levels) against fights that cost
+ * (a whole die, two points of armour) against fights that cost
  * microseconds, so a few thousand fights resolve it at many sigma — and the
  * seed is fixed, so a red here is a change in the rules, never a bad draw.
  */
@@ -82,12 +83,8 @@ describe('the levers point the right way', () => {
     expectClearlyAbove(winrate({ defense: new DiceRoll(4, 6) }, {}), base);
   });
 
-  it('training helps — the level is in the roll', () => {
-    expectClearlyAbove(winrate({ opts: { level: 3 } }, {}), base);
-  });
-
-  it('equal training cancels: both sides three levels up is still a coin flip', () => {
-    const { p, se } = winrate({ opts: { level: 3 } }, { opts: { level: 3 } });
+  it('a level alone changes nothing: it enters no roll, so three levels up with the same cards is a coin flip', () => {
+    const { p, se } = winrate({ opts: { level: 3 } }, {});
     expect(Math.abs(p - 0.5)).toBeLessThan(4 * se);
   });
 

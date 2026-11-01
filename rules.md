@@ -24,22 +24,16 @@ Cada acció té:
 - **Tipus**: Atac, Defensa o Focus.
 - **Daus**: els daus que es tiren quan l'acció es resol (per exemple, 1d8, 2d6). Les accions d'atac tenen daus d'atac; les accions de defensa tenen daus de defensa.
 
-### El nivell entra a la tirada
+### El nivell no entra a la tirada
 
-**Tota tirada és els daus de la carta més el teu nivell en la seva habilitat.**
+**Tota tirada és els daus de la carta**, més les bonificacions de tirada i menys
+la fatiga. El nivell d'una habilitat només diu quines cartes coneixes: un
+personatge més entrenat és més fort perquè té més cartes, i les cartes que
+s'aprenen més tard són més fortes, no perquè tiri més alt.
 
-> Esgrima 5: hi sumes +5, juguis la carta que juguis d'Esgrima.
-
-Val per a **tota tirada que fa un personatge**, no només per a la carta que
-juga: un cop extra, una defensa que s'aixeca sola (un mur), la tirada d'un
-giny. Les bonificacions de tirada i la fatiga hi compten sempre; el nivell, quan
-hi ha una habilitat (un giny no en té: no hi suma nivell).
-
-Com que **les dues bandes hi sumen el seu nivell**, dos contendents igual de
-entrenats s'anul·len: una tirada enfrontada entre iguals és exactament la
-mateixa que si el nivell no comptés. Només parla quan hi ha diferència
-d'entrenament — i és el que fa que el nivell d'un enemic sigui una mesura real
-de com de perillós és, i no només de quantes cartes té.
+Val per a **tota tirada**: un atac, una defensa, un cop extra, una defensa que
+s'aixeca sola (un mur), la tirada d'un giny, una tirada de resistència i les
+tirades fora de combat.
 
 ### Accions d'atac
 
@@ -54,7 +48,7 @@ Del dany se'n resta l'**armadura passiva** de qui el rep (mínim 0), i el result
 
 No hi ha cap tirada de dany separada: els daus de la carta són alhora la precisió i la potència de l'atac.
 
-**Cops extra.** Un cop que no és una carta jugada — un contraatac, un segon atac, una envestida — és un atac com qualsevol altre: el nivell, la fatiga, Envoltat, els murs i les cartes dels defensors hi compten, i un contraatac en pot provocar un altre. Però no és jugar una carta: els efectes de la carta que l'ha provocat no s'hi tornen a aplicar. Un cop **retornat** (el cop aturat que es llança de nou) es resol amb el mateix total que tenia, sense afegir-hi res.
+**Cops extra.** Un cop que no és una carta jugada — un contraatac, un segon atac, una envestida — és un atac com qualsevol altre: la fatiga, Envoltat, els murs i les cartes dels defensors hi compten, i un contraatac en pot provocar un altre. Però no és jugar una carta: els efectes de la carta que l'ha provocat no s'hi tornen a aplicar. Un cop **retornat** (el cop aturat que es llança de nou) es resol amb el mateix total que tenia, sense afegir-hi res.
 
 Quan una carta diu que un atac **fereix**, vol dir que fa dany: treu almenys 1 PV, un cop restada l'armadura. (Les cartes antigues que diuen «encerta» volen dir el mateix.)
 
@@ -66,7 +60,7 @@ Quan una acció de defensa es resol, el defensor tria **a qui protegeix: ell mat
 - **Envoltat**: si **n** cops arriben al mateix personatge aquest torn, cada defensa que el cobreix tira els seus daus **n vegades i es queda la pitjor**, contra cada un d'aquests cops. Compten on arriben de debò: un atac que un bloqueig desvia o que una redirecció canvia compta al cos que el rep, i els cops extra també compten. Una defensa continua cobrint tots els atacs, però no els pot vigilar tots alhora.
 - **Defensa conjunta**: si diverses defenses cobreixen el mateix atac — més d'un defensor defensant el mateix aliat (la defensa pròpia de l'aliat inclosa, si també s'ha defensat) — formen un mur: l'atac es resol contra la **suma** de totes les seves tirades de defensa. Si l'atac supera la suma, el dany (el marge menys l'armadura) el rep el defensor que ha tret la tirada individual més baixa. Si el mur perd per 2 o menys, **tots** els defensors del mur poden pujar de nivell: han fallat junts, aprenen junts.
 
-- **Defenses que es queden** (un mur de pedra, una cúpula): les tira qui les ha aixecat, com una defensa jugada — amb el seu nivell, les seves bonificacions i la seva fatiga, i envoltades com qualsevol altra —, i s'afegeixen a les altres defenses que cobreixen el cop en un mateix mur. Si el cop les penetra, el dany el rep qui protegeixen. Una defensa **ja tirada** (la bardissa d'acer, una trampa) manté el seu total: no es torna a tirar per Envoltat.
+- **Defenses que es queden** (un mur de pedra, una cúpula): les tira qui les ha aixecat, com una defensa jugada — amb les seves bonificacions i la seva fatiga, i envoltades com qualsevol altra —, i s'afegeixen a les altres defenses que cobreixen el cop en un mateix mur. Si el cop les penetra, el dany el rep qui protegeixen. Una defensa **ja tirada** (la bardissa d'acer, una trampa) manté el seu total: no es torna a tirar per Envoltat.
 
 Una defensa no afecta les accions que ja s'han resolt abans (les ràpides).
 
@@ -144,7 +138,7 @@ Qualsevol acció es pot fer servir per superar un repte fora de combat.
 
 El màster posa una dificultat. Qui l'intenta tira:
 
-> **1d20 + els daus de l'acció + el seu nivell d'habilitat**
+> **1d20 + els daus de l'acció**
 
 Igualar-la o superar-la és un èxit. **Sense cap habilitat que hi encaixi, tires
 només el 1d20.** La fatiga hi resta, com a totes les tirades.

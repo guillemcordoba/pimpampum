@@ -1,7 +1,7 @@
 /**
  * ONE CONTEST FOR EVERY BLOW (rulings of 2026-11-01): an extra blow — a
  * counter, a strike again — is rolled and defended like a card's attack
- * (level, roll bonuses, fatigue, Envoltat, walls, the defenders' cards), but
+ * (roll bonuses, fatigue, Envoltat, walls, the defenders' cards), but
  * it is not a card play, so no card's own effects run for it. A total thrown
  * on is contested as it is. A standing wall defends like a live defense and
  * joins any guard into a wall. Envoltat counts the blows that LAND, extra
@@ -29,14 +29,14 @@ function registry(extraBlow: (ctx: Parameters<NonNullable<Parameters<EffectRegis
 }
 
 describe('an extra blow', () => {
-  it('carries the skill level and fatigue, like the card attack', () => {
-    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL }));
-    const a = fighter('A', [attackCard('hit', { dice: one(), effects: [{ type: 'strike_again' }] })], { level: 3, fatigue: 1 });
+  it('carries its roll bonus and fatigue, and no level, like the card attack', () => {
+    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL, rollBonus: 4 }));
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 4, effects: [{ type: 'strike_again' }] })], { level: 3, fatigue: 1 });
     const t = fighter('T', [focusCard()], { pv: 100 });
     const e = new CombatEngine([a], [t], { registry: r });
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }]);
-    // Each blow: 1 + level 3 − fatigue 1 = 3, undefended.
-    expect(t.currentPV).toBe(100 - 3 - 3);
+    // Each blow: 1 + 4 − fatigue 1 = 4, undefended; level 3 adds nothing.
+    expect(t.currentPV).toBe(100 - 4 - 4);
   });
 
   it('thrown on as a total, is contested as it is: no term added', () => {
@@ -45,7 +45,8 @@ describe('an extra blow', () => {
     const t = fighter('T', [focusCard()], { pv: 100 });
     const e = new CombatEngine([a], [t], { registry: r });
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }]);
-    expect(t.currentPV).toBe(100 - (1 + 3 - 2) - 7);
+    // The card's blow: 1 − fatigue 2, floored at 0; the total thrown on: 7.
+    expect(t.currentPV).toBe(100 - 0 - 7);
   });
 
   it('runs no card\'s own effects: a strike again that hits does not strike again', () => {
@@ -102,7 +103,7 @@ describe('a standing wall', () => {
     expect(h.currentPV).toBe(30);
   });
 
-  it('alone, is rolled by its caster with the caster\'s level, and a breach lands on its holder', () => {
+  it('alone, is rolled by its caster (no level), and a breach lands on its holder', () => {
     broken.length = 0;
     const caster = fighter('C', [focusCard()], { pv: 30, level: 2 });
     const h = fighter('H', [focusCard()], { pv: 30 });
@@ -110,18 +111,18 @@ describe('a standing wall', () => {
     const e = new CombatEngine([caster, h], [a], { registry: registry() });
     h.setStatus('mur', 1, -1, { caster }, WALL);
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0 }, { team: 0, idx: 1, actionIdx: 0 }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }]);
-    // 16 against 1 + 9 + level 2 = 12: a breach of 4, on H, the wall told first.
-    expect(h.currentPV).toBe(26);
+    // 16 against 1 + 9 = 10 (the caster's level 2 adds nothing): a breach of 6, on H, the wall told first.
+    expect(h.currentPV).toBe(24);
     expect(caster.currentPV).toBe(30);
     expect(broken).toEqual(['H']);
   });
 });
 
 describe('a roll that is not a blow (contestRoll)', () => {
-  it('adds the roll bonus, the skill\'s bonuses and fatigue, and the level', () => {
+  it('adds the roll bonus, the skill\'s bonuses and fatigue — no level', () => {
     const c = fighter('C', [focusCard()], { level: 2, fatigue: 1 });
     const e = new CombatEngine([c], [fighter('X', [focusCard()])], { registry: registry() });
     expect(e.contestRoll(c, one(), { kind: 'attack', skillId: TEST_SKILL, rollBonus: 3 }))
-      .toEqual({ roll: 1, bonus: 3 - 1 + 2, total: 5 });
+      .toEqual({ roll: 1, bonus: 3 - 1, total: 3 });
   });
 });

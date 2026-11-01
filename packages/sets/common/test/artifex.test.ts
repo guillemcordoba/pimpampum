@@ -3,9 +3,8 @@
  * scripted choices and flat dice (`n`d1 + bonus), so every number is exact.
  * The card's description is the contract (CLAUDE.md).
  *
- * The artificer sits at Artífex 5 with every card unlocked at 0: its own card
- * plays add the 5, its gadgets acting on their own do not — which is the
- * Corda rule, and is checked on every gadget below.
+ * The artificer sits at Artífex 5 with every card unlocked at 0, and no roll
+ * adds the 5 (a level enters no roll, rules.md): checked on every card below.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -55,10 +54,10 @@ describe('Artífex', () => {
     const foe = fighter('Foe', [wait], { pv: 40 });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    // 2 + 5, then 2.
-    expect(foe.currentPV).toBe(31);
+    // 2, then 2.
+    expect(foe.currentPV).toBe(36);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(31);
+    expect(foe.currentPV).toBe(36);
   });
 
   it('Parany de molla: waits at an ally\'s feet; the first attack on them faces it and costs the attacker 3 PV', () => {
@@ -69,13 +68,13 @@ describe('Artífex', () => {
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
     expect(ally.currentPV).toBe(30);
     expect(foe.currentPV).toBe(30);
-    // A round later: 12 against the trap's 3 + 5 → 4; the attacker loses 3.
+    // A round later: 12 against the trap's 3 → 9; the attacker loses 3.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
-    expect(ally.currentPV).toBe(26);
+    expect(ally.currentPV).toBe(21);
     expect(foe.currentPV).toBe(27);
     // Sprung: the next one lands whole.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
-    expect(ally.currentPV).toBe(14);
+    expect(ally.currentPV).toBe(9);
     expect(foe.currentPV).toBe(27);
   });
 
@@ -84,7 +83,7 @@ describe('Artífex', () => {
     const ally = fighter('Amic', [wait], { pv: 30 });
     const foe = fighter('Foe', [blow(12)], { pv: 30 });
     playRound(engineFor([me, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(26);
+    expect(ally.currentPV).toBe(21);
     expect(foe.currentPV).toBe(27);
     expect(me.currentPV).toBe(60);
   });
@@ -126,9 +125,9 @@ describe('Artífex', () => {
     playRound(engineFor([me, a, b], [sweeper, striker]), [
       sel(0, 0, 0, T(0, 0)), sel(0, 1, 0), sel(0, 2, 0), sel(1, 0, 0), sel(1, 1, 0, T(0, 1)),
     ]);
-    // The sweep (10) meets the umbrella's 1 + 5 on each of the three: 4 each,
+    // The sweep (10) meets the umbrella's 1 on each of the three: 9 each,
     // all taken by its holder. The single blow on A finds A alone.
-    expect(me.currentPV).toBe(48);
+    expect(me.currentPV).toBe(33);
     expect(a.currentPV).toBe(20);
     expect(b.currentPV).toBe(30);
   });
@@ -144,8 +143,8 @@ describe('Artífex', () => {
     const ally2 = fighter('Amic', [wait], { pv: 30 });
     const f3 = fighter('F3', [blow(10)], { pv: 30 });
     playRound(engineFor([me2, ally2], [f3]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 0))]);
-    // On the artificer: its own 2d6 (here 1) + 5 guards it.
-    expect(me2.currentPV).toBe(56);
+    // On the artificer: its own 2d6 (here 1) guards it.
+    expect(me2.currentPV).toBe(51);
   });
 
   it('Ballesta sentinella: Corda 3 — a bolt just before each of its cards, the dice alone; a wound cancels a Focus', () => {
@@ -177,12 +176,12 @@ describe('Artífex', () => {
     const foe = fighter('Foe', [wait, guard(100, true)], { pv: 40, equipment: [armour(2)] });
     const e = engineFor([me], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    // 2 + 5, armour ignored; then 2 at the round's end.
-    expect(foe.currentPV).toBe(31);
+    // 2, armour ignored; then 2 at the round's end.
+    expect(foe.currentPV).toBe(36);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 1, T(1, 0))]);
-    expect(foe.currentPV).toBe(29);
+    expect(foe.currentPV).toBe(34);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(29);
+    expect(foe.currentPV).toBe(34);
   });
 
   it('Trepant incansable: a drill that does not wound does not stick, and pulls the old one out', () => {
@@ -193,7 +192,7 @@ describe('Artífex', () => {
     expect(foe.statuses.size).toBe(1);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
     expect(foe.statuses.size).toBe(0);
-    expect(foe.currentPV).toBe(31);
+    expect(foe.currentPV).toBe(36);
   });
 
   it('Baldufa de ganivets: every enemy; then 2 dice and 1 die at the next round ends, one roll each; +1 fatigue', () => {
@@ -203,12 +202,12 @@ describe('Artífex', () => {
     const e = engineFor([me], [x, y]);
     // The maker's fatigue (1, the card's own) is on every gadget roll: −1 a blow.
     playRound(e, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
+    expect([x.currentPV, y.currentPV]).toEqual([36, 36]);
     expect(me.fatigue).toBe(1);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
+    expect([x.currentPV, y.currentPV]).toEqual([36, 36]);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([x.currentPV, y.currentPV]).toEqual([31, 31]);
+    expect([x.currentPV, y.currentPV]).toEqual([36, 36]);
   });
 
   it('Colós de butxaca: attacks on you meet its defense instead of yours, an area attack once; at 0 it falls on an enemy; +2 fatigue', () => {
@@ -237,16 +236,16 @@ describe('Artífex', () => {
     const foe = fighter('Foe', [wait, guard(100, true)], { pv: 60 });
     const e = engineFor([me, friend], [foe]);
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0)]);
-    // 3 + 5, then the squeeze 4 − the maker's fatigue 2 (on every gadget roll).
-    expect(foe.currentPV).toBe(50);
+    // 3, then the squeeze 4 − the maker's fatigue 2 (on every gadget roll).
+    expect(foe.currentPV).toBe(55);
     expect(me.fatigue).toBe(2);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
     // Its guard does not count: 5, then 5 − 2.
-    expect(foe.currentPV).toBe(42);
+    expect(foe.currentPV).toBe(47);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(38);
+    expect(foe.currentPV).toBe(43);
     // Uncoiled: the guard holds again.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
-    expect(foe.currentPV).toBe(38);
+    expect(foe.currentPV).toBe(43);
   });
 });

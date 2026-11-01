@@ -17,7 +17,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── dice.ts               # DiceRoll, diceDistribution/expectedExcess (the engine's exact totals, floors included)
 │   │   ├── rng.ts                # random(), seededRng, withSeed — the only randomness
 │   │   ├── types.ts              # ActionType, ActionDefinition, EquipmentDefinition, TargetRequirement
-│   │   ├── resolution.ts         # resolveAttack (margin), resolveDamage, checkSkillUp, skillLevelBonus
+│   │   ├── resolution.ts         # resolveAttack (margin), resolveDamage, checkSkillUp
 │   │   ├── fatigue.ts            # FATIGUE_MAX_LEVEL, level names, the −1/level roll penalty
 │   │   ├── effects.ts            # EffectRegistry, EffectHandler, EffectContext, EngineApi, AttackModifiers
 │   │   ├── status.ts             # StatusBehavior, StatusRef, StatusHookContext
@@ -240,7 +240,7 @@ engine contests a `Blow`: who strikes, the roll, the skill and roll bonus, a
 label, and the card it comes from when there is one. A card's attack is a blow
 with its card, so the card's effects fire; an extra blow
 (`performExtraAttack`/`performAreaAttack`: counters, strikes again, rams) is a
-blow with no card, so every rule of an attack applies — level, roll bonuses,
+blow with no card, so every rule of an attack applies — roll bonuses,
 fatigue, Envoltat, walls, standing walls, absorbing guards, statuses and the
 defenders' cards — and no card's own effects run. A number for `dice` is a
 total thrown on, contested as it is; `opts.roll` is dice already rolled. What a
@@ -338,27 +338,19 @@ Mestre del xi's `numbing_strike`…`sleep_storm`,
 
 ## Mechanics detail
 
-### The roll (2026-09-20)
+### The roll (2026-11-01)
 
-**A roll is the card's dice plus the actor's level in that card's skill.**
-`skillLevelBonus` in `resolution.ts` is the only place a level enters a roll,
-and all four contest sites in `combat.ts` go through it.
+**A roll is the card's dice plus its roll bonuses, minus fatigue — no level.**
+A level only gates which cards a character knows (`unlockLevel`); it enters no
+roll, in a fight or out of one (`rules.md`). A stronger character is stronger
+through more cards and the later, stronger cards the ordinal unlocks, so an
+enemy's level is a danger dial only as far as its kit ramps.
 
-Both sides add their own, so equal levels cancel exactly and a same-level
-contest is arithmetically identical to one with no bonus. It only speaks when
-the two sides are unevenly trained — which is what makes an enemy's level a real
-danger dial rather than a count of how many cards it holds, and it raises damage
-per round WITHOUT adding PV, which is the property the duration constraint needs.
-
-It replaced **mestratge**, which added `level − the card's unlock level`: old
-cards stayed relevant because what they gained in mastery offset their smaller
-dice. Removed by design decision, not by measurement. `unlockLevel` still gates
-which cards a level unlocks — it simply no longer enters a roll. Note
-`Rugit de guerra` always rolled the FULL level for its own contest, so the
-engine is now consistent with the one card that said so on its face.
-
-**This re-bases every balance number in the repo** — every roll moved, by more
-on late-unlock cards than early ones.
+History: mestratge added `level − the card's unlock level` (until 2026-09-20),
+then every roll added the full level (until 2026-11-01). Both were dropped by
+design decision. `skillLevelBonus` survives only for the pinned calibration
+copies, which import it; it goes when they are re-pinned. **This re-bases every
+balance number in the repo**, by more on high-level fights than low ones.
 
 **Defense.** At resolution — after every attack has aimed — the defender picks
 **itself or one ally** (guard: attacks on that ally also resolve against the

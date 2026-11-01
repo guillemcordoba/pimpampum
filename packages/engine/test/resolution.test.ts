@@ -33,9 +33,7 @@ describe('an attack contest', () => {
     }));
   });
 
-  it('equal training cancels: adding the same level to both sides changes nothing', () => {
-    // A roll is dice + level, on BOTH sides, so a same-level contest is
-    // arithmetically identical to one with no bonus at all (CLAUDE.md).
+  it('only the difference counts: the same bonus on both sides changes nothing', () => {
     fc.assert(fc.property(total, total, fc.integer({ min: 0, max: 20 }), (a, d, k) => {
       expect(resolveAttack(a + k, d + k)).toEqual(resolveAttack(a, d));
     }));

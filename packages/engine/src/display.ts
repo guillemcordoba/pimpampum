@@ -53,7 +53,7 @@ export const RULES_SUMMARY: RulesSection[] = [
     title: 'Tirada',
     icon: STAT_ICONS.attack,
     type: 'text',
-    text: 'Daus de la carta + el teu nivell en la seva habilitat.',
+    text: 'Daus de la carta. El nivell només diu quines cartes coneixes.',
   },
   {
     title: 'Atac',

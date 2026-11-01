@@ -1,6 +1,6 @@
 import {
   ActionDefinition, ActionType, Character, DiceRoll, EffectContext, EffectHandler, EngineApi, StatusBehavior,
-  StatusEntry, StatusHookContext, random, skillLevelBonus,
+  StatusEntry, StatusHookContext, random,
 } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num } from '../effects/helpers.js';
@@ -122,7 +122,7 @@ const PARANY: StatusBehavior = {
     if (ctx.entry.data!['sprung'] !== undefined) return;
     ctx.entry.data!['sprung'] = blow.id;
     const total = Math.max(0, ctx.engine.rollDiceFor(maker, card.dice, 'defense') + (card.rollBonus ?? 0)
-      + skillLevelBonus(maker, card) + maker.getRollBonus(card.skillId, 'defense'));
+      + maker.getRollBonus(card.skillId, 'defense'));
     ctx.holder.guards.push({ defender: ctx.holder, action: asGadget(card), fixedTotal: total });
     ctx.engine.log('defense', `El parany de molla salta als peus de ${ctx.holder.name} (${total}).`, ctx.holder.team);
   },
@@ -459,7 +459,7 @@ const ARTIFEX_EFFECTS: Record<string, EffectHandler> = {
 
 export const ARTIFEX: SkillDefinition = {
   id: 'artifex', displayName: 'Artífex', classCss: 'artifex', category: 'player',
-  description: "Corda N: la carta es queda a la taula amb un dau a N. Cada cop que el giny actua (amb els daus de la carta, sense el teu nivell), el dau baixa 1, també amb l'atac que fa en jugar-la, si és un Atac; a 0, s'atura. Tornar-la a jugar li torna la corda. Els ginys actuen al final del torn, tret que la carta digui quan.",
+  description: "Corda N: la carta es queda a la taula amb un dau a N. Cada cop que el giny actua (amb els daus de la carta), el dau baixa 1, també amb l'atac que fa en jugar-la, si és un Atac; a 0, s'atura. Tornar-la a jugar li torna la corda. Els ginys actuen al final del torn, tret que la carta digui quan.",
   iconPath: ICON_PREFIX + 'lorc/clockwork.svg',
   actions: [
     action({

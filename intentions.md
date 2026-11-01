@@ -75,9 +75,8 @@ Balance levers that maintain the triangle (being tuned via simulation):
 
 ## Out-of-combat challenges
 
-- **`1d20 + the action's dice + skill level` vs a DM difficulty**, meet-or-beat. Card dice alone can't carry these checks: they're calibrated to contest *other cards*, both sides around 7, and a world difficulty is not another card. The d20 sets the scale; the card and level are what training buys on it.
+- **`1d20 + the action's dice` vs a DM difficulty**, meet-or-beat. Card dice alone can't carry these checks: they're calibrated to contest *other cards*, both sides around 7, and a world difficulty is not another card. The d20 sets the scale; the card is what training buys on it. A level adds nothing to a roll, here or in a fight (2026-11-01): a skill helps through the cards it knows.
 - **Anyone may attempt anything** — no fitting skill, bare d20 (~55% at difficulty 10, 5% at 20, never at 25). A skill is not permission to try, it's what makes you good. Hence no Perception or Investigation skill, ever.
-- **Skill level lands flat here, not as mestratge.** Against the world there's no opposing mestratge to cancel against.
 - **The margin is the payload**, as in combat. Never a bare yes/no.
 - **Failing by 1 or 2 teaches, including from zero** — the one case a fight can't produce, since in combat you only play cards you know.
 - **Reward invention by lowering the difficulty**, never with a bonus: nothing to price, nothing to argue about.

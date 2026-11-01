@@ -34,7 +34,7 @@ export function expectedBlow(c: Character): number {
   let best = 0;
   for (const a of c.actions) {
     if (a.def.actionType !== ActionType.Atac) continue;
-    const t = (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0) + c.getRollBonus(a.def.skillId, 'attack') + c.getSkillLevel(a.def.skillId);
+    const t = (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0) + c.getRollBonus(a.def.skillId, 'attack');
     best = Math.max(best, t);
   }
   return best;
@@ -144,7 +144,7 @@ const WARD: StatusBehavior = {
 };
 
 /** A standing wall before the holder: `data.caster` defends every blow on
- *  the holder with `data.dice` (+ `data.rollBonus`, `data.skillId`'s level),
+ *  the holder with `data.dice` (+ `data.rollBonus`, `data.skillId`'s roll bonuses),
  *  like a live defense, joined to any guard. With `data.life`, a breach is
  *  soaked by the wall until its life runs out. */
 const STANDING_WALL: StatusBehavior = {
@@ -172,7 +172,7 @@ const STANDING_WALL: StatusBehavior = {
     const caster = d['caster'] as Character | undefined;
     if (!caster) return 0;
     const defense = ((d['dice'] as DiceRoll | undefined)?.average() ?? 0) + ((d['rollBonus'] as number | undefined) ?? 0)
-      + caster.getSkillLevel((d['skillId'] as string | undefined) ?? '');
+      + caster.getRollBonus((d['skillId'] as string | undefined) ?? '', 'defense');
     return Math.min(defense / health(ref.holder), threatOn(ref.holder, board)) * turnsLeft(ref);
   },
 };

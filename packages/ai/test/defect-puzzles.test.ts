@@ -6,8 +6,8 @@
  * Every puzzle is asserted TWICE: the referee (`audit/referee.ts`, a Nash
  * solver that plays the fight to its real end) must agree with the arithmetic
  * — that is what keeps the puzzle honest — and then the production AI must
- * find the same play. Dice are fixed (`Nd1` always rolls N) and levels are 0,
- * so the arithmetic in each comment is exact.
+ * find the same play. Dice are fixed (`Nd1` always rolls N), so the
+ * arithmetic in each comment is exact.
  *
  * A puzzle the AI still fails is `it.fails`: the fast tier stays green while
  * the defect is open, and the day the AI is fixed the `.fails` turns red and

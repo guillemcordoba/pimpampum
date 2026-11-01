@@ -3,8 +3,7 @@
  * strips the holder's cards to their dice, a hook on every PV lost, a blow
  * that hurts nobody, a target that must have fallen, a penalty on every attack
  * the holder rolls and a modifier's inert payload. Each is generic and content-free; each test wires a minimal inline
- * effect or behaviour. `1d1` dice always roll 1 and level 0 adds nothing, so
- * every number is exact.
+ * effect or behaviour. `1d1` dice always roll 1, so every number is exact.
  */
 import { describe, it, expect } from 'vitest';
 import { CombatEngine, CombatModifier, DiceRoll, EffectRegistry, ModifierDuration, firstLegalChooser, type StatusBehavior } from '../src/index.js';

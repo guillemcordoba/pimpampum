@@ -2,8 +2,8 @@
  * The duel seams: openings, weak spots, taunts, a blow that parries, a card
  * that aims at the reveal — and the extra attack that reports how it went.
  * Each is generic and content-free; each test wires a minimal inline effect or
- * behaviour against the seam. `1d1` dice always roll 1 and level 0 adds
- * nothing, so every number is exact.
+ * behaviour against the seam. `1d1` dice always roll 1, so every number is
+ * exact.
  */
 import { describe, it, expect } from 'vitest';
 import {

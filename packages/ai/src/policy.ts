@@ -15,7 +15,7 @@
 import {
   Character, ActionInstance, ActionDefinition, ActionType, TargetRequirement,
   EffectRegistry, AIContext, AIView, PlannedAction, PendingSummary, DiceRoll, expectedExcess,
-  skillLevelBonus, random, availableActionIndices, getActionTargetCount, orderKey,
+  random, availableActionIndices, getActionTargetCount, orderKey,
 } from '@pimpampum/engine';
 
 /** Fraction of a character's PV remaining (0..1). */
@@ -33,7 +33,7 @@ function pvFraction(c: Character): number {
  * EXPORTED so it can be differentially tested against the blow the engine
  * actually throws (`ai/test/model.test.ts`). It is a PREDICTION, the engine is
  * ground truth for it, and two of the three AI bugs this project has ever found
- * lived right here — the missing `skillLevelBonus` below, and the AoE scaling
+ * lived right here — a missing skill level in `attackParts`, and the AoE scaling
  * in `estimateExpectedDamage`. Neither is findable from a winrate.
  */
 export function expectedAttackTotal(actor: Character, def: ActionDefinition): number {
@@ -48,8 +48,8 @@ export function expectedAttackTotal(actor: Character, def: ActionDefinition): nu
  * `flat` is everything the engine adds around the dice at the contest site:
  * the action's roll bonus, the actor's equipment roll bonuses, the best weapon
  * modifier (an estimate — content effects decide whether the weapon actually
- * applies), and `skillLevelBonus`, which is part of every roll the engine makes
- * and whose absence here once had the AI pricing a level-5 2d6 attack at ~7
+ * applies). A term the engine adds and this misses goes unseen by every
+ * winrate: a missing skill level once had the AI pricing a 2d6 attack at ~7
  * when the engine threw ~12.
  */
 function attackParts(actor: Character, def: ActionDefinition): { dice: DiceRoll | undefined; flat: number } {
@@ -57,7 +57,7 @@ function attackParts(actor: Character, def: ActionDefinition): { dice: DiceRoll 
   return {
     dice: def.dice,
     flat: (def.rollBonus ?? 0) + weapon
-      + actor.getRollBonus(def.skillId, 'attack') + skillLevelBonus(actor, def),
+      + actor.getRollBonus(def.skillId, 'attack'),
   };
 }
 
@@ -79,7 +79,7 @@ function bestDefenseParts(e: Character): { dice: DiceRoll | undefined; flat: num
   for (const a of e.actions) {
     if (a.def.actionType !== ActionType.Defensa) continue;
     const flat = (a.def.rollBonus ?? 0)
-      + e.getRollBonus(a.def.skillId, 'defense') + skillLevelBonus(e, a.def);
+      + e.getRollBonus(a.def.skillId, 'defense');
     const avg = (a.def.dice?.average() ?? 0) + flat;
     if (avg > bestAvg) { bestAvg = avg; best = { dice: a.def.dice, flat }; }
   }
@@ -445,7 +445,7 @@ export function pickResolveTargets(
     const armour = e.getPassiveArmor();
     if (!wall.length) return expectedExcess(atk.dice, atk.flat, undefined, 0, armour);
     const flatOf = (g: typeof wall[number]): number => (g.action.rollBonus ?? 0)
-      + g.defender.getRollBonus(g.action.skillId, 'defense') + skillLevelBonus(g.defender, g.action);
+      + g.defender.getRollBonus(g.action.skillId, 'defense');
     const [first, ...rest] = wall;
     const others = rest.reduce((s, g) => s + (g.fixedTotal ?? (g.action.dice?.average() ?? 0) + flatOf(g)), 0);
     return first.fixedTotal !== undefined

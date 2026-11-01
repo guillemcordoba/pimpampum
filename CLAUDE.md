@@ -45,14 +45,14 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 
 - **PV** is the only base stat; players default to 12. Enemies carry none: the encounter balancer solves it (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
 - **An action** belongs to a skill, has a type (Atac / Defensa / Focus), dice, and rarely the **fast** keyword. It costs no fatigue unless its text says so.
-- **The roll** = the card's dice + the level in its skill (`skillLevelBonus`, the only place a level enters a roll); `unlockLevel` only gates. Mestratge was removed on purpose: don't reintroduce it.
+- **The roll** = the card's dice + roll bonuses − fatigue. **A level enters no roll** (2026-11-01), in combat or out: it only gates which cards a character knows (mestratge, then the flat level, were removed by design decision).
 - **Attack**: one contested roll against the defense; ties hold for the defense; damage = margin − armour; an undefended target takes the whole total. AoE: one roll, each target defends against it separately.
 - **Defense** guards the defender or one ally, chosen when it resolves; defenses covering one attack sum into a wall. **Envoltat**: a body n attacks aim at this round has each defense covering it roll n times and keep the worst. No generic enemy block (a few interim cards block through their own 'enemy' target). Every defense card should pay off when it blocks.
 - **Focus**: usually slow; cancelled if the actor takes damage first (armour-absorbed hits don't count).
 - **Priority, no speed**: a fast step (Defense → Attack → Focus), then Defense → Attack → Focus. Attacks aim at the reveal. Inside a step people resolve in commit order, AI seats at random. `ActionDefinition.fast` and `StatusBehavior.fast` are the only order seams.
 - **Skill level-up**: the loser of a contested roll by ≤ `SKILL_UP_MARGIN` (2) learns the skill's next action; a tie counts as the attacker losing by 0; undefended hits never teach.
 - **Fatigue**: levels 0-5, −1 per level on every roll; the engine never raises it, only a card's text or the DM; enemies never carry it; it persists until `Character.rest()`. Everyone always holds **Cop desesperat**.
-- **Out of combat**: 1d20 + the action's dice + skill level against a DM difficulty (5–25), meet-or-beat; no skill rolls the bare d20; failing by ≤ 2 levels the skill, from zero too.
+- **Out of combat**: 1d20 + the action's dice against a DM difficulty (5–25), meet-or-beat; no skill rolls the bare d20; failing by ≤ 2 levels the skill, from zero too.
 - **Equipment**: armor / weapon / shield slots. Weapons give a flat `attackBonus`; armour is a small lever (cuir +2, ferro +3).
 - **Balance principle**: a fight is fair when both teams have a similar total skill-level sum.
 

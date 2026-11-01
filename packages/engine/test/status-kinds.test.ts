@@ -83,8 +83,8 @@ describe('the status kinds', () => {
     applyKind(h, 'standingWall', 'mur', 1, -1, { caster, dice: one(), skillId: TEST_SKILL, rollBonus: 4, life: 3 });
     expect(price(e, h, 'mur')).toBeGreaterThan(0);
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0 }, { team: 0, idx: 1, actionIdx: 0 }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }]);
-    // 10 against 1 + 4 + level 1 = 6: a breach of 4, 3 soaked by the wall.
-    expect(h.currentPV).toBe(29);
+    // 10 against 1 + 4 = 5 (no level): a breach of 5, 3 soaked by the wall.
+    expect(h.currentPV).toBe(28);
     expect(h.statuses.has('mur')).toBe(false);
   });
 

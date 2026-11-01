@@ -33,21 +33,10 @@ function defenseDef(id = 'block', opts: Partial<ActionDefinition> = {}): ActionD
 }
 
 function makeChar(name: string, pv: number, actions: ActionDefinition[]): Character {
-  // SKILL LEVEL 0, AND EVERY FIXTURE CARD AT `unlockLevel: 0`.
-  //
-  // A roll is the card's dice plus the actor's level in its skill, so any level
-  // here would land on every assertion in this file — and these tests measure
-  // what a CARD does, exactly, with 1d1 dice. The level is a separate mechanic
-  // with its own tests.
-  //
-  // `unlockLevel: 0` is what makes level 0 workable: it is the engine's
-  // documented "this card needs no skill" convention (types.ts), and without it
-  // the unlock gate (`level >= unlockLevel`) would make every fixture card
+  // SKILL LEVEL 0, AND EVERY FIXTURE CARD AT `unlockLevel: 0`: the engine's
+  // documented "this card needs no skill" convention (types.ts); without it the
+  // unlock gate (`level >= unlockLevel`) would make every fixture card
   // unplayable.
-  //
-  // These tests were written before a level entered a roll at all, and had been
-  // failing since mestratge arrived — 15 of them off by exactly the fixture's
-  // level, for however long that was.
   return createCharacter({ name, classCss: 'test', pv, skills: { test: 0 }, actions });
 }
 
@@ -919,14 +908,14 @@ describe('round-two seams for the elements kits', () => {
   });
 
   it('onHolderAttackHit: each blow of the holder, with its damage after armour and its card', () => {
-    const seen: [string, number, string][] = [];
+    const seen: [string, number, string | undefined][] = [];
     const registry = new EffectRegistry();
     const a = makeChar('A', 20, [atkDef('sweep', { dice: new DiceRoll(1, 1), rollBonus: 3, targetCount: 99 })]);
     const b = makeChar('B', 20, [focusDef('wait')]);
     const c = makeChar('C', 20, [focusDef('wait')]);
     c.getPassiveArmor = () => 10;
     const engine = new CombatEngine([a], [b, c], { registry, actionChooser: firstLegalChooser });
-    a.setStatus('watch', 1, -1, undefined, { onHolderAttackHit(_ctx, t, dmg, action) { seen.push([t.name, dmg, action.id]); } });
+    a.setStatus('watch', 1, -1, undefined, { onHolderAttackHit(_ctx, t, dmg, action) { seen.push([t.name, dmg, action?.id]); } });
     runRound(engine, [{ idx: 0, actionIdx: 0 }]);
     expect(seen).toEqual([['B', 4, 'sweep'], ['C', 0, 'sweep']]);
   });

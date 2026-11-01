@@ -203,7 +203,7 @@ interface Blow {
   attacker: Character;
   /** The card the blow comes from — none for an extra blow. */
   card?: ActionDefinition;
-  /** The skill it is rolled with: its level and roll bonuses; who learns. */
+  /** The skill it is rolled with: its roll bonuses; who learns. */
   skillId: string;
   rollBonus: number;
   /** The dice, already rolled (one roll per pass of an attack). */
@@ -689,11 +689,11 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   /** A roll that is not a blow (`EngineApi.contestRoll`): the dice, the
-   *  roll bonus, the skill's roll bonuses and fatigue, and its level. */
+   *  roll bonus, the skill's roll bonuses and fatigue. */
   contestRoll(c: Character, dice: DiceRoll | undefined, opts: { kind: ContestKind; skillId?: string; rollBonus?: number }): { roll: number; bonus: number; total: number } {
     const roll = this.rollDiceFor(c, dice, opts.kind);
     const skill = opts.skillId ?? '';
-    const bonus = (opts.rollBonus ?? 0) + c.getRollBonus(skill, opts.kind === 'save' ? undefined : opts.kind) + c.getSkillLevel(skill);
+    const bonus = (opts.rollBonus ?? 0) + c.getRollBonus(skill, opts.kind === 'save' ? undefined : opts.kind);
     return { roll, bonus, total: Math.max(0, roll + bonus) };
   }
 
@@ -818,7 +818,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (d.fixedTotal !== undefined) return { roll: d.fixedTotal, bonus: 0 };
     let roll = this.rollDiceFor(d.defender, d.dice, 'defense');
     for (let k = 1; k < rolls; k++) roll = Math.min(roll, this.rollDiceFor(d.defender, d.dice, 'defense'));
-    return { roll, bonus: d.rollBonus + d.defender.getRollBonus(d.skillId, 'defense') + d.defender.getSkillLevel(d.skillId) };
+    return { roll, bonus: d.rollBonus + d.defender.getRollBonus(d.skillId, 'defense') };
   }
 
   addCombatant(team: number, c: Character): void {
@@ -1941,7 +1941,7 @@ export class CombatEngine implements EngineApi, AIView {
     let extraDice = 0;
     for (const d of mods.extraDamageDice) extraDice += d.roll();
     const atkBonus = blow.fixed ? 0 : blow.rollBonus + mods.rollBonus
-      + source.getRollBonus(blow.skillId, 'attack') + source.getSkillLevel(blow.skillId)
+      + source.getRollBonus(blow.skillId, 'attack')
       + this.attackRollBonusAgainst(target) + this.attackRollBonusOf(source);
     // Status multipliers (attack chains) scale the whole attack total — which
     // is also the damage basis.
@@ -2096,7 +2096,7 @@ export class CombatEngine implements EngineApi, AIView {
   private rollWall(source: Character, wall: Defense[], attackTotal: number, defenseRolls: number): { adjustedAttacker: number; sum: number; weak: { d: Defense; total: number }; detail: string } {
     // An ABSORBING member (absorbsGuard: takes the blow, rolls nothing) adds
     // nothing to the wall and is the one hit if it breaks. Rolled like any
-    // other member, a no-roll defense used to lend the wall its skill level
+    // other member, a no-roll defense used to lend the wall its roll bonuses
     // and, behind a wall that held, never took the blow it exists to take.
     const rolls = wall.map(d => {
       if (this.absorbs(d)) return { d, total: 0, absorbing: true };

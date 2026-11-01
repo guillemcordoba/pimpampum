@@ -204,9 +204,9 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
       if (!t || !ctx.action.dice) return;
       const skillId = ctx.action.skillId;
       const roll = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'attack');
-      // A total rolled here, so its terms are added here: the weapon and the level.
+      // A total rolled here, so its terms are added here: the weapon and the roll bonuses.
       const total = Math.max(0, roll + (ctx.action.rollBonus ?? 0) + (wieldedWeaponBonus(ctx.source) ?? 0)
-        + ctx.source.getSkillLevel(skillId) + ctx.source.getRollBonus(skillId, 'attack'));
+        + ctx.source.getRollBonus(skillId, 'attack'));
       ctx.source.setStatus(HEDGE_KEY, roll, 1, { round: ctx.engine.round });
       ctx.source.guards.push({ defender: ctx.source, action: ctx.action, fixedTotal: total, onlyAgainst: t });
       ctx.engine.log('defense', `${ctx.source.name} alça una bardissa d'acer contra ${t.name} (${total}).`, ctx.source.team);

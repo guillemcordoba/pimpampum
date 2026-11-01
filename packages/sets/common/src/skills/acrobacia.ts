@@ -191,12 +191,12 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
       const heights = heightsOf(ctx.params);
       const me = ctx.source;
       const base = (ctx.action.dice?.average() ?? 0) + (ctx.action.rollBonus ?? 0)
-        + me.getSkillLevel(ctx.action.skillId) + me.getRollBonus(ctx.action.skillId, 'attack');
+        + me.getRollBonus(ctx.action.skillId, 'attack');
       const plan = ctx.engine.plannedThisRound();
       let need = Infinity;
       for (const e of ctx.engine.enemiesOf(me)) {
         const guard = plan.find(p => p.actor === e && !p.cancelled && p.action.actionType === ActionType.Defensa);
-        const parry = guard ? (guard.action.dice?.average() ?? 0) + (guard.action.rollBonus ?? 0) + e.getSkillLevel(guard.action.skillId) : 0;
+        const parry = guard ? (guard.action.dice?.average() ?? 0) + (guard.action.rollBonus ?? 0) + e.getRollBonus(guard.action.skillId, 'defense') : 0;
         need = Math.min(need, e.currentPV + e.getPassiveArmor() + parry);
       }
       const i = heights.findIndex(h => base + h >= need);

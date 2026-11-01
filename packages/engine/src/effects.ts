@@ -21,7 +21,7 @@ export interface ActionEvent {
  * but it is not a card play: no card's own effects run for it.
  */
 export interface ExtraAttackOptions {
-  /** The skill it is rolled with: its level and its roll bonuses; who learns from a close loss. */
+  /** The skill it is rolled with: its roll bonuses; who learns from a close loss. */
   skillId?: string;
   rollBonus?: number;
   /** The dice already rolled (one roll shared by several blows); every term

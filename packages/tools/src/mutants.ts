@@ -157,7 +157,7 @@ export const MUTANTS: Mutant[] = [
     replace: "    let s = 2 * (1 - pvFraction(e));",
   },
   {
-    label: 'ENGINE wall: a bracing member is rolled like any other (lends its level, dodges the breach)',
+    label: 'ENGINE wall: a bracing member is rolled like any other (lends its roll bonuses, dodges the breach)',
     file: 'packages/engine/src/combat.ts',
     find: '      if (this.absorbs(d)) return { d, total: 0, absorbing: true };',
     replace: '      if (false) return { d, total: 0, absorbing: true };',
