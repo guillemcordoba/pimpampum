@@ -90,7 +90,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 3 · Asfíxia: the chosen enemy, short of breath, has −`amount` on its
+  // 4 · Asfíxia: the chosen enemy, short of breath, has −`amount` on its
   // attacks for the next `turns` rounds.
   'suffocate@cal': {
     getTargetRequirement() { return 'enemy'; },
@@ -104,7 +104,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length ? 0.7 : 0; },
   },
 
-  // 4 · Vent a favor: the chosen ally's card resolves right after this one —
+  // 3 · Vent a favor: the chosen ally's card resolves right after this one —
   // in the fast step, before the normal defenses go up.
   'tailwind@cal': {
     getTargetRequirement() { return 'ally_other'; },
@@ -191,22 +191,22 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/whirlwind.svg',
     }),
     action({
-      id: 'asfixia@cal', name: 'Asfíxia', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'suffocate@cal', params: { amount: 3, turns: 2 } }],
-      desc: "L'enemic que triïs té −3 als atacs els 2 torns següents.",
-      icon: 'delapouite/lungs.svg',
-    }),
-    action({
       id: 'vent-a-favor@cal', name: 'Vent a favor', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus, fast: true,
+      unlock: 3, type: ActionType.Focus, fast: true,
       effects: [{ type: 'tailwind@cal' }],
       desc: "La carta d'un aliat es resol just després d'aquesta.",
       icon: 'lorc/wind-hole.svg',
     }),
     action({
+      id: 'asfixia@cal', name: 'Asfíxia', skillId: SKILL_ID,
+      unlock: 4, type: ActionType.Focus,
+      effects: [{ type: 'suffocate@cal', params: { amount: 3, turns: 2 } }],
+      desc: "L'enemic que triïs té −3 als atacs els 2 torns següents.",
+      icon: 'delapouite/lungs.svg',
+    }),
+    action({
       id: 'fulles-de-vent@cal', name: 'Fulles de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, dice: d(2, 8),
+      unlock: 5, type: ActionType.Atac, dice: d(2, 6, 1),
       effects: [{ type: 'piercing' }],
       desc: "Ignora l'armadura.",
       icon: 'lorc/air-zigzag.svg',

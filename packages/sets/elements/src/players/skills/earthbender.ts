@@ -19,7 +19,7 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
   who.guards.push({ defender, action: ctx.action });
 }
 
-// --- 4 · Túnel --------------------------------------------------------------
+// --- 3 · Túnel --------------------------------------------------------------
 
 /** Out of the tunnel at the foe's feet: the holder's next attack cannot be
  *  defended. Spent by that attack. */
@@ -49,7 +49,7 @@ function golem(maker: Character): Character {
 }
 
 const EARTH_EFFECTS: Record<string, EffectHandler> = {
-  // 3 · Armadura de terra: rock plates on an ally — +`amount` on its defenses
+  // 4 · Armadura de terra: rock plates on an ally — +`amount` on its defenses
   // for the next `turns` rounds.
   earth_armor: {
     getTargetRequirement() { return 'ally'; },
@@ -63,7 +63,7 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // 4 · Túnel: the chosen ally's first attack next round cannot be defended.
+  // 3 · Túnel: the chosen ally's first attack next round cannot be defended.
   tunnel: {
     getTargetRequirement() { return 'ally'; },
     onResolve(ctx) {
@@ -134,18 +134,18 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'delapouite/stone-wall.svg',
     }),
     action({
-      id: 'armadura-de-terra', name: 'Armadura de terra', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'earth_armor', params: { amount: 3, turns: 3 } }],
-      desc: 'Un aliat té +3 a les defenses els 3 torns següents.',
-      icon: 'lorc/armor-vest.svg',
-    }),
-    action({
       id: 'tunel', name: 'Túnel', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus,
+      unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'tunnel' }],
       desc: "El torn següent, el primer atac d'un aliat no es pot defensar.",
       icon: 'delapouite/hole.svg',
+    }),
+    action({
+      id: 'armadura-de-terra', name: 'Armadura de terra', skillId: SKILL_ID,
+      unlock: 4, type: ActionType.Focus,
+      effects: [{ type: 'earth_armor', params: { amount: 3, turns: 3 } }],
+      desc: 'Un aliat té +3 a les defenses els 3 torns següents.',
+      icon: 'lorc/armor-vest.svg',
     }),
     action({
       id: 'trampa-de-terra', name: 'Trampa de terra', skillId: SKILL_ID,

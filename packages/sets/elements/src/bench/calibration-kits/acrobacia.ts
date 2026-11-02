@@ -302,7 +302,7 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'cavalcar-l-enemic@cal', name: "Cavalcar l'enemic", skillId: 'acrobacia@cal',
-      unlock: 6, type: ActionType.Atac, dice: d(2, 8),
+      unlock: 6, type: ActionType.Atac, dice: d(2, 6, 1),
       effects: [{ type: 'ride_enemy@cal' }],
       desc: "Si fereix, l'objectiu no et pot atacar el torn següent.",
       icon: 'delapouite/jump-across.svg',

@@ -20,7 +20,7 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 }
 
 const WATER_EFFECTS: Record<string, EffectHandler> = {
-  // 3 · Font curativa (with the generic `heal`): the healed ally's Cremat
+  // 7 · Font curativa (with the generic `heal`): the healed ally's Cremat
   // goes out too.
   douse: {
     onResolve(ctx) {
@@ -43,7 +43,7 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length ? 0.6 : -1; },
   },
 
-  // 7 · Trampa de gel: the chosen enemy is frozen — it loses its next turn.
+  // 3 · Trampa de gel: the chosen enemy is frozen — it loses its next turn.
   ice_trap: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
@@ -84,11 +84,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/splashy-stream.svg',
     }),
     action({
-      id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus, dice: d(2, 4, 1),
-      effects: [{ type: 'heal' }, { type: 'douse' }],
-      desc: 'Cura un aliat i li apaga Cremat.',
-      icon: 'lorc/heart-drop.svg',
+      id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
+      unlock: 3, type: ActionType.Focus,
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'ice_trap' }],
+      desc: "Puges 1 nivell de fatiga. L'enemic que triïs queda congelat: perd el torn següent.",
+      icon: 'lorc/frozen-block.svg',
     }),
     action({
       id: 'boira', name: 'Boira', skillId: SKILL_ID,
@@ -110,11 +110,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/ice-spear.svg',
     }),
     action({
-      id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus,
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'ice_trap' }],
-      desc: "Puges 1 nivell de fatiga. L'enemic que triïs queda congelat: perd el torn següent.",
-      icon: 'lorc/frozen-block.svg',
+      id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus, dice: d(3, 4, 2),
+      effects: [{ type: 'heal' }, { type: 'douse' }],
+      desc: 'Cura un aliat i li apaga Cremat.',
+      icon: 'lorc/heart-drop.svg',
     }),
     action({
       id: 'forma-de-pop', name: 'Forma de pop', skillId: SKILL_ID,

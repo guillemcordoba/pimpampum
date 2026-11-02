@@ -56,7 +56,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Esclat encegador: every enemy still to attack this round rolls 1d20;
+  // 7 · Esclat encegador: every enemy still to attack this round rolls 1d20;
   // at `below` or less, blinded, its attack misses.
   flare: {
     getTargetRequirement() { return 'none'; },
@@ -107,7 +107,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 7 · Foc interior: +`bonus` on the bender's attacks for the next `turns` rounds.
+  // 3 · Foc interior: +`bonus` on the bender's attacks for the next `turns` rounds.
   inner_blaze: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -164,11 +164,11 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/fire-silhouette.svg',
     }),
     action({
-      id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'flare', params: { below: 8 } }],
-      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 8 o menys, el seu atac falla.",
-      icon: 'lorc/sunbeams.svg',
+      id: 'foc-interior', name: 'Foc interior', skillId: SKILL_ID,
+      unlock: 3, type: ActionType.Focus,
+      effects: [{ type: 'inner_blaze', params: { bonus: 6, turns: 2 } }],
+      desc: 'Els teus atacs tenen +6 els 2 torns següents.',
+      icon: 'lorc/meditation.svg',
     }),
     action({
       id: 'tempesta-d-espurnes', name: "Tempesta d'espurnes", skillId: SKILL_ID,
@@ -192,11 +192,11 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/dragon-breath.svg',
     }),
     action({
-      id: 'foc-interior', name: 'Foc interior', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus,
-      effects: [{ type: 'inner_blaze', params: { bonus: 6, turns: 2 } }],
-      desc: 'Els teus atacs tenen +6 els 2 torns següents.',
-      icon: 'lorc/meditation.svg',
+      id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus, fast: true,
+      effects: [{ type: 'flare', params: { below: 11 } }],
+      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 11 o menys, el seu atac falla.",
+      icon: 'lorc/sunbeams.svg',
     }),
     action({
       id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
