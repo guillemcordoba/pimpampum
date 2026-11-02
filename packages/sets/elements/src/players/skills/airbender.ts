@@ -246,8 +246,8 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'finta-a-contrapeu', name: 'Finta a contrapeu', skillId: SKILL_ID,
       unlock: 6, type: ActionType.Defensa, dice: d(2, 6, 1),
-      effects: [{ type: 'wrong_foot', params: { amount: 3 } }],
-      desc: "Si aguanta, l'atacant té −3 als atacs i a les defenses el torn següent.",
+      effects: [{ type: 'wrong_foot', params: { amount: 6 } }],
+      desc: "Si aguanta, l'atacant té −6 als atacs i a les defenses el torn següent.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({

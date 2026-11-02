@@ -1,4 +1,4 @@
-import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, createCharacter } from '@pimpampum/engine';
+import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, applyKind, createCharacter } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
 import { applyMod, num } from '../effects/helpers.js';
 import { warded } from '../effects/generic.js';
@@ -59,6 +59,20 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
       ctx.engine.log('focus', `Plaques de roca cobreixen ${t.name}: +${amount} a les defenses.`, ctx.source.team);
     },
     aiWeight() { return 0.6; },
+  },
+
+  // 2 · Mur de pedra: the stone stays up — next round it still stands before
+  // whoever it covered, a standing wall with the card's dice.
+  stone_wall: {
+    postRound(ctx) {
+      const dice = ctx.action.dice;
+      const covered = ctx.targets.find(t => t.team === ctx.source.team) ?? ctx.source;
+      if (!dice || !ctx.source.isAlive() || !covered.isAlive()) return;
+      // Set at the round's end: its turn advance takes one, the next round remains.
+      applyKind(covered, 'standingWall', 'mur-de-pedra', 1, 2,
+        { caster: ctx.source, dice, skillId: SKILL_ID, rollBonus: ctx.action.rollBonus ?? 0, name: 'Mur de pedra' });
+    },
+    aiWeight() { return 0.4; },
   },
 
   // 3 · Túnel: next round no attack of the bender's group can be defended.
@@ -126,7 +140,8 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'mur-de-pedra', name: 'Mur de pedra', skillId: SKILL_ID,
       unlock: 2, type: ActionType.Defensa, dice: d(2, 4, 1),
-      desc: '',
+      effects: [{ type: 'stone_wall' }],
+      desc: 'Defensa també el torn següent.',
       icon: 'delapouite/stone-wall.svg',
     }),
     action({
@@ -146,8 +161,8 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'trampa-de-terra', name: 'Trampa de terra', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
-      effects: [{ type: 'lock_on_block', params: { types: [ActionType.Atac], turns: 1 } }],
-      desc: "Si aguanta, l'atacant queda atrapat: el torn següent no pot atacar.",
+      effects: [{ type: 'lock_on_block', params: { types: [ActionType.Atac], turns: 2 } }],
+      desc: "Si aguanta, l'atacant queda atrapat: els 2 torns següents no pot atacar.",
       icon: 'lorc/stone-crafting.svg',
     }),
     action({

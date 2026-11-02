@@ -142,10 +142,10 @@ the main session.
 | # | card | type | what it does |
 |---|---|---|---|
 | 1 | Llançament de roca | Atac, fast | the quick throw |
-| 2 | Mur de pedra | Defensa | the plain wall, sturdier than water's |
+| 2 | Mur de pedra | Defensa | the wall that stays up: it still defends whoever it covered the round after (the user, 2026-11-02) |
 | 3 | Túnel | Focus | next round no attack of the bender's group can be defended (one ally's first attack until the Focus scale-up); the kit's first Focus, its turtle-breaker |
 | 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
-| 5 | Trampa de terra | Defensa | an attacker it holds cannot attack next round |
+| 5 | Trampa de terra | Defensa | an attacker it holds cannot attack for the next 2 rounds |
 | 6 | Armadura de terra | Focus | an ally has +6 on its defenses for 3 rounds |
 | 7 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
@@ -165,7 +165,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 | # | card | type | what it does |
 |---|---|---|---|
 | 1 | Bola de foc | Atac | a wounded target is burned |
-| 2 | Mantell de flames | Defensa | whoever attacks someone it defends is burned, held or not |
+| 2 | Mantell de flames | Defensa | whoever attacks someone it defends loses 3 PV and is burned, held or not |
 | 3 | Foc interior | Focus | +10 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker |
 | 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
 | 5 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 14 or less its attack misses |
@@ -193,7 +193,7 @@ the main session.
 | 3 | Vent a favor | Focus, fast | an ally's card resolves right after it, with +4; the kit's first Focus, its turtle-breaker |
 | 4 | Coixí d'aire | Focus, fast | every blow on your side this round is 6 softer |
 | 5 | Fulles de vent | Atac | three blows, each at a chosen enemy (1d4 each; the user's pick, 2026-11-02; it ignored armour before, "kinda meh") |
-| 6 | Finta a contrapeu | Defensa | if it holds, the attacker has −3 on its attacks and its defenses next round (the user's design, 2026-11-02) |
+| 6 | Finta a contrapeu | Defensa | if it holds, the attacker has −6 on its attacks and its defenses next round (the user's design, 2026-11-02) |
 | 7 | Remolí | Focus | the chosen enemy is out of the fight for the next 2 rounds; not two rounds running |
 | 8 | Contracorrent | Focus, fast | the rest of the round runs backwards: Focus, then attacks, then defenses, so that round's normal defenses come up too late (the user's pick, 2026-11-02, a knowing exception to "a correct read is never wasted") |
 | 9 | Asfíxia | Focus | unless someone wounds the bender by the end of next round, the chosen enemy drops to 0 PV; 2 fatigue (the user's pick, 2026-11-02) |

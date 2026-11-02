@@ -14,6 +14,12 @@ import { BURN_PV, BURN_TURNS, setAlight } from '../effects/cremat.js';
 
 const SKILL_ID = 'firebender';
 
+function scorch(attacker: Character | undefined, bender: Character, engine: EngineApi, loss: number): void {
+  if (!attacker?.isAlive()) return;
+  if (loss > 0) engine.applyPvLoss(attacker, loss, bender);
+  setAlight(attacker, bender, engine);
+}
+
 function backfire(bender: Character, engine: EngineApi): void {
   for (const c of engine.alliesOf(bender, true)) setAlight(c, bender, engine);
 }
@@ -93,10 +99,11 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.3; },
   },
 
-  // 2 · Mantell de flames: whoever attacks someone it defends is burned, held or not.
+  // 2 · Mantell de flames: whoever attacks someone it defends loses `loss` PV and
+  // is burned, held or not.
   flame_cloak: {
-    onDefend(ctx) { if (ctx.target) setAlight(ctx.target, ctx.source, ctx.engine); },
-    onBlockFail(ctx) { if (ctx.target) setAlight(ctx.target, ctx.source, ctx.engine); },
+    onDefend(ctx) { scorch(ctx.target, ctx.source, ctx.engine, num(ctx.params, 'loss', 0)); },
+    onBlockFail(ctx) { scorch(ctx.target, ctx.source, ctx.engine, num(ctx.params, 'loss', 0)); },
     aiWeight() { return 0.4; },
   },
 
@@ -197,8 +204,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'mantell-de-flames', name: 'Mantell de flames', skillId: SKILL_ID,
       unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
-      effects: [{ type: 'flame_cloak' }],
-      desc: 'Qui ataqui algú que defenses queda cremat, aguantis o no.',
+      effects: [{ type: 'flame_cloak', params: { loss: 3 } }],
+      desc: 'Qui ataqui algú que defenses perd 3 PV i queda cremat, aguantis o no.',
       icon: 'lorc/fire-silhouette.svg',
     }),
     action({

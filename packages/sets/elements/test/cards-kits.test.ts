@@ -75,6 +75,29 @@ describe('Mestre de la terra', () => {
     expect(engine.canPlayActionIdx(foe, 1)).toBe(true);
   });
 
+  it('Trampa de terra: the trapped attacker cannot attack for two rounds', () => {
+    const earth = fighter('Terra', [flat('trampa-de-terra', 1, 100), wait], { pv: 30 });
+    const foe = fighter('Foe', [blow(4), wait], { pv: 30 });
+    const engine = engineFor([earth], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1)]);
+    engine.prepareRound();
+    expect(engine.canPlayActionIdx(foe, 0)).toBe(false);
+  });
+
+  it('Mur de pedra: it still stands before whoever it covered the round after, then falls', () => {
+    const earth = fighter('Terra', [flat('mur-de-pedra', 1, 9), wait], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
+    const engine = engineFor([earth, ally], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
+    // Next round the stone still stands before the ally: 5 against 1 + 9.
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
+    expect(ally.currentPV).toBe(25);
+  });
+
   it("Sorres movedisses: the chosen enemy's card resolves last — a Defense after the blow it was for", () => {
     const earth = fighter('Terra', [flat('sorres-movedisses', 0)], { pv: 30 });
     const ally = fighter('Amic', [blow(5)], { pv: 30 });
@@ -146,7 +169,7 @@ describe('Mestre del foc', () => {
     expect(bag.currentPV).toBe(22);
   });
 
-  it('Mantell de flames: whoever attacks someone it defends is burned, held or not', () => {
+  it('Mantell de flames: whoever attacks someone it defends loses 3 PV and is burned, held or not', () => {
     const held = (bonus: number) => {
       const fire = fighter('Foc', [flat('mantell-de-flames', 1, bonus)], { pv: 30 });
       const ally = fighter('Amic', [wait], { pv: 30 });
@@ -154,8 +177,8 @@ describe('Mestre del foc', () => {
       playRound(engineFor([fire, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
       return foe.currentPV;
     };
-    expect(held(100)).toBe(28);
-    expect(held(0)).toBe(28);
+    expect(held(100)).toBe(25);
+    expect(held(0)).toBe(25);
   });
 
   it('Esclat encegador: an enemy still to attack that rolls low misses; one already struck is untouched', () => {
@@ -345,20 +368,20 @@ describe("Mestre de l'aire", () => {
     expect(foe.currentPV).toBe(30 - 3 * (3 - 1));
   });
 
-  it('Finta a contrapeu: a held blow leaves the attacker −3 on its attacks and its defenses next round', () => {
+  it('Finta a contrapeu: a held blow leaves the attacker −6 on its attacks and its defenses next round', () => {
     const air = fighter('Aire', [flat('finta-a-contrapeu', 1, 100), blow(4)], { pv: 30 });
     const foe = fighter('Foe', [blow(5), guard(5), blow(5)], { pv: 30 });
     const engine = engineFor([air], [foe]);
     playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
     expect(air.currentPV).toBe(30);
-    // Its guard of 5 rolls 2 against the 4.
+    // Its guard of 5 rolls nothing against the 4.
     playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
-    expect(foe.currentPV).toBe(28);
+    expect(foe.currentPV).toBe(26);
   });
 
-  it('Finta a contrapeu: the attacker blows land 3 softer next round', () => {
+  it('Finta a contrapeu: the attacker blows land 6 softer next round', () => {
     const air = fighter('Aire', [flat('finta-a-contrapeu', 1, 100), wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [blow(8)], { pv: 30 });
     const engine = engineFor([air], [foe]);
     playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
