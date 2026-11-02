@@ -485,7 +485,8 @@ describe('Unagi', () => {
     const hero = fighter('Heroi', [wait], { pv: 30 });
     const tank = fighter('Tanc', [guard(5)], { pv: 30 });
     playRound(engineFor([eel], [hero, tank]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
-    expect(tank.currentPV).toBe(24);
+    // The breached guard's 3, and the 8 whole on the tank, open while it guards the hero.
+    expect(tank.currentPV).toBe(19);
   });
 
   it('Remolí: every hero whose blow it holds takes the margin back', () => {

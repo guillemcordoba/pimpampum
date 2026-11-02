@@ -447,13 +447,29 @@ describe('bloqueig conjunt (summed wall)', () => {
     const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
     const engine = new CombatEngine([a, d1, d2], [e], { registry: new EffectRegistry(), actionChooser: firstLegalChooser });
     runRoundRaw(engine, [
-      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }, // A defends (guards D1) → self-guard active
+      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // A guards itself
       { team: 0, idx: 1, actionIdx: 0 },
       { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
     ]);
     expect(a.currentPV).toBe(14); // attack 10 vs (A 1 + D2 3) → margin 6, weak link A
     expect(d2.currentPV).toBe(20);
+  });
+
+  it('one body: a defender that guards an ally is open itself — only the other guard stands before it', () => {
+    const a = makeChar('A', 20, [defenseDef('ga', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
+    const d1 = makeChar('D1', 20, [focusDef()]);
+    const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: new EffectRegistry(), actionChooser: firstLegalChooser });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }, // A guards D1, and so is open
+      { team: 0, idx: 1, actionIdx: 0 },
+      { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
+    ]);
+    // Attack 10 against D2's 3 alone: the guard breaks and its defender takes the 7.
+    expect([a.currentPV, d2.currentPV]).toEqual([20, 13]);
   });
 
   it('guard wall: a close breach teaches every defender on the wall', () => {

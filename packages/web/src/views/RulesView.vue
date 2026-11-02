@@ -45,7 +45,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
 
       <section>
         <h2>Accions de defensa</h2>
-        <p>El defensor tria un objectiu: un <strong>aliat</strong> (defensar) o un <strong>enemic</strong> (bloquejar). En tots dos casos es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.</p>
+        <p>El defensor tria un objectiu: un <strong>aliat</strong> (defensar) o un <strong>enemic</strong> (bloquejar). Una defensa cobreix un sol cos: qui defensa un aliat queda descobert ell mateix; qui bloqueja o es posa en guàrdia es cobreix a si mateix i tira els daus de defensa per separat contra cada atac que rebi durant el torn.</p>
         <ul>
           <li><strong>Defensar un aliat</strong>: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra, el dany el rep el <strong>defensor</strong>, no l'aliat.</li>
           <li><strong>Bloquejar un enemic</strong>: els enemics bloquejats fan totes les seves tirades d'atac contra el defensor. Els atacs que no trien objectiu (com els que afecten tots els enemics) no en són afectats.</li>

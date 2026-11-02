@@ -56,7 +56,7 @@ Quan una carta diu que un atac **fereix**, vol dir que fa dany: treu almenys 1 P
 
 ### Accions de defensa
 
-Quan una acció de defensa es resol, el defensor tria **a qui protegeix: ell mateix o un aliat**, veient a qui apunta cada atac. El defensor sempre es defensa a si mateix: tira els daus de defensa per separat contra cada atac que rebi durant el torn.
+Quan una acció de defensa es resol, el defensor tria **a qui protegeix: ell mateix o un aliat**, veient a qui apunta cada atac. **Una defensa cobreix un sol cos**: qui protegeix un aliat queda descobert ell mateix (2026-11-02). El cos protegit queda cobert tot el torn: el defensor tira els daus de defensa per separat contra cada atac que li arribi.
 
 - **Defensar un aliat**: els atacs dirigits a l'aliat defensat també es resolen contra la defensa del defensor. Si un atac penetra la defensa de l'aliat defensat, el dany el rep el **defensor**, no l'aliat.
 - **Envoltat**: si **n** cops arriben al mateix personatge aquest torn, cada defensa que el cobreix tira els seus daus **n vegades i es queda la pitjor**, contra cada un d'aquests cops. Compten on arriben de debò: un atac que un bloqueig desvia o que una redirecció canvia compta al cos que el rep, i els cops extra també compten. Una defensa continua cobrint tots els atacs, però no els pot vigilar tots alhora.
@@ -78,7 +78,7 @@ El combat consisteix en una sèrie de rondes:
 2. **Els atacants apunten**: cada atac tria el seu objectiu, veient totes les cartes revelades.
 3. Les accions es resolen per **prioritat**: primer les **ràpides** (defenses, després atacs, després focus) i després les altres: **defenses, atacs i focus**.
 4. Dins d'un mateix pas, les accions es resolen alhora per a qui cau (dos atacs que es maten l'un a l'altre impacten tots dos); els efectes que una deixa per a una altra (un estat, una guàrdia, una cancel·lació) segueixen l'ordre en què els jugadors han decidit la carta: qui ha triat primer, primer.
-5. Cada acció de defensa tria a qui protegeix quan es resol, veient on apunten els atacs, i a partir d'aleshores tira reactivament contra cada atac que arribi al defensor o al seu aliat defensat.
+5. Cada acció de defensa tria a qui protegeix quan es resol, veient on apunten els atacs, i a partir d'aleshores tira reactivament contra cada atac que arribi al cos que protegeix: ell mateix o l'aliat defensat, mai tots dos.
 6. Les accions de focus es cancel·len si el jugador rep dany abans que l'acció es resolgui.
 7. **Caure i tornar.** Un personatge que arriba a 0 PV cau fora de combat i, si la seva acció encara no s'ha resolt, no la juga. Una curació pot triar un aliat caigut: el torna al combat amb els PV curats, i si arriba abans que li toqui actuar, juga la seva acció d'aquesta ronda.
 

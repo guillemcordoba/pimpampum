@@ -263,11 +263,13 @@ export class Character {
    */
   remapRefs(source: Character, map: Map<Character, Character>): void {
     const remapGuards = (guards: Guard[]): Guard[] =>
-      guards.map(g => ({
-        ...g,
-        defender: map.get(g.defender) ?? g.defender,
-        onlyAgainst: g.onlyAgainst ? map.get(g.onlyAgainst) ?? g.onlyAgainst : undefined,
-      }));
+      guards.map(g => {
+        // The copy keeps the guard's own shape: a key set to undefined would
+        // make a clone differ from a restored snapshot of the same state.
+        const copy: Guard = { ...g, defender: map.get(g.defender) ?? g.defender };
+        if (g.onlyAgainst) copy.onlyAgainst = map.get(g.onlyAgainst) ?? g.onlyAgainst;
+        return copy;
+      });
     this.guards = remapGuards(source.guards);
     this.blockers = remapGuards(source.blockers);
     for (const [key, entry] of this.statuses) {

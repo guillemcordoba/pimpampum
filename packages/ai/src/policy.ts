@@ -439,9 +439,9 @@ export function pickResolveTargets(
   const left = (e: Character) => (fellsItself(e) ? 0 : e.currentPV - (incoming.get(e) ?? 0));
   // What THIS blow is expected to take off `e`: through the wall in front of
   // it — its standing guards, and its OWN revealed Defense card still to
-  // resolve (a defense always covers its player; whom an allied defender will
-  // guard is not known when attacks aim) — summed (defensa conjunta), less
-  // armour.
+  // resolve (a defender attacked chooses, after the aims, to cover itself; whom
+  // an allied defender will guard is not known when attacks aim) — summed
+  // (defensa conjunta), less armour.
   const atk = attackParts(actor, def);
   const ownDefense = (e: Character) => pending.find(p => p.actor === e && !p.resolved && !p.cancelled && p.actionType === ActionType.Defensa);
   const coverOf = (e: Character) => {

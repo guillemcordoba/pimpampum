@@ -52,7 +52,7 @@ function golem(maker: Character): Character {
 }
 
 const EARTH_EFFECTS: Record<string, EffectHandler> = {
-  // 4 · Armadura de terra: rock plates on an ally — +`amount` on its defenses
+  // 6 · Armadura de terra: rock plates on an ally — +`amount` on its defenses
   // for the next `turns` rounds.
   'earth_armor@cal': {
     getTargetRequirement() { return 'ally'; },
@@ -79,7 +79,7 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // 6 · Sorres movedisses: the chosen enemy sinks — its card this round
+  // 7 · Sorres movedisses: the chosen enemy sinks — its card this round
   // resolves last (a Defense, after every attack it was meant to stop).
   'quicksand@cal': {
     getTargetRequirement() { return 'enemy'; },
@@ -144,11 +144,11 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'delapouite/hole.svg',
     }),
     action({
-      id: 'armadura-de-terra@cal', name: 'Armadura de terra', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus,
-      effects: [{ type: 'earth_armor@cal', params: { amount: 3, turns: 3 } }],
-      desc: 'Un aliat té +3 a les defenses els 3 torns següents.',
-      icon: 'lorc/armor-vest.svg',
+      id: 'allau@cal', name: 'Allau', skillId: SKILL_ID,
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4),
+      effects: [{ type: 'stun_on_hit', params: { turns: 1 } }],
+      desc: "Si fereix, l'objectiu queda enterrat: perd el torn següent.",
+      icon: 'delapouite/stone-pile.svg',
     }),
     action({
       id: 'trampa-de-terra@cal', name: 'Trampa de terra', skillId: SKILL_ID,
@@ -158,18 +158,18 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'lorc/stone-crafting.svg',
     }),
     action({
+      id: 'armadura-de-terra@cal', name: 'Armadura de terra', skillId: SKILL_ID,
+      unlock: 6, type: ActionType.Focus,
+      effects: [{ type: 'earth_armor@cal', params: { amount: 3, turns: 3 } }],
+      desc: 'Un aliat té +3 a les defenses els 3 torns següents.',
+      icon: 'lorc/armor-vest.svg',
+    }),
+    action({
       id: 'sorres-movedisses@cal', name: 'Sorres movedisses', skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Focus, fast: true,
+      unlock: 7, type: ActionType.Focus, fast: true,
       effects: [{ type: 'quicksand@cal' }],
       desc: "La carta d'aquest torn de l'enemic que triïs es resol l'última.",
       icon: 'lorc/sands-of-time.svg',
-    }),
-    action({
-      id: 'allau@cal', name: 'Allau', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Atac, dice: d(2, 8),
-      effects: [{ type: 'stun_on_hit', params: { turns: 1 } }],
-      desc: "Si fereix, l'objectiu queda enterrat: perd el torn següent.",
-      icon: 'delapouite/stone-pile.svg',
     }),
     action({
       id: 'bunquer@cal', name: 'Búnquer', skillId: SKILL_ID,

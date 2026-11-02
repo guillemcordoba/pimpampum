@@ -1631,16 +1631,16 @@ export class CombatEngine implements EngineApi, AIView {
         this.dispatchPlay(actor, action.def);
         const allies = targets.filter(t => t.team === actor.team && t.isAlive());
         const blocked = targets.filter(t => t.team !== actor.team && t.isAlive());
-        // A defense always covers its own player against every incoming attack.
-        actor.guards.push({ defender: actor, action: action.def });
-        for (const ally of allies) {
-          if (ally !== actor) ally.guards.push({ defender: actor, action: action.def });
-        }
+        // A defense covers ONE body: its own player, or the ally it protects —
+        // guarding an ally leaves the defender open (rules.md). Otherwise a
+        // guarding pair walled both bodies at once and could not be broken.
+        const guardedOthers = allies.filter(a => a !== actor);
+        if (!guardedOthers.length) actor.guards.push({ defender: actor, action: action.def });
+        for (const ally of guardedOthers) ally.guards.push({ defender: actor, action: action.def });
         // Block: the enemy loses target choice — every attack roll they make
         // from now on is made against the blockers. Blocks stack: two or more
         // blockers form a wall that contests with the SUM of their defenses.
         for (const e of blocked) e.blockers.push({ defender: actor, action: action.def });
-        const guardedOthers = allies.filter(a => a !== actor);
         if (blocked.length) {
           this.log('defense', `${actor.name} «${action.def.name}» bloqueja ${blocked.map(e => e.name).join(', ')}.`, actor.team);
         }
