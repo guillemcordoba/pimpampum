@@ -1,13 +1,14 @@
-import { ActionType, Character, EffectContext, EffectHandler, applyKind } from '@pimpampum/engine';
+import { ActionType, Character, EffectContext, EffectHandler, STATUS_KINDS, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
 import { BURN_KEY } from '../effects/cremat.js';
 import { warded } from '../effects/generic.js';
 
 /**
  * MESTRE DE L'AIGUA — the user's design ("Maestre de l'aigua — conceptes de
- * cartes", 2026-11-01): the defensive, healing bender, fire's opposite. Three
- * defenses that grow from a plain wall to an ice shell to eight arms over the
- * whole party; a spring that heals and puts out burns; fog, an ice trap, the
+ * cartes", 2026-11-01, and the cards they picked on 2026-11-02): the
+ * defensive, healing bender, fire's opposite. A plain wall, a fog that hides
+ * whoever it saved, eight arms over the whole party; a spring that heals and
+ * puts out burns, and the tide that raises everyone; an ice trap, the
  * forbidden bloodbending; and the tsunami. The numbers are this file's, on the
  * dice ladder (intentions.md).
  */
@@ -18,6 +19,13 @@ const SKILL_ID = 'waterbender';
 function guardWith(defender: Character, who: Character, ctx: EffectContext): void {
   who.guards.push({ defender, action: ctx.action });
 }
+
+const THICK_FOG_KEY = 'boira-espessa';
+const HIDDEN_NEXT_ROUND: StatusBehavior = {
+  untargetable: ref => ref.entry.remaining <= 1,
+  // The engine's untargetable kind, one round late: priced as that kind.
+  positionValue: (ref, board) => STATUS_KINDS.untargetable.positionValue!(ref, board),
+};
 
 const WATER_EFFECTS: Record<string, EffectHandler> = {
   // 4 · Font curativa (with the generic `heal`): the healed ally's Cremat
@@ -31,19 +39,35 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // 7 · Boira: next round no enemy can aim at the bender's allies — only at
-  // the bender, the one left outside the fog.
-  fog: {
-    getTargetRequirement() { return 'none'; },
-    onResolve(ctx) {
-      // Set in the Focus step: the round's end takes one, the next round remains.
-      for (const a of ctx.engine.alliesOf(ctx.source, false)) applyKind(a, 'untargetable', 'boira', 1, 2);
-      ctx.engine.log('focus', `${ctx.source.name} aixeca una boira espessa sobre els seus aliats.`, ctx.source.team);
+  // 5 · Boira espessa: the blow the defense held was lost in the fog, and so
+  // is whoever it covered — next round no enemy can aim at them.
+  thick_fog: {
+    onDefend(ctx) {
+      const hidden = ctx.targets[0];
+      if (!hidden?.isAlive()) return;
+      // Set this round: its end takes one, and the next round is the hidden one.
+      hidden.setStatus(THICK_FOG_KEY, 1, 2, undefined, HIDDEN_NEXT_ROUND);
+      ctx.engine.log('defense', `La boira s'empassa ${hidden.name}: el torn següent ningú no el troba.`, ctx.source.team);
     },
-    aiWeight(ctx) { return ctx.allies.length ? 0.6 : -1; },
+    aiWeight() { return 0.4; },
   },
 
-  // 3 · Trampa de gel: the chosen enemy is frozen — it loses its next turn.
+  // 7 · Marea de vida: one roll heals the whole party, the fallen too.
+  tide_of_life: {
+    getTargetRequirement() { return 'none'; },
+    onResolve(ctx) {
+      const amount = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice);
+      for (const a of ctx.engine.rosterOf(ctx.source)) ctx.engine.heal(a, amount);
+      ctx.engine.log('focus', `La marea de ${ctx.source.name} cobreix tot el grup: +${amount} PV a cadascú.`, ctx.source.team);
+    },
+    aiWeight(ctx) {
+      const pvs = [ctx.actor, ...ctx.allies].map(a => a.currentPV / a.maxPV);
+      return pvs.filter(p => p < 0.7).length >= 2 ? 1.4 : pvs.some(p => p < 0.5) ? 0.8 : -1;
+    },
+  },
+
+  // 3 · Trampa de gel (with the generic `not_twice_running`): the chosen
+  // enemy is frozen — it loses its next turn.
   ice_trap: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
@@ -86,8 +110,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'ice_trap' }],
-      desc: "Puges 1 nivell de fatiga. L'enemic que triïs queda congelat: perd el torn següent.",
+      effects: [{ type: 'not_twice_running', params: { card: 'trampa-de-gel' } }, { type: 'ice_trap' }],
+      desc: "L'enemic que triïs queda congelat: perd el torn següent. No la pots jugar dos torns seguits.",
       icon: 'lorc/frozen-block.svg',
     }),
     action({
@@ -98,10 +122,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/heart-drop.svg',
     }),
     action({
-      id: 'cupula-de-gel', name: 'Cúpula de gel', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 6, 2),
-      desc: '',
-      icon: 'lorc/ice-shield.svg',
+      id: 'boira-espessa', name: 'Boira espessa', skillId: SKILL_ID,
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
+      effects: [{ type: 'thick_fog' }],
+      desc: 'Si aguanta, el torn següent cap enemic no pot atacar qui defenses.',
+      icon: 'delapouite/fog.svg',
     }),
     action({
       id: 'llanca-de-gel', name: 'Llança de gel', skillId: SKILL_ID,
@@ -110,11 +135,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/ice-spear.svg',
     }),
     action({
-      id: 'boira', name: 'Boira', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus,
-      effects: [{ type: 'fog' }],
-      desc: 'El torn següent, els enemics no poden atacar els teus aliats.',
-      icon: 'delapouite/fog.svg',
+      id: 'marea-de-vida', name: 'Marea de vida', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus, dice: d(3, 4, 1),
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'tide_of_life' }],
+      desc: 'Puges 1 nivell de fatiga. Cura tot el teu grup, també els caiguts.',
+      icon: 'lorc/grouped-drops.svg',
     }),
     action({
       id: 'forma-de-pop', name: 'Forma de pop', skillId: SKILL_ID,

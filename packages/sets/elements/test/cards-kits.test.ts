@@ -184,17 +184,28 @@ describe('Mestre del foc', () => {
     expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
   });
 
-  it('Cortina de fum: it still defends the round after, then falls', () => {
-    const fire = fighter('Foc', [flat('cortina-de-fum', 1, 9), wait], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
-    const engine = engineFor([fire, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
-    // Next round the smoke still hangs before the ally: 5 against 1 + 9.
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
-    expect(ally.currentPV).toBe(30);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
-    expect(ally.currentPV).toBe(25);
+  it('Incendi: a wounded target burns 2, 4, 6… at each round end; when it falls, the fire leaps to an ally', () => {
+    const fire = fighter('Foc', [flat('incendi', 1, 0), wait], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 12 });
+    const b = fighter('B', [wait], { pv: 30 });
+    const engine = engineFor([fire], [a, b]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0)]);
+    // The blow's 1, then the first step's 2.
+    expect(a.currentPV).toBe(9);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect(a.currentPV).toBe(5);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect(a.isAlive()).toBe(false);
+    expect(b.hasStatus('incendi')).toBe(true);
+    playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
+    expect(b.currentPV).toBe(28);
+  });
+
+  it('Incendi: a blow that does not wound lights nothing', () => {
+    const fire = fighter('Foc', [flat('incendi', 1, 0)], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.hasStatus('incendi')).toBe(false);
   });
 
   it('Alè de drac: two enemies, and the ones it wounds are burned', () => {

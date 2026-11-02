@@ -58,26 +58,63 @@ describe("Mestre de l'aigua", () => {
     expect(ally.currentPV).toBe(5);
   });
 
-  it('Boira: next round no enemy can aim at the allies, only at the bender; then it lifts', () => {
-    const water = fighter('Aigua', [flat('boira', 0), wait], { pv: 30 });
+  it('Boira espessa: a held blow hides whoever it covered, for the next round only', () => {
+    const water = fighter('Aigua', [flat('boira-espessa', 1, 100), wait], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30 });
+    const foe = fighter('Foe', [blow(5), wait], { pv: 30 });
     const engine = engineFor([water, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
     expect(engine.enemiesOf(foe)).toEqual([water]);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0)]);
+    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1)]);
     expect(engine.enemiesOf(foe)).toEqual([water, ally]);
   });
 
-  it('Trampa de gel: the chosen enemy is frozen and loses its next turn', () => {
+  it('Boira espessa: a broken defense hides nobody', () => {
+    const water = fighter('Aigua', [flat('boira-espessa', 1, 0), wait], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const foe = fighter('Foe', [blow(5), wait], { pv: 30 });
+    const engine = engineFor([water, ally], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+    // The broken guard takes the blow itself.
+    expect([water.currentPV, ally.currentPV]).toEqual([26, 30]);
+    expect(engine.enemiesOf(foe)).toEqual([water, ally]);
+  });
+
+  it('Marea de vida: one roll heals the whole party, the fallen too; 1 fatigue', () => {
+    const water = fighter('Aigua', [flat('marea-de-vida', 5)], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const engine = engineFor([water, a, b], [foe]);
+    water.currentPV = 20;
+    a.currentPV = 10;
+    b.currentPV = 0;
+    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
+    expect([water.currentPV, a.currentPV, b.currentPV]).toEqual([25, 15, 5]);
+    expect(water.fatigue).toBe(1);
+  });
+
+  it('Trampa de gel: the chosen enemy is frozen and loses its next turn, at no fatigue', () => {
     const water = fighter('Aigua', [flat('trampa-de-gel', 0), wait], { pv: 30 });
     const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
     const engine = engineFor([water], [foe]);
     playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0)]);
     expect(foe.skipTurns).toBe(1);
-    expect(water.fatigue).toBe(1);
+    expect(water.fatigue).toBe(0);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
     expect(water.currentPV).toBe(30);
+  });
+
+  it('Trampa de gel: never two rounds running', () => {
+    // Unlocked from level 0: the test fighter knows no level of the skill.
+    const water = fighter('Aigua', [flat('trampa-de-gel', 0, 0, { unlockLevel: 0 }), wait], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const engine = engineFor([water], [foe]);
+    playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0)]);
+    expect(engine.canPlayActionIdx(water, 0)).toBe(false);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(engine.canPlayActionIdx(water, 0)).toBe(true);
   });
 
   it('Forma de pop: one defense covers every ally at once', () => {

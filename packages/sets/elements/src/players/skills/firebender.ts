@@ -1,25 +1,57 @@
-import { ActionType, Character, CombatModifier, EffectHandler, StatusBehavior, applyKind } from '@pimpampum/engine';
+import { ActionType, Character, CombatModifier, EffectHandler, EngineApi, StatusBehavior, random } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
 import { num } from '../effects/helpers.js';
 import { BURN_PV, BURN_TURNS, setAlight } from '../effects/cremat.js';
 
 /**
  * MESTRE DEL FOC — the user's design ("Maestre del foc — conceptes de cartes",
- * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 6, 8); the
- * rest is raw heat — a blinding flash, a storm of sparks, a curtain of smoke,
- * a chi that stokes every blow, a bolt, and the supernova that burns the
- * bender out. The numbers are this file's, on the dice ladder (intentions.md).
+ * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 6, 9); the
+ * rest is raw heat — a chi that stokes every blow, a storm of sparks, a
+ * blinding flash, a wildfire that grows until it has consumed its victim, a
+ * bolt, and the supernova that burns the bender out. The numbers are this
+ * file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'firebender';
 
-// Cremat (cards 1, 2, 6, 8) is the set's shared burn (`effects/cremat.ts`).
+// Cremat (cards 1, 2, 6, 9) is the set's shared burn (`effects/cremat.ts`).
 
-// --- 5 · Cortina de fum ------------------------------------------------------
+// --- 7 · Incendi -------------------------------------------------------------
 
-const SMOKE_KEY = 'cortina-de-fum';
+const WILDFIRE_KEY = 'incendi';
+const WILDFIRE_STEP_PV = 2;
 
-// --- 8 · Anell de foc ---------------------------------------------------------
+function kindle(target: Character, source: Character | undefined, engine: EngineApi): void {
+  target.setStatus(WILDFIRE_KEY, 1, -1, { source }, WILDFIRE);
+  engine.log('attack', `${target.name} s'encén: l'incendi creix cada torn.`, source?.team);
+}
+
+const WILDFIRE: StatusBehavior = {
+  harmful: true,
+  // `value` is the step: 2 PV, then 4, then 6… until the holder falls; then
+  // the fire leaps to one of its allies and starts again.
+  onRoundEnd(ctx) {
+    const source = ctx.entry.data?.['source'] as Character | undefined;
+    if (ctx.holder.isAlive()) {
+      const loss = WILDFIRE_STEP_PV * ctx.entry.value;
+      ctx.engine.log('poison', `L'incendi crema ${ctx.holder.name}: ${loss} PV.`, ctx.holder.team);
+      ctx.engine.applyPvLoss(ctx.holder, loss, source);
+      ctx.entry.value += 1;
+    }
+    if (ctx.holder.isAlive()) return;
+    ctx.holder.clearStatus(WILDFIRE_KEY);
+    const fuel = ctx.engine.alliesOf(ctx.holder).filter(a => !a.hasStatus(WILDFIRE_KEY));
+    if (fuel.length) kindle(fuel[Math.floor(random() * fuel.length)], source, ctx.engine);
+  },
+  // The next three rounds of a fire that grows, at most what the holder has left.
+  positionValue(ref) {
+    const step = ref.entry.value;
+    const loss = WILDFIRE_STEP_PV * (3 * step + 3);
+    return -Math.min(loss, ref.holder.currentPV) / Math.max(1, ref.holder.maxPV);
+  },
+};
+
+// --- 9 · Anell de foc ---------------------------------------------------------
 
 const RING_KEY = 'anell-de-foc';
 
@@ -56,7 +88,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 7 · Esclat encegador: every enemy still to attack this round rolls 1d20;
+  // 5 · Esclat encegador: every enemy still to attack this round rolls 1d20;
   // at `below` or less, blinded, its attack misses.
   flare: {
     getTargetRequirement() { return 'none'; },
@@ -91,20 +123,14 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.9 : 0.2; },
   },
 
-  // 5 · Cortina de fum: next round the smoke still hangs — a standing wall
-  // with the card's dice before the bender and whoever it defended.
-  smoke_screen: {
-    postRound(ctx) {
-      const dice = ctx.action.dice;
-      if (!dice || !ctx.source.isAlive()) return;
-      const covered = new Set([ctx.source, ...ctx.targets.filter(t => t.team === ctx.source.team)]);
-      for (const c of covered) {
-        if (!c.isAlive()) continue;
-        applyKind(c, 'standingWall', SMOKE_KEY, 1, 2,
-          { caster: ctx.source, dice, skillId: SKILL_ID, rollBonus: ctx.action.rollBonus ?? 0, name: 'Cortina de fum' });
-      }
+  // 7 · Incendi: a target it wounds catches the wildfire (unless it already burns with it).
+  wildfire: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      if (!t?.isAlive() || (ctx.damageDealt ?? 0) <= 0 || t.hasStatus(WILDFIRE_KEY)) return;
+      kindle(t, ctx.source, ctx.engine);
     },
-    aiWeight() { return 0.5; },
+    aiWeight() { return 0.6; },
   },
 
   // 3 · Foc interior: +`bonus` on the bender's attacks for the next `turns` rounds.
@@ -119,7 +145,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 8 · Anell de foc: for the next two rounds, every enemy that attacks loses
+  // 9 · Anell de foc: for the next two rounds, every enemy that attacks loses
   // `loss` PV and is burned.
   fire_ring: {
     getTargetRequirement() { return 'none'; },
@@ -178,11 +204,11 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/circle-sparks.svg',
     }),
     action({
-      id: 'cortina-de-fum', name: 'Cortina de fum', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 6),
-      effects: [{ type: 'smoke_screen' }],
-      desc: 'Defensa també el torn següent.',
-      icon: 'delapouite/fog.svg',
+      id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
+      unlock: 5, type: ActionType.Focus, fast: true,
+      effects: [{ type: 'flare', params: { below: 9 } }],
+      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 9 o menys, el seu atac falla.",
+      icon: 'lorc/sunbeams.svg',
     }),
     action({
       id: 'ale-de-drac', name: 'Alè de drac', skillId: SKILL_ID,
@@ -192,24 +218,24 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/dragon-breath.svg',
     }),
     action({
-      id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'flare', params: { below: 11 } }],
-      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 11 o menys, el seu atac falla.",
-      icon: 'lorc/sunbeams.svg',
-    }),
-    action({
-      id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
-      unlock: 8, type: ActionType.Focus,
-      effects: [{ type: 'fire_ring', params: { loss: 6 } }],
-      desc: 'Els 2 torns següents, cada enemic que ataqui perd 6 PV i queda cremat.',
-      icon: 'lorc/fire-ring.svg',
+      id: 'incendi', name: 'Incendi', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Atac, dice: d(2, 4, 1),
+      effects: [{ type: 'wildfire' }],
+      desc: "Si fereix, l'objectiu crema: perd 2, 4, 6… PV al final de cada torn fins que cau; llavors el foc salta a un enemic a l'atzar.",
+      icon: 'lorc/burning-tree.svg',
     }),
     action({
       id: 'llamp', name: 'Llamp', skillId: SKILL_ID,
-      unlock: 9, type: ActionType.Atac, fast: true, dice: d(2, 6),
+      unlock: 8, type: ActionType.Atac, fast: true, dice: d(2, 6),
       desc: '',
       icon: 'lorc/heavy-lightning.svg',
+    }),
+    action({
+      id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
+      unlock: 9, type: ActionType.Focus,
+      effects: [{ type: 'fire_ring', params: { loss: 6 } }],
+      desc: 'Els 2 torns següents, cada enemic que ataqui perd 6 PV i queda cremat.',
+      icon: 'lorc/fire-ring.svg',
     }),
     action({
       id: 'supernova', name: 'Supernova', skillId: SKILL_ID,

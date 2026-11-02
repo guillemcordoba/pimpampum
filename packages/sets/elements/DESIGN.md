@@ -96,7 +96,8 @@ alive knows he was once an air novice.
 
 ## Decisions that stand
 
-- **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses). They were the kits' later cards; the cards they replaced at 3 moved up and were re-priced there: Font curativa to 4 (heals belong early; Boira went to 7), Armadura de terra and Asfíxia to 4, Esclat encegador to 7.
+- **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses).
+- **Levels 7-10 are finishers, and neighbours differ** (the user, 2026-11-02; intentions.md): players live at levels 4-6, so a class's variety, heals and signature moves sit in 1-6 and 7-10 are its biggest payoffs; two cards at adjacent levels never do the same job. The kits were reordered card by card with the user that day, and the new cards (Boira espessa, Marea de vida, Incendi) are `card-designer` concepts the user picked.
 - **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; every body has 26 PV. The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
 
 - **Kits:** the four element benders. A fifth kit will be something new (the
@@ -122,11 +123,11 @@ dice and small mechanics by the main session.
 |---|---|---|---|
 | 1 | Fuet d'aigua | Atac | the plain lash |
 | 2 | Mur d'aigua | Defensa | the plain wall |
-| 3 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn; 1 fatigue; the kit's first Focus, its turtle-breaker (was level 7) |
-| 4 | Font curativa | Focus | heals an ally (2d4+2) and puts out Cremat (was level 3 at 2d4+1; heals belong early) |
-| 5 | Cúpula de gel | Defensa | the strong shell |
+| 3 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn; not two rounds running (was 1 fatigue until 2026-11-02); the kit's first Focus, its turtle-breaker |
+| 4 | Font curativa | Focus | heals an ally (2d4+2) and puts out Cremat; heals belong early |
+| 5 | Boira espessa | Defensa | if it holds, next round no enemy can aim at whoever it covered (the user's pick, 2026-11-02; replaced Boira, a Focus that hid every ally) |
 | 6 | Llança de gel | Atac | the strong single blow |
-| 7 | Boira | Focus | next round no enemy can aim at your allies |
+| 7 | Marea de vida | Focus | one roll heals the whole party, the fallen too; 1 fatigue (the user's pick, 2026-11-02; Cúpula de gel left: too close to Forma de pop and Búnquer) |
 | 8 | Forma de pop | Defensa | defends every ally |
 | 9 | Control de la sang | Focus | next round the chosen enemy's blows land on its own side; 1 fatigue |
 | 10 | Tsunami | Atac | every enemy |
@@ -142,11 +143,11 @@ the main session.
 |---|---|---|---|
 | 1 | Llançament de roca | Atac, fast | the quick throw |
 | 2 | Mur de pedra | Defensa | the plain wall, sturdier than water's |
-| 3 | Túnel | Focus | next round an ally's first attack cannot be defended; the kit's first Focus, its turtle-breaker (was level 4) |
-| 4 | Armadura de terra | Focus | an ally has +3 on its defenses for 3 rounds |
+| 3 | Túnel | Focus | next round an ally's first attack cannot be defended; the kit's first Focus, its turtle-breaker |
+| 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack next round |
-| 6 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last |
-| 7 | Allau | Atac | a wounded target loses its next turn |
+| 6 | Armadura de terra | Focus | an ally has +3 on its defenses for 3 rounds |
+| 7 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept at 7 by the user) |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
 | 9 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack and defense 2d6); 2 fatigue |
 | 10 | Terratrèmol | Atac | every enemy |
@@ -165,13 +166,13 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 |---|---|---|---|
 | 1 | Bola de foc | Atac | a wounded target is burned |
 | 2 | Mantell de flames | Defensa | whoever attacks someone it defends is burned, held or not |
-| 3 | Foc interior | Focus | +6 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker (was level 7) |
+| 3 | Foc interior | Focus | +6 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker |
 | 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
-| 5 | Cortina de fum | Defensa | it still defends the round after |
-| 6 | Alè de drac | Atac | two enemies; the wounded are burned |
-| 7 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 11 or less its attack misses (was level 3, 8 or less) |
-| 8 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 3 PV and is burned |
-| 9 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
+| 5 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 9 or less its attack misses |
+| 6 | Alè de drac | Atac | two enemies; the wounded are burned (kept apart from Tempesta: neighbours are never too similar) |
+| 7 | Incendi | Atac | a wounded target burns 2, 4, 6… PV a round until it falls; then the fire leaps to a random enemy (the user's pick, 2026-11-02; Cortina de fum left: smoke as cover is water's) |
+| 8 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
+| 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 6 PV and is burned |
 | 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
 
 Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold
@@ -189,13 +190,13 @@ the main session.
 |---|---|---|---|
 | 1 | Ventada | Atac, fast | every enemy; the wounded act last this round, a Defense excepted |
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
-| 3 | Vent a favor | Focus, fast | an ally's card resolves right after it; the kit's first Focus, its turtle-breaker (was level 4) |
-| 4 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds |
-| 5 | Fulles de vent | Atac | ignores armour |
-| 6 | Escut d'aire | Defensa | you and whoever you defend take half of what gets through |
-| 7 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
+| 3 | Vent a favor | Focus, fast | an ally's card resolves right after it; the kit's first Focus, its turtle-breaker |
+| 4 | Remolí | Focus | the chosen enemy is out of the fight next round; not two rounds running (was level 9) |
+| 5 | Fulles de vent | Atac | ignores armour — to be redesigned (the user, 2026-11-02: "kinda meh") |
+| 6 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
+| 7 | Escut d'aire | Defensa | you and whoever you defend take half of what gets through — leaving (the user: wrong; their concept turned blows aside), holds 7 until a finisher is picked |
 | 8 | Corrent ascendent | Focus, fast | attacks on an ally miss this round; it loses its card |
-| 9 | Remolí | Focus | the chosen enemy is out of the fight next round |
+| 9 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds — to become much stronger here (the user, 2026-11-02) |
 | 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 2 fatigue (1 until 2026-11-02, when air measured strongest) |
 
 ## Creatures (landed 2026-10-07)

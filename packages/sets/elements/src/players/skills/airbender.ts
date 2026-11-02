@@ -7,14 +7,15 @@ import { warded } from '../effects/generic.js';
  * MESTRE DE L'AIRE — the user's design ("Maestre de l'aire — conceptes de
  * cartes", 2026-11-01): the utility bender. Not a damage dealer nor a healer:
  * it controls the flow of the round — who acts first, who acts last, whom a
- * blow can reach — and sets up its allies. Five Focus, two defenses that turn
- * blows aside instead of soaking them, three attacks up to the tornado. The
+ * blow can reach — and sets up its allies. Fulles de vent (5) waits for its
+ * redesign, Escut d'aire (7) only holds its slot until the finisher that
+ * replaces it, and Asfíxia (9) until its stronger version (OPEN.md). The
  * numbers are this file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'airbender';
 
-// --- 6 · Escut d'aire -------------------------------------------------------
+// --- 7 · Escut d'aire -------------------------------------------------------
 
 /** This round the wind turns blows aside: the holder takes half of what gets
  *  through. Lives and dies inside its round, so its price is 0 on purpose. */
@@ -28,7 +29,7 @@ const TURNED_ASIDE: StatusBehavior = {
   positionValue() { return 0; },
 };
 
-// --- 7 · Coixí d'aire -------------------------------------------------------
+// --- 6 · Coixí d'aire -------------------------------------------------------
 
 /** This round every blow on the holder lands `value` softer. Lives and dies
  *  inside its round, so its price is 0 on purpose. */
@@ -87,7 +88,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 4 · Asfíxia: the chosen enemy, short of breath, has −`amount` on its
+  // 9 · Asfíxia: the chosen enemy, short of breath, has −`amount` on its
   // attacks for the next `turns` rounds.
   suffocate: {
     getTargetRequirement() { return 'enemy'; },
@@ -115,7 +116,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length ? 0.7 : -1; },
   },
 
-  // 6 · Escut d'aire: the bender and whoever it defends take half of what
+  // 7 · Escut d'aire: the bender and whoever it defends take half of what
   // gets through this round.
   air_shield: {
     onResolve(ctx) {
@@ -126,7 +127,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 7 · Coixí d'aire: this round every blow on the bender's side lands
+  // 6 · Coixí d'aire: this round every blow on the bender's side lands
   // `amount` softer.
   air_cushion: {
     getTargetRequirement() { return 'none'; },
@@ -152,8 +153,8 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.some(a => a.currentPV < a.maxPV * 0.4) ? 1 : 0.2; },
   },
 
-  // 9 · Remolí: the chosen enemy is out of the fight next round — it plays no
-  // card and nobody can aim at it.
+  // 4 · Remolí (with the generic `not_twice_running`): the chosen enemy is out
+  // of the fight next round — it plays no card and nobody can aim at it.
   whirlwind: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
@@ -195,11 +196,11 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/wind-hole.svg',
     }),
     action({
-      id: 'asfixia', name: 'Asfíxia', skillId: SKILL_ID,
+      id: 'remoli-de-vent', name: 'Remolí', skillId: SKILL_ID,
       unlock: 4, type: ActionType.Focus,
-      effects: [{ type: 'suffocate', params: { amount: 3, turns: 2 } }],
-      desc: "L'enemic que triïs té −3 als atacs els 2 torns següents.",
-      icon: 'delapouite/lungs.svg',
+      effects: [{ type: 'not_twice_running', params: { card: 'remoli' } }, { type: 'whirlwind' }],
+      desc: "L'enemic que triïs queda fora del combat el torn següent: no juga carta i ningú no el pot atacar. No el pots jugar dos torns seguits.",
+      icon: 'lorc/tornado-discs.svg',
     }),
     action({
       id: 'fulles-de-vent', name: 'Fulles de vent', skillId: SKILL_ID,
@@ -209,18 +210,18 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/air-zigzag.svg',
     }),
     action({
-      id: 'escut-d-aire', name: "Escut d'aire", skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Defensa, dice: d(2, 4, 1),
-      effects: [{ type: 'air_shield' }],
-      desc: 'Aquest torn, tu i qui defenses rebeu la meitat del dany que us arribi.',
-      icon: 'lorc/vortex.svg',
-    }),
-    action({
       id: 'coixi-d-aire', name: "Coixí d'aire", skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus, fast: true,
+      unlock: 6, type: ActionType.Focus, fast: true,
       effects: [{ type: 'air_cushion', params: { amount: 3 } }],
       desc: 'Aquest torn, cada cop contra el teu grup fa 3 menys de dany.',
       icon: 'lorc/feather.svg',
+    }),
+    action({
+      id: 'escut-d-aire', name: "Escut d'aire", skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Defensa, dice: d(2, 4, 1),
+      effects: [{ type: 'air_shield' }],
+      desc: 'Aquest torn, tu i qui defenses rebeu la meitat del dany que us arribi.',
+      icon: 'lorc/vortex.svg',
     }),
     action({
       id: 'corrent-ascendent', name: 'Corrent ascendent', skillId: SKILL_ID,
@@ -230,11 +231,11 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/crossed-air-flows.svg',
     }),
     action({
-      id: 'remoli-de-vent', name: 'Remolí', skillId: SKILL_ID,
+      id: 'asfixia', name: 'Asfíxia', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'whirlwind' }],
-      desc: "L'enemic que triïs queda fora del combat el torn següent: no juga carta i ningú no el pot atacar.",
-      icon: 'lorc/tornado-discs.svg',
+      effects: [{ type: 'suffocate', params: { amount: 3, turns: 2 } }],
+      desc: "L'enemic que triïs té −3 als atacs els 2 torns següents.",
+      icon: 'delapouite/lungs.svg',
     }),
     action({
       id: 'tornado', name: 'Tornado', skillId: SKILL_ID,

@@ -105,6 +105,14 @@ function chosen(ctx: EffectContext): Character | undefined {
   return t && t.isAlive() ? t : undefined;
 }
 
+const RECOVERING: StatusBehavior = {
+  // A marker the card reads (canPlay), not a state of the fight.
+  positionValue() { return 0; },
+};
+
+/** The marker of a card that sits out the round after it resolved, one per card. */
+const recoveringKey = (p: Record<string, unknown>): string => `${str(p, 'card', 'carta')}-recent`;
+
 function enemyTargets(ctx: EffectContext): Character[] {
   return str(ctx.params, 'target', 'enemy') === 'enemies'
     ? ctx.engine.enemiesOf(ctx.source)
@@ -112,6 +120,14 @@ function enemyTargets(ctx: EffectContext): Character[] {
 }
 
 export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
+  // "No la pots jugar dos torns seguits": once resolved, the card sits out the
+  // next round. Set in its own step, so the round's end takes one and the next
+  // round remains.
+  not_twice_running: {
+    canPlay(actor, p) { return !actor.hasStatus(recoveringKey(p)); },
+    onResolve(ctx) { ctx.source.setStatus(recoveringKey(ctx.params), 1, NEXT_TURN, undefined, RECOVERING); },
+  },
+
   // Cop desesperat's price: 1 PV after the swing, hit or miss.
   self_damage: {
     onAttackHit(ctx) { ctx.engine.applyPvLoss(ctx.source, num(ctx.params, 'amount', 1), ctx.source); },

@@ -1976,7 +1976,7 @@ export class CombatEngine implements EngineApi, AIView {
         : blockWall.length >= 2 && blockWall.some(g => g.defender === target) ? blockWall.map(defenseOf)
           : [...this.activeGuards(target, source, mods.ignoreAllyGuards).map(defenseOf), ...this.standingDefenses(target)];
       if (defenses.length >= 2) {
-        return this.resolveAttackOnWall(blow, defenses, mods, statusMods, attackTotal, blow.roll + extraDice, atkBonus, defenseRolls);
+        return this.resolveAttackOnWall(blow, target, defenses, mods, statusMods, attackTotal, blow.roll + extraDice, atkBonus, defenseRolls);
       }
     }
     const defense = defenses.length ? defenses[defenses.length - 1] : null;
@@ -2054,7 +2054,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  takes the penetrating damage — or, a standing wall, its holder; on a
    *  close breach (≤ SKILL_UP_MARGIN) every member learns — they failed
    *  together. */
-  private resolveAttackOnWall(blow: Blow, wall: Defense[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll: number, atkBonus: number, defenseRolls: number): ExtraAttackResult {
+  private resolveAttackOnWall(blow: Blow, target: Character, wall: Defense[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll: number, atkBonus: number, defenseRolls: number): ExtraAttackResult {
     const source = blow.attacker;
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal, defenseRolls);
     // A defense penalty bites the wall's joint total once, not once per member.
@@ -2066,7 +2066,7 @@ export class CombatEngine implements EngineApi, AIView {
       this.log('defense', `🛡️ El mur atura l'atac de ${blow.label}.`, wall[0].defender.team);
       if (blow.card) this.dispatch('onAttackMiss', source, blow.card, { targets: [wall[0].defender], target: wall[0].defender, hit: false, margin: res.margin, attackTotal: adjustedAttacker });
       for (const d of wall) {
-        if (d.card) this.dispatch('onDefend', d.defender, d.card, { targets: [source], target: source, margin: res.margin, attackTotal: adjustedAttacker });
+        if (d.card) this.dispatch('onDefend', d.defender, d.card, { targets: [target], target: source, margin: res.margin, attackTotal: adjustedAttacker });
       }
       return MISSED;
     }
