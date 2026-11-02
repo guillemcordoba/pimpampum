@@ -14,6 +14,8 @@ Cada personatge té un conjunt d'habilitats, cadascuna amb un nivell. Exemples d
 
 **Cada nivell d'una habilitat dona una acció nova.** El nivell d'una habilitat és, per tant, el nombre d'accions que el personatge coneix d'aquesta habilitat: un personatge amb Esgrima 3 coneix les 3 primeres accions d'Esgrima.
 
+**Un heroi nou comença amb la seva habilitat principal a nivell 3**: coneix les tres primeres accions —un atac, una defensa i un Focus—, perquè des del primer combat pugui triar entre els tres tipus. Les habilitats que aprèn després comencen a nivell 1 (vegeu *Aprendre*).
+
 ## Accions
 
 Les accions són les capacitats que un personatge pot fer servir, tant en combat com fora de combat. Cada acció pertany a una habilitat i s'aprèn quan l'habilitat arriba al seu nivell.
