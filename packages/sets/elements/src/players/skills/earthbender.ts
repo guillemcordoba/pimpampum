@@ -33,7 +33,7 @@ const TUNNEL: StatusBehavior = {
   positionValue(ref) { return ref.entry.remaining > 0 ? 0.12 : 0; },
 };
 
-// --- 9 · Roca viva ----------------------------------------------------------
+// --- 7 · Roca viva ----------------------------------------------------------
 
 const GOLEM_SKILL = 'golem-de-roca';
 const GOLEM_PV = BODY_PV;
@@ -76,7 +76,7 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // 7 · Sorres movedisses: the chosen enemy sinks — its card this round
+  // 9 · Sorres movedisses: the chosen enemy sinks — its card this round
   // resolves last (a Defense, after every attack it was meant to stop).
   quicksand: {
     getTargetRequirement() { return 'enemy'; },
@@ -105,7 +105,7 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.some(a => a.currentPV < a.maxPV * 0.5) ? 0.9 : 0.3; },
   },
 
-  // 9 · Roca viva: a stone golem rises and fights on the bender's side.
+  // 7 · Roca viva: a stone golem rises and fights on the bender's side.
   living_rock: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -162,11 +162,11 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'lorc/armor-vest.svg',
     }),
     action({
-      id: 'sorres-movedisses', name: 'Sorres movedisses', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'quicksand' }],
-      desc: "La carta d'aquest torn de l'enemic que triïs es resol l'última.",
-      icon: 'lorc/sands-of-time.svg',
+      id: 'roca-viva', name: 'Roca viva', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus,
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'living_rock' }],
+      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (26 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
+      icon: 'delapouite/rock-golem.svg',
     }),
     action({
       id: 'bunquer', name: 'Búnquer', skillId: SKILL_ID,
@@ -176,11 +176,11 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'lorc/stone-tower.svg',
     }),
     action({
-      id: 'roca-viva', name: 'Roca viva', skillId: SKILL_ID,
-      unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'living_rock' }],
-      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (26 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
-      icon: 'delapouite/rock-golem.svg',
+      id: 'sorres-movedisses', name: 'Sorres movedisses', skillId: SKILL_ID,
+      unlock: 9, type: ActionType.Focus, fast: true,
+      effects: [{ type: 'quicksand' }],
+      desc: "La carta d'aquest torn de l'enemic que triïs es resol l'última.",
+      icon: 'lorc/sands-of-time.svg',
     }),
     action({
       id: 'terratremol', name: 'Terratrèmol', skillId: SKILL_ID,

@@ -147,9 +147,9 @@ the main session.
 | 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack next round |
 | 6 | Armadura de terra | Focus | an ally has +3 on its defenses for 3 rounds |
-| 7 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept at 7 by the user) |
+| 7 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack and defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
-| 9 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack and defense 2d6); 2 fatigue |
+| 9 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept by the user; moved to 9 when the golem came down) |
 | 10 | Terratrèmol | Atac | every enemy |
 
 ## Mestre del foc — `firebender` (redesigned 2026-11-01)
