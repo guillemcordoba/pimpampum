@@ -9,7 +9,7 @@
  * target policy): the first eligible enemy.
  */
 import { describe, it, expect } from 'vitest';
-import { type ActionDefinition, CombatEngine, DiceRoll, applyKind, firstLegalChooser } from '@pimpampum/engine';
+import { type ActionDefinition, CombatEngine, DiceRoll, applyKind, firstLegalChooser, withSeed } from '@pimpampum/engine';
 import { attackCard, defenseCard, fighter, focusCard, playRound, type Selection } from '@pimpampum/engine/testing';
 import { createRegistry, getAction } from '../src/index.js';
 
@@ -58,27 +58,33 @@ describe("Mestre de l'aigua", () => {
     expect(ally.currentPV).toBe(5);
   });
 
-  it('Boira espessa: a held blow hides whoever it covered, for the next round only', () => {
-    const water = fighter('Aigua', [flat('boira-espessa', 1, 100), wait], { pv: 30 });
+  it('Boira espessa: over the whole party for the next 5 rounds, then it lifts', () => {
+    const water = fighter('Aigua', [getAction('boira-espessa')!, wait], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(5), wait], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
     const engine = engineFor([water, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    expect(ally.currentPV).toBe(30);
-    expect(engine.enemiesOf(foe)).toEqual([water]);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1)]);
-    expect(engine.enemiesOf(foe)).toEqual([water, ally]);
+    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0)]);
+    for (let r = 0; r < 5; r++) {
+      expect([water.hasStatus('boira-espessa'), ally.hasStatus('boira-espessa')]).toEqual([true, true]);
+      playRound(engine, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 0)]);
+    }
+    expect([water.hasStatus('boira-espessa'), ally.hasStatus('boira-espessa')]).toEqual([false, false]);
   });
 
-  it('Boira espessa: a broken defense hides nobody', () => {
-    const water = fighter('Aigua', [flat('boira-espessa', 1, 0), wait], { pv: 30 });
-    const ally = fighter('Amic', [wait], { pv: 30 });
-    const foe = fighter('Foe', [blow(5), wait], { pv: 30 });
-    const engine = engineFor([water, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
-    // The broken guard takes the blow itself.
-    expect([water.currentPV, ally.currentPV]).toEqual([26, 30]);
-    expect(engine.enemiesOf(foe)).toEqual([water, ally]);
+  it('Boira espessa: about one enemy blow in four is lost in the fog', () => {
+    let lost = 0;
+    withSeed(31, () => {
+      for (let n = 0; n < 400; n++) {
+        const water = fighter('Aigua', [getAction('boira-espessa')!, wait], { pv: 30 });
+        const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
+        const engine = engineFor([water], [foe]);
+        playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
+        playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
+        if (water.currentPV === 30) lost++;
+      }
+    });
+    expect(lost / 400).toBeGreaterThan(0.18);
+    expect(lost / 400).toBeLessThan(0.32);
   });
 
   it('Marea de vida: one roll heals the whole party, the fallen too; 1 fatigue', () => {

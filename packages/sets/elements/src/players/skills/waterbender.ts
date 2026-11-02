@@ -1,13 +1,14 @@
-import { ActionType, Character, EffectContext, EffectHandler, STATUS_KINDS, StatusBehavior } from '@pimpampum/engine';
+import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, expectedBlow } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
+import { num } from '../effects/helpers.js';
 import { BURN_KEY } from '../effects/cremat.js';
 import { warded } from '../effects/generic.js';
 
 /**
  * MESTRE DE L'AIGUA — the user's design ("Maestre de l'aigua — conceptes de
  * cartes", 2026-11-01, and the cards they picked on 2026-11-02): the
- * defensive, healing bender, fire's opposite. A plain wall, a fog that hides
- * whoever it saved, eight arms over the whole party; a spring that heals and
+ * defensive, healing bender, fire's opposite. A plain wall, a thick fog in
+ * which the enemies' blows get lost, eight arms over the whole party; a spring that heals and
  * puts out burns, and the tide that raises everyone; an ice trap, the
  * forbidden bloodbending; and the tsunami. The numbers are this file's, on the
  * dice ladder (intentions.md).
@@ -21,10 +22,21 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 }
 
 const THICK_FOG_KEY = 'boira-espessa';
-const HIDDEN_NEXT_ROUND: StatusBehavior = {
-  untargetable: ref => ref.entry.remaining <= 1,
-  // The engine's untargetable kind, one round late: priced as that kind.
-  positionValue: (ref, board) => STATUS_KINDS.untargetable.positionValue!(ref, board),
+const IN_THICK_FOG: StatusBehavior = {
+  // Every enemy blow on the holder rolls 1d4; on a 1 it is lost in the fog.
+  onTargeted(ctx, attacker) {
+    if (ctx.engine.rollDie(4) > 1) return false;
+    ctx.engine.log('defense', `L'atac de ${attacker.name} es perd dins la boira.`, ctx.holder.team);
+    return true;
+  },
+  // A quarter of one enemy blow on the holder, for each round still to come.
+  positionValue(ref, board) {
+    const foes = board?.enemiesOf(ref.holder) ?? [];
+    if (!foes.length) return 0;
+    const blow = foes.reduce((s, f) => s + expectedBlow(f), 0) / foes.length;
+    const rounds = ref.entry.remaining < 0 ? 3 : Math.min(ref.entry.remaining, 3);
+    return 0.25 * blow * rounds / Math.max(1, ref.holder.maxPV);
+  },
 };
 
 const WATER_EFFECTS: Record<string, EffectHandler> = {
@@ -39,17 +51,17 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // 5 · Boira espessa: the blow the defense held was lost in the fog, and so
-  // is whoever it covered — next round no enemy can aim at them.
+  // 5 · Boira espessa: a thick fog settles over the whole party for the next
+  // `rounds` rounds, and the enemies' blows get lost in it.
   thick_fog: {
-    onDefend(ctx) {
-      const hidden = ctx.targets[0];
-      if (!hidden?.isAlive()) return;
-      // Set this round: its end takes one, and the next round is the hidden one.
-      hidden.setStatus(THICK_FOG_KEY, 1, 2, undefined, HIDDEN_NEXT_ROUND);
-      ctx.engine.log('defense', `La boira s'empassa ${hidden.name}: el torn següent ningú no el troba.`, ctx.source.team);
+    getTargetRequirement() { return 'none'; },
+    onResolve(ctx) {
+      // Set in the Focus step: the round's end takes one, then the rounds remain.
+      const turns = num(ctx.params, 'rounds', 5) + 1;
+      for (const a of ctx.engine.alliesOf(ctx.source, true)) a.setStatus(THICK_FOG_KEY, 1, turns, undefined, IN_THICK_FOG);
+      ctx.engine.log('focus', `${ctx.source.name} aixeca una boira espessa sobre tot el grup.`, ctx.source.team);
     },
-    aiWeight() { return 0.4; },
+    aiWeight(ctx) { return ctx.enemies.length ? 0.6 : -1; },
   },
 
   // 7 · Marea de vida: one roll heals the whole party, the fallen too.
@@ -123,9 +135,9 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'boira-espessa', name: 'Boira espessa', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
-      effects: [{ type: 'thick_fog' }],
-      desc: 'Si aguanta, el torn següent cap enemic no pot atacar qui defenses.',
+      unlock: 5, type: ActionType.Focus,
+      effects: [{ type: 'thick_fog', params: { rounds: 5 } }],
+      desc: 'Els 5 torns següents, cada atac contra el teu grup tira 1d4: amb un 1, falla.',
       icon: 'delapouite/fog.svg',
     }),
     action({

@@ -125,7 +125,7 @@ dice and small mechanics by the main session.
 | 2 | Mur d'aigua | Defensa | the plain wall |
 | 3 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn; not two rounds running (was 1 fatigue until 2026-11-02); the kit's first Focus, its turtle-breaker |
 | 4 | Font curativa | Focus | heals an ally (2d4+2) and puts out Cremat; heals belong early |
-| 5 | Boira espessa | Defensa | if it holds, next round no enemy can aim at whoever it covered (the user's pick, 2026-11-02; replaced Boira, a Focus that hid every ally) |
+| 5 | Boira espessa | Focus | for the next 5 rounds every enemy blow on your party rolls 1d4 and misses on a 1 (the user's design, 2026-11-02; replaced Boira, which hid every ally for one round) |
 | 6 | Llança de gel | Atac | the strong single blow |
 | 7 | Marea de vida | Focus | one roll heals the whole party, the fallen too; 1 fatigue (the user's pick, 2026-11-02; Cúpula de gel left: too close to Forma de pop and Búnquer) |
 | 8 | Forma de pop | Defensa | defends every ally |
