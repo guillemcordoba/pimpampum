@@ -1,16 +1,15 @@
 import { ActionType, Character, EffectHandler, StatusBehavior, applyKind } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
-import { num } from '../effects/helpers.js';
+import { HARM, applyMod, num } from '../effects/helpers.js';
 import { warded } from '../effects/generic.js';
 
 /**
  * MESTRE DE L'AIRE — the user's design ("Maestre de l'aire — conceptes de
  * cartes", 2026-11-01): the utility bender. Not a damage dealer nor a healer:
  * it controls the flow of the round — who acts first, who acts last, whom a
- * blow can reach — and sets up its allies; at its peak it pulls the breath out
- * of an enemy. Escut d'aire (7) only holds its slot until the finisher that
- * replaces it (OPEN.md). The numbers are this file's, on the dice ladder
- * (intentions.md).
+ * blow can reach — and sets up its allies; at its top it turns the whole round
+ * backwards and pulls the breath out of an enemy. The numbers are this file's,
+ * on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'airbender';
@@ -46,21 +45,7 @@ const CHOKING: StatusBehavior = {
   positionValue() { return 0; },
 };
 
-// --- 7 · Escut d'aire -------------------------------------------------------
-
-/** This round the wind turns blows aside: the holder takes half of what gets
- *  through. Lives and dies inside its round, so its price is 0 on purpose. */
-const TURNED_ASIDE: StatusBehavior = {
-  modifyIncomingDamage(ctx, damage) {
-    if (damage <= 0) return damage;
-    const half = Math.floor(damage / 2);
-    ctx.engine.log('defense', `El vent aparta el cop contra ${ctx.holder.name}: ${half} de ${damage}.`, ctx.holder.team);
-    return half;
-  },
-  positionValue() { return 0; },
-};
-
-// --- 6 · Coixí d'aire -------------------------------------------------------
+// --- 4 · Coixí d'aire -------------------------------------------------------
 
 /** This round every blow on the holder lands `value` softer. Lives and dies
  *  inside its round, so its price is 0 on purpose. */
@@ -68,18 +53,6 @@ const CUSHIONED: StatusBehavior = {
   modifyIncomingDamage(ctx, damage) {
     if (damage <= 0) return damage;
     return Math.max(0, damage - ctx.entry.value);
-  },
-  positionValue() { return 0; },
-};
-
-// --- 8 · Corrent ascendent --------------------------------------------------
-
-/** Lifted on the wind this round: every blow on the holder finds only air.
- *  Lives and dies inside its round, so its price is 0 on purpose. */
-const LIFTED: StatusBehavior = {
-  modifyIncomingDamage(ctx, damage) {
-    if (damage > 0) ctx.engine.log('defense', `El cop contra ${ctx.holder.name} només troba aire.`, ctx.holder.team);
-    return 0;
   },
   positionValue() { return 0; },
 };
@@ -167,18 +140,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length ? 0.7 : -1; },
   },
 
-  // 7 · Escut d'aire: the bender and whoever it defends take half of what
-  // gets through this round.
-  air_shield: {
-    onResolve(ctx) {
-      for (const t of new Set([ctx.source, ...ctx.targets.filter(t => t.team === ctx.source.team && t.isAlive())])) {
-        t.setStatus('escut-d-aire', 1, 1, undefined, TURNED_ASIDE);
-      }
-    },
-    aiWeight() { return 0.5; },
-  },
-
-  // 6 · Coixí d'aire: this round every blow on the bender's side lands
+  // 4 · Coixí d'aire: this round every blow on the bender's side lands
   // `amount` softer.
   air_cushion: {
     getTargetRequirement() { return 'none'; },
@@ -190,21 +152,38 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.allies.length ? 0.6 : 0.3; },
   },
 
-  // 8 · Corrent ascendent: the chosen ally rises on the wind — attacks on it
-  // miss this round, and it loses its own card.
-  updraft: {
-    getTargetRequirement() { return 'ally_other'; },
-    onResolve(ctx) {
-      const t = ctx.targets[0];
-      if (!t || !t.isAlive()) return;
-      t.setStatus('aixecat', 1, 1, undefined, LIFTED);
-      ctx.engine.cancelPendingAction(t);
-      ctx.engine.log('focus', `Un corrent ascendent aixeca ${t.name} per sobre del combat.`, ctx.source.team);
+  // 6 · Finta a contrapeu: the blow the defense holds was the feint's bait —
+  // next round the attacker, wrong-footed, has −`amount` on its attacks and
+  // on its defenses.
+  wrong_foot: {
+    onDefend(ctx) {
+      const t = ctx.target;
+      if (!t || !t.isAlive() || warded(t)) return;
+      const amount = num(ctx.params, 'amount', 3);
+      applyMod(t, 'attack', -amount, 'nextTurn', ctx.action.name, undefined, HARM);
+      applyMod(t, 'defense', -amount, 'nextTurn', ctx.action.name, undefined, HARM);
+      ctx.engine.log('defense', `${t.name} queda a contrapeu: −${amount} als atacs i a les defenses el torn següent.`, ctx.source.team);
     },
-    aiWeight(ctx) { return ctx.allies.some(a => a.currentPV < a.maxPV * 0.4) ? 1 : 0.2; },
+    aiWeight() { return 0.4; },
   },
 
-  // 4 · Remolí (with the generic `not_twice_running`): the chosen enemy is out
+  // 8 · Contracorrent: the rest of the round runs backwards — every card still
+  // to resolve goes Focus first, then attacks, then defenses, each in its
+  // commit order — so this round's normal defenses come up after the blows.
+  counter_current: {
+    getTargetRequirement() { return 'none'; },
+    onResolve(ctx) {
+      const steps = [ActionType.Focus, ActionType.Atac, ActionType.Defensa];
+      const rest = ctx.engine.plannedThisRound().filter(p => !p.resolved && !p.cancelled && p.actor !== ctx.source);
+      const order = [...rest].sort((a, b) => steps.indexOf(a.action.actionType) - steps.indexOf(b.action.actionType));
+      // Each advance lands right after this card, so the last to resolve goes first.
+      for (const p of order.reverse()) ctx.engine.advancePendingAction(p.actor);
+      ctx.engine.log('focus', `${ctx.source.name} gira el vent a contracorrent: el torn va al revés.`, ctx.source.team);
+    },
+    aiWeight() { return 0.3; },
+  },
+
+  // 7 · Remolí (with the generic `not_twice_running`): the chosen enemy is out
   // of the fight next round — it plays no card and nobody can aim at it.
   whirlwind: {
     getTargetRequirement() { return 'enemy'; },
@@ -247,11 +226,11 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/wind-hole.svg',
     }),
     action({
-      id: 'remoli-de-vent', name: 'Remolí', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus,
-      effects: [{ type: 'not_twice_running', params: { card: 'remoli' } }, { type: 'whirlwind' }],
-      desc: "L'enemic que triïs queda fora del combat el torn següent: no juga carta i ningú no el pot atacar. No el pots jugar dos torns seguits.",
-      icon: 'lorc/tornado-discs.svg',
+      id: 'coixi-d-aire', name: "Coixí d'aire", skillId: SKILL_ID,
+      unlock: 4, type: ActionType.Focus, fast: true,
+      effects: [{ type: 'air_cushion', params: { amount: 3 } }],
+      desc: 'Aquest torn, cada cop contra el teu grup fa 3 menys de dany.',
+      icon: 'lorc/feather.svg',
     }),
     action({
       id: 'fulles-de-vent', name: 'Fulles de vent', skillId: SKILL_ID,
@@ -261,25 +240,25 @@ export const AIRBENDER: SkillDefinition = {
       icon: 'lorc/air-zigzag.svg',
     }),
     action({
-      id: 'coixi-d-aire', name: "Coixí d'aire", skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'air_cushion', params: { amount: 3 } }],
-      desc: 'Aquest torn, cada cop contra el teu grup fa 3 menys de dany.',
-      icon: 'lorc/feather.svg',
+      id: 'finta-a-contrapeu', name: 'Finta a contrapeu', skillId: SKILL_ID,
+      unlock: 6, type: ActionType.Defensa, dice: d(2, 6, 1),
+      effects: [{ type: 'wrong_foot', params: { amount: 3 } }],
+      desc: "Si aguanta, l'atacant té −3 als atacs i a les defenses el torn següent.",
+      icon: 'lorc/foot-trip.svg',
     }),
     action({
-      id: 'escut-d-aire', name: "Escut d'aire", skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Defensa, dice: d(2, 4, 1),
-      effects: [{ type: 'air_shield' }],
-      desc: 'Aquest torn, tu i qui defenses rebeu la meitat del dany que us arribi.',
-      icon: 'lorc/vortex.svg',
+      id: 'remoli-de-vent', name: 'Remolí', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus,
+      effects: [{ type: 'not_twice_running', params: { card: 'remoli' } }, { type: 'whirlwind' }],
+      desc: "L'enemic que triïs queda fora del combat el torn següent: no juga carta i ningú no el pot atacar. No el pots jugar dos torns seguits.",
+      icon: 'lorc/tornado-discs.svg',
     }),
     action({
-      id: 'corrent-ascendent', name: 'Corrent ascendent', skillId: SKILL_ID,
+      id: 'contracorrent', name: 'Contracorrent', skillId: SKILL_ID,
       unlock: 8, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'updraft' }],
-      desc: 'Un aliat: aquest torn, els atacs contra ell fallen, però perd la seva carta.',
-      icon: 'lorc/crossed-air-flows.svg',
+      effects: [{ type: 'counter_current' }],
+      desc: "Aquest torn, després del pas ràpid, l'ordre va al revés: Focus, Atacs i, al final, Defenses.",
+      icon: 'lorc/divided-spiral.svg',
     }),
     action({
       id: 'asfixia', name: 'Asfíxia', skillId: SKILL_ID,

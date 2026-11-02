@@ -5,17 +5,20 @@ import { BURN_PV, BURN_TURNS, setAlight } from '../effects/cremat.js';
 
 /**
  * MESTRE DEL FOC — the user's design ("Maestre del foc — conceptes de cartes",
- * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 6, 9); the
+ * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 9, and 6 on the bender's own side); the
  * rest is raw heat — a chi that stokes every blow, a storm of sparks, a
  * blinding flash, a wildfire that grows until it has consumed its victim, a
- * bolt, and the supernova that burns the bender out. Alè de drac (6) only holds
- * its slot until the user picks the card that replaces it (OPEN.md). The
- * numbers are this file's, on the dice ladder (intentions.md).
+ * fury too big to hold, a bolt, and the supernova that burns the bender out.
+ * The numbers are this file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'firebender';
 
-// Cremat (cards 1, 2, 6, 9) is the set's shared burn (`effects/cremat.ts`).
+function backfire(bender: Character, engine: EngineApi): void {
+  for (const c of engine.alliesOf(bender, true)) setAlight(c, bender, engine);
+}
+
+// Cremat (cards 1, 2, 9, and 6 on the bender's own side) is the set's shared burn (`effects/cremat.ts`).
 
 // --- 7 · Incendi -------------------------------------------------------------
 
@@ -74,11 +77,19 @@ const RING: StatusBehavior = {
 };
 
 const FIRE_EFFECTS: Record<string, EffectHandler> = {
-  // 1 · Bola de foc, 6 · Alè de drac: a target it wounds is burned.
+  // 1 · Bola de foc: a target it wounds is burned.
   sets_alight: {
     onAttackHit(ctx) {
       if (ctx.target && (ctx.damageDealt ?? 0) > 0) setAlight(ctx.target, ctx.source, ctx.engine);
     },
+    aiWeight() { return 0.3; },
+  },
+
+  // 6 · Fúria de flames: a blaze too big to hold — if it wounds nobody, it
+  // bursts around the bender, and the bender and every ally are burned.
+  fury: {
+    onAttackHit(ctx) { if ((ctx.damageDealt ?? 0) <= 0) backfire(ctx.source, ctx.engine); },
+    onAttackMiss(ctx) { backfire(ctx.source, ctx.engine); },
     aiWeight() { return 0.3; },
   },
 
@@ -212,11 +223,11 @@ export const FIREBENDER: SkillDefinition = {
       icon: 'lorc/sunbeams.svg',
     }),
     action({
-      id: 'ale-de-drac', name: 'Alè de drac', skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2,
-      effects: [{ type: 'sets_alight' }],
-      desc: 'Afecta dos enemics. Els que fereix queden cremats.',
-      icon: 'lorc/dragon-breath.svg',
+      id: 'furia-de-flames', name: 'Fúria de flames', skillId: SKILL_ID,
+      unlock: 6, type: ActionType.Atac, dice: d(3, 6),
+      effects: [{ type: 'fury' }],
+      desc: 'Si no fereix, la fúria esclata al teu voltant: tu i els teus aliats quedeu cremats.',
+      icon: 'lorc/burning-passion.svg',
     }),
     action({
       id: 'incendi', name: 'Incendi', skillId: SKILL_ID,

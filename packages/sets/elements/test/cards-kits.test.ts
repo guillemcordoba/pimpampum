@@ -208,13 +208,21 @@ describe('Mestre del foc', () => {
     expect(foe.hasStatus('incendi')).toBe(false);
   });
 
-  it('Alè de drac: two enemies, and the ones it wounds are burned', () => {
-    const fire = fighter('Foc', [flat('ale-de-drac', 1, 2)], { pv: 30 });
-    const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    const c = fighter('C', [wait], { pv: 30 });
-    playRound(engineFor([fire], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
-    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([25, 25, 30]);
+  it('Fúria de flames: a blow that wounds leaves the bender untouched', () => {
+    const fire = fighter('Foc', [flat('furia-de-flames', 1, 9)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([fire], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect([fire.currentPV, foe.currentPV]).toEqual([30, 20]);
+    expect(fire.hasStatus('cremat')).toBe(false);
+  });
+
+  it('Fúria de flames: a blow that wounds nobody bursts around the bender, who burns with every ally', () => {
+    const fire = fighter('Foc', [flat('furia-de-flames', 1, 9)], { pv: 30 });
+    const ally = fighter('Amic', [wait], { pv: 30 });
+    const foe = fighter('Foe', [guard(100)], { pv: 30 });
+    playRound(engineFor([fire, ally], [foe]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(1, 0))]);
+    expect([fire.hasStatus('cremat'), ally.hasStatus('cremat'), foe.hasStatus('cremat')]).toEqual([true, true, false]);
+    expect([fire.currentPV, ally.currentPV]).toEqual([28, 28]);
   });
 
   it('Foc interior: +6 on the bender\'s attacks for the next two rounds', () => {
@@ -337,12 +345,24 @@ describe("Mestre de l'aire", () => {
     expect(foe.currentPV).toBe(30 - 3 * (3 - 1));
   });
 
-  it("Escut d'aire: what gets through is halved", () => {
-    const air = fighter('Aire', [flat('escut-d-aire', 1, 0)], { pv: 30 });
-    const foe = fighter('Foe', [blow(9)], { pv: 30 });
-    playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
-    // 9 against 1: 8 through, halved.
-    expect(air.currentPV).toBe(26);
+  it('Finta a contrapeu: a held blow leaves the attacker −3 on its attacks and its defenses next round', () => {
+    const air = fighter('Aire', [flat('finta-a-contrapeu', 1, 100), blow(4)], { pv: 30 });
+    const foe = fighter('Foe', [blow(5), guard(5), blow(5)], { pv: 30 });
+    const engine = engineFor([air], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    expect(air.currentPV).toBe(30);
+    // Its guard of 5 rolls 2 against the 4.
+    playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 1, T(1, 0))]);
+    expect(foe.currentPV).toBe(28);
+  });
+
+  it('Finta a contrapeu: the attacker blows land 3 softer next round', () => {
+    const air = fighter('Aire', [flat('finta-a-contrapeu', 1, 100), wait], { pv: 30 });
+    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    const engine = engineFor([air], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(0, 0)), sel(1, 0, 0, T(0, 0))]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
+    expect(air.currentPV).toBe(28);
   });
 
   it("Coixí d'aire: this round every blow on the side lands 3 softer", () => {
@@ -354,12 +374,20 @@ describe("Mestre de l'aire", () => {
     expect([air.currentPV, ally.currentPV]).toEqual([30, 28]);
   });
 
-  it('Corrent ascendent: attacks on the lifted ally miss, and it loses its own card', () => {
-    const air = fighter('Aire', [flat('corrent-ascendent', 0)], { pv: 30 });
-    const ally = fighter('Amic', [blow(5)], { pv: 30 });
-    const foe = fighter('Foe', [blow(6)], { pv: 30 });
-    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(0, 1))]);
-    expect([ally.currentPV, foe.currentPV]).toEqual([30, 30]);
+  it('Contracorrent: the rest of the round runs backwards, so a normal guard comes up after the blow', () => {
+    const air = fighter('Aire', [flat('contracorrent', 0)], { pv: 30 });
+    const ally = fighter('Amic', [guard(100)], { pv: 30 });
+    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(0, 1)), sel(1, 0, 0, T(0, 1))]);
+    expect(ally.currentPV).toBe(25);
+  });
+
+  it('Contracorrent: a fast guard, up before it, still holds', () => {
+    const air = fighter('Aire', [flat('contracorrent', 0)], { pv: 30 });
+    const ally = fighter('Amic', [guard(100, true)], { pv: 30 });
+    const foe = fighter('Foe', [blow(5)], { pv: 30 });
+    playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(0, 1)), sel(1, 0, 0, T(0, 1))]);
+    expect(ally.currentPV).toBe(30);
   });
 
   it('Remolí: next round the chosen enemy plays no card and nobody can aim at it', () => {

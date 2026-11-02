@@ -169,7 +169,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 | 3 | Foc interior | Focus | +6 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker |
 | 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
 | 5 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 9 or less its attack misses |
-| 6 | Alè de drac | Atac | two enemies; the wounded are burned — cut by the user (too close to Incendi, both burn); holds 6 until a card that doesn't burn is picked |
+| 6 | Fúria de flames | Atac | 3d6; if it wounds nobody, it bursts around the bender: the bender and every ally are burned (the user's design, 2026-11-02; Alè de drac left, too close to Incendi) |
 | 7 | Incendi | Atac | a wounded target burns 2, 4, 6… PV a round until it falls; then the fire leaps to a random enemy (the user's pick, 2026-11-02; Cortina de fum left: smoke as cover is water's) |
 | 8 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
 | 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 6 PV and is burned |
@@ -191,12 +191,12 @@ the main session.
 | 1 | Ventada | Atac, fast | every enemy; the wounded act last this round, a Defense excepted |
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Vent a favor | Focus, fast | an ally's card resolves right after it; the kit's first Focus, its turtle-breaker |
-| 4 | Remolí | Focus | the chosen enemy is out of the fight next round; not two rounds running (was level 9) |
-| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy (1d4 each; the user's pick among card-designer concepts, 2026-11-02; it ignored armour before, "kinda meh") |
-| 6 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
-| 7 | Escut d'aire | Defensa | you and whoever you defend take half of what gets through — leaving (the user: wrong; their concept turned blows aside), holds 7 until a finisher is picked |
-| 8 | Corrent ascendent | Focus, fast | attacks on an ally miss this round; it loses its card |
-| 9 | Asfíxia | Focus | unless someone wounds the bender by the end of next round, the chosen enemy drops to 0 PV; 2 fatigue (the user's pick, 2026-11-02; it was −3 on an enemy's attacks at level 4) |
+| 4 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
+| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy (1d4 each; the user's pick, 2026-11-02; it ignored armour before, "kinda meh") |
+| 6 | Finta a contrapeu | Defensa | if it holds, the attacker has −3 on its attacks and its defenses next round (the user's design, 2026-11-02) |
+| 7 | Remolí | Focus | the chosen enemy is out of the fight next round; not two rounds running |
+| 8 | Contracorrent | Focus, fast | the rest of the round runs backwards: Focus, then attacks, then defenses, so that round's normal defenses come up too late (the user's pick, 2026-11-02, a knowing exception to "a correct read is never wasted") |
+| 9 | Asfíxia | Focus | unless someone wounds the bender by the end of next round, the chosen enemy drops to 0 PV; 2 fatigue (the user's pick, 2026-11-02) |
 | 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 2 fatigue (1 until 2026-11-02, when air measured strongest) |
 
 ## Creatures (landed 2026-10-07)
@@ -211,6 +211,8 @@ Each takes a different thing away from a hero.
 | Arquer yuyan | support (1-2 in the line) | defense (pins) | reach the back line; interrupt the signal arrow |
 
 ## Ideas parked for later skills (2026-10-13)
+
+- Parked from the airbender (2026-11-02): Corrent ascendent (an ally untouchable this round, losing its own card), and Escut d'aire, built as a half-damage shield though the user's concept was a spinning dome that turns blows aside.
 
 Card concepts the user loved that did not fit the kit they were designed for.
 
