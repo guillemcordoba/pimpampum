@@ -822,6 +822,16 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   legality. **Its 2026-08-08 run is what killed the lean policy** (no better
   than a random legal card — NEXT-STEPS §9); the staleness section now asserts
   there is nothing left to go stale, since the one AI carries no per-card table.
+- `hero-scale.ts` — HERO SCALE (bench `heroScaleRun`, playtest
+  `measureHeroScale`, 2026-11-02): random 2v2 teams of the set's main kits at
+  the players' own PV, the production AI on both sides. It reports fight
+  length, the heroes felled before any card of theirs resolved, and each
+  card's KOs from full PV in one play, and judges requirement 5: a fast attack
+  stays under `FAST_ONE_SHOT_MAX` KOs a play unless a fast Defense is in the
+  game (`fastAttackVerdict`; `sets/elements/test/hero-scale.slow.test.ts`).
+  The kit cells fight creatures whose solved PV (30-120) hides every one-hit
+  KO: Llamp as a fast 4d6 KO'd a fresh hero on 0.56 of its plays here and read
+  as merely good there.
 - `kit-analyzer.ts` — the KIT REGRESSION HARNESS (NEXT-STEPS §7): library +
   CLI, one code path, two modes (`--player <skill>` / `--enemy <id>`; no flag
   sweeps every main kit; `--triangle` adds the set's requirement 4). Per kit

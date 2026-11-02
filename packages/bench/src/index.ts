@@ -38,6 +38,10 @@ export {
 } from './cells.js';
 export type { CellSetup, CachedCell, CardCounters, MatrixResult } from './cells.js';
 
+// --- Heroes against heroes at the set's own PV --------------------------
+export { heroScaleRun, HERO_SCALE_SEED } from './hero-scale.js';
+export type { HeroScaleRun, HeroScaleCard } from './hero-scale.js';
+
 // --- Alternative policies, and honest duels between them --------------------
 export {
   heuristic, depth1, depth1x, spam, uniform, feeble, firstLegal, split, headToHead,

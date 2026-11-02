@@ -207,7 +207,7 @@ export const FIREBENDER: SkillDefinition = {
     }),
     action({
       id: 'llamp', name: 'Llamp', skillId: SKILL_ID,
-      unlock: 9, type: ActionType.Atac, fast: true, dice: d(4, 6),
+      unlock: 9, type: ActionType.Atac, fast: true, dice: d(2, 6),
       desc: '',
       icon: 'lorc/heavy-lightning.svg',
     }),

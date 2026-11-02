@@ -12,6 +12,8 @@ export {
 } from './analyze.js';
 export type { Subject, Verdict, KitReport, AnalyzeBudget, AnalysisJob, ChoiceCost } from './analyze.js';
 export { measureCycle, measureTriangle } from './triangle.js';
+export { measureHeroScale } from './hero-scale.js';
+export type { HeroScaleReport } from './hero-scale.js';
 export type { TriangleEdge, TriangleReport } from './triangle.js';
 export { prepare, installSet, withSubject } from './prepare.js';
 export type { RunContext } from './prepare.js';

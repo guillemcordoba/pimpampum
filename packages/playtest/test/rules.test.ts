@@ -22,8 +22,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   choiceMattersVerdict, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
-  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict,
+  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict, fastAttackVerdict, FAST_ONE_SHOT_MAX, MIN_HERO_SCALE_PLAYS,
 } from '../src/index.js';
+import { ActionType } from '@pimpampum/engine';
 
 /** A sample big enough that a 1pp effect is resolvable — so these tests are
  *  about the RULE, not about noise. */
@@ -177,5 +178,26 @@ describe('a blind spot: often the best play, almost never played', () => {
     expect(isBlindSpot(0.14, 0.02, 0.061)).toBe(false);  // Entrar en Fúria: rare, and played when right
     expect(isBlindSpot(0.21, 0.02, 0.053)).toBe(false);  // Paisatge congelat: under-played, not blind
     expect(isBlindSpot(0.11, 0.02, 0.0)).toBe(false);    // best share not clearly above the floor
+  });
+});
+
+describe('requirement 5 — a fast attack is weak, or something answers it', () => {
+  const card = (id: string, oneShotRate: number, plays = 1000, fast = true, type = ActionType.Atac) =>
+    ({ id, type, fast, plays, oneShots: Math.round(oneShotRate * plays) });
+
+  it('flags a fast attack that clearly one-shots more often than the bar', () => {
+    expect(fastAttackVerdict([card('bolt', 0.5)], false)).toMatchObject({ ok: false, broken: ['bolt'] });
+  });
+  it('lets a fast attack under the bar through, and one within noise of it', () => {
+    expect(fastAttackVerdict([card('jab', 0.02), card('edge', FAST_ONE_SHOT_MAX + 0.01, 100)], false).ok).toBe(true);
+  });
+  it('judges only fast attacks: a slow nuke and a fast focus are not its business', () => {
+    expect(fastAttackVerdict([card('nuke', 1, 1000, false), card('rush', 1, 1000, true, ActionType.Focus)], false).ok).toBe(true);
+  });
+  it('a fast defense in the game answers every fast attack', () => {
+    expect(fastAttackVerdict([card('bolt', 0.5)], true).ok).toBe(true);
+  });
+  it('a card played too seldom is unjudged, not passed silently', () => {
+    expect(fastAttackVerdict([card('rare', 1, MIN_HERO_SCALE_PLAYS - 1)], false)).toMatchObject({ ok: true, unjudged: ['rare'] });
   });
 });

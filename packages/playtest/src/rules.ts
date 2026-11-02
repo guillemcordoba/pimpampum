@@ -22,6 +22,7 @@
  * session.
  */
 import { exact, stderr } from '@pimpampum/bench';
+import { ActionType } from '@pimpampum/engine';
 
 // --- 1. Fights end ------------------------------------------------------------
 
@@ -171,3 +172,35 @@ export function triangleVerdict(edges: { winner: string; loser: string; winrate:
   return { ok: broken.length === 0, broken };
 }
 
+
+// --- 5. Hero scale ----------------------------------------------------------------
+
+/**
+ * Fights per level in the hero-scale suite (`heroScaleRun`): random 2v2 teams of
+ * the set's main kits, the AI on both sides. A fast attack a kit holds is then
+ * played some hundred times, enough to tell 10% one-shots from 2%.
+ */
+export const HERO_SCALE_GAMES = 600;
+
+/**
+ * A FAST ATTACK IS WEAK, OR SOMETHING ANSWERS IT (intentions.md). It resolves
+ * before every normal defense, so it may take a full-health hero to 0 in one
+ * play this often at most — unless a fast Defense is in the game.
+ */
+export const FAST_ONE_SHOT_MAX = 0.1;
+
+/** Plays below which a card's one-shot rate is not judged. */
+export const MIN_HERO_SCALE_PLAYS = 30;
+
+/** The fast attacks that CLEARLY one-shot more than `FAST_ONE_SHOT_MAX` of their
+ *  plays, when nothing answers them; `unjudged` are those played too seldom. */
+export function fastAttackVerdict(
+  cards: { id: string; type: ActionType; fast: boolean; plays: number; oneShots: number }[], fastDefense: boolean,
+): { ok: boolean; broken: string[]; unjudged: string[] } {
+  const fastAttacks = fastDefense ? [] : cards.filter(c => c.fast && c.type === ActionType.Atac);
+  const unjudged = fastAttacks.filter(c => c.plays < MIN_HERO_SCALE_PLAYS).map(c => c.id);
+  const broken = fastAttacks
+    .filter(c => c.plays >= MIN_HERO_SCALE_PLAYS && c.oneShots / c.plays - 2 * stderr(Math.min(1, c.oneShots / c.plays), c.plays) > FAST_ONE_SHOT_MAX)
+    .map(c => c.id);
+  return { ok: broken.length === 0, broken, unjudged };
+}
