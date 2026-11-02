@@ -25,6 +25,8 @@ import { buildCharacter, createRegistry, PLAYER_PV } from '@pimpampum/set-elemen
 const KITS = ['waterbender', 'airbender', 'earthbender', 'firebender'] as const;
 const KIT_NAMES: Record<string, string> = { waterbender: "Mestre de l'aigua", airbender: "Mestre de l'aire", earthbender: 'Mestre de la terra', firebender: 'Mestre del foc' };
 const DIR = process.env.DUEL_DIR ?? path.resolve('agent-duel/games');
+/** A game still undecided after this many rounds ends in a draw. */
+const MAX_ROUNDS = Number(process.env.DUEL_MAX_ROUNDS ?? 40);
 const args = process.argv.slice(2);
 const cmd = args[0];
 const opt = (k: string) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
@@ -37,7 +39,7 @@ Each round:
  1. Both sides pick one card per hero, blind.
  2. REVEAL: everyone sees every card. Each side aims its attacks (without seeing the other side's aims).
  3. Resolution order: FAST cards first (fast Defense, fast Attack, fast Focus), then Defense, Attack, Focus.
-    A Defense picks whom it guards (itself or one ally) when it resolves, seeing every aim. The defender always also guards itself.
+    A Defense picks whom it guards (itself or one ally) when it resolves, seeing every aim. It covers ONE body: guarding an ally leaves the defender open.
     If an attack beats the defense of a guarded ally, the DEFENDER takes the damage, not the ally.
     Defenses covering the same attack add up into a wall.
     Inside one step, cards resolve one by one; who goes first alternates between the sides every round (shown in the reveal).
@@ -48,7 +50,8 @@ Each round:
  5. A Focus is cancelled if its hero takes damage before it resolves.
 A roll is just the card's dice (minus 1 per fatigue level). Heroes have ${PLAYER_PV} PV; at 0 PV a hero is out.
 A card's text says only what is special about it. "Ràpid" = fast. Cremat = loses PV at the end of this round and the next.
-Every hero also has "Cop desesperat", playable only when nothing else is. Win by taking out both enemy heroes.`;
+Every hero also has "Cop desesperat", playable only when nothing else is. Win by taking out both enemy heroes.
+A game still undecided after round ${MAX_ROUNDS} ends in a draw.`;
 
 // --- files ---------------------------------------------------------------------
 
@@ -108,7 +111,7 @@ function replay(): State {
   const e = new CombatEngine(team('A'), team('B'), { registry: createRegistry(), ...aiPolicy({ depth: 0 }) });
   st.engine = e;
   for (const c of [...e.teams[0], ...e.teams[1]]) c.aiControlled = false;
-  while (!e.isOver() && e.round < 40) {
+  while (!e.isOver() && e.round < MAX_ROUNDS) {
     const { skipping } = e.prepareRound();
     const skip = new Set(skipping.map(r => e.teams[r.team][r.idx]));
     const acting = (t: number) => e.teams[t].filter(c => c.isAlive() && !skip.has(c));
