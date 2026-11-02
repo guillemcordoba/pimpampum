@@ -291,13 +291,26 @@ describe("Mestre de l'aire", () => {
     expect([air.currentPV, striker.currentPV, mirror.currentPV]).toEqual([30, 30, 30]);
   });
 
-  it('Asfíxia: the chosen enemy has −3 on its attacks for the next two rounds', () => {
+  it('Asfíxia: unless someone wounds the bender, the chosen enemy falls at the end of next round; 2 fatigue', () => {
     const air = fighter('Aire', [flat('asfixia', 0), wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
     const engine = engineFor([air], [foe]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    for (let r = 0; r < 3; r++) playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
-    expect(air.currentPV).toBe(30 - 2 - 2 - 5);
+    expect(air.fatigue).toBe(2);
+    expect(foe.currentPV).toBe(30);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(foe.isAlive()).toBe(false);
+  });
+
+  it('Asfíxia: a wound on the bender breaks the choke', () => {
+    const air = fighter('Aire', [flat('asfixia', 0), wait], { pv: 30 });
+    const foe = fighter('Foe', [wait, blow(3)], { pv: 30 });
+    const engine = engineFor([air], [foe]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(30);
+    expect(foe.hasStatus('asfixia')).toBe(false);
   });
 
   it("Vent a favor: the ally's card resolves right after it, before the normal guards", () => {
@@ -308,11 +321,20 @@ describe("Mestre de l'aire", () => {
     expect(foe.currentPV).toBe(25);
   });
 
-  it("Fulles de vent: ignores armour", () => {
-    const air = fighter('Aire', [flat('fulles-de-vent', 1, 4)], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30, equipment: [armour(2)] });
+  it('Fulles de vent: three blows, one at each chosen enemy', () => {
+    const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    const c = fighter('C', [wait], { pv: 30 });
+    playRound(engineFor([air], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }, { team: 1, idx: 2 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
+    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([27, 27, 27]);
+  });
+
+  it('Fulles de vent: with one enemy chosen, all three blows go at it, each against its own roll', () => {
+    const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30, equipment: [armour(1)] });
     playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(25);
+    expect(foe.currentPV).toBe(30 - 3 * (3 - 1));
   });
 
   it("Escut d'aire: what gets through is halved", () => {

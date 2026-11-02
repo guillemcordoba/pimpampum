@@ -1,19 +1,50 @@
-import { ActionType, EffectHandler, StatusBehavior, applyKind } from '@pimpampum/engine';
+import { ActionType, Character, EffectHandler, StatusBehavior, applyKind } from '@pimpampum/engine';
 import { SkillDefinition, action, d } from '../types.js';
-import { HARM, applyMod, num } from '../effects/helpers.js';
+import { num } from '../effects/helpers.js';
 import { warded } from '../effects/generic.js';
 
 /**
  * MESTRE DE L'AIRE — the user's design ("Maestre de l'aire — conceptes de
  * cartes", 2026-11-01): the utility bender. Not a damage dealer nor a healer:
  * it controls the flow of the round — who acts first, who acts last, whom a
- * blow can reach — and sets up its allies. Fulles de vent (5) waits for its
- * redesign, Escut d'aire (7) only holds its slot until the finisher that
- * replaces it, and Asfíxia (9) until its stronger version (OPEN.md). The
- * numbers are this file's, on the dice ladder (intentions.md).
+ * blow can reach — and sets up its allies; at its peak it pulls the breath out
+ * of an enemy. Escut d'aire (7) only holds its slot until the finisher that
+ * replaces it (OPEN.md). The numbers are this file's, on the dice ladder
+ * (intentions.md).
  */
 
 const SKILL_ID = 'airbender';
+
+// --- 9 · Asfíxia ---------------------------------------------------------------
+
+const CHOKED_KEY = 'asfixia';
+const CHOKING_KEY = 'asfixiant';
+
+const CHOKED: StatusBehavior = {
+  harmful: true,
+  // The end of the round after the one the choke began: the breath is gone.
+  onRoundEnd(ctx) {
+    if (ctx.entry.remaining > 1 || !ctx.holder.isAlive()) return;
+    const caster = ctx.entry.data?.['caster'] as Character | undefined;
+    ctx.engine.log('focus', `${ctx.holder.name} s'ofega i cau.`, caster?.team);
+    ctx.engine.applyPvLoss(ctx.holder, ctx.holder.currentPV, caster);
+  },
+  // Half of what the holder has left: the choke lands about as often as it is broken.
+  positionValue: ref => -0.5 * ref.holder.currentPV / Math.max(1, ref.holder.maxPV),
+};
+
+const CHOKING: StatusBehavior = {
+  // A wound on the bender breaks the hold.
+  onPvLost(ctx) {
+    const victim = ctx.entry.data?.['victim'] as Character | undefined;
+    ctx.holder.clearStatus(CHOKING_KEY);
+    if (!victim?.hasStatus(CHOKED_KEY)) return;
+    victim.clearStatus(CHOKED_KEY);
+    ctx.engine.log('focus', `${ctx.holder.name} perd la concentració: ${victim.name} torna a respirar.`, ctx.holder.team);
+  },
+  // A marker the choke reads, not a state of the fight.
+  positionValue() { return 0; },
+};
 
 // --- 7 · Escut d'aire -------------------------------------------------------
 
@@ -88,18 +119,38 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 9 · Asfíxia: the chosen enemy, short of breath, has −`amount` on its
-  // attacks for the next `turns` rounds.
-  suffocate: {
+  // 9 · Asfíxia: the bender pulls the air out of the chosen enemy's lungs;
+  // unless someone wounds the bender by the end of next round, it falls.
+  asphyxia: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
       const t = ctx.targets[0];
       if (!t || !t.isAlive() || warded(t)) return;
-      const amount = num(ctx.params, 'amount', 3);
-      applyMod(t, 'attack', -amount, num(ctx.params, 'turns', 2), ctx.action.name, undefined, HARM);
-      ctx.engine.log('focus', `${ctx.source.name} buida l'aire dels pulmons de ${t.name}: −${amount} als atacs.`, ctx.source.team);
+      // Set in the Focus step: this round's end takes one, the next one's is the fall.
+      t.setStatus(CHOKED_KEY, 1, 2, { caster: ctx.source }, CHOKED);
+      ctx.source.setStatus(CHOKING_KEY, 1, 2, { victim: t }, CHOKING);
+      ctx.engine.log('focus', `${ctx.source.name} buida l'aire dels pulmons de ${t.name}.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length ? 0.7 : 0; },
+  },
+
+  // 5 · Fulles de vent: three blades, each its own blow at a chosen enemy;
+  // blades beyond the enemies chosen go at the first again.
+  three_blades: {
+    modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.skip = true; },
+    onAttackResolved(ctx) {
+      const dice = ctx.action.dice;
+      if (!dice) return;
+      const blows = num(ctx.params, 'blows', 3);
+      for (let b = 0; b < blows && ctx.source.isAlive(); b++) {
+        const t = ctx.targets[b]?.isAlive() ? ctx.targets[b] : ctx.targets.find(a => a.isAlive());
+        if (!t) break;
+        ctx.engine.performExtraAttack(ctx.source, t, dice, {
+          skillId: ctx.action.skillId, rollBonus: ctx.action.rollBonus ?? 0, label: `${ctx.source.name} «${ctx.action.name}» (${b + 1})`,
+        });
+      }
+    },
+    aiWeight() { return 0.5; },
   },
 
   // 3 · Vent a favor: the chosen ally's card resolves right after this one —
@@ -204,9 +255,9 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'fulles-de-vent', name: 'Fulles de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, dice: d(2, 6, 1),
-      effects: [{ type: 'piercing' }],
-      desc: "Ignora l'armadura.",
+      unlock: 5, type: ActionType.Atac, dice: d(1, 4), targetCount: 3,
+      effects: [{ type: 'three_blades', params: { blows: 3 } }],
+      desc: "Tres atacs, cadascun contra l'enemic que triïs.",
       icon: 'lorc/air-zigzag.svg',
     }),
     action({
@@ -233,8 +284,8 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'asfixia', name: 'Asfíxia', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'suffocate', params: { amount: 3, turns: 2 } }],
-      desc: "L'enemic que triïs té −3 als atacs els 2 torns següents.",
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'asphyxia' }],
+      desc: "Puges 2 nivells de fatiga. L'enemic que triïs s'ofega: si ningú no et fereix fins al final del torn següent, queda a 0 PV.",
       icon: 'delapouite/lungs.svg',
     }),
     action({

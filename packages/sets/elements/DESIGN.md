@@ -192,11 +192,11 @@ the main session.
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Vent a favor | Focus, fast | an ally's card resolves right after it; the kit's first Focus, its turtle-breaker |
 | 4 | Remolí | Focus | the chosen enemy is out of the fight next round; not two rounds running (was level 9) |
-| 5 | Fulles de vent | Atac | ignores armour — to be redesigned (the user, 2026-11-02: "kinda meh") |
+| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy (1d4 each; the user's pick among card-designer concepts, 2026-11-02; it ignored armour before, "kinda meh") |
 | 6 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
 | 7 | Escut d'aire | Defensa | you and whoever you defend take half of what gets through — leaving (the user: wrong; their concept turned blows aside), holds 7 until a finisher is picked |
 | 8 | Corrent ascendent | Focus, fast | attacks on an ally miss this round; it loses its card |
-| 9 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds — to become much stronger here (the user, 2026-11-02) |
+| 9 | Asfíxia | Focus | unless someone wounds the bender by the end of next round, the chosen enemy drops to 0 PV; 2 fatigue (the user's pick, 2026-11-02; it was −3 on an enemy's attacks at level 4) |
 | 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 2 fatigue (1 until 2026-11-02, when air measured strongest) |
 
 ## Creatures (landed 2026-10-07)
