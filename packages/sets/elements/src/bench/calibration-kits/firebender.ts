@@ -17,6 +17,12 @@ import { BURN_PV, BURN_TURNS, setAlight } from '../../players/effects/cremat.js'
 
 const SKILL_ID = 'firebender@cal';
 
+function scorch(attacker: Character | undefined, bender: Character, engine: EngineApi, loss: number): void {
+  if (!attacker?.isAlive()) return;
+  if (loss > 0) engine.applyPvLoss(attacker, loss, bender);
+  setAlight(attacker, bender, engine);
+}
+
 function backfire(bender: Character, engine: EngineApi): void {
   for (const c of engine.alliesOf(bender, true)) setAlight(c, bender, engine);
 }
@@ -96,10 +102,11 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.3; },
   },
 
-  // 2 · Mantell de flames: whoever attacks someone it defends is burned, held or not.
+  // 2 · Mantell de flames: whoever attacks someone it defends loses `loss` PV and
+  // is burned, held or not.
   'flame_cloak@cal': {
-    onDefend(ctx) { if (ctx.target) setAlight(ctx.target, ctx.source, ctx.engine); },
-    onBlockFail(ctx) { if (ctx.target) setAlight(ctx.target, ctx.source, ctx.engine); },
+    onDefend(ctx) { scorch(ctx.target, ctx.source, ctx.engine, num(ctx.params, 'loss', 0)); },
+    onBlockFail(ctx) { scorch(ctx.target, ctx.source, ctx.engine, num(ctx.params, 'loss', 0)); },
     aiWeight() { return 0.4; },
   },
 
@@ -200,15 +207,15 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'mantell-de-flames@cal', name: 'Mantell de flames', skillId: SKILL_ID,
       unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
-      effects: [{ type: 'flame_cloak@cal' }],
-      desc: 'Qui ataqui algú que defenses queda cremat, aguantis o no.',
+      effects: [{ type: 'flame_cloak@cal', params: { loss: 3 } }],
+      desc: 'Qui ataqui algú que defenses perd 3 PV i queda cremat, aguantis o no.',
       icon: 'lorc/fire-silhouette.svg',
     }),
     action({
       id: 'foc-interior@cal', name: 'Foc interior', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'inner_blaze@cal', params: { bonus: 6, turns: 2 } }],
-      desc: 'Els teus atacs tenen +6 els 2 torns següents.',
+      effects: [{ type: 'inner_blaze@cal', params: { bonus: 10, turns: 2 } }],
+      desc: 'Els teus atacs tenen +10 els 2 torns següents.',
       icon: 'lorc/meditation.svg',
     }),
     action({
@@ -221,8 +228,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'esclat-encegador@cal', name: 'Esclat encegador', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'flare@cal', params: { below: 9 } }],
-      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 9 o menys, el seu atac falla.",
+      effects: [{ type: 'flare@cal', params: { below: 14 } }],
+      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 14 o menys, el seu atac falla.",
       icon: 'lorc/sunbeams.svg',
     }),
     action({
@@ -248,8 +255,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'anell-de-foc@cal', name: 'Anell de foc', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fire_ring@cal', params: { loss: 6 } }],
-      desc: 'Els 2 torns següents, cada enemic que ataqui perd 6 PV i queda cremat.',
+      effects: [{ type: 'fire_ring@cal', params: { loss: 10 } }],
+      desc: 'Els 2 torns següents, cada enemic que ataqui perd 10 PV i queda cremat.',
       icon: 'lorc/fire-ring.svg',
     }),
     action({
