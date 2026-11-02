@@ -282,6 +282,22 @@ const sacrificeAt = (dmg: number, foeHit: number) => position(`sacrifice-${dmg}-
 const WASTED = sacrificeAt(6, 5);
 const PAYING = sacrificeAt(9, 7);
 
+// --- (j) A STUN AGAINST A HORDE --------------------------------------------
+//
+// Four foes strike 20 each into an armoured hero (armour 15: 5 a blow). Their
+// raw blows (80) exceed the hero's whole health (50), and the leaf capped next
+// round's threat at that health, so a stun that takes one blow away (80 → 60)
+// changed nothing there and the AI struck. Stun then strike: hero −35, foes
+// −7; strike twice: hero −40, foes −8.
+const HORDE = position('horde-stun', 2,
+  [{ ...body('H', 50, [fixed('strike', 4), fixed('stun', 3)]), armour: 15 }],
+  [0, 1, 2, 3].map(i => body(`F${i}`, 30, [fixed('strike', 20)])));
+
+describe('audit defects as puzzles: a stun against a horde', () => {
+  it('(j) the referee stuns', () => expect(refereeAnswer(HORDE)).toEqual({ cards: 'stun', p: 1 }));
+  it('(j) the AI stuns', () => expect(aiAnswer(HORDE)).toEqual(Array(4).fill('stun')));
+});
+
 describe('audit defects as puzzles: a sacrifice', () => {
   it('(h) the referee keeps the hero', () => expect(refereeAnswer(WASTED)).toEqual({ cards: 'strike,strike,strike', p: 1 }), 60_000);
   it('(h) the AI keeps the hero', () => expect(aiAnswer(WASTED)).toEqual(Array(4).fill('strike,strike,strike')));

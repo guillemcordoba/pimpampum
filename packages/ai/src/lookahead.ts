@@ -255,6 +255,11 @@ export function settledScore(sim: CombatEngine, team: number, weights: Evaluator
  * NOT capped at the PV the other side has LEFT, though a blow cannot take
  * more: capped so, our threat SHRANK with every point we dealt, and in 4v1
  * fights the search started guarding where striking was right (§52.1).
+ *
+ * Nor at the other side's whole health: the blows are raw (no defences), and
+ * once a horde's exceeded the party's health a stun, a kill or anything else
+ * that took one blow away changed nothing there, so the search never played
+ * them against hordes (puzzle (j), OPEN.md B16).
  */
 function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Character>, w: EvaluatorWeights): number {
   let acc = 0;
@@ -281,7 +286,7 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
       }
       if (best > 0) out += best + exposure;
     }
-    acc += (side === team ? 1 : -1) * w.pv * Math.min(out, foeMax) / foeMax;
+    acc += (side === team ? 1 : -1) * w.pv * out / foeMax;
   }
   return acc;
 }
