@@ -56,6 +56,20 @@ const LIFTED: StatusBehavior = {
 let deflecting = false;
 
 const AIR_EFFECTS: Record<string, EffectHandler> = {
+  // 1 · Ventada: a foe it wounds is shoved back — its attack or Focus this
+  // round comes last; a Defense, already braced, is not moved. (Delaying the
+  // Defense too stripped every guard, fast, and won the round outright.)
+  push_back: {
+    onAttackHit(ctx) {
+      const t = ctx.target;
+      if (!t || (ctx.damageDealt ?? 0) <= 0) return;
+      const own = ctx.engine.plannedThisRound().find(p => p.actor === t && !p.resolved && !p.cancelled);
+      if (!own || own.action.actionType === ActionType.Defensa) return;
+      if (ctx.engine.delayPendingAction(t)) ctx.engine.log('attack', `${t.name} recula: actua l'últim aquest torn.`, ctx.source.team);
+    },
+    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.5 : 0.2; },
+  },
+
   // 2 · Ràfega desviadora: a blow the defense holds is turned, whole, on an
   // enemy the bender chooses — its total as it is. A blow already being turned
   // aside is not turned again (two of these facing each other would bounce one
@@ -161,9 +175,9 @@ export const AIRBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'ventada', name: 'Ventada', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, dice: d(1, 4), targetCount: 99,
-      effects: [{ type: 'delay_on_hit' }],
-      desc: 'Afecta tots els enemics. Els que fereix actuen els últims aquest torn.',
+      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 4), targetCount: 99,
+      effects: [{ type: 'push_back' }],
+      desc: 'Afecta tots els enemics. Els que fereix actuen els últims aquest torn, tret d\'una Defensa.',
       icon: 'lorc/wind-slap.svg',
     }),
     action({

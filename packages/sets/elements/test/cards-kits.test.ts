@@ -250,14 +250,17 @@ describe('Mestre del foc', () => {
 });
 
 describe("Mestre de l'aire", () => {
-  it('Ventada: every enemy; a foe it wounds before its attack acts last', () => {
+  it('Ventada: fast, every enemy; a foe it wounds acts last — its attack, not its Defense', () => {
     const air = fighter('Aire', [flat('ventada', 1, 1)], { pv: 30 });
-    const a = fighter('A', [blow(3)], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    const engine = engineFor([air], [a, b]);
-    playRound(engine, [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
-    expect(engine.logEntries.some(l => /actua l'últim/.test(l.message))).toBe(true);
+    const ally = fighter('Amic', [blow(5)], { pv: 30 });
+    const guarded = fighter('Guàrdia', [guard(100)], { pv: 30 });
+    const striker = fighter('Atacant', [blow(3)], { pv: 30 });
+    const engine = engineFor([air, ally], [guarded, striker]);
+    playRound(engine, [sel(0, 0, 0), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0)), sel(1, 1, 0, T(0, 1))]);
+    // The guard still goes up (only the 2 of the gust gets through); the striker is shoved back.
+    expect(guarded.currentPV).toBe(28);
+    expect(engine.logEntries.some(l => /Atacant recula/.test(l.message))).toBe(true);
+    expect(engine.logEntries.some(l => /Guàrdia recula/.test(l.message))).toBe(false);
   });
 
   it('Ràfega desviadora: a held blow is turned, whole, on an enemy', () => {

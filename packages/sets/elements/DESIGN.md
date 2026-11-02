@@ -182,7 +182,7 @@ the main session.
 
 | # | card | type | what it does |
 |---|---|---|---|
-| 1 | Ventada | Atac | every enemy; the wounded act last this round |
+| 1 | Ventada | Atac, fast | every enemy; the wounded act last this round, a Defense excepted |
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Asfíxia | Focus | the chosen enemy has −3 on its attacks for 2 rounds |
 | 4 | Vent a favor | Focus, fast | an ally's card resolves right after it |
