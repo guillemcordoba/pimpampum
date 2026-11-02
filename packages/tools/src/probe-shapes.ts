@@ -47,13 +47,13 @@ const FANTASY_FAMILIES: Family[] = [
 
 // A function so the families are only built for the set that has them.
 const elementsFamilies = (): Family[] => [
-  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n, level: 10 }], counts: [3, 4, 5, 6] },
+  { label: 'patrulla (soldat-del-foc)', pool: n => [{ enemyId: 'soldat-del-foc', count: n, level: 10 }], counts: [4, 5, 6, 7, 8] },
   { label: 'caçadors (shirshu)', pool: n => [{ enemyId: 'shirshu', count: n, level: 10 }], counts: [1, 2, 3] },
-  { label: 'bèstia (unagi)', pool: n => [{ enemyId: 'unagi', count: n, level: 10 }], counts: [1, 2] },
+  { label: 'bèstia (unagi)', pool: n => [{ enemyId: 'unagi', count: n, level: 10 }], counts: [1, 2, 3] },
   {
     label: 'mixt (soldat-del-foc + arquer-yuyan)',
     pool: n => [{ enemyId: 'soldat-del-foc', count: n, level: 10 }, { enemyId: 'arquer-yuyan', count: 1, level: 10 }],
-    counts: [2, 3, 4, 5],
+    counts: [3, 4, 5, 6],
   },
 ];
 
@@ -75,11 +75,13 @@ console.log(
 // `--family goblin` probes only the families whose label contains it — each
 // family is independent, so several can run as separate processes at once.
 const only = flag('--family');
+// `--count 7` probes only that count, so one family's counts can run in parallel too.
+const onlyCount = flag('--count');
 for (const family of CANDIDATES.filter(f => !only || f.label.includes(only))) {
   console.log(`${family.label}`);
   // Seventeen solves is the cost here, not the sample size, so the smoke run
   // probes one count per family: enough to prove the harness executes.
-  for (const count of (SMOKE ? family.counts.slice(0, 1) : family.counts)) {
+  for (const count of (SMOKE ? family.counts.slice(0, 1) : family.counts).filter(c => !onlyCount || c === Number(onlyCount))) {
     const solved = solveEncounter(family.pool(count), calibrationParty(0), FAIR, { searchGames: SEARCH_GAMES });
     if (!solved) { console.log(`  ${String(count).padStart(3)}× → sense solució`); continue; }
     const groups = solved.groups.map(g => ({ enemyId: g.enemyId, count: g.count, level: g.level, pv: g.pv }));

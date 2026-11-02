@@ -73,8 +73,8 @@ export const CALIBRATION_KITS = ['berserk', 'volcanic', 'mestre-armes', 'enginye
  * The highest level a hero kit is MEASURED at (bench `Calibration.heroLevel`):
  * the longest of this set's own kits. Esgrima, shared with the elements set,
  * has ten cards where these have four to six; fielded at ten among heroes at
- * five it was measured for its training — the level enters every roll — and
- * not for its cards (NEXT-STEPS §44). So here it plays its first six — and so
+ * five it would be measured for its breadth, not its cards (NEXT-STEPS §44,
+ * when a level still entered every roll). So here it plays its first six — and so
  * do Acrobàcia, Artífex and Mestre del xi, the other shared ten-card kits (§45-§47).
  *
  * `test/calibration.test.ts` names the kits this caps, so a kit growing past

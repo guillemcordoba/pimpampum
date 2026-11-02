@@ -125,8 +125,8 @@ export interface CharacterBuildSpec {
  *  tough each one ends up is the set's solver's business, not ours. */
 export interface Shape {
   label: string;
-  /** `level`: the creatures' kit ordinal — a level enters every roll, so it is
-   *  the fight's danger dial. Omitted, a creature fields its full kit. */
+  /** `level`: the creatures' kit ordinal — how many of its cards each one
+   *  knows. Omitted, a creature fields its full kit. */
   pool: { enemyId: string; count: number; level?: number }[];
 }
 
@@ -222,8 +222,8 @@ export interface Calibration {
    * plays only its first `heroLevel` of them. Omitted, every hero is fielded
    * at full kit.
    *
-   * The level enters every roll, so a kit measured at a level the rest of the
-   * table never reaches is measured for its training, not its cards — the
+   * A kit measured with more cards than the rest of the table ever holds is
+   * measured for its breadth, not its cards — the
    * fairness principle (similar total skill levels per player) applied to the
    * instrument. A set whose kits differ in length declares it; one whose kits
    * all have the same length has nothing to cap.

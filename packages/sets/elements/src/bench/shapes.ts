@@ -6,23 +6,22 @@ import type { Shape } from '@pimpampum/bench';
 
 /**
  * The shapes a kit is measured across, one per creature's role: the horde, the
- * control pack, the lone beast, the mixed line. PV is solved, never written
- * down; the COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts
- * --set elements`).
+ * control pack, the beasts, the mixed line. PV is solved, never written down;
+ * the COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts
+ * --set elements`, last 2026-11-02, OPEN.md B17). The beasts were one unagi
+ * until then: alone it could not threaten the party before the fight-length
+ * cap, and no PV made it fair.
  */
 /**
  * The level the creatures are fielded at in every shape: the reference heroes'
- * own (full kit, 10). A level enters every roll, so equal levels cancel and the
- * CARDS decide the fight. At their kit size (3-4) against heroes at 10, no
- * shape could be made fair at any PV — the heroes won 98-100% everywhere
- * (probed 2026-10-07).
+ * own (10), so every creature fields its full kit.
  */
 export const CREATURE_LEVEL = 10;
 
 export const SHAPES: Shape[] = [
-  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 5, level: CREATURE_LEVEL }] },
+  { label: 'patrulla', pool: [{ enemyId: 'soldat-del-foc', count: 7, level: CREATURE_LEVEL }] },
   { label: 'caçadors', pool: [{ enemyId: 'shirshu', count: 2, level: CREATURE_LEVEL }] },
-  { label: 'bèstia', pool: [{ enemyId: 'unagi', count: 1, level: CREATURE_LEVEL }] },
+  { label: 'bèsties', pool: [{ enemyId: 'unagi', count: 3, level: CREATURE_LEVEL }] },
   { label: 'mixt', pool: [{ enemyId: 'soldat-del-foc', count: 4, level: CREATURE_LEVEL }, { enemyId: 'arquer-yuyan', count: 1, level: CREATURE_LEVEL }] },
 ];
 
