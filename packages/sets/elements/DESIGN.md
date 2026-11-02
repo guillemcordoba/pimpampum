@@ -96,6 +96,8 @@ alive knows he was once an air novice.
 
 ## Decisions that stand
 
+- **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; every body has 26 PV. The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
+
 - **Kits:** the four element benders. A fifth kit will be something new (the
   chi-blocker was dropped on 2026-10-06; to be designed later).
 - **El Mestre de la Por** stands on three pillars: black rods (Pain's chakra
@@ -145,7 +147,7 @@ the main session.
 | 6 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last |
 | 7 | Allau | Atac | a wounded target loses its next turn |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
-| 9 | Roca viva | Focus | summons a stone golem (10 PV, attack and defense 2d6); 2 fatigue |
+| 9 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack and defense 2d6); 2 fatigue |
 | 10 | Terratrèmol | Atac | every enemy |
 
 ## Mestre del foc — `firebender` (redesigned 2026-11-01)
@@ -153,8 +155,10 @@ the main session.
 *Fire burns: whoever touches it, crosses it or defies it.* The user's design
 ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb),
 the pilot of the full card redesign; dice and small mechanics by the main
-session. **Cremat** (printed on card 1): 1 PV at the end of this round and the
+session. **Cremat** (printed on card 1): 2 PV at the end of this round and the
 next; burning again restarts it, never stacks (the engine's damage over time).
+It was 1 PV while heroes had 12; at 2 on 12 PV Alè de drac plus the burn was a
+near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-02).
 
 | # | card | type | what it does |
 |---|---|---|---|
@@ -166,7 +170,7 @@ next; burning again restarts it, never stacks (the engine's damage over time).
 | 6 | Alè de drac | Atac | two enemies; the wounded are burned |
 | 7 | Foc interior | Focus | +6 on your attacks for the next 2 rounds |
 | 8 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 3 PV and is burned |
-| 9 | Llamp | Atac, fast | the big single blow, before normal defenses |
+| 9 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
 | 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
 
 Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold
@@ -191,7 +195,7 @@ the main session.
 | 7 | Coixí d'aire | Focus, fast | every blow on your side this round is 3 softer |
 | 8 | Corrent ascendent | Focus, fast | attacks on an ally miss this round; it loses its card |
 | 9 | Remolí | Focus | the chosen enemy is out of the fight next round |
-| 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 1 fatigue |
+| 10 | Tornado | Atac | every enemy; the wounded lose their next turn; 2 fatigue (1 until 2026-11-02, when air measured strongest) |
 
 ## Creatures (landed 2026-10-07)
 

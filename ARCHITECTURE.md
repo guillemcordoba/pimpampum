@@ -472,7 +472,7 @@ encounters averaging 19 rounds and 235 PV per body, and a peak of **one wolf wit
 Worse, the difficulty those numbers reported was not the creature's. Under the
 daily fatigue budget of the time (max 20, since replaced by the DM-assigned
 level), a 29-round fight ran past it, after which the only playable card was
-Cop desesperat — 1d4, and **1 PV of self-damage per swing**, on a 12 PV hero.
+Cop desesperat — 1d4, and **2 PV of self-damage per swing**, on a 26 PV hero (1 on 12 before the dice ladder).
 Re-measuring with the fatigue ceiling lifted:
 
 | solved encounter | asked | with fatigue | without |

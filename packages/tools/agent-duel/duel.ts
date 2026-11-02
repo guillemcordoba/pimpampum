@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ActionType, CombatEngine, seededRng, setRng, type Character, type TargetRef } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
-import { buildCharacter, createRegistry } from '@pimpampum/set-elements';
+import { buildCharacter, createRegistry, PLAYER_PV } from '@pimpampum/set-elements';
 
 const KITS = ['waterbender', 'airbender', 'earthbender', 'firebender'] as const;
 const KIT_NAMES: Record<string, string> = { waterbender: "Mestre de l'aigua", airbender: "Mestre de l'aire", earthbender: 'Mestre de la terra', firebender: 'Mestre del foc' };
@@ -46,7 +46,7 @@ Each round:
     Damage = attack total - defense total, minus armour. An UNDEFENDED target takes the whole attack total.
     "Envoltat": a body that n attacks aim at this round has each defense covering it roll n times and keep the worst.
  5. A Focus is cancelled if its hero takes damage before it resolves.
-A roll is just the card's dice (minus 1 per fatigue level). Heroes have 12 PV; at 0 PV a hero is out.
+A roll is just the card's dice (minus 1 per fatigue level). Heroes have ${PLAYER_PV} PV; at 0 PV a hero is out.
 A card's text says only what is special about it. "Ràpid" = fast. Cremat = loses PV at the end of this round and the next.
 Every hero also has "Cop desesperat", playable only when nothing else is. Win by taking out both enemy heroes.`;
 
@@ -104,7 +104,7 @@ function replay(): State {
   at.A = at.B = 1;
   setRng(seededRng(seed));
   const team = (s: 'A' | 'B') => picks[s].split(',').map((k, i) =>
-    buildCharacter({ name: `${s}${i + 1} ${KIT_NAMES[k.trim()]}`, classCss: k.trim(), pv: 12, skills: { [k.trim()]: level } } as never));
+    buildCharacter({ name: `${s}${i + 1} ${KIT_NAMES[k.trim()]}`, classCss: k.trim(), pv: PLAYER_PV, skills: { [k.trim()]: level } } as never));
   const e = new CombatEngine(team('A'), team('B'), { registry: createRegistry(), ...aiPolicy({ depth: 0 }) });
   st.engine = e;
   for (const c of [...e.teams[0], ...e.teams[1]]) c.aiControlled = false;

@@ -101,7 +101,7 @@ describe('Mestre del xi', () => {
     expect(friend.currentPV).toBe(28);
   });
 
-  it('Desbloquejar el cos: a standing ally recovers 4 PV and sheds every efecte negatiu', () => {
+  it('Desbloquejar el cos: a standing ally recovers 8 PV and sheds every efecte negatiu', () => {
     const me = master('Mestre', [card('desbloquejar-el-cos')]);
     const ally = fighter('Aliat', [wait], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 30 });
@@ -113,7 +113,7 @@ describe('Mestre del xi', () => {
     ally.addModifier(new CombatModifier('defense', -1, ModifierDuration.RestOfCombat));
     ally.skipTurns = 2;
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(1, 0, 0)]);
-    expect(ally.currentPV).toBe(24);
+    expect(ally.currentPV).toBe(28);
     expect([...ally.statuses.keys()]).toEqual(['benedicció']);
     // Its own price stays: only what an enemy card left goes.
     expect(ally.modifiers.map(m => m.value)).toEqual([-1]);
@@ -400,7 +400,7 @@ describe('Toc de la mort, in each variant', () => {
     expect(foe.getStatusValue('toc-de-la-mort')).toBe(1);
   });
 
-  it('cor-ferit: at the end of next round it loses 3 PV per wound since the touch', () => {
+  it('cor-ferit: at the end of next round it loses 6 PV per wound since the touch', () => {
     const me = master('Mestre', [card('toc-de-la-mort', 3, 0, { effects: toc('cor-ferit') }), wait], 40);
     const friend = fighter('Amic', [blow(2), blow(3), wait], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 40 });
@@ -408,8 +408,8 @@ describe('Toc de la mort, in each variant', () => {
     playRound(e, [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
     expect(foe.currentPV).toBe(35);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 0)]);
-    // 35 → 32, then two wounds × 3.
-    expect(foe.currentPV).toBe(26);
+    // 35 → 32, then two wounds × 6.
+    expect(foe.currentPV).toBe(20);
   });
 
   it('a touch that does not wound leaves nothing', () => {

@@ -14,7 +14,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <h2>Característica base</h2>
         <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Els jugadors comencen amb 12 PV per defecte.</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Tots els cossos, herois i criatures, en tenen 26: quatre cops mitjans d'un atac de nivell 5 (la unitat de l'escala de daus és 1d4).</li>
         </ul>
       </section>
 
@@ -72,7 +72,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <h2>Fatiga</h2>
         <p>La fatiga té <strong>cinc nivells</strong>: Cansat, Fatigat, Extenuat, Exhaust i Esgotat. Cada nivell resta <strong>1 a totes les teves tirades</strong> — atac, defensa, focus i fora de combat. Jugar cartes no cansa: és el <strong>màster</strong> qui decideix quan puges de nivell, segons la ficció (un segon combat sense respir, una marxa forçada, una nit sense dormir, fred, gana, una ferida sense curar), i pot fer-te pujar més d'un nivell de cop.</p>
         <p>Cada nivell fa cada combat aproximadament <strong>un grau més difícil</strong>: no és un detall de color. Només un <strong>descans llarg de 4 hores o més</strong> neteja tota la fatiga. Els enemics no en tenen mai.</p>
-        <p>Quan no pots jugar cap altra carta, entra a la teva mà el <strong>Cop desesperat</strong>: un atac feble (1d4, lent) que et fa perdre 1 PV després de l'atac, encertis o no.</p>
+        <p>Quan no pots jugar cap altra carta, entra a la teva mà el <strong>Cop desesperat</strong>: un atac feble (1d4, lent) que et fa perdre 2 PV després de l'atac, encertis o no.</p>
       </section>
 
       <section>

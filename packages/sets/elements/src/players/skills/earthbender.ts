@@ -2,6 +2,7 @@ import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, cr
 import { SkillDefinition, action, d } from '../types.js';
 import { applyMod, num } from '../effects/helpers.js';
 import { warded } from '../effects/generic.js';
+import { BODY_PV } from '@pimpampum/set-common';
 
 /**
  * MESTRE DE LA TERRA — the user's design ("Maestre de la terra — conceptes de
@@ -35,7 +36,7 @@ const TUNNEL: StatusBehavior = {
 // --- 9 · Roca viva ----------------------------------------------------------
 
 const GOLEM_SKILL = 'golem-de-roca';
-const GOLEM_PV = 10;
+const GOLEM_PV = BODY_PV;
 const GOLEM_CARDS = [
   action({ id: 'cop-de-roca', name: 'Cop de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Atac, dice: d(2, 6), desc: '', icon: 'lorc/fist.svg' }),
   action({ id: 'cos-de-roca', name: 'Cos de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Defensa, dice: d(2, 6), desc: '', icon: 'lorc/stone-block.svg' }),
@@ -122,13 +123,13 @@ export const EARTHBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'llancament-de-roca', name: 'Llançament de roca', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 8),
+      unlock: 1, type: ActionType.Atac, fast: true, dice: d(1, 4),
       desc: '',
       icon: 'lorc/stone-sphere.svg',
     }),
     action({
       id: 'mur-de-pedra', name: 'Mur de pedra', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4, 1),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4, 1),
       desc: '',
       icon: 'delapouite/stone-wall.svg',
     }),
@@ -148,7 +149,7 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'trampa-de-terra', name: 'Trampa de terra', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'lock_on_block', params: { types: [ActionType.Atac], turns: 1 } }],
       desc: "Si aguanta, l'atacant queda atrapat: el torn següent no pot atacar.",
       icon: 'lorc/stone-crafting.svg',
@@ -162,7 +163,7 @@ export const EARTHBENDER: SkillDefinition = {
     }),
     action({
       id: 'allau', name: 'Allau', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Atac, dice: d(3, 6),
+      unlock: 7, type: ActionType.Atac, dice: d(2, 8),
       effects: [{ type: 'stun_on_hit', params: { turns: 1 } }],
       desc: "Si fereix, l'objectiu queda enterrat: perd el torn següent.",
       icon: 'delapouite/stone-pile.svg',
@@ -178,12 +179,12 @@ export const EARTHBENDER: SkillDefinition = {
       id: 'roca-viva', name: 'Roca viva', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'living_rock' }],
-      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (10 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
+      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (26 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
       icon: 'delapouite/rock-golem.svg',
     }),
     action({
       id: 'terratremol', name: 'Terratrèmol', skillId: SKILL_ID,
-      unlock: 10, type: ActionType.Atac, dice: d(3, 8), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(5, 4), targetCount: 99,
       desc: 'Afecta tots els enemics.',
       icon: 'lorc/earth-crack.svg',
     }),

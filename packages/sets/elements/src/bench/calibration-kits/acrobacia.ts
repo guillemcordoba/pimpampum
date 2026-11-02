@@ -268,14 +268,14 @@ export const ACROBACIA: SkillDefinition = {
   actions: [
     action({
       id: 'escombrada@cal', name: 'Escombrada', skillId: 'acrobacia@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'sweep@cal' }],
       desc: "Si fereix, l'objectiu queda a terra: els atacs contra ell tenen +2 fins al final del torn següent.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({
       id: 'esquiva-i-traveta@cal', name: 'Esquiva i traveta', skillId: 'acrobacia@cal',
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       effects: [{ type: 'trip@cal' }],
       desc: "Si aguanta, l'atacant queda a terra.",
       icon: 'felbrigg/dodge.svg',
@@ -289,20 +289,20 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'puntada-d-espagat@cal', name: "Puntada d'espagat", skillId: 'acrobacia@cal',
-      unlock: 4, type: ActionType.Atac, dice: d(2, 6), targetCount: 2,
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2,
       desc: 'Afecta dos enemics.',
       icon: 'delapouite/van-damme-split.svg',
     }),
     action({
       id: 'tombarella-de-rescat@cal', name: 'Tombarella de rescat', skillId: 'acrobacia@cal',
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'rescue_roll@cal' }],
       desc: 'Defensa el primer aliat que sigui atacat aquest torn.',
       icon: 'lorc/cartwheel.svg',
     }),
     action({
       id: 'cavalcar-l-enemic@cal', name: "Cavalcar l'enemic", skillId: 'acrobacia@cal',
-      unlock: 6, type: ActionType.Atac, dice: d(3, 6),
+      unlock: 6, type: ActionType.Atac, dice: d(2, 8),
       effects: [{ type: 'ride_enemy@cal' }],
       desc: "Si fereix, l'objectiu no et pot atacar el torn següent.",
       icon: 'delapouite/jump-across.svg',
@@ -330,7 +330,7 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'capbusso-suicida@cal', name: 'Capbussó suïcida', skillId: 'acrobacia@cal',
-      unlock: 10, type: ActionType.Atac, dice: d(3, 8), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(5, 4), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'suicide_dive@cal' }],
       desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics; els ferits queden a terra, i tu també.',
       icon: 'delapouite/pool-dive.svg',

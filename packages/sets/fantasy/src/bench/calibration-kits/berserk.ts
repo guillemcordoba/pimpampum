@@ -148,7 +148,7 @@ export const BERSERK: SkillDefinition = {
     }),
     action({
       id: 'atac-temerari@cal', name: 'Atac temerari', skillId: 'berserk@cal',
-      unlock: 2, type: ActionType.Atac, dice: d(1, 10),
+      unlock: 2, type: ActionType.Atac, dice: d(1, 8),
       effects: [{ type: 'weapon_damage' }, { type: 'reckless', params: { attack: 0, defense: 5, thisTurn: false } }],
       desc: 'El torn següent, {D}−5.',
       icon: 'lorc/axe-swing.svg',

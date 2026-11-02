@@ -124,7 +124,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
   fire_ring: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const loss = num(ctx.params, 'loss', 3);
+      const loss = num(ctx.params, 'loss', 6);
       // Set in the Focus step: the round's end takes one, two rounds remain.
       for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus(RING_KEY, loss, 3, { caster: ctx.source }, RING);
       ctx.engine.log('focus', `${ctx.source.name} tanca un anell de foc al voltant del combat.`, ctx.source.team);
@@ -151,14 +151,14 @@ export const FIREBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'bola-de-foc', name: 'Bola de foc', skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, dice: d(1, 6),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'sets_alight' }],
-      desc: "Si fereix, l'objectiu queda cremat: perd 1 PV al final d'aquest torn i del següent.",
+      desc: "Si fereix, l'objectiu queda cremat: perd 2 PV al final d'aquest torn i del següent.",
       icon: 'lorc/fireball.svg',
     }),
     action({
       id: 'mantell-de-flames', name: 'Mantell de flames', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       effects: [{ type: 'flame_cloak' }],
       desc: 'Qui ataqui algú que defenses queda cremat, aguantis o no.',
       icon: 'lorc/fire-silhouette.svg',
@@ -186,7 +186,7 @@ export const FIREBENDER: SkillDefinition = {
     }),
     action({
       id: 'ale-de-drac', name: 'Alè de drac', skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Atac, dice: d(2, 6), targetCount: 2,
+      unlock: 6, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2,
       effects: [{ type: 'sets_alight' }],
       desc: 'Afecta dos enemics. Els que fereix queden cremats.',
       icon: 'lorc/dragon-breath.svg',
@@ -201,8 +201,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
       unlock: 8, type: ActionType.Focus,
-      effects: [{ type: 'fire_ring', params: { loss: 3 } }],
-      desc: 'Els 2 torns següents, cada enemic que ataqui perd 3 PV i queda cremat.',
+      effects: [{ type: 'fire_ring', params: { loss: 6 } }],
+      desc: 'Els 2 torns següents, cada enemic que ataqui perd 6 PV i queda cremat.',
       icon: 'lorc/fire-ring.svg',
     }),
     action({
@@ -213,7 +213,7 @@ export const FIREBENDER: SkillDefinition = {
     }),
     action({
       id: 'supernova', name: 'Supernova', skillId: SKILL_ID,
-      unlock: 10, type: ActionType.Atac, dice: d(6, 6), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(5, 6, 2), targetCount: 99,
       effects: [{ type: 'supernova' }],
       desc: 'Afecta tots els enemics. Després quedes a 0 PV, inconscient.',
       icon: 'lorc/bright-explosion.svg',

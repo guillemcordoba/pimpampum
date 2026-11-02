@@ -43,7 +43,8 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 
 ## Core mechanics (a summary — `rules.md` is the truth)
 
-- **PV** is the only base stat; players default to 12. Enemies carry none: the encounter balancer solves it (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
+- **The dice ladder**: 1d4 is the unit; a level-L card averages about L + 1.5 (1d4 at level 1 … 3d6+1 at level 10), a defense holds ~78% against its level's attack, effects are paid in dice (`sets/common/src/ladder.ts`, each set's `test/ladder.test.ts`).
+- **PV** is the only base stat: 26 for every body (4 average level-5 blows, `BODY_PV`). Enemies move to the same 26 with a solved count and level (OPEN.md); until then the encounter balancer solves their PV (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
 - **An action** belongs to a skill, has a type (Atac / Defensa / Focus), dice, and rarely the **fast** keyword. It costs no fatigue unless its text says so.
 - **The roll** = the card's dice + roll bonuses − fatigue. **A level enters no roll** (2026-11-01), in combat or out: it only gates which cards a character knows (mestratge, then the flat level, were removed by design decision).
 - **Attack**: one contested roll against the defense; ties hold for the defense; damage = margin − armour; an undefended target takes the whole total. AoE: one roll, each target defends against it separately.
@@ -53,7 +54,7 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 - **Skill level-up**: the loser of a contested roll by ≤ `SKILL_UP_MARGIN` (2) learns the skill's next action; a tie counts as the attacker losing by 0; undefended hits never teach.
 - **Fatigue**: levels 0-5, −1 per level on every roll; the engine never raises it, only a card's text or the DM; enemies never carry it; it persists until `Character.rest()`. Everyone always holds **Cop desesperat**.
 - **Out of combat**: 1d20 + the action's dice against a DM difficulty (5–25), meet-or-beat; no skill rolls the bare d20; failing by ≤ 2 levels the skill, from zero too.
-- **Equipment**: armor / weapon / shield slots. Weapons give a flat `attackBonus`; armour is a small lever (cuir +2, ferro +3).
+- **Equipment**: armor / weapon / shield slots. Weapons give a flat `attackBonus`; armour is a small lever (cuir +1, ferro +2).
 - **Balance principle**: a fight is fair when both teams have a similar total skill-level sum.
 
 ## Measurement: three rules (the full account: `packages/tools/README.md`)
@@ -74,7 +75,7 @@ import { aiPolicy } from '@pimpampum/ai';
 
 const registry = createRegistry();        // every handler: player AND enemy
 const hero = buildCharacter({
-  name: 'Aragorn', classCss: 'mestre-armes', pv: 12,
+  name: 'Aragorn', classCss: 'mestre-armes', pv: 26,
   skills: { 'mestre-armes': 4, metge: 2 },   // knows the first 4 / first 2 actions
   equipment: ['armadura-de-cuir', 'destral'],
 });

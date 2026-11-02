@@ -48,7 +48,7 @@ export const METGE: SkillDefinition = {
   actions: [
     action({
       id: 'cures-de-camp', name: 'Cures de camp', skillId: 'metge',
-      unlock: 1, type: ActionType.Focus, dice: d(2, 4),
+      unlock: 1, type: ActionType.Focus, dice: d(1, 4),
       effects: [{ type: 'heal', params: { mode: 'roll' } }],
       desc: 'Cura un aliat o tu mateix: recupera la tirada en PV.',
       icon: 'lorc/bandage-roll.svg',

@@ -106,7 +106,7 @@ describe('Mestre de la terra', () => {
     const engine = engineFor([earth], [foe]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     expect(engine.teams[0].length).toBe(2);
-    expect(engine.teams[0][1].maxPV).toBe(10);
+    expect(engine.teams[0][1].maxPV).toBe(26);
     expect(earth.fatigue).toBe(2);
   });
 
@@ -120,16 +120,16 @@ describe('Mestre de la terra', () => {
 });
 
 describe('Mestre del foc', () => {
-  it('Bola de foc: a target it wounds is burned — 1 PV at the end of this round and the next', () => {
+  it('Bola de foc: a target it wounds is burned — 2 PV at the end of this round and the next', () => {
     const fire = fighter('Foc', [flat('bola-de-foc', 1, 2), wait], { pv: 30 });
     const bag = fighter('Sac', [wait], { pv: 30 });
     const engine = engineFor([fire], [bag]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(30 - 3 - 1);
+    expect(bag.currentPV).toBe(30 - 3 - 2);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(25);
+    expect(bag.currentPV).toBe(23);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(25);
+    expect(bag.currentPV).toBe(23);
   });
 
   it('Bola de foc: burning again restarts the two rounds, never stacks', () => {
@@ -138,12 +138,12 @@ describe('Mestre del foc', () => {
     const engine = engineFor([fire], [bag]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    // Two hits of 1, a burn each round end; the second restarts it.
-    expect(bag.currentPV).toBe(30 - 1 - 1 - 1 - 1);
+    // Two hits of 1, a burn of 2 each round end; the second restarts it.
+    expect(bag.currentPV).toBe(30 - 1 - 2 - 1 - 2);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(25);
+    expect(bag.currentPV).toBe(22);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(25);
+    expect(bag.currentPV).toBe(22);
   });
 
   it('Mantell de flames: whoever attacks someone it defends is burned, held or not', () => {
@@ -154,8 +154,8 @@ describe('Mestre del foc', () => {
       playRound(engineFor([fire, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
       return foe.currentPV;
     };
-    expect(held(100)).toBe(29);
-    expect(held(0)).toBe(29);
+    expect(held(100)).toBe(28);
+    expect(held(0)).toBe(28);
   });
 
   it('Esclat encegador: an enemy still to attack that rolls low misses; one already struck is untouched', () => {
@@ -203,7 +203,7 @@ describe('Mestre del foc', () => {
     const b = fighter('B', [wait], { pv: 30 });
     const c = fighter('C', [wait], { pv: 30 });
     playRound(engineFor([fire], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
-    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([26, 26, 30]);
+    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([25, 25, 30]);
   });
 
   it('Foc interior: +6 on the bender\'s attacks for the next two rounds', () => {
@@ -215,19 +215,19 @@ describe('Mestre del foc', () => {
     expect(bag.currentPV).toBe(30 - 7 - 7 - 1);
   });
 
-  it('Anell de foc: for the next two rounds, every enemy that attacks loses 3 PV and is burned', () => {
+  it('Anell de foc: for the next two rounds, every enemy that attacks loses 6 PV and is burned', () => {
     const fire = fighter('Foc', [getAction('anell-de-foc')!, wait], { pv: 60 });
     const foe = fighter('Foe', [wait, blow(2)], { pv: 30 });
     const idle = fighter('Quiet', [wait], { pv: 30 });
     const engine = engineFor([fire], [foe, idle]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(30 - 3 - 1);
+    expect(foe.currentPV).toBe(30 - 6 - 2);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(22);
+    expect(foe.currentPV).toBe(14);
     // The ring is gone; the last burn still ticks once.
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(21);
+    expect(foe.currentPV).toBe(12);
     expect(idle.currentPV).toBe(30);
   });
 
@@ -339,14 +339,14 @@ describe("Mestre de l'aire", () => {
     expect(engine.enemiesOf(air)).toEqual([other]);
   });
 
-  it('Tornado: every enemy; the wounded lose their next turn; 1 fatigue', () => {
+  it('Tornado: every enemy; the wounded lose their next turn; 2 fatigue', () => {
     const air = fighter('Aire', [flat('tornado', 1, 2)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     playRound(engineFor([air], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
     expect([a.currentPV, b.currentPV]).toEqual([27, 27]);
     expect([a.skipTurns, b.skipTurns]).toEqual([1, 1]);
-    expect(air.fatigue).toBe(1);
+    expect(air.fatigue).toBe(2);
   });
 });
 

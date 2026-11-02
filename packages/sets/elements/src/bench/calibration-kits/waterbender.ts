@@ -76,19 +76,19 @@ export const WATERBENDER: SkillDefinition = {
   actions: [
     action({
       id: 'fuet-d-aigua@cal', name: "Fuet d'aigua", skillId: SKILL_ID,
-      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       desc: '',
       icon: 'lorc/whiplash.svg',
     }),
     action({
       id: 'mur-d-aigua@cal', name: "Mur d'aigua", skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       desc: '',
       icon: 'lorc/splashy-stream.svg',
     }),
     action({
       id: 'font-curativa@cal', name: 'Font curativa', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus, dice: d(2, 6),
+      unlock: 3, type: ActionType.Focus, dice: d(2, 4, 1),
       effects: [{ type: 'heal' }, { type: 'douse@cal' }],
       desc: 'Cura un aliat i li apaga Cremat.',
       icon: 'lorc/heart-drop.svg',
@@ -102,13 +102,13 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'cupula-de-gel@cal', name: 'Cúpula de gel', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Defensa, dice: d(3, 6),
+      unlock: 5, type: ActionType.Defensa, dice: d(2, 6, 2),
       desc: '',
       icon: 'lorc/ice-shield.svg',
     }),
     action({
       id: 'llanca-de-gel@cal', name: 'Llança de gel', skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Atac, dice: d(2, 8),
+      unlock: 6, type: ActionType.Atac, dice: d(3, 4),
       desc: '',
       icon: 'lorc/ice-spear.svg',
     }),

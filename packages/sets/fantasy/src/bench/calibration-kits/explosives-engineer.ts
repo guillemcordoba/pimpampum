@@ -173,7 +173,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
   actions: [
     action({
       id: 'granada-de-fragmentacio@cal', name: 'Granada de fragmentació', skillId: 'enginyer-explosius@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(1, 6), targetCount: 99, rollPerTarget: true,
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4), targetCount: 99, rollPerTarget: true,
       effects: [{ type: 'charge_cost@cal', params: { amount: 1 } }],
       desc: 'Afecta tots els enemics: tira els daus per a cadascun per separat.',
       icon: 'lorc/grenade.svg',
@@ -184,7 +184,7 @@ export const ENGINYER_EXPLOSIUS: SkillDefinition = {
     standingCoverAction({
       skillId: 'enginyer-explosius@cal', unlock: 2,
       id: 'barricada@cal', name: 'Barricada', key: 'barricada@cal', label: 'la barricada',
-      dice: d(2, 6), life: d(1, 6),
+      dice: d(1, 6, 1), life: d(1, 6),
       desc: 'La barricada persisteix: mentre és dreta, els atacs contra el protegit es resolen contra la teva defensa. Té 1d6 de vida i absorbeix el dany que la travessa; es destrueix quan se li acaba.',
       icon: 'delapouite/barricade.svg',
     }),

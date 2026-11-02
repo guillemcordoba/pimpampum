@@ -376,7 +376,7 @@ const ARTIFEX_EFFECTS: Record<string, EffectHandler> = {
       ally.guards = ally.guards.filter(g => !(g.defender === ctx.source && g.action === ctx.action));
       for (const c of ctx.engine.rosterOf(ctx.source)) c.clearStatus(gadgetKey(ctx.engine, ctx.action, ctx.source));
       ally.setStatus(gadgetKey(ctx.engine, ctx.action, ctx.source), 1, -1,
-        { card: ctx.action, maker: ctx.source, snap: num(ctx.params, 'snap', 3) }, PARANY);
+        { card: ctx.action, maker: ctx.source, snap: num(ctx.params, 'snap', 6) }, PARANY);
       ctx.engine.log('defense', `${ctx.source.name} para un parany de molla als peus de ${ally.name}.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.allies.length ? 0.4 : 0; },
@@ -467,28 +467,28 @@ export const ARTIFEX: SkillDefinition = {
   actions: [
     action({
       id: 'bumerang@cal', name: 'Bumerang', skillId: 'artifex@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(1, 6),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'boomerang@cal' }],
       desc: "Al final del torn torna i ataca un enemic a l'atzar.",
       icon: 'delapouite/boomerang.svg',
     }),
     action({
       id: 'parany-de-molla@cal', name: 'Parany de molla', skillId: 'artifex@cal',
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
-      effects: [{ type: 'spring_trap@cal', params: { snap: 3 } }],
-      desc: "Queda als peus d'un aliat fins que l'ataquin: defensa aquell atac i l'atacant perd 3 PV.",
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
+      effects: [{ type: 'spring_trap@cal', params: { snap: 6 } }],
+      desc: "Queda als peus d'un aliat fins que l'ataquin: defensa aquell atac i l'atacant perd 6 PV.",
       icon: 'lorc/wolf-trap.svg',
     }),
     action({
       id: 'automat-de-corda@cal', name: 'Autòmat de corda', skillId: 'artifex@cal',
-      unlock: 3, type: ActionType.Focus, dice: d(2, 6),
+      unlock: 3, type: ActionType.Focus, dice: d(1, 6, 2),
       effects: [{ type: 'clockwork_automaton@cal', params: { corda: 3 } }],
       desc: "Corda 3: al final de cada torn ataca un enemic a l'atzar.",
       icon: 'delapouite/mono-wheel-robot.svg',
     }),
     action({
       id: 'paraigua-blindat@cal', name: 'Paraigua blindat', skillId: 'artifex@cal',
-      unlock: 4, type: ActionType.Defensa, dice: d(2, 6),
+      unlock: 4, type: ActionType.Defensa, dice: d(1, 6, 2),
       effects: [{ type: 'armoured_umbrella@cal' }],
       desc: "Contra els atacs que afecten més d'un de vosaltres, defensa tot el grup.",
       icon: 'lorc/umbrella.svg',

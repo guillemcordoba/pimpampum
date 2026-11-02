@@ -17,6 +17,7 @@ export { ACROBACIA } from './skills/acrobacia.js';
 export { ARTIFEX } from './skills/artifex.js';
 export { MESTRE_DEL_XI, TOC_DE_LA_MORT_VARIANTS, DEFAULT_TOC_VARIANT, type TocVariant } from './skills/mestre-del-xi.js';
 export { WEAPONS, needsWeapon, kitNeedsWeapon, weaponFor } from './equipment.js';
+export { ATTACK_LADDER, DEFENSE_LADDER, ladderMean, BLOWS_TO_FALL, PV_REFERENCE_LEVEL, BODY_PV } from './ladder.js';
 
 /** Shared cards the AI cannot play by construction, with why — each set that
  *  fields them spreads this into its calibration's `aiBlindCards`. */

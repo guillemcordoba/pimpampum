@@ -22,6 +22,7 @@
  * reproducible party (the solver relies on this for common random numbers).
  */
 import { Character, random } from '@pimpampum/engine';
+import { BODY_PV } from '@pimpampum/set-common';
 import { ALL_SKILLS } from './catalog.js';
 import { buildCharacter } from './build.js';
 import { standardGear } from './equipment/index.js';
@@ -37,8 +38,8 @@ import { isExplicitParty, type PartySpec } from '@pimpampum/bench/gameset';
 export { isExplicitParty };
 export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/bench/gameset';
 
-/** Default PV pool for a player character (rules.md provisional default). */
-export const PLAYER_PV = 12;
+/** A player character's PV: every body's, derived from the dice ladder. */
+export const PLAYER_PV = BODY_PV;
 
 /** Skills DESIGNED as complementary second kits — never a lone main skill. */
 export const COMPLEMENTARY_SKILLS = new Set(['metge', 'runes', 'gel']);

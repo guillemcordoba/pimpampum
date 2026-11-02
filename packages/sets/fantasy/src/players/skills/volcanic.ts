@@ -139,7 +139,7 @@ export const VOLCANIC: SkillDefinition = {
   actions: [
     action({
       id: 'roca-fosa', name: 'Roca fosa', skillId: VOLCANIC_SKILL_ID,
-      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [
         { type: 'pressure_gain', params: { amount: 1 } },
         { type: 'debuff_on_hit', params: { kind: 'armor', amount: 1, duration: 'restOfCombat' } },
@@ -149,14 +149,14 @@ export const VOLCANIC: SkillDefinition = {
     }),
     action({
       id: 'pell-obsidiana', name: "Pell d'obsidiana", skillId: VOLCANIC_SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, dice: d(2, 6),
-      effects: [{ type: 'obsidian_skin', params: { damage: 2 } }],
-      desc: "Si bloqueges un atac, l'atacant rep 2 de dany, ignorant l'armadura.",
+      unlock: 2, type: ActionType.Defensa, dice: d(1, 6, 1),
+      effects: [{ type: 'obsidian_skin', params: { damage: 4 } }],
+      desc: "Si bloqueges un atac, l'atacant rep 4 de dany, ignorant l'armadura.",
       icon: 'lorc/crystalize.svg',
     }),
     action({
       id: 'gueiser', name: 'Guèiser', skillId: VOLCANIC_SKILL_ID,
-      unlock: 3, type: ActionType.Atac, dice: d(1, 12),
+      unlock: 3, type: ActionType.Atac, dice: d(1, 10),
       effects: [
         { type: 'pressure_cost', params: { amount: 1 } },
         { type: 'from_below' },

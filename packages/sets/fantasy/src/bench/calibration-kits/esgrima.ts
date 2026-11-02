@@ -20,16 +20,6 @@ import { diceParam, num, wieldedWeaponBonus } from '../../players/effects/helper
  * this file's.
  */
 
-/**
- * The bonus a blow OUTSIDE the card's own attack roll carries (a riposte, a
- * follow-up cut): the wielded weapon, and the level in the card's skill —
- * every roll is the card's dice plus the level (rules.md), and only the
- * card's own attack gets the level from the engine.
- */
-function bladeBonus(c: Character, skillId: string): number {
-  return (wieldedWeaponBonus(c) ?? 0) + c.getSkillLevel(skillId);
-}
-
 /** A status set in round R that acts only from round R+1 on. */
 function fromRound(data: Record<string, unknown> | undefined): number {
   const r = data?.['fromRound'];
@@ -142,17 +132,14 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // 2 · Retruc d'acer: when it holds, an answer of `dice` + the weapon at the
-  // attacker that nobody can defend — plus the level only with `withLevel`:
-  // no opposing roll means no opposing level to cancel it, so the whole level
-  // lands as raw damage.
+  // attacker that nobody can defend.
   'steel_riposte@cal': {
     onDefend(ctx) {
       const t = ctx.target;
       if (!t || !t.isAlive() || !ctx.source.isAlive()) return;
       const skillId = ctx.action.skillId;
-      const rollBonus = ctx.params['withLevel'] === false
-        ? wieldedWeaponBonus(ctx.source) ?? 0
-        : bladeBonus(ctx.source, skillId);
+      // The engine adds the level, as to every blow (rules.md).
+      const rollBonus = wieldedWeaponBonus(ctx.source) ?? 0;
       ctx.engine.performExtraAttack(ctx.source, t, diceParam(ctx.params, 'dice') ?? d(1, 6), {
         skillId, rollBonus,
         ignoreDefense: true, label: `${ctx.source.name} retruca`,
@@ -220,7 +207,8 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
       if (!t || !ctx.action.dice) return;
       const skillId = ctx.action.skillId;
       const roll = ctx.engine.rollDiceFor(ctx.source, ctx.action.dice, 'attack');
-      const total = Math.max(0, roll + (ctx.action.rollBonus ?? 0) + bladeBonus(ctx.source, skillId)
+      // A total rolled here, so its terms are added here: the weapon and the roll bonuses.
+      const total = Math.max(0, roll + (ctx.action.rollBonus ?? 0) + (wieldedWeaponBonus(ctx.source) ?? 0)
         + ctx.source.getRollBonus(skillId, 'attack'));
       ctx.source.setStatus(HEDGE_KEY, roll, 1, { round: ctx.engine.round });
       ctx.source.guards.push({ defender: ctx.source, action: ctx.action, fixedTotal: total, onlyAgainst: t });
@@ -282,7 +270,7 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
         const next = fresh[Math.floor(random() * fresh.length)];
         struck.add(next);
         const blow = ctx.engine.performExtraAttack(ctx.source, next, ctx.action.dice, {
-          skillId, rollBonus: (ctx.action.rollBonus ?? 0) + bladeBonus(ctx.source, skillId),
+          skillId, rollBonus: (ctx.action.rollBonus ?? 0) + (wieldedWeaponBonus(ctx.source) ?? 0),
           label: `${ctx.source.name} «${ctx.action.name}»`,
         });
         if (blow.damage <= 0) return;
@@ -304,15 +292,15 @@ export const MESTRE_ARMES: SkillDefinition = {
   actions: [
     action({
       id: 'finta-traidora@cal', name: 'Finta traïdora', skillId: 'mestre-armes@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(1, 6),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'weapon_damage' }, { type: 'treacherous_feint@cal', params: { amount: 4 } }],
       desc: "Si l'objectiu ha revelat una Defensa, la seva defensa contra aquest atac té −4.",
       icon: 'lorc/backstab.svg',
     }),
     action({
       id: 'retruc-d-acer@cal', name: "Retruc d'acer", skillId: 'mestre-armes@cal',
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
-      effects: [{ type: 'steel_riposte@cal', params: { dice: d(1, 6), withLevel: false } }],
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
+      effects: [{ type: 'steel_riposte@cal', params: { dice: d(1, 6) } }],
       desc: "Si aguanta, contraataques l'atacant amb 1d6 + arma; no es pot defensar.",
       icon: 'lorc/sword-clash.svg',
     }),
@@ -325,28 +313,28 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'bufetada-insolent@cal', name: 'Bufetada insolent', skillId: 'mestre-armes@cal',
-      unlock: 4, type: ActionType.Atac, dice: d(2, 6),
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4, 1),
       effects: [{ type: 'weapon_damage' }, { type: 'insolent_slap@cal' }],
       desc: "Si fereix, el torn següent l'objectiu només pot atacar-te a tu.",
       icon: 'lorc/slap.svg',
     }),
     action({
       id: 'bloqueig-d-escorpi@cal', name: "Bloqueig d'escorpí", skillId: 'mestre-armes@cal',
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'scorpion_block@cal' }],
       desc: "Si aguanta, el torn següent el teu primer atac contra l'atacant no es pot defensar.",
       icon: 'lorc/scorpion-tail.svg',
     }),
     action({
       id: 'brac-mort@cal', name: 'Braç mort', skillId: 'mestre-armes@cal',
-      unlock: 6, type: ActionType.Defensa, dice: d(4, 4),
+      unlock: 6, type: ActionType.Defensa, dice: d(3, 4, 1),
       effects: [{ type: 'dead_arm@cal' }],
       desc: "Si aguanta, l'atacant no pot jugar Atacs el torn següent.",
       icon: 'lorc/broken-bone.svg',
     }),
     action({
       id: 'bardissa-d-acer@cal', name: "Bardissa d'acer", skillId: 'mestre-armes@cal',
-      unlock: 7, type: ActionType.Atac, dice: d(3, 6),
+      unlock: 7, type: ActionType.Atac, dice: d(2, 8),
       effects: [{ type: 'weapon_damage' }, { type: 'steel_hedge@cal' }],
       desc: "Aquest torn, aquesta tirada també et defensa de tots els atacs de l'objectiu contra tu, encara que arribin abans.",
       icon: 'lorc/spiked-fence.svg',
@@ -360,14 +348,14 @@ export const MESTRE_ARMES: SkillDefinition = {
     }),
     action({
       id: 'estocada-fantasma@cal', name: 'Estocada fantasma', skillId: 'mestre-armes@cal',
-      unlock: 9, type: ActionType.Atac, dice: d(3, 8),
+      unlock: 9, type: ActionType.Atac, dice: d(5, 4),
       effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'weapon_damage' }, { type: 'ghost_thrust@cal' }],
       desc: "Puges 1 nivell de fatiga. No es pot defensar i ignora l'armadura, tret que l'objectiu ja l'hagi rebut aquest combat.",
       icon: 'lorc/piercing-sword.svg',
     }),
     action({
       id: 'tall-rere-tall@cal', name: 'Tall rere tall', skillId: 'mestre-armes@cal',
-      unlock: 10, type: ActionType.Atac, dice: d(3, 6),
+      unlock: 10, type: ActionType.Atac, dice: d(4, 4),
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'weapon_damage' }, { type: 'cut_after_cut@cal' }],
       desc: 'Puges 2 nivells de fatiga. Mentre fereixi, ataca un altre enemic a l\'atzar que encara no hagi rebut aquest atac.',
       icon: 'lorc/dervish-swords.svg',

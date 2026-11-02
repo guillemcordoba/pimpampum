@@ -102,7 +102,7 @@ export const TOC_DE_LA_MORT_VARIANTS = {
   'cop-retardat': "Si fereix, al final del torn següent rep 4d6 que no es poden defensar.",
   'cinc-passes': "Si fereix, cau quan hagi jugat tres cartes més.",
   'tres-tocs': "Si fereix, li deixes un toc; al tercer, cau. Si passa un torn sense rebre'n cap, els perd tots.",
-  'cor-ferit': "Si fereix, al final del torn següent perd 3 PV per cada cop que l'hagi ferit des del toc.",
+  'cor-ferit': "Si fereix, al final del torn següent perd 6 PV per cada cop que l'hagi ferit des del toc.",
 } as const;
 export type TocVariant = keyof typeof TOC_DE_LA_MORT_VARIANTS;
 export const DEFAULT_TOC_VARIANT: TocVariant = 'resso';
@@ -218,14 +218,14 @@ const TOC_COR: StatusBehavior = {
   onPvLost(ctx) { ctx.entry.value += 1; },
   onRoundEnd(ctx) {
     if (!due(ctx)) return;
-    const loss = ctx.entry.value * num(ctx.entry.data ?? {}, 'per', 3);
+    const loss = ctx.entry.value * num(ctx.entry.data ?? {}, 'per', 6);
     ctx.holder.clearStatus(ctx.key);
     if (!ctx.holder.isAlive() || loss <= 0) return;
     ctx.engine.log('attack', `El cor ferit: ${ctx.holder.name} perd ${loss} PV.`, byOf(ctx.entry.data)?.team);
     ctx.engine.applyPvLoss(ctx.holder, loss, byOf(ctx.entry.data));
   },
   positionValue(ref) {
-    return pendingLossPrice(ref.holder, ref.entry.value * num(ref.entry.data ?? {}, 'per', 3)) - 0.05;
+    return pendingLossPrice(ref.holder, ref.entry.value * num(ref.entry.data ?? {}, 'per', 6)) - 0.05;
   },
 };
 
@@ -265,7 +265,7 @@ function touch(ctx: EffectContext, t: Character, variant: TocVariant): void {
       return;
     }
     case 'cor-ferit':
-      t.setStatus(TOC_KEY, 0, 2, { round, by, per: num(ctx.params, 'per', 3), harm: 1 }, TOC_COR);
+      t.setStatus(TOC_KEY, 0, 2, { round, by, per: num(ctx.params, 'per', 6), harm: 1 }, TOC_COR);
       ctx.engine.log('attack', `${by.name} toca ${t.name}: al final del torn següent, cada ferida li costarà més.`, team);
       return;
   }
@@ -307,7 +307,7 @@ const ADORMIT: StatusBehavior = {
 // --- 3 · Desbloquejar el cos ------------------------------------------------
 
 /** Below water's Bàlsam de lluna (2d6, ~7): the cleanse is the card. */
-const UNBLOCK_HEAL = 4;
+const UNBLOCK_HEAL = 8;
 
 /** What unblocking `c` is worth, in the evaluator's unit (1 ≈ a body's
  *  health): the PV it would recover, plus what its efectes negatius cost it —
@@ -411,7 +411,8 @@ const XI_EFFECTS: Record<string, EffectHandler> = {
       if (!target || !dice) return;
       let wounds = first && roundOf(first.data) === ctx.engine.round ? 1 : 0;
       const skillId = ctx.action.skillId;
-      const rollBonus = (ctx.action.rollBonus ?? 0) + ctx.source.getSkillLevel(skillId);
+      // The engine adds the level, as to every blow.
+      const rollBonus = ctx.action.rollBonus ?? 0;
       const blows = num(ctx.params, 'blows', 3);
       for (let blow = 2; blow <= blows; blow++) {
         if (!target.isAlive() || !ctx.source.isAlive()) break;
@@ -475,14 +476,14 @@ export const MESTRE_DEL_XI: SkillDefinition = {
   actions: [
     action({
       id: 'cop-al-nervi@cal', name: 'Cop al nervi', skillId: 'mestre-del-xi@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'numbing_strike@cal' }],
       desc: "Si fereix, l'objectiu queda entumit.",
       icon: 'lorc/pointing.svg',
     }),
     action({
       id: 'pinca-entumidora@cal', name: 'Pinça entumidora', skillId: 'mestre-del-xi@cal',
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       effects: [{ type: 'numbing_pinch@cal' }],
       desc: "Bloqueja un enemic. Si aguanta, l'atacant queda entumit.",
       icon: 'lorc/grab.svg',
@@ -496,14 +497,14 @@ export const MESTRE_DEL_XI: SkillDefinition = {
     }),
     action({
       id: 'poder-apagat@cal', name: 'Poder apagat', skillId: 'mestre-del-xi@cal',
-      unlock: 4, type: ActionType.Atac, dice: d(2, 6),
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4, 1),
       effects: [{ type: 'power_off@cal' }],
       desc: 'Si fereix, el torn següent la seva carta no té cap efecte: només en compten els daus.',
       icon: 'sbed/unplugged.svg',
     }),
     action({
       id: 'bloqueig-mutu@cal', name: 'Bloqueig mutu', skillId: 'mestre-del-xi@cal',
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'mutual_block@cal' }],
       desc: 'Bloqueja un enemic. Si aguanta, el torn següent cap dels dos juga carta.',
       icon: 'lorc/handcuffs.svg',
@@ -538,7 +539,7 @@ export const MESTRE_DEL_XI: SkillDefinition = {
     }),
     action({
       id: 'tempesta-de-son@cal', name: 'Tempesta de son', skillId: 'mestre-del-xi@cal',
-      unlock: 10, type: ActionType.Atac, dice: d(3, 8), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(5, 4), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'sleep_storm@cal', params: { wake: 11 } }],
       desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics. No fa dany. Els que no aguanten s\'adormen al final del torn: no juguen carta fins que perden PV o treuen 11+ en un d20 a l\'inici d\'un torn.',
       icon: 'lorc/sleepy.svg',

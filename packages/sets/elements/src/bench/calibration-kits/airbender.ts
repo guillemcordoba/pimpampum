@@ -185,7 +185,7 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'rafega-desviadora@cal', name: 'Ràfega desviadora', skillId: SKILL_ID,
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       effects: [{ type: 'deflecting_gust@cal' }],
       desc: "Si aguanta, l'atac va contra l'enemic que triïs, amb la mateixa tirada.",
       icon: 'lorc/whirlwind.svg',
@@ -213,7 +213,7 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'escut-d-aire@cal', name: "Escut d'aire", skillId: SKILL_ID,
-      unlock: 6, type: ActionType.Defensa, dice: d(2, 6),
+      unlock: 6, type: ActionType.Defensa, dice: d(2, 4, 1),
       effects: [{ type: 'air_shield@cal' }],
       desc: 'Aquest torn, tu i qui defenses rebeu la meitat del dany que us arribi.',
       icon: 'lorc/vortex.svg',
@@ -241,9 +241,9 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'tornado@cal', name: 'Tornado', skillId: SKILL_ID,
-      unlock: 10, type: ActionType.Atac, dice: d(3, 6), targetCount: 99,
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'stun_on_hit', params: { turns: 1 } }],
-      desc: 'Puges 1 nivell de fatiga. Afecta tots els enemics. Els que fereix perden el torn següent.',
+      unlock: 10, type: ActionType.Atac, dice: d(4, 4), targetCount: 99,
+      effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'stun_on_hit', params: { turns: 1 } }],
+      desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics. Els que fereix perden el torn següent.',
       icon: 'lorc/tornado.svg',
     }),
   ],

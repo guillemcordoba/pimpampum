@@ -54,7 +54,7 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
     expect(lluitador.hasStatus('adrenalina')).toBe(false);
   });
 
-  it('cures de camp heals the roll of its own dice (2d4) in PV', () => {
+  it('cures de camp heals the roll of its own dice (1d4) in PV', () => {
     const metge = buildCharacter({ name: 'Metge', pv: 20, skills: { metge: 2 } });
     const ferit = makeChar('Ferit', 20, [focusDef()]);
     const enemy = sac(50);
@@ -66,9 +66,9 @@ describe('Metge de campanya (full path, zero engine edits)', () => {
       { idx: 0, actionIdx: curesIdx, targets: [{ team: 0, idx: 1 }] },
       { idx: 1, actionIdx: 0 },
     ]);
-    // 2d4 → between 2 and 8 PV healed.
-    expect(ferit.currentPV).toBeGreaterThanOrEqual(7);
-    expect(ferit.currentPV).toBeLessThanOrEqual(13);
+    // 1d4 → between 1 and 4 PV healed.
+    expect(ferit.currentPV).toBeGreaterThanOrEqual(6);
+    expect(ferit.currentPV).toBeLessThanOrEqual(9);
   });
 });
 

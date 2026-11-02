@@ -146,14 +146,14 @@ export const NIGROMANT: SkillDefinition = {
     }),
     action({
       id: 'ma-de-la-tomba', name: 'Mà de la tomba', skillId: 'nigromant',
-      unlock: 3, type: ActionType.Atac, dice: d(2, 6), targetCount: 99,
+      unlock: 3, type: ActionType.Atac, dice: d(1, 6, 2), targetCount: 99,
       effects: [{ type: 'reap', params: {} }],
       desc: 'Afecta tots els enemics condemnats. Ignora defenses i armadura.',
       icon: 'lorc/evil-hand.svg',
     }),
     action({
       id: 'sudari-de-tomba', name: 'Sudari de tomba', skillId: 'nigromant',
-      unlock: 4, type: ActionType.Defensa, dice: d(3, 6),
+      unlock: 4, type: ActionType.Defensa, dice: d(2, 6, 1),
       effects: [{ type: 'condemn_on_block', params: { turns: 1 } }],
       desc: "Si bloqueges un atac, l'atacant queda condemnat (1 torn).",
       icon: 'lorc/haunting.svg',
@@ -161,8 +161,8 @@ export const NIGROMANT: SkillDefinition = {
     action({
       id: 'putrefaccio', name: 'Putrefacció', skillId: 'nigromant',
       unlock: 5, type: ActionType.Focus,
-      effects: [{ type: 'plague', params: { damage: 3, turns: 3 } }],
-      desc: "L'objectiu perd 3 PV en ser infectat i al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 7: queda infectat.",
+      effects: [{ type: 'plague', params: { damage: 6, turns: 3 } }],
+      desc: "L'objectiu perd 6 PV en ser infectat i al final de cada torn durant 3 torns. Cada torn, cada enemic que no hagi estat infectat, d20 < 7: queda infectat.",
       icon: 'lorc/virus.svg',
     }),
     action({
@@ -177,7 +177,7 @@ export const NIGROMANT: SkillDefinition = {
       // cleverer trick and now sits at 2-3, still adjacent so the combo is
       // still learnt in one step. 1d6 was the weakest workhorse in the game
       // (peers run 2d4-2d6 at the same job).
-      unlock: 1, type: ActionType.Atac, dice: d(2, 6),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 6),
       effects: [{ type: 'lifedrain', params: { ratio: 1 } }],
       desc: 'Recuperes tants PV com el mal infligit.',
       icon: 'lorc/life-tap.svg',

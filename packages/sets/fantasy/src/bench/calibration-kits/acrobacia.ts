@@ -194,12 +194,12 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
       const heights = heightsOf(ctx.params);
       const me = ctx.source;
       const base = (ctx.action.dice?.average() ?? 0) + (ctx.action.rollBonus ?? 0)
-        + me.getSkillLevel(ctx.action.skillId) + me.getRollBonus(ctx.action.skillId, 'attack');
+        + me.getRollBonus(ctx.action.skillId, 'attack');
       const plan = ctx.engine.plannedThisRound();
       let need = Infinity;
       for (const e of ctx.engine.enemiesOf(me)) {
         const guard = plan.find(p => p.actor === e && !p.cancelled && p.action.actionType === ActionType.Defensa);
-        const parry = guard ? (guard.action.dice?.average() ?? 0) + (guard.action.rollBonus ?? 0) + e.getSkillLevel(guard.action.skillId) : 0;
+        const parry = guard ? (guard.action.dice?.average() ?? 0) + (guard.action.rollBonus ?? 0) + e.getRollBonus(guard.action.skillId, 'defense') : 0;
         need = Math.min(need, e.currentPV + e.getPassiveArmor() + parry);
       }
       const i = heights.findIndex(h => base + h >= need);
@@ -235,7 +235,8 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
       const wounded = new Set<Character>();
       if (ctx.target) wounded.add(ctx.target);
       const total = num(ctx.params, 'blows', 4);
-      const rollBonus = (ctx.action.rollBonus ?? 0) + ctx.source.getSkillLevel(ctx.action.skillId);
+      // The engine adds the level, as to every blow.
+      const rollBonus = ctx.action.rollBonus ?? 0;
       for (let blow = 2; blow <= total; blow++) {
         if (!target.isAlive() || !ctx.source.isAlive()) break;
         const r = ctx.engine.performExtraAttack(ctx.source, target, dice, {
@@ -267,14 +268,14 @@ export const ACROBACIA: SkillDefinition = {
   actions: [
     action({
       id: 'escombrada@cal', name: 'Escombrada', skillId: 'acrobacia@cal',
-      unlock: 1, type: ActionType.Atac, dice: d(2, 4),
+      unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'sweep@cal' }],
       desc: "Si fereix, l'objectiu queda a terra: els atacs contra ell tenen +2 fins al final del torn següent.",
       icon: 'lorc/foot-trip.svg',
     }),
     action({
       id: 'esquiva-i-traveta@cal', name: 'Esquiva i traveta', skillId: 'acrobacia@cal',
-      unlock: 2, type: ActionType.Defensa, dice: d(3, 4),
+      unlock: 2, type: ActionType.Defensa, dice: d(2, 4),
       effects: [{ type: 'trip@cal' }],
       desc: "Si aguanta, l'atacant queda a terra.",
       icon: 'felbrigg/dodge.svg',
@@ -288,20 +289,20 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'puntada-d-espagat@cal', name: "Puntada d'espagat", skillId: 'acrobacia@cal',
-      unlock: 4, type: ActionType.Atac, dice: d(2, 6), targetCount: 2,
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2,
       desc: 'Afecta dos enemics.',
       icon: 'delapouite/van-damme-split.svg',
     }),
     action({
       id: 'tombarella-de-rescat@cal', name: 'Tombarella de rescat', skillId: 'acrobacia@cal',
-      unlock: 5, type: ActionType.Defensa, dice: d(2, 8),
+      unlock: 5, type: ActionType.Defensa, dice: d(3, 4),
       effects: [{ type: 'rescue_roll@cal' }],
       desc: 'Defensa el primer aliat que sigui atacat aquest torn.',
       icon: 'lorc/cartwheel.svg',
     }),
     action({
       id: 'cavalcar-l-enemic@cal', name: "Cavalcar l'enemic", skillId: 'acrobacia@cal',
-      unlock: 6, type: ActionType.Atac, dice: d(3, 6),
+      unlock: 6, type: ActionType.Atac, dice: d(2, 8),
       effects: [{ type: 'ride_enemy@cal' }],
       desc: "Si fereix, l'objectiu no et pot atacar el torn següent.",
       icon: 'delapouite/jump-across.svg',
@@ -329,7 +330,7 @@ export const ACROBACIA: SkillDefinition = {
     }),
     action({
       id: 'capbusso-suicida@cal', name: 'Capbussó suïcida', skillId: 'acrobacia@cal',
-      unlock: 10, type: ActionType.Atac, dice: d(3, 8), targetCount: 99,
+      unlock: 10, type: ActionType.Atac, dice: d(5, 4), targetCount: 99,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'suicide_dive@cal' }],
       desc: 'Puges 2 nivells de fatiga. Afecta tots els enemics; els ferits queden a terra, i tu també.',
       icon: 'delapouite/pool-dive.svg',
