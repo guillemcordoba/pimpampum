@@ -8,8 +8,9 @@ import { BURN_PV, BURN_TURNS, setAlight } from '../effects/cremat.js';
  * 2026-11-01): fire burns. Cremat is the kit's thread (cards 1, 2, 6, 9); the
  * rest is raw heat — a chi that stokes every blow, a storm of sparks, a
  * blinding flash, a wildfire that grows until it has consumed its victim, a
- * bolt, and the supernova that burns the bender out. The numbers are this
- * file's, on the dice ladder (intentions.md).
+ * bolt, and the supernova that burns the bender out. Alè de drac (6) only holds
+ * its slot until the user picks the card that replaces it (OPEN.md). The
+ * numbers are this file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'firebender';

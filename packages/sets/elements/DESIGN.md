@@ -169,7 +169,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 | 3 | Foc interior | Focus | +6 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker |
 | 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
 | 5 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 9 or less its attack misses |
-| 6 | Alè de drac | Atac | two enemies; the wounded are burned (kept apart from Tempesta: neighbours are never too similar) |
+| 6 | Alè de drac | Atac | two enemies; the wounded are burned — cut by the user (too close to Incendi, both burn); holds 6 until a card that doesn't burn is picked |
 | 7 | Incendi | Atac | a wounded target burns 2, 4, 6… PV a round until it falls; then the fire leaps to a random enemy (the user's pick, 2026-11-02; Cortina de fum left: smoke as cover is water's) |
 | 8 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
 | 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 6 PV and is burned |
