@@ -96,7 +96,7 @@ alive knows he was once an air novice.
 
 ## Decisions that stand
 
-- **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses). They were the kits' later cards; the cards they replaced at 3 (Font curativa, Armadura de terra, Esclat encegador, Asfíxia) moved to their old levels and were re-priced there.
+- **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses). They were the kits' later cards; the cards they replaced at 3 moved up and were re-priced there: Font curativa to 4 (heals belong early; Boira went to 7), Armadura de terra and Asfíxia to 4, Esclat encegador to 7.
 - **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; every body has 26 PV. The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
 
 - **Kits:** the four element benders. A fifth kit will be something new (the
@@ -123,10 +123,10 @@ dice and small mechanics by the main session.
 | 1 | Fuet d'aigua | Atac | the plain lash |
 | 2 | Mur d'aigua | Defensa | the plain wall |
 | 3 | Trampa de gel | Focus | the chosen enemy is frozen: it loses its next turn; 1 fatigue; the kit's first Focus, its turtle-breaker (was level 7) |
-| 4 | Boira | Focus | next round no enemy can aim at your allies |
+| 4 | Font curativa | Focus | heals an ally (2d4+2) and puts out Cremat (was level 3 at 2d4+1; heals belong early) |
 | 5 | Cúpula de gel | Defensa | the strong shell |
 | 6 | Llança de gel | Atac | the strong single blow |
-| 7 | Font curativa | Focus | heals an ally (3d4+2) and puts out Cremat (was level 3, 2d4+1) |
+| 7 | Boira | Focus | next round no enemy can aim at your allies |
 | 8 | Forma de pop | Defensa | defends every ally |
 | 9 | Control de la sang | Focus | next round the chosen enemy's blows land on its own side; 1 fatigue |
 | 10 | Tsunami | Atac | every enemy |

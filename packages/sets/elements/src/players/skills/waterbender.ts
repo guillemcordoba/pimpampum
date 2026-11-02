@@ -20,7 +20,7 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 }
 
 const WATER_EFFECTS: Record<string, EffectHandler> = {
-  // 7 · Font curativa (with the generic `heal`): the healed ally's Cremat
+  // 4 · Font curativa (with the generic `heal`): the healed ally's Cremat
   // goes out too.
   douse: {
     onResolve(ctx) {
@@ -31,7 +31,7 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // 4 · Boira: next round no enemy can aim at the bender's allies — only at
+  // 7 · Boira: next round no enemy can aim at the bender's allies — only at
   // the bender, the one left outside the fog.
   fog: {
     getTargetRequirement() { return 'none'; },
@@ -91,11 +91,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/frozen-block.svg',
     }),
     action({
-      id: 'boira', name: 'Boira', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus,
-      effects: [{ type: 'fog' }],
-      desc: 'El torn següent, els enemics no poden atacar els teus aliats.',
-      icon: 'delapouite/fog.svg',
+      id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,
+      unlock: 4, type: ActionType.Focus, dice: d(2, 4, 2),
+      effects: [{ type: 'heal' }, { type: 'douse' }],
+      desc: 'Cura un aliat i li apaga Cremat.',
+      icon: 'lorc/heart-drop.svg',
     }),
     action({
       id: 'cupula-de-gel', name: 'Cúpula de gel', skillId: SKILL_ID,
@@ -110,11 +110,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/ice-spear.svg',
     }),
     action({
-      id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus, dice: d(3, 4, 2),
-      effects: [{ type: 'heal' }, { type: 'douse' }],
-      desc: 'Cura un aliat i li apaga Cremat.',
-      icon: 'lorc/heart-drop.svg',
+      id: 'boira', name: 'Boira', skillId: SKILL_ID,
+      unlock: 7, type: ActionType.Focus,
+      effects: [{ type: 'fog' }],
+      desc: 'El torn següent, els enemics no poden atacar els teus aliats.',
+      icon: 'delapouite/fog.svg',
     }),
     action({
       id: 'forma-de-pop', name: 'Forma de pop', skillId: SKILL_ID,
