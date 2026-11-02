@@ -298,6 +298,26 @@ describe('audit defects as puzzles: a stun against a horde', () => {
   it('(j) the AI stuns', () => expect(aiAnswer(HORDE)).toEqual(Array(4).fill('stun')));
 });
 
+// --- (k) A VEIL OVER THE ALLIES --------------------------------------------
+//
+// V may veil (a slow Focus: next round no foe can target its allies) or
+// strike. The foes are locked out of attacking this round, and V's armour
+// stops their desperate blows, so the veil lands. Next round A is out of reach
+// and both foes' blows go to V, who is A's twin: none is saved, only moved,
+// and V's strike is lost. The untargetable kind priced each veiled ally as a
+// blow dodged, so the AI veiled (Boira, picked on 46.9% of the waterbender's
+// turns and the best play on 8%, OPEN.md B16).
+const locked = (f: FighterSpec): FighterSpec => ({ ...f, statuses: [{ key: 'audit.lock', value: 1, data: { bane: 1, left: 1 }, priced: 1 }] });
+const armoured = (f: FighterSpec): FighterSpec => ({ ...f, armour: 4 });
+const VEIL = position('veil', 2,
+  [armoured(body('V', 30, [fixed('strike', 2), { arch: 'veil', p: { fast: 0, fatigue: 0 } }])), armoured(body('A', 30, [fixed('strike', 6)]))],
+  [locked(body('F0', 40, [fixed('strike', 12)])), locked(body('F1', 40, [fixed('strike', 12)]))]);
+
+describe('audit defects as puzzles: a veil over the allies', () => {
+  it('(k) the referee strikes', () => expect(refereeAnswer(VEIL)).toEqual({ cards: 'strike,strike', p: 1 }));
+  it('(k) the AI strikes', () => expect(aiAnswer(VEIL)).toEqual(Array(4).fill('strike,strike')));
+});
+
 describe('audit defects as puzzles: a sacrifice', () => {
   it('(h) the referee keeps the hero', () => expect(refereeAnswer(WASTED)).toEqual({ cards: 'strike,strike,strike', p: 1 }), 60_000);
   it('(h) the AI keeps the hero', () => expect(aiAnswer(WASTED)).toEqual(Array(4).fill('strike,strike,strike')));

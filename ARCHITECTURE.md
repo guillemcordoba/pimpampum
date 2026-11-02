@@ -229,7 +229,9 @@ a ward, a standing wall, untargetable, unguardable, taunted, redirected.
 Content applies one under its own key (`applyKind(target, kind, key, value,
 turns, data)`) instead of writing hooks, and the evaluator sees it; a snapshot
 names kinds itself (`kind:<name>`). Prices take the board
-(`positionValue(ref, board)`, `PriceBoard`), and `fieldValue` prices the
+(`positionValue(ref, board)`, `PriceBoard`): untargetable, for one, is worth
+nothing while someone else on its side can still be hit, since the blows only
+move there (2026-11-02, puzzle (k)). And `fieldValue` prices the
 engine fields statuses don't hold (turns to lose, roll modifiers) beside
 them. `StatusBehavior.harmful` says a kind is bad for its holder; the cleanse
 strips one an enemy applied. A one-of-a-kind behaviour must price itself

@@ -18,7 +18,7 @@
  * as an unpriced real card would be. The report separates the two.
  */
 import {
-  ActionType, DiceRoll, EffectRegistry, type ActionDefinition, type Character, type StatusBehavior,
+  ActionType, DiceRoll, EffectRegistry, applyKind, type ActionDefinition, type Character, type StatusBehavior,
   type StatusHookContext, type StatusRef,
 } from '@pimpampum/engine';
 import { PROFILE } from './profile.js';
@@ -268,6 +268,10 @@ export function auditRegistry(): EffectRegistry {
     // One turn: it lapses as this round ends.
     onResolve(ctx) { ctx.source.setStatus('audit.hidden', 1, 1, undefined, HIDDEN); },
   });
+  r.register('audit:veil', {
+    getTargetRequirement: () => 'none',
+    onResolve(ctx) { for (const a of ctx.engine.alliesOf(ctx.source, false)) applyKind(a, 'untargetable', 'audit.veiled', 1, 2); },
+  });
   r.register('audit:selfwound', {
     onAttackResolved(ctx) { ctx.engine.applyPvLoss(ctx.source, 1); },
   });
@@ -398,6 +402,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
     draw: () => ({ fast: 1 }),
     horizon: () => 1,
   },
+  veil: {
+    id: 'veil', summary: 'focus: next round no foe can target your allies',
+    build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:veil', {}) }),
+    draw: () => ({}),
+    horizon: () => 2,
+  },
   composed: {
     id: 'composed', summary: 'a card drawn part by part: type, trigger, effect, subject (compose.ts)',
     build: (p, uid) => buildComposed(p, uid),
@@ -421,7 +431,7 @@ export const ARCHETYPES: Record<string, Archetype> = {
 /** Archetypes the generator deals (the fallback is added to every hand). */
 // `sacrifice` is a puzzle's archetype, kept out of the draws so the catalogues
 // drawn before it existed stay the same.
-export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice');
+export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice' && k !== 'veil');
 
 /** A card in words, for the report. */
 export const describeCard = (arch: string, p: Params): string => (arch === 'composed' ? describeComposed(p) : arch);
