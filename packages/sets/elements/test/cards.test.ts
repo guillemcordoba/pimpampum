@@ -101,9 +101,9 @@ describe("Mestre de l'aigua", () => {
     expect(water.fatigue).toBe(1);
   });
 
-  it('Marea alta: every enemy that played a Defense this round loses its own defense roll', () => {
+  it('Marea alta: every enemy that played a Defense this round loses half its own defense roll', () => {
     const water = fighter('Aigua', [getAction('marea-alta')!], { pv: 30 });
-    const a = fighter('A', [defenseCard('mur', { dice: new DiceRoll(3, 1) })], { pv: 30 });
+    const a = fighter('A', [defenseCard('mur', { dice: new DiceRoll(6, 1) })], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     playRound(engineFor([water], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(1, 0)), sel(1, 1, 0)]);
     expect([a.currentPV, b.currentPV]).toEqual([27, 30]);

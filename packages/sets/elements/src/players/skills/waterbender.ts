@@ -80,13 +80,13 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
 
   // 3 · Marea alta: the tide sweeps whoever stayed planted behind a guard —
   // every enemy that played a Defense this round rolls its dice again and loses
-  // that much PV.
+  // half of it (rounded down).
   high_tide: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
       for (const p of ctx.engine.plannedThisRound()) {
         if (p.cancelled || p.actor.team === ctx.source.team || !p.actor.isAlive() || p.action.actionType !== ActionType.Defensa) continue;
-        const loss = ctx.engine.rollDiceFor(p.actor, p.action.dice);
+        const loss = Math.floor(ctx.engine.rollDiceFor(p.actor, p.action.dice) / 2);
         if (loss <= 0) continue;
         ctx.engine.log('focus', `La marea arrossega ${p.actor.name}: ${loss} PV.`, ctx.source.team);
         ctx.engine.applyPvLoss(p.actor, loss, ctx.source);
@@ -127,7 +127,7 @@ export const WATERBENDER: SkillDefinition = {
       id: 'marea-alta', name: 'Marea alta', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'high_tide' }],
-      desc: "Cada enemic que aquest torn hagi jugat una Defensa en torna a tirar els daus i perd aquells PV.",
+      desc: "Cada enemic que aquest torn hagi jugat una Defensa en torna a tirar els daus i perd la meitat d'aquells PV.",
       icon: 'lorc/high-tide.svg',
     }),
     action({

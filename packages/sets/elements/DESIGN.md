@@ -123,7 +123,7 @@ dice and small mechanics by the main session.
 |---|---|---|---|
 | 1 | Fuet d'aigua | Atac | the plain lash |
 | 2 | Mur d'aigua | Defensa | the plain wall |
-| 3 | Marea alta | Focus | every enemy that played a Defense this round re-rolls its defense dice and loses that much PV (the user's pick, 2026-11-02, after the stall autopsy: water's turtle-breaker now makes a defender lose); the kit's first Focus |
+| 3 | Marea alta | Focus | every enemy that played a Defense this round re-rolls its defense dice and loses half of it (all of it until the user found it too powerful) (the user's pick, 2026-11-02, after the stall autopsy: water's turtle-breaker now makes a defender lose); the kit's first Focus |
 | 4 | Font curativa | Focus | heals an ally (3d4+4) and puts out Cremat; heals belong early |
 | 5 | Boira espessa | Focus | for the next 5 rounds every enemy blow on your party rolls 1d4 and misses on 1-2 (on a 1 until the Focus scale-up; the user's design, 2026-11-02; replaced Boira, which hid every ally for one round) |
 | 6 | Llança de gel | Atac | the strong single blow |
