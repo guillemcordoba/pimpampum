@@ -204,8 +204,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'foc-interior', name: 'Foc interior', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'inner_blaze', params: { bonus: 6, turns: 2 } }],
-      desc: 'Els teus atacs tenen +6 els 2 torns següents.',
+      effects: [{ type: 'inner_blaze', params: { bonus: 10, turns: 2 } }],
+      desc: 'Els teus atacs tenen +10 els 2 torns següents.',
       icon: 'lorc/meditation.svg',
     }),
     action({
@@ -218,8 +218,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'esclat-encegador', name: 'Esclat encegador', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'flare', params: { below: 9 } }],
-      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 9 o menys, el seu atac falla.",
+      effects: [{ type: 'flare', params: { below: 14 } }],
+      desc: "Cada enemic que encara hagi d'atacar aquest torn tira 1d20: amb 14 o menys, el seu atac falla.",
       icon: 'lorc/sunbeams.svg',
     }),
     action({
@@ -245,8 +245,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fire_ring', params: { loss: 6 } }],
-      desc: 'Els 2 torns següents, cada enemic que ataqui perd 6 PV i queda cremat.',
+      effects: [{ type: 'fire_ring', params: { loss: 10 } }],
+      desc: 'Els 2 torns següents, cada enemic que ataqui perd 10 PV i queda cremat.',
       icon: 'lorc/fire-ring.svg',
     }),
     action({

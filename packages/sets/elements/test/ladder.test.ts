@@ -11,6 +11,10 @@ import { ALL_SKILLS } from '../src/index.js';
 
 /** How far above its rung a card may roll without a reason. */
 const SLACK = 1;
+/** A Focus that rolls may sit this far above its level's attack: Focus cards are
+ *  much stronger than attacks (intentions.md), being slow and broken when their
+ *  player is hit first. */
+const FOCUS_SLACK = 6;
 
 /** Cards above their rung by more than `SLACK`, and what pays for it. */
 const ABOVE: Record<string, string> = {
@@ -22,12 +26,13 @@ const ABOVE: Record<string, string> = {
 
 describe('the dice ladder', () => {
   for (const skill of ALL_SKILLS) {
-    it(`${skill.id}: no card above its rung by more than ${SLACK} without a reason`, () => {
+    it(`${skill.id}: no card above its rung by more than ${SLACK} (a Focus ${FOCUS_SLACK}) without a reason`, () => {
       const over = skill.actions.flatMap(a => {
         if (!a.dice) return [];
         const level = Math.max(1, Math.min(10, a.unlockLevel));
         const rung = (a.actionType === ActionType.Defensa ? DEFENSE_LADDER : ATTACK_LADDER)[level].average();
-        return a.dice.average() - rung > SLACK && !(a.id in ABOVE) ? [`${a.id} (level ${level}: ${a.dice.average()} against ${rung})`] : [];
+        const slack = a.actionType === ActionType.Focus ? FOCUS_SLACK : SLACK;
+        return a.dice.average() - rung > slack && !(a.id in ABOVE) ? [`${a.id} (level ${level}: ${a.dice.average()} against ${rung})`] : [];
       });
       expect(over).toEqual([]);
     });

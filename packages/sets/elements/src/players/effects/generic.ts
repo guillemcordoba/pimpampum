@@ -221,8 +221,9 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const t = chosen(ctx);
       if (!t) return;
-      turnOnAllies(t);
-      ctx.engine.log('focus', `${t.name} es gira contra els seus: el torn següent ataca els seus aliats.`, ctx.source.team);
+      const turns = num(ctx.params, 'turns', 1);
+      turnOnAllies(t, turns);
+      ctx.engine.log('focus', `${t.name} es gira contra els seus: ${turns > 1 ? `els ${turns} torns següents` : 'el torn següent'} ataca els seus aliats.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 1.3 : -2; },
   },

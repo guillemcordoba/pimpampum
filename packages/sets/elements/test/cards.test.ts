@@ -71,7 +71,7 @@ describe("Mestre de l'aigua", () => {
     expect([water.hasStatus('boira-espessa'), ally.hasStatus('boira-espessa')]).toEqual([false, false]);
   });
 
-  it('Boira espessa: about one enemy blow in four is lost in the fog', () => {
+  it('Boira espessa: about one enemy blow in two is lost in the fog', () => {
     let lost = 0;
     withSeed(31, () => {
       for (let n = 0; n < 400; n++) {
@@ -83,8 +83,8 @@ describe("Mestre de l'aigua", () => {
         if (water.currentPV === 30) lost++;
       }
     });
-    expect(lost / 400).toBeGreaterThan(0.18);
-    expect(lost / 400).toBeLessThan(0.32);
+    expect(lost / 400).toBeGreaterThan(0.42);
+    expect(lost / 400).toBeLessThan(0.58);
   });
 
   it('Marea de vida: one roll heals the whole party, the fallen too; 1 fatigue', () => {

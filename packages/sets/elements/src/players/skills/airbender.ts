@@ -134,7 +134,10 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
       const t = ctx.targets[0];
       if (!t || !t.isAlive()) return;
       if (ctx.engine.advancePendingAction(t)) {
-        ctx.engine.log('focus', `El vent empeny ${t.name}: la seva carta es resol ara.`, ctx.source.team);
+        const bonus = num(ctx.params, 'bonus', 0);
+        applyMod(t, 'attack', bonus, 'thisTurn', ctx.action.name);
+        applyMod(t, 'defense', bonus, 'thisTurn', ctx.action.name);
+        ctx.engine.log('focus', `El vent empeny ${t.name}: la seva carta es resol ara, amb +${bonus}.`, ctx.source.team);
       }
     },
     aiWeight(ctx) { return ctx.allies.length ? 0.7 : -1; },
@@ -190,10 +193,11 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       const t = ctx.targets[0];
       if (!t || !t.isAlive() || warded(t)) return;
-      t.skipTurns = Math.max(t.skipTurns, 1);
-      // Set in the Focus step: the round's end takes one, the next round remains.
-      applyKind(t, 'untargetable', 'remoli', 1, 2);
-      ctx.engine.log('focus', `Un remolí s'emporta ${t.name} fora del combat el torn següent.`, ctx.source.team);
+      const turns = num(ctx.params, 'turns', 1);
+      t.skipTurns = Math.max(t.skipTurns, turns);
+      // Set in the Focus step: the round's end takes one, the next rounds remain.
+      applyKind(t, 'untargetable', 'remoli', 1, turns + 1);
+      ctx.engine.log('focus', `Un remolí s'emporta ${t.name} fora del combat.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.8 : 0.3; },
   },
@@ -221,15 +225,15 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'vent-a-favor', name: 'Vent a favor', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'tailwind' }],
-      desc: "La carta d'un aliat es resol just després d'aquesta.",
+      effects: [{ type: 'tailwind', params: { bonus: 4 } }],
+      desc: "La carta d'un aliat es resol just després d'aquesta, amb +4.",
       icon: 'lorc/wind-hole.svg',
     }),
     action({
       id: 'coixi-d-aire', name: "Coixí d'aire", skillId: SKILL_ID,
       unlock: 4, type: ActionType.Focus, fast: true,
-      effects: [{ type: 'air_cushion', params: { amount: 3 } }],
-      desc: 'Aquest torn, cada cop contra el teu grup fa 3 menys de dany.',
+      effects: [{ type: 'air_cushion', params: { amount: 6 } }],
+      desc: 'Aquest torn, cada cop contra el teu grup fa 6 menys de dany.',
       icon: 'lorc/feather.svg',
     }),
     action({
@@ -249,8 +253,8 @@ export const AIRBENDER: SkillDefinition = {
     action({
       id: 'remoli-de-vent', name: 'Remolí', skillId: SKILL_ID,
       unlock: 7, type: ActionType.Focus,
-      effects: [{ type: 'not_twice_running', params: { card: 'remoli' } }, { type: 'whirlwind' }],
-      desc: "L'enemic que triïs queda fora del combat el torn següent: no juga carta i ningú no el pot atacar. No el pots jugar dos torns seguits.",
+      effects: [{ type: 'not_twice_running', params: { card: 'remoli' } }, { type: 'whirlwind', params: { turns: 2 } }],
+      desc: "L'enemic que triïs queda fora del combat els 2 torns següents: no juga carta i ningú no el pot atacar. No el pots jugar dos torns seguits.",
       icon: 'lorc/tornado-discs.svg',
     }),
     action({

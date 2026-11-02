@@ -59,7 +59,7 @@ Enemy kits are especially thin here, which is why a turtling party currently
 goes unpunished.
 
 Balance levers that maintain the triangle (being tuned via simulation):
-- **Focus power** — a resolved high-impact focus should be game-changing (large skill buffs, transformations).
+- **Focus power** — a resolved high-impact focus should be game-changing (large skill buffs, transformations). **Focus cards are much stronger than attacks of their level** (the user, 2026-11-02): they are slow and break when their player is hit first (Aggro's answer), so when one lands it blasts through defenses. Every bender Focus was scaled up that day — buffs and payloads (Foc interior +10, Túnel opens every attack of the group, Trampa de gel freezes two), and the protective ones too (bigger heals, a thicker fog, +6 armour). A Focus that rolls may sit up to 6 above its level's attack (each set's `test/ladder.test.ts`).
 - **Fast cards** — how many there are, and of which type: fast attacks land before normal defenses, fast focuses before normal attacks.
 - **Defense payoffs** — what a block pays when it holds.
 - **Attack dice vs defense dice and armour** — damage is the margin, so small unbuffed attacks should struggle to get through a defense plus armour; buffs and coordination make them land.

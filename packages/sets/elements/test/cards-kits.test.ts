@@ -225,28 +225,28 @@ describe('Mestre del foc', () => {
     expect([fire.currentPV, ally.currentPV]).toEqual([28, 28]);
   });
 
-  it('Foc interior: +6 on the bender\'s attacks for the next two rounds', () => {
+  it('Foc interior: +10 on the bender\'s attacks for the next two rounds', () => {
     const fire = fighter('Foc', [getAction('foc-interior')!, blow(1)], { pv: 30 });
     const bag = fighter('Sac', [wait], { pv: 30 });
     const engine = engineFor([fire], [bag]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     for (let r = 0; r < 3; r++) playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(30 - 7 - 7 - 1);
+    expect(bag.currentPV).toBe(30 - 11 - 11 - 1);
   });
 
-  it('Anell de foc: for the next two rounds, every enemy that attacks loses 6 PV and is burned', () => {
+  it('Anell de foc: for the next two rounds, every enemy that attacks loses 10 PV and is burned', () => {
     const fire = fighter('Foc', [getAction('anell-de-foc')!, wait], { pv: 60 });
     const foe = fighter('Foe', [wait, blow(2)], { pv: 30 });
     const idle = fighter('Quiet', [wait], { pv: 30 });
     const engine = engineFor([fire], [foe, idle]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0)]);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(30 - 6 - 2);
+    expect(foe.currentPV).toBe(30 - 10 - 2);
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(14);
+    expect(foe.currentPV).toBe(6);
     // The ring is gone; the last burn still ticks once.
     playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0)), sel(1, 1, 0)]);
-    expect(foe.currentPV).toBe(12);
+    expect(foe.currentPV).toBe(4);
     expect(idle.currentPV).toBe(30);
   });
 
@@ -321,12 +321,12 @@ describe("Mestre de l'aire", () => {
     expect(foe.hasStatus('asfixia')).toBe(false);
   });
 
-  it("Vent a favor: the ally's card resolves right after it, before the normal guards", () => {
+  it("Vent a favor: the ally's card resolves right after it, before the normal guards, with +4", () => {
     const air = fighter('Aire', [flat('vent-a-favor', 0)], { pv: 30 });
     const ally = fighter('Amic', [blow(5)], { pv: 30 });
     const foe = fighter('Foe', [guard(100)], { pv: 30 });
     playRound(engineFor([air, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
-    expect(foe.currentPV).toBe(25);
+    expect(foe.currentPV).toBe(21);
   });
 
   it('Fulles de vent: three blows, one at each chosen enemy', () => {
@@ -365,11 +365,11 @@ describe("Mestre de l'aire", () => {
     expect(air.currentPV).toBe(28);
   });
 
-  it("Coixí d'aire: this round every blow on the side lands 3 softer", () => {
+  it("Coixí d'aire: this round every blow on the side lands 6 softer", () => {
     const air = fighter('Aire', [flat('coixi-d-aire', 0)], { pv: 30 });
     const ally = fighter('Amic', [wait], { pv: 30 });
-    const f1 = fighter('F1', [blow(5)], { pv: 30 });
-    const f2 = fighter('F2', [blow(2)], { pv: 30 });
+    const f1 = fighter('F1', [blow(8)], { pv: 30 });
+    const f2 = fighter('F2', [blow(5)], { pv: 30 });
     playRound(engineFor([air, ally], [f1, f2]), [sel(0, 0, 0), sel(0, 1, 0), sel(1, 0, 0, T(0, 1)), sel(1, 1, 0, T(0, 0))]);
     expect([air.currentPV, ally.currentPV]).toEqual([30, 28]);
   });
@@ -390,14 +390,18 @@ describe("Mestre de l'aire", () => {
     expect(ally.currentPV).toBe(30);
   });
 
-  it('Remolí: next round the chosen enemy plays no card and nobody can aim at it', () => {
+  it('Remolí: for the next two rounds the chosen enemy plays no card and nobody can aim at it', () => {
     const air = fighter('Aire', [flat('remoli-de-vent', 0), wait], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 30 });
     const other = fighter('Altre', [wait], { pv: 30 });
     const engine = engineFor([air], [foe, other]);
     playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect(foe.skipTurns).toBe(1);
+    expect(foe.skipTurns).toBe(2);
     expect(engine.enemiesOf(air)).toEqual([other]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
+    expect(engine.enemiesOf(air)).toEqual([other]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
+    expect(engine.enemiesOf(air)).toEqual([foe, other]);
   });
 
   it('Tornado: every enemy; the wounded lose their next turn; 2 fatigue', () => {

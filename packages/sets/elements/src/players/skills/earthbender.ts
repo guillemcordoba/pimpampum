@@ -21,16 +21,14 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 
 // --- 3 · Túnel --------------------------------------------------------------
 
-/** Out of the tunnel at the foe's feet: the holder's next attack cannot be
- *  defended. Spent by that attack. */
 const TUNNEL: StatusBehavior = {
+  // Out of the tunnel at the foe's feet: no attack of the holder's this round can be defended.
   onAttackAction(ctx) {
-    ctx.holder.clearStatus(ctx.key);
     ctx.engine.log('attack', `${ctx.holder.name} surt del túnel just al costat de l'enemic.`, ctx.holder.team);
     return { ignoreDefense: true };
   },
-  // About the defense it skips on one blow: a fair share of a body.
-  positionValue(ref) { return ref.entry.remaining > 0 ? 0.12 : 0; },
+  // About the defense its blows skip next round: a fair share of a body.
+  positionValue(ref) { return ref.entry.remaining > 0 ? 0.15 : 0; },
 };
 
 // --- 7 · Roca viva ----------------------------------------------------------
@@ -38,7 +36,7 @@ const TUNNEL: StatusBehavior = {
 const GOLEM_SKILL = 'golem-de-roca';
 const GOLEM_PV = BODY_PV;
 const GOLEM_CARDS = [
-  action({ id: 'cop-de-roca', name: 'Cop de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Atac, dice: d(2, 6), desc: '', icon: 'lorc/fist.svg' }),
+  action({ id: 'cop-de-roca', name: 'Cop de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Atac, dice: d(3, 6), desc: '', icon: 'lorc/fist.svg' }),
   action({ id: 'cos-de-roca', name: 'Cos de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Defensa, dice: d(2, 6), desc: '', icon: 'lorc/stone-block.svg' }),
 ];
 
@@ -63,15 +61,13 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.6; },
   },
 
-  // 3 · Túnel: the chosen ally's first attack next round cannot be defended.
+  // 3 · Túnel: next round no attack of the bender's group can be defended.
   tunnel: {
-    getTargetRequirement() { return 'ally'; },
+    getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const t = ctx.targets[0];
-      if (!t || !t.isAlive()) return;
       // Set in the Focus step: the round's end takes one, the next round remains.
-      t.setStatus('tunel', 1, 2, undefined, TUNNEL);
-      ctx.engine.log('focus', `${ctx.source.name} obre un túnel per a ${t.name}.`, ctx.source.team);
+      for (const a of ctx.engine.alliesOf(ctx.source, true)) a.setStatus('tunel', 1, 2, undefined, TUNNEL);
+      ctx.engine.log('focus', `${ctx.source.name} obre túnels sota tot el camp.`, ctx.source.team);
     },
     aiWeight() { return 0.6; },
   },
@@ -137,7 +133,7 @@ export const EARTHBENDER: SkillDefinition = {
       id: 'tunel', name: 'Túnel', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'tunnel' }],
-      desc: "El torn següent, el primer atac d'un aliat no es pot defensar.",
+      desc: 'El torn següent, els atacs del teu grup no es poden defensar.',
       icon: 'delapouite/hole.svg',
     }),
     action({
@@ -157,15 +153,15 @@ export const EARTHBENDER: SkillDefinition = {
     action({
       id: 'armadura-de-terra', name: 'Armadura de terra', skillId: SKILL_ID,
       unlock: 6, type: ActionType.Focus,
-      effects: [{ type: 'earth_armor', params: { amount: 3, turns: 3 } }],
-      desc: 'Un aliat té +3 a les defenses els 3 torns següents.',
+      effects: [{ type: 'earth_armor', params: { amount: 6, turns: 3 } }],
+      desc: 'Un aliat té +6 a les defenses els 3 torns següents.',
       icon: 'lorc/armor-vest.svg',
     }),
     action({
       id: 'roca-viva', name: 'Roca viva', skillId: SKILL_ID,
       unlock: 7, type: ActionType.Focus,
       effects: [{ type: 'fatigue_cost', params: { levels: 2 } }, { type: 'living_rock' }],
-      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (26 PV) que lluita al teu costat: Cop de roca (Atac 2d6) i Cos de roca (Defensa 2d6).',
+      desc: 'Puges 2 nivells de fatiga. Invoca un gòlem de pedra (26 PV) que lluita al teu costat: Cop de roca (Atac 3d6) i Cos de roca (Defensa 2d6).',
       icon: 'delapouite/rock-golem.svg',
     }),
     action({

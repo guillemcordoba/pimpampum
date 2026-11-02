@@ -23,19 +23,19 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 
 const THICK_FOG_KEY = 'boira-espessa';
 const IN_THICK_FOG: StatusBehavior = {
-  // Every enemy blow on the holder rolls 1d4; on a 1 it is lost in the fog.
+  // Every enemy blow on the holder rolls 1d4; at `misses` or less it is lost in the fog.
   onTargeted(ctx, attacker) {
-    if (ctx.engine.rollDie(4) > 1) return false;
+    if (ctx.engine.rollDie(4) > Number(ctx.entry.data?.['misses'] ?? 1)) return false;
     ctx.engine.log('defense', `L'atac de ${attacker.name} es perd dins la boira.`, ctx.holder.team);
     return true;
   },
-  // A quarter of one enemy blow on the holder, for each round still to come.
+  // The share of one enemy blow the fog loses, for each round still to come.
   positionValue(ref, board) {
     const foes = board?.enemiesOf(ref.holder) ?? [];
     if (!foes.length) return 0;
     const blow = foes.reduce((s, f) => s + expectedBlow(f), 0) / foes.length;
     const rounds = ref.entry.remaining < 0 ? 3 : Math.min(ref.entry.remaining, 3);
-    return 0.25 * blow * rounds / Math.max(1, ref.holder.maxPV);
+    return (Number(ref.entry.data?.['misses'] ?? 1) / 4) * blow * rounds / Math.max(1, ref.holder.maxPV);
   },
 };
 
@@ -58,7 +58,8 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     onResolve(ctx) {
       // Set in the Focus step: the round's end takes one, then the rounds remain.
       const turns = num(ctx.params, 'rounds', 5) + 1;
-      for (const a of ctx.engine.alliesOf(ctx.source, true)) a.setStatus(THICK_FOG_KEY, 1, turns, undefined, IN_THICK_FOG);
+      const misses = num(ctx.params, 'misses', 1);
+      for (const a of ctx.engine.alliesOf(ctx.source, true)) a.setStatus(THICK_FOG_KEY, 1, turns, { misses }, IN_THICK_FOG);
       ctx.engine.log('focus', `${ctx.source.name} aixeca una boira espessa sobre tot el grup.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.enemies.length ? 0.6 : -1; },
@@ -79,14 +80,15 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
   },
 
   // 3 · Trampa de gel (with the generic `not_twice_running`): the chosen
-  // enemy is frozen — it loses its next turn.
+  // enemies are frozen — each loses its next turn.
   ice_trap: {
     getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
-      const t = ctx.targets[0];
-      if (!t || !t.isAlive() || warded(t)) return;
-      t.skipTurns = Math.max(t.skipTurns, 1);
-      ctx.engine.log('focus', `El gel atrapa ${t.name}: queda congelat i perd el torn següent.`, ctx.source.team);
+      for (const t of ctx.targets) {
+        if (!t.isAlive() || warded(t)) continue;
+        t.skipTurns = Math.max(t.skipTurns, 1);
+        ctx.engine.log('focus', `El gel atrapa ${t.name}: queda congelat i perd el torn següent.`, ctx.source.team);
+      }
     },
     aiWeight(ctx) { return ctx.enemies.length ? 0.8 : 0; },
   },
@@ -121,14 +123,14 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus,
+      unlock: 3, type: ActionType.Focus, targetCount: 2,
       effects: [{ type: 'not_twice_running', params: { card: 'trampa-de-gel' } }, { type: 'ice_trap' }],
-      desc: "L'enemic que triïs queda congelat: perd el torn següent. No la pots jugar dos torns seguits.",
+      desc: "Fins a dos enemics que triïs queden congelats: perden el torn següent. No la pots jugar dos torns seguits.",
       icon: 'lorc/frozen-block.svg',
     }),
     action({
       id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus, dice: d(2, 4, 2),
+      unlock: 4, type: ActionType.Focus, dice: d(3, 4, 4),
       effects: [{ type: 'heal' }, { type: 'douse' }],
       desc: 'Cura un aliat i li apaga Cremat.',
       icon: 'lorc/heart-drop.svg',
@@ -136,8 +138,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'boira-espessa', name: 'Boira espessa', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Focus,
-      effects: [{ type: 'thick_fog', params: { rounds: 5 } }],
-      desc: 'Els 5 torns següents, cada atac contra el teu grup tira 1d4: amb un 1, falla.',
+      effects: [{ type: 'thick_fog', params: { rounds: 5, misses: 2 } }],
+      desc: 'Els 5 torns següents, cada atac contra el teu grup tira 1d4: amb 1 o 2, falla.',
       icon: 'delapouite/fog.svg',
     }),
     action({
@@ -148,7 +150,7 @@ export const WATERBENDER: SkillDefinition = {
     }),
     action({
       id: 'marea-de-vida', name: 'Marea de vida', skillId: SKILL_ID,
-      unlock: 7, type: ActionType.Focus, dice: d(3, 4, 1),
+      unlock: 7, type: ActionType.Focus, dice: d(4, 4, 4),
       effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'tide_of_life' }],
       desc: 'Puges 1 nivell de fatiga. Cura tot el teu grup, també els caiguts.',
       icon: 'lorc/grouped-drops.svg',
@@ -163,8 +165,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'control-de-la-sang', name: 'Control de la sang', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'turn_on_allies' }],
-      desc: "Puges 1 nivell de fatiga. El torn següent, els atacs de l'enemic que triïs van contra els seus aliats.",
+      effects: [{ type: 'fatigue_cost', params: { levels: 1 } }, { type: 'turn_on_allies', params: { turns: 2 } }],
+      desc: "Puges 1 nivell de fatiga. Els 2 torns següents, els atacs de l'enemic que triïs van contra els seus aliats.",
       icon: 'lorc/puppet.svg',
     }),
     action({
