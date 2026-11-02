@@ -8,28 +8,21 @@ import { BODY_PV } from '@pimpampum/set-common';
  * MESTRE DE LA TERRA — the user's design ("Maestre de la terra — conceptes de
  * cartes", 2026-11-01): the robust, defensive bender. Heavy defense — walls,
  * armour, a bunker that shelters the whole party — where water's is fluid; a
- * trap that grips whoever attacks; a tunnel, quicksand, a living golem; and the
+ * trap that grips whoever attacks; a crack that opens under whoever stands firm,
+ * quicksand, a living golem; and the
  * earthquake. The numbers are this file's, on the dice ladder (intentions.md).
  */
 
 const SKILL_ID = 'earthbender';
 
+function stoodFirm(c: Character, plan: readonly { actor: Character; action: { actionType: ActionType }; cancelled?: boolean }[]): boolean {
+  return plan.some(p => p.actor === c && !p.cancelled && p.action.actionType === ActionType.Defensa);
+}
+
 /** `defender` covers `who` for the rest of the round, with this card's dice. */
 function guardWith(defender: Character, who: Character, ctx: EffectContext): void {
   who.guards.push({ defender, action: ctx.action });
 }
-
-// --- 3 · Túnel --------------------------------------------------------------
-
-const TUNNEL: StatusBehavior = {
-  // Out of the tunnel at the foe's feet: no attack of the holder's this round can be defended.
-  onAttackAction(ctx) {
-    ctx.engine.log('attack', `${ctx.holder.name} surt del túnel just al costat de l'enemic.`, ctx.holder.team);
-    return { ignoreDefense: true };
-  },
-  // About the defense its blows skip next round: a fair share of a body.
-  positionValue(ref) { return ref.entry.remaining > 0 ? 0.15 : 0; },
-};
 
 // --- 7 · Roca viva ----------------------------------------------------------
 
@@ -75,15 +68,25 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Túnel: next round no attack of the bender's group can be defended.
-  tunnel: {
-    getTargetRequirement() { return 'none'; },
+  // 3 · Esquerda: the ground cracks open under whoever stood firm — the chosen
+  // enemy loses the card's dice in PV, but only if it played a Defense this round.
+  fissure: {
+    getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
-      // Set in the Focus step: the round's end takes one, the next round remains.
-      for (const a of ctx.engine.alliesOf(ctx.source, true)) a.setStatus('tunel', 1, 2, undefined, TUNNEL);
-      ctx.engine.log('focus', `${ctx.source.name} obre túnels sota tot el camp.`, ctx.source.team);
+      const t = ctx.targets[0];
+      const dice = ctx.action.dice;
+      if (!t?.isAlive() || !dice) return;
+      if (!stoodFirm(t, ctx.engine.plannedThisRound())) {
+        ctx.engine.log('focus', `La terra s'esquerda sota ${t.name}, però ja no hi és.`, ctx.source.team);
+        return;
+      }
+      const loss = ctx.engine.contestRoll(ctx.source, dice, { kind: 'attack', skillId: SKILL_ID, rollBonus: ctx.action.rollBonus }).total;
+      ctx.engine.log('focus', `La terra s'esquerda sota ${t.name}: ${loss} PV.`, ctx.source.team);
+      ctx.engine.applyPvLoss(t, loss, ctx.source);
     },
-    aiWeight() { return 0.6; },
+    // Aim at an enemy who defended this round: the crack opens under it only.
+    aiTargetPriority(ctx, candidate) { return stoodFirm(candidate, ctx.plan) ? 10 : -10; },
+    aiWeight(ctx) { return ctx.enemies.length ? 0.6 : 0; },
   },
 
   // 9 · Sorres movedisses: the chosen enemy sinks — its card this round
@@ -145,11 +148,11 @@ export const EARTHBENDER: SkillDefinition = {
       icon: 'delapouite/stone-wall.svg',
     }),
     action({
-      id: 'tunel', name: 'Túnel', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'tunnel' }],
-      desc: 'El torn següent, els atacs del teu grup no es poden defensar.',
-      icon: 'delapouite/hole.svg',
+      id: 'esquerda', name: 'Esquerda', skillId: SKILL_ID,
+      unlock: 3, type: ActionType.Focus, dice: d(3, 4, 3),
+      effects: [{ type: 'fissure' }],
+      desc: "Si l'enemic que triïs ha jugat una Defensa aquest torn, perd tants PV com aquests daus.",
+      icon: 'lorc/earth-crack.svg',
     }),
     action({
       id: 'allau', name: 'Allau', skillId: SKILL_ID,

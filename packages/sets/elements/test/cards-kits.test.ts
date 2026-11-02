@@ -54,14 +54,18 @@ describe('Mestre de la terra', () => {
     expect(ally.currentPV).toBe(30);
   });
 
-  it("Túnel: next round the ally's first attack cannot be defended", () => {
-    const earth = fighter('Terra', [flat('tunel', 0), wait], { pv: 30 });
-    const ally = fighter('Amic', [wait, blow(5)], { pv: 30 });
+  it('Esquerda: the chosen enemy loses the dice in PV if it played a Defense this round', () => {
+    const earth = fighter('Terra', [flat('esquerda', 5, 0)], { pv: 30 });
     const foe = fighter('Foe', [guard(100)], { pv: 30 });
-    const engine = engineFor([earth, ally], [foe]);
-    playRound(engine, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(1, 0))]);
-    playRound(engine, [sel(0, 0, 1), sel(0, 1, 1, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    playRound(engineFor([earth], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
     expect(foe.currentPV).toBe(25);
+  });
+
+  it('Esquerda: nothing if the chosen enemy did not defend', () => {
+    const earth = fighter('Terra', [flat('esquerda', 5, 0)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([earth], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(30);
   });
 
   it('Trampa de terra: an attacker it holds is trapped — no attacks next turn', () => {
@@ -425,6 +429,19 @@ describe("Mestre de l'aire", () => {
     expect(engine.enemiesOf(air)).toEqual([other]);
     playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
     expect(engine.enemiesOf(air)).toEqual([foe, other]);
+  });
+
+  it('Remolí: never two rounds running', () => {
+    // Unlocked from level 0: the test fighter knows no level of the skill.
+    const air = fighter('Aire', [flat('remoli-de-vent', 0, 0, { unlockLevel: 0 }), wait], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const other = fighter('Altre', [wait], { pv: 30 });
+    const engine = engineFor([air], [foe, other]);
+    playRound(engine, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect(engine.canPlayActionIdx(air, 0)).toBe(false);
+    playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
+    playRound(engine, [sel(0, 0, 1), sel(1, 1, 0)]);
+    expect(engine.canPlayActionIdx(air, 0)).toBe(true);
   });
 
   it('Tornado: every enemy; the wounded lose their next turn; 2 fatigue', () => {

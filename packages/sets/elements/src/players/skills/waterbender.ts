@@ -2,15 +2,14 @@ import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, ex
 import { SkillDefinition, action, d } from '../types.js';
 import { num } from '../effects/helpers.js';
 import { BURN_KEY } from '../effects/cremat.js';
-import { warded } from '../effects/generic.js';
 
 /**
  * MESTRE DE L'AIGUA — the user's design ("Maestre de l'aigua — conceptes de
  * cartes", 2026-11-01, and the cards they picked on 2026-11-02): the
  * defensive, healing bender, fire's opposite. A plain wall, a thick fog in
  * which the enemies' blows get lost, eight arms over the whole party; a spring that heals and
- * puts out burns, and the tide that raises everyone; an ice trap, the
- * forbidden bloodbending; and the tsunami. The numbers are this file's, on the
+ * puts out burns, and the tide that raises everyone; a high tide that sweeps
+ * whoever stood behind a guard, the forbidden bloodbending; and the tsunami. The numbers are this file's, on the
  * dice ladder (intentions.md).
  */
 
@@ -79,18 +78,21 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // 3 · Trampa de gel (with the generic `not_twice_running`): the chosen
-  // enemies are frozen — each loses its next turn.
-  ice_trap: {
-    getTargetRequirement() { return 'enemy'; },
+  // 3 · Marea alta: the tide sweeps whoever stayed planted behind a guard —
+  // every enemy that played a Defense this round rolls its dice again and loses
+  // that much PV.
+  high_tide: {
+    getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      for (const t of ctx.targets) {
-        if (!t.isAlive() || warded(t)) continue;
-        t.skipTurns = Math.max(t.skipTurns, 1);
-        ctx.engine.log('focus', `El gel atrapa ${t.name}: queda congelat i perd el torn següent.`, ctx.source.team);
+      for (const p of ctx.engine.plannedThisRound()) {
+        if (p.cancelled || p.actor.team === ctx.source.team || !p.actor.isAlive() || p.action.actionType !== ActionType.Defensa) continue;
+        const loss = ctx.engine.rollDiceFor(p.actor, p.action.dice);
+        if (loss <= 0) continue;
+        ctx.engine.log('focus', `La marea arrossega ${p.actor.name}: ${loss} PV.`, ctx.source.team);
+        ctx.engine.applyPvLoss(p.actor, loss, ctx.source);
       }
     },
-    aiWeight(ctx) { return ctx.enemies.length ? 0.8 : 0; },
+    aiWeight(ctx) { return ctx.enemies.length ? 0.6 : 0; },
   },
 
   // 8 · Forma de pop: one defense over every ally at once.
@@ -122,11 +124,11 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/splashy-stream.svg',
     }),
     action({
-      id: 'trampa-de-gel', name: 'Trampa de gel', skillId: SKILL_ID,
-      unlock: 3, type: ActionType.Focus, targetCount: 2,
-      effects: [{ type: 'not_twice_running', params: { card: 'trampa-de-gel' } }, { type: 'ice_trap' }],
-      desc: "Fins a dos enemics que triïs queden congelats: perden el torn següent. No la pots jugar dos torns seguits.",
-      icon: 'lorc/frozen-block.svg',
+      id: 'marea-alta', name: 'Marea alta', skillId: SKILL_ID,
+      unlock: 3, type: ActionType.Focus,
+      effects: [{ type: 'high_tide' }],
+      desc: "Cada enemic que aquest torn hagi jugat una Defensa en torna a tirar els daus i perd aquells PV.",
+      icon: 'lorc/high-tide.svg',
     }),
     action({
       id: 'font-curativa', name: 'Font curativa', skillId: SKILL_ID,

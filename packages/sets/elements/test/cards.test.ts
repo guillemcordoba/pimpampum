@@ -101,27 +101,14 @@ describe("Mestre de l'aigua", () => {
     expect(water.fatigue).toBe(1);
   });
 
-  it('Trampa de gel: the chosen enemy is frozen and loses its next turn, at no fatigue', () => {
-    const water = fighter('Aigua', [flat('trampa-de-gel', 0), wait], { pv: 30 });
-    const foe = fighter('Foe', [wait, blow(5)], { pv: 30 });
-    const engine = engineFor([water], [foe]);
-    playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0)]);
-    expect(foe.skipTurns).toBe(1);
-    expect(water.fatigue).toBe(0);
-    playRound(engine, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
-    expect(water.currentPV).toBe(30);
+  it('Marea alta: every enemy that played a Defense this round loses its own defense roll', () => {
+    const water = fighter('Aigua', [getAction('marea-alta')!], { pv: 30 });
+    const a = fighter('A', [defenseCard('mur', { dice: new DiceRoll(3, 1) })], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    playRound(engineFor([water], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(1, 0)), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([27, 30]);
   });
 
-  it('Trampa de gel: never two rounds running', () => {
-    // Unlocked from level 0: the test fighter knows no level of the skill.
-    const water = fighter('Aigua', [flat('trampa-de-gel', 0, 0, { unlockLevel: 0 }), wait], { pv: 30 });
-    const foe = fighter('Foe', [wait], { pv: 30 });
-    const engine = engineFor([water], [foe]);
-    playRound(engine, [sel(0, 0, 0, [{ team: 1, idx: 0 }]), sel(1, 0, 0)]);
-    expect(engine.canPlayActionIdx(water, 0)).toBe(false);
-    playRound(engine, [sel(0, 0, 1), sel(1, 0, 0)]);
-    expect(engine.canPlayActionIdx(water, 0)).toBe(true);
-  });
 
   it('Forma de pop: one defense covers every ally at once', () => {
     const water = fighter('Aigua', [flat('forma-de-pop', 1, 100)], { pv: 30 });

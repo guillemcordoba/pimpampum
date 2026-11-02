@@ -123,7 +123,7 @@ dice and small mechanics by the main session.
 |---|---|---|---|
 | 1 | Fuet d'aigua | Atac | the plain lash |
 | 2 | Mur d'aigua | Defensa | the plain wall |
-| 3 | Trampa de gel | Focus | up to two chosen enemies are frozen: each loses its next turn; not two rounds running (one enemy and 1 fatigue earlier on 2026-11-02); the kit's first Focus, its turtle-breaker |
+| 3 | Marea alta | Focus | every enemy that played a Defense this round re-rolls its defense dice and loses that much PV (the user's pick, 2026-11-02, after the stall autopsy: water's turtle-breaker now makes a defender lose); the kit's first Focus |
 | 4 | Font curativa | Focus | heals an ally (3d4+4) and puts out Cremat; heals belong early |
 | 5 | Boira espessa | Focus | for the next 5 rounds every enemy blow on your party rolls 1d4 and misses on 1-2 (on a 1 until the Focus scale-up; the user's design, 2026-11-02; replaced Boira, which hid every ally for one round) |
 | 6 | Llança de gel | Atac | the strong single blow |
@@ -143,7 +143,7 @@ the main session.
 |---|---|---|---|
 | 1 | Llançament de roca | Atac, fast | the quick throw |
 | 2 | Mur de pedra | Defensa | the wall that stays up: it still defends whoever it covered the round after (the user, 2026-11-02) |
-| 3 | Túnel | Focus | next round no attack of the bender's group can be defended (one ally's first attack until the Focus scale-up); the kit's first Focus, its turtle-breaker |
+| 3 | Esquerda | Focus | 3d4+3: the chosen enemy loses the dice in PV, but only if it played a Defense this round (the user's pick, 2026-11-02); the kit's first Focus |
 | 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack for the next 2 rounds |
 | 6 | Armadura de terra | Focus | an ally has +6 on its defenses for 3 rounds |
@@ -212,6 +212,7 @@ Each takes a different thing away from a hero.
 
 ## Ideas parked for later skills (2026-10-13)
 
+- Retired from the first Focus slot (2026-11-02), when it had to make a defender lose: water's Trampa de gel (freeze up to two enemies) and earth's Túnel (next round the group's attacks cannot be defended).
 - Parked from the airbender (2026-11-02): Corrent ascendent (an ally untouchable this round, losing its own card), and Escut d'aire, built as a half-damage shield though the user's concept was a spinning dome that turns blows aside.
 
 Card concepts the user loved that did not fit the kit they were designed for.
