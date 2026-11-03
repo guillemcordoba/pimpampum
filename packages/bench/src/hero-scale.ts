@@ -62,8 +62,10 @@ export function heroScaleRun(level: number, fights: number, teamSize = 2, seed =
     for (let f = 0; f < fights; f++) {
       const draw = () => Array.from({ length: teamSize }, () => kits[Math.floor(random() * kits.length)]);
       const picks = [draw(), draw()];
+      // The set's benchmark heroes, EQUIPPED: built bare, a weapon kit held no
+      // weapon and could play none of its attacks.
       const teams = picks.map((team, side) => set.buildParty({
-        characters: team.map((kit, i) => ({ name: `${side === 0 ? 'A' : 'B'}${i + 1}`, pv: set.playerPV, skills: { [kit]: level } })),
+        characters: team.map((kit, i) => set.hero(`${side === 0 ? 'A' : 'B'}${i + 1}`, kit, level)),
       }));
       for (const t of teams) setAIControlled(t);
       for (const c of teams.flat()) {

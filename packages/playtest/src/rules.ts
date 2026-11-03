@@ -26,9 +26,10 @@ import { ActionType } from '@pimpampum/engine';
 
 // --- 1. Fights end ------------------------------------------------------------
 
-/** Rounds budget from intentions.md: combats should not run past ~5. */
+/** Rounds budget from intentions.md: combats should not run past ~5, and 9 in
+ *  10 end within 6 at every level (the user's hard limit, 2026-11-02). */
 export const MAX_MEDIAN_ROUNDS = 5;
-export const MAX_P90_ROUNDS = 8;
+export const MAX_P90_ROUNDS = 6;
 /** Fights that never end. Separate from the two length bars because it is a
  *  different failure: a stalemate is not a slow fight, it is no fight. */
 export const MAX_STALL_RATE = 0.02;
