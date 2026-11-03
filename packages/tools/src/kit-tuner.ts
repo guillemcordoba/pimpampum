@@ -32,7 +32,7 @@ const r = await tuneKit({ set: SET.ref, budget: search }, kit, {
 });
 console.log(`start ${fmt(r.start.score)} · best ${fmt(r.best.score)}`);
 
-const failing = (rep: GateReport) => rep.failures.length ? rep.failures.map(f => `    ${f}`).join('\n') : '    none';
+const failing = (rep: GateReport) => rep.failures.length ? rep.failures.map(f => `    ${f.text}`).join('\n') : '    none';
 const before = await evaluatePatch({ set: SET.ref, budget: full }, {}, kit);
 const after = await evaluatePatch({ set: SET.ref, budget: full }, r.best.patch, kit);
 console.log(`\nPROPOSAL for ${kit}, re-measured at the gate's budget: ${fmt(before.score)} → ${fmt(after.score)}`);

@@ -31,6 +31,6 @@ export {
   measureGate, prepareGate, gateJobs, blameJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells,
   GATE_LEVELS, STYLE_LEVELS, CARD_LEVELS, GATE_BUDGET,
 } from './gate.js';
-export type { GateReport, GateKitCell, GateStyleCell, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
+export type { GateReport, GateFailure, GateKitCell, GateStyleCell, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
 export { tuneKit, evaluatePatch, applyPatch, knobsFor, kitScore, diceStep, describePatch } from './tune.js';
 export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, TuneStep } from './tune.js';

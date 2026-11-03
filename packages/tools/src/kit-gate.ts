@@ -92,4 +92,4 @@ for (const kit of kits) {
 
 console.log(`\nSTRENGTH BAND — waits for the creatures on the ladder (OPEN.md B20)`);
 console.log(`\n${r.failures.length} failing cells${r.failures.length ? ':' : '.'}`);
-for (const f of r.failures) console.log(`  ${f}`);
+for (const f of r.failures) console.log(`  ${f.text}`);

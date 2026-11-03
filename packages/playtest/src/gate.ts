@@ -91,9 +91,14 @@ export interface GateCardCell {
 
 export interface GateReport {
   kits: GateKitCell[]; styles: GateStyleCell[]; cards: GateCardCell[];
-  /** One line per failing cell, the grid's ❌s. */
-  failures: string[];
+  /** One per failing cell, the grid's ❌s: a stable `key` (what a test's
+   *  ratchet names) and the line that explains it. */
+  failures: GateFailure[];
 }
+
+/** Keys: `<kit> L<n> length`, `L<n> triangle <winner> > <loser>`, `L<n> turtle`,
+ *  `L<n> model`, `<kit> <card id> never-right`, `<kit> <card id> blind`. */
+export interface GateFailure { key: string; text: string }
 
 /** One unit of the gate, as a worker computes it (`gate-worker.ts`). */
 export type GateJob =
@@ -261,13 +266,13 @@ export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUD
   const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget)));
   const styles = scope.kits ? [] : inScope(STYLE_LEVELS, scope).map(level => gateStyleCell(level, budget));
   const cards = scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
-  const failures = [
-    ...kits.filter(c => !c.ok).map(c => `${c.kit} L${c.level}: ${c.reasons.join(', ')}`),
-    ...styles.flatMap(s => s.broken.map(b => `L${s.level} triangle: ${b} doesn't hold`)),
-    ...styles.filter(s => !s.turtle.ok).map(s => `L${s.level} turtle: scores ${pct(s.turtle.score)} against the AI`),
-    ...styles.filter(s => !s.model.ok).map(s => `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}`),
-    ...cards.filter(c => c.neverRight).map(c => `${c.kit} ${c.name}: never the right play (L${c.levels.map(l => l.level).join(', L')})`),
-    ...cards.filter(c => c.blind).map(c => `${c.kit} ${c.name}: the AI is blind to it (L${c.levels.filter(l => l.blind).map(l => l.level).join(', L')})`),
+  const failures: GateFailure[] = [
+    ...kits.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} length`, text: `${c.kit} L${c.level}: ${c.reasons.join(', ')}` })),
+    ...styles.flatMap(s => s.broken.map(b => ({ key: `L${s.level} triangle ${b}`, text: `L${s.level} triangle: ${b} doesn't hold` }))),
+    ...styles.filter(s => !s.turtle.ok).map(s => ({ key: `L${s.level} turtle`, text: `L${s.level} turtle: scores ${pct(s.turtle.score)} against the AI` })),
+    ...styles.filter(s => !s.model.ok).map(s => ({ key: `L${s.level} model`, text: `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}` })),
+    ...cards.filter(c => c.neverRight).map(c => ({ key: `${c.kit} ${c.card} never-right`, text: `${c.kit} ${c.name}: never the right play (L${c.levels.map(l => l.level).join(', L')})` })),
+    ...cards.filter(c => c.blind).map(c => ({ key: `${c.kit} ${c.card} blind`, text: `${c.kit} ${c.name}: the AI is blind to it (L${c.levels.filter(l => l.blind).map(l => l.level).join(', L')})` })),
   ];
   return { kits, styles, cards, failures };
 }
