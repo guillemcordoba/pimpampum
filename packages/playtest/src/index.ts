@@ -28,9 +28,9 @@ export type { IsolatedRun, ControlName } from './isolated.js';
 export { blameEdge, blameKit, showCulprits } from './blame.js';
 export type { Culprit, BlameRequirement } from './blame.js';
 export {
-  measureGate, prepareGate, gateJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells,
+  measureGate, prepareGate, gateJobs, blameJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells,
   GATE_LEVELS, STYLE_LEVELS, CARD_LEVELS, GATE_BUDGET,
 } from './gate.js';
-export type { GateReport, GateKitCell, GateStyleCell, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
+export type { GateReport, GateKitCell, GateStyleCell, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
 export { tuneKit, evaluatePatch, applyPatch, knobsFor, kitScore, diceStep, describePatch } from './tune.js';
 export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, TuneStep } from './tune.js';

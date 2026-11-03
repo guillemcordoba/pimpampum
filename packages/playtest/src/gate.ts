@@ -19,7 +19,7 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { kitMirrorCardValues, kitMirrors, scoreCards, styleDuel, theSet, warm, type DuelStyle } from '@pimpampum/bench';
+import { kitMirrorCardValues, kitMirrors, scoreCards, styleDuel, theSet, warm, type DuelStyle, type MirrorAutopsy } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
   durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, triangleVerdict,
@@ -42,19 +42,48 @@ export interface GateKitCell {
   /** The kit's side's score in its fights (draws and stalls ½): context, not a verdict. */
   winrate: number;
   ok: boolean; reasons: string[];
+  why: LengthAutopsy;
+}
+
+/** WHY fights run long: who was in them, what was played late, and how the
+ *  long fights differ from the short ones. */
+export interface LengthAutopsy {
+  /** Share of the fights past `MAX_P90_ROUNDS` (stalls included). */
+  longShare: number;
+  /** The opponent and partner kits with the highest share of long fights. */
+  foes: { kit: string; longShare: number; fights: number }[];
+  partners: { kit: string; longShare: number; fights: number }[];
+  /** The cards most resolved after round `MAX_P90_ROUNDS` in the long fights. */
+  late: { card: string; name: string; share: number }[];
+  long: FightShape; short: FightShape;
+}
+
+/** A set of fights in four numbers. */
+export interface FightShape {
+  fights: number;
+  pvPerRound: number;
+  /** Attacks that took no PV from anyone, of the attacks resolved. */
+  emptyAttacks: number;
+  /** Focus cards that never resolved, of the Focus cards played. */
+  focusLost: number;
+  /** Defenses, of the cards resolved. */
+  defenseShare: number;
 }
 
 export interface GateStyleCell {
   level: number;
   edges: { winner: string; loser: string; winrate: number; games: number }[];
   broken: string[];
+  /** Per broken edge, the loser's cards whose removal lifts the claimed
+   *  winner's score most: what holds the edge up (`shift` in points). */
+  culprits: { edge: string; cards: { card: string; name: string; shift: number }[] }[];
   turtle: { score: number; stalls: number; games: number; ok: boolean };
 }
 
 export interface GateCardCell {
   kit: string; card: string; name: string; unlock: number;
   /** Per priced level the card is held at. */
-  levels: { level: number; bestShare: number; playRate: number; decisions: number; neverRight: boolean; blind: boolean }[];
+  levels: { level: number; bestShare: number; playRate: number; gainWhenBest: number | null; decisions: number; neverRight: boolean; blind: boolean }[];
   neverRight: boolean; blind: boolean;
 }
 
@@ -68,7 +97,8 @@ export interface GateReport {
 export type GateJob =
   | { kind: 'gate-fights'; kit: string; level: number }
   | { kind: 'gate-duel'; x: DuelStyle; y: DuelStyle; level: number }
-  | { kind: 'gate-cards'; kit: string; level: number };
+  | { kind: 'gate-cards'; kit: string; level: number }
+  | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string };
 
 export interface GateScope { kits?: readonly string[]; levels?: readonly number[] }
 
@@ -89,17 +119,73 @@ export function gateJobs(scope: GateScope = {}): GateJob[] {
 }
 
 export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void {
-  if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights);
+  if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS);
   else if (job.kind === 'gate-duel') styleDuel(job.x, job.y, job.level, budget.duelGames);
+  else if (job.kind === 'gate-blame') styleDuel(job.x, job.y, job.level, budget.duelGames, job.card);
   else kitMirrorCardValues(job.kit, job.level, budget.cardFights);
+}
+
+/** How many of the loser's most played cards a broken edge tries removing. */
+const CULPRIT_CANDIDATES = 6;
+
+/** The edge's suspects: the cards the claimed loser played most. */
+function suspects(x: DuelStyle, y: DuelStyle, level: number, budget: GateBudget): string[] {
+  const plays = styleDuel(x, y, level, budget.duelGames).yPlays;
+  return Object.entries(plays).sort((a, b) => b[1] - a[1]).slice(0, CULPRIT_CANDIDATES).map(([id]) => id);
+}
+
+/** The second wave: a removal duel per suspect of every broken edge. Reads the
+ *  first wave's duels, so it runs after them. */
+export function blameJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateJob[] {
+  if (scope.kits) return [];
+  return inScope(STYLE_LEVELS, scope).flatMap(level => EDGES.flatMap(([x, y]) => {
+    const d = styleDuel(x, y, level, budget.duelGames);
+    if (edgeHolds(d.score, d.games)) return [];
+    return suspects(x, y, level, budget).map(card => ({ kind: 'gate-blame' as const, x, y, level, card }));
+  }));
 }
 
 function quantile(sorted: number[], q: number): number {
   return sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] : 0;
 }
 
+const isLong = (f: { rounds: number; capped: boolean }) => f.capped || f.rounds > MAX_P90_ROUNDS;
+
+function shapeOf(a: MirrorAutopsy): FightShape {
+  const cards = a.attacks + a.defenses + Math.max(0, a.focus - a.focusLost);
+  return {
+    fights: a.fights, pvPerRound: a.pvLost / Math.max(1, a.rounds), emptyAttacks: a.emptyAttacks / Math.max(1, a.attacks),
+    focusLost: a.focusLost / Math.max(1, a.focus), defenseShare: a.defenses / Math.max(1, cards),
+  };
+}
+
+function cardName(id: string): string {
+  for (const k of theSet().calibration.mainKits) {
+    const a = theSet().kit(k)?.actions.find(x => x.id === id);
+    if (a) return a.name;
+  }
+  return id;
+}
+
+function byKit(fights: { kit: string; long: boolean }[]): { kit: string; longShare: number; fights: number }[] {
+  const t = new Map<string, { long: number; n: number }>();
+  for (const f of fights) { const r = t.get(f.kit) ?? { long: 0, n: 0 }; r.n++; if (f.long) r.long++; t.set(f.kit, r); }
+  return [...t].map(([kit, r]) => ({ kit, longShare: r.long / r.n, fights: r.n }))
+    .filter(r => r.fights >= 5).sort((a, b) => b.longShare - a.longShare).slice(0, 3);
+}
+
 export function gateKitCell(kit: string, level: number, budget: GateBudget = GATE_BUDGET): GateKitCell {
-  const fights = kitMirrors(kit, level, budget.kitFights);
+  const run = kitMirrors(kit, level, budget.kitFights, MAX_P90_ROUNDS);
+  const fights = run.fights;
+  const lateTotal = Object.values(run.long.late).reduce((t, n) => t + n, 0);
+  const why: LengthAutopsy = {
+    longShare: fights.filter(isLong).length / Math.max(1, fights.length),
+    foes: byKit(fights.flatMap(f => f.foes.map(k => ({ kit: k, long: isLong(f) })))),
+    partners: byKit(fights.map(f => ({ kit: f.partner, long: isLong(f) }))),
+    late: Object.entries(run.long.late).sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([card, n]) => ({ card, name: cardName(card), share: n / Math.max(1, lateTotal) })),
+    long: shapeOf(run.long), short: shapeOf(run.short),
+  };
   const ended = fights.filter(f => !f.capped).map(f => f.rounds).sort((a, b) => a - b);
   // A stall counts as the longest fight: it never ended.
   const rounds = [...ended, ...fights.filter(f => f.capped).map(f => f.rounds)];
@@ -108,7 +194,7 @@ export function gateKitCell(kit: string, level: number, budget: GateBudget = GAT
   const v = durationVerdict(medianRounds, p90Rounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
   return {
     kit, level, fights: fights.length, medianRounds, p90Rounds, stallRate,
-    winrate: fights.reduce((s, f) => s + f.won, 0) / Math.max(1, fights.length), ok: v.ok, reasons: v.reasons,
+    winrate: fights.reduce((s, f) => s + f.won, 0) / Math.max(1, fights.length), ok: v.ok, reasons: v.reasons, why,
   };
 }
 
@@ -118,8 +204,18 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
     return { winner: x, loser: y, winrate: d.score, games: d.games };
   });
   const t = styleDuel('turtle', 'ai', level, budget.duelGames);
+  const culprits = EDGES.filter(([x, y]) => {
+    const e = edges.find(d => d.winner === x && d.loser === y)!;
+    return !edgeHolds(e.winrate, e.games);
+  }).map(([x, y]) => {
+    const before = edges.find(d => d.winner === x && d.loser === y)!.winrate;
+    const cards = suspects(x, y, level, budget).map(card => ({
+      card, name: cardName(card), shift: 100 * (styleDuel(x, y, level, budget.duelGames, card).score - before),
+    })).sort((a, b) => b.shift - a.shift).slice(0, 3);
+    return { edge: `${x} > ${y}`, cards };
+  });
   return {
-    level, edges, broken: triangleVerdict(edges).broken,
+    level, edges, broken: triangleVerdict(edges).broken, culprits,
     turtle: { score: t.score, stalls: t.stalls, games: t.games, ok: edgeHolds(1 - t.score, t.games) },
   };
 }
@@ -137,7 +233,7 @@ export function gateCardCells(kit: string, budget: GateBudget = GATE_BUDGET, lev
       if (!s || !decisions) return [];
       const playRate = (p.played[card.id] ?? 0) / decisions;
       return [{
-        level: p.level, bestShare: s.bestShare, playRate, decisions,
+        level: p.level, bestShare: s.bestShare, playRate, gainWhenBest: s.gainWhenBest, decisions,
         neverRight: isNeverRight(s.gainWhenBest, s.gainWhenBestStderr, s.observations),
         blind: isBlindSpot(s.bestShare, s.bestStderr, playRate),
       }];
@@ -177,5 +273,7 @@ const WORKER = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist',
 
 /** Fill the cache `measureGate(scope, ctx.budget)` reads, across bench's lanes. */
 export async function prepareGate(ctx: GateContext, scope: GateScope = {}, onProgress?: (done: number, total: number) => void): Promise<void> {
-  await warm(gateJobs(scope), [process.execPath, '--import', 'tsx', WORKER, JSON.stringify(ctx)], onProgress);
+  const worker = [process.execPath, '--import', 'tsx', WORKER, JSON.stringify(ctx)];
+  await warm(gateJobs(scope), worker, onProgress);
+  await warm(blameJobs(scope, ctx.budget), worker, onProgress);
 }

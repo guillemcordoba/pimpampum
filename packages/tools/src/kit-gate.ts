@@ -9,7 +9,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, useSet } from '@pimpampum/bench';
-import { GATE_BUDGET, GATE_LEVELS, measureGate, prepareGate, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { GATE_BUDGET, GATE_LEVELS, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -41,20 +41,43 @@ for (const kit of kits) {
   }).join(''));
 }
 
+const p = (x: number) => `${Math.round(100 * x)}%`;
+const shape = (f: FightShape) => `${f.pvPerRound.toFixed(1)} PV/round · ${p(f.emptyAttacks)} of attacks take nothing · ${p(f.focusLost)} of Focus lost · defenses ${p(f.defenseShare)} of plays`;
+console.log(`\nWHY THEY RUN LONG (failing cells at the checkpoints ${STYLE_LEVELS.join(', ')})`);
+for (const kit of kits) {
+  for (const c of r.kits.filter(x => x.kit === kit && !x.ok && STYLE_LEVELS.includes(x.level))) {
+    const w = c.why;
+    console.log(`${kit} L${c.level}: ${p(w.longShare)} of fights past round 6`);
+    console.log(`    with: ${w.foes.map(f => `${f.kit} ${p(f.longShare)}`).join(', ')} (opponents) · ${w.partners.map(f => `${f.kit} ${p(f.longShare)}`).join(', ')} (partners)`);
+    if (w.late.length) console.log(`    played late: ${w.late.map(l => `${l.name} ${p(l.share)}`).join(', ')}`);
+    console.log(`    long fights (${w.long.fights}): ${shape(w.long)}`);
+    console.log(`    short fights (${w.short.fights}): ${shape(w.short)}`);
+  }
+}
+
 if (r.styles.length) {
   console.log(`\nTHE TRIANGLE AND THE TURTLE (each claimed winner's score; the turtle's against the AI)`);
   for (const s of r.styles) {
     const edges = s.edges.map(e => `${s.broken.includes(`${e.winner} > ${e.loser}`) ? '❌' : '✓'} ${e.winner}>${e.loser} ${Math.round(100 * e.winrate)}%`).join('  ');
     console.log(`L${s.level}  ${edges}  ${s.turtle.ok ? '✓' : '❌'} turtle ${Math.round(100 * s.turtle.score)}%`);
+    for (const c of s.culprits) {
+      console.log(`    ${c.edge} is held up by: ${c.cards.map(x => `${x.name} (without it ${x.shift >= 0 ? '+' : ''}${x.shift.toFixed(0)})`).join(', ')}`);
+    }
   }
 }
 
 console.log(`\nEVERY CARD HAS A USE (the right play somewhere; the AI plays it when it is)`);
+console.log(`  per checkpoint: best = share of decisions it was the best play · AI = share it was played where legal · gain = its lead over the runner-up when best (PV)`);
 for (const kit of kits) {
   const bad = r.cards.filter(c => c.kit === kit && (c.neverRight || c.blind));
   const unjudged = r.cards.filter(c => c.kit === kit && !c.levels.length).map(c => c.name);
-  console.log(`${pad(kit, w)}${bad.length ? bad.map(c => `❌ ${c.name}${c.neverRight ? ' (never right)' : ''}${c.blind ? ' (AI blind)' : ''}`).join(' · ') : '✓'}`
-    + (unjudged.length ? `  — not judged: ${unjudged.join(', ')}` : ''));
+  console.log(`${pad(kit, w)}${bad.length ? '' : '✓'}${unjudged.length ? `  — not judged: ${unjudged.join(', ')}` : ''}`);
+  for (const c of bad) {
+    const why = c.neverRight ? 'never the right play' : 'the AI is blind to it';
+    const at = c.levels.map(l => `L${l.level} best ${Math.round(100 * l.bestShare)}% · AI ${Math.round(100 * l.playRate)}%`
+      + (l.gainWhenBest === null ? ' · never best' : ` · gain ${l.gainWhenBest.toFixed(1)}`) + ` (${l.decisions} decisions)`).join('; ');
+    console.log(`    ❌ ${c.name} — ${why}: ${at}`);
+  }
 }
 
 console.log(`\nSTRENGTH BAND — waits for the creatures on the ladder (OPEN.md B20)`);

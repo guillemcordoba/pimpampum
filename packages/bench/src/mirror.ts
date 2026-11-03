@@ -47,30 +47,89 @@ function kitSeed(kit: string, level: number, salt: number): number {
 }
 
 /** One fight as the gate reads it, from the kit's side. */
-export interface KitFight { rounds: number; capped: boolean; won: number }
+export interface KitFight { rounds: number; capped: boolean; won: number; partner: string; foes: string[] }
+
+/** What happened in a set of fights, for telling WHY they ran long. */
+export interface MirrorAutopsy {
+  fights: number;
+  /** Rounds played and PV lost by everyone over them. */
+  rounds: number; pvLost: number;
+  /** Cards resolved, by type; attacks that took no PV from anyone (held,
+   *  absorbed, or aimed at nothing); Focus cards that never resolved
+   *  (interrupted or cancelled). */
+  attacks: number; emptyAttacks: number; defenses: number; focus: number; focusLost: number;
+  /** Cards resolved after round `lateRound`, by id: what a long fight is made of. */
+  late: Record<string, number>;
+}
+
+export interface KitMirrorRun {
+  fights: KitFight[];
+  /** The fights past `lateRound` (stalls included), and the rest. */
+  long: MirrorAutopsy; short: MirrorAutopsy;
+}
+
+const emptyAutopsy = (): MirrorAutopsy => ({ fights: 0, rounds: 0, pvLost: 0, attacks: 0, emptyAttacks: 0, defenses: 0, focus: 0, focusLost: 0, late: {} });
 
 /**
  * `fights` fights at `level`: the kit and a random partner against two random
  * kits, the kit's side alternating seats. `won` is 1, ½ for a mutual wipe or a
- * stall, 0.
+ * stall, 0. Played step by step so each card's outcome can be read; the same
+ * rounds `runRound` plays.
  */
-export function kitMirrors(kit: string, level: number, fights: number): KitFight[] {
-  return countedCached('mirror-fights', key('mirror-fights-v1', mainKitsPrint(), kit, String(level), String(fights)), () => {
+export function kitMirrors(kit: string, level: number, fights: number, lateRound: number): KitMirrorRun {
+  return countedCached('mirror-fights', key('mirror-fights-v2', mainKitsPrint(), kit, String(level), String(fights), String(lateRound)), () => {
     const kits = theSet().calibration.mainKits;
     const out: KitFight[] = [];
+    const long = emptyAutopsy(), short = emptyAutopsy();
     withSeed(kitSeed(kit, level, 1), () => {
       for (let f = 0; f < fights; f++) {
-        const mine = heroes([kit, drawKit(kits)], level, 'K');
-        const theirs = heroes([drawKit(kits), drawKit(kits)], level, 'F');
+        const partner = drawKit(kits);
+        const foes = [drawKit(kits), drawKit(kits)];
+        const mine = heroes([kit, partner], level, 'K');
+        const theirs = heroes(foes, level, 'F');
         const side = f % 2;
         const e = new CombatEngine(side === 0 ? mine : theirs, side === 0 ? theirs : mine, {
           registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI),
         });
-        const res = e.runCombat();
-        out.push({ rounds: e.round, capped: !!res.capped, won: res.capped || res.winner === null ? 0.5 : res.winner === side ? 1 : 0 });
+        const a = emptyAutopsy();
+        const total = () => e.teams.flat().reduce((t, c) => t + Math.max(0, c.currentPV), 0);
+        while (!e.isOver() && e.round < e.maxRounds) {
+          const startPV = total();
+          e.prepareRound();
+          e.planActions([]);
+          for (;;) {
+            const before = new Map(e.teams.flat().map(c => [c, c.currentPV]));
+            const step = e.resolveNextAction();
+            if (step.kind === 'done') break;
+            if (step.kind === 'target') { e.setResolveTarget([]); continue; }
+            if (step.kind === 'choice') { e.setResolveChoice(); continue; }
+            const actor = e.teams[step.action.actorTeam]?.[step.action.actorIdx];
+            const def = actor?.actions.find(x => x.def.id === step.action.actionId)?.def;
+            if (!actor || !def) continue;
+            if (def.actionType === ActionType.Focus) { a.focus++; if (step.action.cancelled) a.focusLost++; }
+            if (step.action.cancelled) continue;
+            if (def.actionType === ActionType.Defensa) a.defenses++;
+            if (def.actionType === ActionType.Atac) {
+              a.attacks++;
+              const took = e.teams[1 - actor.team].some(c => (before.get(c) ?? 0) > c.currentPV);
+              if (!took) a.emptyAttacks++;
+            }
+            if (e.round > lateRound) a.late[def.id] = (a.late[def.id] ?? 0) + 1;
+          }
+          e.finishRound();
+          a.rounds++;
+          a.pvLost += startPV - total();
+        }
+        const capped = !e.isOver();
+        const winner = e.winner();
+        out.push({ rounds: e.round, capped, won: capped || winner === null ? 0.5 : winner === side ? 1 : 0, partner, foes });
+        const into = capped || e.round > lateRound ? long : short;
+        into.fights++;
+        for (const k of ['rounds', 'pvLost', 'attacks', 'emptyAttacks', 'defenses', 'focus', 'focusLost'] as const) into[k] += a[k];
+        for (const [id, n] of Object.entries(a.late)) into.late[id] = (into.late[id] ?? 0) + n;
       }
     });
-    return out;
+    return { fights: out, long, short };
   });
 }
 
@@ -88,32 +147,46 @@ function chooserFor(style: DuelStyle): Chooser {
   }
 }
 
-/** X's score against Y (draws and stalls ½) over `games` mirror fights. */
-export interface StyleDuel { x: DuelStyle; y: DuelStyle; level: number; score: number; stalls: number; games: number }
+/** X's score against Y (draws and stalls ½) over `games` mirror fights, and
+ *  the cards Y resolved, by id. */
+export interface StyleDuel { x: DuelStyle; y: DuelStyle; level: number; score: number; stalls: number; games: number; yPlays: Record<string, number> }
 
 /**
  * `games` fights at `level` between two sides fielding the SAME random pair of
  * kits, one played as `x` and the other as `y`, seats alternating.
  */
-export function styleDuel(x: DuelStyle, y: DuelStyle, level: number, games: number): StyleDuel {
-  return countedCached('mirror-duel', key('mirror-duel-v1', mainKitsPrint(), x, y, String(level), String(games)), () => {
+/**
+ * `withoutCard`: taken out of the Y side's hands — how much of Y's showing
+ * that card carries (a triangle edge's culprits, playtest `gate.ts`).
+ */
+export function styleDuel(x: DuelStyle, y: DuelStyle, level: number, games: number, withoutCard?: string): StyleDuel {
+  return countedCached('mirror-duel', key('mirror-duel-v2', mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? ''), () => {
     const kits = theSet().calibration.mainKits;
     let score = 0, stalls = 0;
+    const yPlays: Record<string, number> = {};
     withSeed(kitSeed(`${x}>${y}`, level, 2), () => {
       for (let f = 0; f < games; f++) {
         const pair = [drawKit(kits), drawKit(kits)];
         const xSide = f % 2;
         const X = chooserFor(x), Y = chooserFor(y);
-        const e = new CombatEngine(heroes(pair, level, 'A'), heroes(pair, level, 'B'), {
+        const teams = [heroes(pair, level, 'A'), heroes(pair, level, 'B')];
+        if (withoutCard) for (const c of teams[1 - xSide]) c.actions = c.actions.filter(a => a.def.id !== withoutCard);
+        const e = new CombatEngine(teams[0], teams[1], {
           registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS,
-          actionChooser: (en, c) => (c.team === xSide ? X : Y)(en, c),
+          actionChooser: (en, c) => {
+            if (c.team === xSide) return X(en, c);
+            const i = Y(en, c);
+            const id = i === null || i === undefined ? undefined : c.actions[i]?.def.id;
+            if (id) yPlays[id] = (yPlays[id] ?? 0) + 1;
+            return i;
+          },
         });
         const res = e.runCombat();
         if (res.capped) stalls++;
         score += res.capped || res.winner === null ? 0.5 : res.winner === xSide ? 1 : 0;
       }
     });
-    return { x, y, level, score: score / games, stalls: stalls / games, games };
+    return { x, y, level, score: score / games, stalls: stalls / games, games, yPlays };
   });
 }
 
