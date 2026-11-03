@@ -14,7 +14,7 @@ import CharacterSheet from '../components/cards/CharacterSheet.vue';
         <h2>Característica base</h2>
         <p>Cada personatge té una sola característica base:</p>
         <ul>
-          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Tots els cossos, herois i criatures, en tenen 26: quatre cops mitjans d'un atac de nivell 5 (la unitat de l'escala de daus és 1d4).</li>
+          <li><strong>PV</strong> (Punts de vida): els punts de vida abans de caure fora de combat. Els herois en tenen 26: quatre cops mitjans d'un atac de nivell 5 (la unitat de l'escala de daus és 1d4). Els PV d'una criatura no són fixos: amb el seu nivell, ajusten la dificultat de l'encontre.</li>
         </ul>
       </section>
 

@@ -3,8 +3,8 @@
  * game is built up from the smallest die, 1d4. A level-1 attack rolls about
  * 1d4 and each level adds about one point to the average; a defense of a level
  * holds against the attacks of that level about 78% of the time (the defense
- * premium); and PV is derived from the same ladder — one value for every body,
- * heroes and creatures alike.
+ * premium); and a hero's PV is derived from the same ladder (a creature's PV is an
+ * encounter lever, solved with its level).
  *
  * Cards sit AROUND the ladder, not on it: an effect, extra targets or speed
  * are paid for in dice (`test/ladder.test.ts` says how far a card may stray).
@@ -32,5 +32,5 @@ export function ladderMean(level: number): number {
 export const BLOWS_TO_FALL = 4;
 export const PV_REFERENCE_LEVEL = 5;
 
-/** Every body's PV, heroes and creatures alike: 4 × the level-5 average = 26. */
+/** A hero's PV: 4 × the level-5 average = 26. */
 export const BODY_PV = BLOWS_TO_FALL * ladderMean(PV_REFERENCE_LEVEL);
