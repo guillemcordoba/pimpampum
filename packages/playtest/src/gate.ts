@@ -8,7 +8,7 @@
  *  - FIGHTS END: per kit and level, 2v2 fights against random kits — the
  *    median, the 90th percentile (the user's hard limit, `MAX_P90_ROUNDS`) and
  *    the fights that never end;
- *  - THE TRIANGLE and THE TURTLE: per level where players live, the three
+ *  - THE TRIANGLE and THE TURTLE: at the checkpoints (3, 6, 10), the three
  *    leaning styles each against the next, and a side that only defends against
  *    the reading AI, which must lose (reads beat dumb strategies);
  *  - EVERY CARD HAS A USE: per kit, each card's value in mirrors — a card that
@@ -26,10 +26,10 @@ import {
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
-/** Where the triangle is claimed: the levels players live at (intentions.md). */
-export const STYLE_LEVELS: readonly number[] = [3, 4, 5, 6];
-/** Where cards are priced: every card is held at one of them at least. */
-export const CARD_LEVELS: readonly number[] = [4, 6, 8, 10];
+/** Checkpoints (the user, 2026-11-03): the start, where players live, the top. */
+export const STYLE_LEVELS: readonly number[] = [3, 6, 10];
+/** The same checkpoints for the cards: every card is held at one of them. */
+export const CARD_LEVELS: readonly number[] = STYLE_LEVELS;
 
 export interface GateBudget { kitFights: number; duelGames: number; cardFights: number }
 export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30 };
