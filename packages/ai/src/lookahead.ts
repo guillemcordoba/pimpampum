@@ -86,6 +86,27 @@ export interface LookaheadOptions {
   /** Search the OPPONENTS' cards once per decision for the rollouts' model of
    *  them (`searchedOdds`); omit for the depth-0 heuristic alone. */
   opponentSearch?: OpponentSearch;
+  /**
+   * FICTITIOUS PLAY for the rollouts' model of the opponents: before our team
+   * is solved, the OPPONENTS' team is solved too, against the model of us, and
+   * each side's model becomes the mix of the depth-0 odds and every answer that
+   * side gave so far; `iterations` rounds of answers, our own last. Omit for
+   * the depth-0 model alone.
+   *
+   * WHY (2026-11-03): the depth-0 model attacked 80% of the time where the real
+   * AI defended half of it, so the search planned against an enemy that never
+   * held a guard: defending looked great, a card that pays off against a guard
+   * looked worthless, and two sides of the same AI turtled into stalls. A model
+   * that is the real AI's own answers cannot drift from the real AI.
+   */
+  fictitiousPlay?: FictitiousPlay;
+}
+
+export interface FictitiousPlay {
+  /** Answers each side gives before ours is final. */
+  iterations: number;
+  /** Weight of the depth-0 odds in a side's mix, against 1 for each answer. */
+  prior: number;
 }
 
 export interface OpponentSearch {
@@ -384,8 +405,8 @@ interface DecisionMemo {
   base: Map<number, ActionOdds>;
 }
 
-const newMemo = (team: number, opts: LookaheadOptions, pairSeed: number, base = new Map<number, ActionOdds>()): DecisionMemo =>
-  ({ team, opts, pairSeed, plans: new Map(), odds: opts.opponentSearch ? new Map() : base, base });
+const newMemo = (team: number, opts: LookaheadOptions, pairSeed: number, base = new Map<number, ActionOdds>(), fixed?: Map<number, ActionOdds>): DecisionMemo =>
+  ({ team, opts, pairSeed, plans: new Map(), odds: fixed ? new Map(fixed) : opts.opponentSearch ? new Map() : base, base });
 
 /**
  * A foe's cards, each played out for one round against everyone else at depth
@@ -582,6 +603,79 @@ export function bestResponse(
   team: number,
   opts: LookaheadOptions = DEFAULT_LOOKAHEAD,
 ): { choices: Map<Character, number>; value: number } {
+  if (opts.fictitiousPlay && opts.fictitiousPlay.iterations > 0 && engine.roundPrepared) {
+    return fictitiousResponse(engine, team, opts, opts.fictitiousPlay).ours;
+  }
+  return solveTeam(engine, team, opts);
+}
+
+/** A side's model in fictitious play: per seat, the depth-0 odds weighted by
+ *  `prior` plus one count for each answer that seat gave. */
+function mixOf(engine: CombatEngine, team: number, answers: Map<Character, number>[], prior: number): Map<number, ActionOdds> {
+  const out = new Map<number, ActionOdds>();
+  engine.teams[team].forEach((c, pos) => {
+    if (!c.isAlive()) return;
+    const base = actionOdds(engine, c);
+    if (!base.indices.length) return;
+    const weights = base.indices.map((idx, k) =>
+      prior * base.weights[k] / (base.total || 1) + answers.filter(a => a.get(c) === idx).length);
+    out.set(team * 1000 + pos, { indices: base.indices, weights, total: weights.reduce((t, w) => t + w, 0) });
+  });
+  return out;
+}
+
+/**
+ * Fictitious play (`LookaheadOptions.fictitiousPlay`): the opponents answer
+ * the model of us, we answer the model of them, and each model is the mix of
+ * the answers given so far. Returns our final answer and the model of the
+ * opponents it answered — the model is what `opponentModel` exposes.
+ */
+function fictitiousResponse(
+  engine: CombatEngine, team: number, opts: LookaheadOptions, fp: FictitiousPlay,
+): { ours: { choices: Map<Character, number>; value: number }; model: Map<number, ActionOdds> } {
+  const plain: LookaheadOptions = { ...opts, fictitiousPlay: undefined };
+  // The opponents are not under our restriction: they play their whole hand.
+  const theirOpts: LookaheadOptions = { ...plain, restrictTo: undefined };
+  const ourAnswers: Map<Character, number>[] = [];
+  const theirAnswers: Map<Character, number>[] = [];
+  let model = new Map<number, ActionOdds>();
+  let ours = { choices: new Map<Character, number>(), value: 0 };
+  for (let i = 0; i < fp.iterations; i++) {
+    const usModel = ourAnswers.length ? mixOf(engine, team, ourAnswers, fp.prior) : undefined;
+    theirAnswers.push(solveTeam(engine, 1 - team, theirOpts, usModel).choices);
+    model = mixOf(engine, 1 - team, theirAnswers, fp.prior);
+    ours = solveTeam(engine, team, plain, model);
+    ourAnswers.push(ours.choices);
+  }
+  return { ours, model };
+}
+
+/**
+ * The odds the search's rollouts give each of `team`'s OPPONENTS this round,
+ * by seat (`team * 1000 + index`, the opponents' team): what the AI believes
+ * they will play. The fictitious-play mix when that is on, else each seat's
+ * `rolloutOdds`. For the gate's check that the AI predicts itself, and for
+ * probes — it costs a decision.
+ */
+export function opponentModel(engine: CombatEngine, team: number, opts: LookaheadOptions = DEFAULT_LOOKAHEAD): Map<number, ActionOdds> {
+  if (opts.fictitiousPlay && opts.fictitiousPlay.iterations > 0 && engine.roundPrepared) {
+    return fictitiousResponse(engine, team, opts, opts.fictitiousPlay).model;
+  }
+  const out = new Map<number, ActionOdds>();
+  engine.teams[1 - team].forEach((c, pos) => {
+    if (c.isAlive()) out.set((1 - team) * 1000 + pos, rolloutOdds(engine, c, opts));
+  });
+  return out;
+}
+
+/** Iterated best response for one team; `fixed` pins the rollouts' odds for
+ *  the seats it names (the other side's model, in fictitious play). */
+function solveTeam(
+  engine: CombatEngine,
+  team: number,
+  opts: LookaheadOptions,
+  fixed?: Map<number, ActionOdds>,
+): { choices: Map<Character, number>; value: number } {
   const actors = engine.teams[team].filter(c => c.isAlive());
   const choices = new Map<Character, number>();
   // Seed with the depth-0 pick, so a pass that improves nothing still leaves a
@@ -599,7 +693,7 @@ export function bestResponse(
   // and every candidate's, on every pass — runs against the same rollouts, so
   // the comparisons are PAIRED. See `evaluate`.
   const pairSeed = Math.floor(random() * 1e9);
-  const memo = newMemo(team, opts, pairSeed);
+  const memo = newMemo(team, opts, pairSeed, undefined, fixed);
 
   let value = actors.length ? evaluate(engine, team, choices, opts, opts.depth, pairSeed, undefined, memo) : 0;
   for (let pass = 0; pass < opts.passes; pass++) {

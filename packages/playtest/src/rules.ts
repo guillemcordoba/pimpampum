@@ -205,3 +205,19 @@ export function fastAttackVerdict(
     .map(c => c.id);
   return { ok: broken.length === 0, broken, unjudged };
 }
+
+// --- The AI predicts itself --------------------------------------------------------
+
+/**
+ * How far the AI's model of its opponents may stray from what they then play,
+ * per card type, in share of decisions. The model is what every search plans
+ * against: on 2026-11-03 it attacked 80% where the real AI defended half the
+ * time, and the whole game measured turtled because of it.
+ */
+export const MODEL_TOLERANCE = 0.1;
+
+export function modelVerdict(predicted: Record<string, number>, actual: Record<string, number>): { ok: boolean; off: string[] } {
+  const off = Object.keys(actual).filter(t => Math.abs((predicted[t] ?? 0) - actual[t]) > MODEL_TOLERANCE)
+    .map(t => `${t} predicted ${Math.round(100 * (predicted[t] ?? 0))}%, played ${Math.round(100 * actual[t])}%`);
+  return { ok: off.length === 0, off };
+}

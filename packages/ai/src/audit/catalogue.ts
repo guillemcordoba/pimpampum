@@ -272,6 +272,18 @@ export function auditRegistry(): EffectRegistry {
     getTargetRequirement: () => 'none',
     onResolve(ctx) { for (const a of ctx.engine.alliesOf(ctx.source, false)) applyKind(a, 'untargetable', 'audit.veiled', 1, 2); },
   });
+  // Pays off only against a raised guard: the chosen enemy loses the card's
+  // dice in PV if it played a Defense this round.
+  r.register('audit:crack', {
+    getTargetRequirement: () => 'enemy',
+    onResolve(ctx) {
+      const t = ctx.targets[0];
+      const dice = ctx.action.dice;
+      if (!t?.isAlive() || !dice || !defendedThisRound(t, ctx.engine.plannedThisRound())) return;
+      ctx.engine.applyPvLoss(t, ctx.engine.rollDiceFor(ctx.source, dice), ctx.source);
+    },
+    aiTargetPriority: (ctx, candidate) => (defendedThisRound(candidate, ctx.plan) ? 10 : -10),
+  });
   r.register('audit:selfwound', {
     onAttackResolved(ctx) { ctx.engine.applyPvLoss(ctx.source, 1); },
   });
@@ -282,6 +294,10 @@ export function auditRegistry(): EffectRegistry {
 // --- the archetypes ---------------------------------------------------------
 
 const fx = (type: string, params: Params) => [{ type, params }];
+
+function defendedThisRound(c: Character, plan: readonly { actor: Character; action: { actionType: ActionType }; cancelled?: boolean }[]): boolean {
+  return plan.some(p => p.actor === c && !p.cancelled && p.action.actionType === ActionType.Defensa);
+}
 
 export const ARCHETYPES: Record<string, Archetype> = {
   strike: {
@@ -402,6 +418,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
     draw: () => ({ fast: 1 }),
     horizon: () => 1,
   },
+  crack: {
+    id: 'crack', summary: 'focus: the chosen enemy loses the dice in PV if it played a Defense this round',
+    build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:crack', {}) }),
+    draw: r => ({ ...dice(r, PROFILE.dice.attack), fast: 0 }),
+    horizon: () => 1,
+  },
   veil: {
     id: 'veil', summary: 'focus: next round no foe can target your allies',
     build: (p, uid) => card(uid, ActionType.Focus, p, { effects: fx('audit:veil', {}) }),
@@ -429,9 +451,9 @@ export const ARCHETYPES: Record<string, Archetype> = {
 };
 
 /** Archetypes the generator deals (the fallback is added to every hand). */
-// `sacrifice` is a puzzle's archetype, kept out of the draws so the catalogues
-// drawn before it existed stay the same.
-export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice' && k !== 'veil');
+// `sacrifice` and `crack` are puzzles' archetypes, kept out of the draws so the
+// catalogues drawn before them stay the same.
+export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice' && k !== 'veil' && k !== 'crack');
 
 /** A card in words, for the report. */
 export const describeCard = (arch: string, p: Params): string => (arch === 'composed' ? describeComposed(p) : arch);

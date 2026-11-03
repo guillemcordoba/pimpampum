@@ -21,6 +21,7 @@ const scope: GateScope = {
 };
 const budget: GateBudget = {
   kitFights: games(GATE_BUDGET.kitFights), duelGames: games(GATE_BUDGET.duelGames), cardFights: games(GATE_BUDGET.cardFights),
+  modelFights: games(GATE_BUDGET.modelFights!),
 };
 
 await prepareGate({ set: SET.ref, budget }, scope, (done, total) => process.stderr.write(`\rmeasuring ${done}/${total}   `));
@@ -63,6 +64,15 @@ if (r.styles.length) {
     for (const c of s.culprits) {
       console.log(`    ${c.edge} is held up by: ${c.cards.map(x => `${x.name} (without it ${x.shift >= 0 ? '+' : ''}${x.shift.toFixed(0)})`).join(', ')}`);
     }
+  }
+}
+
+if (r.styles.length) {
+  console.log(`\nTHE AI PREDICTS ITSELF (its model of the opponents against what they played; attack / defense / Focus)`);
+  for (const s of r.styles) {
+    const m = s.model;
+    const tri = (x: Record<string, number>) => ['Atac', 'Defensa', 'Focus'].map(t => Math.round(100 * (x[t] ?? 0))).join(' / ');
+    console.log(`L${s.level}  ${m.ok ? '✓' : '❌'} predicted ${tri(m.predicted)} · played ${tri(m.actual)} · log-lik ${m.logLik.toFixed(2)} (${m.predictions} decisions)`);
   }
 }
 

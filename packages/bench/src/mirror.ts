@@ -14,7 +14,7 @@
 import {
   ActionType, availableActionIndices, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type Character,
 } from '@pimpampum/engine';
-import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser } from '@pimpampum/ai';
+import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser, opponentModel } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
@@ -263,4 +263,55 @@ export function kitMirrorCardValues(kit: string, level: number, fights: number, 
     values: { byCard: new Map(stored.obs), costs: stored.costs, positions: stored.positions, fights: stored.fights },
     legal: stored.legal, played: stored.played,
   };
+}
+
+/** What the AI believed its opponents would play, against what they played. */
+export interface ModelCheck {
+  level: number; predictions: number;
+  /** Shares by card type, of the decisions with a choice. */
+  predicted: Record<string, number>; actual: Record<string, number>;
+  /** Mean log-probability the model gave the card actually played. */
+  logLik: number;
+}
+
+/**
+ * THE AI PREDICTS ITSELF: in \`fights\` mirror fights at \`level\` (random 2v2,
+ * the production AI on both sides), each round team 0's model of its
+ * opponents (\`opponentModel\`) is set against the cards team 1 then plays.
+ * A model that drifts from the real AI plans against an enemy that does not
+ * exist (2026-11-03: it attacked 80% where the real AI defended half the time).
+ */
+export function modelCheck(level: number, fights: number): ModelCheck {
+  return countedCached('mirror-model', key('mirror-model-v1', mainKitsPrint(), String(level), String(fights)), () => {
+    const kits = theSet().calibration.mainKits;
+    const predicted: Record<string, number> = { [ActionType.Atac]: 0, [ActionType.Defensa]: 0, [ActionType.Focus]: 0 };
+    const actual = { ...predicted };
+    let predictions = 0, logLik = 0;
+    withSeed(kitSeed('model', level, 4), () => {
+      for (let f = 0; f < fights; f++) {
+        const policy = aiPolicy(CELL_AI);
+        let model: Map<number, { indices: number[]; weights: number[]; total: number }> | null = null;
+        let modelRound = -1;
+        const e = new CombatEngine(heroes([drawKit(kits), drawKit(kits)], level, 'A'), heroes([drawKit(kits), drawKit(kits)], level, 'B'), {
+          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: policy.targetChooser,
+          actionChooser: (en, c) => {
+            if (c.team === 1 && modelRound !== en.round) { model = opponentModel(en as CombatEngine, 0, CELL_AI); modelRound = en.round; }
+            const i = policy.actionChooser(en, c);
+            const m = c.team === 1 ? model?.get(1000 + en.teams[1].indexOf(c)) : undefined;
+            if (m && m.indices.length > 1 && i !== null && i !== undefined) {
+              predictions++;
+              actual[c.actions[i].def.actionType]++;
+              m.indices.forEach((ix, k) => { predicted[c.actions[ix].def.actionType] += m.weights[k] / m.total; });
+              const k = m.indices.indexOf(i);
+              logLik += Math.log(Math.max(1e-3, k >= 0 ? m.weights[k] / m.total : 0));
+            }
+            return i;
+          },
+        });
+        e.runCombat();
+      }
+    });
+    const share = (r: Record<string, number>) => Object.fromEntries(Object.entries(r).map(([t, v]) => [t, v / Math.max(1, predictions)]));
+    return { level, predictions, predicted: share(predicted), actual: share(actual), logLik: logLik / Math.max(1, predictions) };
+  });
 }

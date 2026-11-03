@@ -19,10 +19,10 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { kitMirrorCardValues, kitMirrors, scoreCards, styleDuel, theSet, warm, type DuelStyle, type MirrorAutopsy } from '@pimpampum/bench';
+import { kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
-  durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, triangleVerdict,
+  durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
@@ -31,8 +31,8 @@ export const STYLE_LEVELS: readonly number[] = [3, 6, 10];
 /** The same checkpoints for the cards: every card is held at one of them. */
 export const CARD_LEVELS: readonly number[] = STYLE_LEVELS;
 
-export interface GateBudget { kitFights: number; duelGames: number; cardFights: number }
-export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30 };
+export interface GateBudget { kitFights: number; duelGames: number; cardFights: number; modelFights?: number }
+export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30, modelFights: 40 };
 
 const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
 
@@ -78,6 +78,8 @@ export interface GateStyleCell {
    *  winner's score most: what holds the edge up (`shift` in points). */
   culprits: { edge: string; cards: { card: string; name: string; shift: number }[] }[];
   turtle: { score: number; stalls: number; games: number; ok: boolean };
+  /** The AI's model of its opponents against what they played (`modelCheck`). */
+  model: ModelCheck & { ok: boolean; off: string[] };
 }
 
 export interface GateCardCell {
@@ -98,7 +100,8 @@ export type GateJob =
   | { kind: 'gate-fights'; kit: string; level: number }
   | { kind: 'gate-duel'; x: DuelStyle; y: DuelStyle; level: number }
   | { kind: 'gate-cards'; kit: string; level: number }
-  | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string };
+  | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string }
+  | { kind: 'gate-model'; level: number };
 
 export interface GateScope { kits?: readonly string[]; levels?: readonly number[] }
 
@@ -113,6 +116,7 @@ export function gateJobs(scope: GateScope = {}): GateJob[] {
     ...(scope.kits ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
       ...EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level })),
       { kind: 'gate-duel' as const, x: 'turtle' as const, y: 'ai' as const, level },
+      { kind: 'gate-model' as const, level },
     ])),
     ...kits.flatMap(kit => inScope(GATE_LEVELS, scope).map(level => ({ kind: 'gate-fights' as const, kit, level }))),
   ];
@@ -122,6 +126,7 @@ export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void
   if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS);
   else if (job.kind === 'gate-duel') styleDuel(job.x, job.y, job.level, budget.duelGames);
   else if (job.kind === 'gate-blame') styleDuel(job.x, job.y, job.level, budget.duelGames, job.card);
+  else if (job.kind === 'gate-model') modelCheck(job.level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   else kitMirrorCardValues(job.kit, job.level, budget.cardFights);
 }
 
@@ -214,8 +219,9 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
     })).sort((a, b) => b.shift - a.shift).slice(0, 3);
     return { edge: `${x} > ${y}`, cards };
   });
+  const model = modelCheck(level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   return {
-    level, edges, broken: triangleVerdict(edges).broken, culprits,
+    level, edges, broken: triangleVerdict(edges).broken, culprits, model: { ...model, ...modelVerdict(model.predicted, model.actual) },
     turtle: { score: t.score, stalls: t.stalls, games: t.games, ok: edgeHolds(1 - t.score, t.games) },
   };
 }
@@ -259,6 +265,7 @@ export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUD
     ...kits.filter(c => !c.ok).map(c => `${c.kit} L${c.level}: ${c.reasons.join(', ')}`),
     ...styles.flatMap(s => s.broken.map(b => `L${s.level} triangle: ${b} doesn't hold`)),
     ...styles.filter(s => !s.turtle.ok).map(s => `L${s.level} turtle: scores ${pct(s.turtle.score)} against the AI`),
+    ...styles.filter(s => !s.model.ok).map(s => `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}`),
     ...cards.filter(c => c.neverRight).map(c => `${c.kit} ${c.name}: never the right play (L${c.levels.map(l => l.level).join(', L')})`),
     ...cards.filter(c => c.blind).map(c => `${c.kit} ${c.name}: the AI is blind to it (L${c.levels.filter(l => l.blind).map(l => l.level).join(', L')})`),
   ];

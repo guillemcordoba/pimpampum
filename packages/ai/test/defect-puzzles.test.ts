@@ -324,3 +324,24 @@ describe('audit defects as puzzles: a sacrifice', () => {
   it('(i) the referee throws the sacrifice', () => expect(refereeAnswer(PAYING)).toEqual({ cards: 'sacrifice,strike,strike', p: 1 }));
   it('(i) the AI keeps the hero', () => expect(aiAnswer(PAYING)).toEqual(Array(4).fill('strike,strike,strike')));
 });
+
+// --- (l) A CARD THAT PAYS OFF AGAINST A GUARD ------------------------------
+//
+// One round. H1 strikes for 20; F (40 PV) can strike for 1 or guard for 25 —
+// the guard stops both heroes' blows, so F guards whatever we do: striking it
+// takes 23, guarding at worst 8. H0 strikes for 3 (held: nothing) or cracks
+// for 8 (a Focus: F loses 8 if it played a Defense). The referee cracks.
+// The rollouts' depth-0 model has F strike about three times in four, so the
+// crack (8 a quarter of the time) and the strike (3 the rest) look even and
+// the search keeps the strike: the 2026-11-03 gate's turtling, in miniature —
+// the real AI defended half the time while its model of the enemy attacked
+// 80% (Esquerda, Punts de la guàrdia, Retirada sagnant: the best play 40-74%
+// of the time at levels 3-6, played 2-17%).
+const PUNISH_GUARD = position('punish-guard', 1,
+  [body('H0', 30, [fixed('strike', 3), fixed('crack', 8)]), body('H1', 30, [fixed('strike', 20)])],
+  [body('F', 40, [fixed('strike', 1), fixed('guard', 25)])]);
+
+describe('audit defects as puzzles: a card that pays off against a guard', () => {
+  it('(l) the referee cracks', () => expect(refereeAnswer(PUNISH_GUARD)).toEqual({ cards: 'crack,strike', p: 1 }));
+  it.fails('(l) the AI cracks', () => expect(aiAnswer(PUNISH_GUARD)).toEqual(Array(4).fill('crack,strike')));
+});
