@@ -20,7 +20,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ActionType, CombatEngine, seededRng, setRng, type Character, type TargetRef } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
-import { buildCharacter, createRegistry, PLAYER_PV } from '@pimpampum/set-elements';
+import { createHash } from 'node:crypto';
+import { ALL_SKILLS, buildCharacter, createRegistry, PLAYER_PV } from '@pimpampum/set-elements';
 
 const KITS = ['waterbender', 'airbender', 'earthbender', 'firebender'] as const;
 const KIT_NAMES: Record<string, string> = { waterbender: "Mestre de l'aigua", airbender: "Mestre de l'aire", earthbender: 'Mestre de la terra', firebender: 'Mestre del foc' };
@@ -55,14 +56,22 @@ A game still undecided after round ${MAX_ROUNDS} ends in a draw.`;
 
 // --- files ---------------------------------------------------------------------
 
-interface Cfg { seed: number; level: number }
+interface Cfg { seed: number; level: number; cards?: string }
+/** The benders' cards as this code has them: a game replays only under the cards it was played with. */
+const CARDS = createHash('sha1').update(JSON.stringify([PLAYER_PV, ALL_SKILLS.filter(s => (KITS as readonly string[]).includes(s.id))
+  .map(s => s.actions.map(a => [a.id, a.actionType, a.fast, String(a.dice ?? ''), a.rollBonus, a.targetCount, a.effects, a.description]))])).digest('hex').slice(0, 12);
 function cfg(): Cfg {
   const f = path.join(gameDir, 'cfg.json');
   if (!fs.existsSync(f)) {
     fs.mkdirSync(gameDir, { recursive: true });
-    fs.writeFileSync(f, JSON.stringify({ seed: 7000 + GAME, level: GAME <= 5 ? 6 : 10 }));
+    fs.writeFileSync(f, JSON.stringify({ seed: 7000 + GAME, level: GAME <= 5 ? 6 : 10, cards: CARDS }));
   }
-  return JSON.parse(fs.readFileSync(f, 'utf8'));
+  const c: Cfg = JSON.parse(fs.readFileSync(f, 'utf8'));
+  if (c.cards !== CARDS) {
+    console.error(`La partida ${GAME} es va jugar amb unes altres cartes: no es pot reproduir. Fes servir un altre número de partida (o un altre DUEL_DIR).`);
+    process.exit(1);
+  }
+  return c;
 }
 const answersFile = (s: 'A' | 'B') => path.join(gameDir, `${s}.json`);
 function answers(s: 'A' | 'B'): string[] {
@@ -231,8 +240,8 @@ function describe(st: State, side: 'A' | 'B'): string {
   if (n.kind === 'choice') return `${head}\n\nTU TORN (${side}): ${label(e, n.actor)} «${n.action}» tria una opció: ${n.options.map((o, i) => `${i}=${o}`).join(', ')}. Resposta: el número.`;
   const pool = n.requirement === 'enemy' ? e.enemiesOf(n.actor) : n.requirement === 'ally_other' ? e.alliesOf(n.actor, false)
     : ['ally', 'defense', 'self'].includes(n.requirement) ? e.alliesOf(n.actor, true) : [...e.teams[0], ...e.teams[1]].filter(c => c.isAlive());
-  const what = n.kind === 'aim' ? 'apunta l\'atac' : n.kind === 'guard' ? 'tria a qui protegeix la defensa (sempre es protegeix també a si mateix)' : 'tria l\'objectiu del Focus';
-  return `${head}\n\nTU TORN (${side}): ${label(e, n.actor)} «${n.action}» — ${what}. ${n.count > 1 ? `Fins a ${n.count} objectius, separats per coma. ` : ''}Opcions: ${pool.map(c => label(e, c)).join(', ')}. Resposta: una etiqueta${n.count > 1 ? ' o més' : ''}.`;
+  const what = n.kind === 'aim' ? 'apunta l\'atac' : n.kind === 'guard' ? 'tria a qui protegeix la defensa (cobreix un sol cos: si protegeixes un aliat, tu quedes descobert)' : 'tria l\'objectiu del Focus';
+  return `${head}\n\nTU TORN (${side}): ${label(e, n.actor)} «${n.action}» — ${what}. ${n.count > 1 ? `Fins a ${n.count} objectius, separats per coma${n.actor.actions.some(a => a.def.name === n.action && a.def.targetsRepeat) ? ' (es poden repetir)' : ''}. ` : ''}Opcions: ${pool.map(c => label(e, c)).join(', ')}. Resposta: una etiqueta${n.count > 1 ? ' o més' : ''}.`;
 }
 
 // --- validation ------------------------------------------------------------------
@@ -259,7 +268,7 @@ function validate(st: State, side: 'A' | 'B', a: string): string | null {
     return null;
   }
   if (n.kind === 'choice') return Number.isInteger(Number(a)) && Number(a) >= 0 && Number(a) < n.options.length ? null : 'Cal el número d\'una opció.';
-  if (a === 'none') return null;
+  if (a === 'none') return n.kind === 'aim' ? 'Cada atac apunta a un objectiu.' : null;
   const labels = a.split(',').map(x => x.trim());
   if (labels.length > Math.max(1, n.count)) return `Com a molt ${n.count} objectius.`;
   return labels.every(l => fromLabel(e, l)) ? null : 'Etiquetes vàlides: A1, A2, B1, B2.';

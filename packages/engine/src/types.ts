@@ -78,6 +78,9 @@ export interface ActionDefinition {
   rollBonus?: number;
   /** How many targets are selected (multi-attack / multi-defend). Defaults to 1. */
   targetCount?: number;
+  /** The `targetCount` picks may name the same body more than once (one blow
+   *  each), so the seat is asked even when the count covers every enemy. */
+  targetsRepeat?: boolean;
   /** Multi-target attacks roll ONE shared roll per pass by default; set this
    *  to roll fresh attack dice against each target instead. */
   rollPerTarget?: boolean;

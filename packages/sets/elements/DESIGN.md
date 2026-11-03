@@ -123,9 +123,9 @@ dice and small mechanics by the main session.
 |---|---|---|---|
 | 1 | Fuet d'aigua | Atac | the plain lash |
 | 2 | Mur d'aigua | Defensa | the plain wall |
-| 3 | Marea alta | Focus | every enemy that played a Defense this round re-rolls its defense dice and loses half of it (all of it until the user found it too powerful) (the user's pick, 2026-11-02, after the stall autopsy: water's turtle-breaker now makes a defender lose); the kit's first Focus |
-| 4 | Font curativa | Focus | heals an ally (3d4+4) and puts out Cremat; heals belong early |
-| 5 | Boira espessa | Focus | for the next 5 rounds every enemy blow on your party rolls 1d4 and misses on 1-2 (on a 1 until the Focus scale-up; the user's design, 2026-11-02; replaced Boira, which hid every ally for one round) |
+| 3 | Portes al mar | Focus | every enemy that played a Defense this round re-rolls its defense dice and loses half of it: the sea slams every raised guard back into its holder (the user's picks, 2026-11-02/03: the effect, half of it, and the name, card-designer's pick); the kit's first Focus |
+| 4 | Font curativa | Focus | heals an ally (2d4+2) and puts out Cremat; heals belong early (back from 3d4+4 on 2026-11-03: water's sustain was the top stall cause) |
+| 5 | Boira espessa | Focus | for the next 5 rounds every enemy blow on your party rolls 1d4 and misses on a 1 (the user's design; on 1-2 for one night, back down on 2026-11-03 for the stalls) |
 | 6 | Llança de gel | Atac | the strong single blow |
 | 7 | Marea de vida | Focus | one roll (4d4+4) heals the whole party, the fallen too; 1 fatigue (the user's pick, 2026-11-02; Cúpula de gel left: too close to Forma de pop and Búnquer) |
 | 8 | Forma de pop | Defensa | defends every ally |
@@ -148,7 +148,7 @@ the main session.
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack for the next 2 rounds |
 | 6 | Armadura de terra | Focus | an ally has +6 on its defenses for 3 rounds |
 | 7 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
-| 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round |
+| 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round, fast attacks included (settled at the reveal since 2026-11-03: a fast attack slipped out before it) |
 | 9 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept by the user; moved to 9 when the golem came down) |
 | 10 | Terratrèmol | Atac | every enemy |
 
@@ -192,7 +192,7 @@ the main session.
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Vent a favor | Focus, fast | an ally's card resolves right after it, with +4; the kit's first Focus, its turtle-breaker |
 | 4 | Coixí d'aire | Focus, fast | every blow on your side this round is 6 softer |
-| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy (1d4 each; the user's pick, 2026-11-02; it ignored armour before, "kinda meh") |
+| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy, the same one if you like (1d4 each; the user's pick, 2026-11-02) |
 | 6 | Finta a contrapeu | Defensa | if it holds, the attacker has −6 on its attacks and its defenses next round (the user's design, 2026-11-02) |
 | 7 | Remolí | Focus | the chosen enemy is out of the fight for the next 2 rounds; not two rounds running |
 | 8 | Contracorrent | Focus, fast | the rest of the round runs backwards: Focus, then attacks, then defenses, so that round's normal defenses come up too late (the user's pick, 2026-11-02, a knowing exception to "a correct read is never wasted") |

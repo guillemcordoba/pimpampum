@@ -246,7 +246,7 @@ export const GENERIC_EFFECTS: Record<string, EffectHandler> = {
   stun_on_hit: {
     onAttackHit(ctx) {
       if (!ctx.target || !ctx.target.isAlive() || (ctx.damageDealt ?? 0) <= 0 || warded(ctx.target)) return;
-      ctx.target.skipTurns += num(ctx.params, 'turns', 1);
+      ctx.target.skipTurns = Math.max(ctx.target.skipTurns, num(ctx.params, 'turns', 1));
       ctx.engine.log('attack', `${ctx.target.name} perd el torn següent.`, ctx.source.team);
     },
     aiWeight() { return 0.8; },

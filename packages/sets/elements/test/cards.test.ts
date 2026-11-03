@@ -71,7 +71,7 @@ describe("Mestre de l'aigua", () => {
     expect([water.hasStatus('boira-espessa'), ally.hasStatus('boira-espessa')]).toEqual([false, false]);
   });
 
-  it('Boira espessa: about one enemy blow in two is lost in the fog', () => {
+  it('Boira espessa: about one enemy blow in four is lost in the fog', () => {
     let lost = 0;
     withSeed(31, () => {
       for (let n = 0; n < 400; n++) {
@@ -83,8 +83,8 @@ describe("Mestre de l'aigua", () => {
         if (water.currentPV === 30) lost++;
       }
     });
-    expect(lost / 400).toBeGreaterThan(0.42);
-    expect(lost / 400).toBeLessThan(0.58);
+    expect(lost / 400).toBeGreaterThan(0.18);
+    expect(lost / 400).toBeLessThan(0.32);
   });
 
   it('Marea de vida: one roll heals the whole party, the fallen too; 1 fatigue', () => {
@@ -101,8 +101,8 @@ describe("Mestre de l'aigua", () => {
     expect(water.fatigue).toBe(1);
   });
 
-  it('Marea alta: every enemy that played a Defense this round loses half its own defense roll', () => {
-    const water = fighter('Aigua', [getAction('marea-alta')!], { pv: 30 });
+  it('Portes al mar: every enemy that played a Defense this round loses half its own defense roll', () => {
+    const water = fighter('Aigua', [getAction('portes-al-mar')!], { pv: 30 });
     const a = fighter('A', [defenseCard('mur', { dice: new DiceRoll(6, 1) })], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     playRound(engineFor([water], [a, b]), [sel(0, 0, 0), sel(1, 0, 0, T(1, 0)), sel(1, 1, 0)]);

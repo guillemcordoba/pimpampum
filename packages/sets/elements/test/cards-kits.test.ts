@@ -79,6 +79,22 @@ describe('Mestre de la terra', () => {
     expect(engine.canPlayActionIdx(foe, 1)).toBe(true);
   });
 
+  it('Búnquer: nobody on its side attacks this round — fast attacks included', () => {
+    const earth = fighter('Terra', [getAction('bunquer')!], { pv: 30 });
+    const ally = fighter('Amic', [blow(5, true)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([earth, ally], [foe]), [sel(0, 0, 0), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(30);
+  });
+
+  it('Allau: a second burial in the same round does not add a lost turn', () => {
+    const e1 = fighter('T1', [flat('allau', 1, 5)], { pv: 30 });
+    const e2 = fighter('T2', [flat('allau', 1, 5)], { pv: 30 });
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([e1, e2], [foe]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.skipTurns).toBe(1);
+  });
+
   it('Trampa de terra: the trapped attacker cannot attack for two rounds', () => {
     const earth = fighter('Terra', [flat('trampa-de-terra', 1, 100), wait], { pv: 30 });
     const foe = fighter('Foe', [blow(4), wait], { pv: 30 });
@@ -363,6 +379,14 @@ describe("Mestre de l'aire", () => {
     const c = fighter('C', [wait], { pv: 30 });
     playRound(engineFor([air], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }, { team: 1, idx: 2 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
     expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([27, 27, 27]);
+  });
+
+  it('Fulles de vent: the picks may repeat — two blades at one enemy, one at the other', () => {
+    const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
+    const a = fighter('A', [wait], { pv: 30 });
+    const b = fighter('B', [wait], { pv: 30 });
+    playRound(engineFor([air], [a, b]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 0 }, { team: 1, idx: 1 }]), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([24, 27]);
   });
 
   it('Fulles de vent: with one enemy chosen, all three blows go at it, each against its own roll', () => {

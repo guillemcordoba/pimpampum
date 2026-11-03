@@ -587,10 +587,11 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   /** Cancel `target`'s still-pending action this round. An action that already
-   *  resolved (an earlier step, or earlier in this one) can't be cancelled.
+   *  resolved (an earlier step, or earlier in this one) can't be cancelled; at
+   *  the reveal, before anything resolves, every card can.
    *  Returns true if something was cancelled. */
   cancelPendingAction(target: Character): boolean {
-    for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
+    for (let i = this.tierKey === null ? this.pendingIndex : this.pendingIndex + 1; i < this.pending.length; i++) {
       const p = this.pending[i];
       if (p.actor === target && !p.cancelled) { p.cancelled = true; return true; }
     }
@@ -1326,7 +1327,7 @@ export class CombatEngine implements EngineApi, AIView {
       p.targets = [];
     } else {
       const pool = this.eligibleTargets(p.actor, def, req);
-      p.targets = count >= pool.length
+      p.targets = count >= pool.length && !def.targetsRepeat
         ? pool
         : this.inSeatStream(this.actStream(p.actor), () => this.autoTargets(p.actor, def, req, count));
     }
@@ -1349,7 +1350,9 @@ export class CombatEngine implements EngineApi, AIView {
       if (p.targets !== null || p.cancelled || !p.actor.isAlive() || !this.aimsAtReveal(p.actor, p.action.def)) continue;
       const req = this.requirementOf(p.actor, p.action.def);
       const count = this.targetCountOf(p.actor, p.action.def);
-      if (req === 'none' || p.actor.aiControlled || count >= this.eligibleTargets(p.actor, p.action.def, req).length) {
+      const pool = req === 'none' ? [] : this.eligibleTargets(p.actor, p.action.def, req);
+      const noChoice = count >= pool.length && !(p.action.def.targetsRepeat && pool.length > 1);
+      if (req === 'none' || p.actor.aiControlled || noChoice) {
         this.aimNow(i);
         continue;
       }
@@ -1525,7 +1528,7 @@ export class CombatEngine implements EngineApi, AIView {
         cur.targets = Array(count).fill(forced);
       } else {
         const pool = this.eligibleTargets(cur.actor, cur.action.def, req);
-        if (count >= pool.length) {
+        if (count >= pool.length && !(cur.action.def.targetsRepeat && pool.length > 1)) {
           cur.targets = pool;
         } else if (cur.actor.aiControlled) {
           // In the actor's own stream, like the action: a searched target draws

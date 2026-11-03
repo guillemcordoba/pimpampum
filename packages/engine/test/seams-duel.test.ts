@@ -226,6 +226,20 @@ describe('a card that aims at the reveal (aimsAtReveal / onAimed / presetAttackR
     e.finishRound();
     expect(f2.currentPV).toBe(23);
   });
+
+  it('a card whose picks may repeat asks its human seat even when its count covers every enemy', () => {
+    const ask = (targetsRepeat: boolean) => {
+      const me = fighter('Jo', [attackCard('ventall', { targetCount: 3, targetsRepeat })]);
+      const f1 = fighter('F1', [focusCard()], { pv: 30, ai: true });
+      const f2 = fighter('F2', [focusCard()], { pv: 30, ai: true });
+      const e = engine(new EffectRegistry(), [me], [f1, f2]);
+      e.prepareRound();
+      e.planActions([{ team: 0, idx: 0, actionIdx: 0 }]);
+      return e.resolveNextAction().kind;
+    };
+    expect(ask(true)).toBe('target');
+    expect(ask(false)).not.toBe('target');
+  });
 });
 
 describe('equipment whose bonuses need a skill (bonusRequires)', () => {

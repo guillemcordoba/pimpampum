@@ -37,6 +37,7 @@ interface ActionOpts {
   dice?: DiceRoll;
   rollBonus?: number;
   targetCount?: number;
+  targetsRepeat?: boolean;
   /** Multi-target attacks: roll fresh dice against each target (default: one shared roll). */
   rollPerTarget?: boolean;
   effects?: ActionEffect[];
@@ -63,6 +64,7 @@ export function action(o: ActionOpts): ActionDefinition {
     dice: o.dice,
     rollBonus: o.rollBonus,
     targetCount: o.targetCount,
+    targetsRepeat: o.targetsRepeat,
     rollPerTarget: o.rollPerTarget,
     effects,
     description: o.desc,
