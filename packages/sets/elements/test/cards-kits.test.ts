@@ -372,28 +372,28 @@ describe("Mestre de l'aire", () => {
     expect(foe.currentPV).toBe(21);
   });
 
-  it('Fulles de vent: three blows, one at each chosen enemy', () => {
+  it('Fulles de vent: two blows, one at each chosen enemy', () => {
     const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
     const c = fighter('C', [wait], { pv: 30 });
-    playRound(engineFor([air], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 1 }, { team: 1, idx: 2 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
-    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([27, 27, 27]);
+    playRound(engineFor([air], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 2 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
+    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([27, 30, 27]);
   });
 
-  it('Fulles de vent: the picks may repeat — two blades at one enemy, one at the other', () => {
+  it('Fulles de vent: the picks may repeat — both blades at one enemy', () => {
     const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [wait], { pv: 30 });
-    playRound(engineFor([air], [a, b]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 0 }, { team: 1, idx: 1 }]), sel(1, 0, 0), sel(1, 1, 0)]);
-    expect([a.currentPV, b.currentPV]).toEqual([24, 27]);
+    playRound(engineFor([air], [a, b]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 0 }]), sel(1, 0, 0), sel(1, 1, 0)]);
+    expect([a.currentPV, b.currentPV]).toEqual([24, 30]);
   });
 
-  it('Fulles de vent: with one enemy chosen, all three blows go at it, each against its own roll', () => {
+  it('Fulles de vent: with one enemy chosen, both blows go at it, each against its own roll', () => {
     const air = fighter('Aire', [flat('fulles-de-vent', 1, 2)], { pv: 30 });
     const foe = fighter('Foe', [wait], { pv: 30, equipment: [armour(1)] });
     playRound(engineFor([air], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
-    expect(foe.currentPV).toBe(30 - 3 * (3 - 1));
+    expect(foe.currentPV).toBe(30 - 2 * (3 - 1));
   });
 
   it('Finta a contrapeu: a held blow leaves the attacker −6 on its attacks and its defenses next round', () => {

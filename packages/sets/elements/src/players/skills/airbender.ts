@@ -107,14 +107,14 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length ? 0.7 : 0; },
   },
 
-  // 5 · Fulles de vent: three blades, each its own blow at a chosen enemy;
+  // 5 · Fulles de vent: `blows` blades, each its own blow at a chosen enemy;
   // blades beyond the enemies chosen go at the first again.
-  three_blades: {
+  wind_blades: {
     modifyAttack(ctx) { if (ctx.attackMods) ctx.attackMods.skip = true; },
     onAttackResolved(ctx) {
       const dice = ctx.action.dice;
       if (!dice) return;
-      const blows = num(ctx.params, 'blows', 3);
+      const blows = num(ctx.params, 'blows', 2);
       for (let b = 0; b < blows && ctx.source.isAlive(); b++) {
         const t = ctx.targets[b]?.isAlive() ? ctx.targets[b] : ctx.targets.find(a => a.isAlive());
         if (!t) break;
@@ -238,9 +238,9 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'fulles-de-vent', name: 'Fulles de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, dice: d(1, 4), targetCount: 3, targetsRepeat: true,
-      effects: [{ type: 'three_blades', params: { blows: 3 } }],
-      desc: "Tres atacs, cadascun contra l'enemic que triïs.",
+      unlock: 5, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2, targetsRepeat: true,
+      effects: [{ type: 'wind_blades', params: { blows: 2 } }],
+      desc: "Dos atacs, cadascun contra l'enemic que triïs.",
       icon: 'lorc/air-zigzag.svg',
     }),
     action({

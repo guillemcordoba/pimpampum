@@ -192,7 +192,7 @@ the main session.
 | 2 | Ràfega desviadora | Defensa | a held blow goes, whole, at an enemy you choose |
 | 3 | Vent a favor | Focus, fast | an ally's card resolves right after it, with +4; the kit's first Focus, its turtle-breaker |
 | 4 | Coixí d'aire | Focus, fast | every blow on your side this round is 6 softer |
-| 5 | Fulles de vent | Atac | three blows, each at a chosen enemy, the same one if you like (1d4 each; the user's pick, 2026-11-02) |
+| 5 | Fulles de vent | Atac | two blows, each at a chosen enemy, the same one if you like (2d4+1 each; three 1d4 blows until 2026-11-03, the user: stronger, two enemies) |
 | 6 | Finta a contrapeu | Defensa | if it holds, the attacker has −6 on its attacks and its defenses next round (the user's design, 2026-11-02) |
 | 7 | Remolí | Focus | the chosen enemy is out of the fight for the next 2 rounds; not two rounds running |
 | 8 | Contracorrent | Focus, fast | the rest of the round runs backwards: Focus, then attacks, then defenses, so that round's normal defenses come up too late (the user's pick, 2026-11-02, a knowing exception to "a correct read is never wasted") |
