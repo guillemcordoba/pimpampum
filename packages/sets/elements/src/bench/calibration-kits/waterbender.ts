@@ -11,8 +11,8 @@ import { BURN_KEY } from '../../players/effects/cremat.js';
  * cartes", 2026-11-01, and the cards they picked on 2026-11-02): the
  * defensive, healing bender, fire's opposite. A plain wall, a thick fog in
  * which the enemies' blows get lost, eight arms over the whole party; a spring that heals and
- * puts out burns, and the tide that raises everyone; a high tide that sweeps
- * whoever stood behind a guard, the forbidden bloodbending; and the tsunami. The numbers are this file's, on the
+ * puts out burns, and the tide that raises everyone; the sea that slams every
+ * raised guard back into its holder, the forbidden bloodbending; and the tsunami. The numbers are this file's, on the
  * dice ladder (intentions.md).
  */
 
@@ -81,9 +81,9 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
     },
   },
 
-  // 3 · Marea alta: the tide sweeps whoever stayed planted behind a guard —
-  // every enemy that played a Defense this round rolls its dice again and loses
-  // half of it (rounded down).
+  // 3 · Portes al mar: the sea slams every raised guard back into whoever holds
+  // it — every enemy that played a Defense this round rolls its dice again and
+  // loses half of it (rounded down): the bigger the door, the harder the slam.
   'high_tide@cal': {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
@@ -91,7 +91,7 @@ const WATER_EFFECTS: Record<string, EffectHandler> = {
         if (p.cancelled || p.actor.team === ctx.source.team || !p.actor.isAlive() || p.action.actionType !== ActionType.Defensa) continue;
         const loss = Math.floor(ctx.engine.rollDiceFor(p.actor, p.action.dice) / 2);
         if (loss <= 0) continue;
-        ctx.engine.log('focus', `La marea arrossega ${p.actor.name}: ${loss} PV.`, ctx.source.team);
+        ctx.engine.log('focus', `El mar estampa contra ${p.actor.name} la seva pròpia guàrdia: ${loss} PV.`, ctx.source.team);
         ctx.engine.applyPvLoss(p.actor, loss, ctx.source);
       }
     },
@@ -127,15 +127,15 @@ export const WATERBENDER: SkillDefinition = {
       icon: 'lorc/splashy-stream.svg',
     }),
     action({
-      id: 'marea-alta@cal', name: 'Marea alta', skillId: SKILL_ID,
+      id: 'portes-al-mar@cal', name: 'Portes al mar', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
       effects: [{ type: 'high_tide@cal' }],
       desc: "Cada enemic que aquest torn hagi jugat una Defensa en torna a tirar els daus i perd la meitat d'aquells PV.",
-      icon: 'lorc/high-tide.svg',
+      icon: 'lorc/closed-doors.svg',
     }),
     action({
       id: 'font-curativa@cal', name: 'Font curativa', skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Focus, dice: d(3, 4, 4),
+      unlock: 4, type: ActionType.Focus, dice: d(2, 4, 2),
       effects: [{ type: 'heal' }, { type: 'douse@cal' }],
       desc: 'Cura un aliat i li apaga Cremat.',
       icon: 'lorc/heart-drop.svg',
@@ -143,8 +143,8 @@ export const WATERBENDER: SkillDefinition = {
     action({
       id: 'boira-espessa@cal', name: 'Boira espessa', skillId: SKILL_ID,
       unlock: 5, type: ActionType.Focus,
-      effects: [{ type: 'thick_fog@cal', params: { rounds: 5, misses: 2 } }],
-      desc: 'Els 5 torns següents, cada atac contra el teu grup tira 1d4: amb 1 o 2, falla.',
+      effects: [{ type: 'thick_fog@cal', params: { rounds: 5, misses: 1 } }],
+      desc: 'Els 5 torns següents, cada atac contra el teu grup tira 1d4: amb un 1, falla.',
       icon: 'delapouite/fog.svg',
     }),
     action({

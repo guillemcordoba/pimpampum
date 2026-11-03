@@ -19,7 +19,10 @@ const SKILL_ID = 'firebender@cal';
 
 function scorch(attacker: Character | undefined, bender: Character, engine: EngineApi, loss: number): void {
   if (!attacker?.isAlive()) return;
-  if (loss > 0) engine.applyPvLoss(attacker, loss, bender);
+  if (loss > 0) {
+    engine.log('defense', `El mantell de flames crema ${attacker.name}: ${loss} PV.`, bender.team);
+    engine.applyPvLoss(attacker, loss, bender);
+  }
   setAlight(attacker, bender, engine);
 }
 

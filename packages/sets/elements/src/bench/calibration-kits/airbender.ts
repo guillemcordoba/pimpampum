@@ -70,7 +70,7 @@ const AIR_EFFECTS: Record<string, EffectHandler> = {
   'push_back@cal': {
     onAttackHit(ctx) {
       const t = ctx.target;
-      if (!t || (ctx.damageDealt ?? 0) <= 0) return;
+      if (!t?.isAlive() || (ctx.damageDealt ?? 0) <= 0) return;
       const own = ctx.engine.plannedThisRound().find(p => p.actor === t && !p.resolved && !p.cancelled);
       if (!own || own.action.actionType === ActionType.Defensa) return;
       if (ctx.engine.delayPendingAction(t)) ctx.engine.log('attack', `${t.name} recula: actua l'últim aquest torn.`, ctx.source.team);
@@ -241,7 +241,7 @@ export const AIRBENDER: SkillDefinition = {
     }),
     action({
       id: 'fulles-de-vent@cal', name: 'Fulles de vent', skillId: SKILL_ID,
-      unlock: 5, type: ActionType.Atac, dice: d(1, 4), targetCount: 3,
+      unlock: 5, type: ActionType.Atac, dice: d(1, 4), targetCount: 3, targetsRepeat: true,
       effects: [{ type: 'three_blades@cal', params: { blows: 3 } }],
       desc: "Tres atacs, cadascun contra l'enemic que triïs.",
       icon: 'lorc/air-zigzag.svg',

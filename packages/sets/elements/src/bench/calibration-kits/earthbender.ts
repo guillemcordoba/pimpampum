@@ -110,12 +110,16 @@ const EARTH_EFFECTS: Record<string, EffectHandler> = {
   // this round.
   'bunker@cal': {
     getTargetRequirement() { return 'self'; },
-    onResolve(ctx) {
-      for (const ally of ctx.engine.alliesOf(ctx.source, false)) guardWith(ctx.source, ally, ctx);
+    // "Aquest torn, cap de vosaltres no pot atacar": the whole round, so it is
+    // settled at the reveal, before a fast attack could slip out first.
+    onReveal(ctx) {
       for (const p of ctx.engine.plannedThisRound()) {
-        if (p.actor.team !== ctx.source.team || p.resolved || p.cancelled || p.action.actionType !== ActionType.Atac) continue;
+        if (p.actor.team !== ctx.source.team || p.cancelled || p.action.actionType !== ActionType.Atac) continue;
         ctx.engine.cancelPendingAction(p.actor);
       }
+    },
+    onResolve(ctx) {
+      for (const ally of ctx.engine.alliesOf(ctx.source, false)) guardWith(ctx.source, ally, ctx);
       ctx.engine.log('defense', `${ctx.source.name} aixeca un búnquer de roca sobre tot el grup: ningú no en surt a atacar.`, ctx.source.team);
     },
     aiWeight(ctx) { return ctx.allies.some(a => a.currentPV < a.maxPV * 0.5) ? 0.9 : 0.3; },
