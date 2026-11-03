@@ -72,15 +72,27 @@ describe('Esgrima', () => {
     expect(foe.currentPV).toBe(27);
   });
 
-  it('Guàrdia camaleó: a card swap after the reveal, for the rest of the combat', () => {
-    const me = fencer('Esgrimista', [card('guardia-camaleo'), blow(3)]);
-    const foe = fighter('Foe', [wait], { pv: 30 });
+  it('Retirada sagnant: the chosen enemy loses 4 PV at each round end until it attacks', () => {
+    const me = fencer('Esgrimista', [card('retirada-sagnant'), wait]);
+    const foe = fighter('Foe', [wait, blow(1)], { pv: 30 });
     const e = engineFor([me], [foe]);
-    playRound(e, [sel(0, 0, 0)]);
-    expect(e.cardSwapCharges(me)).toBeGreaterThan(0);
-    e.prepareRound();
-    e.planActions([sel(0, 0, 0)]);
-    expect(e.flowSwapRefs()).toEqual([{ team: 0, idx: 0 }]);
+    playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(26);
+    playRound(e, [sel(0, 0, 1), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(22);
+    // The round it attacks costs nothing, and the press is over.
+    playRound(e, [sel(0, 0, 1), sel(1, 0, 1, T(0, 0))]);
+    expect(foe.currentPV).toBe(22);
+    expect(foe.hasStatus('retirada-sagnant')).toBe(false);
+  });
+
+  it('Retirada sagnant: an enemy that attacked this round is out of it at once', () => {
+    const me = fencer('Esgrimista', [card('retirada-sagnant')]);
+    const friend = fighter('Amic', [wait], { pv: 30 });
+    const foe = fighter('Foe', [blow(1)], { pv: 30 });
+    playRound(engineFor([me, friend], [foe]), [sel(0, 0, 0, T(1, 0)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
+    expect(foe.currentPV).toBe(30);
+    expect(foe.hasStatus('retirada-sagnant')).toBe(false);
   });
 
   it('Bufetada insolent: a wound means the target can only attack the fencer next turn', () => {

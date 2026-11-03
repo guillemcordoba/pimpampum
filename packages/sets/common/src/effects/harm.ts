@@ -6,8 +6,8 @@ import type { Character, StatusEntry } from '@pimpampum/engine';
  * the same way, so a cleanse in any kit finds every one of them:
  *
  *  - a status or a modifier an enemy card sets carries `harm: 1` in its data
- *    (`HARM`). A cost a card makes its own player pay (a fatigue price, the
- *    master's own half of Bloqueig mutu, the attacker's lowered guard) does not;
+ *    (`HARM`). A cost a card makes its own player pay (a fatigue price,
+ *    the attacker's lowered guard) does not;
  *  - lost actions are the `skipTurns` counter, and only enemy cards raise it;
  *  - a status that takes the BODY out of the fight (swallowed whole) carries
  *    `bodyOut: 1` instead: it is not an effect on the body but where the body

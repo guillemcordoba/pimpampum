@@ -13,7 +13,7 @@ describe('Esgrima', () => {
     expect(MESTRE_ARMES.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
       ['finta-traidora', 1, ActionType.Atac],
       ['retruc-d-acer', 2, ActionType.Defensa],
-      ['guardia-camaleo', 3, ActionType.Focus],
+      ['retirada-sagnant', 3, ActionType.Focus],
       ['bufetada-insolent', 4, ActionType.Atac],
       ['bloqueig-d-escorpi', 5, ActionType.Defensa],
       ['brac-mort', 6, ActionType.Defensa],
@@ -33,8 +33,8 @@ describe('Acrobàcia', () => {
     expect(ACROBACIA.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
       ['escombrada', 1, ActionType.Atac],
       ['esquiva-i-traveta', 2, ActionType.Defensa],
-      ['trampoli-de-mans', 3, ActionType.Focus],
-      ['puntada-d-espagat', 4, ActionType.Atac],
+      ['rodes-de-mareig', 3, ActionType.Focus],
+      ['trampoli-de-mans', 4, ActionType.Focus],
       ['tombarella-de-rescat', 5, ActionType.Defensa],
       ['cavalcar-l-enemic', 6, ActionType.Atac],
       ['trepitjar-caps', 7, ActionType.Atac],
@@ -75,9 +75,9 @@ describe('Mestre del xi', () => {
     expect(MESTRE_DEL_XI.actions.map(a => [a.id, a.unlockLevel, a.actionType])).toEqual([
       ['cop-al-nervi', 1, ActionType.Atac],
       ['pinca-entumidora', 2, ActionType.Defensa],
-      ['desbloquejar-el-cos', 3, ActionType.Focus],
-      ['poder-apagat', 4, ActionType.Atac],
-      ['bloqueig-mutu', 5, ActionType.Defensa],
+      ['punts-de-la-guardia', 3, ActionType.Focus],
+      ['desbloquejar-el-cos', 4, ActionType.Focus],
+      ['poder-apagat', 5, ActionType.Atac],
       ['rafega-de-dits', 6, ActionType.Atac],
       ['tocs-en-cadena', 7, ActionType.Atac],
       ['cop-de-vida', 8, ActionType.Focus],

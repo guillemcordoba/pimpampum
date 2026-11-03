@@ -1,11 +1,12 @@
-import { ActionDefinition, ActionType, Character, EffectContext, EffectHandler, EngineApi, StatusBehavior } from '@pimpampum/engine';
+import { ActionDefinition, ActionType, Character, EffectContext, EffectHandler, EngineApi, PendingSummary, StatusBehavior } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { num } from '../effects/helpers.js';
 
 /**
  * ACROBÀCIA — the body as the weapon: no blade, no weapon needed. Sweeps and
  * trips put the enemy on the ground (A TERRA: every attack on them has +2
- * until the end of the next round), the body lends itself to the team (a hand
+ * until the end of the next round), the cartwheels circle a guard until it
+ * cannot follow them, the body lends itself to the team (a hand
  * trampoline, a rescue roll) and climbs over the enemy (riding one, stepping
  * on heads) — and three finishers paid in fatigue: the somersault whose
  * height is a bet, the juggling kicks, the suicide dive.
@@ -14,7 +15,7 @@ import { num } from '../effects/helpers.js';
  * the approved design's.
  */
 
-// --- A terra (cards 1, 2, 3, 7, 9, 10) -------------------------------------
+// --- A terra (cards 1, 2, 3, 4, 7, 9, 10) ----------------------------------
 
 const A_TERRA_KEY = 'a-terra';
 
@@ -36,7 +37,13 @@ function floor(engine: EngineApi, c: Character | undefined, team: number, bonus 
   engine.log('attack', `${c.name} queda a terra: els atacs contra ell tenen +${bonus} fins al final del torn següent.`, team);
 }
 
-// --- 3 · Trampolí de mans ----------------------------------------------------
+// --- 3 · Rodes de mareig ---------------------------------------------------
+
+function defendsThisRound(c: Character, plan: readonly PendingSummary[]): boolean {
+  return plan.some(p => p.actor === c && !p.cancelled && p.action.actionType === ActionType.Defensa);
+}
+
+// --- 4 · Trampolí de mans ----------------------------------------------------
 
 /** Launched: every target the holder's launched card (`data.card`) wounds
  *  this round is on the ground. Unpriced: it lives and dies inside the round
@@ -112,7 +119,26 @@ const ACROBACIA_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.4; },
   },
 
-  // 3 · Trampolí de mans: the ally's Atac this round, if it has not resolved,
+  // 3 · Rodes de mareig: an attack on the chosen enemy with the card's dice;
+  // every defense covering it rolls `rolls` times and keeps the worst. Whoever
+  // it wounds is on the ground.
+  dizzying_wheels: {
+    getTargetRequirement() { return 'enemy'; },
+    onResolve(ctx) {
+      const t = ctx.targets[0];
+      const dice = ctx.action.dice;
+      if (!t?.isAlive() || !dice) return;
+      const blow = ctx.engine.performExtraAttack(ctx.source, t, dice, {
+        skillId: ctx.action.skillId, rollBonus: ctx.action.rollBonus ?? 0,
+        minDefenseRolls: num(ctx.params, 'rolls', 5), label: `${ctx.source.name} «${ctx.action.name}»`,
+      });
+      if (blow.damage > 0) floor(ctx.engine, blow.recipient ?? t, ctx.source.team, num(ctx.params, 'bonus', 2));
+    },
+    aiTargetPriority(ctx, candidate) { return defendsThisRound(candidate, ctx.plan) ? 10 : 0; },
+    aiWeight(ctx) { return ctx.enemies.length ? 0.6 : 0; },
+  },
+
+  // 4 · Trampolí de mans: the ally's Atac this round, if it has not resolved,
   // resolves now; whoever it wounds is on the ground. Anything else: wasted.
   hand_trampoline: {
     getTargetRequirement() { return 'ally_other'; },
@@ -278,17 +304,18 @@ export const ACROBACIA: SkillDefinition = {
       icon: 'felbrigg/dodge.svg',
     }),
     action({
+      id: 'rodes-de-mareig', name: 'Rodes de mareig', skillId: 'acrobacia',
+      unlock: 3, type: ActionType.Focus, dice: d(2, 4, 1),
+      effects: [{ type: 'dizzying_wheels', params: { rolls: 5 } }],
+      desc: "Ataca l'enemic que triïs: les defenses que el cobreixen tiren cinc vegades i es queden la pitjor. Si fereix, queda a terra.",
+      icon: 'delapouite/high-kick.svg',
+    }),
+    action({
       id: 'trampoli-de-mans', name: 'Trampolí de mans', skillId: 'acrobacia',
-      unlock: 3, type: ActionType.Focus, fast: true,
+      unlock: 4, type: ActionType.Focus, fast: true,
       effects: [{ type: 'hand_trampoline' }],
       desc: "Un aliat: el seu atac d'aquest torn es resol ara; si fereix, l'objectiu queda a terra.",
       icon: 'delapouite/leapfrog.svg',
-    }),
-    action({
-      id: 'puntada-d-espagat', name: "Puntada d'espagat", skillId: 'acrobacia',
-      unlock: 4, type: ActionType.Atac, dice: d(2, 4, 1), targetCount: 2,
-      desc: 'Afecta dos enemics.',
-      icon: 'delapouite/van-damme-split.svg',
     }),
     action({
       id: 'tombarella-de-rescat', name: 'Tombarella de rescat', skillId: 'acrobacia',

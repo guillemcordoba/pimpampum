@@ -8,24 +8,24 @@ house style are the ones in `packages/sets/elements/DESIGN.md` and
 
 ## Esgrima — `mestre-armes` (landed 2026-10-13)
 
-*The duel: it wins by answering the card the enemy chose* — reads it (3),
+*The duel: it wins by answering the card the enemy chose* — presses it (3),
 provokes it (4), catches it (2, 5, 6, 7), finds its weak spot (8), and
 finishes with the thrust nobody has seen (9) or a run of cuts through the line
 (10). Attacks add the wielded weapon's bonus. Picked by the user slot by slot
 after five naming rounds.
 
-| # | card | type · speed · dice | what it does |
+| # | card | type · dice | what it does |
 |---|---|---|---|
-| 1 | Finta traïdora | Atac · 2 · 1d6 + arma | if the target revealed a Defensa, its defense −4 |
-| 2 | Retruc d'acer | Defensa · 3 · 3d4 | if it holds, an unguardable riposte 1d6 + arma |
-| 3 | Guàrdia camaleó | Focus · 1 | rest of combat: swap your card after the reveal |
-| 4 | Bufetada insolent | Atac · 2 · 2d6 + arma | if it wounds, next round the target can attack only you |
-| 5 | Bloqueig d'escorpí | Defensa · 3 · 2d8 | if it holds, your next attack on it can't be defended |
-| 6 | Braç mort | Defensa · 2 · 4d4 | if it holds, the attacker can't play Atacs next round |
-| 7 | Bardissa d'acer | Atac · 1 · 3d6 + arma | its roll also defends you from every attack of the target this round |
-| 8 | Punt feble | Focus · 1 | an enemy: your side's attacks on it face −3 defense, rest of combat |
-| 9 | Estocada fantasma | Atac · 2 · 3d8 + arma · 1 fatiga | undefendable, ignores armour, unless the target already received it |
-| 10 | Tall rere tall | Atac · 1 · 3d6 + arma · 2 fatiga | while it wounds, attacks another random enemy not yet hit |
+| 1 | Finta traïdora | Atac · 1d4 + arma | if the target revealed a Defensa, its defense −4 |
+| 2 | Retruc d'acer | Defensa · 2d4 | if it holds, an unguardable riposte 1d6 + arma |
+| 3 | Retirada sagnant | Focus | the chosen enemy loses 4 PV at the end of this round and every round after, until it attacks |
+| 4 | Bufetada insolent | Atac · 2d4+1 + arma | if it wounds, next round the target can attack only you |
+| 5 | Bloqueig d'escorpí | Defensa · 3d4 | if it holds, your next attack on it can't be defended |
+| 6 | Braç mort | Defensa · 3d4+1 | if it holds, the attacker can't play Atacs next round |
+| 7 | Bardissa d'acer | Atac · 2d8 + arma | its roll also defends you from every attack of the target this round |
+| 8 | Punt feble | Focus | an enemy: your side's attacks on it face −3 defense, rest of combat |
+| 9 | Estocada fantasma | Atac · 5d4 + arma · 1 fatiga | undefendable, ignores armour, unless the target already received it |
+| 10 | Tall rere tall | Atac · 4d4 + arma · 2 fatiga | while it wounds, attacks another random enemy not yet hit |
 
 Weapons (shared): bastó +0 · Espasa lleugera +1 attack and +1 Defensa, only
 with Esgrima 2+ (an experiment) · destral +2 · gran destral +4, −1 speed.
@@ -40,18 +40,57 @@ halve the damage). The dice are
 provisional (tuned in NEXT-STEPS §48); Toc de la mort's rule is being chosen among measured variants
 (NEXT-STEPS §47).
 
-| # | card | type · speed · dice | what it does |
+| # | card | type · dice | what it does |
 |---|---|---|---|
-| 1 | Cop al nervi | Atac · 2 · 2d4 | if it wounds, numb |
-| 2 | Pinça entumidora | Defensa · 3 · 3d4 | block an enemy; if it holds, the attacker numb |
-| 3 | Desbloquejar el cos | Focus · −1 | a standing ally, or you, recovers 4 PV and sheds every efecte negatiu (not a swallowed body) |
-| 4 | Poder apagat | Atac · 2 · 2d6 | if it wounds, next round its card is only its dice |
-| 5 | Bloqueig mutu | Defensa · 2 · 2d8 | block an enemy; if it holds, next round neither of you plays a card |
-| 6 | Ràfega de dits | Atac · 1 · 1d6 ×3 · 1 fatiga | two wounds numb; three cancel its action this round |
-| 7 | Tocs en cadena | Atac · 1 · 2d6 | up to three enemies, one roll; the wounded numb |
-| 8 | Cop de vida | Focus · 0 | a fallen ally rises with half its starting PV, +1 fatigue |
-| 9 | Toc de la mort | Atac · 2 · 2d8 | if it wounds, a delayed death (variant: Ressò by default) |
-| 10 | Tempesta de son | Atac · 1 · 3d8 · 2 fatiga | every enemy, no damage; the beaten sleep until they lose PV or roll 11+ |
+| 1 | Cop al nervi | Atac · 1d4 | if it wounds, numb |
+| 2 | Pinça entumidora | Defensa · 2d4 | block an enemy; if it holds, the attacker numb |
+| 3 | Punts de la guàrdia | Focus · 1d6 | attacks the chosen enemy; a defense adds to the attack instead of taking away |
+| 4 | Desbloquejar el cos | Focus | a standing ally, or you, recovers 8 PV and sheds every efecte negatiu (not a swallowed body) |
+| 5 | Poder apagat | Atac · 2d4+1 | if it wounds, next round its card is only its dice |
+| 6 | Ràfega de dits | Atac · fast · 1d6 ×3 · 1 fatiga | two wounds numb; three cancel its action this round |
+| 7 | Tocs en cadena | Atac · 2d6 | up to three enemies, one roll; the wounded numb |
+| 8 | Cop de vida | Focus | a fallen ally rises with half its starting PV, +1 fatigue |
+| 9 | Toc de la mort | Atac · 2d8 | if it wounds, a delayed death (variant: Ressò by default) |
+| 10 | Tempesta de son | Atac · 5d4 · 2 fatiga | every enemy, no damage; the beaten sleep until they lose PV or roll 11+ |
+
+## Acrobàcia — `acrobacia`
+
+| # | card | type · dice | what it does |
+|---|---|---|---|
+| 1 | Escombrada | Atac · 1d4 | if it wounds, the target is on the ground (+2 to attacks on it to the end of next round) |
+| 2 | Esquiva i traveta | Defensa · 2d4 | if it holds, the attacker is on the ground |
+| 3 | Rodes de mareig | Focus · 2d4+1 | attacks the chosen enemy; the defenses covering it roll five times and keep the worst; a wound floors it |
+| 4 | Trampolí de mans | Focus · fast | an ally's attack this round resolves now; whoever it wounds is on the ground |
+| 5 | Tombarella de rescat | Defensa · 3d4 | defends the first ally attacked this round |
+| 6 | Cavalcar l'enemic | Atac · 2d6+1 | if it wounds, the target can't attack you next round |
+| 7 | Trepitjar caps | Atac · 2d6 | every enemy; the one you choose is on the ground |
+| 8 | Salt mortal | Atac · 3d6 · 1 fatiga | at the reveal choose +2/+4/+6; if the target doesn't fall, you lose as much |
+| 9 | Malabars a puntades | Atac · 2d6 · 1 fatiga | while it wounds, attacks it again (4 blows); a wound floors it |
+| 10 | Capbussó suïcida | Atac · 5d4 · 2 fatiga | every enemy; the wounded are on the ground, and so are you |
+
+## First Focus: anti-turtle (2026-11-03)
+
+Each kit's level-3 Focus answers a turtle, each in its own way (intentions.md),
+from `card-designer` proposals the user accepted with "apply all
+recommendations". A Focus that throws a plain attack meets a guard that is
+still up, so the picks keep the guard from holding, or don't attack at all;
+each picks a trigger of its own (water and earth: "played a Defense").
+
+- **Esgrima — Retirada sagnant** (kendo *seme*: press until the rival moves):
+  whoever holds back bleeds, and attacking its way out walks into the payoff
+  defenses (Retruc, Escorpí, Braç mort). Cop desesperat counts as an attack.
+- **Mestre del xi — Punts de la guàrdia** (blocking a chi-blocker hands over
+  the limb): a defense adds to the blow; a wall adds its sum; the guard takes
+  it. Desbloquejar el cos moves to 4, Poder apagat to 5.
+- **Acrobàcia — Rodes de mareig** (capoeira *aú*, circling): the game's own
+  Envoltat, five times over, from one body. Trampolí de mans moves to 4.
+
+Engine seams (generic, on an extra blow): `defenseAdds`, `minDefenseRolls`.
+
+**Parked** (out of the kits, kept as ideas): Guàrdia camaleó (Esgrima 3: swap
+your card after the reveal, rest of combat; the AI never swaps, so it was
+unmeasurable), Bloqueig mutu (Xi 5: if it holds, next round neither of you
+plays a card), Puntada d'espagat (Acrobàcia 4: one roll against two enemies).
 
 ## Drafts — Acrobàcia, Mestre del xi, Artífex (2026-10-13, NOT picked)
 

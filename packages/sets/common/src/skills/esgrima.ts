@@ -1,4 +1,4 @@
-import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, random } from '@pimpampum/engine';
+import { ActionType, Character, EffectContext, EffectHandler, PendingSummary, StatusBehavior, random } from '@pimpampum/engine';
 import { SkillDefinition, action, d, ICON_PREFIX } from '../types.js';
 import { diceParam, num, wieldedWeaponBonus } from '../effects/helpers.js';
 
@@ -6,9 +6,9 @@ import { diceParam, num, wieldedWeaponBonus } from '../effects/helpers.js';
  * ESGRIMA — the duel: read the rival, provoke them, answer them. The attacks
  * roll their own dice (the technique) plus the wielded weapon (the generic
  * `weapon_damage`, which also makes them need one). Three threads rise with
- * the level: the READ (a feint at a raised guard, 1; the camaleon guard that
- * changes its card after the reveal, 3; the weak spot, 8), the PROVOCATION (a
- * slap that draws every blow, 4; the hedge of steel that parries with its own
+ * the level: the READ (a feint at a raised guard, 1; the weak spot, 8), the
+ * PROVOCATION (the press that bleeds whoever holds back, 3; a slap that draws
+ * every blow, 4; the hedge of steel that parries with its own
  * cut, 7) and the ANSWER (the riposte, 2; the scorpion's sting, 5; the dead
  * arm, 6) — and two finishers paid in fatigue (the ghost thrust, 9; cut after
  * cut, 10).
@@ -23,17 +23,32 @@ function fromRound(data: Record<string, unknown> | undefined): number {
   return typeof r === 'number' ? r : 0;
 }
 
-// --- 3 · Guàrdia camaleó -----------------------------------------------------
+// --- 3 · Retirada sagnant ---------------------------------------------------
 
-/** Post-reveal card swaps, unlimited for the rest of the combat (the engine's
- *  flowSwap checks/spends; spending is a no-op here). */
-const FLUX: StatusBehavior = {
-  cardSwapCharges() { return 1; },
-  spendCardSwapCharge() {},
-  /** A held swap is the right card instead of the wrong one, once. Small and
-   *  flat: it is real, and it is not worth a body. */
-  positionValue() { return 0.15; },
+const PRESSED_KEY = 'retirada-sagnant';
+
+/** Pressed: the holder loses `value` PV at each round's end, until a round
+ *  it played an Atac (Cop desesperat too) — that round costs nothing and the
+ *  press is over. */
+const PRESSED: StatusBehavior = {
+  harmful: true,
+  onRoundEnd(ctx) {
+    if (ctx.playedAction?.actionType === ActionType.Atac) {
+      ctx.holder.clearStatus(ctx.key);
+      ctx.engine.log('attack', `${ctx.holder.name} ataca: s'acaba la retirada.`, ctx.holder.team);
+      return;
+    }
+    if (!ctx.holder.isAlive()) return;
+    ctx.engine.log('poison', `${ctx.holder.name} recula i sagna: ${ctx.entry.value} PV.`, ctx.holder.team);
+    ctx.engine.applyPvLoss(ctx.holder, ctx.entry.value, ctx.entry.data?.['source'] as Character | undefined);
+  },
+  /** About two rounds of bleeding before it attacks its way out. */
+  positionValue: ref => -2 * ref.entry.value / Math.max(1, ref.holder.maxPV),
 };
+
+function attacksThisRound(c: Character, plan: readonly PendingSummary[]): boolean {
+  return plan.some(p => p.actor === c && !p.cancelled && p.action.actionType === ActionType.Atac);
+}
 
 // --- 4 · Bufetada insolent ---------------------------------------------------
 
@@ -145,17 +160,19 @@ const ESGRIMA_EFFECTS: Record<string, EffectHandler> = {
     aiWeight() { return 0.5; },
   },
 
-  // 3 · Guàrdia camaleó: the card swap after the reveal, for the rest of the
-  // combat (FLUX above). The AI commits blind and never swaps, so it is
-  // declared AI-blind in each set's calibration (`aiBlindCards`).
-  flow_state: {
-    getTargetRequirement() { return 'none'; },
-    canPlay(actor) { return !actor.hasStatus('flux'); },
+  // 3 · Retirada sagnant: the chosen enemy is pressed (PRESSED above) until
+  // it attacks.
+  bleeding_retreat: {
+    getTargetRequirement() { return 'enemy'; },
     onResolve(ctx) {
-      ctx.source.setStatus('flux', 1, -1, undefined, FLUX);
-      ctx.engine.log('focus', `${ctx.source.name} adopta la guàrdia camaleó.`, ctx.source.team);
+      const t = ctx.targets[0];
+      if (!t?.isAlive()) return;
+      t.setStatus(PRESSED_KEY, num(ctx.params, 'loss', 4), -1, { source: ctx.source, harm: 1 }, PRESSED);
+      ctx.engine.log('focus', `${ctx.source.name} pressiona ${t.name}: sagnarà cada torn fins que ataqui.`, ctx.source.team);
     },
-    aiWeight(ctx) { return ctx.actor.hasStatus('flux') ? 0 : 0.2; },
+    // An enemy already attacking this round is out of the press at once.
+    aiTargetPriority(ctx, candidate) { return attacksThisRound(candidate, ctx.plan) ? -10 : candidate.hasStatus(PRESSED_KEY) ? -5 : 5; },
+    aiWeight(ctx) { return ctx.enemies.length ? 0.5 : 0; },
   },
 
   // 4 · Bufetada insolent: a wound provokes the target — next round it can
@@ -302,11 +319,11 @@ export const MESTRE_ARMES: SkillDefinition = {
       icon: 'lorc/sword-clash.svg',
     }),
     action({
-      id: 'guardia-camaleo', name: 'Guàrdia camaleó', skillId: 'mestre-armes',
+      id: 'retirada-sagnant', name: 'Retirada sagnant', skillId: 'mestre-armes',
       unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'flow_state' }],
-      desc: 'Durant la resta del combat, després de revelar les cartes, pots canviar la teva carta per una altra.',
-      icon: 'darkzaitzev/chameleon-glyph.svg',
+      effects: [{ type: 'bleeding_retreat', params: { loss: 4 } }],
+      desc: "L'enemic que triïs perd 4 PV al final d'aquest torn i de cada torn següent, fins que ataqui.",
+      icon: 'lorc/bleeding-wound.svg',
     }),
     action({
       id: 'bufetada-insolent', name: 'Bufetada insolent', skillId: 'mestre-armes',

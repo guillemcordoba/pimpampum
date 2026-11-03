@@ -139,13 +139,23 @@ describe('Acrobàcia', () => {
     expect(foe.hasStatus('a-terra')).toBe(false);
   });
 
-  it("Puntada d'espagat: two enemies, one roll", () => {
-    const me = acrobat('Acròbata', [card('puntada-d-espagat', 5)]);
-    const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [wait], { pv: 30 });
-    const c = fighter('C', [wait], { pv: 30 });
-    playRound(engineFor([me], [a, b, c]), [sel(0, 0, 0, [{ team: 1, idx: 0 }, { team: 1, idx: 2 }]), sel(1, 0, 0), sel(1, 1, 0), sel(1, 2, 0)]);
-    expect([a.currentPV, b.currentPV, c.currentPV]).toEqual([25, 30, 25]);
+  it('Rodes de mareig: the guard covering the target rolls five times; a wound floors it', () => {
+    let rolls = 0;
+    class CountingDice extends DiceRoll { override roll(): number { rolls++; return super.roll(); } }
+    const me = acrobat('Acròbata', [card('rodes-de-mareig', 6)]);
+    const foe = fighter('Foe', [defenseCard('guarda', { dice: new CountingDice(1, 1), rollBonus: 1 })], { pv: 30 });
+    playRound(engineFor([me], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(rolls).toBe(5);
+    expect(foe.currentPV).toBe(26);
+    expect(foe.hasStatus('a-terra')).toBe(true);
+  });
+
+  it('Rodes de mareig: held, nobody falls', () => {
+    const me = acrobat('Acròbata', [card('rodes-de-mareig', 2)]);
+    const foe = fighter('Foe', [guard(5)], { pv: 30 });
+    playRound(engineFor([me], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.currentPV).toBe(30);
+    expect(foe.hasStatus('a-terra')).toBe(false);
   });
 
   it('Tombarella de rescat: guards the first ally attacked after it, and its acrobat', () => {

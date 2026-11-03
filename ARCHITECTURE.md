@@ -277,7 +277,7 @@ that target this round.
    by `orderKey(type, fast)`** — the fast step (fast Defense, fast Attack, fast
    Focus) then Defense, Attack, Focus; equal keys are one step. Returns
    `RevealedAction[]`. Between plan and resolve, `flowSwapRefs()`/`flowSwap()`
-   let card-swap statuses (Guàrdia camaleó) replace a revealed card. **Every
+   let card-swap statuses replace a revealed card (no card uses the seam since 2026-11-03). **Every
    attack aims here** (AI seats now, humans prompted before anything resolves),
    as does any card whose effect `aimsAtReveal`; `onAimed` runs once they
    have targets, and the aims are visible in `pendingSummary()`/`plannedThisRound()`.

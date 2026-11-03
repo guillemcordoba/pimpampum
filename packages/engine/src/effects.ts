@@ -31,6 +31,13 @@ export interface ExtraAttackOptions {
   /** Nobody can defend it: the target's guards and walls are passed over
    *  (unless a status on the target vetoes the bypass, as for any feint). */
   ignoreDefense?: boolean;
+  /** Whatever defends it adds its total to the blow instead of taking it
+   *  away: the blow always gets through, and a raised guard only feeds it
+   *  (a wall adds its sum). No contest, so nobody learns. */
+  defenseAdds?: boolean;
+  /** Every defense covering the target rolls at least this many times and
+   *  keeps the worst, as if that many blows aimed at it (Envoltat). */
+  minDefenseRolls?: number;
   label?: string;
 }
 

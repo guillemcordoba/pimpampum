@@ -85,6 +85,45 @@ describe('an extra blow', () => {
   });
 });
 
+describe('an extra blow with defense options', () => {
+  /** A Focus that throws a 3 at its target with `opts`, and its registry. */
+  function thrower(opts: Parameters<CombatEngine['performExtraAttack']>[3]) {
+    const r = registry();
+    r.register('throw', {
+      getTargetRequirement: () => 'enemy',
+      onResolve: ctx => { ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], 3, opts); },
+    });
+    return { r, a: fighter('A', [focusCard('throw', { effects: [{ type: 'throw' }] })], { pv: 100 }) };
+  }
+  const aim = (team: number, idx: number) => [{ team, idx }];
+
+  it('defenseAdds: the guard adds its total to the blow, and the guard takes it', () => {
+    const { r, a } = thrower({ defenseAdds: true });
+    const t = fighter('T', [focusCard()], { pv: 100 });
+    const g = fighter('G', [defenseCard('parry', { dice: one(), rollBonus: 4 })], { pv: 100 });
+    playRound(new CombatEngine([a], [t, g], { registry: r }), [{ team: 0, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: aim(1, 0) }]);
+    // 3 + the guard's 5, on the guard.
+    expect([t.currentPV, g.currentPV]).toEqual([100, 92]);
+  });
+
+  it('defenseAdds: a wall adds its sum', () => {
+    const { r, a } = thrower({ defenseAdds: true });
+    const t = fighter('T', [defenseCard('parry', { dice: one(), rollBonus: 1 })], { pv: 100 });
+    const g = fighter('G', [defenseCard('parry', { dice: one(), rollBonus: 4 })], { pv: 100 });
+    playRound(new CombatEngine([a], [t, g], { registry: r }), [{ team: 0, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 1, actionIdx: 0, targets: aim(1, 0) }]);
+    // 3 + 2 + 5 = 10, on the weak link (T).
+    expect([t.currentPV, g.currentPV]).toEqual([90, 100]);
+  });
+
+  it('minDefenseRolls: the guard rolls at least that many times', () => {
+    const { r, a } = thrower({ minDefenseRolls: 5 });
+    const guardDice = new CountingDice(1, 1);
+    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 0 })], { pv: 100 });
+    playRound(new CombatEngine([a], [d], { registry: r }), [{ team: 0, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 0, actionIdx: 0, targets: aim(1, 0) }]);
+    expect(guardDice.calls).toBe(5);
+  });
+});
+
 describe('a standing wall', () => {
   const broken: string[] = [];
   const WALL: StatusBehavior = {

@@ -163,6 +163,28 @@ describe('Mestre del xi', () => {
     expect(ally.skipTurns).toBe(2);
   });
 
+  it('Punts de la guàrdia: the defense adds to the attack instead of taking away', () => {
+    const me = master('Mestre', [card('punts-de-la-guardia', 3)]);
+    const foe = fighter('Foe', [guard(5)], { pv: 30 });
+    playRound(engineFor([me], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(1, 0))]);
+    expect(foe.currentPV).toBe(22);
+  });
+
+  it("Punts de la guàrdia: an ally's guard feeds it too, and takes it", () => {
+    const me = master('Mestre', [card('punts-de-la-guardia', 3)]);
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    const shield = fighter('Escuder', [guard(5)], { pv: 30 });
+    playRound(engineFor([me], [foe, shield]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(1, 0))]);
+    expect([foe.currentPV, shield.currentPV]).toEqual([30, 22]);
+  });
+
+  it('Punts de la guàrdia: undefended, a plain blow', () => {
+    const me = master('Mestre', [card('punts-de-la-guardia', 3)]);
+    const foe = fighter('Foe', [wait], { pv: 30 });
+    playRound(engineFor([me], [foe]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0)]);
+    expect(foe.currentPV).toBe(27);
+  });
+
   it('Poder apagat: a wound means next round its card has no effect — only its dice', () => {
     const me = master('Mestre', [card('poder-apagat', 3), wait], 40);
     const foe = fighter('Foe', [attackCard('cop', { dice: new DiceRoll(1, 1), effects: [{ type: 'test_rider' }] })], { pv: 40 });
@@ -174,28 +196,6 @@ describe('Mestre del xi', () => {
     expect(me.currentPV).toBe(28);
     playRound(e, [sel(0, 0, 1), sel(1, 0, 0, T(0, 0))]);
     expect(me.currentPV).toBe(17);
-  });
-
-  it('Bloqueig mutu: blocks an enemy; if it holds, next round neither plays a card', () => {
-    const me = master('Mestre', [card('bloqueig-mutu', 0, 9), blow(2)]);
-    const foe = fighter('Foe', [blow(5)], { pv: 30 });
-    const e = engineFor([me], [foe]);
-    playRound(e, [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    expect(me.currentPV).toBe(30);
-    e.prepareRound();
-    expect(e.planActions([sel(0, 0, 1, T(1, 0)), sel(1, 0, 0, T(0, 0))])).toEqual([]);
-    e.finishRound();
-    playRound(e, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 0, T(0, 0))]);
-    expect([me.currentPV, foe.currentPV]).toEqual([25, 28]);
-  });
-
-  it('Bloqueig mutu: holding against an enemy it did not block locks nobody', () => {
-    const me = master('Mestre', [card('bloqueig-mutu', 0, 9)]);
-    const a = fighter('A', [wait], { pv: 30 });
-    const b = fighter('B', [blow(5)], { pv: 30 });
-    playRound(engineFor([me], [a, b]), [sel(0, 0, 0, T(1, 0)), sel(1, 0, 0), sel(1, 1, 0, T(0, 0))]);
-    expect(me.currentPV).toBe(30);
-    expect(me.hasStatus('bloqueig-mutu') || b.hasStatus('bloqueig-mutu')).toBe(false);
   });
 
   it('Ràfega de dits: three blows; three wounds numb it and cancel its action', () => {

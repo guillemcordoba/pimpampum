@@ -215,6 +215,8 @@ interface Blow {
   info: BlowInfo;
   ignoreArmor: boolean;
   ignoreDefense: boolean;
+  defenseAdds: boolean;
+  minDefenseRolls: number;
 }
 
 /**
@@ -686,6 +688,7 @@ export class CombatEngine implements EngineApi, AIView {
       attacker: source, skillId: opts.skillId ?? '', rollBonus: opts.rollBonus ?? 0,
       roll: fixed ? Math.max(0, dice) : (roll ?? this.rollDiceFor(source, dice, 'attack')), fixed,
       label: opts.label ?? source.name, info: blow, ignoreArmor: !!opts.ignoreArmor, ignoreDefense: !!opts.ignoreDefense,
+      defenseAdds: !!opts.defenseAdds, minDefenseRolls: opts.minDefenseRolls ?? 1,
     }, target, {}, false);
   }
 
@@ -1690,7 +1693,7 @@ export class CombatEngine implements EngineApi, AIView {
         let blow: BlowInfo = { id: ++this.blowSeq, attacker: actor, targets: [...list] };
         const cardBlowOf = (roll: number): Blow => ({
           attacker: actor, card: action.def, skillId: action.def.skillId, rollBonus: action.def.rollBonus ?? 0, roll, fixed: false,
-          label: `${actor.name} «${action.def.name}»`, info: blow, ignoreArmor: false, ignoreDefense: false,
+          label: `${actor.name} «${action.def.name}»`, info: blow, ignoreArmor: false, ignoreDefense: false, defenseAdds: false, minDefenseRolls: 1,
         });
         for (const t of list) {
           if (perTarget) baseRoll = this.rollDiceFor(actor, action.def.dice, 'attack');
@@ -1970,7 +1973,7 @@ export class CombatEngine implements EngineApi, AIView {
     // ENVOLTAT: with n blows landing on this body this round, every defense
     // covering it rolls n times and keeps the worst — one defense still
     // covers every attack, but it cannot watch them all (rules.md).
-    const defenseRolls = this.blowsOn(target);
+    const defenseRolls = Math.max(this.blowsOn(target), blow.minDefenseRolls);
     let defenses: Defense[] = [];
     if (!bypass) {
       const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
@@ -1996,6 +1999,12 @@ export class CombatEngine implements EngineApi, AIView {
       const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
       if (!this.silent) this.log('roll', `🎲 ${who}: atac ${this.fmtContestSide(blow.roll + extraDice, atkBonus, attackTotal)}${armor > 0 ? ` (${armor} armadura)` : ''}`, source.team);
       this.log('defense', `🛡️ ${defense.defender.name} «${defense.name}» aguanta el cop sencer.`, defense.defender.team);
+    } else if (defense && blow.defenseAdds) {
+      // The guard feeds the blow: no contest, so nobody learns.
+      const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls);
+      const defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
+      hit = true; margin = attackTotal + defenderTotal; recipient = this.breach(defense);
+      if (!this.silent) this.log('roll', `🎲 ${who}: atac ${this.fmtContestSide(blow.roll + extraDice, atkBonus, attackTotal)} + ${defense.defender.name} «${defense.name}»: defensa ${this.fmtContestSide(defRoll, defBonus, defenderTotal)}, que s'hi suma`, source.team);
     } else if (defense) {
       const defender = defense.defender;
       const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls);
@@ -2063,7 +2072,7 @@ export class CombatEngine implements EngineApi, AIView {
     // A defense penalty bites the wall's joint total once, not once per member.
     const wallTotal = Math.max(0, sum - mods.defensePenalty);
     if (!this.silent) this.log('roll', `🎲 ${blow.label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
-    const res = resolveAttack(adjustedAttacker, wallTotal);
+    const res = blow.defenseAdds ? { hit: true, margin: adjustedAttacker + wallTotal } : resolveAttack(adjustedAttacker, wallTotal);
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(blow.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${blow.label}.`, wall[0].defender.team);
@@ -2074,7 +2083,7 @@ export class CombatEngine implements EngineApi, AIView {
       return MISSED;
     }
     // The wall breaks: everyone on it learns from a close breach.
-    if (checkSkillUp(res.margin)) for (const d of wall) d.defender.raiseSkill(d.skillId);
+    if (!blow.defenseAdds && checkSkillUp(res.margin)) for (const d of wall) d.defender.raiseSkill(d.skillId);
     const recipient = this.breach(weak.d);
     let dmg = this.applyOutgoingDamage(source, res.margin);
     dmg *= (statusMods.damageMult ?? 1) * mods.damageMult;
