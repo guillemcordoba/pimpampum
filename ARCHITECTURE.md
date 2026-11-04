@@ -590,10 +590,24 @@ that prices encounters has to have.
   to the focus it protects. ~6× the cost, and it beats
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
   Production is six rollouts per card, two passes, no pruning (`DEFAULT_LOOKAHEAD`).
-  Inside the rollouts the other side plays the depth-0 heuristic, except that
-  each of its cards is first played out once per decision and one that trails
-  its best by about a side's health is cut (`opponentSearch`: a foe does not
-  walk into a lethal blow it could hide from; NEXT-STEPS §52.5). One
+  **The model of the other side is FICTITIOUS PLAY with a READ**
+  (`fictitiousPlay`, 3 iterations, prior 0.25, read 2; 2026-11-03): before
+  our team is solved, the opponents' team is solved against the model of us,
+  ours against the mix of their answers and the depth-0 odds, three times,
+  our answer last; then each opponent's mix leans toward the card types that
+  seat has actually played this fight (`engine.history`: what the table saw),
+  the model counting as two plays. Inside the rollouts the opponents draw from
+  that mix (`opponentModel()` exposes it). Fictitious play alone models a
+  rational opponent, and kept expecting guards from a side that only attacks:
+  production against spam fell from 99.7% to 92.8%; with the read, 99.6%. Until then they played the depth-0 heuristic, which attacked ~80% of
+  the time where the real AI defended half of it: the search planned against
+  an enemy that never guards, defended, and never played the cards that pay
+  off against a guard — the whole game measured turtled. The kit gate checks
+  that the model predicts the real play (`modelCheck`, 10 points a card type)
+  and puzzle (l) guards the case. The opponents' first answer is solved
+  against the old model of us: the depth-0 odds, with a card that trails its
+  best by about a side's health cut (`opponentSearch`: a foe does not walk
+  into a lethal blow it could hide from; NEXT-STEPS §52.5). One
   `DecisionMemo` per decision keeps every rollout value by plan and sample and
   every seat's odds, so nothing is computed twice (§52.4).
   Candidates are compared on PAIRED rollouts, and each rollout gives every seat

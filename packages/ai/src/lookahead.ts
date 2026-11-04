@@ -107,6 +107,19 @@ export interface FictitiousPlay {
   iterations: number;
   /** Weight of the depth-0 odds in a side's mix, against 1 for each answer. */
   prior: number;
+  /**
+   * THE READ: each side's model leans toward the card types its seats have
+   * actually played this fight (`engine.history`, what a player at the table
+   * saw revealed), with this many plays' worth of trust in the model itself;
+   * omit for no read.
+   *
+   * WHY: fictitious play models a rational opponent, and against one that
+   * only attacks it kept expecting guards — production against spam fell from
+   * 99.7% to 92.8% (2026-11-03). An always-guarding model failed the same way
+   * in October (NEXT-STEPS §20.8): what the search needs is the opponent across
+   * the table, not a better one.
+   */
+  read?: number;
 }
 
 export interface OpponentSearch {
@@ -161,6 +174,7 @@ export const DEFAULT_EVAL_WEIGHTS: EvaluatorWeights = { pv: 10, bodies: 6, fatig
 export const DEFAULT_LOOKAHEAD: LookaheadOptions = {
   depth: 1, samples: 6, passes: 2, targetSamples: 2, tempo: 1, antithetic: true,
   opponentSearch: { samples: 1, margin: 10, sharpness: 1 },
+  fictitiousPlay: { iterations: 3, prior: 0.25, read: 2 },
 };
 
 /**
@@ -610,18 +624,46 @@ export function bestResponse(
 }
 
 /** A side's model in fictitious play: per seat, the depth-0 odds weighted by
- *  `prior` plus one count for each answer that seat gave. */
-function mixOf(engine: CombatEngine, team: number, answers: Map<Character, number>[], prior: number): Map<number, ActionOdds> {
+ *  `prior` plus one count for each answer that seat gave — then, with a
+ *  `read`, each card type scaled toward the share of it the seat has played. */
+function mixOf(engine: CombatEngine, team: number, answers: Map<Character, number>[], fp: FictitiousPlay): Map<number, ActionOdds> {
   const out = new Map<number, ActionOdds>();
   engine.teams[team].forEach((c, pos) => {
     if (!c.isAlive()) return;
     const base = actionOdds(engine, c);
     if (!base.indices.length) return;
-    const weights = base.indices.map((idx, k) =>
-      prior * base.weights[k] / (base.total || 1) + answers.filter(a => a.get(c) === idx).length);
+    let weights = base.indices.map((idx, k) =>
+      fp.prior * base.weights[k] / (base.total || 1) + answers.filter(a => a.get(c) === idx).length);
+    if (fp.read !== undefined) weights = readOf(engine, c, base.indices, weights, fp.read);
     out.set(team * 1000 + pos, { indices: base.indices, weights, total: weights.reduce((t, w) => t + w, 0) });
   });
   return out;
+}
+
+/** Scale each card type's weight so its share moves from the model's toward
+ *  what `c` has played this fight: (played + trust × model share) / (plays +
+ *  trust), per type. No plays yet: the model as it is. */
+function readOf(engine: CombatEngine, c: Character, indices: number[], weights: number[], trust: number): number[] {
+  const played = new Map<ActionType, number>();
+  let plays = 0;
+  for (const ev of engine.history) {
+    if (ev.actor !== c) continue;
+    played.set(ev.action.actionType, (played.get(ev.action.actionType) ?? 0) + 1);
+    plays++;
+  }
+  if (!plays) return weights;
+  const total = weights.reduce((t, w) => t + w, 0) || 1;
+  const modelShare = new Map<ActionType, number>();
+  indices.forEach((idx, k) => {
+    const t = c.actions[idx].def.actionType;
+    modelShare.set(t, (modelShare.get(t) ?? 0) + weights[k] / total);
+  });
+  return indices.map((idx, k) => {
+    const t = c.actions[idx].def.actionType;
+    const m = modelShare.get(t) ?? 0;
+    const target = ((played.get(t) ?? 0) + trust * m) / (plays + trust);
+    return m > 0 ? weights[k] * target / m : weights[k];
+  });
 }
 
 /**
@@ -641,9 +683,9 @@ function fictitiousResponse(
   let model = new Map<number, ActionOdds>();
   let ours = { choices: new Map<Character, number>(), value: 0 };
   for (let i = 0; i < fp.iterations; i++) {
-    const usModel = ourAnswers.length ? mixOf(engine, team, ourAnswers, fp.prior) : undefined;
+    const usModel = ourAnswers.length ? mixOf(engine, team, ourAnswers, fp) : undefined;
     theirAnswers.push(solveTeam(engine, 1 - team, theirOpts, usModel).choices);
-    model = mixOf(engine, 1 - team, theirAnswers, fp.prior);
+    model = mixOf(engine, 1 - team, theirAnswers, fp);
     ours = solveTeam(engine, team, plain, model);
     ourAnswers.push(ours.choices);
   }

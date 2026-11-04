@@ -343,5 +343,5 @@ const PUNISH_GUARD = position('punish-guard', 1,
 
 describe('audit defects as puzzles: a card that pays off against a guard', () => {
   it('(l) the referee cracks', () => expect(refereeAnswer(PUNISH_GUARD)).toEqual({ cards: 'crack,strike', p: 1 }));
-  it.fails('(l) the AI cracks', () => expect(aiAnswer(PUNISH_GUARD)).toEqual(Array(4).fill('crack,strike')));
+  it('(l) the AI cracks', () => expect(aiAnswer(PUNISH_GUARD)).toEqual(Array(4).fill('crack,strike')));
 });
