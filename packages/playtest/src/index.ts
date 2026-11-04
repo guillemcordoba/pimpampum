@@ -47,3 +47,5 @@ export { census } from './census.js';
 export type { CensusCard, Role } from './census.js';
 export { vanillaTwin, withVanillaSet, twinDynamics, TWIN_DEFAULTS } from './vanilla.js';
 export type { TwinParams } from './vanilla.js';
+export { deriveOnTwins, deriveTwinLevel } from './derive-twins.js';
+export type { TwinDeriveOptions } from './derive-twins.js';

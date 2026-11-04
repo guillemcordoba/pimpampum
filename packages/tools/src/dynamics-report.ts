@@ -14,10 +14,10 @@
  */
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitOnlyDynamics, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
+import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
-  burstHolds, CANDIDATE_FIXES, checksMet, explain, feasibility, FIX_BUDGET, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, rankFixes, summarise,
-  vanillaKit, vanillaPrint, withControlKit, type DynamicsSummary, type FixResult, type LadderRung,
+  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, rankFixes, summarise,
+  TWIN_DEFAULTS, vanillaMatches, vanillaPrint, vanillaTwin, withVanillaSet, type DynamicsSummary, type FixResult, type LadderRung,
 } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -33,11 +33,17 @@ const log = (s: string) => process.stderr.write(`${s}\n`);
 
 // --- 1. today ------------------------------------------------------------------
 log('measuring today\'s fights…');
-const today = LEVELS.map(level => ({
+const realRuns = LEVELS.map(level => ({ level, d: kitsDynamics(level, fights) }));
+// The vanilla set: every main kit's twin, from the census of the real fights.
+const cards = census(realRuns.map(r => r.d.cards));
+const allRungs: Record<number, LadderRung> = Object.fromEntries(Object.keys(ATTACK_LADDER).map(Number).map(l => [l, rung(l)]));
+const twins = SET.gameSet.calibration.mainKits.map(k => vanillaTwin(k, cards, allRungs, TWIN_DEFAULTS));
+const twinPrint = `${twins.map(vanillaPrint).join('|')}#${JSON.stringify(TWIN_DEFAULTS)}`;
+const today = withVanillaSet(twins, () => realRuns.map(({ level, d }) => ({
   level,
-  real: summarise(kitsDynamics(level, fights)),
-  vanilla: withControlKit(vanillaKit(level, rung(level), 1), def => summarise(kitOnlyDynamics(def.id, vanillaPrint(def), level, fights))),
-}));
+  real: summarise(d),
+  vanilla: summarise(kitsDynamics(level, fights, {}, { kits: twins.map(t => t.id), print: twinPrint })),
+})));
 
 // --- 2. the arithmetic --------------------------------------------------------------
 const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: BODY_PV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
@@ -49,7 +55,7 @@ const results: FixResult[] = [];
 let next = 0;
 await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), CANDIDATE_FIXES.length)) }, async () => {
   for (let i = next++; i < CANDIDATE_FIXES.length; i = next++) {
-    results.push(await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, CANDIDATE_FIXES[i], ladder, LEVELS, budget]));
+    results.push(await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, CANDIDATE_FIXES[i], ladder, LEVELS, budget, cards]));
     log(`fix ${results.length}/${CANDIDATE_FIXES.length}: ${CANDIDATE_FIXES[i].id}`);
   }
 }));
@@ -74,7 +80,7 @@ const todaySection = today.map(({ level, real, vanilla }) => `
     <div class="pair">
       <div class="side"><h4>The real kits ${verdict(real.ends)}</h4><p class="pace">rounds: median · 9 in 10 — ${pace(real)}</p>${bar(real)}
         <ul>${explain(real).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
-      <div class="side"><h4>Vanilla (ladder cards only) ${verdict(vanilla.ends)}</h4><p class="pace">rounds: median · 9 in 10 — ${pace(vanilla)}</p>${bar(vanilla)}
+      <div class="side"><h4>Vanilla twins ${verdict(vanilla.ends)} <small>${vanillaMatches(real, vanilla).ok ? 'match today' : `${vanillaMatches(real, vanilla).checks.filter(c => !c.ok).length} metrics off today`}</small></h4><p class="pace">rounds: median · 9 in 10 — ${pace(vanilla)}</p>${bar(vanilla)}
         <ul>${explain(vanilla).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
     </div>
   </article>`).join('');
@@ -95,7 +101,7 @@ const cell = (r: FixResult, level: number) => {
   </div></td>`;
 };
 const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
-  <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)}${r.focusOnRealKits ? '' : '<br><small class="note">Focus change measured on vanilla only (real Focus cards need rebuilding)</small>'}</th>
+  <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)}${r.focusOnRealKits ? '' : '<br><small class="note">Focus change measured on the twins only (real Focus cards need rebuilding)</small>'}</th>
   ${LEVELS.map(l => cell(r, l)).join('')}
   <td><ul class="costs">${s.costs.length ? s.costs.map(c => `<li>${esc(c)}</li>`).join('') : '<li>none</li>'}</ul></td></tr>`).join('');
 
@@ -105,7 +111,7 @@ const checks = LEVELS.length * 5;
 const recommendation = `
   <p class="lede"><b>${esc(best.result.fix.label)}</b> meets <b>${total(best.score)} of ${checks}</b> constraint checks at the checkpoints (a PV window on vanilla; on the real kits: fights ending, burst in bounds, the triangle, the turtle losing), the most of any candidate${best.score.robustness ? `, with PV windows at least ${best.score.robustness} wide` : ''}.</p>
   <p>Derived hero PV: ${best.result.levels.map(l => `level ${l.level} <b class="num">${l.vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
-  ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part was measured on vanilla only: real Focus cards can't be scaled mechanically (their power is in their effects), so the real-kit columns show the rest of the fix without it. Rebuilding the Focus cards to about a ${best.result.fix.aim + 1}× blow comes first, then the real game is re-measured.</p>`}
+  ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part was measured on the vanilla twins only: real Focus cards can't be scaled mechanically (their power is in their effects), so the real-kit columns show the rest of the fix without it. Rebuilding the Focus cards about ${(best.result.fix.aim + 1) / 2}× as strong comes first, then the real game is re-measured.</p>`}
   <p>What it costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'nothing beyond today\'s rules'}.</p>
   ${ranked[1] ? `<p>Runner-up: <b>${esc(ranked[1].result.fix.label)}</b> (${total(ranked[1].score)} of ${checks}; costs: ${ranked[1].score.costs.map(esc).join('; ') || 'none'}).</p>` : ''}
   <p class="muted">Still failing under the recommendation: ${best.result.levels.flatMap(l => [
@@ -128,8 +134,7 @@ for (const level of LEVELS) {
 
 // The structural facts, computed.
 const facts: string[] = [];
-const vDef = today.map(t => pc(t.vanilla.mix.defense)).join(' / '), vStall = today.map(t => pc(t.vanilla.stallRate)).join(' / ');
-facts.push(`Plain ladder cards make a turtle game: in vanilla, defenses are ${vDef} of the plays at levels ${LEVELS.join(' / ')}, and ${vStall} of the fights never end.`);
+facts.push(`The vanilla set plays like today's game: ${today.map(t => `level ${t.level} ${vanillaMatches(t.real, t.vanilla).checks.filter(c => c.ok).length}/${vanillaMatches(t.real, t.vanilla).checks.length} metrics within tolerance`).join(', ')} — so what it says about PV and fixes speaks for the real kits.`);
 facts.push(`Guards erase blows: in the real game only ${today.map(t => pc(t.real.sources.guarded)).join(' / ')} of the damage goes through a guard; it comes from bodies caught open (${today.map(t => pc(t.real.sources.open)).join(' / ')}), area attacks (${today.map(t => pc(t.real.sources.area)).join(' / ')}), Focus (${today.map(t => pc(t.real.sources.focus)).join(' / ')}) and statuses (${today.map(t => pc(t.real.sources.roundEnd)).join(' / ')}).`);
 facts.push(`The real game moves ${today.map(t => t.real.pvPerRound.toFixed(1)).join(' / ')} PV a round: fights last ${today.map(t => `${t.real.median}·${t.real.p90}`).join(' / ')} rounds (median·9 in 10) against bars of ${MAX_MEDIAN_ROUNDS}·${MAX_P90_ROUNDS}.`);
 const top = today[today.length - 1];
@@ -216,7 +221,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
   <section>
     <h2>How fights play today</h2>
-    <p class="prose muted">The real kits (2v2, drawn at random, the production AI, today's ${BODY_PV} PV) beside vanilla kits (only the ladder's attack, defense and an Aim). The bar splits the PV lost by where it came from.</p>
+    <p class="prose muted">The real kits (2v2, drawn at random, the production AI, today's ${BODY_PV} PV) beside the vanilla set: every main kit's generic twin — the same roles at the same levels (read from what each card did in the real fights), on ladder dice, calibrated to play like today's game. The bar splits the PV lost by where it came from.</p>
     ${legend}
     ${todaySection}
   </section>
@@ -232,7 +237,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
   <section>
     <h2>Candidate fixes, measured</h2>
-    <p class="prose muted">Each fix: hero PV derived on vanilla kits at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied mechanically, in the measurement only — no card was changed). Ranked by constraints met, then fewest costs, then the widest PV windows.</p>
+    <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied mechanically, in the measurement only — no card was changed). Ranked by constraints met, then fewest costs, then the widest PV windows.</p>
     <div class="scroll"><table>
       <thead><tr><th>fix</th>${LEVELS.map(l => `<th>level ${l}</th>`).join('')}<th>what it costs</th></tr></thead>
       <tbody>${fixRows}</tbody>

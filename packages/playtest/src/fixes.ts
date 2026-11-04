@@ -4,8 +4,9 @@
  * structure: how strong a Focus is, how far below the ladder defenses sit, how
  * much of a held blow lands, and which blow a fresh hero must survive. Each is
  * measured twice, in its own process:
- *  - on VANILLA kits: hero PV derived per checkpoint (`derivePV`): the window,
- *    and the PV;
+ *  - on the VANILLA SET — the main kits' calibrated twins, which play like
+ *    today's game (`vanilla.ts`): hero PV derived per checkpoint
+ *    (`deriveOnTwins`), the window and the PV;
  *  - on the REAL kits, as far as it can be applied mechanically — the chip
  *    damage, every Defense card's dice shifted down the rungs, the derived PV —
  *    in the measurement only (nothing is written to a card): how fights then
@@ -15,7 +16,10 @@
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
 import { kitsDynamics, styleDuel, theSet, type DuelStyle, type Variant } from '@pimpampum/bench';
-import { derivePV, MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { deriveOnTwins } from './derive-twins.js';
+import type { CensusCard } from './census.js';
+import { TWIN_DEFAULTS } from './vanilla.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
 import { edgeHolds } from './rules.js';
@@ -25,7 +29,8 @@ export interface Fix {
   id: string;
   /** In plain words, for the report. */
   label: string;
-  /** Vanilla Focus: your next attack adds the ladder dice × this (1: a doubled blow). */
+  /** How strong a Focus is: the vanilla twins' Focus power × (aim + 1) / 2,
+   *  so 1 is today's and 3 doubles it (a "4× blow" in the old vanilla's terms). */
   aim: number;
   defenseShift: number;
   chip: number;
@@ -37,17 +42,17 @@ export const TODAY: Fix = { id: 'today', label: 'Today: the ladder as it is, sur
 export const CANDIDATE_FIXES: readonly Fix[] = [
   TODAY,
   { id: 'plain', label: 'Survive the plain blow (only the burst rule changes)', aim: 1, defenseShift: 0, chip: 0, burst: 'plain' },
-  { id: 'focus4', label: 'Focus worth a 4× blow', aim: 3, defenseShift: 0, chip: 0, burst: 'plain' },
+  { id: 'focus4', label: 'Every Focus twice as strong', aim: 3, defenseShift: 0, chip: 0, burst: 'plain' },
   { id: 'chip50', label: 'Half of a held blow lands (chip 50%)', aim: 1, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus3-chip50', label: 'Focus 3× + chip 50%', aim: 2, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus4-chip50', label: 'Focus 4× + chip 50%', aim: 3, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus4-chip25-def1', label: 'Focus 4× + chip 25% + defenses a rung lower', aim: 3, defenseShift: -1, chip: 0.25, burst: 'plain' },
-  { id: 'focus4-def3', label: 'Focus 4× + defenses three rungs lower', aim: 3, defenseShift: -3, chip: 0, burst: 'plain' },
+  { id: 'focus3-chip50', label: 'Focus 1.5× as strong + chip 50%', aim: 2, defenseShift: 0, chip: 0.5, burst: 'plain' },
+  { id: 'focus4-chip50', label: 'Focus twice as strong + chip 50%', aim: 3, defenseShift: 0, chip: 0.5, burst: 'plain' },
+  { id: 'focus4-chip25-def1', label: 'Focus twice as strong + chip 25% + defenses a rung lower', aim: 3, defenseShift: -1, chip: 0.25, burst: 'plain' },
+  { id: 'focus4-def3', label: 'Focus twice as strong + defenses three rungs lower', aim: 3, defenseShift: -3, chip: 0, burst: 'plain' },
   { id: 'def2', label: 'Defenses two rungs lower (nothing else)', aim: 1, defenseShift: -2, chip: 0, burst: 'plain' },
 ];
 
 export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number }
-export const FIX_BUDGET: FixBudget = { vanillaFights: 120, realFights: 120, duelGames: 100 };
+export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100 };
 
 export interface FixLevel {
   level: number;
@@ -79,15 +84,18 @@ function shiftDefenses(shift: number): void {
  *  ladder's dice travel as notation, by level. */
 export async function evaluateFix(
   set: RunContext['set'], fix: Fix, ladder: Record<number, { attack: string; defense: string }>,
-  levels: readonly number[], budget: FixBudget = FIX_BUDGET,
+  levels: readonly number[], budget: FixBudget, cards: readonly CensusCard[],
 ): Promise<FixResult> {
   await installSet(set);
   shiftDefenses(fix.defenseShift);
+  // The twins' ladder, defenses shifted as the fix says.
+  const twinLadder = Object.fromEntries(Object.keys(ladder).map(Number).map(l => [l, {
+    attack: DiceRoll.parse(ladder[l].attack), defense: DiceRoll.parse(ladder[Math.max(1, Math.min(10, l + fix.defenseShift))].defense),
+  }]));
+  const params = { ...TWIN_DEFAULTS, focusScale: (fix.aim + 1) / 2 };
   const out: FixLevel[] = [];
   for (const level of levels) {
-    const defense = ladder[Math.max(1, Math.min(10, level + fix.defenseShift))].defense;
-    const vanilla = derivePV(level, { attack: DiceRoll.parse(ladder[level].attack), defense: DiceRoll.parse(defense) },
-      { aim: fix.aim, armour: 1, fights: budget.vanillaFights, chip: fix.chip, burst: fix.burst });
+    const vanilla = deriveOnTwins(level, cards, twinLadder, params, { fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst });
     const pv = vanilla.pv ?? vanilla.lengthPV ?? Math.max(vanilla.roundOnePV, fix.burst === 'plain' ? vanilla.plainBlowPV : vanilla.bestBlowPV);
     const variant: Variant = { pv, ...(fix.chip ? { chipDamage: fix.chip } : {}) };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
@@ -131,7 +139,7 @@ export function scoreFix(r: FixResult): FixScore {
     costs: [
       ...(r.fix.defenseShift ? [`defenses ${-r.fix.defenseShift} rung${r.fix.defenseShift === -1 ? '' : 's'} lower (against "turtles are beaten by Focus, not by softer defense")`] : []),
       ...(r.fix.chip ? [`a new rule: ${Math.round(100 * r.fix.chip)}% of a held blow lands`] : []),
-      ...(r.fix.aim > 1 ? [`every Focus card rebuilt to about a ${r.fix.aim + 1}× blow`] : []),
+      ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
       ...(r.fix.burst === 'plain' ? ['the burst rule reads "survive the plain blow"'] : []),
     ],
   };

@@ -76,6 +76,9 @@ export interface TwinParams {
   /** 1: a damaging Focus lands only on an enemy that played a Defense this
    *  round (as most real ones do); 0: on anyone, through any guard. */
   blastGuardOnly: number;
+  /** Every Focus's power × this — damage, heal, bonus, shield: the structural
+   *  knob for "how strong is a Focus" (1: today's). */
+  focusScale: number;
   /** An offensive Focus: its side's attack rolls get the real card's measured
    *  bonus for two rounds, or — none measured — its level's dice mean × this. */
   aim: number;
@@ -84,7 +87,13 @@ export interface TwinParams {
   shieldCut: number;
 }
 
-export const TWIN_DEFAULTS: TwinParams = { burn: 2, burnTurns: 2, riposteDrop: 2, blastBoost: 3, healBoost: 0, hexTurns: 1, hexBleed: 0, areaDrop: 0, riderDrop: 1, aim: 1, shieldCut: 0.5, realDice: 0, blastGuardOnly: 0 };
+/** Calibrated against today's game (`tools/src/vanilla-check.ts --calibrate`,
+ *  elements, 2026-11-04): it matches at level 10 on every metric, at levels 3
+ *  and 6 within noise but for a few damage-split points. */
+export const TWIN_DEFAULTS: TwinParams = {
+  burn: 3, burnTurns: 2, riposteDrop: 2, blastBoost: 0, healBoost: 3, hexTurns: 2, hexBleed: 2, areaDrop: 2, riderDrop: 1,
+  aim: 1, shieldCut: 0.5, realDice: 0, blastGuardOnly: 0, focusScale: 1,
+};
 
 /**
  * A REAL KIT'S VANILLA TWIN: the same roles at the same levels (the census),
@@ -109,6 +118,8 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
     const lingerFor = (turns: number, fallback: number) => (c.lingering >= 0.5 ? Math.max(1, Math.round(c.lingering / turns)) : fallback);
     const base = { id: own, name: `${c.role} ${c.unlock}`, skillId: id, unlockLevel: c.unlock, fast: c.fast, description: '', iconPath: '' };
     const lift = (d: DiceRoll, by: number) => new DiceRoll(d.numDice, d.sides, d.modifier + by);
+    /** A Focus's dice × `focusScale`. */
+    const scaled = (d: DiceRoll) => (p.focusScale === 1 ? d : new DiceRoll(Math.max(1, Math.round(d.numDice * p.focusScale)), d.sides, Math.round(d.modifier * p.focusScale)));
     /** The real card's dice when `realDice` asks for them and it has any. */
     const diceOf = (ladderDice: DiceRoll): DiceRoll => (p.realDice && c.dice ? DiceRoll.parse(c.dice) : ladderDice);
     switch (c.role) {
@@ -148,7 +159,7 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
             ctx.engine.applyPvLoss(t, ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: id }).total, ctx.source);
           },
         };
-        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(diceOf(rung.attack), p.blastBoost), effects: [...fx, { type: `${own}-blast` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Focus, dice: scaled(lift(diceOf(rung.attack), p.blastBoost)), effects: [...fx, { type: `${own}-blast` }] } as ActionDefinition);
         break;
       case 'heal':
         effects[`${own}-heal`] = {
@@ -158,7 +169,7 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
             if (t && ctx.action.dice) ctx.engine.heal(t, ctx.engine.rollDiceFor(ctx.source, ctx.action.dice));
           },
         };
-        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(diceOf(rung.attack), p.healBoost), effects: [...fx, { type: `${own}-heal` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Focus, dice: scaled(lift(diceOf(rung.attack), p.healBoost)), effects: [...fx, { type: `${own}-heal` }] } as ActionDefinition);
         break;
       case 'hex':
         effects[`${own}-hex`] = {
@@ -174,16 +185,16 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
         actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-hex` }] } as ActionDefinition);
         break;
       case 'boost': {
-        const bonus = c.attackBonus >= 1 ? Math.round(c.attackBonus) : Math.round(rung.attack.average() * p.aim);
+        const bonus = Math.round((c.attackBonus >= 1 ? c.attackBonus : rung.attack.average() * p.aim) * p.focusScale);
         const LIFTED: StatusBehavior = { attackRollOfHolder: () => bonus, positionValue: () => bonus / 26 };
         effects[`${own}-boost`] = {
           onResolve(ctx) { for (const a of ctx.engine.alliesOf(ctx.source, true)) if (a.isAlive()) a.setStatus(`${own}-boost`, bonus, 2, undefined, LIFTED); },
         };
-        actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-boost` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-boost`, params: { bonus } }] } as ActionDefinition);
         break;
       }
       case 'shield': {
-        const cut = c.defenseBonus >= 1 ? Math.round(c.defenseBonus) : Math.max(1, Math.round(rung.attack.average() * p.shieldCut));
+        const cut = Math.max(1, Math.round((c.defenseBonus >= 1 ? c.defenseBonus : rung.attack.average() * p.shieldCut) * p.focusScale));
         const SHIELDED: StatusBehavior = {
           modifyIncomingDamage: (_ctx, damage) => Math.max(0, damage - cut),
           positionValue: () => cut / 26,
