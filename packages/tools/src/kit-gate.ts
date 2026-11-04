@@ -10,7 +10,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, useSet } from '@pimpampum/bench';
-import { GATE_BUDGET, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { FIELD_MAX, GATE_BUDGET, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -48,6 +48,15 @@ for (const kit of kits) {
 }
 
 const p = (x: number) => `${Math.round(100 * x)}%`;
+console.log(`\nNO KIT DOMINATES — each kit's side against the field, clearly above ${p(FIELD_MAX)} fails`);
+console.log(pad('', w) + levels.map(l => pad(`L${l}`, 12)).join(''));
+for (const kit of kits) {
+  console.log(pad(kit, w) + levels.map(l => {
+    const c = r.kits.find(x => x.kit === kit && x.level === l);
+    return pad(c ? `${c.dominates ? '❌' : '✓'} ${p(c.winrate)}` : '', 12);
+  }).join(''));
+}
+
 const shape = (f: FightShape) => `${f.pvPerRound.toFixed(1)} PV/round · ${p(f.emptyAttacks)} of attacks take nothing · ${p(f.focusLost)} of Focus lost · defenses ${p(f.defenseShare)} of plays`;
 console.log(`\nWHY THEY RUN LONG (failing cells at the checkpoints ${STYLE_LEVELS.join(', ')})`);
 for (const kit of kits) {
@@ -62,10 +71,11 @@ for (const kit of kits) {
 }
 
 if (r.styles.length) {
-  console.log(`\nTHE TRIANGLE AND THE TURTLE (each claimed winner's score; the turtle's against the AI)`);
+  console.log(`\nTHE TRIANGLE AND DUMB PLAY (each claimed winner's score; each dumb strategy's against the AI)`);
   for (const s of r.styles) {
     const edges = s.edges.map(e => `${s.broken.includes(`${e.winner} > ${e.loser}`) ? '❌' : '✓'} ${e.winner}>${e.loser} ${Math.round(100 * e.winrate)}%`).join('  ');
-    console.log(`L${s.level}  ${edges}  ${s.turtle.ok ? '✓' : '❌'} turtle ${Math.round(100 * s.turtle.score)}%`);
+    const dumb = s.dumb.map(d => `${d.ok ? '✓' : '❌'} ${d.style} ${Math.round(100 * d.score)}%`).join('  ');
+    console.log(`L${s.level}  ${edges}  ${dumb}`);
     for (const c of s.culprits) {
       console.log(`    ${c.edge} is held up by: ${c.cards.map(x => `${x.name} (without it ${x.shift >= 0 ? '+' : ''}${x.shift.toFixed(0)})`).join(', ')}`);
     }

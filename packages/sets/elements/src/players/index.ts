@@ -2,6 +2,7 @@
 export {
   ALL_SKILLS, getSkill, getAction, unlockedActions, registerSkill, unregisterSkill,
 } from './catalog.js';
+export { LADDER_RULES } from './ladder-rules.js';
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 

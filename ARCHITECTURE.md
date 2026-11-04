@@ -51,7 +51,9 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   └── test/                     # report maths vs closed forms, cache fingerprints, parser vs engine, pipeline A/A
 ├── playtest/                     # @pimpampum/playtest — the REQUIREMENTS
 │   ├── src/
+│   │   ├── requirements.ts       # REQUIREMENTS: every requirement a set is held to (the dynamics report's rows), its rule and where else it is checked
 │   │   ├── rules.ts              # every verdict as a pure function + its bar
+│   │   ├── gate.ts               # the kit gate: fights end, no kit dominates, the triangle, dumb play loses, the AI's model, card use
 │   │   ├── analyze.ts            # the kit analyzer (verdicts carry structured data, not just prose)
 │   │   ├── control-kits.ts       # kits whose verdict is known by construction
 │   │   ├── isolated.ts           # analyzeIsolated()
@@ -74,7 +76,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── players/              # skills/ (one file per kit), effects/ (generic only), equipment, potions, party, build
 │   │   ├── enemies/              # creatures/ (one file per creature), catalog, factory
 │   │   └── bench/                # @pimpampum/set-fantasy/bench — the FANTASY GameSet + calibration data (Node-only)
-│   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), triangle (set-level requirement 4), balancer, ai-strength
+│   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), triangle (set-level requirement 4), balancer
 ├── tools/                        # @pimpampum/tools — the harnesses (see its README)
 │   ├── src/                      # kit-analyzer, ai-benchmark, card-value, probe-shapes, mutation, play, …
 │   └── test/                     # conventions (repo-wide source rules + layering), harness smoke test
@@ -836,16 +838,6 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   legality. **Its 2026-08-08 run is what killed the lean policy** (no better
   than a random legal card — NEXT-STEPS §9); the staleness section now asserts
   there is nothing left to go stale, since the one AI carries no per-card table.
-- `hero-scale.ts` — HERO SCALE (bench `heroScaleRun`, playtest
-  `measureHeroScale`, 2026-11-02): random 2v2 teams of the set's main kits at
-  the players' own PV, the production AI on both sides. It reports fight
-  length, the heroes felled before any card of theirs resolved, and each
-  card's KOs from full PV in one play, and judges requirement 5: a fast attack
-  stays under `FAST_ONE_SHOT_MAX` KOs a play unless a fast Defense is in the
-  game (`fastAttackVerdict`; `sets/elements/test/hero-scale.slow.test.ts`).
-  The kit cells fight creatures whose solved PV (30-120) hides every one-hit
-  KO: Llamp as a fast 4d6 KO'd a fresh hero on 0.56 of its plays here and read
-  as merely good there.
 - `kit-analyzer.ts` — the KIT REGRESSION HARNESS (NEXT-STEPS §7): library +
   CLI, one code path, two modes (`--player <skill>` / `--enemy <id>`; no flag
   sweeps every main kit; `--triangle` adds the set's requirement 4). Per kit

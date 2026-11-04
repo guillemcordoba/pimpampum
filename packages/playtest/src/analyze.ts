@@ -42,7 +42,7 @@ import {
   subjectParty, theSet, usableCells,
 } from '@pimpampum/bench';
 import {
-  choiceMattersVerdict, durationVerdict, isNeverRight, KIT_BAND,
+  choiceMattersVerdict, durationVerdict, isBlindSpot, isNeverRight, KIT_BAND,
   MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, strengthVerdict,
 } from './rules.js';
 
@@ -348,6 +348,18 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   };
 
   return { subject, cards, fullKit: top, cardValues: values, choiceCost: cost, duration, strength, choices };
+}
+
+/** The cards of a measured kit the AI is blind to (`isBlindSpot`), with the
+ *  two shares that flagged them. */
+export function blindCards(r: KitReport): { id: string; bestShare: number; playRate: number }[] {
+  const counters = r.fullKit.counters;
+  return r.cardValues.flatMap(v => {
+    const legal = counters.legal[v.id] ?? 0;
+    if (!legal) return [];
+    const playRate = (counters.played[v.id] ?? 0) / legal;
+    return isBlindSpot(v.bestShare, v.bestStderr, playRate) ? [{ id: v.id, bestShare: v.bestShare, playRate }] : [];
+  });
 }
 
 /** The subject half of a cell key. Shared so the warmer and the real run

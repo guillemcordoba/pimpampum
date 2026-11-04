@@ -201,6 +201,8 @@ pnpm --filter @pimpampum/tools exec tsx src/<file>.ts
 | `main.ts` | the standing report: mirror balance + a replay check on the balancer |
 | `kit-analyzer.ts` | **the report card** — the three kit requirements, every number; `--triangle` adds the set's fourth (the TESTS are `sets/fantasy/test/kits/` and `triangle.slow.test.ts`) |
 | `hero-scale.ts` | heroes against heroes at the players' PV: fight length, heroes felled before playing a card, one-play KOs, and requirement 5 (a fast attack is weak or answered) — what the kit cells, against creatures of 30-120 PV, cannot see (the TEST is `sets/elements/test/hero-scale.slow.test.ts`) |
+| `kit-gate.ts` | **the livable zone** — every main kit, levels 3-10, heroes against heroes: fights end, no kit dominates the field, the triangle, dumb play loses (turtle, spam, random cards), the AI's model of its opponents, every card's use (the TEST is `sets/elements/test/gate.slow.test.ts`) |
+| `dynamics-report.ts` | **a set's requirements page** — every requirement in playtest's `REQUIREMENTS` (the set's, not the machinery's), how well it holds today and under the best candidate structure, why the set plays as it does, and the recommended fix |
 | `card-value.ts` | per-decision value of every card in a kit |
 | `probe-shapes.ts` | which body counts make a usable cell |
 | `experiment-kit-threat.ts` | can each creature carry a fight, and is its kit finished |

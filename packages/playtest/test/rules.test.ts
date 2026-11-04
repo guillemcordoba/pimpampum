@@ -21,8 +21,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  choiceMattersVerdict, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
-  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict, fastAttackVerdict, FAST_ONE_SHOT_MAX, MIN_HERO_SCALE_PLAYS,
+  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, FIELD_MAX, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
+  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict,
 } from '../src/index.js';
 import { ActionType } from '@pimpampum/engine';
 
@@ -138,6 +138,21 @@ describe('requirement 3 — a card is never the right play', () => {
   });
 });
 
+describe('no kit dominates the field', () => {
+  it('a kit far above the bar dominates', () => {
+    expect(dominatesField(0.8, 120)).toBe(true);
+  });
+
+  it('THE NULL: an even kit never dominates, at any sample size', () => {
+    for (const n of [50, 120, 100_000]) expect(dominatesField(0.5, n)).toBe(false);
+  });
+
+  it('does NOT flag a kit inside its own noise above the bar', () => {
+    // 70% over 120 fights: σ ≈ 4pp, the interval reaches 65%.
+    expect(dominatesField(FIELD_MAX + 0.05, 120)).toBe(false);
+  });
+});
+
 describe('requirement 4 — the triangle', () => {
   const N = TRIANGLE_GAMES;
 
@@ -181,23 +196,3 @@ describe('a blind spot: often the best play, almost never played', () => {
   });
 });
 
-describe('requirement 5 — a fast attack is weak, or something answers it', () => {
-  const card = (id: string, oneShotRate: number, plays = 1000, fast = true, type = ActionType.Atac) =>
-    ({ id, type, fast, plays, oneShots: Math.round(oneShotRate * plays) });
-
-  it('flags a fast attack that clearly one-shots more often than the bar', () => {
-    expect(fastAttackVerdict([card('bolt', 0.5)], false)).toMatchObject({ ok: false, broken: ['bolt'] });
-  });
-  it('lets a fast attack under the bar through, and one within noise of it', () => {
-    expect(fastAttackVerdict([card('jab', 0.02), card('edge', FAST_ONE_SHOT_MAX + 0.01, 100)], false).ok).toBe(true);
-  });
-  it('judges only fast attacks: a slow nuke and a fast focus are not its business', () => {
-    expect(fastAttackVerdict([card('nuke', 1, 1000, false), card('rush', 1, 1000, true, ActionType.Focus)], false).ok).toBe(true);
-  });
-  it('a fast defense in the game answers every fast attack', () => {
-    expect(fastAttackVerdict([card('bolt', 0.5)], true).ok).toBe(true);
-  });
-  it('a card played too seldom is unjudged, not passed silently', () => {
-    expect(fastAttackVerdict([card('rare', 1, MIN_HERO_SCALE_PLAYS - 1)], false)).toMatchObject({ ok: true, unjudged: ['rare'] });
-  });
-});

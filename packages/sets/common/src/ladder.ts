@@ -7,9 +7,9 @@
  * encounter lever, solved with its level).
  *
  * Cards sit AROUND the ladder, not on it: an effect, extra targets or speed
- * are paid for in dice (`test/ladder.test.ts` says how far a card may stray).
+ * are paid for in dice (`offTheLadder`; each set's `LADDER_RULES` says how far a card may stray).
  */
-import { DiceRoll } from '@pimpampum/engine';
+import { ActionType, DiceRoll, type ActionDefinition } from '@pimpampum/engine';
 
 /** A level's vanilla single-target attack, one die type and a flat bonus. */
 export const ATTACK_LADDER: Readonly<Record<number, DiceRoll>> = {
@@ -34,3 +34,30 @@ export const PV_REFERENCE_LEVEL = 5;
 
 /** A hero's PV: 4 × the level-5 average = 26. */
 export const BODY_PV = BLOWS_TO_FALL * ladderMean(PV_REFERENCE_LEVEL);
+
+/** How far a card may roll above its level's rung, and the cards above it
+ *  that something else pays for (`offTheLadder`). */
+export interface LadderRules {
+  slack: number;
+  /** A Focus that rolls: Focus cards are much stronger than attacks (intentions.md). */
+  focusSlack: number;
+  /** Card id → what pays for its dice. */
+  reasons: Readonly<Record<string, string>>;
+}
+
+/** The cards rolling above their rung by more than the slack (`over`), and
+ *  the ones a written reason excuses. Below is free: effects, extra targets
+ *  and speed are paid for in dice. */
+export function offTheLadder(skills: readonly { actions: readonly ActionDefinition[] }[], rules: LadderRules): { over: string[]; excused: string[] } {
+  const over: string[] = [], excused: string[] = [];
+  for (const a of skills.flatMap(s => s.actions)) {
+    if (!a.dice) continue;
+    const level = Math.max(1, Math.min(10, a.unlockLevel));
+    const rung = (a.actionType === ActionType.Defensa ? DEFENSE_LADDER : ATTACK_LADDER)[level].average();
+    const slack = a.actionType === ActionType.Focus ? rules.focusSlack : rules.slack;
+    if (a.dice.average() - rung <= slack) continue;
+    if (a.id in rules.reasons) excused.push(a.id);
+    else over.push(`${a.id} (level ${level}: ${a.dice.average()} against ${rung})`);
+  }
+  return { over, excused };
+}

@@ -8,12 +8,10 @@
 export * from './rules.js';
 export {
   analyze, setupFor, cardsOf, cellsFor, subjectPrintFor, analysisJobs, runAnalysisJob,
-  DEFAULT_CARD_VALUE_MODELS,
+  DEFAULT_CARD_VALUE_MODELS, blindCards,
 } from './analyze.js';
 export type { Subject, Verdict, KitReport, AnalyzeBudget, AnalysisJob, ChoiceCost } from './analyze.js';
 export { measureCycle, measureTriangle } from './triangle.js';
-export { measureHeroScale } from './hero-scale.js';
-export type { HeroScaleReport } from './hero-scale.js';
 export type { TriangleEdge, TriangleReport } from './triangle.js';
 export { prepare, installSet, withSubject } from './prepare.js';
 export type { RunContext } from './prepare.js';
@@ -49,3 +47,5 @@ export { vanillaTwin, withVanillaSet, twinDynamics, TWIN_DEFAULTS } from './vani
 export type { TwinParams } from './vanilla.js';
 export { deriveOnTwins, deriveTwinLevel } from './derive-twins.js';
 export type { TwinDeriveOptions } from './derive-twins.js';
+export { REQUIREMENTS } from './requirements.js';
+export type { Requirement, RequirementGroup } from './requirements.js';

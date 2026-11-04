@@ -20,10 +20,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { SMOKE } from '@pimpampum/bench';
-import type { AnalyzeBudget, KitReport, Verdict } from './analyze.js';
+import { blindCards, type AnalyzeBudget, type KitReport, type Verdict } from './analyze.js';
 import { analyzeIsolated, blameIsolated } from './isolated.js';
 import { showCulprits } from './blame.js';
-import { isBlindSpot } from './rules.js';
+
+export { blindCards };
 
 /** The requirements a KIT is judged on (`rules.ts`). Requirement 4, the
  *  strategy triangle, is the set's, not a kit's (`triangle.ts`). */
@@ -47,18 +48,6 @@ export interface KitSuiteOptions {
   /** Cards the AI is KNOWN to be blind to today (`isBlindSpot`), by id. The
    *  same ratchet: each must still be flagged, and nothing else may be. */
   knownBlind?: string[];
-}
-
-/** The cards of a measured kit the AI is blind to (`isBlindSpot`), with the
- *  two shares that flagged them. */
-export function blindCards(r: KitReport): { id: string; bestShare: number; playRate: number }[] {
-  const counters = r.fullKit.counters;
-  return r.cardValues.flatMap(v => {
-    const legal = counters.legal[v.id] ?? 0;
-    if (!legal) return [];
-    const playRate = (counters.played[v.id] ?? 0) / legal;
-    return isBlindSpot(v.bestShare, v.bestStderr, playRate) ? [{ id: v.id, bestShare: v.bestShare, playRate }] : [];
-  });
 }
 
 /** Declare one kit's requirement tests. Call at the top level of a test file. */

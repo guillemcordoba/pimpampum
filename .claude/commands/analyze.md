@@ -22,7 +22,7 @@ pnpm --filter @pimpampum/tools exec tsx src/kit-analyzer.ts --player <kit>
 3. Run the set-level requirement 4, the strategy triangle, after any content change. If the change touched creatures, armour or anything a fight's difficulty rests on, also run the other set-level checks:
 ```bash
 SLOW=1 npx vitest run test/triangle.slow.test.ts
-SLOW=1 npx vitest run test/set.slow.test.ts test/balancer.slow.test.ts test/ai-strength.slow.test.ts
+SLOW=1 npx vitest run test/set.slow.test.ts test/balancer.slow.test.ts
 ```
 The kit analyzer prints the triangle too with `--triangle`.
 

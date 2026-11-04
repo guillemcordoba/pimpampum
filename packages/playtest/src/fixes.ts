@@ -10,12 +10,12 @@
  *  - on the REAL kits, as far as it can be applied mechanically — the chip
  *    damage, every Defense card's dice shifted down the rungs, the derived PV —
  *    in the measurement only (nothing is written to a card): how fights then
- *    play (bench `kitsDynamics`), the triangle and the turtle.
+ *    play (bench `kitsDynamics`), the triangle and dumb play.
  * A stronger Focus cannot be applied to real cards mechanically (their power
  * is in their effects, not their dice): the report says so instead of guessing.
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
-import { kitsDynamics, styleDuel, theSet, type DuelStyle, type Variant } from '@pimpampum/bench';
+import { DUMB_STYLES, kitsDynamics, styleDuel, theSet, type DuelStyle, type DumbStyle, type Variant } from '@pimpampum/bench';
 import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
 import { deriveOnTwins } from './derive-twins.js';
 import type { CensusCard } from './census.js';
@@ -62,7 +62,7 @@ export interface FixLevel {
   pv: number;
   real: DynamicsSummary;
   triangle: { edge: string; winrate: number; holds: boolean }[];
-  turtle: { score: number; loses: boolean };
+  dumb: { style: DumbStyle; score: number; loses: boolean }[];
 }
 
 export interface FixResult { fix: Fix; levels: FixLevel[]; focusOnRealKits: boolean }
@@ -103,8 +103,11 @@ export async function evaluateFix(
       const d = styleDuel(x, y, level, budget.duelGames, undefined, variant);
       return { edge: `${x} > ${y}`, winrate: d.score, holds: edgeHolds(d.score, d.games) };
     });
-    const t = styleDuel('turtle', 'ai', level, budget.duelGames, undefined, variant);
-    out.push({ level, vanilla, pv, real, triangle, turtle: { score: t.score, loses: edgeHolds(1 - t.score, t.games) } });
+    const dumb = DUMB_STYLES.map(style => {
+      const d = styleDuel(style, 'ai', level, budget.duelGames, undefined, variant);
+      return { style, score: d.score, loses: edgeHolds(1 - d.score, d.games) };
+    });
+    out.push({ level, vanilla, pv, real, triangle, dumb });
   }
   return { fix, levels: out, focusOnRealKits: fix.aim === 1 };
 }
@@ -112,8 +115,8 @@ export async function evaluateFix(
 /** What the report ranks a fix on. */
 export interface FixScore {
   /** Checkpoints where vanilla has a PV window / the real kits' fights end /
-   *  the triangle holds / the turtle loses. */
-  windows: number; realEnds: number; triangle: number; turtle: number;
+   *  the triangle holds / every dumb strategy loses. */
+  windows: number; realEnds: number; triangle: number; dumb: number;
   /** Checkpoints where the real kits keep burst in bounds: round-1 KOs and
    *  heroes felled from full by one card, each at most a tenth. */
   realBurst: number;
@@ -133,7 +136,7 @@ export function scoreFix(r: FixResult): FixScore {
     windows: r.levels.filter(l => l.vanilla.pv !== null).length,
     realEnds: r.levels.filter(l => l.real.ends).length,
     triangle: r.levels.filter(l => l.triangle.every(e => e.holds)).length,
-    turtle: r.levels.filter(l => l.turtle.loses).length,
+    dumb: r.levels.filter(l => l.dumb.every(d => d.loses)).length,
     realBurst: r.levels.filter(l => burstHolds(l.real)).length,
     robustness: Math.min(...r.levels.map(width)),
     costs: [
@@ -151,7 +154,7 @@ export function burstHolds(s: DynamicsSummary): boolean {
 }
 
 /** Constraint checks a fix passes, of five per checkpoint. */
-export const checksMet = (s: FixScore): number => s.windows + s.realEnds + s.realBurst + s.triangle + s.turtle;
+export const checksMet = (s: FixScore): number => s.windows + s.realEnds + s.realBurst + s.triangle + s.dumb;
 
 /** Best first: most constraints met, then fewest costs, then the widest windows. */
 export function rankFixes(results: FixResult[]): { result: FixResult; score: FixScore }[] {

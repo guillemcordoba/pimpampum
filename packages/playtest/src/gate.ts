@@ -8,9 +8,12 @@
  *  - FIGHTS END: per kit and level, 2v2 fights against random kits — the
  *    median, the 90th percentile (the user's hard limit, `MAX_P90_ROUNDS`) and
  *    the fights that never end;
- *  - THE TRIANGLE and THE TURTLE: at the checkpoints (3, 6, 10), the three
- *    leaning styles each against the next, and a side that only defends against
- *    the reading AI, which must lose (reads beat dumb strategies);
+ *  - NO KIT DOMINATES: in the same fights, no kit's side clearly above
+ *    `FIELD_MAX` against the field;
+ *  - THE TRIANGLE and DUMB PLAY LOSES: at the checkpoints (3, 6, 10), the
+ *    three leaning styles each against the next, and every dumb strategy
+ *    (bench `DUMB_STYLES`: only defending, the biggest attack, any card)
+ *    against the reading AI, which must beat each one clearly;
  *  - EVERY CARD HAS A USE: per kit, each card's value in mirrors — a card that
  *    is never the right play at any level it is held, or one the AI is blind to.
  *
@@ -19,10 +22,10 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
+import { DUMB_STYLES, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelStyle, type DumbStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
-  durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
+  dominatesField, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
@@ -43,9 +46,10 @@ const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protec
 export interface GateKitCell {
   kit: string; level: number; fights: number;
   medianRounds: number; p90Rounds: number; stallRate: number;
-  /** The kit's side's score in its fights (draws and stalls ½): context, not a verdict. */
+  /** The kit's side's score in its fights (draws and stalls ½). */
   winrate: number;
-  ok: boolean; reasons: string[];
+  /** Fights end (`ok`, `reasons`); the kit clearly above `FIELD_MAX`. */
+  ok: boolean; reasons: string[]; dominates: boolean;
   why: LengthAutopsy;
 }
 
@@ -81,7 +85,8 @@ export interface GateStyleCell {
   /** Per broken edge, the loser's cards whose removal lifts the claimed
    *  winner's score most: what holds the edge up (`shift` in points). */
   culprits: { edge: string; cards: { card: string; name: string; shift: number }[] }[];
-  turtle: { score: number; stalls: number; games: number; ok: boolean };
+  /** Each dumb strategy's score against the reading AI; `ok`: it clearly loses. */
+  dumb: { style: DumbStyle; score: number; stalls: number; games: number; ok: boolean }[];
   /** The AI's model of its opponents against what they played (`modelCheck`). */
   model: ModelCheck & { ok: boolean; off: string[] };
 }
@@ -100,7 +105,7 @@ export interface GateReport {
   failures: GateFailure[];
 }
 
-/** Keys: `<kit> L<n> length`, `L<n> triangle <winner> > <loser>`, `L<n> turtle`,
+/** Keys: `<kit> L<n> length`, `<kit> L<n> dominates`, `L<n> triangle <winner> > <loser>`, `L<n> dumb <style>`,
  *  `L<n> model`, `<kit> <card id> never-right`, `<kit> <card id> blind`. */
 export interface GateFailure { key: string; text: string }
 
@@ -129,7 +134,7 @@ export function gateJobs(scope: GateScope = {}): GateJob[] {
     ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).map(level => ({ kind: 'gate-cards' as const, kit, level })))),
     ...(scope.kits ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
       ...EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level })),
-      { kind: 'gate-duel' as const, x: 'turtle' as const, y: 'ai' as const, level },
+      ...DUMB_STYLES.map(x => ({ kind: 'gate-duel' as const, x, y: 'ai' as const, level })),
       { kind: 'gate-model' as const, level },
     ])),
     ...kits.flatMap(kit => inScope(GATE_LEVELS, scope).map(level => ({ kind: 'gate-fights' as const, kit, level }))),
@@ -211,9 +216,10 @@ export function gateKitCell(kit: string, level: number, budget: GateBudget = GAT
   const stallRate = fights.filter(f => f.capped).length / Math.max(1, fights.length);
   const medianRounds = quantile(rounds, 0.5), p90Rounds = quantile(rounds, 0.9);
   const v = durationVerdict(medianRounds, p90Rounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
+  const winrate = fights.reduce((s, f) => s + f.won, 0) / Math.max(1, fights.length);
   return {
     kit, level, fights: fights.length, medianRounds, p90Rounds, stallRate,
-    winrate: fights.reduce((s, f) => s + f.won, 0) / Math.max(1, fights.length), ok: v.ok, reasons: v.reasons, why,
+    winrate, ok: v.ok, reasons: v.reasons, dominates: dominatesField(winrate, fights.length), why,
   };
 }
 
@@ -222,7 +228,10 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
     const d = styleDuel(x, y, level, budget.duelGames);
     return { winner: x, loser: y, winrate: d.score, games: d.games };
   });
-  const t = styleDuel('turtle', 'ai', level, budget.duelGames);
+  const dumb = DUMB_STYLES.map(style => {
+    const d = styleDuel(style, 'ai', level, budget.duelGames);
+    return { style, score: d.score, stalls: d.stalls, games: d.games, ok: edgeHolds(1 - d.score, d.games) };
+  });
   const culprits = EDGES.filter(([x, y]) => {
     const e = edges.find(d => d.winner === x && d.loser === y)!;
     return !edgeHolds(e.winrate, e.games);
@@ -236,7 +245,7 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
   const model = modelCheck(level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   return {
     level, edges, broken: triangleVerdict(edges).broken, culprits, model: { ...model, ...modelVerdict(model.predicted, model.actual) },
-    turtle: { score: t.score, stalls: t.stalls, games: t.games, ok: edgeHolds(1 - t.score, t.games) },
+    dumb,
   };
 }
 
@@ -277,8 +286,9 @@ export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUD
   const cards = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
   const failures: GateFailure[] = [
     ...kits.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} length`, text: `${c.kit} L${c.level}: ${c.reasons.join(', ')}` })),
+    ...kits.filter(c => c.dominates).map(c => ({ key: `${c.kit} L${c.level} dominates`, text: `${c.kit} L${c.level}: its side scores ${pct(c.winrate)} against the field` })),
     ...styles.flatMap(s => s.broken.map(b => ({ key: `L${s.level} triangle ${b}`, text: `L${s.level} triangle: ${b} doesn't hold` }))),
-    ...styles.filter(s => !s.turtle.ok).map(s => ({ key: `L${s.level} turtle`, text: `L${s.level} turtle: scores ${pct(s.turtle.score)} against the AI` })),
+    ...styles.flatMap(s => s.dumb.filter(d => !d.ok).map(d => ({ key: `L${s.level} dumb ${d.style}`, text: `L${s.level} dumb play: ${d.style} scores ${pct(d.score)} against the AI` }))),
     ...styles.filter(s => !s.model.ok).map(s => ({ key: `L${s.level} model`, text: `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}` })),
     ...cards.filter(c => c.neverRight).map(c => ({ key: `${c.kit} ${c.card} never-right`, text: `${c.kit} ${c.name}: never the right play (L${c.levels.map(l => l.level).join(', L')})` })),
     ...cards.filter(c => c.blind).map(c => ({ key: `${c.kit} ${c.card} blind`, text: `${c.kit} ${c.name}: the AI is blind to it (L${c.levels.filter(l => l.blind).map(l => l.level).join(', L')})` })),

@@ -19,7 +19,7 @@ import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
 import { theSet } from './gameset.js';
-import { leaning, STYLE_SHARE, type Chooser } from './policies.js';
+import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
 import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
 
 const TARGETS = aiPolicy(CELL_AI).targetChooser;
@@ -134,8 +134,13 @@ export function kitMirrors(kit: string, level: number, fights: number, lateRound
 }
 
 /** A style the gate pits against another: the production AI, a lean
- *  (`leaning`), or a hard restriction to one card type. */
-export type DuelStyle = 'ai' | 'Power' | 'Protect' | 'Aggro' | 'turtle';
+ *  (`leaning`), or a dumb strategy (`DUMB_STYLES`). */
+export type DuelStyle = 'ai' | 'Power' | 'Protect' | 'Aggro' | DumbStyle;
+export type DumbStyle = 'turtle' | 'spam' | 'random';
+/** What reading the opponents must beat (the user, 2026-11-04, restoring the
+ *  old "thinking beats not thinking"): only defending, well chosen; always the
+ *  biggest attack; any legal card. */
+export const DUMB_STYLES: readonly DumbStyle[] = ['turtle', 'spam', 'random'];
 
 function chooserFor(style: DuelStyle): Chooser {
   switch (style) {
@@ -144,6 +149,8 @@ function chooserFor(style: DuelStyle): Chooser {
     case 'Protect': return leaning(ActionType.Defensa, STYLE_SHARE);
     case 'Aggro': return leaning(ActionType.Atac, STYLE_SHARE);
     case 'turtle': return lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [ActionType.Defensa] });
+    case 'spam': return spam;
+    case 'random': return uniform;
   }
 }
 
