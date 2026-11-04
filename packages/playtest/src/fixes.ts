@@ -15,7 +15,7 @@
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
 import { kitsDynamics, styleDuel, theSet, type DuelStyle, type Variant } from '@pimpampum/bench';
-import { derivePV, type PVDerivation } from './derive-pv.js';
+import { derivePV, MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
 import { edgeHolds } from './rules.js';
@@ -106,6 +106,9 @@ export interface FixScore {
   /** Checkpoints where vanilla has a PV window / the real kits' fights end /
    *  the triangle holds / the turtle loses. */
   windows: number; realEnds: number; triangle: number; turtle: number;
+  /** Checkpoints where the real kits keep burst in bounds: round-1 KOs and
+   *  heroes felled from full by one card, each at most a tenth. */
+  realBurst: number;
   /** The narrowest PV window (0 when one is empty). */
   robustness: number;
   /** Against the user's principles: softer defenses (turtles are to be beaten by
@@ -123,6 +126,7 @@ export function scoreFix(r: FixResult): FixScore {
     realEnds: r.levels.filter(l => l.real.ends).length,
     triangle: r.levels.filter(l => l.triangle.every(e => e.holds)).length,
     turtle: r.levels.filter(l => l.turtle.loses).length,
+    realBurst: r.levels.filter(l => burstHolds(l.real)).length,
     robustness: Math.min(...r.levels.map(width)),
     costs: [
       ...(r.fix.defenseShift ? [`defenses ${-r.fix.defenseShift} rung${r.fix.defenseShift === -1 ? '' : 's'} lower (against "turtles are beaten by Focus, not by softer defense")`] : []),
@@ -133,9 +137,17 @@ export function scoreFix(r: FixResult): FixScore {
   };
 }
 
+/** The real kits' burst within the floors `derivePV` sets on vanilla. */
+export function burstHolds(s: DynamicsSummary): boolean {
+  return s.roundOneKOs <= MAX_ROUND_ONE_KOS && s.oneShots <= MAX_BEST_BLOW_KOS;
+}
+
+/** Constraint checks a fix passes, of five per checkpoint. */
+export const checksMet = (s: FixScore): number => s.windows + s.realEnds + s.realBurst + s.triangle + s.turtle;
+
 /** Best first: most constraints met, then fewest costs, then the widest windows. */
 export function rankFixes(results: FixResult[]): { result: FixResult; score: FixScore }[] {
-  const met = (s: FixScore) => s.windows + s.realEnds + s.triangle + s.turtle;
+  const met = checksMet;
   return results.map(result => ({ result, score: scoreFix(result) }))
     .sort((a, b) => met(b.score) - met(a.score) || a.score.costs.length - b.score.costs.length || b.score.robustness - a.score.robustness);
 }

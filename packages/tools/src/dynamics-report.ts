@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitOnlyDynamics, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
-  CANDIDATE_FIXES, explain, feasibility, FIX_BUDGET, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, rankFixes, summarise,
+  burstHolds, CANDIDATE_FIXES, checksMet, explain, feasibility, FIX_BUDGET, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, rankFixes, summarise,
   vanillaKit, vanillaPrint, withControlKit, type DynamicsSummary, type FixResult, type LadderRung,
 } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
@@ -87,11 +87,11 @@ const cell = (r: FixResult, level: number) => {
   const win = l.vanilla.lengthPV === null ? 'none' : `${floor}–${l.vanilla.lengthPV}`;
   const triangle = l.triangle.every(e => e.holds);
   return `<td><div class="cellgrid">
-    <span>PV <b class="num">${l.vanilla.pv ?? '—'}</b> <small>(window ${win})</small></span>
+    <span>PV <b class="num">${l.vanilla.pv ?? '—'}</b> <small>(window ${win}; real kits at ${l.pv})</small></span>
     <span>${verdict(l.real.ends)} length <small class="num">${l.real.median}·${l.real.p90}${l.real.stallRate ? `·${pc(l.real.stallRate)}` : ''}</small></span>
     <span>${verdict(triangle)} triangle${triangle ? '' : ` <small>${l.triangle.filter(e => !e.holds).map(e => `${e.edge} ${pc(e.winrate)}`).join(', ')}</small>`}</span>
     <span>${verdict(l.turtle.loses)} turtle <small class="num">${pc(l.turtle.score)}</small></span>
-    <span><small>one-shots ${pc(l.real.oneShots)} · round-1 KOs ${pc(l.real.roundOneKOs)}</small></span>
+    <span>${verdict(burstHolds(l.real))} burst <small>one-shots ${pc(l.real.oneShots)} · round-1 KOs ${pc(l.real.roundOneKOs)}</small></span>
   </div></td>`;
 };
 const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
@@ -100,11 +100,12 @@ const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0
   <td><ul class="costs">${s.costs.length ? s.costs.map(c => `<li>${esc(c)}</li>`).join('') : '<li>none</li>'}</ul></td></tr>`).join('');
 
 const best = ranked[0];
-const total = (s: typeof best.score) => s.windows + s.realEnds + s.triangle + s.turtle;
-const checks = LEVELS.length * 4;
+const total = checksMet;
+const checks = LEVELS.length * 5;
 const recommendation = `
-  <p class="lede"><b>${esc(best.result.fix.label)}</b> meets <b>${total(best.score)} of ${checks}</b> constraint checks at the checkpoints (a PV window, fights ending, the triangle, the turtle losing), the most of any candidate${best.score.robustness ? `, with PV windows at least ${best.score.robustness} wide` : ''}.</p>
+  <p class="lede"><b>${esc(best.result.fix.label)}</b> meets <b>${total(best.score)} of ${checks}</b> constraint checks at the checkpoints (a PV window on vanilla; on the real kits: fights ending, burst in bounds, the triangle, the turtle losing), the most of any candidate${best.score.robustness ? `, with PV windows at least ${best.score.robustness} wide` : ''}.</p>
   <p>Derived hero PV: ${best.result.levels.map(l => `level ${l.level} <b class="num">${l.vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
+  ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part was measured on vanilla only: real Focus cards can't be scaled mechanically (their power is in their effects), so the real-kit columns show the rest of the fix without it. Rebuilding the Focus cards to about a ${best.result.fix.aim + 1}× blow comes first, then the real game is re-measured.</p>`}
   <p>What it costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'nothing beyond today\'s rules'}.</p>
   ${ranked[1] ? `<p>Runner-up: <b>${esc(ranked[1].result.fix.label)}</b> (${total(ranked[1].score)} of ${checks}; costs: ${ranked[1].score.costs.map(esc).join('; ') || 'none'}).</p>` : ''}
   <p class="muted">Still failing under the recommendation: ${best.result.levels.flatMap(l => [
@@ -112,7 +113,27 @@ const recommendation = `
     ...(!l.real.ends ? [`level ${l.level}: real fights run ${l.real.median}·${l.real.p90}`] : []),
     ...l.triangle.filter(e => !e.holds).map(e => `level ${l.level}: ${e.edge} at ${pc(e.winrate)}`),
     ...(!l.turtle.loses ? [`level ${l.level}: the turtle scores ${pc(l.turtle.score)}`] : []),
+    ...(!burstHolds(l.real) ? [`level ${l.level}: real burst — ${pc(l.real.roundOneKOs)} fall in round 1, ${pc(l.real.oneShots)} felled from full by one card`] : []),
   ]).map(esc).join('; ') || 'nothing'}.</p>`;
+
+const nobody: string[] = [];
+for (const level of LEVELS) {
+  const at = (r: FixResult) => r.levels.find(l => l.level === level)!;
+  for (const edge of ['Power > Protect', 'Protect > Aggro', 'Aggro > Power']) {
+    if (results.every(r => !at(r).triangle.find(e => e.edge === edge)!.holds)) nobody.push(`level ${level}: ${edge} fails under every candidate`);
+  }
+  if (results.every(r => at(r).vanilla.pv === null)) nobody.push(`level ${level}: no candidate gives vanilla a PV window`);
+  if (results.every(r => !burstHolds(at(r).real))) nobody.push(`level ${level}: real burst is out of bounds under every candidate`);
+}
+
+// The structural facts, computed.
+const facts: string[] = [];
+const vDef = today.map(t => pc(t.vanilla.mix.defense)).join(' / '), vStall = today.map(t => pc(t.vanilla.stallRate)).join(' / ');
+facts.push(`Plain ladder cards make a turtle game: in vanilla, defenses are ${vDef} of the plays at levels ${LEVELS.join(' / ')}, and ${vStall} of the fights never end.`);
+facts.push(`Guards erase blows: in the real game only ${today.map(t => pc(t.real.sources.guarded)).join(' / ')} of the damage goes through a guard; it comes from bodies caught open (${today.map(t => pc(t.real.sources.open)).join(' / ')}), area attacks (${today.map(t => pc(t.real.sources.area)).join(' / ')}), Focus (${today.map(t => pc(t.real.sources.focus)).join(' / ')}) and statuses (${today.map(t => pc(t.real.sources.roundEnd)).join(' / ')}).`);
+facts.push(`The real game moves ${today.map(t => t.real.pvPerRound.toFixed(1)).join(' / ')} PV a round: fights last ${today.map(t => `${t.real.median}·${t.real.p90}`).join(' / ')} rounds (median·9 in 10) against bars of ${MAX_MEDIAN_ROUNDS}·${MAX_P90_ROUNDS}.`);
+const top = today[today.length - 1];
+facts.push(`At level ${top.level} the game turns on burst: ${pc(top.real.sources.area)} of the damage is area attacks, ${pc(top.real.roundOneKOs)} of the heroes fall in round 1 and ${pc(top.real.bigBlows)} of the hurting cards take half a body at once.`);
 
 const html = `<title>Pim Pam Pum Dynamics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -172,6 +193,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cellgrid { display: grid; gap: 4px; min-width: 190px; }
 .costs { margin: 0; padding-left: 16px; display: grid; gap: 4px; min-width: 200px; }
 .note { color: var(--warn); }
+.facts { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 80ch; }
 .recommend { background: var(--surface); border: 1px solid var(--accent); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px; }
 </style>
 <div class="wrap">
@@ -181,9 +203,15 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
     <p class="lede">The constraints: fights end (median ≤ ${MAX_MEDIAN_ROUNDS} rounds, 9 in 10 within ${MAX_P90_ROUNDS}, almost no stalls), a fresh hero survives round 1 and its level's best blow, Power &gt; Protect &gt; Aggro &gt; Power, and a pure turtle loses. Hero PV is derived from them, never chosen.</p>
   </header>
 
+  <section>
+    <h2>The dynamics in four lines</h2>
+    <ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+  </section>
+
   <section class="recommend">
     <span class="eyebrow">Recommendation</span>
     ${recommendation}
+    ${nobody.length ? `<p><b>What no candidate fixes:</b> ${nobody.map(esc).join('; ')} — these need a lever outside the candidates (cards, not structure).</p>` : ''}
   </section>
 
   <section>
