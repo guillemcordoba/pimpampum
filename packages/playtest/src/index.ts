@@ -37,3 +37,5 @@ export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, Tu
 export { feasibility } from './feasibility.js';
 export type { FeasibilityInput, FeasibilityRow, LadderRung } from './feasibility.js';
 export { vanillaKit, vanillaPrint } from './vanilla.js';
+export { derivePV, deriveLevel, MAX_ROUND_ONE_KOS, MAX_BEST_BLOW_KOS } from './derive-pv.js';
+export type { PVDerivation, PVOptions } from './derive-pv.js';

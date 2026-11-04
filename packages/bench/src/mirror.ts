@@ -322,6 +322,8 @@ export interface FightSummary {
   /** PV lost by everyone a round; attacks that took nothing; the AI's play mix. */
   pvPerRound: number; emptyAttacks: number;
   mix: { attack: number; defense: number; focus: number };
+  /** Share of the heroes fielded that fell in the first round. */
+  firstRoundKOs: number;
 }
 
 /**
@@ -331,12 +333,13 @@ export interface FightSummary {
  * the way. `print` is the kit's content, for the cache.
  */
 export function kitOnlyMirrors(kit: string, print: string, level: number, pv: number, fights: number): FightSummary {
-  return countedCached('mirror-kit-only', key('mirror-kit-only-v1', print, String(level), String(pv), String(fights)), () => {
+  return countedCached('mirror-kit-only', key('mirror-kit-only-v3', print, String(level), String(pv), String(fights)), () => {
     const set = theSet();
     const rounds: number[] = [];
-    let stalls = 0, pvLost = 0, played = 0, attacks = 0, empty = 0;
+    let stalls = 0, pvLost = 0, played = 0, attacks = 0, empty = 0, fielded = 0, firstRoundKOs = 0;
     const mix = { attack: 0, defense: 0, focus: 0 };
-    withSeed(kitSeed(kit, level, 5) + pv, () => {
+    // The same dice at every PV: a search over PV compares like with like.
+    withSeed(kitSeed(kit, level, 5), () => {
       for (let f = 0; f < fights; f++) {
         const side = (s: string) => {
           const t = set.buildParty({ characters: [1, 2].map(i => ({ ...set.hero(`${s}${i}`, kit, level), pv })) });
@@ -345,6 +348,7 @@ export function kitOnlyMirrors(kit: string, print: string, level: number, pv: nu
         };
         const e = new CombatEngine(side('A'), side('B'), { registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI) });
         const total = () => e.teams.flat().reduce((t, c) => t + Math.max(0, c.currentPV), 0);
+        let roundsDone = 0;
         while (!e.isOver() && e.round < e.maxRounds) {
           const start = total();
           e.prepareRound();
@@ -368,7 +372,9 @@ export function kitOnlyMirrors(kit: string, print: string, level: number, pv: nu
           }
           e.finishRound();
           pvLost += start - total();
+          if (++roundsDone === 1) firstRoundKOs += e.teams.flat().filter(c => c.currentPV <= 0).length;
         }
+        fielded += e.teams.flat().length;
         rounds.push(e.round);
         if (!e.isOver()) stalls++;
       }
@@ -380,6 +386,7 @@ export function kitOnlyMirrors(kit: string, print: string, level: number, pv: nu
       fights, median: q(0.5), p90: q(0.9), stalls: stalls / fights,
       pvPerRound: pvLost / Math.max(1, rounds.reduce((t, r) => t + r, 0)), emptyAttacks: empty / Math.max(1, attacks),
       mix: { attack: mix.attack / n, defense: mix.defense / n, focus: mix.focus / n },
+      firstRoundKOs: firstRoundKOs / Math.max(1, fielded),
     };
   });
 }
