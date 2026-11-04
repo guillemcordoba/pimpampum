@@ -68,3 +68,27 @@ export function explain(s: DynamicsSummary): string[] {
   }
   return out;
 }
+
+// --- does the vanilla set play like the real game? ---------------------------------
+
+export interface MatchCheck { metric: string; real: number; vanilla: number; ok: boolean }
+
+/** The tolerances "vanilla matches today" is judged on (the user, 2026-11-04). */
+export const MATCH_TOLERANCE = { median: 2, p90: 3, p90Share: 0.25, stalls: 0.03, mix: 0.1, pvPerRound: 0.25, source: 0.1 };
+
+/** Vanilla against the real game at one level, metric by metric. */
+export function vanillaMatches(real: DynamicsSummary, vanilla: DynamicsSummary): { ok: boolean; checks: MatchCheck[] } {
+  const T = MATCH_TOLERANCE;
+  const near = (metric: string, r: number, v: number, tol: number): MatchCheck => ({ metric, real: r, vanilla: v, ok: Math.abs(r - v) <= tol });
+  const checks: MatchCheck[] = [
+    near('median rounds', real.median, vanilla.median, T.median),
+    near('rounds, 9 in 10', real.p90, vanilla.p90, Math.max(T.p90, T.p90Share * real.p90)),
+    near('stalls', real.stallRate, vanilla.stallRate, T.stalls),
+    near('attacks played', real.mix.attack, vanilla.mix.attack, T.mix),
+    near('defenses played', real.mix.defense, vanilla.mix.defense, T.mix),
+    near('Focus played', real.mix.focus, vanilla.mix.focus, T.mix),
+    near('PV lost a round', real.pvPerRound, vanilla.pvPerRound, T.pvPerRound * real.pvPerRound),
+    ...(['open', 'area', 'focus', 'roundEnd', 'counter'] as const).map(k => near(`damage from ${k === 'roundEnd' ? 'statuses' : k === 'open' ? 'open bodies' : k}`, real.sources[k], vanilla.sources[k], T.source)),
+  ];
+  return { ok: checks.every(c => c.ok), checks };
+}

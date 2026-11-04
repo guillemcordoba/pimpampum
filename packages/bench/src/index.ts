@@ -65,4 +65,4 @@ export type { WarmJob, WarmWorker } from './parallel.js';
 export { assertParsed, parseAttacks } from './combatlog.js';
 export { isolated } from './isolate.js';
 export { kitsDynamics, kitOnlyDynamics } from './dynamics.js';
-export type { Dynamics, DamageSource, Variant } from './dynamics.js';
+export type { Dynamics, DamageSource, Variant, CardTally } from './dynamics.js';

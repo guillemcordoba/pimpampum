@@ -45,13 +45,20 @@ export interface Dynamics {
   /** Heroes fielded, those that fell in round 1, and those felled from full
    *  PV by a single card. */
   fielded: number; roundOneKOs: number; oneShots: number;
+  /** What each card did when it resolved, by card id: the behavioural census
+   *  (playtest `census.ts`) reads a card's role from it. */
+  cards: Record<string, CardTally>;
 }
+
+/** One card's plays: resolved, and per play — PV the enemies lost, PV the allies
+ *  gained, effects it left on enemies and on allies (status counts). */
+export interface CardTally { plays: number; foeLoss: number; allyGain: number; foeEffects: number; allyEffects: number }
 
 const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
   lost: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
   plays: { attack: 0, defense: 0, focus: 0 }, emptyAttacks: 0, lostFocus: 0,
-  blowShares: Array(10).fill(0), fielded: 0, roundOneKOs: 0, oneShots: 0,
+  blowShares: Array(10).fill(0), fielded: 0, roundOneKOs: 0, oneShots: 0, cards: {},
 });
 
 function playOne(teams: [Character[], Character[]], variant: Variant, into: Dynamics): void {
@@ -65,6 +72,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
     e.planActions([]);
     for (;;) {
       const before = new Map(everyone.map(c => [c, c.currentPV]));
+      const effects = new Map(everyone.map(c => [c, c.statuses.size]));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
       const step = e.resolveNextAction();
       if (step.kind === 'done') break;
@@ -93,6 +101,14 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       }
       if (type === ActionType.Atac && foesLost === 0) into.emptyAttacks++;
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
+      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, allyGain: 0, foeEffects: 0, allyEffects: 0 });
+      t.plays++;
+      t.foeLoss += foesLost;
+      for (const c of everyone) {
+        const gained = Math.max(0, c.currentPV - (before.get(c) ?? 0));
+        const added = Math.max(0, c.statuses.size - (effects.get(c) ?? 0));
+        if (c.team === actor.team) { t.allyGain += gained; t.allyEffects += added; } else t.foeEffects += added;
+      }
     }
     const beforeEnd = new Map(everyone.map(c => [c, c.currentPV]));
     e.finishRound();
@@ -118,10 +134,13 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
   return team;
 };
 
-/** The real game: 2v2 of the set's main kits drawn at random, at `level`. */
-export function kitsDynamics(level: number, fights: number, variant: Variant = {}): Dynamics {
-  const kits = theSet().calibration.mainKits;
-  return countedCached('dynamics', key('dynamics-v1', kits.map(skillPrint).join('|'), 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
+/** 2v2 of `kits` drawn at random at `level` — the set's main kits (the real
+ *  game) unless given (installed by the caller, e.g. vanilla twins; `print`
+ *  is then their content, for the cache). */
+export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
+  const kits = given?.kits ?? theSet().calibration.mainKits;
+  const print = given?.print ?? kits.map(skillPrint).join('|');
+  return countedCached('dynamics', key('dynamics-v2', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
     withSeed(seedOf('kits', level), () => {
@@ -134,7 +153,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v1', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v2', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);
