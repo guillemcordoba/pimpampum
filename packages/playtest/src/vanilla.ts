@@ -97,7 +97,14 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
   for (const c of cards.filter(x => x.kit === kit).sort((a, b) => a.unlock - b.unlock)) {
     const rung = ladder[Math.max(1, Math.min(10, c.unlock))];
     const own = `${id}-${c.unlock}`;
-    const fx: { type: string; params?: Record<string, unknown> }[] = c.fatigue ? [{ type: 'fatigue_cost', params: { levels: c.fatigue } }] : [];
+    const fx: { type: string; params?: Record<string, unknown> }[] = [
+      ...(c.fatigue ? [{ type: 'fatigue_cost', params: { levels: c.fatigue } }] : []),
+      // A twin of a card that adds the wielded weapon adds it too (and its hero is armed for it).
+      ...(c.weapon ? [{ type: 'weapon_damage' }] : []),
+    ];
+    /** How much a burn or a bleed takes a round: what the real card's statuses
+     *  took (the census), else the twins' number. */
+    const lingerFor = (turns: number, fallback: number) => (c.lingering >= 0.5 ? Math.max(1, Math.round(c.lingering / turns)) : fallback);
     const base = { id: own, name: `${c.role} ${c.unlock}`, skillId: id, unlockLevel: c.unlock, fast: c.fast, description: '', iconPath: '' };
     const lift = (d: DiceRoll, by: number) => new DiceRoll(d.numDice, d.sides, d.modifier + by);
     /** The real card's dice when `realDice` asks for them and it has any. */
@@ -112,7 +119,7 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
       case 'rider':
         effects[`${own}-burn`] = {
           onAttackHit(ctx) {
-            if ((ctx.damageDealt ?? 0) > 0 && ctx.target?.isAlive()) applyKind(ctx.target, 'damageOverTime', `${own}-burn`, p.burn, p.burnTurns, { source: ctx.source, harm: 1 });
+            if ((ctx.damageDealt ?? 0) > 0 && ctx.target?.isAlive()) applyKind(ctx.target, 'damageOverTime', `${own}-burn`, lingerFor(p.burnTurns, p.burn), p.burnTurns, { source: ctx.source, harm: 1 });
           },
         };
         actions.push({ ...base, actionType: ActionType.Atac, dice: diceOf(ladder[Math.max(1, c.unlock - p.riderDrop)].attack), effects: [...fx, { type: `${own}-burn` }] } as ActionDefinition);
@@ -128,13 +135,14 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
         actions.push({ ...base, actionType: ActionType.Defensa, dice: diceOf(rung.defense), effects: [...fx, { type: `${own}-riposte` }] } as ActionDefinition);
         break;
       }
+      case 'crack':
       case 'blast':
         effects[`${own}-blast`] = {
           getTargetRequirement: () => 'enemy',
           onResolve(ctx) {
             const t = ctx.targets[0];
             if (!t?.isAlive() || !ctx.action.dice) return;
-            if (p.blastGuardOnly && !ctx.engine.plannedThisRound().some(x => x.actor === t && !x.cancelled && x.action.actionType === ActionType.Defensa)) return;
+            if ((c.role === 'crack' || p.blastGuardOnly) && !ctx.engine.plannedThisRound().some(x => x.actor === t && !x.cancelled && x.action.actionType === ActionType.Defensa)) return;
             ctx.engine.applyPvLoss(t, ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: id }).total, ctx.source);
           },
         };
@@ -156,8 +164,9 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
           onResolve(ctx) {
             const t = ctx.targets[0];
             if (!t?.isAlive()) return;
-            applyKind(t, 'locked', `${own}-hex`, 1, p.hexTurns + 1, { types: [ActionType.Atac], harm: 1 });
-            if (p.hexBleed > 0) applyKind(t, 'damageOverTime', `${own}-bleed`, p.hexBleed, p.hexTurns + 1, { source: ctx.source, harm: 1 });
+            if (c.lingering < 1) applyKind(t, 'locked', `${own}-hex`, 1, p.hexTurns + 1, { types: [ActionType.Atac], harm: 1 });
+            const bleed = lingerFor(p.hexTurns + 1, p.hexBleed);
+            if (bleed > 0) applyKind(t, 'damageOverTime', `${own}-bleed`, bleed, p.hexTurns + 1, { source: ctx.source, harm: 1 });
           },
         };
         actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-hex` }] } as ActionDefinition);

@@ -63,15 +63,18 @@ export interface KitTally {
   dealt: Record<DamageSource, number>; lost: number;
 }
 
-const kitOf = (c: Character): string => (Object.keys(c.skills)[0] ?? '?').replace(/^twin-/, '');
+/** A hero's kit: its highest skill (a twin's `twin-` prefix dropped). */
+const kitOf = (c: Character): string => ([...c.skills].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '?').replace(/^twin-/, '');
 const kitTally = (into: Dynamics, kit: string): KitTally => (into.kits[kit] ??= {
   seats: 0, rounds: 0, plays: { attack: 0, defense: 0, focus: 0 },
   dealt: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 }, lost: 0,
 });
 
-/** One card's plays: resolved, and per play — PV the enemies lost, PV the allies
- *  gained, effects it left on enemies and on allies (status counts). */
-export interface CardTally { plays: number; foeLoss: number; allyGain: number; foeEffects: number; allyEffects: number }
+/** One card's plays, summed: resolved plays; PV the enemies lost in its step,
+ *  and the part of it on enemies that played a Defense that round; PV the
+ *  allies gained; effects it left on enemies and on allies (status counts);
+ *  and PV the enemies lost later, at round ends, to the statuses it set. */
+export interface CardTally { plays: number; foeLoss: number; onDefenders: number; allyGain: number; foeEffects: number; allyEffects: number; lingering: number }
 
 const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
@@ -86,12 +89,17 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
   });
   const everyone = e.teams.flat();
   let roundsDone = 0;
+  /** Which card set each status a body holds (by body, then status key): its
+   *  round-end damage is credited to that card. */
+  const setBy = new Map<Character, Map<string, string>>(everyone.map(c => [c, new Map()]));
   while (!e.isOver() && e.round < e.maxRounds) {
     e.prepareRound();
     e.planActions([]);
     for (;;) {
       const before = new Map(everyone.map(c => [c, c.currentPV]));
       const effects = new Map(everyone.map(c => [c, c.statuses.size]));
+      const keysBefore = new Map(everyone.map(c => [c, new Set(c.statuses.keys())]));
+      const defended = new Set(e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa).map(p => p.actor));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
       const step = e.resolveNextAction();
       if (step.kind === 'done') break;
@@ -124,18 +132,29 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       }
       if (type === ActionType.Atac && foesLost === 0) into.emptyAttacks++;
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
-      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, allyGain: 0, foeEffects: 0, allyEffects: 0 });
+      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0 });
       t.plays++;
       t.foeLoss += foesLost;
       for (const c of everyone) {
         const gained = Math.max(0, c.currentPV - (before.get(c) ?? 0));
         const added = Math.max(0, c.statuses.size - (effects.get(c) ?? 0));
-        if (c.team === actor.team) { t.allyGain += gained; t.allyEffects += added; } else t.foeEffects += added;
+        if (c.team === actor.team) { t.allyGain += gained; t.allyEffects += added; } else {
+          t.foeEffects += added;
+          if (defended.has(c)) t.onDefenders += Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
+          for (const k of c.statuses.keys()) if (!keysBefore.get(c)!.has(k)) setBy.get(c)!.set(k, def.id);
+        }
       }
     }
     const beforeEnd = new Map(everyone.map(c => [c, c.currentPV]));
+    const heldAtEnd = new Map(everyone.map(c => [c, [...c.statuses.keys()].map(k => setBy.get(c)!.get(k)).filter((x): x is string => !!x)]));
     e.finishRound();
-    for (const c of everyone) into.lost.roundEnd += Math.max(0, (beforeEnd.get(c) ?? 0) - Math.max(0, c.currentPV));
+    for (const c of everyone) {
+      const loss = Math.max(0, (beforeEnd.get(c) ?? 0) - Math.max(0, c.currentPV));
+      into.lost.roundEnd += loss;
+      // Split among the cards whose statuses the body held.
+      const by = heldAtEnd.get(c)!;
+      for (const id of by) if (into.cards[id]) into.cards[id].lingering += loss / by.length;
+    }
     if (++roundsDone === 1) into.roundOneKOs += everyone.filter(c => c.currentPV <= 0).length;
   }
   into.fights++;
@@ -169,7 +188,7 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
 export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
   const kits = given?.kits ?? theSet().calibration.mainKits;
   const print = given?.print ?? kits.map(skillPrint).join('|');
-  return countedCached('dynamics', key('dynamics-v3', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v5', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
     withSeed(seedOf('kits', level), () => {
@@ -182,7 +201,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v3', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v5', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);

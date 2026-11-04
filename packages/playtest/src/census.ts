@@ -9,28 +9,35 @@ import type { CardTally } from '@pimpampum/bench';
 import { theSet } from '@pimpampum/bench';
 import { ActionType, type ActionDefinition } from '@pimpampum/engine';
 
-export type Role = 'attack' | 'area' | 'rider' | 'guard' | 'payoff' | 'blast' | 'heal' | 'hex' | 'boost';
+export type Role = 'attack' | 'area' | 'rider' | 'guard' | 'payoff' | 'blast' | 'crack' | 'heal' | 'hex' | 'boost';
 
 export interface CensusCard {
   kit: string; id: string; name: string; unlock: number;
   type: ActionType; fast: boolean; fatigue: number;
   /** The real card's dice, as notation (none: the card rolls nothing). */
   dice?: string;
+  /** It adds the wielded weapon (`weapon_damage`). */
+  weapon: boolean;
   role: Role;
   /** Per resolved play, over every level it was measured at. */
   plays: number; foeLoss: number; allyGain: number; foeEffects: number; allyEffects: number;
+  /** Per play: the share of its damage that landed on enemies that defended
+   *  that round; the PV its statuses took at round ends later. */
+  onDefenders: number; lingering: number;
 }
 
 /** The thresholds a card's per-play behaviour is sorted by. */
 const DEALS = 2;        // PV off the enemies a play: a damaging Focus
 const HEALS = 2;        // PV back to the allies a play: a heal
 const MARKS = 0.25;     // effects left on the enemies a play: a rider, a hex
+const CRACKS = 0.8;     // share of a damaging card's damage on defenders: it pays off against a guard
+const LINGERS = 1;      // PV its statuses take later, a play: it burns or bleeds
 
 const fatigueOf = (a: ActionDefinition): number =>
   a.effects.filter(e => e.type === 'fatigue_cost').reduce((t, e) => t + Number(e.params?.['levels'] ?? 0), 0);
 const hasEffects = (a: ActionDefinition): boolean => a.effects.some(e => e.type !== 'fatigue_cost' && e.type !== 'weapon_damage');
 
-function roleOf(a: ActionDefinition, per: { plays: number; foeLoss: number; allyGain: number; foeEffects: number }): Role {
+function roleOf(a: ActionDefinition, per: { plays: number; foeLoss: number; allyGain: number; foeEffects: number; onDefenders: number; lingering: number }): Role {
   if (a.actionType === ActionType.Atac) {
     if ((a.targetCount ?? 1) > 1) return 'area';
     return per.plays ? (per.foeEffects >= MARKS ? 'rider' : 'attack') : (hasEffects(a) ? 'rider' : 'attack');
@@ -38,9 +45,10 @@ function roleOf(a: ActionDefinition, per: { plays: number; foeLoss: number; ally
   if (a.actionType === ActionType.Defensa) return hasEffects(a) ? 'payoff' : 'guard';
   // A Focus never seen resolve falls back on its definition.
   if (!per.plays) return a.dice ? 'blast' : 'boost';
+  if (per.foeLoss >= DEALS / 2 && per.onDefenders >= CRACKS) return 'crack';
   if (per.foeLoss >= DEALS) return 'blast';
   if (per.allyGain >= HEALS) return 'heal';
-  if (per.foeEffects >= MARKS) return 'hex';
+  if (per.foeEffects >= MARKS || per.lingering >= LINGERS) return 'hex';
   return 'boost';
 }
 
@@ -51,17 +59,21 @@ export function census(tallies: readonly Record<string, CardTally>[]): CensusCar
   for (const kit of theSet().calibration.mainKits) {
     for (const a of theSet().kit(kit)?.actions ?? []) {
       if (a.skillId !== kit) continue;
-      const sum = { plays: 0, foeLoss: 0, allyGain: 0, foeEffects: 0, allyEffects: 0 };
+      const sum = { plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0 };
       for (const t of tallies) {
         const c = t[a.id];
         if (!c) continue;
-        sum.plays += c.plays; sum.foeLoss += c.foeLoss; sum.allyGain += c.allyGain; sum.foeEffects += c.foeEffects; sum.allyEffects += c.allyEffects;
+        sum.plays += c.plays; sum.foeLoss += c.foeLoss; sum.onDefenders += c.onDefenders; sum.allyGain += c.allyGain;
+        sum.foeEffects += c.foeEffects; sum.allyEffects += c.allyEffects; sum.lingering += c.lingering;
       }
       const n = Math.max(1, sum.plays);
-      const per = { plays: sum.plays, foeLoss: sum.foeLoss / n, allyGain: sum.allyGain / n, foeEffects: sum.foeEffects / n, allyEffects: sum.allyEffects / n };
+      const per = {
+        plays: sum.plays, foeLoss: sum.foeLoss / n, allyGain: sum.allyGain / n, foeEffects: sum.foeEffects / n, allyEffects: sum.allyEffects / n,
+        onDefenders: sum.foeLoss ? sum.onDefenders / sum.foeLoss : 0, lingering: sum.lingering / n,
+      };
       out.push({
         kit, id: a.id, name: a.name, unlock: a.unlockLevel, type: a.actionType, fast: !!a.fast, fatigue: fatigueOf(a),
-        ...(a.dice ? { dice: a.dice.toString() } : {}),
+        ...(a.dice ? { dice: a.dice.toString() } : {}), weapon: a.effects.some(e => e.type === 'weapon_damage'),
         role: roleOf(a, per), ...per,
       });
     }
