@@ -315,3 +315,71 @@ export function modelCheck(level: number, fights: number): ModelCheck {
     return { level, predictions, predicted: share(predicted), actual: share(actual), logLik: logLik / Math.max(1, predictions) };
   });
 }
+
+/** What a set of fights looked like, in the numbers the structure is judged on. */
+export interface FightSummary {
+  fights: number; median: number; p90: number; stalls: number;
+  /** PV lost by everyone a round; attacks that took nothing; the AI's play mix. */
+  pvPerRound: number; emptyAttacks: number;
+  mix: { attack: number; defense: number; focus: number };
+}
+
+/**
+ * `fights` 2v2 fights at `level` where every hero holds `kit` (installed by the
+ * caller, e.g. playtest's vanilla kits) and has `pv`: the structure of the
+ * game — the ladder, PV, the defense premium — measured with no real card in
+ * the way. `print` is the kit's content, for the cache.
+ */
+export function kitOnlyMirrors(kit: string, print: string, level: number, pv: number, fights: number): FightSummary {
+  return countedCached('mirror-kit-only', key('mirror-kit-only-v1', print, String(level), String(pv), String(fights)), () => {
+    const set = theSet();
+    const rounds: number[] = [];
+    let stalls = 0, pvLost = 0, played = 0, attacks = 0, empty = 0;
+    const mix = { attack: 0, defense: 0, focus: 0 };
+    withSeed(kitSeed(kit, level, 5) + pv, () => {
+      for (let f = 0; f < fights; f++) {
+        const side = (s: string) => {
+          const t = set.buildParty({ characters: [1, 2].map(i => ({ ...set.hero(`${s}${i}`, kit, level), pv })) });
+          setAIControlled(t);
+          return t;
+        };
+        const e = new CombatEngine(side('A'), side('B'), { registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI) });
+        const total = () => e.teams.flat().reduce((t, c) => t + Math.max(0, c.currentPV), 0);
+        while (!e.isOver() && e.round < e.maxRounds) {
+          const start = total();
+          e.prepareRound();
+          e.planActions([]);
+          for (;;) {
+            const before = new Map(e.teams.flat().map(c => [c, c.currentPV]));
+            const step = e.resolveNextAction();
+            if (step.kind === 'done') break;
+            if (step.kind === 'target') { e.setResolveTarget([]); continue; }
+            if (step.kind === 'choice') { e.setResolveChoice(); continue; }
+            const actor = e.teams[step.action.actorTeam]?.[step.action.actorIdx];
+            const def = actor?.actions.find(x => x.def.id === step.action.actionId)?.def;
+            if (!actor || !def) continue;
+            played++;
+            if (def.actionType === ActionType.Atac) mix.attack++;
+            else if (def.actionType === ActionType.Defensa) mix.defense++;
+            else mix.focus++;
+            if (step.action.cancelled || def.actionType !== ActionType.Atac) continue;
+            attacks++;
+            if (!e.teams[1 - actor.team].some(c => (before.get(c) ?? 0) > c.currentPV)) empty++;
+          }
+          e.finishRound();
+          pvLost += start - total();
+        }
+        rounds.push(e.round);
+        if (!e.isOver()) stalls++;
+      }
+    });
+    rounds.sort((a, b) => a - b);
+    const q = (p: number) => rounds[Math.min(rounds.length - 1, Math.ceil(p * rounds.length) - 1)];
+    const n = Math.max(1, played);
+    return {
+      fights, median: q(0.5), p90: q(0.9), stalls: stalls / fights,
+      pvPerRound: pvLost / Math.max(1, rounds.reduce((t, r) => t + r, 0)), emptyAttacks: empty / Math.max(1, attacks),
+      mix: { attack: mix.attack / n, defense: mix.defense / n, focus: mix.focus / n },
+    };
+  });
+}

@@ -36,3 +36,4 @@ export { tuneKit, evaluatePatch, applyPatch, knobsFor, kitScore, diceStep, descr
 export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, TuneStep } from './tune.js';
 export { feasibility } from './feasibility.js';
 export type { FeasibilityInput, FeasibilityRow, LadderRung } from './feasibility.js';
+export { vanillaKit, vanillaPrint } from './vanilla.js';
