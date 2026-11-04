@@ -12,3 +12,6 @@ export * from './players/index.js';
 export * from './enemies/index.js';
 export * from './encounters.js';
 export { createRegistry } from './registry.js';
+
+/** The dice ladder this set's cards are built on (`sets/common/src/ladder.ts`). */
+export { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } from '@pimpampum/set-common';

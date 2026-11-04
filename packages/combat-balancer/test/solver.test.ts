@@ -147,5 +147,5 @@ describe('the solve never pays twice for the same answer', () => {
       const replayed = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
       expect(replayed, `target ${target}`).toEqual([]);
     }
-  });
+  }, 90_000);   // three real depth-1 solves, slow beside the rest of the tier since the AI plays fictitious play (2026-11-04)
 });

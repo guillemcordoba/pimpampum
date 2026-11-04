@@ -256,3 +256,19 @@ describe('the layers only look down', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('the cache may ignore what no measurement runs', () => {
+  it('nothing that measures calls the audit or the equilibrium player (bench UNMEASURED)', () => {
+    // bench/cache.ts leaves these out of the fingerprint, so an edit to them
+    // keeps every cached number. That is only right while no measurement runs
+    // them: a measured package reaching them would be served numbers from
+    // before its own change.
+    const measured = sources().filter(s => /^(engine|ai|bench|combat-balancer|playtest|sets\/[^/]+)\//.test(s.rel)
+      && !s.rel.startsWith('ai/audit/') && !s.rel.startsWith('ai/parallel/') && s.rel !== 'ai/equilibrium.ts');
+    expect(measured.length, 'the walk sees the measured packages').toBeGreaterThan(50);
+    const offenders = measured
+      .filter(s => /@pimpampum\/ai\/audit|from '\.\/audit\/|equilibriumPolicy\s*\(|new Referee\s*\(/.test(code(s.text)))
+      .map(s => s.rel);
+    expect(offenders, `move the measurement off the audit, or drop the path from UNMEASURED: ${offenders.join(', ')}`).toEqual([]);
+  });
+});

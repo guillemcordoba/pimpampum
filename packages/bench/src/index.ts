@@ -55,7 +55,7 @@ export type { Chooser, HeadToHead, CycleEdge } from './policies.js';
 export * from './regret.js';
 
 // --- Caching the fixed cost of a run ----------------------------------------
-export { cached, countedCached, key, enginePrint, fingerprintedSources, actionPrint, skillPrint, enemyPrint, cacheStatus } from './cache.js';
+export { cached, countedCached, key, enginePrint, fingerprintedSources, actionPrint, skillPrint, enemyPrint, cacheStatus, UNMEASURED } from './cache.js';
 export {
   stderr, pct, pctCoarse, deltaPP, pp, deltaStderr, significant, gamesFor, exact, share,
 } from './report.js';

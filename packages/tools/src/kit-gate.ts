@@ -4,25 +4,30 @@
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/kit-gate.ts --set elements
  *   … --kits waterbender,earthbender --levels 4,6
+ *   … --quick   the checkpoints only, a quarter of the fights, no card values: minutes, rough
  *
  * The measuring is warmed across bench's lanes first, then read serially from
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, useSet } from '@pimpampum/bench';
-import { GATE_BUDGET, GATE_LEVELS, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { GATE_BUDGET, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
 useSet(SET.gameSet);
 
+const quick = process.argv.includes('--quick');
 const scope: GateScope = {
   kits: flag('--kits')?.split(','),
-  levels: flag('--levels')?.split(',').map(Number),
+  levels: flag('--levels')?.split(',').map(Number) ?? (quick ? STYLE_LEVELS : undefined),
+  cards: !quick,
 };
+const base = quick ? GATE_QUICK : GATE_BUDGET;
 const budget: GateBudget = {
-  kitFights: games(GATE_BUDGET.kitFights), duelGames: games(GATE_BUDGET.duelGames), cardFights: games(GATE_BUDGET.cardFights),
-  modelFights: games(GATE_BUDGET.modelFights!),
+  kitFights: games(base.kitFights), duelGames: games(base.duelGames), cardFights: games(base.cardFights),
+  modelFights: games(base.modelFights!),
 };
+const started = Date.now();
 
 await prepareGate({ set: SET.ref, budget }, scope, (done, total) => process.stderr.write(`\rmeasuring ${done}/${total}   `));
 process.stderr.write('\n');
@@ -76,9 +81,10 @@ if (r.styles.length) {
   }
 }
 
-console.log(`\nEVERY CARD HAS A USE (the right play somewhere; the AI plays it when it is)`);
-console.log(`  per checkpoint: best = share of decisions it was the best play · AI = share it was played where legal · gain = its lead over the runner-up when best (PV)`);
-for (const kit of kits) {
+if (quick) console.log(`\nEVERY CARD HAS A USE — the full gate only`);
+else console.log(`\nEVERY CARD HAS A USE (the right play somewhere; the AI plays it when it is)`);
+if (!quick) console.log(`  per checkpoint: best = share of decisions it was the best play · AI = share it was played where legal · gain = its lead over the runner-up when best (PV)`);
+for (const kit of quick ? [] : kits) {
   const bad = r.cards.filter(c => c.kit === kit && (c.neverRight || c.blind));
   const unjudged = r.cards.filter(c => c.kit === kit && !c.levels.length).map(c => c.name);
   console.log(`${pad(kit, w)}${bad.length ? '' : '✓'}${unjudged.length ? `  — not judged: ${unjudged.join(', ')}` : ''}`);
@@ -91,5 +97,5 @@ for (const kit of kits) {
 }
 
 console.log(`\nSTRENGTH BAND — waits for the creatures on the ladder (OPEN.md B20)`);
-console.log(`\n${r.failures.length} failing cells${r.failures.length ? ':' : '.'}`);
+console.log(`\n${r.failures.length} failing cells${r.failures.length ? ':' : '.'} (${quick ? 'quick gate' : 'full gate'}, ${Math.round((Date.now() - started) / 60_000)} min)`);
 for (const f of r.failures) console.log(`  ${f.text}`);

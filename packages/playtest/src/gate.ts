@@ -33,6 +33,10 @@ export const CARD_LEVELS: readonly number[] = STYLE_LEVELS;
 
 export interface GateBudget { kitFights: number; duelGames: number; cardFights: number; modelFights?: number }
 export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30, modelFights: 40 };
+/** For iterating (with the checkpoints only, and no card values): about a
+ *  quarter of the fights, minutes instead of an hour. Its numbers are rough;
+ *  the full gate confirms. */
+export const GATE_QUICK: GateBudget = { kitFights: 30, duelGames: 60, cardFights: 10, modelFights: 15 };
 
 const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
 
@@ -108,7 +112,12 @@ export type GateJob =
   | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string }
   | { kind: 'gate-model'; level: number };
 
-export interface GateScope { kits?: readonly string[]; levels?: readonly number[] }
+export interface GateScope {
+  kits?: readonly string[]; levels?: readonly number[];
+  /** false: leave the card values out — they replay the rest of the fight for
+   *  every legal card at every decision, most of a gate's cost. */
+  cards?: boolean;
+}
 
 function scopeKits(scope: GateScope): string[] { return [...(scope.kits ?? theSet().calibration.mainKits)]; }
 const inScope = (levels: readonly number[], scope: GateScope): number[] => levels.filter(l => !scope.levels || scope.levels.includes(l));
@@ -117,7 +126,7 @@ const inScope = (levels: readonly number[], scope: GateScope): number[] => level
 export function gateJobs(scope: GateScope = {}): GateJob[] {
   const kits = scopeKits(scope);
   return [
-    ...kits.flatMap(kit => inScope(CARD_LEVELS, scope).map(level => ({ kind: 'gate-cards' as const, kit, level }))),
+    ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).map(level => ({ kind: 'gate-cards' as const, kit, level })))),
     ...(scope.kits ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
       ...EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level })),
       { kind: 'gate-duel' as const, x: 'turtle' as const, y: 'ai' as const, level },
@@ -265,7 +274,7 @@ const pct = (x: number) => `${Math.round(100 * x)}%`;
 export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateReport {
   const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget)));
   const styles = scope.kits ? [] : inScope(STYLE_LEVELS, scope).map(level => gateStyleCell(level, budget));
-  const cards = scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
+  const cards = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
   const failures: GateFailure[] = [
     ...kits.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} length`, text: `${c.kit} L${c.level}: ${c.reasons.join(', ')}` })),
     ...styles.flatMap(s => s.broken.map(b => ({ key: `L${s.level} triangle ${b}`, text: `L${s.level} triangle: ${b} doesn't hold` }))),

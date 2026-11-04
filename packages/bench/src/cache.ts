@@ -121,6 +121,15 @@ export function enemyPrint(enemyId: string): string {
  * listed here.
  */
 export const FINGERPRINTED = ['engine', 'ai', 'bench', 'combat-balancer'];
+
+/**
+ * Source no measurement runs, left out of the fingerprint so an edit to it
+ * keeps the cache: the referee audit, its worker pool and the equilibrium player (only tools
+ * scripts call them; `tools/test/conventions.test.ts` keeps it so). Before
+ * 2026-11-04 an edit to the audit's card catalogue threw away an hour of the
+ * kit gate's cache.
+ */
+export const UNMEASURED = ['packages/ai/src/audit/', 'packages/ai/src/parallel/', 'packages/ai/src/equilibrium.ts'];
 /** Every source file the fingerprint hashes, repo-relative, per package. */
 export function fingerprintedSources(): Record<string, string[]> {
   const out: Record<string, string[]> = {};
@@ -131,7 +140,7 @@ export function fingerprintedSources(): Record<string, string[]> {
       for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
         const full = path.join(d, e.name);
         if (e.isDirectory()) walk(full);
-        else if (e.name.endsWith('.ts')) files.push(path.relative(REPO, full));
+        else if (e.name.endsWith('.ts') && !UNMEASURED.some(u => path.relative(REPO, full).startsWith(u))) files.push(path.relative(REPO, full));
       }
     };
     walk(path.join(REPO, 'packages', pkg, 'src'));
