@@ -26,9 +26,9 @@ const TARGETS = aiPolicy(CELL_AI).targetChooser;
 export const MIRROR_SEED_BASE = 616_000;
 
 /** The set's benchmark heroes (`GameSet.hero`): EQUIPPED, so a weapon kit holds its weapon. */
-function heroes(kits: readonly string[], level: number, side: string): Character[] {
+function heroes(kits: readonly string[], level: number, side: string, pv?: number): Character[] {
   const set = theSet();
-  const team = set.buildParty({ characters: kits.map((k, i) => set.hero(`${side}${i + 1}`, k, level)) });
+  const team = set.buildParty({ characters: kits.map((k, i) => ({ ...set.hero(`${side}${i + 1}`, k, level), ...(pv ? { pv } : {}) })) });
   setAIControlled(team);
   return team;
 }
@@ -159,8 +159,13 @@ export interface StyleDuel { x: DuelStyle; y: DuelStyle; level: number; score: n
  * `withoutCard`: taken out of the Y side's hands — how much of Y's showing
  * that card carries (a triangle edge's culprits, playtest `gate.ts`).
  */
-export function styleDuel(x: DuelStyle, y: DuelStyle, level: number, games: number, withoutCard?: string): StyleDuel {
-  return countedCached('mirror-duel', key('mirror-duel-v2', mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? ''), () => {
+export function styleDuel(
+  x: DuelStyle, y: DuelStyle, level: number, games: number, withoutCard?: string,
+  /** A candidate structure (bench `dynamics.ts`): the engine's options and a hero PV. */
+  variant: { chipDamage?: number; pv?: number } = {},
+): StyleDuel {
+  const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
+  return countedCached('mirror-duel', key('mirror-duel-v2', mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? '', v), () => {
     const kits = theSet().calibration.mainKits;
     let score = 0, stalls = 0;
     const yPlays: Record<string, number> = {};
@@ -169,10 +174,10 @@ export function styleDuel(x: DuelStyle, y: DuelStyle, level: number, games: numb
         const pair = [drawKit(kits), drawKit(kits)];
         const xSide = f % 2;
         const X = chooserFor(x), Y = chooserFor(y);
-        const teams = [heroes(pair, level, 'A'), heroes(pair, level, 'B')];
+        const teams = [heroes(pair, level, 'A', variant.pv), heroes(pair, level, 'B', variant.pv)];
         if (withoutCard) for (const c of teams[1 - xSide]) c.actions = c.actions.filter(a => a.def.id !== withoutCard);
         const e = new CombatEngine(teams[0], teams[1], {
-          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS,
+          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS, ...(variant.chipDamage ? { chipDamage: variant.chipDamage } : {}),
           actionChooser: (en, c) => {
             if (c.team === xSide) return X(en, c);
             const i = Y(en, c);

@@ -39,3 +39,7 @@ export type { FeasibilityInput, FeasibilityRow, LadderRung } from './feasibility
 export { vanillaKit, vanillaPrint } from './vanilla.js';
 export { derivePV, deriveLevel, MAX_ROUND_ONE_KOS, MAX_BEST_BLOW_KOS } from './derive-pv.js';
 export type { PVDerivation, PVOptions } from './derive-pv.js';
+export { summarise, explain } from './dynamics.js';
+export type { DynamicsSummary } from './dynamics.js';
+export { CANDIDATE_FIXES, TODAY, FIX_BUDGET, evaluateFix, scoreFix, rankFixes } from './fixes.js';
+export type { Fix, FixBudget, FixLevel, FixResult, FixScore } from './fixes.js';
