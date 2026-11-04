@@ -65,13 +65,22 @@ export interface TwinParams {
   blastBoost: number;
   /** A heal rolls its level's attack dice plus this. */
   healBoost: number;
-  /** A hex keeps the chosen enemy from attacking for this many rounds. */
-  hexTurns: number;
+  /** A hex keeps the chosen enemy from attacking for this many rounds, and
+   *  bleeds it this much at each of those rounds' ends (0: a pure lock). */
+  hexTurns: number; hexBleed: number;
+  /** Area attacks and riders roll the attack ladder this many levels lower. */
+  areaDrop: number; riderDrop: number;
+  /** 1: a twin card rolls its real card's dice where that card has any (the
+   *  effects stay generic); 0: the ladder's. */
+  realDice: number;
+  /** 1: a damaging Focus lands only on an enemy that played a Defense this
+   *  round (as most real ones do); 0: on anyone, through any guard. */
+  blastGuardOnly: number;
   /** A utility Focus (the Aim): the next attack adds its level's dice × this. */
   aim: number;
 }
 
-export const TWIN_DEFAULTS: TwinParams = { burn: 2, burnTurns: 2, riposteDrop: 2, blastBoost: 3, healBoost: 0, hexTurns: 1, aim: 1 };
+export const TWIN_DEFAULTS: TwinParams = { burn: 2, burnTurns: 2, riposteDrop: 2, blastBoost: 3, healBoost: 0, hexTurns: 1, hexBleed: 0, areaDrop: 0, riderDrop: 1, aim: 1, realDice: 0, blastGuardOnly: 0 };
 
 /**
  * A REAL KIT'S VANILLA TWIN: the same roles at the same levels (the census),
@@ -91,12 +100,14 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
     const fx: { type: string; params?: Record<string, unknown> }[] = c.fatigue ? [{ type: 'fatigue_cost', params: { levels: c.fatigue } }] : [];
     const base = { id: own, name: `${c.role} ${c.unlock}`, skillId: id, unlockLevel: c.unlock, fast: c.fast, description: '', iconPath: '' };
     const lift = (d: DiceRoll, by: number) => new DiceRoll(d.numDice, d.sides, d.modifier + by);
+    /** The real card's dice when `realDice` asks for them and it has any. */
+    const diceOf = (ladderDice: DiceRoll): DiceRoll => (p.realDice && c.dice ? DiceRoll.parse(c.dice) : ladderDice);
     switch (c.role) {
       case 'attack':
-        actions.push({ ...base, actionType: ActionType.Atac, dice: rung.attack, effects: fx } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Atac, dice: diceOf(rung.attack), effects: fx } as ActionDefinition);
         break;
       case 'area':
-        actions.push({ ...base, actionType: ActionType.Atac, dice: rung.attack, targetCount: 99, effects: fx } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Atac, dice: diceOf(ladder[Math.max(1, c.unlock - p.areaDrop)].attack), targetCount: 99, effects: fx } as ActionDefinition);
         break;
       case 'rider':
         effects[`${own}-burn`] = {
@@ -104,17 +115,17 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
             if ((ctx.damageDealt ?? 0) > 0 && ctx.target?.isAlive()) applyKind(ctx.target, 'damageOverTime', `${own}-burn`, p.burn, p.burnTurns, { source: ctx.source, harm: 1 });
           },
         };
-        actions.push({ ...base, actionType: ActionType.Atac, dice: diceStep(rung.attack, -1) ?? rung.attack, effects: [...fx, { type: `${own}-burn` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Atac, dice: diceOf(ladder[Math.max(1, c.unlock - p.riderDrop)].attack), effects: [...fx, { type: `${own}-burn` }] } as ActionDefinition);
         break;
       case 'guard':
-        actions.push({ ...base, actionType: ActionType.Defensa, dice: rung.defense, effects: fx } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Defensa, dice: diceOf(rung.defense), effects: fx } as ActionDefinition);
         break;
       case 'payoff': {
         const riposte = ladder[Math.max(1, c.unlock - p.riposteDrop)].attack;
         effects[`${own}-riposte`] = {
           onDefend(ctx) { if (ctx.target?.isAlive()) ctx.engine.performExtraAttack(ctx.source, ctx.target, riposte, { ignoreDefense: true, label: `${ctx.source.name} riposte` }); },
         };
-        actions.push({ ...base, actionType: ActionType.Defensa, dice: rung.defense, effects: [...fx, { type: `${own}-riposte` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Defensa, dice: diceOf(rung.defense), effects: [...fx, { type: `${own}-riposte` }] } as ActionDefinition);
         break;
       }
       case 'blast':
@@ -123,10 +134,11 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
           onResolve(ctx) {
             const t = ctx.targets[0];
             if (!t?.isAlive() || !ctx.action.dice) return;
+            if (p.blastGuardOnly && !ctx.engine.plannedThisRound().some(x => x.actor === t && !x.cancelled && x.action.actionType === ActionType.Defensa)) return;
             ctx.engine.applyPvLoss(t, ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: id }).total, ctx.source);
           },
         };
-        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(rung.attack, p.blastBoost), effects: [...fx, { type: `${own}-blast` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(diceOf(rung.attack), p.blastBoost), effects: [...fx, { type: `${own}-blast` }] } as ActionDefinition);
         break;
       case 'heal':
         effects[`${own}-heal`] = {
@@ -136,14 +148,16 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
             if (t && ctx.action.dice) ctx.engine.heal(t, ctx.engine.rollDiceFor(ctx.source, ctx.action.dice));
           },
         };
-        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(rung.attack, p.healBoost), effects: [...fx, { type: `${own}-heal` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Focus, dice: lift(diceOf(rung.attack), p.healBoost), effects: [...fx, { type: `${own}-heal` }] } as ActionDefinition);
         break;
       case 'hex':
         effects[`${own}-hex`] = {
           getTargetRequirement: () => 'enemy',
           onResolve(ctx) {
             const t = ctx.targets[0];
-            if (t?.isAlive()) applyKind(t, 'locked', `${own}-hex`, 1, p.hexTurns + 1, { types: [ActionType.Atac], harm: 1 });
+            if (!t?.isAlive()) return;
+            applyKind(t, 'locked', `${own}-hex`, 1, p.hexTurns + 1, { types: [ActionType.Atac], harm: 1 });
+            if (p.hexBleed > 0) applyKind(t, 'damageOverTime', `${own}-bleed`, p.hexBleed, p.hexTurns + 1, { source: ctx.source, harm: 1 });
           },
         };
         actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-hex` }] } as ActionDefinition);

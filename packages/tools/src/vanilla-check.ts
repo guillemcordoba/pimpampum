@@ -12,7 +12,7 @@
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
-  census, summarise, TWIN_DEFAULTS, vanillaMatches, type CensusCard, type DynamicsSummary, type TwinParams,
+  census, MATCH_TOLERANCE, summarise, TWIN_DEFAULTS, vanillaMatches, type CensusCard, type DynamicsSummary, type TwinParams,
 } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -47,6 +47,21 @@ async function allAt(trials: TwinParams[]): Promise<Map<number, DynamicsSummary>
 }
 
 const misses = (v: Map<number, DynamicsSummary>) => LEVELS.reduce((t, l) => t + vanillaMatches(real.get(l)!, v.get(l)!).checks.filter(c => !c.ok).length, 0);
+/** How far vanilla sits from the real game: each metric's gap over its
+ *  tolerance, summed — misses first, then this, so a move that brings several
+ *  metrics closer counts before it flips one. */
+const distance = (v: Map<number, DynamicsSummary>) => LEVELS.reduce((t, l) => t + vanillaMatches(real.get(l)!, v.get(l)!).checks
+  .reduce((u, c) => u + Math.abs(c.real - c.vanilla) / Math.max(1e-6, toleranceOf(c.metric, c.real)), 0), 0);
+function toleranceOf(metric: string, real: number): number {
+  const T = MATCH_TOLERANCE;
+  if (metric === 'median rounds') return T.median;
+  if (metric === 'rounds, 9 in 10') return Math.max(T.p90, T.p90Share * real);
+  if (metric === 'stalls') return T.stalls;
+  if (metric === 'PV lost a round') return T.pvPerRound * real;
+  if (metric.endsWith('played')) return T.mix;
+  return T.source;
+}
+const score = (v: Map<number, DynamicsSummary>) => misses(v) * 1000 + distance(v);
 
 let params: TwinParams = { ...TWIN_DEFAULTS, ...(flag('--params') ? JSON.parse(flag('--params')!) : {}) };
 let vanilla = await twinsAt(params);
@@ -56,14 +71,15 @@ if (process.argv.includes('--calibrate')) {
   // the one that misses least; again, until nothing helps.
   const grid: Partial<Record<keyof TwinParams, number[]>> = {
     blastBoost: [-3, 0, 3, 6], burn: [1, 2, 3, 4], riposteDrop: [0, 2, 4], aim: [1, 2, 3], healBoost: [-2, 0, 3], hexTurns: [1, 2],
+    hexBleed: [0, 2, 4], areaDrop: [0, 1, 2, 3], riderDrop: [0, 1, 2], realDice: [0, 1], blastGuardOnly: [0, 1],
   };
-  let best = misses(vanilla);
-  for (let pass = 0; pass < 4; pass++) {
+  let best = score(vanilla);
+  for (let pass = 0; pass < 10; pass++) {
     const trials = (Object.entries(grid) as [keyof TwinParams, number[]][]).flatMap(([k, values]) =>
       values.filter(v => params[k] !== v).map(v => ({ ...params, [k]: v })));
     const res = await allAt(trials);
-    const scored = res.map((r, i) => ({ p: trials[i], r, m: misses(r) })).sort((a, b) => a.m - b.m);
-    process.stderr.write(`pass ${pass + 1}: best ${scored[0].m} misses (was ${best}) at ${JSON.stringify(scored[0].p)}\n`);
+    const scored = res.map((r, i) => ({ p: trials[i], r, m: score(r) })).sort((a, b) => a.m - b.m);
+    process.stderr.write(`pass ${pass + 1}: best ${misses(scored[0].r)} misses, distance ${distance(scored[0].r).toFixed(1)} (was ${Math.floor(best / 1000)} / ${(best % 1000).toFixed(1)}) at ${JSON.stringify(scored[0].p)}\n`);
     if (scored[0].m >= best) break;
     best = scored[0].m; params = scored[0].p; vanilla = scored[0].r;
   }

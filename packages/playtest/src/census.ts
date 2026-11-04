@@ -14,6 +14,8 @@ export type Role = 'attack' | 'area' | 'rider' | 'guard' | 'payoff' | 'blast' | 
 export interface CensusCard {
   kit: string; id: string; name: string; unlock: number;
   type: ActionType; fast: boolean; fatigue: number;
+  /** The real card's dice, as notation (none: the card rolls nothing). */
+  dice?: string;
   role: Role;
   /** Per resolved play, over every level it was measured at. */
   plays: number; foeLoss: number; allyGain: number; foeEffects: number; allyEffects: number;
@@ -59,6 +61,7 @@ export function census(tallies: readonly Record<string, CardTally>[]): CensusCar
       const per = { plays: sum.plays, foeLoss: sum.foeLoss / n, allyGain: sum.allyGain / n, foeEffects: sum.foeEffects / n, allyEffects: sum.allyEffects / n };
       out.push({
         kit, id: a.id, name: a.name, unlock: a.unlockLevel, type: a.actionType, fast: !!a.fast, fatigue: fatigueOf(a),
+        ...(a.dice ? { dice: a.dice.toString() } : {}),
         role: roleOf(a, per), ...per,
       });
     }
