@@ -451,9 +451,11 @@ export const ARCHETYPES: Record<string, Archetype> = {
 };
 
 /** Archetypes the generator deals (the fallback is added to every hand). */
-// `sacrifice` and `crack` are puzzles' archetypes, kept out of the draws so the
-// catalogues drawn before them stay the same.
-export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice' && k !== 'veil' && k !== 'crack');
+// `sacrifice` is a puzzle's archetype, kept out of the draws so the catalogues
+// drawn before it existed stay the same. `crack` (a card that pays off against
+// a guard) is dealt since 2026-11-04: the audit then also tests the AI's model
+// of an opponent that guards (OPEN.md B24).
+export const DEALT = Object.keys(ARCHETYPES).filter(k => k !== 'desperate' && k !== 'composed' && k !== 'sacrifice' && k !== 'veil');
 
 /** A card in words, for the report. */
 export const describeCard = (arch: string, p: Params): string => (arch === 'composed' ? describeComposed(p) : arch);

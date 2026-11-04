@@ -150,7 +150,7 @@ export interface GeneratorConfig {
 const BY_TYPE = {
   attack: [['strike', 5], ['jab', 1], ['sweep', 1], ['pierce', 1], ['stun', 1], ['lock', 1], ['weaken', 1]],
   defense: [['guard', 1], ['block', 1]],
-  focus: [['heal', 1], ['revive', 1], ['cleanse', 1], ['setup', 1], ['bomb', 1], ['doom', 1], ['device', 1], ['advance', 1], ['taunt', 1], ['hide', 1]],
+  focus: [['heal', 1], ['revive', 1], ['cleanse', 1], ['setup', 1], ['bomb', 1], ['doom', 1], ['device', 1], ['advance', 1], ['taunt', 1], ['hide', 1], ['crack', 1]],
 } as const;
 
 /** Archetypes whose payoff takes more than the round they are played in. */
