@@ -32,12 +32,20 @@ export const MAX_BEST_BLOW_KOS = 0.1;
 const PV_MIN = 1;
 const PV_MAX = 120;
 
-export interface PVOptions { aim: number; armour: number; fights: number }
+export interface PVOptions {
+  aim: number; armour: number; fights: number;
+  /** The engine's chip damage (`CombatEngineOptions.chipDamage`); 0, the rules. */
+  chip?: number;
+  /** Which blow a fresh hero must survive: the aimed strike (the default) or
+   *  a plain one. */
+  burst?: 'aimed' | 'plain';
+}
 
 export interface PVDerivation {
   level: number;
-  /** Floors: the best blow (dice alone) and the first round (fights). */
-  bestBlowPV: number; roundOnePV: number;
+  /** Floors: the best blow (dice alone; aimed, and plain) and the first round
+   *  (fights). */
+  bestBlowPV: number; plainBlowPV: number; roundOnePV: number;
   /** Ceiling: the most PV with fights still ending in time (null: not even
    *  at the smallest PV). */
   lengthPV: number | null;
@@ -50,8 +58,8 @@ export interface PVDerivation {
 }
 
 /** The smallest PV the best blow fells at most `MAX_BEST_BLOW_KOS` of the time. */
-function bestBlowFloor(rung: LadderRung, opts: PVOptions): number {
-  const k = 1 + opts.aim;
+function bestBlowFloor(rung: LadderRung, opts: PVOptions, aimed: boolean): number {
+  const k = aimed ? 1 + opts.aim : 1;
   const blow = new DiceRoll(rung.attack.numDice * k, rung.attack.sides, rung.attack.modifier * k);
   const dist = [...diceDistribution(blow)].map(([total, p]) => [Math.max(0, total - opts.armour), p] as const);
   for (let pv = PV_MIN; pv <= PV_MAX; pv++) {
@@ -66,7 +74,7 @@ export function derivePV(level: number, rung: LadderRung, opts: PVOptions): PVDe
   const at = (pv: number): FightSummary => {
     let s = measured.get(pv);
     if (!s) {
-      s = withControlKit(kit, def => kitOnlyMirrors(def.id, vanillaPrint(def), level, pv, opts.fights));
+      s = withControlKit(kit, def => kitOnlyMirrors(def.id, vanillaPrint(def), level, pv, opts.fights, opts.chip ? { chipDamage: opts.chip } : {}));
       measured.set(pv, s);
     }
     return s;
@@ -90,16 +98,18 @@ export function derivePV(level: number, rung: LadderRung, opts: PVOptions): PVDe
     while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (survives(at(mid))) hi = mid; else lo = mid; }
     roundOnePV = hi;
   }
-  const bestBlowPV = bestBlowFloor(rung, opts);
-  const floor = Math.max(bestBlowPV, roundOnePV);
+  const bestBlowPV = bestBlowFloor(rung, opts, true);
+  const plainBlowPV = bestBlowFloor(rung, opts, false);
+  const blowPV = opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
+  const floor = Math.max(blowPV, roundOnePV);
   const collides = lengthPV === null ? ['fights do not end in time even at the smallest PV']
     : lengthPV < floor ? [
-      ...(lengthPV < bestBlowPV ? [`the best blow needs ≥ ${bestBlowPV}`] : []),
+      ...(lengthPV < blowPV ? [`the best blow needs ≥ ${blowPV}`] : []),
       ...(lengthPV < roundOnePV ? [`the first round needs ≥ ${roundOnePV}`] : []),
       `fights end in time only up to ${lengthPV}`,
     ] : [];
   return {
-    level, bestBlowPV, roundOnePV, lengthPV,
+    level, bestBlowPV, plainBlowPV, roundOnePV, lengthPV,
     pv: lengthPV !== null && lengthPV >= floor ? lengthPV : null,
     collides,
     measured: [...measured].sort((a, b) => a[0] - b[0]).map(([pv, summary]) => ({ pv, summary })),

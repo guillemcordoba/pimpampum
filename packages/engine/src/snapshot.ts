@@ -203,7 +203,7 @@ export interface EngineSnapshot {
   teams: CharacterSnapshot[][];
   /** Every card and item in the state, by value; everything else points here by index. */
   shared: Encoded[];
-  maxRounds: number; aiSharpness: number; round: number;
+  maxRounds: number; aiSharpness: number; chipDamage?: number; round: number;
   history: Encoded;
   plays: { team: number; actionId: string; actionType: ActionType }[];
   blowSeq: number;

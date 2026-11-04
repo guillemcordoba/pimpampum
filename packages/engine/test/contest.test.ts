@@ -165,3 +165,20 @@ describe('a roll that is not a blow (contestRoll)', () => {
       .toEqual({ roll: 1, bonus: 3 - 1, total: 3 });
   });
 });
+
+describe('chip damage (an option; 0 by the rules)', () => {
+  it('a held blow still takes its share off the defender, after armour', () => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9 })], { pv: 100 });
+    const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: 19 })], { pv: 100 });
+    playRound(new CombatEngine([a], [d], { registry: registry(), chipDamage: 0.5 }), [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    // 10 held by 20; half of 10 lands.
+    expect(d.currentPV).toBe(95);
+  });
+
+  it('by the rules a held blow lands nothing', () => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9 })], { pv: 100 });
+    const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: 19 })], { pv: 100 });
+    playRound(new CombatEngine([a], [d], { registry: registry() }), [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(d.currentPV).toBe(100);
+  });
+});

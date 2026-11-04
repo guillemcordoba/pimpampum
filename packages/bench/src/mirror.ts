@@ -330,10 +330,11 @@ export interface FightSummary {
  * `fights` 2v2 fights at `level` where every hero holds `kit` (installed by the
  * caller, e.g. playtest's vanilla kits) and has `pv`: the structure of the
  * game — the ladder, PV, the defense premium — measured with no real card in
- * the way. `print` is the kit's content, for the cache.
+ * the way. `print` is the kit's content, for the cache; `rules`, the engine's
+ * structural knobs (`CombatEngineOptions.chipDamage`).
  */
-export function kitOnlyMirrors(kit: string, print: string, level: number, pv: number, fights: number): FightSummary {
-  return countedCached('mirror-kit-only', key('mirror-kit-only-v3', print, String(level), String(pv), String(fights)), () => {
+export function kitOnlyMirrors(kit: string, print: string, level: number, pv: number, fights: number, rules: { chipDamage?: number } = {}): FightSummary {
+  return countedCached('mirror-kit-only', key('mirror-kit-only-v3', print, String(level), String(pv), String(fights), JSON.stringify(rules)), () => {
     const set = theSet();
     const rounds: number[] = [];
     let stalls = 0, pvLost = 0, played = 0, attacks = 0, empty = 0, fielded = 0, firstRoundKOs = 0;
@@ -346,7 +347,7 @@ export function kitOnlyMirrors(kit: string, print: string, level: number, pv: nu
           setAIControlled(t);
           return t;
         };
-        const e = new CombatEngine(side('A'), side('B'), { registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI) });
+        const e = new CombatEngine(side('A'), side('B'), { registry: theRegistry(), maxRounds: ROUND_CAP, ...rules, ...aiPolicy(CELL_AI) });
         const total = () => e.teams.flat().reduce((t, c) => t + Math.max(0, c.currentPV), 0);
         let roundsDone = 0;
         while (!e.isOver() && e.round < e.maxRounds) {
