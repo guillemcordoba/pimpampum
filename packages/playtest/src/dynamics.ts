@@ -4,7 +4,7 @@
  * the structural dynamics of the game as it plays, and recommends fixes). Every
  * sentence is computed from the measurement; none is written by hand.
  */
-import type { DamageSource, Dynamics } from '@pimpampum/bench';
+import type { DamageSource, Dynamics, KitTally } from '@pimpampum/bench';
 import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 export interface DynamicsSummary {
@@ -91,4 +91,43 @@ export function vanillaMatches(real: DynamicsSummary, vanilla: DynamicsSummary):
     ...(['open', 'area', 'focus', 'roundEnd', 'counter'] as const).map(k => near(`damage from ${k === 'roundEnd' ? 'statuses' : k === 'open' ? 'open bodies' : k}`, real.sources[k], vanilla.sources[k], T.source)),
   ];
   return { ok: checks.every(c => c.ok), checks };
+}
+
+// --- per kit: is each twin like its kit? -----------------------------------------------
+
+export interface KitDivergence { kit: string; checks: MatchCheck[]; off: number; distance: number }
+
+/** How loosely one kit's twin must follow it: a kit fills a quarter of the
+ *  seats, so its numbers are noisier than the whole game's. */
+export const KIT_TOLERANCE = { share: 0.15, perRound: 0.3 };
+
+function kitMetrics(t: KitTally): Record<string, number> {
+  const dealt = Object.values(t.dealt).reduce((a, b) => a + b, 0) || 1;
+  const played = t.plays.attack + t.plays.defense + t.plays.focus || 1;
+  const rounds = Math.max(1, t.rounds);
+  return {
+    'PV dealt a round': dealt / rounds, 'PV lost a round': t.lost / rounds,
+    'attacks played': t.plays.attack / played, 'defenses played': t.plays.defense / played, 'Focus played': t.plays.focus / played,
+    'dealt on open bodies': t.dealt.open / dealt, 'dealt through guards': t.dealt.guarded / dealt, 'dealt by area': t.dealt.area / dealt,
+    'dealt by Focus': t.dealt.focus / dealt, 'dealt by counters': t.dealt.counter / dealt,
+  };
+}
+
+/** Every kit's twin against the kit, worst first. */
+export function kitDivergences(real: Dynamics, vanilla: Dynamics): KitDivergence[] {
+  const out: KitDivergence[] = [];
+  for (const [kit, r] of Object.entries(real.kits)) {
+    const v = vanilla.kits[kit];
+    if (!v || !r.seats || !v.seats) continue;
+    const rm = kitMetrics(r), vm = kitMetrics(v);
+    const checks = Object.keys(rm).map(metric => {
+      const tol = metric.endsWith('a round') ? KIT_TOLERANCE.perRound * Math.max(0.5, rm[metric]) : KIT_TOLERANCE.share;
+      return { metric, real: rm[metric], vanilla: vm[metric], ok: Math.abs(rm[metric] - vm[metric]) <= tol, tol };
+    });
+    out.push({
+      kit, checks: checks.map(({ tol: _t, ...c }) => c), off: checks.filter(c => !c.ok).length,
+      distance: checks.reduce((d, c) => d + Math.abs(c.real - c.vanilla) / c.tol, 0),
+    });
+  }
+  return out.sort((a, b) => b.off - a.off || b.distance - a.distance);
 }

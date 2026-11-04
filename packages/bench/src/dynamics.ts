@@ -48,7 +48,26 @@ export interface Dynamics {
   /** What each card did when it resolved, by card id: the behavioural census
    *  (playtest `census.ts`) reads a card's role from it. */
   cards: Record<string, CardTally>;
+  /** Each kit's own play, by kit id (a twin's `twin-` prefix dropped): the
+   *  per-kit diagnosis sets a twin against its real kit. */
+  kits: Record<string, KitTally>;
 }
+
+/** One kit's heroes over the fights: seats filled, rounds they were in, the
+ *  cards they played by type, the PV they took off the enemies by source (in
+ *  their own steps; round-end statuses can't be traced to who set them), and
+ *  the PV they lost. */
+export interface KitTally {
+  seats: number; rounds: number;
+  plays: { attack: number; defense: number; focus: number };
+  dealt: Record<DamageSource, number>; lost: number;
+}
+
+const kitOf = (c: Character): string => (Object.keys(c.skills)[0] ?? '?').replace(/^twin-/, '');
+const kitTally = (into: Dynamics, kit: string): KitTally => (into.kits[kit] ??= {
+  seats: 0, rounds: 0, plays: { attack: 0, defense: 0, focus: 0 },
+  dealt: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 }, lost: 0,
+});
 
 /** One card's plays: resolved, and per play — PV the enemies lost, PV the allies
  *  gained, effects it left on enemies and on allies (status counts). */
@@ -58,7 +77,7 @@ const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
   lost: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
   plays: { attack: 0, defense: 0, focus: 0 }, emptyAttacks: 0, lostFocus: 0,
-  blowShares: Array(10).fill(0), fielded: 0, roundOneKOs: 0, oneShots: 0, cards: {},
+  blowShares: Array(10).fill(0), fielded: 0, roundOneKOs: 0, oneShots: 0, cards: {}, kits: {},
 });
 
 function playOne(teams: [Character[], Character[]], variant: Variant, into: Dynamics): void {
@@ -82,7 +101,10 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const def = actor?.actions.find(x => x.def.id === step.action.actionId)?.def;
       if (!actor || !def) continue;
       const type = def.actionType;
-      into.plays[type === ActionType.Atac ? 'attack' : type === ActionType.Defensa ? 'defense' : 'focus']++;
+      const kind = type === ActionType.Atac ? 'attack' : type === ActionType.Defensa ? 'defense' : 'focus';
+      into.plays[kind]++;
+      const mine = kitTally(into, kitOf(actor));
+      mine.plays[kind]++;
       if (step.action.cancelled) { if (type === ActionType.Focus) into.lostFocus++; continue; }
       let foesLost = 0, biggest = 0;
       for (const c of everyone) {
@@ -98,6 +120,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
           : type === ActionType.Atac ? ((def.targetCount ?? 1) > 1 ? 'area' : guarded.has(c) ? 'guarded' : 'open')
             : type === ActionType.Focus ? 'focus' : 'defense';
         into.lost[source] += loss;
+        if (foe) mine.dealt[source] += loss;
       }
       if (type === ActionType.Atac && foesLost === 0) into.emptyAttacks++;
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
@@ -117,6 +140,12 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
   }
   into.fights++;
   into.fielded += everyone.length;
+  for (const c of everyone) {
+    const t = kitTally(into, kitOf(c));
+    t.seats++;
+    t.rounds += e.round;
+    t.lost += Math.max(0, c.maxPV - Math.max(0, c.currentPV));
+  }
   into.rounds.push(e.round);
   if (!e.isOver()) into.stalls++;
 }
@@ -140,7 +169,7 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
 export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
   const kits = given?.kits ?? theSet().calibration.mainKits;
   const print = given?.print ?? kits.map(skillPrint).join('|');
-  return countedCached('dynamics', key('dynamics-v2', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v3', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
     withSeed(seedOf('kits', level), () => {
@@ -153,7 +182,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v2', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v3', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);

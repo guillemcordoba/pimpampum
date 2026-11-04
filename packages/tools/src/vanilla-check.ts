@@ -10,9 +10,9 @@
  *   … --calibrate                              search the twins' numbers for the closest match
  */
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
+import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type Dynamics } from '@pimpampum/bench';
 import {
-  census, MATCH_TOLERANCE, summarise, TWIN_DEFAULTS, vanillaMatches, type CensusCard, type DynamicsSummary, type TwinParams,
+  census, kitDivergences, MATCH_TOLERANCE, summarise, TWIN_DEFAULTS, vanillaMatches, type CensusCard, type DynamicsSummary, type TwinParams,
 } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -31,9 +31,11 @@ const real = new Map(realRuns.map(r => [r.level, summarise(r.d)]));
 const cards: CensusCard[] = census(realRuns.map(r => r.d.cards));
 
 /** The twins at `p`, in a child process. */
+const raw = new Map<string, Record<number, Dynamics>>();
 async function twinsAt(p: TwinParams): Promise<Map<number, DynamicsSummary>> {
-  const r = await isolated<Record<number, DynamicsSummary>>(PLAYTEST, 'twinDynamics', [SET.ref, cards, ladder, p, LEVELS, fights]);
-  return new Map(LEVELS.map(l => [l, r[l]]));
+  const r = await isolated<Record<number, Dynamics>>(PLAYTEST, 'twinDynamics', [SET.ref, cards, ladder, p, LEVELS, fights]);
+  raw.set(JSON.stringify(p), r);
+  return new Map(LEVELS.map(l => [l, summarise(r[l])]));
 }
 
 /** Many trials at once, as many as the lanes allow. */
@@ -96,5 +98,15 @@ for (const level of LEVELS) {
   all &&= r.ok;
   console.log(`\nLevel ${level}: ${r.ok ? '✓ vanilla matches today' : `❌ ${r.checks.filter(c => !c.ok).length} metrics off`}`);
   for (const c of r.checks) console.log(`  ${c.ok ? '✓' : '❌'} ${c.metric.padEnd(24)} real ${show(c.metric, c.real).padStart(5)} · vanilla ${show(c.metric, c.vanilla).padStart(5)}`);
+}
+console.log(`\nPER KIT — each twin against its real kit, the worst first (only metrics off are listed)`);
+const twinRaw = raw.get(JSON.stringify(params))!;
+for (const level of LEVELS) {
+  const realRaw = realRuns.find(r => r.level === level)!.d;
+  console.log(`Level ${level}`);
+  for (const d of kitDivergences(realRaw, twinRaw[level])) {
+    const off = d.checks.filter(c => !c.ok).map(c => `${c.metric} ${show(c.metric, c.real)} → ${show(c.metric, c.vanilla)}`);
+    console.log(`  ${d.off ? '❌' : '✓'} ${d.kit.padEnd(14)} ${off.join(' · ')}`);
+  }
 }
 console.log(`\n${all ? 'The vanilla set is reasonable: it plays like today\'s game at every checkpoint.' : 'The vanilla set does not yet play like today\'s game.'}`);

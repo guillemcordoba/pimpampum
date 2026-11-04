@@ -8,8 +8,8 @@
  * read against them.
  */
 import { ActionType, applyKind, DiceRoll, type ActionDefinition, type EffectHandler, type StatusBehavior } from '@pimpampum/engine';
-import { actionPrint, kitsDynamics, theSet, type SubjectKit } from '@pimpampum/bench';
-import { summarise, type DynamicsSummary } from './dynamics.js';
+import { actionPrint, kitsDynamics, theSet, type Dynamics, type SubjectKit } from '@pimpampum/bench';
+
 import { installSet, type RunContext } from './prepare.js';
 import type { CensusCard } from './census.js';
 import type { LadderRung } from './feasibility.js';
@@ -191,17 +191,17 @@ export function withVanillaSet<T>(kits: readonly SubjectKit[], fn: () => T): T {
   return first ? withControlKit(first, () => withVanillaSet(rest, fn)) : fn();
 }
 
-/** The vanilla set's dynamics at `levels`, in a child process (bench
+/** The vanilla set's raw dynamics at `levels`, in a child process (bench
  *  `isolated`): install the set, build the twins from the census and `p`, play.
  *  The ladder travels as notation. */
 export async function twinDynamics(
   set: RunContext['set'], cards: readonly CensusCard[], ladder: Record<number, { attack: string; defense: string }>,
   p: TwinParams, levels: readonly number[], fights: number,
-): Promise<Record<number, DynamicsSummary>> {
+): Promise<Record<number, Dynamics>> {
   await installSet(set);
   const rungs: Record<number, LadderRung> = Object.fromEntries(Object.entries(ladder).map(([l, r]) => [l, { attack: DiceRoll.parse(r.attack), defense: DiceRoll.parse(r.defense) }]));
   const twins = theSet().calibration.mainKits.map(k => vanillaTwin(k, cards, rungs, p));
   const print = `${twins.map(vanillaPrint).join('|')}#${JSON.stringify(p)}`;
   return withVanillaSet(twins, () => Object.fromEntries(levels.map(level =>
-    [level, summarise(kitsDynamics(level, fights, {}, { kits: twins.map(t => t.id), print }))])));
+    [level, kitsDynamics(level, fights, {}, { kits: twins.map(t => t.id), print })])));
 }
