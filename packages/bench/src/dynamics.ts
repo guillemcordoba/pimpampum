@@ -74,7 +74,17 @@ const kitTally = (into: Dynamics, kit: string): KitTally => (into.kits[kit] ??= 
  *  and the part of it on enemies that played a Defense that round; PV the
  *  allies gained; effects it left on enemies and on allies (status counts);
  *  and PV the enemies lost later, at round ends, to the statuses it set. */
-export interface CardTally { plays: number; foeLoss: number; onDefenders: number; allyGain: number; foeEffects: number; allyEffects: number; lingering: number }
+export interface CardTally {
+  plays: number; foeLoss: number; onDefenders: number; allyGain: number; foeEffects: number; allyEffects: number; lingering: number;
+  /** What it left on the allies, read from the engine's generic hooks: effects
+   *  that strengthen their attacks, effects that protect them; and the attack
+   *  and defense bonuses of the modifiers it gave them (summed). */
+  offense: number; protection: number; attackBonus: number; defenseBonus: number;
+}
+
+/** An effect's hooks that make its holder hit harder, and that shield it. */
+const OFFENSIVE = ['attackRollOfHolder', 'modifyOutgoingDamage', 'onAttackAction', 'attackRepeats', 'rollMode'] as const;
+const PROTECTIVE = ['modifyIncomingDamage', 'untargetable', 'onTargeted', 'onAllyTargeted', 'guardsBlow', 'standingGuard', 'clampPvLoss'] as const;
 
 const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
@@ -99,6 +109,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const before = new Map(everyone.map(c => [c, c.currentPV]));
       const effects = new Map(everyone.map(c => [c, c.statuses.size]));
       const keysBefore = new Map(everyone.map(c => [c, new Set(c.statuses.keys())]));
+      const modsBefore = new Map(everyone.map(c => [c, new Set(c.modifiers)]));
       const defended = new Set(e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa).map(p => p.actor));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
       const step = e.resolveNextAction();
@@ -132,13 +143,29 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       }
       if (type === ActionType.Atac && foesLost === 0) into.emptyAttacks++;
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
-      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0 });
+      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0, offense: 0, protection: 0, attackBonus: 0, defenseBonus: 0 });
       t.plays++;
       t.foeLoss += foesLost;
       for (const c of everyone) {
         const gained = Math.max(0, c.currentPV - (before.get(c) ?? 0));
         const added = Math.max(0, c.statuses.size - (effects.get(c) ?? 0));
-        if (c.team === actor.team) { t.allyGain += gained; t.allyEffects += added; } else {
+        if (c.team === actor.team) {
+          t.allyGain += gained; t.allyEffects += added;
+          for (const [k, entry] of c.statuses) {
+            if (keysBefore.get(c)!.has(k)) continue;
+            const b = entry.behavior as Record<string, unknown> | undefined;
+            if (b && OFFENSIVE.some(h => b[h] !== undefined)) t.offense++;
+            // The size of an attack-roll bonus, asked of the effect itself.
+            const roll = entry.behavior?.attackRollOfHolder;
+            if (roll) t.attackBonus += Math.max(0, Number(roll({ holder: c, key: k, entry }) ?? 0));
+            if (b && PROTECTIVE.some(h => b[h] !== undefined)) t.protection++;
+          }
+          for (const m of c.modifiers) {
+            if (modsBefore.get(c)!.has(m)) continue;
+            if (m.stat === 'attack' && m.value > 0) { t.attackBonus += m.value; t.offense++; }
+            if (m.stat === 'defense' && m.value > 0) { t.defenseBonus += m.value; t.protection++; }
+          }
+        } else {
           t.foeEffects += added;
           if (defended.has(c)) t.onDefenders += Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
           for (const k of c.statuses.keys()) if (!keysBefore.get(c)!.has(k)) setBy.get(c)!.set(k, def.id);
@@ -188,7 +215,7 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
 export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
   const kits = given?.kits ?? theSet().calibration.mainKits;
   const print = given?.print ?? kits.map(skillPrint).join('|');
-  return countedCached('dynamics', key('dynamics-v5', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v6', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
     withSeed(seedOf('kits', level), () => {
@@ -201,7 +228,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v5', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v6', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);

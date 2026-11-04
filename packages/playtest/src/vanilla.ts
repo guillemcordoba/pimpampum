@@ -76,11 +76,15 @@ export interface TwinParams {
   /** 1: a damaging Focus lands only on an enemy that played a Defense this
    *  round (as most real ones do); 0: on anyone, through any guard. */
   blastGuardOnly: number;
-  /** A utility Focus (the Aim): the next attack adds its level's dice × this. */
+  /** An offensive Focus: its side's attack rolls get the real card's measured
+   *  bonus for two rounds, or — none measured — its level's dice mean × this. */
   aim: number;
+  /** A protective Focus: blows on its side lose its level's attack mean ×
+   *  this (or the real card's measured defense bonus) for two rounds. */
+  shieldCut: number;
 }
 
-export const TWIN_DEFAULTS: TwinParams = { burn: 2, burnTurns: 2, riposteDrop: 2, blastBoost: 3, healBoost: 0, hexTurns: 1, hexBleed: 0, areaDrop: 0, riderDrop: 1, aim: 1, realDice: 0, blastGuardOnly: 0 };
+export const TWIN_DEFAULTS: TwinParams = { burn: 2, burnTurns: 2, riposteDrop: 2, blastBoost: 3, healBoost: 0, hexTurns: 1, hexBleed: 0, areaDrop: 0, riderDrop: 1, aim: 1, shieldCut: 0.5, realDice: 0, blastGuardOnly: 0 };
 
 /**
  * A REAL KIT'S VANILLA TWIN: the same roles at the same levels (the census),
@@ -92,8 +96,6 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
   const id = `twin-${kit}`;
   const effects: Record<string, EffectHandler> = {};
   const actions: ActionDefinition[] = [];
-  /** The Aims the twin's utility Focus set, spent by its next attack. */
-  const aims: { key: string; extra: DiceRoll }[] = [];
   for (const c of cards.filter(x => x.kit === kit).sort((a, b) => a.unlock - b.unlock)) {
     const rung = ladder[Math.max(1, Math.min(10, c.unlock))];
     const own = `${id}-${c.unlock}`;
@@ -172,25 +174,28 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
         actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-hex` }] } as ActionDefinition);
         break;
       case 'boost': {
-        const extra = new DiceRoll(rung.attack.numDice * p.aim, rung.attack.sides, rung.attack.modifier * p.aim);
-        const key = `${own}-aimed`;
-        const AIMED: StatusBehavior = { positionValue: ref => extra.average() / Math.max(1, ref.holder.maxPV) };
-        effects[`${own}-aim`] = { onResolve(ctx) { ctx.source.setStatus(key, 1, -1, undefined, AIMED); } };
-        actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-aim` }] } as ActionDefinition);
-        aims.push({ key, extra });
+        const bonus = c.attackBonus >= 1 ? Math.round(c.attackBonus) : Math.round(rung.attack.average() * p.aim);
+        const LIFTED: StatusBehavior = { attackRollOfHolder: () => bonus, positionValue: () => bonus / 26 };
+        effects[`${own}-boost`] = {
+          onResolve(ctx) { for (const a of ctx.engine.alliesOf(ctx.source, true)) if (a.isAlive()) a.setStatus(`${own}-boost`, bonus, 2, undefined, LIFTED); },
+        };
+        actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-boost` }] } as ActionDefinition);
+        break;
+      }
+      case 'shield': {
+        const cut = c.defenseBonus >= 1 ? Math.round(c.defenseBonus) : Math.max(1, Math.round(rung.attack.average() * p.shieldCut));
+        const SHIELDED: StatusBehavior = {
+          modifyIncomingDamage: (_ctx, damage) => Math.max(0, damage - cut),
+          positionValue: () => cut / 26,
+        };
+        effects[`${own}-shield`] = {
+          onResolve(ctx) { for (const a of ctx.engine.alliesOf(ctx.source, true)) if (a.isAlive()) a.setStatus(`${own}-shield`, cut, 2, undefined, SHIELDED); },
+        };
+        actions.push({ ...base, actionType: ActionType.Focus, effects: [...fx, { type: `${own}-shield` }] } as ActionDefinition);
         break;
       }
     }
   }
-  // The Aims land on the twin's attacks, whichever they are.
-  const spend: EffectHandler = {
-    modifyAttack(ctx) {
-      if (!ctx.attackMods) return;
-      for (const a of aims) if (ctx.source.hasStatus(a.key)) { ctx.attackMods.extraDamageDice.push(a.extra); ctx.source.clearStatus(a.key); }
-    },
-  };
-  effects[`${id}-spend`] = spend;
-  for (const a of actions) if (a.actionType === ActionType.Atac) a.effects = [...a.effects, { type: `${id}-spend` }];
   return { id, actions, effects };
 }
 

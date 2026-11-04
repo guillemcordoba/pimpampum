@@ -73,7 +73,7 @@ if (process.argv.includes('--calibrate')) {
   // the one that misses least; again, until nothing helps.
   const grid: Partial<Record<keyof TwinParams, number[]>> = {
     blastBoost: [-3, 0, 3, 6], burn: [1, 2, 3, 4], riposteDrop: [0, 2, 4], aim: [1, 2, 3], healBoost: [-2, 0, 3], hexTurns: [1, 2],
-    hexBleed: [0, 2, 4], areaDrop: [0, 1, 2, 3], riderDrop: [0, 1, 2], realDice: [0, 1], blastGuardOnly: [0, 1],
+    hexBleed: [0, 2, 4], areaDrop: [0, 1, 2, 3], riderDrop: [0, 1, 2], realDice: [0, 1], blastGuardOnly: [0, 1], shieldCut: [0.25, 0.5, 1],
   };
   let best = score(vanilla);
   for (let pass = 0; pass < 10; pass++) {
