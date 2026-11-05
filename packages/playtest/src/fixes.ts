@@ -35,6 +35,10 @@ export interface Fix {
   defenseShift: number;
   chip: number;
   burst: 'aimed' | 'plain';
+  /** False: a defense rolls once however many blows pile on (`CombatEngineOptions.envoltat`). */
+  envoltat?: boolean;
+  /** True: a defense guarding an ally also covers its player, the rule before 2026-11-02. */
+  guardCoversDefender?: boolean;
 }
 
 export const TODAY: Fix = { id: 'today', label: 'Today: the ladder as it is, survive the aimed blow', aim: 1, defenseShift: 0, chip: 0, burst: 'aimed' };
@@ -95,9 +99,13 @@ export async function evaluateFix(
   const params = { ...TWIN_DEFAULTS, focusScale: (fix.aim + 1) / 2 };
   const out: FixLevel[] = [];
   for (const level of levels) {
-    const vanilla = deriveOnTwins(level, cards, twinLadder, params, { fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst });
+    const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
+      fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, envoltat: fix.envoltat, guardCoversDefender: fix.guardCoversDefender,
+    });
     const pv = vanilla.pv ?? vanilla.lengthPV ?? Math.max(vanilla.roundOnePV, fix.burst === 'plain' ? vanilla.plainBlowPV : vanilla.bestBlowPV);
-    const variant: Variant = { pv, ...(fix.chip ? { chipDamage: fix.chip } : {}) };
+    const variant: Variant = {
+      pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
+    };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
     const triangle = EDGES.map(([x, y]) => {
       const d = styleDuel(x, y, level, budget.duelGames, undefined, variant);
@@ -147,6 +155,8 @@ export function scoreFix(r: FixResult): FixScore {
       ...(r.fix.chip ? [`${Math.round(100 * r.fix.chip)}% of a held blow lands: a guard no longer blocks completely`] : []),
     ],
     costs: [
+      ...(r.fix.envoltat === false ? ['Envoltat off: blows piled on one body no longer wear its guard down'] : []),
+      ...(r.fix.guardCoversDefender ? ['a defense that guards an ally covers its player too (the rule before 2026-11-02)'] : []),
       ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
       ...(r.fix.burst === 'plain' ? ['the burst rule reads "survive the plain blow"'] : []),
     ],

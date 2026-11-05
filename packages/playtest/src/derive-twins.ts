@@ -20,7 +20,11 @@ const PV_MIN = 1;
 /** Heroes sit near 26 today and every derivation so far stayed under 40. */
 const PV_MAX = 60;
 
-export interface TwinDeriveOptions { fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain' }
+export interface TwinDeriveOptions {
+  fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain';
+  /** `CombatEngineOptions.envoltat` / `.guardCoversDefender`, as bench's `Variant` takes them. */
+  envoltat?: boolean; guardCoversDefender?: boolean;
+}
 
 /** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_BEST_BLOW_KOS` of the time. */
 function floorFor(dice: DiceRoll, bonus: number, armour: number): number {
@@ -55,7 +59,8 @@ export function deriveOnTwins(
     const at = (pv: number): DynamicsSummary => {
       let s = measured.get(pv);
       if (!s) {
-        s = summarise(kitsDynamics(level, opts.fights, { pv, ...(opts.chip ? { chipDamage: opts.chip } : {}) }, { kits: twins.map(t => t.id), print }));
+        const rules = { ...(opts.chip ? { chipDamage: opts.chip } : {}), ...(opts.envoltat === false ? { envoltat: false } : {}), ...(opts.guardCoversDefender ? { guardCoversDefender: true } : {}) };
+        s = summarise(kitsDynamics(level, opts.fights, { pv, ...rules }, { kits: twins.map(t => t.id), print }));
         measured.set(pv, s);
       }
       return s;

@@ -472,6 +472,22 @@ describe('bloqueig conjunt (summed wall)', () => {
     expect([a.currentPV, d2.currentPV]).toEqual([20, 13]);
   });
 
+  it('guardCoversDefender (an option; off by the rules): the defender that guards an ally stays covered too', () => {
+    const a = makeChar('A', 20, [defenseDef('ga', { dice: new DiceRoll(1, 1), rollBonus: 0 })]);
+    const d1 = makeChar('D1', 20, [focusDef()]);
+    const d2 = makeChar('D2', 20, [defenseDef('g2', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);
+    const e = makeChar('E', 50, [atkDef('cop', { rollBonus: 9 })]);
+    const engine = new CombatEngine([a, d1, d2], [e], { registry: new EffectRegistry(), actionChooser: firstLegalChooser, guardCoversDefender: true });
+    runRoundRaw(engine, [
+      { team: 0, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 1 }] }, // A guards D1, and itself
+      { team: 0, idx: 1, actionIdx: 0 },
+      { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
+    ]);
+    // Attack 10 against the wall A 1 + D2 3: margin 6 on the weak link, A.
+    expect([a.currentPV, d2.currentPV]).toEqual([14, 20]);
+  });
+
   it('guard wall: a close breach teaches every defender on the wall', () => {
     const a = makeChar('A', 20, [focusDef()]);
     const d1 = makeChar('D1', 20, [defenseDef('g1', { dice: new DiceRoll(1, 1), rollBonus: 2 })]);

@@ -182,6 +182,19 @@ export interface CombatEngineOptions {
    */
   chipDamage?: number;
   /**
+   * ENVOLTAT (true, the rules): a body n attacks land on this round has each
+   * defense covering it roll n times and keep the worst. False: a defense
+   * rolls once, however many blows come (a card's own extra rolls still
+   * count). A structural knob, like `chipDamage`.
+   */
+  envoltat?: boolean;
+  /**
+   * A DEFENSE THAT GUARDS AN ALLY ALSO COVERS ITS PLAYER (false, the rules
+   * since 2026-11-02: guarding an ally leaves the defender open). True: the
+   * rule before that day. A structural knob, like `chipDamage`.
+   */
+  guardCoversDefender?: boolean;
+  /**
    * WHO DECIDES. The engine has no policy of its own — `@pimpampum/ai`'s
    * `aiPolicy()` returns both of these, and a caller wires them in.
    *
@@ -263,6 +276,8 @@ export class CombatEngine implements EngineApi, AIView {
    *  `LookaheadOptions.rolloutSharpness`. */
   aiSharpness: number;
   readonly chipDamage: number;
+  readonly envoltat: boolean;
+  readonly guardCoversDefender: boolean;
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
   targetChooser?: TargetChooser;
@@ -363,6 +378,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.maxRounds = opts.maxRounds ?? ROUND_CAP;
     this.aiSharpness = opts.aiSharpness ?? 2;
     this.chipDamage = opts.chipDamage ?? 0;
+    this.envoltat = opts.envoltat ?? true;
+    this.guardCoversDefender = opts.guardCoversDefender ?? false;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
     this.optionChooser = opts.optionChooser;
@@ -402,13 +419,15 @@ export class CombatEngine implements EngineApi, AIView {
     // instance never ran one.
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; envoltat: boolean; guardCoversDefender: boolean; history: ActionEvent[];
     };
     fixed.registry = this.registry;
     fixed.teams = teams;
     fixed.maxRounds = this.maxRounds;
     fixed.aiSharpness = this.aiSharpness;
     fixed.chipDamage = this.chipDamage;
+    fixed.envoltat = this.envoltat;
+    fixed.guardCoversDefender = this.guardCoversDefender;
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
     e.optionChooser = this.optionChooser;
@@ -465,7 +484,8 @@ export class CombatEngine implements EngineApi, AIView {
     const enc = new SnapshotEncoder(this.teams, refOf);
     const teams = this.teams.map(t => t.map(c => enc.character(c)));
     const out: Omit<EngineSnapshot, 'shared'> = {
-      teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, ...(this.chipDamage ? { chipDamage: this.chipDamage } : {}), round: this.round,
+      teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, ...(this.chipDamage ? { chipDamage: this.chipDamage } : {}),
+      ...(this.envoltat ? {} : { envoltat: false }), ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}), round: this.round,
       history: enc.value(this.history), plays: this.plays.map(p => ({ ...p })), blowSeq: this.blowSeq,
       pending: this.pending.map(p => ({
         actor: enc.char(p.actor), hand: p.actor.actions.indexOf(p.action), def: enc.share(p.action.def),
@@ -494,13 +514,15 @@ export class CombatEngine implements EngineApi, AIView {
     const e = Object.create(CombatEngine.prototype) as CombatEngine;
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; envoltat: boolean; guardCoversDefender: boolean; history: ActionEvent[];
     };
     fixed.registry = registry;
     fixed.teams = teams;
     fixed.maxRounds = snap.maxRounds;
     fixed.aiSharpness = snap.aiSharpness;
     fixed.chipDamage = snap.chipDamage ?? 0;
+    fixed.envoltat = snap.envoltat ?? true;
+    fixed.guardCoversDefender = snap.guardCoversDefender ?? false;
     // In clone's order: a state's key reads its fields in order.
     e.actionChooser = undefined;
     e.targetChooser = undefined;
@@ -1654,7 +1676,7 @@ export class CombatEngine implements EngineApi, AIView {
         // guarding an ally leaves the defender open (rules.md). Otherwise a
         // guarding pair walled both bodies at once and could not be broken.
         const guardedOthers = allies.filter(a => a !== actor);
-        if (!guardedOthers.length) actor.guards.push({ defender: actor, action: action.def });
+        if (!guardedOthers.length || this.guardCoversDefender) actor.guards.push({ defender: actor, action: action.def });
         for (const ally of guardedOthers) ally.guards.push({ defender: actor, action: action.def });
         // Block: the enemy loses target choice — every attack roll they make
         // from now on is made against the blockers. Blocks stack: two or more
@@ -1908,6 +1930,7 @@ export class CombatEngine implements EngineApi, AIView {
    * included; a redirect counts once it has happened).
    */
   private blowsOn(target: Character): number {
+    if (!this.envoltat) return 1;
     let n = this.landed.get(target) ?? 0;
     for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
       const p = this.pending[i];

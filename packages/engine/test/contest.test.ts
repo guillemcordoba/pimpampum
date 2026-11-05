@@ -83,6 +83,16 @@ describe('an extra blow', () => {
     // The card's blow: 1 landed → one roll. The extra blow: 2 landed → two.
     expect(guardDice.calls).toBe(3);
   });
+
+  it('with Envoltat off (an option; on by the rules) the guard rolls once a blow', () => {
+    const guardDice = new CountingDice(1, 1);
+    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL }));
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 10, effects: [{ type: 'strike_again' }] })], { pv: 100 });
+    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 0 })], { pv: 100 });
+    const e = new CombatEngine([a], [d], { registry: r, envoltat: false });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+    expect(guardDice.calls).toBe(2);
+  });
 });
 
 describe('an extra blow with defense options', () => {

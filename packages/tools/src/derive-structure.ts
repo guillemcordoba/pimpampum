@@ -3,14 +3,16 @@
  * derive, don't choose — one level up from PV; then: make the structure
  * decision easy.) A grid of candidate structures (playtest `Fix`): how strong a
  * Focus is, how far below the ladder the defenses sit, how much of a held blow
- * still lands (the engine's chip damage), and which blow a fresh hero must
- * survive. Each is measured by `evaluateFix` at every level asked: hero PV
+ * still lands (the engine's chip damage), which blow a fresh hero must
+ * survive, and two guard rules: Envoltat (a guard rolls once per blow on its
+ * body, keeping the worst) and whether a defense guarding an ally still
+ * covers its player. Each is measured by `evaluateFix` at every level asked: hero PV
  * derived on the vanilla twins, then the real kits played at it (fights end,
  * burst, the triangle, dumb play). One page: the candidates ranked, each
  * level's derived PV and checks, and what each costs.
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/derive-structure.ts --set elements --out structure.html
- *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts plain --levels 3,4,5,6,7,8,9,10
+ *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts plain --envoltat on,off --guard one,both --levels 3,4,5,6,7,8,9,10
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -28,20 +30,27 @@ const aims = list('--aims', '1,2,3').map(Number);
 const shifts = list('--shifts', '0,-1').map(Number);
 const chips = list('--chips', '0,0.25,0.5').map(Number);
 const bursts = list('--bursts', 'plain') as Fix['burst'][];
+const envoltats = list('--envoltat', 'on').map(v => v !== 'off');
+const guardsBoth = list('--guard', 'one').map(v => v === 'both');
 const LEVELS = list('--levels', '3,4,5,6,7,8,9,10').map(Number);
 const OUT = flag('--out') ?? path.join(os.tmpdir(), 'structure.html');
 const budget = { vanillaFights: games(2 * FIX_BUDGET.vanillaFights), realFights: games(2 * FIX_BUDGET.realFights), duelGames: games(2 * FIX_BUDGET.duelGames) };
 const log = (s: string) => process.stderr.write(`${s}\n`);
 const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
 
-const label = (aim: number, shift: number, chip: number, burst: Fix['burst']) => [
+const label = (aim: number, shift: number, chip: number, burst: Fix['burst'], envoltat: boolean, both: boolean) => [
   aim === 1 ? 'Focus as today' : `Focus ×${(aim + 1) / 2}`,
   ...(chip ? [`chip ${Math.round(100 * chip)}%`] : []),
   ...(shift ? [`defenses ${-shift} rung${shift === -1 ? '' : 's'} lower`] : []),
+  ...(envoltat ? [] : ['Envoltat off']),
+  ...(both ? ['a guard covers both bodies'] : []),
 ].join(' + ') + (burst === 'aimed' ? ' (survive the aimed blow)' : '');
-const fixes: Fix[] = aims.flatMap(aim => shifts.flatMap(defenseShift => chips.flatMap(chip => bursts.map(burst => ({
-  id: `a${aim}-s${defenseShift}-c${chip}-${burst}`, label: label(aim, defenseShift, chip, burst), aim, defenseShift, chip, burst,
-})))));
+const fixes: Fix[] = aims.flatMap(aim => shifts.flatMap(defenseShift => chips.flatMap(chip => bursts.flatMap(burst =>
+  envoltats.flatMap(envoltat => guardsBoth.map(both => ({
+    id: `a${aim}-s${defenseShift}-c${chip}-${burst}${envoltat ? '' : '-noenv'}${both ? '-both' : ''}`,
+    label: label(aim, defenseShift, chip, burst, envoltat, both), aim, defenseShift, chip, burst,
+    ...(envoltat ? {} : { envoltat: false }), ...(both ? { guardCoversDefender: true } : {}),
+  })))))));
 
 // What each card did in today's fights: the twins are built from it.
 log(`today's fights at L${LEVELS.join(', L')}…`);

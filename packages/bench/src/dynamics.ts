@@ -23,8 +23,21 @@ import { theSet } from './gameset.js';
 export interface Variant {
   /** `CombatEngineOptions.chipDamage`. */
   chipDamage?: number;
+  /** `CombatEngineOptions.envoltat` (false turns it off). */
+  envoltat?: boolean;
+  /** `CombatEngineOptions.guardCoversDefender`. */
+  guardCoversDefender?: boolean;
   /** Every hero's PV at this level; omit for the set's own. */
   pv?: number;
+}
+
+/** The engine's options a variant sets; nothing when it leaves the rules as they are. */
+export function variantRules(v: Variant): { chipDamage?: number; envoltat?: boolean; guardCoversDefender?: boolean } {
+  return {
+    ...(v.chipDamage ? { chipDamage: v.chipDamage } : {}),
+    ...(v.envoltat === false ? { envoltat: false } : {}),
+    ...(v.guardCoversDefender ? { guardCoversDefender: true } : {}),
+  };
 }
 
 export type DamageSource = 'open' | 'guarded' | 'area' | 'counter' | 'focus' | 'defense' | 'roundEnd';
@@ -95,7 +108,7 @@ const emptyDynamics = (): Dynamics => ({
 
 function playOne(teams: [Character[], Character[]], variant: Variant, into: Dynamics): void {
   const e = new CombatEngine(teams[0], teams[1], {
-    registry: theRegistry(), maxRounds: ROUND_CAP, ...(variant.chipDamage ? { chipDamage: variant.chipDamage } : {}), ...aiPolicy(CELL_AI),
+    registry: theRegistry(), maxRounds: ROUND_CAP, ...variantRules(variant), ...aiPolicy(CELL_AI),
   });
   const everyone = e.teams.flat();
   let roundsDone = 0;

@@ -19,6 +19,7 @@ import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
 import { theSet } from './gameset.js';
+import { variantRules, type Variant } from './dynamics.js';
 import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
 import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
 
@@ -169,7 +170,7 @@ export interface StyleDuel { x: DuelStyle; y: DuelStyle; level: number; score: n
 export function styleDuel(
   x: DuelStyle, y: DuelStyle, level: number, games: number, withoutCard?: string,
   /** A candidate structure (bench `dynamics.ts`): the engine's options and a hero PV. */
-  variant: { chipDamage?: number; pv?: number } = {},
+  variant: Variant = {},
 ): StyleDuel {
   const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
   return countedCached('mirror-duel', key('mirror-duel-v2', mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? '', v), () => {
@@ -184,7 +185,7 @@ export function styleDuel(
         const teams = [heroes(pair, level, 'A', variant.pv), heroes(pair, level, 'B', variant.pv)];
         if (withoutCard) for (const c of teams[1 - xSide]) c.actions = c.actions.filter(a => a.def.id !== withoutCard);
         const e = new CombatEngine(teams[0], teams[1], {
-          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS, ...(variant.chipDamage ? { chipDamage: variant.chipDamage } : {}),
+          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS, ...variantRules(variant),
           actionChooser: (en, c) => {
             if (c.team === xSide) return X(en, c);
             const i = Y(en, c);
