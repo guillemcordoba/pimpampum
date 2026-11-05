@@ -10,7 +10,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, useSet } from '@pimpampum/bench';
-import { FIELD_MAX, GATE_BUDGET, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { autopsyLines, FIELD_MAX, GATE_BUDGET, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -88,6 +88,10 @@ if (r.styles.length) {
     const edges = s.edges.map(e => `${s.broken.includes(`${e.winner} > ${e.loser}`) ? '❌' : '✓'} ${e.winner}>${e.loser} ${Math.round(100 * e.winrate)}%`).join('  ');
     const dumb = s.dumb.map(d => `${d.ok ? '✓' : '❌'} ${d.style} ${Math.round(100 * d.score)}%`).join('  ');
     console.log(`L${s.level}  ${edges}  ${dumb}`);
+    for (const a of s.autopsies) {
+      console.log(`    why ${a.x} > ${a.y} fails:`);
+      for (const line of autopsyLines(a)) console.log(`      ${line}`);
+    }
     for (const c of s.culprits) {
       console.log(`    ${c.edge} is held up by: ${c.cards.map(x => `${x.name} (without it ${x.shift >= 0 ? '+' : ''}${x.shift.toFixed(0)})`).join(', ')}`);
     }

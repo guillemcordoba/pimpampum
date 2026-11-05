@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
-  analyze, burstHolds, CANDIDATE_FIXES, KIT_BAND, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
+  analyze, autopsyLines, burstHolds, CANDIDATE_FIXES, KIT_BAND, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
   MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepare, prepareGate, rankFixes, REQUIREMENTS,
   summarise, type DynamicsSummary, type FixLevel, type FixResult,
   type GateBudget, type KitReport, type LadderRung, type Requirement,
@@ -261,7 +261,8 @@ const culprits = gate.styles.flatMap(s => s.culprits.map(c => `L${s.level} ${c.e
 const analyzerLines = kitReports.map(r => `${kitId(r)}: ${r.strength.inconclusive ? 'band inconclusive' : `${signed(r.strength.band?.delta ?? 0)}±${Math.round(100 * (r.strength.band?.stderr ?? 0))} pts against the neutral kit`}`);
 // The gate's own checks of the machinery (the AI's model, its blind spots) are not the set's.
 const setFailures = gate.failures.filter(f => !/ model$| blind$/.test(f.key));
-const autopsy = `<ul class="facts">${setFailures.map(f => `<li>${esc(f.text)}</li>`).join('')}</ul><p class="muted">The kit analyzer, every main kit against creatures:</p><ul class="facts">${analyzerLines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${
+const edgeAutopsies = gate.styles.flatMap(s => s.autopsies.map(a => `<p class="muted">Why ${esc(a.x)} &gt; ${esc(a.y)} fails at L${s.level}:</p><ul class="facts">${autopsyLines(a).map(l => `<li>${esc(l)}</li>`).join('')}</ul>`)).join('');
+const autopsy = `<ul class="facts">${setFailures.map(f => `<li>${esc(f.text)}</li>`).join('')}</ul>${edgeAutopsies}<p class="muted">The kit analyzer, every main kit against creatures:</p><ul class="facts">${analyzerLines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${
   culprits.length ? `<p class="muted">What holds each broken edge up, the loser's cards whose removal lifts the winner most:</p><ul class="facts">${culprits.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}`;
 
 const todaySection = `<div class="pair">${today.map(({ level, real }) => `

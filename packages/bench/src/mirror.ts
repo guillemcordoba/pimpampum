@@ -19,7 +19,7 @@ import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
 import { theSet } from './gameset.js';
-import { variantRules, type Variant } from './dynamics.js';
+import { variantRules, type DamageSource, type Variant } from './dynamics.js';
 import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
 import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
 
@@ -200,6 +200,114 @@ export function styleDuel(
       }
     });
     return { x, y, level, score: score / games, stalls: stalls / games, games, yPlays };
+  });
+}
+
+/** One side's play in a duel: what its guards met, where its blows landed,
+ *  what came of its Focus cards, and where its damage came from. */
+export interface DuelSide {
+  plays: { attack: number; defense: number; focus: number };
+  /** Focus cards that never resolved: their player was hurt first. */
+  focusLost: number;
+  /** Guards it put up; those an enemy attack was aimed at; of those, the ones
+   *  whose body came through that round's enemy attacks unhurt. */
+  guards: number; guardsFaced: number; guardsHeld: number;
+  /** Its attacks' enemy targets: unguarded; guarded and unhurt; guarded and hurt. */
+  blowsOpen: number; blowsHeld: number; blowsThrough: number;
+  /** PV it took off the other side, by source. */
+  dealt: Record<DamageSource, number>;
+}
+
+export interface DuelAutopsy { x: DuelStyle; y: DuelStyle; level: number; games: number; score: number; meanRounds: number; sides: { x: DuelSide; y: DuelSide } }
+
+const emptySide = (): DuelSide => ({
+  plays: { attack: 0, defense: 0, focus: 0 }, focusLost: 0, guards: 0, guardsFaced: 0, guardsHeld: 0, blowsOpen: 0, blowsHeld: 0, blowsThrough: 0,
+  dealt: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
+});
+
+/**
+ * WHY ONE STYLE BEATS ANOTHER: `styleDuel`'s fights (the same draws, seats
+ * alternating), stepped one card at a time and read per side — a broken
+ * triangle edge's autopsy (playtest `gate.ts`).
+ */
+export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: number): DuelAutopsy {
+  return countedCached('mirror-autopsy', key('mirror-autopsy-v1', mainKitsPrint(), x, y, String(level), String(games)), () => {
+    const kits = theSet().calibration.mainKits;
+    const sides = { x: emptySide(), y: emptySide() };
+    let score = 0, rounds = 0;
+    withSeed(kitSeed(`${x}>${y}`, level, 2), () => {
+      for (let f = 0; f < games; f++) {
+        const pair = [drawKit(kits), drawKit(kits)];
+        const xSide = f % 2;
+        const X = chooserFor(x), Y = chooserFor(y);
+        const e = new CombatEngine(heroes(pair, level, 'A'), heroes(pair, level, 'B'), {
+          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS,
+          actionChooser: (en, c) => (c.team === xSide ? X : Y)(en, c),
+        });
+        const everyone = e.teams.flat();
+        const sideOf = (team: number) => (team === xSide ? sides.x : sides.y);
+        while (!e.isOver() && e.round < e.maxRounds) {
+          e.prepareRound();
+          e.planActions([]);
+          const guardsUp: { side: DuelSide; body: Character }[] = [];
+          const hurtByAttacks = new Map<Character, number>();
+          for (;;) {
+            const before = new Map(everyone.map(c => [c, c.currentPV]));
+            const guardCount = new Map(everyone.map(c => [c, c.guards.length]));
+            const guarded = new Set(everyone.filter(c => c.guards.length > 0));
+            const step = e.resolveNextAction();
+            if (step.kind === 'done') break;
+            if (step.kind === 'target') { e.setResolveTarget([]); continue; }
+            if (step.kind === 'choice') { e.setResolveChoice(); continue; }
+            const actor = e.teams[step.action.actorTeam]?.[step.action.actorIdx];
+            const def = actor?.actions.find(a => a.def.id === step.action.actionId)?.def;
+            if (!actor || !def) continue;
+            const side = sideOf(actor.team), other = sideOf(1 - actor.team);
+            const type = def.actionType;
+            side.plays[type === ActionType.Atac ? 'attack' : type === ActionType.Defensa ? 'defense' : 'focus']++;
+            if (step.action.cancelled) { if (type === ActionType.Focus) side.focusLost++; continue; }
+            if (type === ActionType.Defensa) {
+              for (const c of e.teams[actor.team]) {
+                for (let i = guardCount.get(c) ?? 0; i < c.guards.length; i++) if (c.guards[i].defender === actor) { side.guards++; guardsUp.push({ side, body: c }); }
+              }
+            }
+            for (const c of everyone) {
+              const loss = Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
+              if (!loss) continue;
+              if (c.team === actor.team) { other.dealt.counter += loss; continue; }
+              const source: DamageSource = type === ActionType.Atac ? ((def.targetCount ?? 1) > 1 ? 'area' : guarded.has(c) ? 'guarded' : 'open')
+                : type === ActionType.Focus ? 'focus' : 'defense';
+              side.dealt[source] += loss;
+              if (type === ActionType.Atac) hurtByAttacks.set(c, (hurtByAttacks.get(c) ?? 0) + loss);
+            }
+            if (type === ActionType.Atac) {
+              const mine = e.plannedThisRound().find(p => p.actor === actor && p.action.id === def.id);
+              for (const t of mine?.targets ?? []) {
+                if (t.team === actor.team) continue;
+                const lost = (before.get(t) ?? 0) - t.currentPV;
+                if (!guarded.has(t)) side.blowsOpen++;
+                else if (lost > 0) side.blowsThrough++;
+                else side.blowsHeld++;
+              }
+            }
+          }
+          const plan = e.plannedThisRound();
+          for (const { side, body } of guardsUp) {
+            const faced = plan.some(p => !p.cancelled && p.actor.team !== body.team && p.action.actionType === ActionType.Atac && !!p.targets?.includes(body));
+            if (!faced) continue;
+            side.guardsFaced++;
+            if (!hurtByAttacks.get(body)) side.guardsHeld++;
+          }
+          const beforeEnd = new Map(everyone.map(c => [c, c.currentPV]));
+          e.finishRound();
+          for (const c of everyone) sideOf(1 - c.team).dealt.roundEnd += Math.max(0, (beforeEnd.get(c) ?? 0) - Math.max(0, c.currentPV));
+        }
+        const w = e.winner();
+        score += !e.isOver() || w === null ? 0.5 : w === xSide ? 1 : 0;
+        rounds += e.round;
+      }
+    });
+    return { x, y, level, games, score: score / games, meanRounds: rounds / games, sides };
   });
 }
 
