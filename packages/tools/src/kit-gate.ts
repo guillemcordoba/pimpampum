@@ -10,7 +10,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, useSet } from '@pimpampum/bench';
-import { FIELD_MAX, GATE_BUDGET, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { FIELD_MAX, GATE_BUDGET, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -55,6 +55,18 @@ for (const kit of kits) {
     const c = r.kits.find(x => x.kit === kit && x.level === l);
     return pad(c ? `${c.dominates ? '❌' : '✓'} ${p(c.winrate)}` : '', 12);
   }).join(''));
+}
+
+if (r.choices.length) {
+  const cl = [...new Set(r.choices.map(c => c.level))];
+  console.log(`\nCHOOSING MATTERS — a random card's cost against the best, PV a decision (2σ under ${MIN_CHOICE_COST} fails)`);
+  console.log(pad('', w) + cl.map(l => pad(`L${l}`, 12)).join(''));
+  for (const kit of kits) {
+    console.log(pad(kit, w) + cl.map(l => {
+      const c = r.choices.find(x => x.kit === kit && x.level === l);
+      return pad(c ? `${c.ok ? '✓' : '❌'} ${c.mean.toFixed(1)}` : '', 12);
+    }).join(''));
+  }
 }
 
 const shape = (f: FightShape) => `${f.pvPerRound.toFixed(1)} PV/round · ${p(f.emptyAttacks)} of attacks take nothing · ${p(f.focusLost)} of Focus lost · defenses ${p(f.defenseShare)} of plays`;

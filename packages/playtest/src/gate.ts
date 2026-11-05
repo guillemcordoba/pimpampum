@@ -14,18 +14,20 @@
  *    three leaning styles each against the next, and every dumb strategy
  *    (bench `DUMB_STYLES`: only defending, the biggest attack, any card)
  *    against the reading AI, which must beat each one clearly;
- *  - EVERY CARD HAS A USE: per kit, each card's value in mirrors — a card that
- *    is never the right play at any level it is held, or one the AI is blind to.
+ *  - EVERY CARD HAS A USE, and CHOOSING MATTERS: per kit, each card's value in
+ *    mirrors — a card that is never the right play at any level it is held, or
+ *    one the AI is blind to — and what a random card costs against the best,
+ *    per decision, at each checkpoint.
  *
  * The strength band joins when creatures are on the ladder (OPEN.md B20): it is
  * measured against creatures, and their cells saturate until then.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DUMB_STYLES, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelStyle, type DumbStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
+import { DUMB_STYLES, kitChoiceCost, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelStyle, type DumbStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
-  dominatesField, durationVerdict, edgeHolds, isBlindSpot, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
+  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
@@ -98,14 +100,17 @@ export interface GateCardCell {
   neverRight: boolean; blind: boolean;
 }
 
+/** What a random legal card costs against the best one, per decision, in PV (`kitChoiceCost`). */
+export interface GateChoiceCell { kit: string; level: number; mean: number; stderr: number; decisions: number; ok: boolean }
+
 export interface GateReport {
-  kits: GateKitCell[]; styles: GateStyleCell[]; cards: GateCardCell[];
+  kits: GateKitCell[]; styles: GateStyleCell[]; cards: GateCardCell[]; choices: GateChoiceCell[];
   /** One per failing cell, the grid's ❌s: a stable `key` (what a test's
    *  ratchet names) and the line that explains it. */
   failures: GateFailure[];
 }
 
-/** Keys: `<kit> L<n> length`, `<kit> L<n> dominates`, `L<n> triangle <winner> > <loser>`, `L<n> dumb <style>`,
+/** Keys: `<kit> L<n> length`, `<kit> L<n> dominates`, `<kit> L<n> choice`, `L<n> triangle <winner> > <loser>`, `L<n> dumb <style>`,
  *  `L<n> model`, `<kit> <card id> never-right`, `<kit> <card id> blind`. */
 export interface GateFailure { key: string; text: string }
 
@@ -277,6 +282,11 @@ export function gateCardCells(kit: string, budget: GateBudget = GATE_BUDGET, lev
   });
 }
 
+export function gateChoiceCell(kit: string, level: number, budget: GateBudget = GATE_BUDGET): GateChoiceCell {
+  const c = kitChoiceCost(kitMirrorCardValues(kit, level, budget.cardFights).values);
+  return { kit, level, ...c, ok: choiceMattersVerdict(c.mean, c.stderr, MIN_CHOICE_COST) };
+}
+
 const pct = (x: number) => `${Math.round(100 * x)}%`;
 
 /** The whole gate (or a scope of it), from the cache when it is warm. */
@@ -284,16 +294,18 @@ export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUD
   const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget)));
   const styles = scope.kits ? [] : inScope(STYLE_LEVELS, scope).map(level => gateStyleCell(level, budget));
   const cards = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
+  const choices = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => inScope(CARD_LEVELS, scope).map(level => gateChoiceCell(kit, level, budget)));
   const failures: GateFailure[] = [
     ...kits.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} length`, text: `${c.kit} L${c.level}: ${c.reasons.join(', ')}` })),
     ...kits.filter(c => c.dominates).map(c => ({ key: `${c.kit} L${c.level} dominates`, text: `${c.kit} L${c.level}: its side scores ${pct(c.winrate)} against the field` })),
     ...styles.flatMap(s => s.broken.map(b => ({ key: `L${s.level} triangle ${b}`, text: `L${s.level} triangle: ${b} doesn't hold` }))),
     ...styles.flatMap(s => s.dumb.filter(d => !d.ok).map(d => ({ key: `L${s.level} dumb ${d.style}`, text: `L${s.level} dumb play: ${d.style} scores ${pct(d.score)} against the AI` }))),
     ...styles.filter(s => !s.model.ok).map(s => ({ key: `L${s.level} model`, text: `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}` })),
+    ...choices.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} choice`, text: `${c.kit} L${c.level}: a random card costs ${c.mean.toFixed(2)}±${c.stderr.toFixed(2)} PV a decision (needs ${MIN_CHOICE_COST})` })),
     ...cards.filter(c => c.neverRight).map(c => ({ key: `${c.kit} ${c.card} never-right`, text: `${c.kit} ${c.name}: never the right play (L${c.levels.map(l => l.level).join(', L')})` })),
     ...cards.filter(c => c.blind).map(c => ({ key: `${c.kit} ${c.card} blind`, text: `${c.kit} ${c.name}: the AI is blind to it (L${c.levels.filter(l => l.blind).map(l => l.level).join(', L')})` })),
   ];
-  return { kits, styles, cards, failures };
+  return { kits, styles, cards, choices, failures };
 }
 
 /** Everything a worker needs to rebuild the gate's run. */

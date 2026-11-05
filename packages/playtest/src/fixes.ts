@@ -122,8 +122,10 @@ export interface FixScore {
   realBurst: number;
   /** The narrowest PV window (0 when one is empty). */
   robustness: number;
-  /** Against the user's principles: softer defenses (turtles are to be beaten by
-   *  Focus, not by weaker guards), a new rule, Focus cards to rebuild. */
+  /** What intentions.md rules out: "defense is never softened to fix turtling
+   *  (no graze, no smaller premium…)" — lower defenses, chip damage. */
+  againstIntentions: string[];
+  /** Everything else it asks for: Focus cards to rebuild, a reading of the burst rule. */
   costs: string[];
 }
 
@@ -139,9 +141,11 @@ export function scoreFix(r: FixResult): FixScore {
     dumb: r.levels.filter(l => l.dumb.every(d => d.loses)).length,
     realBurst: r.levels.filter(l => burstHolds(l.real)).length,
     robustness: Math.min(...r.levels.map(width)),
+    againstIntentions: [
+      ...(r.fix.defenseShift ? [`defenses ${-r.fix.defenseShift} rung${r.fix.defenseShift === -1 ? '' : 's'} lower (intentions.md: defense is never softened)`] : []),
+      ...(r.fix.chip ? [`${Math.round(100 * r.fix.chip)}% of a held blow lands (intentions.md: no graze)`] : []),
+    ],
     costs: [
-      ...(r.fix.defenseShift ? [`defenses ${-r.fix.defenseShift} rung${r.fix.defenseShift === -1 ? '' : 's'} lower (against "turtles are beaten by Focus, not by softer defense")`] : []),
-      ...(r.fix.chip ? [`a new rule: ${Math.round(100 * r.fix.chip)}% of a held blow lands`] : []),
       ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
       ...(r.fix.burst === 'plain' ? ['the burst rule reads "survive the plain blow"'] : []),
     ],
@@ -156,9 +160,11 @@ export function burstHolds(s: DynamicsSummary): boolean {
 /** Constraint checks a fix passes, of five per checkpoint. */
 export const checksMet = (s: FixScore): number => s.windows + s.realEnds + s.realBurst + s.triangle + s.dumb;
 
-/** Best first: most constraints met, then fewest costs, then the widest windows. */
+/** Best first: what intentions.md allows before what it rules out, then most
+ *  constraints met, then fewest costs, then the widest windows. */
 export function rankFixes(results: FixResult[]): { result: FixResult; score: FixScore }[] {
   const met = checksMet;
   return results.map(result => ({ result, score: scoreFix(result) }))
-    .sort((a, b) => met(b.score) - met(a.score) || a.score.costs.length - b.score.costs.length || b.score.robustness - a.score.robustness);
+    .sort((a, b) => a.score.againstIntentions.length - b.score.againstIntentions.length || met(b.score) - met(a.score)
+      || a.score.costs.length - b.score.costs.length || b.score.robustness - a.score.robustness);
 }

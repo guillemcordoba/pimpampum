@@ -61,12 +61,12 @@ export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'card-use', group: 'cards', name: 'Every card has a use',
     rule: 'each card is the right play somewhere it is held',
-    alsoCheckedBy: ['kit gate (full run: card values in mirrors)', 'kit analyzer (against creatures)', 'kit slow tests'],
+    alsoCheckedBy: ['kit gate (card values in hero fights)', 'kit analyzer (against creatures)', 'kit slow tests'],
   },
   {
     id: 'choice', group: 'cards', name: 'Choosing matters',
     rule: `a random card costs at least ${MIN_CHOICE_COST} PV a decision`,
-    alsoCheckedBy: ['kit analyzer', 'kit slow tests'],
+    alsoCheckedBy: ['kit gate (each checkpoint)', 'kit analyzer (against creatures)', 'kit slow tests'],
   },
   {
     id: 'ladder', group: 'cards', name: 'Cards sit on the dice ladder',

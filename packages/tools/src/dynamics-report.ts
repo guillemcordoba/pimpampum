@@ -17,8 +17,8 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
-  analyze, burstHolds, CANDIDATE_FIXES, KIT_BAND, census, checksMet, choiceMattersVerdict, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
-  MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, MIN_CHOICE_COST, prepare, prepareGate, rankFixes, REQUIREMENTS,
+  analyze, burstHolds, CANDIDATE_FIXES, KIT_BAND, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
+  MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepare, prepareGate, rankFixes, REQUIREMENTS,
   summarise, type DynamicsSummary, type FixLevel, type FixResult,
   type GateBudget, type KitReport, type LadderRung, type Requirement,
 } from '@pimpampum/playtest';
@@ -42,22 +42,25 @@ const realRuns = LEVELS.map(level => ({ level, d: kitsDynamics(level, fights) })
 const cards = census(realRuns.map(r => r.d.cards));
 const today = realRuns.map(({ level, d }) => ({ level, real: summarise(d) }));
 
-// Today's triangle, dumb play, and every kit's fight length and field score: the kit gate's own cells at the checkpoints (card values left
-// out: the gate's full run prices them in mirrors).
+// Today's triangle, dumb play, every kit's fight length and field score, every
+// card's use and what choosing is worth: the kit gate's own cells at the
+// checkpoints (heroes against heroes, cards priced in the same fights).
 log('today\'s gate cells…');
-const gateScope = { levels: LEVELS, cards: false };
+const gateScope = { levels: LEVELS };
 await prepareGate({ set: SET.ref, budget: gateBudget }, gateScope);
 const gate = measureGate(gateScope, gateBudget);
 
-// The kit analyzer's requirements (the band, choosing, every card's use), every
-// main kit against creatures: the run the kit slow tests make, at their sample.
+// The band: every main kit against creatures, the kit analyzer's full-kit run
+// (its card values are left out: against creatures' PV a decision's rollouts
+// take hours; the gate prices the cards in hero fights).
 log('the kit analyzer…');
 const ANALYZER_GAMES = games(800);
+const BAND_ONLY = { skip: ['cardValue' as const] };
 const kitReports: KitReport[] = [];
 for (const id of SET.gameSet.calibration.mainKits) {
   const subject = { mode: 'player' as const, id };
-  await prepare({ set: SET.ref, subject }, subject, ANALYZER_GAMES);
-  kitReports.push(analyze(subject, ANALYZER_GAMES));
+  await prepare({ set: SET.ref, subject, budget: BAND_ONLY }, subject, ANALYZER_GAMES);
+  kitReports.push(analyze(subject, ANALYZER_GAMES, BAND_ONLY));
 }
 
 // --- 2. the arithmetic --------------------------------------------------------------
@@ -100,7 +103,6 @@ type Check = { ok: boolean | null; note: string };
 type Today = (typeof today)[number];
 const styleAt = (level: number) => gate.styles.find(c => c.level === level)!;
 const kitsAt = (level: number) => gate.kits.filter(c => c.level === level);
-const cardName = (r: KitReport, id: string) => r.cards.find(c => c.id === id)?.name ?? id;
 const kitId = (r: KitReport) => r.subject.id;
 const signed = (x: number) => `${x >= 0 ? '+' : ''}${Math.round(100 * x)}`;
 /** One verdict over every main kit: failing kits named, inconclusive ones counted. */
@@ -160,10 +162,11 @@ const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; 
     once: () => overKits(r => r.strength.inconclusive ? null : !r.strength.ok, r => `${signed(r.strength.band?.delta ?? 0)} pts`, `all within ±${Math.round(100 * KIT_BAND)} pts`),
   },
   choice: {
-    once: () => overKits(
-      r => r.choiceCost === null ? null : !choiceMattersVerdict(r.choiceCost.mean, r.choiceCost.stderr, MIN_CHOICE_COST),
-      r => `${r.choiceCost!.mean.toFixed(1)} PV`, 'every kit',
-    ),
+    today: t => {
+      const at = gate.choices.filter(c => c.level === t.level), bad = at.filter(c => !c.ok);
+      const low = [...at].sort((a, b) => a.mean - b.mean)[0];
+      return { ok: !bad.length, note: bad.length ? bad.map(c => `${c.kit} ${c.mean.toFixed(1)} PV`).join(', ') : `lowest ${low.kit} ${low.mean.toFixed(1)} PV` };
+    },
   },
   ladder: {
     once: () => {
@@ -172,11 +175,10 @@ const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; 
     },
   },
   'card-use': {
-    once: () => overKits(
-      r => r.choices.inconclusive ? null : (r.choices.neverRight?.length ?? 0) > 0,
-      r => `never right: ${(r.choices.neverRight ?? []).map(id => cardName(r, id)).join(', ')}`,
-      'every card',
-    ),
+    once: () => {
+      const dead = gate.cards.filter(c => c.neverRight);
+      return { ok: !dead.length, note: dead.length ? `never right: ${dead.map(c => `${c.name} (${c.kit})`).join(', ')}` : `all ${gate.cards.length} cards` };
+    },
   },
 };
 for (const r of REQUIREMENTS) if (!CHECKS[r.id]) throw new Error(`requirement ${r.id}: the report has no check for it`);
@@ -232,6 +234,7 @@ for (const level of LEVELS) {
 const recommendation = `
   <p class="lede"><b>Fix 1: ${esc(best.result.fix.label)}.</b> Derived hero PV ${LEVELS.map(l => `L${l} <b class="num">${fixAt(l).vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
   <p>Costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'none beyond today\'s rules'}.</p>
+  ${best.score.againstIntentions.length ? `<p class="note">Every candidate breaks intentions.md; this one: ${best.score.againstIntentions.map(esc).join('; ')}.</p>` : ''}
   ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part is measured on the vanilla twins only (a real Focus card's power is in its effects, which can't be scaled mechanically); the real-kit columns show the rest of the fix.</p>`}
   <p>Still failing under it: ${stillFailing.length ? stillFailing.map(esc).join('; ') : 'nothing'}.</p>
   ${nobody.length ? `<p><b>No candidate fixes:</b> ${nobody.map(esc).join('; ')}: these need cards, not structure.</p>` : ''}
@@ -245,7 +248,7 @@ const facts = [
 
 // --- folded detail ---
 const culprits = gate.styles.flatMap(s => s.culprits.map(c => `L${s.level} ${c.edge}: ${c.cards.length ? c.cards.map(k => `${k.name} (${k.shift >= 0 ? '+' : ''}${k.shift.toFixed(0)} pts without it)`).join(', ') : 'no single card'}`));
-const analyzerLines = kitReports.map(r => `${kitId(r)}: ${r.strength.inconclusive ? 'band inconclusive' : `${signed(r.strength.band?.delta ?? 0)} pts against the neutral kit`}; a random pick costs ${r.choiceCost ? `${r.choiceCost.mean.toFixed(2)}±${r.choiceCost.stderr.toFixed(2)} PV` : '—'}${(r.choices.neverRight ?? []).length ? `; never right: ${r.choices.neverRight!.map(id => cardName(r, id)).join(', ')}` : ''}`);
+const analyzerLines = kitReports.map(r => `${kitId(r)}: ${r.strength.inconclusive ? 'band inconclusive' : `${signed(r.strength.band?.delta ?? 0)}±${Math.round(100 * (r.strength.band?.stderr ?? 0))} pts against the neutral kit`}`);
 // The gate's own checks of the machinery (the AI's model, its blind spots) are not the set's.
 const setFailures = gate.failures.filter(f => !/ model$| blind$/.test(f.key));
 const autopsy = `<ul class="facts">${setFailures.map(f => `<li>${esc(f.text)}</li>`).join('')}</ul><p class="muted">The kit analyzer, every main kit against creatures:</p><ul class="facts">${analyzerLines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${
@@ -273,7 +276,7 @@ const cell = (r: FixResult, level: number) => {
 const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
   <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)} <small class="num">${checksMet(s)}/${LEVELS.length * 5}</small></th>
   ${LEVELS.map(l => cell(r, l)).join('')}
-  <td><ul class="costs">${s.costs.length ? s.costs.map(c => `<li>${esc(c)}</li>`).join('') : '<li>none</li>'}</ul></td></tr>`).join('');
+  <td><ul class="costs">${s.againstIntentions.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.againstIntentions.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
 
 const html = `<title>Pim Pam Pum Dynamics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -355,6 +358,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .rank { font-family: var(--mono); color: var(--accent); }
 .cellgrid { display: grid; gap: 4px; min-width: 190px; }
 .costs { margin: 0; padding-left: 16px; display: grid; gap: 4px; min-width: 200px; }
+.costs .against { color: var(--bad); }
 </style>
 <div class="wrap">
   <header class="prose" style="display:grid;gap:10px">
@@ -369,7 +373,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
   <section>
     ${reqTable}
-    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Today: random 2v2 of the main kits, the production AI, ${BODY_PV} PV; the triangle, dumb play, per-kit length and field score are the kit gate's own cells; the band, choosing and card use are the kit analyzer's, against creatures, one verdict over every main kit; the ladder reads the cards. Under the fix: hero PV derived on the vanilla twins, then the real kits played at it.</p>
+    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Today: random 2v2 of the main kits, the production AI, ${BODY_PV} PV; the triangle, dumb play, per-kit length and field score are the kit gate's own cells, and so are choosing and card use, the cards priced in the same hero fights; the band is the kit analyzer's, every main kit against creatures, one verdict for the set; the ladder reads the cards. Under the fix: hero PV derived on the vanilla twins, then the real kits played at it.</p>
   </section>
 
   <section class="recommend">
@@ -410,7 +414,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <details>
     <summary>Every candidate fix, measured</summary>
     <div>
-      <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied in the measurement only; no card was changed). Ranked by checks met (a PV window, fights ending, burst, the triangle, dumb play; five a checkpoint), then fewest costs, then the widest PV windows.</p>
+      <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied in the measurement only; no card was changed). Ranked first by intentions.md (a fix that softens defense, lower dice or chip damage, comes after every fix that doesn't, whatever it meets), then by checks met (a PV window, fights ending, burst, the triangle, dumb play; five a checkpoint), then fewest costs, then the widest PV windows.</p>
       <div class="scroll"><table>
         <thead><tr><th>fix</th>${LEVELS.map(l => `<th>level ${l}</th>`).join('')}<th>what it costs</th></tr></thead>
         <tbody>${fixRows}</tbody>
