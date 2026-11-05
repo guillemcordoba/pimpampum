@@ -237,7 +237,7 @@ const recommendation = `
   ${best.score.againstIntentions.length ? `<p class="note">Every candidate breaks intentions.md; this one: ${best.score.againstIntentions.map(esc).join('; ')}.</p>` : ''}
   ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part is measured on the vanilla twins only (a real Focus card's power is in its effects, which can't be scaled mechanically); the real-kit columns show the rest of the fix.</p>`}
   <p>Still failing under it: ${stillFailing.length ? stillFailing.map(esc).join('; ') : 'nothing'}.</p>
-  ${nobody.length ? `<p><b>No candidate fixes:</b> ${nobody.map(esc).join('; ')}: these need cards, not structure.</p>` : ''}
+  ${nobody.length ? `<p><b>No candidate fixes:</b> ${nobody.map(esc).join('; ')}: they need a lever no candidate tries — cards, or rules the candidates leave alone (Envoltat, a defense covering one body).</p>` : ''}
   ${ranked[1] ? `<p class="muted">Runner-up: ${esc(ranked[1].result.fix.label)} (${checksMet(ranked[1].score)} of ${LEVELS.length * 5} fix checks against ${checksMet(best.score)}).</p>` : ''}`;
 
 const facts = [
