@@ -23,9 +23,11 @@ const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.w
  * holds its test turns red and it leaves this list rather than the finding
  * being forgotten. Filled from the measurement, never by guessing.
  */
-// Empty since 2026-10-05: Rugit de guerra on a d20 under 7 gave Aggro back
-// its edge over Power (NEXT-STEPS §36).
-const KNOWN_BROKEN = new Set<string>([]);
+// Measured 2026-11-05 (800 mirror fights an edge): Protect > Aggro 24.8%,
+// Aggro > Power 49.1%, held up by the pinned Rugit de guerra, Riu de lava and
+// Cures de camp. The fantasy cards are to be redesigned on the new rules
+// (OPEN.md, C1), so the edges wait for that rather than a retune.
+const KNOWN_BROKEN = new Set<string>(['Protect > Aggro', 'Aggro > Power']);
 
 describe('the strategy triangle', () => {
   let t: TriangleReport;

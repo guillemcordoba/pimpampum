@@ -27,7 +27,7 @@ describe('the audit, end to end', () => {
     }
   });
 
-  it('the referee\'s value moves little between seeds', () => {
+  it('the referee\'s value moves little between seeds', async () => {
     let sq = 0;
     let n = 0;
     for (let seed = 1; seed <= N; seed++) {
@@ -35,6 +35,9 @@ describe('the audit, end to end', () => {
       const vals = [1, 2, 3].map(s => new Referee({ seed: s }).solve(state, 0).value);
       const m = vals.reduce((a, b) => a + b, 0) / 3;
       for (const v of vals) { sq += (v - m) ** 2; n++; }
+      // Back to the event loop between positions: the whole batch runs past a
+      // minute, and a worker that never yields fails vitest's RPC heartbeat.
+      await new Promise(resolve => setImmediate(resolve));
     }
     // The bar the check's ε and confirmation are sized against (§51). A spread
     // over two positions (the smoke run) is noise itself: it only has to run.

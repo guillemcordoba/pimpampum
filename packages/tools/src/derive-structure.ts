@@ -13,6 +13,8 @@
  *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts plain --levels 3,4,5,6,7,8,9,10
  */
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import { burstHolds, census, checksMet, FIX_BUDGET, rankFixes, type Fix, type FixLevel, type FixResult } from '@pimpampum/playtest';
@@ -27,7 +29,7 @@ const shifts = list('--shifts', '0,-1').map(Number);
 const chips = list('--chips', '0,0.25,0.5').map(Number);
 const bursts = list('--bursts', 'plain') as Fix['burst'][];
 const LEVELS = list('--levels', '3,4,5,6,7,8,9,10').map(Number);
-const OUT = flag('--out') ?? 'structure.html';
+const OUT = flag('--out') ?? path.join(os.tmpdir(), 'structure.html');
 const budget = { vanillaFights: games(2 * FIX_BUDGET.vanillaFights), realFights: games(2 * FIX_BUDGET.realFights), duelGames: games(2 * FIX_BUDGET.duelGames) };
 const log = (s: string) => process.stderr.write(`${s}\n`);
 const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));

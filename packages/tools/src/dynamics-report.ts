@@ -14,6 +14,8 @@
  *   pnpm --filter @pimpampum/tools exec tsx src/dynamics-report.ts --set elements --out report.html
  */
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
 import {
@@ -28,7 +30,7 @@ const SET = await chosenSet();
 useSet(SET.gameSet);
 const { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } = SET.root;
 const LEVELS = (flag('--levels') ?? '3,6,10').split(',').map(Number);
-const OUT = flag('--out') ?? 'game-dynamics.html';
+const OUT = flag('--out') ?? path.join(os.tmpdir(), 'game-dynamics.html');
 const fights = games(120);
 const budget = { vanillaFights: games(FIX_BUDGET.vanillaFights), realFights: games(FIX_BUDGET.realFights), duelGames: games(FIX_BUDGET.duelGames) };
 const gateBudget: GateBudget = { kitFights: games(GATE_BUDGET.kitFights), duelGames: games(GATE_BUDGET.duelGames), cardFights: games(GATE_BUDGET.cardFights), modelFights: games(GATE_BUDGET.modelFights!) };

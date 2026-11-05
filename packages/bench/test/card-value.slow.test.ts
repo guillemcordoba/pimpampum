@@ -20,7 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CombatEngine } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
-import { games, isolated, pvDifferential, shapeEnemies, theRegistry, theSet, useSet } from '../src/index.js';
+import { games, isolated, pvDifferential, shapeEnemies, SMOKE, theRegistry, theSet, useSet } from '../src/index.js';
 import { SYNTHETIC } from '../src/testing.js';
 import { NO_OP, OVERWHELMING } from './card-value.work.js';
 
@@ -40,7 +40,7 @@ describe('the card-value instrument finds cards whose value is known in advance'
     expect(priced.has(OVERWHELMING), `the 20d6 was never priced — ${show()}`).toBe(true);
   });
 
-  it('ranks the 20d6 FIRST and the do-nothing card below the kit\'s average card', () => {
+  it.skipIf(SMOKE)('ranks the 20d6 FIRST and the do-nothing card below the kit\'s average card', () => {
     // Not LAST: a real card can be worth nothing. Swapping the brawler\'s slow
     // Smash for doing nothing leaves its winrate unchanged in these fights
     // (NEXT-STEPS §31), so ranking the two either way is not an error.
@@ -49,7 +49,7 @@ describe('the card-value instrument finds cards whose value is known in advance'
     expect(priced.get(NO_OP)!, show()).toBeLessThan(real.reduce((a, v) => a + v, 0) / real.length);
   });
 
-  it('separates them by much more than it separates real cards', () => {
+  it.skipIf(SMOKE)('separates them by much more than it separates real cards', () => {
     const controls = priced.get(OVERWHELMING)! - priced.get(NO_OP)!;
     const real = ranked.filter(([id]) => id !== NO_OP && id !== OVERWHELMING).map(([, v]) => v);
     expect(controls, show()).toBeGreaterThan(Math.max(...real) - Math.min(...real));
