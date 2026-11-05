@@ -244,7 +244,7 @@ for (const level of LEVELS) {
 const recommendation = `
   <p class="lede"><b>Fix 1: ${esc(best.result.fix.label)}.</b> Derived hero PV ${LEVELS.map(l => `L${l} <b class="num">${fixAt(l).vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
   <p>Costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'none beyond today\'s rules'}.</p>
-  ${best.score.againstIntentions.length ? `<p class="note">Every candidate breaks intentions.md; this one: ${best.score.againstIntentions.map(esc).join('; ')}.</p>` : ''}
+  ${best.score.conflicts.length ? `<p class="note">It goes against "without focus or buffs, defenses should on average completely block an attack" (2026-11-02): ${best.score.conflicts.map(esc).join('; ')}.</p>` : ''}
   ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part is measured on the vanilla twins only (a real Focus card's power is in its effects, which can't be scaled mechanically); the real-kit columns show the rest of the fix.</p>`}
   <p>Still failing under it: ${stillFailing.length ? stillFailing.map(esc).join('; ') : 'nothing'}.</p>
   ${nobody.length ? `<p><b>No candidate fixes:</b> ${nobody.map(esc).join('; ')}: they need a lever no candidate tries — cards, or rules the candidates leave alone (Envoltat, a defense covering one body).</p>` : ''}
@@ -286,7 +286,7 @@ const cell = (r: FixResult, level: number) => {
 const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
   <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)} <small class="num">${checksMet(s)}/${LEVELS.length * 5}</small></th>
   ${LEVELS.map(l => cell(r, l)).join('')}
-  <td><ul class="costs">${s.againstIntentions.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.againstIntentions.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
+  <td><ul class="costs">${s.conflicts.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.conflicts.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
 
 const html = `<title>Pim Pam Pum Dynamics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -424,7 +424,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <details>
     <summary>Every candidate fix, measured</summary>
     <div>
-      <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied in the measurement only; no card was changed). Ranked first by intentions.md (a fix that softens defense, lower dice or chip damage, comes after every fix that doesn't, whatever it meets), then by checks met (a PV window, fights ending, burst, the triangle, dumb play; five a checkpoint), then fewest costs, then the widest PV windows.</p>
+      <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied in the measurement only; no card was changed). Ranked by checks met (a PV window, fights ending, burst, the triangle, dumb play; five a checkpoint), then fewest costs, then the widest PV windows. Red costs go against "without focus or buffs, defenses should on average completely block an attack" (2026-11-02).</p>
       <div class="scroll"><table>
         <thead><tr><th>fix</th>${LEVELS.map(l => `<th>level ${l}</th>`).join('')}<th>what it costs</th></tr></thead>
         <tbody>${fixRows}</tbody>

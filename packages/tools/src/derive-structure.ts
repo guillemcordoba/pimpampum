@@ -76,7 +76,7 @@ const cell = (l: FixLevel) => `<td><div class="pv num">${l.vanilla.pv ?? '—'}<
 const rows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
   <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)}<small class="num">${checksMet(s)} of ${LEVELS.length * CHECKS.length}${r.focusOnRealKits ? '' : ' · Focus measured on the twins only'}</small></th>
   ${r.levels.map(cell).join('')}
-  <td><ul class="costs">${s.againstIntentions.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.againstIntentions.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
+  <td><ul class="costs">${s.conflicts.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.conflicts.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
 const best = ranked[0];
 const failing = best.result.levels.flatMap(l => CHECKS.filter(([, ok]) => !ok(l)).map(([name, , why]) => `L${l.level} ${name}: ${why(l)}`));
 
@@ -130,7 +130,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <section class="recommend">
     <span class="eyebrow">Best candidate</span>
     <p><b>${esc(best.result.fix.label)}</b>: ${checksMet(best.score)} of ${LEVELS.length * CHECKS.length} checks. Derived PV ${best.result.levels.map(l => `L${l.level} <b class="num">${l.vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
-    <p>Costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'none'}${best.score.againstIntentions.length ? `; against intentions.md: ${best.score.againstIntentions.map(esc).join('; ')}` : ''}.</p>
+    <p>Costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'none'}${best.score.conflicts.length ? `; against "defenses completely block an unbuffed attack": ${best.score.conflicts.map(esc).join('; ')}` : ''}.</p>
     <p>Still failing: ${failing.length ? failing.map(esc).join('; ') : 'nothing'}.</p>
   </section>
   <div class="scroll"><table>
