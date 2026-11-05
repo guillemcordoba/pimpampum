@@ -59,10 +59,18 @@ log('the kit analyzer…');
 const ANALYZER_GAMES = games(800);
 const BAND_ONLY = { skip: ['cardValue' as const] };
 const kitReports: KitReport[] = [];
+// Why the band could not be measured at all (no usable calibration cell): the
+// row then reads inconclusive instead of the page failing.
+let bandUnmeasurable: string | null = null;
 for (const id of SET.gameSet.calibration.mainKits) {
   const subject = { mode: 'player' as const, id };
-  await prepare({ set: SET.ref, subject, budget: BAND_ONLY }, subject, ANALYZER_GAMES);
-  kitReports.push(analyze(subject, ANALYZER_GAMES, BAND_ONLY));
+  try {
+    await prepare({ set: SET.ref, subject, budget: BAND_ONLY }, subject, ANALYZER_GAMES);
+    kitReports.push(analyze(subject, ANALYZER_GAMES, BAND_ONLY));
+  } catch (err) {
+    bandUnmeasurable = (err as Error).message.split('\n')[0];
+    break;
+  }
 }
 
 // --- 2. the arithmetic --------------------------------------------------------------
@@ -161,7 +169,7 @@ const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; 
     },
   },
   band: {
-    once: () => overKits(r => r.strength.inconclusive ? null : !r.strength.ok, r => `${signed(r.strength.band?.delta ?? 0)} pts`, `all within ±${Math.round(100 * KIT_BAND)} pts`),
+    once: () => bandUnmeasurable ? { ok: null, note: `not measurable: ${bandUnmeasurable}` } : overKits(r => r.strength.inconclusive ? null : !r.strength.ok, r => `${signed(r.strength.band?.delta ?? 0)} pts`, `all within ±${Math.round(100 * KIT_BAND)} pts`),
   },
   choice: {
     today: t => {
