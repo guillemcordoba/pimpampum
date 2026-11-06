@@ -15,7 +15,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import { games, inLanes, isolated, useSet } from '@pimpampum/bench';
-import { fitLine, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, PV_LEVELS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
+import { fitLine, MAX_UNANSWERABLE_KOS, PV_LEVELS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -35,7 +35,7 @@ const pc = (x: number) => `${Math.round(100 * x)}%`;
 /** What sets a window, in a line each side. */
 const behindFloor = (w: LevelWindow) => w.floorCards.map(k => `${nameOf(k.card)} ${pc(k.rate)} ±${pc(k.se)}${k.clearly ? '' : ' (within noise)'}`).join(', ')
   + (Object.keys(w.focusSetUps).length ? `  [answered, set up by: ${Object.entries(w.focusSetUps).map(([id, n]) => `${nameOf(id)} ×${n}`).join(', ')}]` : '');
-const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeiling.pv}: ${pc(w.overCeiling.longShare)} past round ${MAX_P90_ROUNDS}; ${w.overCeiling.cards.length ? `they end without ${w.overCeiling.cards.map(c => `${nameOf(c.card)} (${pc(c.longShare)})`).join(', ')}` : 'no single card'}`;
+const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeiling.pv} PV fights run ${w.overCeiling.median}·${w.overCeiling.p90}${w.overCeiling.stallRate ? `, ${pc(w.overCeiling.stallRate)} stall` : ''}; ${w.overCeiling.cards.length ? `they end without ${w.overCeiling.cards.map(c => `${nameOf(c.card)} (${c.median}·${c.p90})`).join(', ')}` : 'no single card'}`;
 
 // --- 1. pacing and interactivity --------------------------------------------------------
 log('stage 1: each level\'s floor and ceiling on the real kits…');

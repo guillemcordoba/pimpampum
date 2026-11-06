@@ -46,9 +46,12 @@ export interface KnockoutCard {
 /** A card without which fights end in time one PV over the ceiling. */
 export interface PacingCard {
   card: string;
-  /** Fights past the round limit without it, and how far that falls from the fights with it. */
-  longShare: number; drop: number; se: number;
+  /** The fights without it: rounds (median, 9 in 10), the share past the round limit and how far it falls from the fights with it. */
+  median: number; p90: number; longShare: number; drop: number; se: number;
 }
+
+/** One PV over the ceiling, where fights run long: how they run, and the cards without which they end. */
+export interface OverCeiling { pv: number; median: number; p90: number; stallRate: number; longShare: number; cards: PacingCard[] }
 
 export interface LevelWindow {
   level: number;
@@ -60,8 +63,8 @@ export interface LevelWindow {
   floorCards: KnockoutCard[];
   /** Knockouts there a slow Focus set up (answered: the read cancels the Focus), by that Focus. */
   focusSetUps: Record<string, number>;
-  /** What holds the ceiling down: one PV over it, fights past the round limit with every card, and the cards without which they end. */
-  overCeiling: { pv: number; longShare: number; cards: PacingCard[] } | null;
+  /** What holds the ceiling down (null: fights end even at the largest PV searched). */
+  overCeiling: OverCeiling | null;
   /** Every PV the searches measured: fights end, the worst card's unanswerable rate, and the fights it took. */
   measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; fights: number }[];
 }
@@ -123,25 +126,31 @@ export function realWindow(level: number, fights: number): LevelWindow {
     level, floor, ceiling,
     floorCards: floor > PV_MIN || !answered(at(floor)) ? knockoutCards(under) : [],
     focusSetUps,
-    overCeiling: ceiling === PV_MAX ? null : pacingCards(level, fights, ceiling === null ? PV_MIN : ceiling + 1),
+    overCeiling: ceiling === PV_MAX ? null : overCeiling(level, fights, ceiling === null ? PV_MIN : ceiling + 1, measure(ceiling === null ? PV_MIN : ceiling + 1)),
     measured: [...seen].sort((a, b) => a[0] - b[0]).map(([pv, { d, s }]) => ({ pv, ends: s.ends, unanswerable: s.unanswerableKOs, median: s.median, p90: s.p90, fights: d.fights })),
   };
 }
 
 /** At `pv`, where fights run long: every card played, taken out of every hand
- *  in turn; the ones without which fights end, clearly past the noise. */
-function pacingCards(level: number, fights: number, pv: number): { pv: number; longShare: number; cards: PacingCard[] } {
-  const all = kitsDynamics(level, fights, { pv });
-  const long = longShareOf(all);
-  const cards: PacingCard[] = [];
-  for (const [card, c] of Object.entries(all.cards)) {
-    if (!c.plays) continue;
-    const without = kitsDynamics(level, fights, { pv, without: card });
-    const share = longShareOf(without), drop = long - share;
-    const se = Math.sqrt(stdErr(long, all.fights) ** 2 + stdErr(share, without.fights) ** 2);
-    if (summarise(without).ends && drop > 2 * se) cards.push({ card, longShare: share, drop, se });
-  }
-  return { pv, longShare: long, cards: cards.sort((a, b) => b.drop - a.drop) };
+ *  in turn; the ones without which fights end, clearly past the noise. Every
+ *  card is screened on `fights` and the ones that pass are measured again on
+ *  `RECHECK` times as many, against a baseline as large: the screen compares
+ *  them all with one baseline, and a baseline that came out high makes every
+ *  card look like it holds the ceiling. */
+function overCeiling(level: number, fights: number, pv: number, reading: { d: Dynamics; s: DynamicsSummary }): OverCeiling {
+  const holds = (n: number, card: string, base: Dynamics): PacingCard | null => {
+    const without = kitsDynamics(level, n, { pv, without: card });
+    const ws = summarise(without);
+    const long = longShareOf(base), share = longShareOf(without), drop = long - share;
+    const se = Math.sqrt(stdErr(long, base.fights) ** 2 + stdErr(share, without.fights) ** 2);
+    return ws.ends && drop > 2 * se ? { card, median: ws.median, p90: ws.p90, longShare: share, drop, se } : null;
+  };
+  const screen = kitsDynamics(level, fights, { pv });
+  const passed = Object.entries(screen.cards).filter(([card, c]) => c.plays > 0 && holds(fights, card, screen)).map(([card]) => card);
+  const all = passed.length ? kitsDynamics(level, RECHECK * fights, { pv }) : screen;
+  const cards = passed.map(card => holds(RECHECK * fights, card, all)).filter((c): c is PacingCard => !!c);
+  const { median, p90, stallRate } = reading.s;
+  return { pv, median, p90, stallRate, longShare: longShareOf(reading.d), cards: cards.sort((x, y) => y.drop - x.drop) };
 }
 
 export async function realWindowJob(set: RunContext['set'], level: number, fights: number): Promise<LevelWindow> {

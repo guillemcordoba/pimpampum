@@ -222,23 +222,34 @@ const SET_HEALTH = health(null);
 const KIT_HEALTH = KITS.map(k => health(k));
 
 // --- 3b. what to look at first: the cards that move the PV or block alone ----------
-/** `clear`: past its bar beyond the noise, or a requirement it flips by itself. */
-interface Impact { text: string; clear: boolean }
+/** `clear`: past its bar beyond the noise, or a requirement it flips by itself;
+ *  `binds`: it constrains what the set can do — a requirement it flips, a level
+ *  where no PV fits, a floor that holds the PV line up or a ceiling the line runs over. */
+interface Impact { text: string; clear: boolean; binds: boolean }
 const IMPACTS = new Map<string, Impact[]>();
-const impact = (id: string, text: string, clear: boolean) => { if (CARDS.has(id)) IMPACTS.set(id, [...(IMPACTS.get(id) ?? []), { text, clear }]); };
+const impact = (id: string, text: string, clear: boolean, binds: boolean) => { if (CARDS.has(id)) IMPACTS.set(id, [...(IMPACTS.get(id) ?? []), { text, clear, binds }]); };
+const lineAt = (level: number) => line.base + line.slope * level;
+const noWindow = (w: LevelWindow) => w.ceiling === null || w.floor > w.ceiling;
+/** Rounds, median·9 in 10, and stalls when there are any. */
+const runs = (o: { median: number; p90: number; stallRate?: number }) => `${o.median}·${o.p90} rounds${(o.stallRate ?? 0) >= 0.005 ? `, ${pc(o.stallRate!)} stall` : ''}`;
 const pm = (k: { rate: number; se: number }) => `${pc(k.rate)} ±${pc(k.se)}`;
 const floorText = (w: LevelWindow, k: KnockoutCard) => `sets the PV floor at L${w.level}: at ${Math.max(1, w.floor - 1)} PV it fells a fresh hero with no answer on ${pm(k)} of its plays (${howOfCounts(k.how)}${comboNote(k.rode, Math.round(k.rate * k.plays))})${k.clearly ? '' : ', within the noise of the bar'}`;
 for (const w of windows) {
-  for (const k of w.floorCards) impact(k.card, floorText(w, k), k.clearly);
+  const holdsLine = lineAt(w.level) - w.floor < 0.5;
+  const floorCost = noWindow(w) ? `: no PV fits L${w.level}` : holdsLine ? ': it holds the PV line up' : `; the ceiling (${w.ceiling}) is higher, so it costs nothing today`;
+  for (const k of w.floorCards) impact(k.card, `${floorText(w, k)}${floorCost}`, k.clearly, noWindow(w) || holdsLine);
   const over = w.overCeiling;
-  for (const c of over?.cards ?? []) impact(c.card, `holds the PV ceiling at L${w.level}: at ${over!.pv} PV fights end without it (${pc(c.longShare)} past round ${MAX_P90_ROUNDS}; with it ${pc(over!.longShare)})`, true);
+  const ceilingCost = noWindow(w) ? `: no PV fits L${w.level}` : line.over.includes(w.level) ? ': the PV line runs over this ceiling' : '';
+  for (const c of over?.cards ?? []) impact(c.card, `holds the PV ceiling at L${w.level}: at ${over!.pv} PV fights run ${runs(c)} without it, ${runs(over!)} with it${ceilingCost}`, true, noWindow(w) || line.over.includes(w.level));
 }
-for (const h of KIT_HEALTH) for (const b of h.blockers.filter(x => x.alone)) impact(b.id, `blocks ${h.kit} on its own: ${b.reasons[0]}${b.reasons.length > 1 ? ` (and ${b.reasons.length - 1} more)` : ''}`, true);
-const clearCount = (id: string) => IMPACTS.get(id)!.filter(i => i.clear).length;
-const FIRST = [...IMPACTS.keys()].sort((a, b) => clearCount(b) - clearCount(a) || IMPACTS.get(b)!.length - IMPACTS.get(a)!.length);
-/** Levels where no PV works and no single card holds the ceiling down: the structure, not a card. */
-const structural = windows.filter(w => w.ceiling !== null && w.floor > w.ceiling && !w.overCeiling?.cards.length)
-  .map(w => `L${w.level}: no PV works — the floor (${w.floor}) is above the ceiling (${w.ceiling}), and no single card holds the ceiling down: at ${w.overCeiling?.pv} PV ${pc(w.overCeiling?.longShare ?? 0)} of fights pass round ${MAX_P90_ROUNDS} whichever card is taken out.`);
+for (const h of KIT_HEALTH) for (const b of h.blockers.filter(x => x.alone)) impact(b.id, `blocks ${h.kit} on its own: ${b.reasons[0]}${b.reasons.length > 1 ? ` (and ${b.reasons.length - 1} more)` : ''}`, true, true);
+const count = (id: string, f: (i: Impact) => boolean) => IMPACTS.get(id)!.filter(f).length;
+// What constrains first, however close to its bar (the line says so); then what is past the noise.
+const binding = (id: string) => count(id, i => i.binds);
+const FIRST = [...IMPACTS.keys()].sort((a, b) => binding(b) - binding(a) || count(b, i => i.binds && i.clear) - count(a, i => i.binds && i.clear) || count(b, i => i.clear) - count(a, i => i.clear));
+/** Levels whose ceiling binds — no PV fits, or the PV line runs over it — with no single card holding it down: the structure, not a card. */
+const structural = windows.filter(w => w.overCeiling && !w.overCeiling.cards.length && (noWindow(w) || line.over.includes(w.level)))
+  .map(w => `L${w.level}: ${noWindow(w) ? `no PV fits — the floor (${w.floor}) is above the ceiling (${w.ceiling ?? 'none'})` : `the PV line (${lineAt(w.level).toFixed(1)}) runs over the ceiling (${w.ceiling})`}, and no single card holds the ceiling down: at ${w.overCeiling!.pv} PV fights run ${runs(w.overCeiling!)} whichever card is taken out.`);
 
 // --- 4. the page ---------------------------------------------------------------------
 const STATE = { true: ['ok', '✓', 'holds'], false: ['bad', '✗', 'fails'], null: ['unk', '?', 'inconclusive'] } as const;
@@ -316,16 +327,15 @@ function kitCards(kit: string): string {
 const impactItem = (id: string) => {
   const { def, kit } = CARDS.get(id)!;
   const list = IMPACTS.get(id)!;
-  return `<li class="${clearCount(id) ? 'alone' : ''}"><div class="card-h"><b>${esc(def.name)}</b> <small>${esc(kit)} · level ${def.unlockLevel} · ${kindOf(def)}${def.fast ? ' · fast' : ''} · ${esc(diceOf(def))}</small></div>
-    <div class="card-t">${esc(def.description)}</div><ul>${list.map(i => `<li class="${i.clear ? '' : 'muted'}">${esc(i.text)}</li>`).join('')}</ul></li>`;
+  return `<li class="${binding(id) ? 'alone' : ''}"><div class="card-h"><b>${esc(def.name)}</b> <small>${esc(kit)} · level ${def.unlockLevel} · ${kindOf(def)}${def.fast ? ' · fast' : ''} · ${esc(diceOf(def))}</small></div>
+    <div class="card-t">${esc(def.description)}</div><ul>${list.map(i => `<li class="${i.binds ? '' : 'muted'}">${esc(i.text)}</li>`).join('')}</ul></li>`;
 };
 const impactList = (ids: string[]) => `<ul class="blockers">${ids.map(impactItem).join('')}</ul>`;
-const lineAt = (level: number) => line.base + line.slope * level;
 const todayVerdict = (w: LevelWindow) => {
   const pvs = MAIN_KITS.map(k => heroPV({ [k]: w.level })), lo = Math.min(...pvs), hi = Math.max(...pvs);
-  if (w.ceiling === null || w.floor > w.ceiling) return '<span class="chip bad">no window</span>';
+  if (noWindow(w)) return '<span class="chip bad">no window</span>';
   if (lo < w.floor) return '<span class="chip bad">under the floor</span>';
-  if (hi > w.ceiling) return '<span class="chip bad">over the ceiling</span>';
+  if (hi > w.ceiling!) return '<span class="chip bad">over the ceiling</span>';
   return '<span class="chip ok">inside</span>';
 };
 const floorCell = (w: LevelWindow) => {
@@ -336,8 +346,8 @@ const floorCell = (w: LevelWindow) => {
 const ceilingCell = (w: LevelWindow) => {
   const o = w.overCeiling;
   if (!o) return '<span class="muted">—</span>';
-  return `<small>at ${o.pv} PV, ${pc(o.longShare)} of fights pass round ${MAX_P90_ROUNDS}</small>${o.cards.length
-    ? `<ul class="where">${o.cards.map(c => `<li>without ${esc(nameOf(c.card))} they end <span class="num">(${pc(c.longShare)})</span></li>`).join('')}</ul>`
+  return `<small>at ${o.pv} PV fights run ${runs(o)}</small>${o.cards.length
+    ? `<ul class="where">${o.cards.map(c => `<li>without ${esc(nameOf(c.card))}: <span class="num">${runs(c)}</span></li>`).join('')}</ul>`
     : '<br><span class="muted">no single card</span>'}`;
 };
 const windowRows = windows.map(w => `<tr><th scope="row">L${w.level}</th>
@@ -526,7 +536,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
     <h2>Look at first</h2>
     ${FIRST.length ? impactList(FIRST.slice(0, 8)) : ''}
     ${structural.length ? `<ul class="facts">${structural.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    <p class="muted" style="font-size:0.82rem">Ranked by how many things each card does past the noise: setting a level's PV floor, holding its ceiling down, blocking its class's requirements by itself.${FIRST.length > 8 ? ` ${FIRST.length - 8} more on the class pages.` : ''}</p>
+    <p class="muted" style="font-size:0.82rem">Ranked by what constrains the set, past the noise: a requirement a card flips by itself, a level where no PV fits, a floor that holds the PV line up, a ceiling the line runs over. Grey: it costs nothing today.${FIRST.length > 8 ? ` ${FIRST.length - 8} more on the class pages.` : ''}</p>
   </section>` : ''}
 
   <section>
