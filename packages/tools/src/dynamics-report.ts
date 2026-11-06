@@ -212,7 +212,7 @@ function health(kit: string | null): Health {
   const headline = !failing.length ? 'Every requirement holds.'
     : `Failing: ${failing.join(', ')}. ${alone.length
       ? `${alone.length === 1 ? 'One card blocks a requirement' : `${alone.length} cards each block a requirement`} on ${alone.length === 1 ? 'its' : 'their'} own: ${alone.map(b => CARDS.get(b.id)!.def.name).join(', ')}.`
-      : blockers.length ? `No single card flips a requirement; ${blockers.length} weigh on them.` : 'No card explains the misses.'}`;
+      : blockers.length ? `No single card flips a requirement; ${blockers.length === 1 ? "one card weighs" : `${blockers.length} cards weigh`} on them.` : 'No card explains the misses.'}`;
   return { kit, rows, holding, blockers, unexplained, headline };
 }
 const SET_HEALTH = health(null);
