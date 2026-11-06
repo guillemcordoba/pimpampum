@@ -219,12 +219,13 @@ describe('Mestre del foc', () => {
     expect(fire.currentPV).toBe(25);
   });
 
-  it("Tempesta d'espurnes: every enemy loses the dice in PV, through any defense and armour", () => {
+  it("Tempesta d'espurnes: one roll against every enemy, each defending on its own (the user, 2026-11-06)", () => {
     const fire = fighter('Foc', [flat('tempesta-d-espurnes', 2, 0)], { pv: 30 });
     const a = fighter('A', [wait], { pv: 30 });
     const b = fighter('B', [guard(100)], { pv: 30 });
     playRound(engineFor([fire], [a, b]), [sel(0, 0, 0), sel(1, 0, 0), sel(1, 1, 0, T(1, 1))]);
-    expect([a.currentPV, b.currentPV]).toEqual([28, 28]);
+    // A, open, takes the roll; B's guard holds.
+    expect([a.currentPV, b.currentPV]).toEqual([28, 30]);
   });
 
   it('Incendi: a wounded target burns 2, 4, 6… at each round end; when it falls, the fire leaps to an ally', () => {

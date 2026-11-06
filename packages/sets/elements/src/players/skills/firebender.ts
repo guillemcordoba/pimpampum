@@ -132,19 +132,6 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
     aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.5 : 0.2; },
   },
 
-  // 4 · Tempesta d'espurnes: every enemy loses the card's dice in PV, rolled
-  // for each — no contest, no defense, no armour.
-  ember_storm: {
-    modifyAttack(ctx) {
-      if (!ctx.attackMods || !ctx.target) return;
-      ctx.attackMods.skip = true;
-      const loss = ctx.engine.contestRoll(ctx.source, ctx.action.dice, { kind: 'attack', skillId: SKILL_ID, rollBonus: ctx.action.rollBonus }).total;
-      ctx.engine.log('attack', `Les espurnes cremen ${ctx.target.name}: ${loss} PV.`, ctx.source.team);
-      ctx.engine.applyPvLoss(ctx.target, loss, ctx.source);
-    },
-    aiWeight(ctx) { return ctx.enemies.length > 1 ? 0.9 : 0.2; },
-  },
-
   // 7 · Incendi: a target it wounds catches the wildfire (unless it already burns with it).
   wildfire: {
     onAttackHit(ctx) {
@@ -220,9 +207,8 @@ export const FIREBENDER: SkillDefinition = {
     }),
     action({
       id: 'tempesta-d-espurnes', name: "Tempesta d'espurnes", skillId: SKILL_ID,
-      unlock: 4, type: ActionType.Atac, dice: d(1, 4), targetCount: 99,
-      effects: [{ type: 'ember_storm' }],
-      desc: 'Cada enemic perd 1d4 PV.',
+      unlock: 4, type: ActionType.Atac, dice: d(2, 4), targetCount: 99,
+      desc: 'Afecta tots els enemics.',
       icon: 'lorc/circle-sparks.svg',
     }),
     action({
