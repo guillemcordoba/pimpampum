@@ -201,6 +201,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
   const e = new CombatEngine(teams[0], teams[1], {
     registry: theRegistry(), maxRounds: ROUND_CAP, ...variantRules(variant), ...aiPolicy(CELL_AI),
   });
+  // The bodies fielded at the start: one summoned later (a golem) is not tracked.
   const everyone = e.teams.flat();
   /** Which card set each status a body holds (by body, then status key): its
    *  round-end damage is credited to that card. */
@@ -244,7 +245,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
           if ((before.get(c) ?? 0) >= c.maxPV && c.currentPV <= 0) {
             into.oneShots++; fromFull++;
             const onIt = losses.filter(l => l.target === c);
-            const rode = buffsRidden(actor, c, def, modsBefore.get(actor)!, entriesBefore.get(actor)!, entriesBefore.get(c)!, setterOf);
+            const rode = buffsRidden(actor, c, def, modsBefore.get(actor) ?? new Set(), entriesBefore.get(actor) ?? new Map(), entriesBefore.get(c) ?? new Map(), setterOf);
             const setUp = rode.filter(b => b.by?.team === actor.team && b.by.def.actionType === ActionType.Focus && !b.by.def.fast);
             if (setUp.length && stoodWithout(setUp, onIt, c.maxPV)) {
               for (const id of new Set(setUp.map(b => b.by!.def.id))) setUps.set(id, (setUps.get(id) ?? 0) + 1);
