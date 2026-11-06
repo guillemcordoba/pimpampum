@@ -71,6 +71,16 @@ export function lanesNow(): number {
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+/** `jobs` across the lanes free now (`lanesNow`), each started as a lane frees; the results in order. */
+export async function inLanes<T>(jobs: readonly (() => Promise<T>)[]): Promise<T[]> {
+  const out: T[] = new Array(jobs.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), jobs.length)) }, async () => {
+    for (let i = next++; i < jobs.length; i = next++) out[i] = await jobs[i]();
+  }));
+  return out;
+}
+
 /** Disable with `BENCH_SERIAL=1` when a crash needs a readable stack. */
 const enabled = (): boolean => process.env.BENCH_SERIAL !== '1' && process.env.BENCH_NO_CACHE !== '1';
 

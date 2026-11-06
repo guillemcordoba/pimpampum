@@ -3,8 +3,10 @@
  * around the requirements, about the set alone, the one tool to iterate a kit
  * with, readable at a glance, a page per class). One command, one file:
  *  - the overview: how many of the requirements hold (playtest `REQUIREMENTS`)
- *    at levels 3, 6 and 10, every class's health and its top blocking card,
- *    the set's table, why it plays as it does;
+ *    at levels 3, 6 and 10; the cards to look at first (those that set a
+ *    level's PV floor or ceiling, or block a class alone); every class's health
+ *    and its top blocking card; the set's table; each level's PV window and
+ *    what sets it; why it plays as it does;
  *  - a page per class: the cards that block it (each failing kit cell re-played
  *    without each of its cards — the gate's blame; cards that fell fresh
  *    heroes; cards never right), loudest when one card alone flips a
@@ -18,11 +20,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
+import { flag, games, inLanes, isolated, kitsDynamics, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
 import {
-  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
-  MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, rankFixes, REQUIREMENTS,
-  summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type LadderRung, type Requirement,
+  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, fitLine, GATE_BUDGET,
+  MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, PV_LEVELS, rankFixes, REQUIREMENTS,
+  summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type KnockoutCard, type LadderRung, type LevelWindow, type Requirement,
 } from '@pimpampum/playtest';
 import type { ActionDefinition } from '@pimpampum/engine';
 import { chosenSet } from './sets.js';
@@ -54,6 +56,13 @@ for (const kit of MAIN_KITS) for (const def of SET.gameSet.kit(kit)?.actions ?? 
 log('today\'s fights…');
 const realRuns = LEVELS.map(level => ({ level, d: kitsDynamics(level, fights) }));
 const today = realRuns.map(({ level, d }) => ({ level, real: summarise(d), cards: d.cards }));
+const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
+
+// Each level's PV window — the floor interactivity sets, the ceiling pacing
+// sets — and the cards behind each (playtest `derive-class-pv.ts`).
+log('each level\'s PV window…');
+const windows = await inLanes(PV_LEVELS.map(level => () => isolated<LevelWindow>(PLAYTEST, 'realWindowJob', [SET.ref, level, fights])));
+const line = fitLine(windows);
 
 // Every kit's fight length and field score, re-played without each card where a
 // cell fails; every card's use; what choosing is worth; dumb play (set-level).
@@ -69,14 +78,11 @@ const results: FixResult[] = [];
 if (FIXES) {
   const cards = census(realRuns.map(r => r.d.cards));
   const ladder = Object.fromEntries(Object.keys(ATTACK_LADDER).map(Number).map(l => [l, { attack: ATTACK_LADDER[l].toString(), defense: DEFENSE_LADDER[l].toString() }]));
-  const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), CANDIDATE_FIXES.length)) }, async () => {
-    for (let i = next++; i < CANDIDATE_FIXES.length; i = next++) {
-      results.push(await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, CANDIDATE_FIXES[i], ladder, LEVELS, budget, cards]));
-      log(`fix ${results.length}/${CANDIDATE_FIXES.length}: ${CANDIDATE_FIXES[i].id}`);
-    }
-  }));
+  results.push(...await inLanes(CANDIDATE_FIXES.map(fix => async () => {
+    const r = await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, fix, ladder, LEVELS, budget, cards]);
+    log(`fix: ${fix.id}`);
+    return r;
+  })));
 }
 const ranked = rankFixes(results);
 
@@ -101,7 +107,15 @@ const tallies = (t: Today) => Object.entries(t.cards) as [string, CardTally][];
 /** A card's share of plays that felled a fresh hero without an answer. */
 const unansweredRate = (c: CardTally) => (c.plays >= MIN_KO_PLAYS ? c.unanswerable / c.plays : 0);
 const HOW: Record<Unanswerable, string> = { fast: 'fast, before any guard', guard: 'through its own guard', uncontested: 'with no roll against a guard' };
-const howOf = (c: CardTally) => (Object.entries(c.unanswerableHow) as [Unanswerable, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([k]) => HOW[k]).join(', ');
+const howOfCounts = (how: Record<Unanswerable, number>) => (Object.entries(how) as [Unanswerable, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([k]) => HOW[k]).join(', ');
+const howOf = (c: CardTally) => howOfCounts(c.unanswerableHow);
+const nameOf = (id: string) => CARDS.get(id)?.def.name ?? id;
+/** The other cards whose buff an unanswerable knockout needed: the combo to look at. */
+const comboNote = (rode: Record<string, number>, of: number) => {
+  const by = Object.entries(rode).sort((a, b) => b[1] - a[1]);
+  return by.length ? `; ${by.map(([id, n]) => `${n} of the ${of} needed ${nameOf(id)}'s buff`).join(', ')}` : '';
+};
+const setUpCount = (c: CardTally) => Object.values(c.focusSetUps).reduce((t, n) => t + n, 0);
 
 /** The set's health (\`kit\` null) or one kit's: each requirement's checks, the
  *  cards that block them, what no card explains, and a one-line headline. */
@@ -184,7 +198,7 @@ function health(kit: string | null): Health {
   }
   for (const t of today) {
     for (const [id, c] of tallies(t)) {
-      if (unansweredRate(c) > MAX_UNANSWERABLE_KOS) blame(id, `fells a fresh hero with no possible answer on ${pc(unansweredRate(c))} of its plays at L${t.level} (${howOf(c)})`, true);
+      if (unansweredRate(c) > MAX_UNANSWERABLE_KOS) blame(id, `fells a fresh hero with no possible answer on ${pc(unansweredRate(c))} of its plays at L${t.level} (${howOf(c)}${comboNote(c.unansweredRode, c.unanswerable)})`, true);
     }
   }
   for (const c of gate.cards.filter(x => x.neverRight)) blame(c.card, `never the right play (L${c.levels.map(l => l.level).join(', L')})`, true);
@@ -206,6 +220,25 @@ function health(kit: string | null): Health {
 }
 const SET_HEALTH = health(null);
 const KIT_HEALTH = KITS.map(k => health(k));
+
+// --- 3b. what to look at first: the cards that move the PV or block alone ----------
+/** `clear`: past its bar beyond the noise, or a requirement it flips by itself. */
+interface Impact { text: string; clear: boolean }
+const IMPACTS = new Map<string, Impact[]>();
+const impact = (id: string, text: string, clear: boolean) => { if (CARDS.has(id)) IMPACTS.set(id, [...(IMPACTS.get(id) ?? []), { text, clear }]); };
+const pm = (k: { rate: number; se: number }) => `${pc(k.rate)} ±${pc(k.se)}`;
+const floorText = (w: LevelWindow, k: KnockoutCard) => `sets the PV floor at L${w.level}: at ${Math.max(1, w.floor - 1)} PV it fells a fresh hero with no answer on ${pm(k)} of its plays (${howOfCounts(k.how)}${comboNote(k.rode, Math.round(k.rate * k.plays))})${k.clearly ? '' : ', within the noise of the bar'}`;
+for (const w of windows) {
+  for (const k of w.floorCards) impact(k.card, floorText(w, k), k.clearly);
+  const over = w.overCeiling;
+  for (const c of over?.cards ?? []) impact(c.card, `holds the PV ceiling at L${w.level}: at ${over!.pv} PV fights end without it (${pc(c.longShare)} past round ${MAX_P90_ROUNDS}; with it ${pc(over!.longShare)})`, true);
+}
+for (const h of KIT_HEALTH) for (const b of h.blockers.filter(x => x.alone)) impact(b.id, `blocks ${h.kit} on its own: ${b.reasons[0]}${b.reasons.length > 1 ? ` (and ${b.reasons.length - 1} more)` : ''}`, true);
+const clearCount = (id: string) => IMPACTS.get(id)!.filter(i => i.clear).length;
+const FIRST = [...IMPACTS.keys()].sort((a, b) => clearCount(b) - clearCount(a) || IMPACTS.get(b)!.length - IMPACTS.get(a)!.length);
+/** Levels where no PV works and no single card holds the ceiling down: the structure, not a card. */
+const structural = windows.filter(w => w.ceiling !== null && w.floor > w.ceiling && !w.overCeiling?.cards.length)
+  .map(w => `L${w.level}: no PV works — the floor (${w.floor}) is above the ceiling (${w.ceiling}), and no single card holds the ceiling down: at ${w.overCeiling?.pv} PV ${pc(w.overCeiling?.longShare ?? 0)} of fights pass round ${MAX_P90_ROUNDS} whichever card is taken out.`);
 
 // --- 4. the page ---------------------------------------------------------------------
 const STATE = { true: ['ok', '✓', 'holds'], false: ['bad', '✗', 'fails'], null: ['unk', '?', 'inconclusive'] } as const;
@@ -272,13 +305,46 @@ function kitCards(kit: string): string {
       const v = g?.levels.find(l => l.level === level);
       const tally = realRuns.find(r => r.level === level)?.d.cards[def.id];
       const take = tally && tally.plays ? (tally.foeLoss / tally.plays).toFixed(1) : '—';
-      return `<td class="num${v?.blind ? ' warn' : ''}">${v ? `${pc(v.bestShare)} / ${pc(v.playRate)}` : '—'}<br><small>${take} PV${tally?.felledFromFull ? ` · fells ${tally.felledFromFull}` : ''}</small></td>`;
+      return `<td class="num${v?.blind ? ' warn' : ''}">${v ? `${pc(v.bestShare)} / ${pc(v.playRate)}` : '—'}<br><small>${take} PV${tally?.felledFromFull ? ` · fells ${tally.felledFromFull}${setUpCount(tally) ? ` (${setUpCount(tally)} set up by a Focus)` : ''}` : ''}</small></td>`;
     }).join('');
     return `<tr${g?.neverRight ? ' class="dead"' : ''}><th scope="row"><b>${esc(def.name)}</b><small>L${def.unlockLevel} · ${kindOf(def)}${def.fast ? ' · fast' : ''} · ${esc(diceOf(def))}</small><small class="card-t">${esc(def.description)}</small></th>${per}</tr>`;
   }).join('');
   return `<div class="scroll"><table class="cards"><thead><tr><th>card</th>${LEVELS.map(l => `<th class="lv">L${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted" style="font-size:0.82rem">Each cell: the share of decisions it was the best play / the share the AI played it where it was legal; below, the PV it took off enemies a play and the fresh heroes it felled in one play.</p>`;
+    <p class="muted" style="font-size:0.82rem">Each cell: the share of decisions it was the best play / the share the AI played it where it was legal; below, the PV it took off enemies a play and the fresh heroes it felled in one play (those a slow Focus set up had an answer: cancelling the Focus).</p>`;
 }
+
+const impactItem = (id: string) => {
+  const { def, kit } = CARDS.get(id)!;
+  const list = IMPACTS.get(id)!;
+  return `<li class="${clearCount(id) ? 'alone' : ''}"><div class="card-h"><b>${esc(def.name)}</b> <small>${esc(kit)} · level ${def.unlockLevel} · ${kindOf(def)}${def.fast ? ' · fast' : ''} · ${esc(diceOf(def))}</small></div>
+    <div class="card-t">${esc(def.description)}</div><ul>${list.map(i => `<li class="${i.clear ? '' : 'muted'}">${esc(i.text)}</li>`).join('')}</ul></li>`;
+};
+const impactList = (ids: string[]) => `<ul class="blockers">${ids.map(impactItem).join('')}</ul>`;
+const lineAt = (level: number) => line.base + line.slope * level;
+const todayVerdict = (w: LevelWindow) => {
+  const pvs = MAIN_KITS.map(k => heroPV({ [k]: w.level })), lo = Math.min(...pvs), hi = Math.max(...pvs);
+  if (w.ceiling === null || w.floor > w.ceiling) return '<span class="chip bad">no window</span>';
+  if (lo < w.floor) return '<span class="chip bad">under the floor</span>';
+  if (hi > w.ceiling) return '<span class="chip bad">over the ceiling</span>';
+  return '<span class="chip ok">inside</span>';
+};
+const floorCell = (w: LevelWindow) => {
+  const cards = w.floorCards.map(k => `<li>${esc(nameOf(k.card))} <span class="num">${pm(k)}</span> <small>${esc(howOfCounts(k.how))}</small> ${k.clearly ? '<span class="chip bad">clearly</span>' : '<span class="chip unk">within noise</span>'}</li>`).join('');
+  const setUps = Object.entries(w.focusSetUps).sort((a, b) => b[1] - a[1]);
+  return `${cards ? `<ul class="where">${cards}</ul>` : '<span class="muted">no card</span>'}${setUps.length ? `<small>answered, set up by a Focus: ${setUps.map(([id, n]) => `${esc(nameOf(id))} ×${n}`).join(', ')}</small>` : ''}`;
+};
+const ceilingCell = (w: LevelWindow) => {
+  const o = w.overCeiling;
+  if (!o) return '<span class="muted">—</span>';
+  return `<small>at ${o.pv} PV, ${pc(o.longShare)} of fights pass round ${MAX_P90_ROUNDS}</small>${o.cards.length
+    ? `<ul class="where">${o.cards.map(c => `<li>without ${esc(nameOf(c.card))} they end <span class="num">(${pc(c.longShare)})</span></li>`).join('')}</ul>`
+    : '<br><span class="muted">no single card</span>'}`;
+};
+const windowRows = windows.map(w => `<tr><th scope="row">L${w.level}</th>
+  <td class="num">${pvRange(w.level)} ${todayVerdict(w)}</td>
+  <td class="num">${w.floor}</td><td>${floorCell(w)}</td>
+  <td class="num">${w.ceiling ?? '—'}</td><td>${ceilingCell(w)}</td>
+  <td class="num${line.over.includes(w.level) ? ' warn' : ''}">${lineAt(w.level).toFixed(1)}</td></tr>`).join('');
 
 const scoreLine = (h: Health) => `<div class="score">${h.holding.length}/${REQUIREMENTS.length}<small>requirements hold</small></div><p class="headline">${esc(h.headline)}</p>`;
 const classRows = KIT_HEALTH.map(h => {
@@ -319,6 +385,7 @@ const kitPages = KIT_HEALTH.map(h => `
     ${scoreLine(h)}
   </header>
   ${blocking(h)}
+  ${FIRST.some(id => CARDS.get(id)!.kit === h.kit) ? `<section><h2>What its cards do to the PV and the set</h2>${impactList(FIRST.filter(id => CARDS.get(id)!.kit === h.kit))}</section>` : ''}
   <section>${reqTable(h)}</section>
   <section><h2>In combat</h2>${kitDynamics(h.kit!)}</section>
   <section><h2>Its cards</h2>${kitCards(h.kit!)}</section>
@@ -442,6 +509,10 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cards td { text-align: center; white-space: nowrap; }
 .cards td.warn { background: var(--unk-bg); }
 .cards tr.dead th b { color: var(--bad); }
+.chip.unk { color: var(--warn); }
+.windows td.warn { color: var(--warn); }
+.windows .where { min-width: 160px; }
+.blockers li.muted { color: var(--muted); }
 </style>
 <div class="wrap">
 <div id="overview">
@@ -450,6 +521,13 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
     <h1>How the set is doing</h1>
     ${scoreLine(SET_HEALTH)}
   </header>
+
+  ${FIRST.length || structural.length ? `<section>
+    <h2>Look at first</h2>
+    ${FIRST.length ? impactList(FIRST.slice(0, 8)) : ''}
+    ${structural.length ? `<ul class="facts">${structural.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    <p class="muted" style="font-size:0.82rem">Ranked by how many things each card does past the noise: setting a level's PV floor, holding its ceiling down, blocking its class's requirements by itself.${FIRST.length > 8 ? ` ${FIRST.length - 8} more on the class pages.` : ''}</p>
+  </section>` : ''}
 
   <section>
     <h2>Each class</h2>
@@ -464,6 +542,15 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
     <h2>The set, requirement by requirement</h2>
     ${reqTable(SET_HEALTH)}
     <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Random 2v2 of the main kits, the production AI, heroes at their level's PV (the set's table). A blocking card is found by playing the same fights without it; a card that fells fresh heroes or is never the right play blocks by itself.</p>
+  </section>
+
+  <section>
+    <h2>Each level's PV, and what sets it</h2>
+    <div class="scroll"><table class="windows">
+      <thead><tr><th>level</th><th>today</th><th>floor</th><th>set by</th><th>ceiling</th><th>held down by</th><th>line</th></tr></thead>
+      <tbody>${windowRows}</tbody>
+    </table></div>
+    <p class="muted" style="font-size:0.82rem">Every hero on one PV, random 2v2 of the main kits. Floor: the smallest PV at which no card fells a fresh hero with no possible answer on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays (a blow a slow Focus set up had one: cancelling the Focus). Ceiling: the largest at which fights end in time (9 in 10 by round ${MAX_P90_ROUNDS}). ± is one standard error; a reading within two of a bar is measured again on four times the fights. The line, base ${line.base} + ${line.slope} × level, is the one that clears every floor and stays closest under the ceilings${line.over.length ? ` (over them at L${line.over.join(', L')})` : ''}; <code>tools/src/derive-pv.ts</code> also splits its slope by each class's bulk.</p>
   </section>
 
   <section><h2>Why it plays this way</h2><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>

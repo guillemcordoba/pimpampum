@@ -21,7 +21,7 @@
  * runs.
  */
 import {
-  ActionType, type ActionDefinition, type Character, createCharacter, DiceRoll, EffectRegistry,
+  ActionType, type ActionDefinition, type Character, CombatModifier, createCharacter, DiceRoll, EffectRegistry,
   EquipmentSlot, type EquipmentDefinition, random, type EffectHandler,
 } from '@pimpampum/engine';
 import {
@@ -44,14 +44,23 @@ function card(kit: string, i: number, name: string, type: ActionType, dice: stri
 }
 const A = ActionType.Atac, D = ActionType.Defensa, F = ActionType.Focus;
 
-/** The one handler in the set: heal an ally by the card's own dice. */
+/** The set's handlers: heal an ally by the card's own dice; and, for a test's
+ *  own kits (`installKit`), a Focus whose caster's attacks get +`bonus` for
+ *  two rounds. */
 const HEAL = 'syn-heal';
+export const RALLY = 'syn-rally';
 const HANDLERS: Record<string, EffectHandler> = {
   [HEAL]: {
     getTargetRequirement: () => 'ally',
     onResolve(ctx) {
       const amount = ctx.action.dice?.roll() ?? 0;
       for (const t of ctx.targets ?? []) ctx.engine.heal(t, amount);
+    },
+  },
+  [RALLY]: {
+    getTargetRequirement: () => 'none',
+    onResolve(ctx) {
+      ctx.source.modifiers.push(new CombatModifier('attack', Number(ctx.params?.bonus ?? 4), { remaining: 2, pending: false }));
     },
   },
 };

@@ -23,7 +23,9 @@ export interface LogEntry {
  *  (`guarded`), or an effect that took PV with no roll against a guard
  *  (`uncontested`). Read by the measurement (who could have answered it). */
 export type PvLossVia = 'open' | 'guarded' | 'uncontested';
-export interface PvLoss { target: Character; lost: number; via: PvLossVia; round: number }
+/** `lost` is what the body lost; `dealt` the whole loss that came at it, above
+ *  what was left of its PV too (would it have stood without a bonus?). */
+export interface PvLoss { target: Character; lost: number; dealt: number; via: PvLossVia; round: number }
 
 /** Reference to a combatant by team + index. */
 export interface TargetRef { team: number; idx: number; }
@@ -693,7 +695,7 @@ export class CombatEngine implements EngineApi, AIView {
     const before = target.currentPV;
     const died = target.loseLife(amount);
     const lost = before - target.currentPV;
-    if (lost > 0) this.pvLosses.push({ target, lost, via, round: this.round });
+    if (lost > 0) this.pvLosses.push({ target, lost, dealt: amount, via, round: this.round });
     if (died && wasAlive) this.log('death', `${target.name} cau derrotat!`, target.team);
     if (lost > 0) {
       for (const { key, entry, behavior } of this.hookedStatuses(target, 'onPvLost')) {

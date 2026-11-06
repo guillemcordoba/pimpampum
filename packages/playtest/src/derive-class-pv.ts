@@ -11,15 +11,44 @@
  *  2. BALANCE: the fragile and bulky tiers' slopes moved off the middle one,
  *     the order kept, each candidate judged by every class's field score at
  *     the checkpoints (toward an even fight), no tier dropping under a floor.
+ * Each window also names what sets it: the cards past the knockout bar one PV
+ * under the floor, and the cards without which fights end one PV over the
+ * ceiling — each with its error bar, so a reading inside the noise says so.
  */
-import { kitMirrors, kitsDynamics, type PVModel } from '@pimpampum/bench';
+import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerable } from '@pimpampum/bench';
 import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
-import { summarise, type DynamicsSummary } from './dynamics.js';
+import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
 import { MAX_P90_ROUNDS } from './rules.js';
 
 const PV_MIN = 1;
 const PV_MAX = 60;
+/** The levels a hero plays at: from its first fight (level 3) to the top. */
+export const PV_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10];
+/** A reading within two standard errors of a bar is measured again on this many times the fights. */
+const RECHECK = 4;
+/** Fights past `MAX_P90_ROUNDS` that still let 9 in 10 end within it. */
+const LONG_BAR = 0.1;
+
+const stdErr = (p: number, n: number) => Math.sqrt(Math.max(0, p * (1 - p)) / Math.max(1, n));
+
+/** A card that fells fresh heroes without an answer past the bar. */
+export interface KnockoutCard {
+  card: string;
+  rate: number; se: number; plays: number;
+  /** Past the bar beyond its noise (rate − 2·se above it). */
+  clearly: boolean;
+  how: Record<Unanswerable, number>;
+  /** Of its unanswerable knockouts, those that needed another card's buff, by that card. */
+  rode: Record<string, number>;
+}
+
+/** A card without which fights end in time one PV over the ceiling. */
+export interface PacingCard {
+  card: string;
+  /** Fights past the round limit without it, and how far that falls from the fights with it. */
+  longShare: number; drop: number; se: number;
+}
 
 export interface LevelWindow {
   level: number;
@@ -27,18 +56,51 @@ export interface LevelWindow {
   floor: number;
   /** The largest PV with fights still ending in time; null: not even at the smallest. */
   ceiling: number | null;
-  /** Every PV the searches measured: fights end, and the worst card's unanswerable rate. */
-  measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number }[];
+  /** What sets the floor: the cards past the bar one PV under it (at the floor's PV when it never clears). */
+  floorCards: KnockoutCard[];
+  /** Knockouts there a slow Focus set up (answered: the read cancels the Focus), by that Focus. */
+  focusSetUps: Record<string, number>;
+  /** What holds the ceiling down: one PV over it, fights past the round limit with every card, and the cards without which they end. */
+  overCeiling: { pv: number; longShare: number; cards: PacingCard[] } | null;
+  /** Every PV the searches measured: fights end, the worst card's unanswerable rate, and the fights it took. */
+  measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; fights: number }[];
+}
+
+const longShareOf = (d: Dynamics) => d.rounds.filter(r => r > MAX_P90_ROUNDS).length / Math.max(1, d.fights);
+
+/** The cards past the knockout bar in `d`, worst first. */
+function knockoutCards(d: Dynamics): KnockoutCard[] {
+  return Object.entries(d.cards).filter(([, c]) => c.plays >= MIN_KO_PLAYS).map(([card, c]) => {
+    const rate = c.unanswerable / c.plays, se = stdErr(rate, c.plays);
+    return { card, rate, se, plays: c.plays, clearly: rate - 2 * se > MAX_UNANSWERABLE_KOS, how: c.unanswerableHow, rode: c.unansweredRode };
+  }).filter(k => k.rate > MAX_UNANSWERABLE_KOS).sort((a, b) => b.rate - a.rate);
+}
+
+/** Whether a reading sits within its noise of either bar: a card's knockouts, or the fights past the round limit. */
+function nearABar(d: Dynamics): boolean {
+  const long = longShareOf(d);
+  if (Math.abs(long - LONG_BAR) < 2 * stdErr(long, d.fights)) return true;
+  return Object.values(d.cards).some(c => {
+    if (c.plays < MIN_KO_PLAYS) return false;
+    const rate = c.unanswerable / c.plays;
+    return Math.abs(rate - MAX_UNANSWERABLE_KOS) < 2 * stdErr(rate, c.plays);
+  });
 }
 
 /** One level's window on the real kits (random 2v2, every hero on one PV). */
 export function realWindow(level: number, fights: number): LevelWindow {
-  const seen = new Map<number, DynamicsSummary>();
-  const at = (pv: number) => {
-    let s = seen.get(pv);
-    if (!s) { s = summarise(kitsDynamics(level, fights, { pv })); seen.set(pv, s); }
-    return s;
+  const seen = new Map<number, { d: Dynamics; s: DynamicsSummary }>();
+  const measure = (pv: number) => {
+    let m = seen.get(pv);
+    if (!m) {
+      let d = kitsDynamics(level, fights, { pv });
+      if (nearABar(d)) d = kitsDynamics(level, RECHECK * fights, { pv });
+      m = { d, s: summarise(d) };
+      seen.set(pv, m);
+    }
+    return m;
   };
+  const at = (pv: number) => measure(pv).s;
   const answered = (s: DynamicsSummary) => s.unanswerableKOs <= MAX_UNANSWERABLE_KOS;
   let floor = PV_MAX;
   if (answered(at(PV_MAX))) {
@@ -54,10 +116,32 @@ export function realWindow(level: number, fights: number): LevelWindow {
     while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (at(mid).ends) lo = mid; else hi = mid; }
     ceiling = lo;
   }
+  const under = measure(floor > PV_MIN ? floor - 1 : floor).d;
+  const focusSetUps: Record<string, number> = {};
+  for (const c of Object.values(under.cards)) for (const [id, n] of Object.entries(c.focusSetUps)) focusSetUps[id] = (focusSetUps[id] ?? 0) + n;
   return {
     level, floor, ceiling,
-    measured: [...seen].sort((a, b) => a[0] - b[0]).map(([pv, s]) => ({ pv, ends: s.ends, unanswerable: s.unanswerableKOs, median: s.median, p90: s.p90 })),
+    floorCards: floor > PV_MIN || !answered(at(floor)) ? knockoutCards(under) : [],
+    focusSetUps,
+    overCeiling: ceiling === PV_MAX ? null : pacingCards(level, fights, ceiling === null ? PV_MIN : ceiling + 1),
+    measured: [...seen].sort((a, b) => a[0] - b[0]).map(([pv, { d, s }]) => ({ pv, ends: s.ends, unanswerable: s.unanswerableKOs, median: s.median, p90: s.p90, fights: d.fights })),
   };
+}
+
+/** At `pv`, where fights run long: every card played, taken out of every hand
+ *  in turn; the ones without which fights end, clearly past the noise. */
+function pacingCards(level: number, fights: number, pv: number): { pv: number; longShare: number; cards: PacingCard[] } {
+  const all = kitsDynamics(level, fights, { pv });
+  const long = longShareOf(all);
+  const cards: PacingCard[] = [];
+  for (const [card, c] of Object.entries(all.cards)) {
+    if (!c.plays) continue;
+    const without = kitsDynamics(level, fights, { pv, without: card });
+    const share = longShareOf(without), drop = long - share;
+    const se = Math.sqrt(stdErr(long, all.fights) ** 2 + stdErr(share, without.fights) ** 2);
+    if (summarise(without).ends && drop > 2 * se) cards.push({ card, longShare: share, drop, se });
+  }
+  return { pv, longShare: long, cards: cards.sort((a, b) => b.drop - a.drop) };
 }
 
 export async function realWindowJob(set: RunContext['set'], level: number, fights: number): Promise<LevelWindow> {

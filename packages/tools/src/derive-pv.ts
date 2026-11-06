@@ -14,36 +14,34 @@
  *   pnpm --filter @pimpampum/tools exec tsx src/derive-pv.ts --set elements
  */
 import { fileURLToPath } from 'node:url';
-import { games, isolated, lanesNow, useSet } from '@pimpampum/bench';
-import { fitLine, MAX_UNANSWERABLE_KOS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
+import { games, inLanes, isolated, useSet } from '@pimpampum/bench';
+import { fitLine, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, PV_LEVELS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
 useSet(SET.gameSet);
 const TIERS = (SET.root as { PV_TIERS?: Readonly<Record<'bulky' | 'middle' | 'fragile', readonly string[]>> }).PV_TIERS;
 if (!TIERS) throw new Error(`derive-pv: the ${SET.id} set orders no classes by bulk (PV_TIERS)`);
-const LEVELS = [3, 4, 5, 6, 7, 8, 9, 10];
+const LEVELS = PV_LEVELS;
 const CHECKPOINTS = [3, 6, 10];
 const fights = games(120);
 const tierFights = games(60);
 const log = (s: string) => process.stderr.write(`${s}\n`);
 const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
 
-/** `jobs` across bench's lanes, each in its own process. */
-async function inParallel<T>(jobs: (() => Promise<T>)[]): Promise<T[]> {
-  const out: T[] = new Array(jobs.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), jobs.length)) }, async () => {
-    for (let i = next++; i < jobs.length; i = next++) out[i] = await jobs[i]();
-  }));
-  return out;
-}
+const names = new Map(SET.gameSet.calibration.mainKits.flatMap(k => (SET.gameSet.kit(k)?.actions ?? []).map(a => [a.id, a.name] as const)));
+const nameOf = (id: string) => names.get(id) ?? id;
+const pc = (x: number) => `${Math.round(100 * x)}%`;
+/** What sets a window, in a line each side. */
+const behindFloor = (w: LevelWindow) => w.floorCards.map(k => `${nameOf(k.card)} ${pc(k.rate)} ±${pc(k.se)}${k.clearly ? '' : ' (within noise)'}`).join(', ')
+  + (Object.keys(w.focusSetUps).length ? `  [answered, set up by: ${Object.entries(w.focusSetUps).map(([id, n]) => `${nameOf(id)} ×${n}`).join(', ')}]` : '');
+const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeiling.pv}: ${pc(w.overCeiling.longShare)} past round ${MAX_P90_ROUNDS}; ${w.overCeiling.cards.length ? `they end without ${w.overCeiling.cards.map(c => `${nameOf(c.card)} (${pc(c.longShare)})`).join(', ')}` : 'no single card'}`;
 
 // --- 1. pacing and interactivity --------------------------------------------------------
 log('stage 1: each level\'s floor and ceiling on the real kits…');
-const windows = await inParallel(LEVELS.map(level => async () => {
+const windows = await inLanes(LEVELS.map(level => async () => {
   const w = await isolated<LevelWindow>(PLAYTEST, 'realWindowJob', [SET.ref, level, fights]);
-  log(`  L${level}: floor ${w.floor}, ceiling ${w.ceiling ?? 'none'}`);
+  log(`  L${level}: floor ${w.floor} (${behindFloor(w) || 'no card'}), ceiling ${w.ceiling ?? 'none'} (${behindCeiling(w)})`);
   return w;
 }));
 const line = fitLine(windows);
@@ -51,6 +49,8 @@ console.log(`level  floor (interactivity)  ceiling (fights end)  →  base ${lin
 for (const w of windows) {
   const pv = line.base + line.slope * w.level;
   console.log(`L${String(w.level).padEnd(5)} ${String(w.floor).padStart(21)} ${String(w.ceiling ?? '—').padStart(21)}  →  ${pv.toFixed(1)}${line.over.includes(w.level) ? '   over the ceiling: fights will run long here' : ''}`);
+  if (w.floorCards.length) console.log(`        floor set by: ${behindFloor(w)}`);
+  if (w.overCeiling) console.log(`        ceiling: ${behindCeiling(w)}`);
 }
 
 // --- 2. balance: the tiers' slopes ------------------------------------------------------------
@@ -58,10 +58,10 @@ const floorOk = (slope: number) => windows.every(w => line.base + slope * w.leve
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1, 1.5];
 const measure = (c: TierCandidate) => isolated<TierMeasure>(PLAYTEST, 'measureTiersJob', [SET.ref, line.base, c, TIERS, CHECKPOINTS, tierFights]);
 log('stage 2: the fragile tier\'s slope…');
-const fragileTried = await inParallel(OFFSETS.filter(d => floorOk(line.slope - d)).map(d => () => measure({ fragile: line.slope - d, middle: line.slope, bulky: line.slope })));
+const fragileTried = await inLanes(OFFSETS.filter(d => floorOk(line.slope - d)).map(d => () => measure({ fragile: line.slope - d, middle: line.slope, bulky: line.slope })));
 const fragile = [...fragileTried].sort((a, b) => a.imbalance - b.imbalance)[0].candidate.fragile;
 log('stage 2: the bulky tier\'s slope…');
-const bulkyTried = await inParallel(OFFSETS.map(d => () => measure({ fragile, middle: line.slope, bulky: line.slope + d })));
+const bulkyTried = await inLanes(OFFSETS.map(d => () => measure({ fragile, middle: line.slope, bulky: line.slope + d })));
 const best = [...bulkyTried].sort((a, b) => a.imbalance - b.imbalance)[0];
 console.log(`\ntiers (imbalance = Σ (field score − ½)² over every class × levels ${CHECKPOINTS.join('/')}; MAX_UNANSWERABLE_KOS ${MAX_UNANSWERABLE_KOS}):`);
 for (const m of [...fragileTried, ...bulkyTried]) console.log(`  fragile ${m.candidate.fragile} · middle ${m.candidate.middle} · bulky ${m.candidate.bulky}  →  imbalance ${m.imbalance.toFixed(3)}`);

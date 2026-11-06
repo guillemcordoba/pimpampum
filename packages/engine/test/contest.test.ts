@@ -201,6 +201,13 @@ describe('every PV loss says how it arrived', () => {
     // The blow lands on an open body; its effect then takes 5 with no roll.
     expect(e.pvLosses.map(l => [l.lost, l.via])).toEqual([[10, 'open'], [5, 'uncontested']]);
   });
+  it('a loss keeps the whole blow, above the PV the body had left', () => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9 })], { pv: 100 });
+    const d = fighter('D', [focusCard('wait')], { pv: 4 });
+    const e = new CombatEngine([a], [d], { registry: registry() });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }]);
+    expect(e.pvLosses.map(l => [l.lost, l.dealt])).toEqual([[4, 10]]);
+  });
 });
 
 describe('chip damage (an option; 0 by the rules)', () => {

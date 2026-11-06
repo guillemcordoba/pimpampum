@@ -12,7 +12,7 @@
  *  - a Focus (FOCUS), a Defense (its payoff: DEFENSE);
  *  - anything at the round's end (statuses, burns, bleeding: ROUND END).
  */
-import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type ActionDefinition, type Character, type PvLossVia } from '@pimpampum/engine';
+import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type ActionDefinition, type Character, type CombatModifier, type PvLoss, type PvLossVia, type StatusEntry } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
@@ -31,6 +31,8 @@ export interface Variant {
   pv?: number;
   /** A candidate PV model: a hero's PV is `base` + its class's `perLevel` × its level. */
   pvModel?: PVModel;
+  /** A card taken out of every hand: what that one card does to the fights. */
+  without?: string;
 }
 
 export interface PVModel { base: number; perLevel: Readonly<Record<string, number>> }
@@ -59,7 +61,8 @@ export type DamageSource = 'open' | 'guarded' | 'area' | 'counter' | 'focus' | '
  * attack), through its own guard (it read the attack right), or by damage with
  * no roll against a guard from a slow attack (guarding does not stop it, and an
  * attack cannot be interrupted). A slow attack on an open body, a slow Focus
- * (hitting its caster first interrupts it) and a counter all had an answer.
+ * (hitting its caster first interrupts it) and a counter all had an answer, and
+ * so had a blow a slow Focus set up: without its buff the hero stands.
  */
 export type Unanswerable = 'fast' | 'guard' | 'uncontested';
 
@@ -125,6 +128,12 @@ export interface CardTally {
   /** Enemies it took from full PV to 0 in one play; of those, the ones no read
    *  could have saved (`UNANSWERABLE`), by how. */
   felledFromFull: number; unanswerable: number; unanswerableHow: Record<Unanswerable, number>;
+  /** Knockouts a slow Focus of the killer's side set up, by that Focus: the
+   *  hero would have stood without its buff, so the read that cancels the
+   *  Focus was the answer (the user, 2026-11-06) and they are not unanswerable. */
+  focusSetUps: Record<string, number>;
+  /** Unanswerable knockouts that needed another card's buff, by that card: the combo to look at. */
+  unansweredRode: Record<string, number>;
   /** What it left on the allies, read from the engine's generic hooks: effects
    *  that strengthen their attacks, effects that protect them; and the attack
    *  and defense bonuses of the modifiers it gave them (summed). */
@@ -142,6 +151,52 @@ const emptyDynamics = (): Dynamics => ({
   blowShares: Array(10).fill(0), fielded: 0, oneShots: 0, cards: {}, kits: {},
 });
 
+/** The card (and its side) that set a modifier or a status, where a step of the fight set it. */
+type SetterOf = WeakMap<object, { def: ActionDefinition; team: number }>;
+/** A bonus a blow rode: who set it, and its size on the blow (Infinity: an
+ *  effect that gives no size to read, counted as needed). */
+interface Buff { by?: { def: ActionDefinition; team: number }; size: number }
+
+/** What strengthened `def`'s blow on `victim`, as things stood before it
+ *  resolved: the attacker's roll modifiers and offensive statuses, and the
+ *  victim's statuses that open it to attacks. */
+function buffsRidden(
+  attacker: Character, victim: Character, def: ActionDefinition, mods: ReadonlySet<CombatModifier>,
+  attackerEntries: ReadonlyMap<string, StatusEntry>, victimEntries: ReadonlyMap<string, StatusEntry>, setterOf: SetterOf,
+): Buff[] {
+  const out: Buff[] = [];
+  for (const m of mods) {
+    if (typeof m.duration === 'object' && m.duration.pending) continue;
+    if (m.stat !== 'skill' && m.stat !== 'attack' && m.stat !== def.skillId) continue;
+    const size = m.dice ? m.dice.average() : m.value;
+    if (size > 0) out.push({ by: setterOf.get(m), size });
+  }
+  for (const [key, entry] of attackerEntries) {
+    const b = entry.behavior as Record<string, unknown> | undefined;
+    if (!b) continue;
+    const size = entry.behavior?.attackRollOfHolder?.({ holder: attacker, key, entry });
+    if (size !== undefined) { if (size > 0) out.push({ by: setterOf.get(entry), size }); }
+    else if (OFFENSIVE.some(h => b[h] !== undefined)) out.push({ by: setterOf.get(entry), size: Infinity });
+  }
+  for (const [key, entry] of victimEntries) {
+    const b = entry.behavior;
+    if (!b) continue;
+    const ref = { holder: victim, key, entry };
+    const size = (b.attackRollAgainstHolder?.(ref) ?? 0) + (b.defensePenaltyAgainst?.(ref, attacker) ?? 0);
+    if (size > 0) out.push({ by: setterOf.get(entry), size });
+    else if (b.preventsGuard?.(ref) || b.excludesAllyGuards?.(ref, attacker)) out.push({ by: setterOf.get(entry), size: Infinity });
+  }
+  return out;
+}
+
+/** Would a body felled from full (`maxPV`) by `losses` have stood without
+ *  `buffs`? Each contested blow carried them; what came with no roll did not. */
+function stoodWithout(buffs: readonly Buff[], losses: readonly PvLoss[], maxPV: number): boolean {
+  const bonus = buffs.reduce((t, b) => t + b.size, 0);
+  if (!Number.isFinite(bonus)) return true;
+  return losses.reduce((t, l) => t + (l.via === 'uncontested' ? l.dealt : Math.max(0, l.dealt - bonus)), 0) < maxPV;
+}
+
 function playOne(teams: [Character[], Character[]], variant: Variant, into: Dynamics): void {
   const e = new CombatEngine(teams[0], teams[1], {
     registry: theRegistry(), maxRounds: ROUND_CAP, ...variantRules(variant), ...aiPolicy(CELL_AI),
@@ -150,13 +205,14 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
   /** Which card set each status a body holds (by body, then status key): its
    *  round-end damage is credited to that card. */
   const setBy = new Map<Character, Map<string, string>>(everyone.map(c => [c, new Map()]));
+  const setterOf: SetterOf = new WeakMap();
   while (!e.isOver() && e.round < e.maxRounds) {
     e.prepareRound();
     e.planActions([]);
     for (;;) {
       const before = new Map(everyone.map(c => [c, c.currentPV]));
       const effects = new Map(everyone.map(c => [c, c.statuses.size]));
-      const keysBefore = new Map(everyone.map(c => [c, new Set(c.statuses.keys())]));
+      const entriesBefore = new Map(everyone.map(c => [c, new Map(c.statuses)]));
       const modsBefore = new Map(everyone.map(c => [c, new Set(c.modifiers)]));
       const defended = new Set(e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa).map(p => p.actor));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
@@ -176,6 +232,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       if (step.action.cancelled) { if (type === ActionType.Focus) into.lostFocus++; continue; }
       let foesLost = 0, biggest = 0, fromFull = 0;
       const unanswered: Unanswerable[] = [];
+      const setUps = new Map<string, number>(), rodeOn = new Map<string, number>();
       const losses = e.pvLosses.slice(lossesBefore);
       for (const c of everyone) {
         const loss = Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
@@ -186,8 +243,19 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
           biggest = Math.max(biggest, loss / Math.max(1, c.maxPV));
           if ((before.get(c) ?? 0) >= c.maxPV && c.currentPV <= 0) {
             into.oneShots++; fromFull++;
-            const how = unanswerable(def, losses.filter(l => l.target === c).map(l => l.via));
-            if (how) unanswered.push(how);
+            const onIt = losses.filter(l => l.target === c);
+            const rode = buffsRidden(actor, c, def, modsBefore.get(actor)!, entriesBefore.get(actor)!, entriesBefore.get(c)!, setterOf);
+            const setUp = rode.filter(b => b.by?.team === actor.team && b.by.def.actionType === ActionType.Focus && !b.by.def.fast);
+            if (setUp.length && stoodWithout(setUp, onIt, c.maxPV)) {
+              for (const id of new Set(setUp.map(b => b.by!.def.id))) setUps.set(id, (setUps.get(id) ?? 0) + 1);
+            } else {
+              const how = unanswerable(def, onIt.map(l => l.via));
+              if (how) {
+                unanswered.push(how);
+                const ownBuffs = rode.filter(b => b.by?.team === actor.team && b.by.def.id !== def.id);
+                for (const id of new Set(ownBuffs.map(b => b.by!.def.id))) if (stoodWithout(ownBuffs.filter(b => b.by!.def.id === id), onIt, c.maxPV)) rodeOn.set(id, (rodeOn.get(id) ?? 0) + 1);
+              }
+            }
           }
         }
         const source: DamageSource = !foe ? 'counter'
@@ -200,12 +268,14 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
       const t = (into.cards[def.id] ??= {
         plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0,
-        felledFromFull: 0, unanswerable: 0, unanswerableHow: { fast: 0, guard: 0, uncontested: 0 },
+        felledFromFull: 0, unanswerable: 0, unanswerableHow: { fast: 0, guard: 0, uncontested: 0 }, focusSetUps: {}, unansweredRode: {},
         offense: 0, protection: 0, attackBonus: 0, defenseBonus: 0,
       });
       t.plays++;
       t.felledFromFull += fromFull;
       for (const how of unanswered) { t.unanswerable++; t.unanswerableHow[how]++; }
+      for (const [id, n] of setUps) t.focusSetUps[id] = (t.focusSetUps[id] ?? 0) + n;
+      for (const [id, n] of rodeOn) t.unansweredRode[id] = (t.unansweredRode[id] ?? 0) + n;
       t.foeLoss += foesLost;
       for (const c of everyone) {
         const gained = Math.max(0, c.currentPV - (before.get(c) ?? 0));
@@ -213,7 +283,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
         if (c.team === actor.team) {
           t.allyGain += gained; t.allyEffects += added;
           for (const [k, entry] of c.statuses) {
-            if (keysBefore.get(c)!.has(k)) continue;
+            if (entriesBefore.get(c)!.has(k)) continue;
             const b = entry.behavior as Record<string, unknown> | undefined;
             if (b && OFFENSIVE.some(h => b[h] !== undefined)) t.offense++;
             // The size of an attack-roll bonus, asked of the effect itself.
@@ -229,8 +299,10 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
         } else {
           t.foeEffects += added;
           if (defended.has(c)) t.onDefenders += Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
-          for (const k of c.statuses.keys()) if (!keysBefore.get(c)!.has(k)) setBy.get(c)!.set(k, def.id);
+          for (const k of c.statuses.keys()) if (!entriesBefore.get(c)!.has(k)) setBy.get(c)!.set(k, def.id);
         }
+        for (const m of c.modifiers) if (!modsBefore.get(c)!.has(m)) setterOf.set(m, { def, team: actor.team });
+        for (const [k, entry] of c.statuses) if (entriesBefore.get(c)!.get(k) !== entry) setterOf.set(entry, { def, team: actor.team });
       }
     }
     const beforeEnd = new Map(everyone.map(c => [c, c.currentPV]));
@@ -265,6 +337,7 @@ function seedOf(tag: string, level: number): number {
 const heroTeam = (kits: readonly string[], level: number, side: string, variant: Variant): Character[] => {
   const set = theSet();
   const team = set.buildParty({ characters: kits.map((k, i) => { const pv = variantPV(variant, k, level); return { ...set.hero(`${side}${i + 1}`, k, level), ...(pv ? { pv } : {}) }; }) });
+  if (variant.without) for (const c of team) c.actions = c.actions.filter(a => a.def.id !== variant.without);
   setAIControlled(team);
   return team;
 };
@@ -275,7 +348,7 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
 export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
   const kits = given?.kits ?? theSet().calibration.mainKits;
   const print = `${given?.print ?? kits.map(skillPrint).join('|')}#pv:${heroPVPrint()}`;
-  return countedCached('dynamics', key('dynamics-v7', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v8', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
     withSeed(seedOf('kits', level), () => {
@@ -288,7 +361,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v7', `${print}#pv:${heroPVPrint()}`, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v8', `${print}#pv:${heroPVPrint()}`, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);

@@ -33,7 +33,7 @@ export const REQUIREMENTS: readonly Requirement[] = [
   },
   {
     id: 'interactive', group: 'how fights play', name: 'Nobody dies to what they could not stop',
-    rule: `no card fells a fresh hero without an answer (fast, through its own guard, or with no roll against a guard) on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays`,
+    rule: `no card fells a fresh hero without an answer (fast, through its own guard, or with no roll against a guard; a blow a slow Focus set up had one) on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays`,
     alsoCheckedBy: ['PV derivation (the strongest fast attack sets a floor)'],
   },
   {
