@@ -1,15 +1,34 @@
 /**
- * A HERO'S PV, BY LEVEL — never fixed (intentions.md, the user 2026-11-06):
- * derived from the requirements by `tools/src/derive-pv.ts --set elements` (at
- * each level, the most PV with fights still ending in time, floored by round 1
- * and by interactivity), and pinned here. Re-derive it when the ladder, the
- * structure or the cards move far. Levels 1-2 sit below play (heroes start at
- * level 3) and take level 3's.
+ * A HERO'S PV — never fixed (intentions.md, the user 2026-11-06): a base every
+ * hero has, plus what each level in each of its classes adds. Bulky classes
+ * add more, fragile ones less, in the designer's order (`PV_TIERS`); the
+ * numbers are derived by `tools/src/derive-pv.ts --set elements` (fights end
+ * in time, as low at levels 3-5 as interactivity allows; each class toward an
+ * even fight with the field) and pinned here. A multi-class hero adds every
+ * class's share.
  */
-export const HERO_PV: Readonly<Record<number, number>> = {
-  1: 26, 2: 26, 3: 26, 4: 26, 5: 26, 6: 26, 7: 26, 8: 26, 9: 26, 10: 26,
+
+/** Bulk, the user's order (2026-11-06): which classes absorb and which evade. */
+export const PV_TIERS: Readonly<Record<'bulky' | 'middle' | 'fragile', readonly string[]>> = {
+  bulky: ['earthbender', 'waterbender'],
+  middle: ['mestre-armes', 'artifex', 'mestre-del-xi'],
+  fragile: ['firebender', 'airbender', 'acrobacia'],
 };
 
-export function heroPV(level: number): number {
-  return HERO_PV[Math.max(1, Math.min(10, Math.round(level)))];
+export const HERO_BASE_PV = 26;
+
+/** What one level in each class adds. A class not listed adds the middle tier's. */
+export const PV_PER_LEVEL: Readonly<Record<string, number>> = {
+  earthbender: 0, waterbender: 0,
+  'mestre-armes': 0, artifex: 0, 'mestre-del-xi': 0,
+  firebender: 0, airbender: 0, acrobacia: 0,
+};
+
+const MIDDLE = PV_PER_LEVEL[PV_TIERS.middle[0]];
+
+/** A hero's PV from its classes and levels (`{ waterbender: 4, artifex: 2 }`). */
+export function heroPV(skills: Readonly<Record<string, number>>): number {
+  let pv = HERO_BASE_PV;
+  for (const [id, level] of Object.entries(skills)) pv += (PV_PER_LEVEL[id] ?? MIDDLE) * level;
+  return Math.max(1, Math.round(pv));
 }

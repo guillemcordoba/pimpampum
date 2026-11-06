@@ -3,7 +3,7 @@ export {
   ALL_SKILLS, getSkill, getAction, unlockedActions, registerSkill, unregisterSkill,
 } from './catalog.js';
 export { LADDER_RULES } from './ladder-rules.js';
-export { HERO_PV, heroPV } from './hero-pv.js';
+export { HERO_BASE_PV, PV_PER_LEVEL, PV_TIERS, heroPV } from './hero-pv.js';
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 

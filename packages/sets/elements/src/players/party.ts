@@ -61,7 +61,7 @@ function drawSkills(levels: number): Record<string, number> {
 }
 
 /** Build one representative player with the given levels and armour. */
-export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = heroPV(levels), fatigue = 0): Character {
+export function buildReferencePlayer(name: string, levels: number, armor = 0, pv?: number, fatigue = 0): Character {
   const skills = drawSkills(levels);
   const chosen = ALL_SKILLS.filter(s => skills[s.id] !== undefined);
   const equipment = standardGear(chosen, armor);
@@ -69,7 +69,7 @@ export function buildReferencePlayer(name: string, levels: number, armor = 0, pv
     name,
     classCss: chosen[0]?.classCss ?? 'aire',
     iconPath: chosen[0]?.iconPath,
-    pv,
+    pv: pv ?? heroPV(skills),
     skills,
     equipment,
     fatigue,
@@ -83,7 +83,7 @@ export function buildReferenceParty(spec: PartySpec): Character[] {
     return spec.characters.map((c, i) => buildCharacter({
       ...c,
       name: c.name || `Heroi ${i + 1}`,
-      pv: c.pv || heroPV(Math.max(1, ...Object.values(c.skills ?? {}))),
+      pv: c.pv || heroPV(c.skills ?? {}),
       category: 'player',
     }));
   }
@@ -93,7 +93,7 @@ export function buildReferenceParty(spec: PartySpec): Character[] {
       `${prefix}${i + 1}`,
       per(spec.levels, i, 6),
       per(spec.armor, i, 0),
-      spec.pv ?? heroPV(per(spec.levels, i, 6)),
+      spec.pv,
       per(spec.fatigue, i, 0),
     ));
 }

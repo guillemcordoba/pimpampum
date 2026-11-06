@@ -44,7 +44,7 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 ## Core mechanics (a summary — `rules.md` is the truth)
 
 - **The dice ladder**: 1d4 is the unit; a level-L card averages about L + 1.5 (1d4 at level 1 … 3d6+1 at level 10), a defense holds ~78% against its level's attack, effects are paid in dice (`sets/common/src/ladder.ts`, each set's `test/ladder.test.ts`).
-- **PV** is the only base stat, and a hero's is never fixed: it is derived per level from the requirements (each set's `HERO_PV`, `heroPV(level)`, derived by `tools/src/derive-pv.ts`). A creature's PV and level are the encounter's two levers (2026-11-03; the solved level is OPEN.md B20); today the encounter balancer solves their PV (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
+- **PV** is the only base stat, and a hero's is never fixed: a base plus what each level in each class adds — bulky classes more, fragile ones less — derived from the requirements (each set's `heroPV(skills)`, `tools/src/derive-pv.ts`). A creature's PV and level are the encounter's two levers (2026-11-03; the solved level is OPEN.md B20); today the encounter balancer solves their PV (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
 - **Heroes start at level 3** in their main skill: an attack, a defense and a Focus in hand from the first fight (the triangle needs all three; levels 1-2 are below play).
 - **An action** belongs to a skill, has a type (Atac / Defensa / Focus), dice, and rarely the **fast** keyword. It costs no fatigue unless its text says so.
 - **The roll** = the card's dice + roll bonuses − fatigue. **A level enters no roll** (2026-11-01), in combat or out: it only gates which cards a character knows (mestratge, then the flat level, were removed by design decision).
@@ -76,7 +76,7 @@ import { aiPolicy } from '@pimpampum/ai';
 
 const registry = createRegistry();        // every handler: player AND enemy
 const hero = buildCharacter({
-  name: 'Aragorn', classCss: 'mestre-armes', pv: heroPV(4),
+  name: 'Aragorn', classCss: 'mestre-armes', pv: heroPV({ 'mestre-armes': 4, metge: 2 }),
   skills: { 'mestre-armes': 4, metge: 2 },   // knows the first 4 / first 2 actions
   equipment: ['armadura-de-cuir', 'destral'],
 });

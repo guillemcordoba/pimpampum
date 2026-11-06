@@ -19,7 +19,7 @@ import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
 import { heroPVPrint, theSet } from './gameset.js';
-import { variantRules, type DamageSource, type Variant } from './dynamics.js';
+import { variantPV, variantRules, type DamageSource, type Variant } from './dynamics.js';
 import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
 import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
 
@@ -27,9 +27,9 @@ const TARGETS = aiPolicy(CELL_AI).targetChooser;
 export const MIRROR_SEED_BASE = 616_000;
 
 /** The set's benchmark heroes (`GameSet.hero`): EQUIPPED, so a weapon kit holds its weapon. */
-function heroes(kits: readonly string[], level: number, side: string, pv?: number): Character[] {
+function heroes(kits: readonly string[], level: number, side: string, variant: Variant = {}): Character[] {
   const set = theSet();
-  const team = set.buildParty({ characters: kits.map((k, i) => ({ ...set.hero(`${side}${i + 1}`, k, level), ...(pv ? { pv } : {}) })) });
+  const team = set.buildParty({ characters: kits.map((k, i) => { const pv = variantPV(variant, k, level); return { ...set.hero(`${side}${i + 1}`, k, level), ...(pv ? { pv } : {}) }; }) });
   setAIControlled(team);
   return team;
 }
@@ -79,8 +79,9 @@ const emptyAutopsy = (): MirrorAutopsy => ({ fights: 0, rounds: 0, pvLost: 0, at
  */
 /** `withoutCard`: taken out of the kit's hero's hand — what that one card does
  *  to the kit's fights (a failing requirement's blame, playtest `gate.ts`). */
-export function kitMirrors(kit: string, level: number, fights: number, lateRound: number, withoutCard?: string): KitMirrorRun {
-  return countedCached('mirror-fights', key('mirror-fights-v2', mainKitsPrint(), kit, String(level), String(fights), String(lateRound), withoutCard ?? ''), () => {
+export function kitMirrors(kit: string, level: number, fights: number, lateRound: number, withoutCard?: string, variant: Variant = {}): KitMirrorRun {
+  const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
+  return countedCached('mirror-fights', key('mirror-fights-v2', mainKitsPrint(), kit, String(level), String(fights), String(lateRound), withoutCard ?? '', v), () => {
     const kits = theSet().calibration.mainKits;
     const out: KitFight[] = [];
     const long = emptyAutopsy(), short = emptyAutopsy();
@@ -88,12 +89,12 @@ export function kitMirrors(kit: string, level: number, fights: number, lateRound
       for (let f = 0; f < fights; f++) {
         const partner = drawKit(kits);
         const foes = [drawKit(kits), drawKit(kits)];
-        const mine = heroes([kit, partner], level, 'K');
-        const theirs = heroes(foes, level, 'F');
+        const mine = heroes([kit, partner], level, 'K', variant);
+        const theirs = heroes(foes, level, 'F', variant);
         if (withoutCard) mine[0].actions = mine[0].actions.filter(x => x.def.id !== withoutCard);
         const side = f % 2;
         const e = new CombatEngine(side === 0 ? mine : theirs, side === 0 ? theirs : mine, {
-          registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI),
+          registry: theRegistry(), maxRounds: ROUND_CAP, ...variantRules(variant), ...aiPolicy(CELL_AI),
         });
         const a = emptyAutopsy();
         const total = () => e.teams.flat().reduce((t, c) => t + Math.max(0, c.currentPV), 0);
@@ -185,7 +186,7 @@ export function styleDuel(
         const pair = [drawKit(kits), drawKit(kits)];
         const xSide = f % 2;
         const X = chooserFor(x), Y = chooserFor(y);
-        const teams = [heroes(pair, level, 'A', variant.pv), heroes(pair, level, 'B', variant.pv)];
+        const teams = [heroes(pair, level, 'A', variant), heroes(pair, level, 'B', variant)];
         if (withoutCard) for (const c of teams[1 - xSide]) c.actions = c.actions.filter(a => a.def.id !== withoutCard);
         const e = new CombatEngine(teams[0], teams[1], {
           registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS, ...variantRules(variant),

@@ -29,6 +29,17 @@ export interface Variant {
   guardCoversDefender?: boolean;
   /** Every hero's PV at this level; omit for the set's own. */
   pv?: number;
+  /** A candidate PV model: a hero's PV is `base` + its class's `perLevel` × its level. */
+  pvModel?: PVModel;
+}
+
+export interface PVModel { base: number; perLevel: Readonly<Record<string, number>> }
+
+/** The PV a variant gives a hero of `kit` at `level`; undefined: the set's own. */
+export function variantPV(v: Variant, kit: string, level: number): number | undefined {
+  if (v.pv) return v.pv;
+  if (v.pvModel) return Math.max(1, Math.round(v.pvModel.base + (v.pvModel.perLevel[kit] ?? 0) * level));
+  return undefined;
 }
 
 /** The engine's options a variant sets; nothing when it leaves the rules as they are. */
@@ -253,7 +264,7 @@ function seedOf(tag: string, level: number): number {
 
 const heroTeam = (kits: readonly string[], level: number, side: string, variant: Variant): Character[] => {
   const set = theSet();
-  const team = set.buildParty({ characters: kits.map((k, i) => ({ ...set.hero(`${side}${i + 1}`, k, level), ...(variant.pv ? { pv: variant.pv } : {}) })) });
+  const team = set.buildParty({ characters: kits.map((k, i) => { const pv = variantPV(variant, k, level); return { ...set.hero(`${side}${i + 1}`, k, level), ...(pv ? { pv } : {}) }; }) });
   setAIControlled(team);
   return team;
 };

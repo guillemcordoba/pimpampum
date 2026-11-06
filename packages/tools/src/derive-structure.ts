@@ -25,6 +25,7 @@ import { chosenSet } from './sets.js';
 const SET = await chosenSet();
 useSet(SET.gameSet);
 const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
+const pvRange = (level: number) => { const pvs = SET.gameSet.calibration.mainKits.map(k => heroPV({ [k]: level })); const lo = Math.min(...pvs), hi = Math.max(...pvs); return lo === hi ? `${lo}` : `${lo}-${hi}`; };
 const list = (f: string, d: string) => (flag(f) ?? d).split(',');
 const aims = list('--aims', '1,2,3').map(Number);
 const shifts = list('--shifts', '0,-1').map(Number);
@@ -134,7 +135,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <header class="prose">
     <span class="eyebrow">${esc(SET.gameSet.id)} · levels ${LEVELS.join(', ')} · ${budget.vanillaFights} vanilla / ${budget.realFights} real fights, ${budget.duelGames} duels a cell</span>
     <h1>Which structure lets the set's requirements hold</h1>
-    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets the floor, fights ending in time, interactivity (no knockout without an answer), the triangle, dumb play losing. Today's heroes carry ${LEVELS.map(l => `${heroPV(l)} PV at L${l}`).join(', ')}.</p>
+    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets the floor, fights ending in time, interactivity (no knockout without an answer), the triangle, dumb play losing. Today's heroes carry ${LEVELS.map(l => `${pvRange(l)} PV at L${l}`).join(', ')}.</p>
   </header>
   <section class="recommend">
     <span class="eyebrow">Best candidate</span>

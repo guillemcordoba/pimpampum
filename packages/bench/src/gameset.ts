@@ -340,8 +340,7 @@ export function useSet(set: GameSet): void {
  *  a re-derived PV table never reads results measured under the old one. */
 export function heroPVPrint(): string {
   const set = theSet();
-  const kit = set.calibration.mainKits[0];
-  return Array.from({ length: 10 }, (_, i) => set.hero('x', kit, i + 1).pv ?? '').join(',');
+  return set.calibration.mainKits.map(kit => Array.from({ length: 10 }, (_, i) => set.hero('x', kit, i + 1).pv ?? '').join(',')).join('|');
 }
 
 export function theSet(): GameSet {

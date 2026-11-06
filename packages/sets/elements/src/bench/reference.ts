@@ -44,7 +44,7 @@ export function hero(name: string, skillId: string, level: number = FULL_KIT): C
     name,
     classCss: s.classCss,
     iconPath: s.iconPath,
-    pv: heroPV(level),
+    pv: heroPV({ [s.id]: levelOf(s, level) }),
     category: 'player',
     equipment: standardGear([s], 1),
     skills: { [s.id]: levelOf(s, level) },

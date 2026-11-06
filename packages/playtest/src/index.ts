@@ -46,6 +46,8 @@ export type { CensusCard, Role } from './census.js';
 export { vanillaTwin, withVanillaSet, twinDynamics, TWIN_DEFAULTS } from './vanilla.js';
 export type { TwinParams } from './vanilla.js';
 export { deriveOnTwins, deriveTwinLevel } from './derive-twins.js';
+export { realWindow, realWindowJob, fitLine, measureTiers, measureTiersJob } from './derive-class-pv.js';
+export type { LevelWindow, TierCandidate, TierMeasure } from './derive-class-pv.js';
 export type { TwinDeriveOptions } from './derive-twins.js';
 export { REQUIREMENTS } from './requirements.js';
 export type { Requirement, RequirementGroup } from './requirements.js';

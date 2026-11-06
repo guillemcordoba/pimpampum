@@ -30,6 +30,9 @@ import { chosenSet } from './sets.js';
 const SET = await chosenSet();
 useSet(SET.gameSet);
 const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
+/** A hero's PV at a level across the main kits: the mean, and the range. */
+const meanPV = (level: number) => Math.round(SET.gameSet.calibration.mainKits.reduce((t, k) => t + heroPV({ [k]: level }), 0) / SET.gameSet.calibration.mainKits.length);
+const pvRange = (level: number) => { const pvs = SET.gameSet.calibration.mainKits.map(k => heroPV({ [k]: level })); const lo = Math.min(...pvs), hi = Math.max(...pvs); return lo === hi ? `${lo}` : `${lo}-${hi}`; };
 const LEVELS = (flag('--levels') ?? '3,6,10').split(',').map(Number);
 const KIT = flag('--kit');
 const FIXES = process.argv.includes('--fixes');
@@ -59,7 +62,7 @@ const gateScope: GateScope = { levels: LEVELS, triangle: false, blame: true, ...
 await prepareGate({ set: SET.ref, budget: gateBudget }, gateScope);
 const gate = measureGate(gateScope, gateBudget);
 
-const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: heroPV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
+const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: meanPV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
 
 // --- 2. the candidate structures, only when asked --------------------------------
 const results: FixResult[] = [];
@@ -212,7 +215,7 @@ const statusCell = (c: Check, span = 1) => {
 };
 const GROUPS = [...new Set(REQUIREMENTS.map(r => r.group))];
 const reqTable = (h: Health) => `<div class="scroll"><table class="req">
-  <thead><tr><th scope="col">requirement</th>${LEVELS.map(l => `<th scope="col" class="lv">L${l} <small>· ${heroPV(l)} PV</small></th>`).join('')}</tr></thead>
+  <thead><tr><th scope="col">requirement</th>${LEVELS.map(l => `<th scope="col" class="lv">L${l} <small>· ${h.kit ? heroPV({ [h.kit]: l }) : pvRange(l)} PV</small></th>`).join('')}</tr></thead>
   <tbody>${GROUPS.map(g => `<tr class="group"><th colspan="${1 + LEVELS.length}" scope="colgroup">${esc(g)}</th></tr>${
     REQUIREMENTS.filter(r => r.group === g).map(r => {
       const checks = h.rows.get(r.id)!;

@@ -41,9 +41,9 @@ export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/be
 /** A player character's PV: every body's, derived from the dice ladder. */
 export const PLAYER_PV = BODY_PV;
 
-/** A hero's PV at a level. One value until this set's table is derived like
- *  the elements set's (OPEN.md): its cards are being redesigned first. */
-export function heroPV(_level: number): number {
+/** A hero's PV from its classes and levels. One value until this set's are
+ *  derived like the elements set's (OPEN.md): its cards are being redesigned first. */
+export function heroPV(_skills: Readonly<Record<string, number>>): number {
   return PLAYER_PV;
 }
 

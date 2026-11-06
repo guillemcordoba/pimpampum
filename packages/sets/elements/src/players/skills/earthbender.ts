@@ -28,7 +28,7 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 
 const GOLEM_SKILL = 'golem-de-roca';
 /** As sturdy as a hero of the card's level (it was "a body's PV" while that was one value). */
-const GOLEM_PV = heroPV(7);
+const GOLEM_PV = heroPV({ earthbender: 7 });
 const GOLEM_CARDS = [
   action({ id: 'cop-de-roca', name: 'Cop de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Atac, dice: d(3, 6), desc: '', icon: 'lorc/fist.svg' }),
   action({ id: 'cos-de-roca', name: 'Cos de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Defensa, dice: d(2, 6), desc: '', icon: 'lorc/stone-block.svg' }),
