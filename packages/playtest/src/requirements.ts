@@ -4,9 +4,12 @@
  * (the user, 2026-11-04: the report is about the set and what in it needs
  * changing). The machinery's own checks — the AI against the referee and its
  * model of the opponents, the vanilla instrument, status pricing, the encounter
- * creator — are tests the assistant keeps green, not rows here.
+ * creator — are tests the assistant keeps green, not rows here. Left out on
+ * purpose (2026-11-06): the style-lean triangle (a side that reads and plays
+ * Focus beats one that defends, which is the design: against a defender, Focus),
+ * and the band against creatures until the creatures are on the ladder (B20).
  */
-import { FIELD_MAX, KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
+import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
 import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS } from './derive-pv.js';
 
 export type RequirementGroup = 'how fights play' | 'cards';
@@ -39,11 +42,6 @@ export const REQUIREMENTS: readonly Requirement[] = [
     alsoCheckedBy: ['PV derivation (the level\'s strongest card)'],
   },
   {
-    id: 'triangle', group: 'how fights play', name: 'The strategy triangle',
-    rule: 'Power > Protect > Aggro > Power, each clearly (2σ)',
-    alsoCheckedBy: ['kit gate (levels 3, 6, 10)', 'triangle slow test'],
-  },
-  {
     id: 'dumb-play', group: 'how fights play', name: 'Dumb play loses',
     rule: 'the reading AI clearly beats every dumb strategy: only defending (the turtle), always the biggest attack, any legal card',
     alsoCheckedBy: ['kit gate (levels 3, 6, 10)'],
@@ -52,11 +50,6 @@ export const REQUIREMENTS: readonly Requirement[] = [
     id: 'field', group: 'how fights play', name: 'No kit dominates',
     rule: `no kit's side clearly above ${pc(FIELD_MAX)} against the field (2v2, random kits)`,
     alsoCheckedBy: ['kit gate (every kit, levels 3-10)'],
-  },
-  {
-    id: 'band', group: 'how fights play', name: 'Kits are equally strong',
-    rule: `every kit within ±${Math.round(100 * KIT_BAND)} points of a neutral kit, against creatures`,
-    alsoCheckedBy: ['kit analyzer (every main kit)', 'kit slow tests'],
   },
   {
     id: 'card-use', group: 'cards', name: 'Every card has a use',

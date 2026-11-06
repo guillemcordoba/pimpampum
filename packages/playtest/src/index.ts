@@ -29,7 +29,7 @@ export {
   measureGate, prepareGate, gateJobs, blameJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells, gateChoiceCell, autopsyLines,
   GATE_LEVELS, STYLE_LEVELS, CARD_LEVELS, GATE_BUDGET, GATE_QUICK,
 } from './gate.js';
-export type { GateReport, GateFailure, GateKitCell, GateStyleCell, GateChoiceCell, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
+export type { GateReport, GateFailure, GateKitCell, GateStyleCell, GateChoiceCell, KitCardBlame, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
 export { tuneKit, evaluatePatch, applyPatch, knobsFor, kitScore, diceStep, describePatch } from './tune.js';
 export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, TuneStep } from './tune.js';
 export { feasibility } from './feasibility.js';

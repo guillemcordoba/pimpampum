@@ -77,8 +77,10 @@ const emptyAutopsy = (): MirrorAutopsy => ({ fights: 0, rounds: 0, pvLost: 0, at
  * stall, 0. Played step by step so each card's outcome can be read; the same
  * rounds `runRound` plays.
  */
-export function kitMirrors(kit: string, level: number, fights: number, lateRound: number): KitMirrorRun {
-  return countedCached('mirror-fights', key('mirror-fights-v2', mainKitsPrint(), kit, String(level), String(fights), String(lateRound)), () => {
+/** `withoutCard`: taken out of the kit's hero's hand — what that one card does
+ *  to the kit's fights (a failing requirement's blame, playtest `gate.ts`). */
+export function kitMirrors(kit: string, level: number, fights: number, lateRound: number, withoutCard?: string): KitMirrorRun {
+  return countedCached('mirror-fights', key('mirror-fights-v2', mainKitsPrint(), kit, String(level), String(fights), String(lateRound), withoutCard ?? ''), () => {
     const kits = theSet().calibration.mainKits;
     const out: KitFight[] = [];
     const long = emptyAutopsy(), short = emptyAutopsy();
@@ -88,6 +90,7 @@ export function kitMirrors(kit: string, level: number, fights: number, lateRound
         const foes = [drawKit(kits), drawKit(kits)];
         const mine = heroes([kit, partner], level, 'K');
         const theirs = heroes(foes, level, 'F');
+        if (withoutCard) mine[0].actions = mine[0].actions.filter(x => x.def.id !== withoutCard);
         const side = f % 2;
         const e = new CombatEngine(side === 0 ? mine : theirs, side === 0 ? theirs : mine, {
           registry: theRegistry(), maxRounds: ROUND_CAP, ...aiPolicy(CELL_AI),

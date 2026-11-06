@@ -24,7 +24,7 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
+import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
   choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
@@ -53,6 +53,16 @@ export interface GateKitCell {
   /** Fights end (`ok`, `reasons`); the kit clearly above `FIELD_MAX`. */
   ok: boolean; reasons: string[]; dominates: boolean;
   why: LengthAutopsy;
+  /** A failing cell at a checkpoint: the same fights with each of the kit's
+   *  cards out of its hand — which card blocks the requirement. */
+  blame: KitCardBlame[];
+}
+
+/** The kit's fights without one card. `flips`: without it the cell passes
+ *  everything it failed. */
+export interface KitCardBlame {
+  card: string; name: string; medianRounds: number; p90Rounds: number; stallRate: number; winrate: number;
+  lengthOk: boolean; dominates: boolean; flips: boolean;
 }
 
 /** WHY fights run long: who was in them, what was played late, and how the
@@ -124,6 +134,7 @@ export type GateJob =
   | { kind: 'gate-cards'; kit: string; level: number }
   | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string }
   | { kind: 'gate-autopsy'; x: DuelStyle; y: DuelStyle; level: number }
+  | { kind: 'gate-ablate'; kit: string; level: number; card: string }
   | { kind: 'gate-model'; level: number };
 
 export interface GateScope {
@@ -131,7 +142,17 @@ export interface GateScope {
   /** false: leave the card values out — they replay the rest of the fight for
    *  every legal card at every decision, most of a gate's cost. */
   cards?: boolean;
+  /** false: leave the strategy triangle out (its duels, culprits, autopsies). */
+  triangle?: boolean;
+  /** The set-level duels (dumb play, the triangle, the AI's model); on unless
+   *  the scope names kits. */
+  styles?: boolean;
+  /** true: each failing kit cell at a checkpoint re-measured without each of
+   *  the kit's cards (`KitCardBlame`). Off by default: it multiplies the fights. */
+  blame?: boolean;
 }
+
+const stylesOn = (scope: GateScope) => scope.styles ?? !scope.kits;
 
 function scopeKits(scope: GateScope): string[] { return [...(scope.kits ?? theSet().calibration.mainKits)]; }
 const inScope = (levels: readonly number[], scope: GateScope): number[] => levels.filter(l => !scope.levels || scope.levels.includes(l));
@@ -141,8 +162,8 @@ export function gateJobs(scope: GateScope = {}): GateJob[] {
   const kits = scopeKits(scope);
   return [
     ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).map(level => ({ kind: 'gate-cards' as const, kit, level })))),
-    ...(scope.kits ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
-      ...EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level })),
+    ...(!stylesOn(scope) ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
+      ...(scope.triangle === false ? [] : EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level }))),
       ...DUMB_STYLES.map(x => ({ kind: 'gate-duel' as const, x, y: 'ai' as const, level })),
       { kind: 'gate-model' as const, level },
     ])),
@@ -155,6 +176,7 @@ export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void
   else if (job.kind === 'gate-duel') styleDuel(job.x, job.y, job.level, budget.duelGames);
   else if (job.kind === 'gate-blame') styleDuel(job.x, job.y, job.level, budget.duelGames, job.card);
   else if (job.kind === 'gate-autopsy') duelAutopsy(job.x, job.y, job.level, budget.duelGames);
+  else if (job.kind === 'gate-ablate') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS, job.card);
   else if (job.kind === 'gate-model') modelCheck(job.level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   else kitMirrorCardValues(job.kit, job.level, budget.cardFights);
 }
@@ -171,8 +193,7 @@ function suspects(x: DuelStyle, y: DuelStyle, level: number, budget: GateBudget)
 /** The second wave: a removal duel per suspect of every broken edge. Reads the
  *  first wave's duels, so it runs after them. */
 export function blameJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateJob[] {
-  if (scope.kits) return [];
-  return inScope(STYLE_LEVELS, scope).flatMap(level => EDGES.flatMap(([x, y]) => {
+  const triangle = !stylesOn(scope) || scope.triangle === false ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => EDGES.flatMap(([x, y]) => {
     const d = styleDuel(x, y, level, budget.duelGames);
     if (edgeHolds(d.score, d.games)) return [];
     return [
@@ -180,7 +201,32 @@ export function blameJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGE
       ...suspects(x, y, level, budget).map(card => ({ kind: 'gate-blame' as const, x, y, level, card })),
     ];
   }));
+  const kits = !scope.blame ? [] : scopeKits(scope).flatMap(kit => inScope(STYLE_LEVELS, scope).flatMap(level => {
+    const c = kitVerdict(kit, level, budget);
+    if (c.ok && !c.dominates) return [];
+    return ownCards(kit, level).map(card => ({ kind: 'gate-ablate' as const, kit, level, card: card.id }));
+  }));
+  return [...triangle, ...kits];
 }
+
+/** The kit's own cards its hero holds at `level`. */
+const ownCards = (kit: string, level: number) => (theSet().kit(kit)?.actions ?? []).filter(a => a.skillId === kit && a.unlockLevel <= level);
+
+/** One kit run's two verdicts: fights end, and the kit not dominating the field. */
+function runVerdict(run: KitMirrorRun): { medianRounds: number; p90Rounds: number; stallRate: number; winrate: number; ok: boolean; reasons: string[]; dominates: boolean } {
+  const fights = run.fights;
+  const ended = fights.filter(f => !f.capped).map(f => f.rounds).sort((a, b) => a - b);
+  // A stall counts as the longest fight: it never ended.
+  const rounds = [...ended, ...fights.filter(f => f.capped).map(f => f.rounds)];
+  const stallRate = fights.filter(f => f.capped).length / Math.max(1, fights.length);
+  const medianRounds = quantile(rounds, 0.5), p90Rounds = quantile(rounds, 0.9);
+  const v = durationVerdict(medianRounds, p90Rounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
+  const winrate = fights.reduce((t, f) => t + f.won, 0) / Math.max(1, fights.length);
+  return { medianRounds, p90Rounds, stallRate, winrate, ok: v.ok, reasons: v.reasons, dominates: dominatesField(winrate, fights.length) };
+}
+
+const kitVerdict = (kit: string, level: number, budget: GateBudget, withoutCard?: string) =>
+  runVerdict(kitMirrors(kit, level, budget.kitFights, MAX_P90_ROUNDS, withoutCard));
 
 function quantile(sorted: number[], q: number): number {
   return sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] : 0;
@@ -211,7 +257,7 @@ function byKit(fights: { kit: string; long: boolean }[]): { kit: string; longSha
     .filter(r => r.fights >= 5).sort((a, b) => b.longShare - a.longShare).slice(0, 3);
 }
 
-export function gateKitCell(kit: string, level: number, budget: GateBudget = GATE_BUDGET): GateKitCell {
+export function gateKitCell(kit: string, level: number, budget: GateBudget = GATE_BUDGET, blame = false): GateKitCell {
   const run = kitMirrors(kit, level, budget.kitFights, MAX_P90_ROUNDS);
   const fights = run.fights;
   const lateTotal = Object.values(run.long.late).reduce((t, n) => t + n, 0);
@@ -223,21 +269,20 @@ export function gateKitCell(kit: string, level: number, budget: GateBudget = GAT
       .map(([card, n]) => ({ card, name: cardName(card), share: n / Math.max(1, lateTotal) })),
     long: shapeOf(run.long), short: shapeOf(run.short),
   };
-  const ended = fights.filter(f => !f.capped).map(f => f.rounds).sort((a, b) => a - b);
-  // A stall counts as the longest fight: it never ended.
-  const rounds = [...ended, ...fights.filter(f => f.capped).map(f => f.rounds)];
-  const stallRate = fights.filter(f => f.capped).length / Math.max(1, fights.length);
-  const medianRounds = quantile(rounds, 0.5), p90Rounds = quantile(rounds, 0.9);
-  const v = durationVerdict(medianRounds, p90Rounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
-  const winrate = fights.reduce((s, f) => s + f.won, 0) / Math.max(1, fights.length);
-  return {
-    kit, level, fights: fights.length, medianRounds, p90Rounds, stallRate,
-    winrate, ok: v.ok, reasons: v.reasons, dominates: dominatesField(winrate, fights.length), why,
-  };
+  const v = runVerdict(run);
+  const failing = !v.ok || v.dominates;
+  const blamed = blame && failing && STYLE_LEVELS.includes(level) ? ownCards(kit, level).map(card => {
+    const w = kitVerdict(kit, level, budget, card.id);
+    return {
+      card: card.id, name: card.name, medianRounds: w.medianRounds, p90Rounds: w.p90Rounds, stallRate: w.stallRate, winrate: w.winrate,
+      lengthOk: w.ok, dominates: w.dominates, flips: (v.ok || w.ok) && (!v.dominates || !w.dominates),
+    };
+  }) : [];
+  return { kit, level, fights: fights.length, ...v, why, blame: blamed };
 }
 
-export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): GateStyleCell {
-  const edges = EDGES.map(([x, y]) => {
+export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET, triangle = true): GateStyleCell {
+  const edges = !triangle ? [] : EDGES.map(([x, y]) => {
     const d = styleDuel(x, y, level, budget.duelGames);
     return { winner: x, loser: y, winrate: d.score, games: d.games };
   });
@@ -245,7 +290,8 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
     const d = styleDuel(style, 'ai', level, budget.duelGames);
     return { style, score: d.score, stalls: d.stalls, games: d.games, ok: edgeHolds(1 - d.score, d.games) };
   });
-  const culprits = EDGES.filter(([x, y]) => {
+  const judged = triangle ? EDGES : [];
+  const culprits = judged.filter(([x, y]) => {
     const e = edges.find(d => d.winner === x && d.loser === y)!;
     return !edgeHolds(e.winrate, e.games);
   }).map(([x, y]) => {
@@ -255,7 +301,7 @@ export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET): 
     })).sort((a, b) => b.shift - a.shift).slice(0, 3);
     return { edge: `${x} > ${y}`, cards };
   });
-  const autopsies = EDGES.filter(([x, y]) => {
+  const autopsies = judged.filter(([x, y]) => {
     const e = edges.find(d => d.winner === x && d.loser === y)!;
     return !edgeHolds(e.winrate, e.games);
   }).map(([x, y]) => duelAutopsy(x, y, level, budget.duelGames));
@@ -322,8 +368,8 @@ export function autopsyLines(a: DuelAutopsy): string[] {
 
 /** The whole gate (or a scope of it), from the cache when it is warm. */
 export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateReport {
-  const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget)));
-  const styles = scope.kits ? [] : inScope(STYLE_LEVELS, scope).map(level => gateStyleCell(level, budget));
+  const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget, scope.blame)));
+  const styles = !stylesOn(scope) ? [] : inScope(STYLE_LEVELS, scope).map(level => gateStyleCell(level, budget, scope.triangle !== false));
   const cards = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => gateCardCells(kit, budget, inScope(CARD_LEVELS, scope)));
   const choices = scope.cards === false ? [] : scopeKits(scope).flatMap(kit => inScope(CARD_LEVELS, scope).map(level => gateChoiceCell(kit, level, budget)));
   const failures: GateFailure[] = [

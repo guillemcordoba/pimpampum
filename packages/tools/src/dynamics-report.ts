@@ -1,135 +1,99 @@
 /**
- * THE GAME DYNAMICS REPORT (the user, 2026-11-04: the machinery runs the tests
- * the question needs, explains how the game actually plays, and recommends the
- * fixes that meet every constraint; brief, organised around the requirements,
- * and about the set alone: the machinery's own checks stay in their tests).
- * One command, one page:
- *  1. every requirement a set is held to (playtest `REQUIREMENTS`): how well
- *     it holds today (at each checkpoint, or once for the whole set) and under
- *     the recommended fix;
- *  2. the recommendation, and what no candidate fixes;
- *  3. folded: how fights play, the arithmetic, every candidate fix, why
- *     today's failing checks fail.
+ * THE SET'S HEALTH, ON ONE PAGE (the user, 2026-11-04 to 06: brief, organised
+ * around the requirements, about the set alone, the one tool to iterate a kit
+ * with, and readable at a glance). One command:
+ *  1. how many of the requirements hold (playtest `REQUIREMENTS`), at levels
+ *     3, 6 and 10 or once for the set;
+ *  2. the cards that block them: each failing kit cell re-played without each
+ *     of the kit's cards (the gate's blame), the cards that fell fresh heroes,
+ *     the cards never right — loudest when one card alone flips a requirement;
+ *  3. the table; folded: why the set plays as it does, the gate's failing
+ *     cells, the arithmetic, and (`--fixes`) the candidate structures.
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/dynamics-report.ts --set elements --out report.html
+ *   … --kit earthbender     one kit's health (the set-level rows stay)
+ *   … --fixes               also measure the candidate structures (slow)
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
+import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type CardTally } from '@pimpampum/bench';
 import {
-  analyze, autopsyLines, burstHolds, CANDIDATE_FIXES, KIT_BAND, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
-  MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepare, prepareGate, rankFixes, REQUIREMENTS,
-  summarise, type DynamicsSummary, type FixLevel, type FixResult,
-  type GateBudget, type KitReport, type LadderRung, type Requirement,
+  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
+  MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepareGate, rankFixes, REQUIREMENTS,
+  summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type LadderRung, type Requirement,
 } from '@pimpampum/playtest';
+import type { ActionDefinition } from '@pimpampum/engine';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
 useSet(SET.gameSet);
 const { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } = SET.root;
 const LEVELS = (flag('--levels') ?? '3,6,10').split(',').map(Number);
+const KIT = flag('--kit');
+const FIXES = process.argv.includes('--fixes');
 const OUT = flag('--out') ?? path.join(os.tmpdir(), 'game-dynamics.html');
+const MAIN_KITS = SET.gameSet.calibration.mainKits;
+if (KIT && !MAIN_KITS.includes(KIT)) throw new Error(`--kit ${KIT}: not a main kit (${MAIN_KITS.join(', ')})`);
+const KITS = KIT ? [KIT] : MAIN_KITS;
 const fights = games(120);
 const budget = { vanillaFights: games(FIX_BUDGET.vanillaFights), realFights: games(FIX_BUDGET.realFights), duelGames: games(FIX_BUDGET.duelGames) };
 const gateBudget: GateBudget = { kitFights: games(GATE_BUDGET.kitFights), duelGames: games(GATE_BUDGET.duelGames), cardFights: games(GATE_BUDGET.cardFights), modelFights: games(GATE_BUDGET.modelFights!) };
 const rung = (l: number): LadderRung => ({ attack: ATTACK_LADDER[l], defense: DEFENSE_LADDER[l] });
 const log = (s: string) => process.stderr.write(`${s}\n`);
 
-// --- 1. today ------------------------------------------------------------------
-log('measuring today\'s fights…');
-const realRuns = LEVELS.map(level => ({ level, d: kitsDynamics(level, fights) }));
-// What each card did in those fights: the fixes build the vanilla twins from it.
-const cards = census(realRuns.map(r => r.d.cards));
-const today = realRuns.map(({ level, d }) => ({ level, real: summarise(d) }));
+// Every card of the main kits by id, with the kit that holds it.
+const CARDS = new Map<string, { def: ActionDefinition; kit: string }>();
+for (const kit of MAIN_KITS) for (const def of SET.gameSet.kit(kit)?.actions ?? []) if (def.skillId === kit) CARDS.set(def.id, { def, kit });
 
-// Today's triangle, dumb play, every kit's fight length and field score, every
-// card's use and what choosing is worth: the kit gate's own cells at the
-// checkpoints (heroes against heroes, cards priced in the same fights).
-log('today\'s gate cells…');
-const gateScope = { levels: LEVELS };
+// --- 1. today ------------------------------------------------------------------
+log('today\'s fights…');
+const realRuns = LEVELS.map(level => ({ level, d: kitsDynamics(level, fights) }));
+const today = realRuns.map(({ level, d }) => ({ level, real: summarise(d), cards: d.cards }));
+
+// Every kit's fight length and field score, re-played without each card where a
+// cell fails; every card's use; what choosing is worth; dumb play (set-level).
+log('the gate\'s cells…');
+const gateScope: GateScope = { levels: LEVELS, triangle: false, blame: true, ...(KIT ? { kits: [KIT], styles: true } : {}) };
 await prepareGate({ set: SET.ref, budget: gateBudget }, gateScope);
 const gate = measureGate(gateScope, gateBudget);
 
-// The band: every main kit against creatures, the kit analyzer's full-kit run
-// (its card values are left out: against creatures' PV a decision's rollouts
-// take hours; the gate prices the cards in hero fights).
-log('the kit analyzer…');
-const ANALYZER_GAMES = games(800);
-const BAND_ONLY = { skip: ['cardValue' as const] };
-const kitReports: KitReport[] = [];
-// Why the band could not be measured at all (no usable calibration cell): the
-// row then reads inconclusive instead of the page failing.
-let bandUnmeasurable: string | null = null;
-for (const id of SET.gameSet.calibration.mainKits) {
-  const subject = { mode: 'player' as const, id };
-  try {
-    await prepare({ set: SET.ref, subject, budget: BAND_ONLY }, subject, ANALYZER_GAMES);
-    kitReports.push(analyze(subject, ANALYZER_GAMES, BAND_ONLY));
-  } catch (err) {
-    bandUnmeasurable = (err as Error).message.split('\n')[0];
-    break;
-  }
-}
-
-// --- 2. the arithmetic --------------------------------------------------------------
 const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: BODY_PV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
 
-// --- 3. the fixes, each in its own process --------------------------------------
-const ladder = Object.fromEntries(Object.keys(ATTACK_LADDER).map(Number).map(l => [l, { attack: ATTACK_LADDER[l].toString(), defense: DEFENSE_LADDER[l].toString() }]));
-const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
+// --- 2. the candidate structures, only when asked --------------------------------
 const results: FixResult[] = [];
-let next = 0;
-await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), CANDIDATE_FIXES.length)) }, async () => {
-  for (let i = next++; i < CANDIDATE_FIXES.length; i = next++) {
-    results.push(await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, CANDIDATE_FIXES[i], ladder, LEVELS, budget, cards]));
-    log(`fix ${results.length}/${CANDIDATE_FIXES.length}: ${CANDIDATE_FIXES[i].id}`);
-  }
-}));
+if (FIXES) {
+  const cards = census(realRuns.map(r => r.d.cards));
+  const ladder = Object.fromEntries(Object.keys(ATTACK_LADDER).map(Number).map(l => [l, { attack: ATTACK_LADDER[l].toString(), defense: DEFENSE_LADDER[l].toString() }]));
+  const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), CANDIDATE_FIXES.length)) }, async () => {
+    for (let i = next++; i < CANDIDATE_FIXES.length; i = next++) {
+      results.push(await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, CANDIDATE_FIXES[i], ladder, LEVELS, budget, cards]));
+      log(`fix ${results.length}/${CANDIDATE_FIXES.length}: ${CANDIDATE_FIXES[i].id}`);
+    }
+  }));
+}
 const ranked = rankFixes(results);
 
-// --- 4. the page --------------------------------------------------------------------
+// --- 3. the requirements, checked -----------------------------------------------
 const pc = (x: number) => `${Math.round(100 * x)}%`;
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const SOURCES: [keyof DynamicsSummary['sources'], string][] = [
-  ['open', 'open bodies'], ['guarded', 'through guards'], ['area', 'area'], ['focus', 'Focus'],
-  ['counter', 'counters'], ['defense', 'defense payoffs'], ['roundEnd', 'statuses'],
-];
-const bar = (s: DynamicsSummary) => `<div class="bar" role="img" aria-label="${SOURCES.map(([k, n]) => `${n} ${pc(s.sources[k])}`).join(', ')}">${
-  SOURCES.filter(([k]) => s.sources[k] > 0.005).map(([k, n]) => `<span class="seg seg-${k}" style="width:${Math.round(1000 * s.sources[k]) / 10}%" title="${n}: ${pc(s.sources[k])}"></span>`).join('')}</div>`;
-const legend = `<div class="legend">${SOURCES.map(([k, n]) => `<span><i class="sw seg-${k}"></i>${n}</span>`).join('')}</div>`;
-const verdict = (ok: boolean) => `<span class="chip ${ok ? 'ok' : 'bad'}">${ok ? 'holds' : 'fails'}</span>`;
-const pace = (s: DynamicsSummary) => `<span class="num">${s.median}</span> · <span class="num">${s.p90}</span>${s.stallRate ? ` · <span class="num">${pc(s.stallRate)}</span> stall` : ''}`;
 const lengthNote = (s: DynamicsSummary) => `${s.median}·${s.p90}${s.stallRate ? ` · ${pc(s.stallRate)} stall` : ''}`;
-
-// --- the requirements, checked ---
-// Every requirement has a check today (the real kits at today's PV, the gate's
-// cells, the kit analyzer, the cards themselves) and, where the fix evaluation
-// measures it, one under a fix. A requirement without one is a bug, not a
-// blank row.
 /** `ok` null: measured but inconclusive. */
 type Check = { ok: boolean | null; note: string };
 type Today = (typeof today)[number];
 const styleAt = (level: number) => gate.styles.find(c => c.level === level)!;
-const kitsAt = (level: number) => gate.kits.filter(c => c.level === level);
-const kitId = (r: KitReport) => r.subject.id;
-const signed = (x: number) => `${x >= 0 ? '+' : ''}${Math.round(100 * x)}`;
-/** One verdict over every main kit: failing kits named, inconclusive ones counted. */
-function overKits(fails: (r: KitReport) => boolean | null, show: (r: KitReport) => string, allClear: string): Check {
-  const bad = kitReports.filter(r => fails(r) === true), unknown = kitReports.filter(r => fails(r) === null);
-  const note = [
-    ...(bad.length ? [`${bad.length} of ${kitReports.length} fail: ${bad.map(r => `${kitId(r)} ${show(r)}`).join(', ')}`] : []),
-    ...(unknown.length ? [`${unknown.length} inconclusive: ${unknown.map(kitId).join(', ')}`] : []),
-  ].join(' · ') || allClear;
-  return { ok: bad.length ? false : unknown.length ? null : true, note };
-}
+const kitsAt = (level: number) => gate.kits.filter(c => c.level === level && KITS.includes(c.kit));
+const inScope = (id: string) => !KIT || CARDS.get(id)?.kit === KIT;
 /** Today, at each checkpoint (`today`) or once (`once`); under a fix where the fix evaluation measures it. */
 const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; fix?: (l: FixLevel) => Check }> = {
   'fights-end': {
     today: t => {
-      const over = kitsAt(t.level).filter(k => !k.ok);
-      return { ok: t.real.ends && !over.length, note: `${lengthNote(t.real)}${over.length ? ` · ${over.length} of ${kitsAt(t.level).length} kits over` : ''}` };
+      const cells = kitsAt(t.level), over = cells.filter(k => !k.ok);
+      if (KIT) return { ok: !over.length, note: cells.map(k => `${k.medianRounds}·${k.p90Rounds}${k.stallRate ? ` · ${pc(k.stallRate)} stall` : ''}`).join('') };
+      return { ok: t.real.ends && !over.length, note: `${lengthNote(t.real)}${over.length ? ` · ${over.length} of ${cells.length} kits over` : ''}` };
     },
     fix: l => ({ ok: l.real.ends, note: lengthNote(l.real) }),
   },
@@ -140,17 +104,6 @@ const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; 
   'best-blow': {
     today: t => ({ ok: t.real.oneShots <= MAX_BEST_BLOW_KOS, note: pc(t.real.oneShots) }),
     fix: l => ({ ok: l.real.oneShots <= MAX_BEST_BLOW_KOS, note: pc(l.real.oneShots) }),
-  },
-  triangle: {
-    today: t => {
-      const g = styleAt(t.level);
-      const bad = g.edges.filter(e => g.broken.includes(`${e.winner} > ${e.loser}`));
-      return { ok: !bad.length, note: bad.length ? bad.map(e => `${e.winner}>${e.loser} ${pc(e.winrate)}`).join(', ') : 'all three edges' };
-    },
-    fix: l => {
-      const bad = l.triangle.filter(e => !e.holds);
-      return { ok: !bad.length, note: bad.length ? bad.map(e => `${e.edge.replace(/ /g, '')} ${pc(e.winrate)}`).join(', ') : 'all three edges' };
-    },
   },
   'dumb-play': {
     today: t => {
@@ -165,135 +118,166 @@ const CHECKS: Record<string, { today?: (t: Today) => Check; once?: () => Check; 
   field: {
     today: t => {
       const ks = kitsAt(t.level), bad = ks.filter(k => k.dominates), top = [...ks].sort((a, b) => b.winrate - a.winrate)[0];
-      return { ok: !bad.length, note: bad.length ? bad.map(k => `${k.kit} ${pc(k.winrate)}`).join(', ') : `top ${top.kit} ${pc(top.winrate)}` };
-    },
-  },
-  band: {
-    once: () => bandUnmeasurable ? { ok: null, note: `not measurable: ${bandUnmeasurable}` } : overKits(r => r.strength.inconclusive ? null : !r.strength.ok, r => `${signed(r.strength.band?.delta ?? 0)} pts`, `all within ±${Math.round(100 * KIT_BAND)} pts`),
-  },
-  choice: {
-    today: t => {
-      const at = gate.choices.filter(c => c.level === t.level), bad = at.filter(c => !c.ok);
-      const low = [...at].sort((a, b) => a.mean - b.mean)[0];
-      return { ok: !bad.length, note: bad.length ? bad.map(c => `${c.kit} ${c.mean.toFixed(1)} PV`).join(', ') : `lowest ${low.kit} ${low.mean.toFixed(1)} PV` };
-    },
-  },
-  ladder: {
-    once: () => {
-      const { over, excused } = SET.root.offTheLadder(SET.root.ALL_SKILLS, SET.root.LADDER_RULES);
-      return { ok: !over.length, note: over.length ? `${over.length} over: ${over.join(', ')}` : `every card; ${excused.length} above with a reason` };
+      return { ok: !bad.length, note: bad.length ? bad.map(k => `${k.kit} ${pc(k.winrate)}`).join(', ') : `${KIT ? '' : `top ${top.kit} `}${pc(top.winrate)}` };
     },
   },
   'card-use': {
     once: () => {
-      const dead = gate.cards.filter(c => c.neverRight);
-      return { ok: !dead.length, note: dead.length ? `never right: ${dead.map(c => `${c.name} (${c.kit})`).join(', ')}` : `all ${gate.cards.length} cards` };
+      const mine = gate.cards.filter(c => KITS.includes(c.kit)), dead = mine.filter(c => c.neverRight);
+      return { ok: !dead.length, note: dead.length ? `never right: ${dead.map(c => c.name).join(', ')}` : `all ${mine.length} cards` };
+    },
+  },
+  choice: {
+    today: t => {
+      const at = gate.choices.filter(c => c.level === t.level && KITS.includes(c.kit)), bad = at.filter(c => !c.ok);
+      const low = [...at].sort((a, b) => a.mean - b.mean)[0];
+      return { ok: !bad.length, note: bad.length ? bad.map(c => `${KIT ? '' : `${c.kit} `}${c.mean.toFixed(1)} PV`).join(', ') : `${KIT ? '' : `lowest ${low.kit} `}${low.mean.toFixed(1)} PV` };
+    },
+  },
+  ladder: {
+    once: () => {
+      const skills = SET.root.ALL_SKILLS.filter(sk => !KIT || sk.id === KIT);
+      const { over, excused } = SET.root.offTheLadder(skills, SET.root.LADDER_RULES);
+      return { ok: !over.length, note: over.length ? `${over.length} over: ${over.join(', ')}` : `every card; ${excused.length} above with a reason` };
     },
   },
 };
 for (const r of REQUIREMENTS) if (!CHECKS[r.id]) throw new Error(`requirement ${r.id}: the report has no check for it`);
-const onceOf = (r: Requirement): Check | null => CHECKS[r.id].once?.() ?? null;
 for (const id of Object.keys(CHECKS)) if (!REQUIREMENTS.some(r => r.id === id)) throw new Error(`the report checks ${id}, which is not in REQUIREMENTS`);
-
-const best = ranked[0];
-const fixAt = (level: number) => best.result.levels.find(l => l.level === level)!;
-const fixOf = (r: Requirement) => CHECKS[r.id]?.fix;
+const onceOf = (r: Requirement): Check | null => CHECKS[r.id].once?.() ?? null;
 const todayOf = (r: Requirement): Check[] => { const once = onceOf(r); return once ? [once] : today.map(t => CHECKS[r.id].today!(t)); };
-const todayChecks = REQUIREMENTS.flatMap(todayOf);
-const fixChecks = REQUIREMENTS.flatMap(r => { const f = fixOf(r); return f ? LEVELS.map(l => f(fixAt(l))) : []; });
-const held = (cs: Check[]) => cs.filter(c => c.ok === true).length;
-const unsure = (cs: Check[]) => cs.filter(c => c.ok === null).length;
+const holding = REQUIREMENTS.filter(r => todayOf(r).every(c => c.ok === true));
 
+// --- 4. what blocks them: the cards --------------------------------------------
+/** A card and every requirement it blocks; `alone`: taking it out (or fixing
+ *  it) makes a requirement pass by itself. */
+interface Blocker { id: string; reasons: string[]; alone: boolean }
+const blockers = new Map<string, Blocker>();
+const blame = (id: string, reason: string, alone = false) => {
+  if (!inScope(id) || !CARDS.has(id)) return;
+  const b = blockers.get(id) ?? { id, reasons: [], alone: false };
+  b.reasons.push(reason);
+  b.alone ||= alone;
+  blockers.set(id, b);
+};
+const roundsOf = (c: { medianRounds: number; p90Rounds: number; stallRate: number }) => `${c.medianRounds}·${c.p90Rounds}${c.stallRate ? `, ${pc(c.stallRate)} stalls` : ''}`;
+/** How far a card's absence must move a cell before it counts: fights two
+ *  rounds shorter for 9 in 10, or 2 points fewer stalls; 5 points off the
+ *  kit's field score. Below that, a flip is the cell's own noise at its bar. */
+const ROUNDS_MOVED = 2, STALLS_MOVED = 0.02, FIELD_MOVED = 0.05;
+for (const cell of gate.kits.filter(c => KITS.includes(c.kit) && LEVELS.includes(c.level))) {
+  for (const b of cell.blame) {
+    const shorter = cell.p90Rounds - b.p90Rounds >= ROUNDS_MOVED || cell.stallRate - b.stallRate >= STALLS_MOVED;
+    const weaker = cell.winrate - b.winrate >= FIELD_MOVED;
+    if (!cell.ok && b.lengthOk && shorter) blame(b.card, `fights end in time at L${cell.level} without it (rounds ${roundsOf(b)}; with it ${roundsOf(cell)})`, true);
+    else if (!cell.ok && shorter) blame(b.card, `fights shorten without it at L${cell.level}: rounds ${roundsOf(b)}, with it ${roundsOf(cell)}`);
+    if (cell.dominates && !b.dominates && weaker) blame(b.card, `${cell.kit} stops dominating at L${cell.level} without it (${pc(b.winrate)} against the field; with it ${pc(cell.winrate)})`, true);
+    else if (cell.dominates && weaker) blame(b.card, `carries ${cell.kit}'s lead at L${cell.level}: ${pc(b.winrate)} against the field without it, ${pc(cell.winrate)} with it`);
+  }
+}
+/** Plays below which a card's KO rate is not judged. */
+const MIN_PLAYS = 30;
+for (const t of today) {
+  const tallies = Object.entries(t.cards) as [string, CardTally][];
+  for (const [id, c] of tallies) {
+    if (c.plays >= MIN_PLAYS && c.felledFromFull / c.plays > MAX_BEST_BLOW_KOS) blame(id, `fells a fresh hero in one play on ${pc(c.felledFromFull / c.plays)} of its plays at L${t.level}`);
+  }
+  if (t.real.roundOneKOs > MAX_ROUND_ONE_KOS) {
+    const falls = tallies.reduce((n, [, c]) => n + c.fellInRoundOne, 0);
+    for (const [id, c] of tallies) if (falls && c.fellInRoundOne / falls >= 0.2) blame(id, `${pc(c.fellInRoundOne / falls)} of the heroes who fall in round 1 at L${t.level}`);
+  }
+}
+for (const c of gate.cards.filter(x => x.neverRight)) blame(c.card, `never the right play (L${c.levels.map(l => l.level).join(', L')})`, true);
+for (const line of SET.root.offTheLadder(SET.root.ALL_SKILLS, SET.root.LADDER_RULES).over) blame(line.split(' ')[0], `above its rung on the dice ladder: ${line.slice(line.indexOf('(') + 1, -1)}`, true);
+const ranking = [...blockers.values()].sort((a, b) => Number(b.alone) - Number(a.alone) || b.reasons.length - a.reasons.length);
+// What no single card answers: kit- and set-level misses.
+const unexplained: string[] = [
+  ...gate.choices.filter(c => KITS.includes(c.kit) && !c.ok).map(c => `${c.kit} L${c.level}: choosing barely matters — a random card costs ${c.mean.toFixed(1)} PV a decision against the best (needs 1); its hand plays alike`),
+  ...gate.kits.filter(c => KITS.includes(c.kit) && LEVELS.includes(c.level) && (!c.ok || c.dominates) && !c.blame.some(b => c.p90Rounds - b.p90Rounds >= ROUNDS_MOVED || c.stallRate - b.stallRate >= STALLS_MOVED || c.winrate - b.winrate >= FIELD_MOVED))
+    .map(c => `${c.kit} L${c.level}: ${!c.ok ? `fights run ${roundsOf(c)}` : `dominates at ${pc(c.winrate)}`}, and no single card changes it much`),
+  ...gate.styles.flatMap(s => s.dumb.filter(d => !d.ok).map(d => `L${s.level}: ${d.style} scores ${pc(d.score)} against the AI`)),
+];
+const cardLine = (b: Blocker) => {
+  const { def, kit } = CARDS.get(b.id)!;
+  const kind = def.actionType === 'Atac' ? 'attack' : def.actionType === 'Defensa' ? 'defense' : 'Focus';
+  const dice = def.dice ? `${def.dice}${def.rollBonus ? `+${def.rollBonus}` : ''}` : 'no dice';
+  return `<li class="${b.alone ? 'alone' : ''}"><div class="card-h">${b.alone ? '<span class="flag">blocks alone</span>' : ''}<b>${esc(def.name)}</b> <small>${esc(kit)} · level ${def.unlockLevel} · ${kind}${def.fast ? ' · fast' : ''} · ${esc(dice)}</small></div>
+    <div class="card-t">${esc(def.description)}</div><ul>${b.reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul></li>`;
+};
+
+// --- 5. the candidate structures (only with --fixes) ----------------------------
+const best = ranked[0];
+const fixAt = (level: number) => best!.result.levels.find(l => l.level === level)!;
+const fixOf = (r: Requirement) => (FIXES ? CHECKS[r.id]?.fix : undefined);
 const STATE = { true: ['ok', '✓', 'holds'], false: ['bad', '✗', 'fails'], null: ['unk', '?', 'inconclusive'] } as const;
 const statusCell = (c: Check, span = 1) => {
   const [cls, mark, label] = STATE[String(c.ok) as keyof typeof STATE];
   return `<td class="st ${cls}"${span > 1 ? ` colspan="${span}"` : ''}><span class="mark" aria-label="${label}">${mark}</span> <span class="note-s">${esc(c.note)}</span></td>`;
 };
-const alsoCheckedBy = (r: Requirement) => `<ul class="where">${r.alsoCheckedBy.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+const COLS = LEVELS.length * (FIXES ? 2 : 1);
 const GROUPS = [...new Set(REQUIREMENTS.map(r => r.group))];
-const reqRows = GROUPS.map(g => `<tr class="group"><th colspan="${2 + 2 * LEVELS.length}" scope="colgroup">${esc(g)}</th></tr>${
+const reqRows = GROUPS.map(g => `<tr class="group"><th colspan="${1 + COLS}" scope="colgroup">${esc(g)}</th></tr>${
   REQUIREMENTS.filter(r => r.group === g).map(r => {
     const once = onceOf(r), fix = fixOf(r);
     const cells = (once ? statusCell(once, LEVELS.length) : today.map(t => statusCell(CHECKS[r.id].today!(t))).join(''))
-      + (fix ? LEVELS.map(l => statusCell(fix(fixAt(l)))).join('') : `<td colspan="${LEVELS.length}" class="elsewhere">not re-measured under fixes</td>`);
-    return `<tr><th scope="row"><b>${esc(r.name)}</b><small>${esc(r.rule)}</small></th>${cells}<td>${alsoCheckedBy(r)}</td></tr>`;
+      + (!FIXES ? '' : fix ? LEVELS.map(l => statusCell(fix(fixAt(l)))).join('') : `<td colspan="${LEVELS.length}" class="elsewhere">not re-measured under fixes</td>`);
+    return `<tr><th scope="row"><b>${esc(r.name)}</b><small>${esc(r.rule)}</small></th>${cells}</tr>`;
   }).join('')}`).join('');
-
 const reqTable = `<div class="scroll"><table class="req">
   <thead>
-    <tr><th rowspan="2" scope="col">requirement</th><th colspan="${LEVELS.length}" scope="colgroup" class="side-h">today · PV ${BODY_PV}</th><th colspan="${LEVELS.length}" scope="colgroup" class="side-h">under fix 1 · PV ${LEVELS.map(l => fixAt(l).vanilla.pv ?? fixAt(l).pv).join(' / ')}</th><th rowspan="2" scope="col">also checked by</th></tr>
-    <tr>${[...LEVELS, ...LEVELS].map(l => `<th scope="col" class="lv">L${l}</th>`).join('')}</tr>
+    <tr><th rowspan="2" scope="col">requirement</th><th colspan="${LEVELS.length}" scope="colgroup" class="side-h">today · PV ${BODY_PV}</th>${FIXES ? `<th colspan="${LEVELS.length}" scope="colgroup" class="side-h">under fix 1 · PV ${LEVELS.map(l => fixAt(l).vanilla.pv ?? fixAt(l).pv).join(' / ')}</th>` : ''}</tr>
+    <tr>${(FIXES ? [...LEVELS, ...LEVELS] : LEVELS).map(l => `<th scope="col" class="lv">L${l}</th>`).join('')}</tr>
   </thead>
   <tbody>${reqRows}</tbody>
 </table></div>`;
 
-// --- the recommendation ---
-const stillFailing = LEVELS.flatMap(level => [
-  ...(fixAt(level).vanilla.pv === null ? [`L${level}: no PV meets every floor (${fixAt(level).vanilla.collides.join('; ')})`] : []),
-  ...REQUIREMENTS.filter(r => fixOf(r)).map(r => ({ r, c: fixOf(r)!(fixAt(level)) })).filter(x => x.c.ok === false).map(x => `L${level}: ${x.r.name.toLowerCase()} (${x.c.note})`),
-]);
-const nobody: string[] = [];
-for (const level of LEVELS) {
-  const at = (r: FixResult) => r.levels.find(l => l.level === level)!;
-  for (const edge of ['Power > Protect', 'Protect > Aggro', 'Aggro > Power']) {
-    if (results.every(r => !at(r).triangle.find(e => e.edge === edge)!.holds)) nobody.push(`L${level}: ${edge}`);
-  }
-  if (results.every(r => at(r).vanilla.pv === null)) nobody.push(`L${level}: no PV meets every floor`);
-  if (results.every(r => !burstHolds(at(r).real))) nobody.push(`L${level}: burst out of bounds`);
-}
-const recommendation = `
-  <p class="lede"><b>Fix 1: ${esc(best.result.fix.label)}.</b> Derived hero PV ${LEVELS.map(l => `L${l} <b class="num">${fixAt(l).vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
-  <p>Costs: ${best.score.costs.length ? best.score.costs.map(esc).join('; ') : 'none beyond today\'s rules'}.</p>
-  ${best.score.conflicts.length ? `<p class="note">It goes against "without focus or buffs, defenses should on average completely block an attack" (2026-11-02): ${best.score.conflicts.map(esc).join('; ')}.</p>` : ''}
-  ${best.result.focusOnRealKits ? '' : `<p class="note">Its Focus part is measured on the vanilla twins only (a real Focus card's power is in its effects, which can't be scaled mechanically); the real-kit columns show the rest of the fix.</p>`}
-  <p>Still failing under it: ${stillFailing.length ? stillFailing.map(esc).join('; ') : 'nothing'}.</p>
-  ${nobody.length ? `<p><b>No candidate fixes:</b> ${nobody.map(esc).join('; ')}: they need a lever no candidate tries — cards, or rules the candidates leave alone (Envoltat, a defense covering one body).</p>` : ''}
-  ${ranked[1] ? `<p class="muted">Runner-up: ${esc(ranked[1].result.fix.label)} (${checksMet(ranked[1].score)} of ${LEVELS.length * 5} fix checks against ${checksMet(best.score)}).</p>` : ''}`;
+const recommendation = !FIXES ? '' : `
+  <section class="recommend">
+    <span class="eyebrow">Best candidate structure</span>
+    <p class="lede"><b>${esc(best.result.fix.label)}.</b> Derived hero PV ${LEVELS.map(l => `L${l} <b class="num">${fixAt(l).vanilla.pv ?? '—'}</b>`).join(', ')}.</p>
+    <p>Costs: ${[...best.score.conflicts, ...best.score.costs].map(esc).join('; ') || 'none beyond today\'s rules'}.</p>
+  </section>`;
 
-const facts = [
+const facts = KIT ? [] : [
   `Guards erase blows: only ${today.map(t => pc(t.real.sources.guarded)).join(' / ')} of the damage goes through a guard; the rest is bodies caught open (${today.map(t => pc(t.real.sources.open)).join(' / ')}), area (${today.map(t => pc(t.real.sources.area)).join(' / ')}), Focus (${today.map(t => pc(t.real.sources.focus)).join(' / ')}) and statuses (${today.map(t => pc(t.real.sources.roundEnd)).join(' / ')}).`,
   `So the game moves ${today.map(t => t.real.pvPerRound.toFixed(1)).join(' / ')} PV a round, and fights last ${today.map(t => lengthNote(t.real)).join(' / ')} rounds (median·9 in 10) against ${MAX_MEDIAN_ROUNDS}·${MAX_P90_ROUNDS}.`,
-  `At L${today[today.length - 1].level} it turns on burst: ${pc(today[today.length - 1].real.sources.area)} of the damage is area and ${pc(today[today.length - 1].real.roundOneKOs)} of the heroes fall in round 1.`,
 ];
 
-// --- folded detail ---
-const culprits = gate.styles.flatMap(s => s.culprits.map(c => `L${s.level} ${c.edge}: ${c.cards.length ? c.cards.map(k => `${k.name} (${k.shift >= 0 ? '+' : ''}${k.shift.toFixed(0)} pts without it)`).join(', ') : 'no single card'}`));
-const analyzerLines = kitReports.map(r => `${kitId(r)}: ${r.strength.inconclusive ? 'band inconclusive' : `${signed(r.strength.band?.delta ?? 0)}±${Math.round(100 * (r.strength.band?.stderr ?? 0))} pts against the neutral kit`}`);
 // The gate's own checks of the machinery (the AI's model, its blind spots) are not the set's.
-const setFailures = gate.failures.filter(f => !/ model$| blind$/.test(f.key));
-const edgeAutopsies = gate.styles.flatMap(s => s.autopsies.map(a => `<p class="muted">Why ${esc(a.x)} &gt; ${esc(a.y)} fails at L${s.level}:</p><ul class="facts">${autopsyLines(a).map(l => `<li>${esc(l)}</li>`).join('')}</ul>`)).join('');
-const autopsy = `<ul class="facts">${setFailures.map(f => `<li>${esc(f.text)}</li>`).join('')}</ul>${edgeAutopsies}<p class="muted">The kit analyzer, every main kit against creatures:</p><ul class="facts">${analyzerLines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${
-  culprits.length ? `<p class="muted">What holds each broken edge up, the loser's cards whose removal lifts the winner most:</p><ul class="facts">${culprits.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}`;
-
+const setFailures = gate.failures.filter(f => !/ model$| blind$/.test(f.key) && (!KIT || f.key.startsWith(`${KIT} `) || / dumb /.test(f.key)));
+const SOURCES: [keyof DynamicsSummary['sources'], string][] = [
+  ['open', 'open bodies'], ['guarded', 'through guards'], ['area', 'area'], ['focus', 'Focus'], ['counter', 'counters'], ['defense', 'defense payoffs'], ['roundEnd', 'statuses'],
+];
+const bar = (s: DynamicsSummary) => `<div class="bar" role="img" aria-label="${SOURCES.map(([k, n]) => `${n} ${pc(s.sources[k])}`).join(', ')}">${
+  SOURCES.filter(([k]) => s.sources[k] > 0.005).map(([k, n]) => `<span class="seg seg-${k}" style="width:${Math.round(1000 * s.sources[k]) / 10}%" title="${n}: ${pc(s.sources[k])}"></span>`).join('')}</div>`;
+const legend = `<div class="legend">${SOURCES.map(([k, n]) => `<span><i class="sw seg-${k}"></i>${n}</span>`).join('')}</div>`;
+const verdict = (ok: boolean) => `<span class="chip ${ok ? 'ok' : 'bad'}">${ok ? 'holds' : 'fails'}</span>`;
 const todaySection = `<div class="pair">${today.map(({ level, real }) => `
-  <div class="side"><h4>Level ${level} ${verdict(real.ends)}</h4><p class="pace">rounds: median · 9 in 10 — ${pace(real)}</p>${bar(real)}
+  <div class="side"><h4>Level ${level} ${verdict(real.ends)}</h4><p class="pace">rounds: median · 9 in 10 — ${lengthNote(real)}</p>${bar(real)}
     <ul>${explain(real).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}</div>`;
-
 const arithmeticRows = arithmetic.map(r => `<tr><td>L${r.level}</td><td class="num">${ATTACK_LADDER[r.level]}</td><td class="num">${r.landsBare.toFixed(1)}</td><td class="num">${r.landsOnGuard.toFixed(1)}</td><td class="num">${r.pureRounds.toFixed(1)}</td><td class="num">${r.pvPure.toFixed(0)}</td></tr>`).join('');
-
-const cell = (r: FixResult, level: number) => {
+const fixCell = (r: FixResult, level: number) => {
   const l = r.levels.find(x => x.level === level)!;
-  const floor = Math.max(l.vanilla.roundOnePV, r.fix.burst === 'plain' ? l.vanilla.plainBlowPV : l.vanilla.bestBlowPV);
-  const win = l.vanilla.lengthPV === null ? 'none' : `${floor}–${l.vanilla.lengthPV}`;
-  const triangle = l.triangle.every(e => e.holds);
-  return `<td><div class="cellgrid">
-    <span>PV <b class="num">${l.vanilla.pv ?? '—'}</b> <small>(window ${win}; real kits at ${l.pv})</small></span>
+  return `<td><div class="cellgrid"><span>PV <b class="num">${l.vanilla.pv ?? '—'}</b></span>
     <span>${verdict(l.real.ends)} length <small class="num">${lengthNote(l.real)}</small></span>
-    <span>${verdict(triangle)} triangle${triangle ? '' : ` <small>${l.triangle.filter(e => !e.holds).map(e => `${e.edge} ${pc(e.winrate)}`).join(', ')}</small>`}</span>
-    <span>${verdict(l.dumb.every(d => d.loses))} dumb play <small class="num">${l.dumb.map(d => `${d.style} ${pc(d.score)}`).join(' · ')}</small></span>
-    <span>${verdict(burstHolds(l.real))} burst <small>one-shots ${pc(l.real.oneShots)} · round-1 KOs ${pc(l.real.roundOneKOs)}</small></span>
-  </div></td>`;
+    <span>${verdict(l.dumb.every(d => d.loses))} dumb play</span>
+    <span>${verdict(burstHolds(l.real))} burst <small>one card ${pc(l.real.oneShots)} · round 1 ${pc(l.real.roundOneKOs)}</small></span></div></td>`;
 };
-const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}">
-  <th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)} <small class="num">${checksMet(s)}/${LEVELS.length * 5}</small></th>
-  ${LEVELS.map(l => cell(r, l)).join('')}
-  <td><ul class="costs">${s.conflicts.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}${s.conflicts.length + s.costs.length ? '' : '<li>none</li>'}</ul></td></tr>`).join('');
+const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}"><th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)} <small class="num">${checksMet(s)}/${LEVELS.length * 5}</small></th>
+  ${LEVELS.map(l => fixCell(r, l)).join('')}<td><ul class="costs">${s.conflicts.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}</ul></td></tr>`).join('');
+
+const failingNames = REQUIREMENTS.filter(r => !holding.includes(r)).map(r => r.name.toLowerCase());
+const alone = ranking.filter(b => b.alone);
+const headline = holding.length === REQUIREMENTS.length ? 'Every requirement holds.'
+  : `Failing: ${failingNames.join(', ')}. ${alone.length
+    ? `${alone.length === 1 ? 'One card blocks a requirement' : `${alone.length} cards each block a requirement`} on ${alone.length === 1 ? 'its' : 'their'} own: ${alone.map(b => CARDS.get(b.id)!.def.name).join(', ')}.`
+    : ranking.length ? `No single card flips a requirement; ${ranking.length} cards weigh on them (below).` : 'No card explains the misses: they are structural.'}`;
 
 const html = `<title>Pim Pam Pum Dynamics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
-/* A lab report: the requirements table is the page; everything else is folded. */
+/* A lab report: the quick read first, the cards that block, then the table; everything else is folded. */
 :root {
   --bg: #f5f7f5; --surface: #ffffff; --fg: #1c2420; --muted: #5d6b64; --line: #d7ddd9;
   --accent: #2f6b4f; --ok: #2f7d4f; --bad: #b4413c; --warn: #a86b12; --ok-bg: #e6f2ea; --bad-bg: #f8e7e5; --unk-bg: #f6eedc;
@@ -370,36 +354,42 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cellgrid { display: grid; gap: 4px; min-width: 190px; }
 .costs { margin: 0; padding-left: 16px; display: grid; gap: 4px; min-width: 200px; }
 .costs .against { color: var(--bad); }
+.quick { display: grid; gap: 10px; }
+.score { font: 700 2.6rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+.score small { font: 500 1rem/1 var(--body); color: var(--muted); margin-left: 8px; }
+.headline { font-size: 1.1rem; max-width: 80ch; }
+.blockers { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-width: 95ch; }
+.blockers > li { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: grid; gap: 4px; }
+.blockers > li.alone { border: 2px solid var(--bad); }
+.blockers ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 0.9rem; }
+.card-h { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.card-t { font-size: 0.88rem; color: var(--muted); font-style: italic; }
+.flag { font: 700 0.68rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--surface); background: var(--bad); padding: 3px 6px; border-radius: 3px; }
 </style>
 <div class="wrap">
-  <header class="prose" style="display:grid;gap:10px">
-    <span class="eyebrow">${esc(SET.gameSet.id)} · checkpoints L${LEVELS.join(' / L')} · ${fights} fights a cell</span>
-    <h1>The requirements, and where the set stands</h1>
-    <p>The ${REQUIREMENTS.length} requirements a set is held to, measured on today's game (at each checkpoint, or once for the whole set) and, where the structure can change them, under the best candidate fix.</p>
-    <div class="tally">
-      <div><b>${held(todayChecks)}/${todayChecks.length}</b><small>checks hold today${unsure(todayChecks) ? ` (${unsure(todayChecks)} inconclusive)` : ''}</small></div>
-      <div><b>${held(fixChecks)}/${fixChecks.length}</b><small>under fix 1 (the ${REQUIREMENTS.filter(r => !fixOf(r)).length} the structure leaves alone aren't re-measured there)</small></div>
-    </div>
+  <header class="quick">
+    <span class="eyebrow">${esc(SET.gameSet.id)}${KIT ? ` · ${esc(KIT)}` : ''} · levels ${LEVELS.join(' / ')} · ${fights} fights a cell</span>
+    <div class="score">${holding.length}/${REQUIREMENTS.length}<small>requirements hold</small></div>
+    <p class="headline">${esc(headline)}</p>
   </header>
+
+  ${ranking.length || unexplained.length ? `<section>
+    <h2>What blocks them</h2>
+    ${ranking.length ? `<ul class="blockers">${ranking.map(cardLine).join('')}</ul>` : ''}
+    ${unexplained.length ? `<p class="muted">No single card:</p><ul class="facts">${unexplained.map(u => `<li>${esc(u)}</li>`).join('')}</ul>` : ''}
+  </section>` : ''}
 
   <section>
     ${reqTable}
-    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Today: random 2v2 of the main kits, the production AI, ${BODY_PV} PV; the triangle, dumb play, per-kit length and field score are the kit gate's own cells, and so are choosing and card use, the cards priced in the same hero fights; the band is the kit analyzer's, every main kit against creatures, one verdict for the set; the ladder reads the cards. Under the fix: hero PV derived on the vanilla twins, then the real kits played at it.</p>
+    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. ${KIT ? `${esc(KIT)}'s fights: it and a random partner against two random kits` : 'Random 2v2 of the main kits'}, the production AI, ${BODY_PV} PV. A blocking card is found by playing the same fights without it; a card that fells fresh heroes or is never the right play blocks by itself.</p>
   </section>
+  ${recommendation}
 
-  <section class="recommend">
-    <span class="eyebrow">Recommendation</span>
-    ${recommendation}
-  </section>
-
-  <section>
-    <h2>Why it plays this way</h2>
-    <ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
-  </section>
+  ${facts.length ? `<section><h2>Why it plays this way</h2><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>` : ''}
 
   <details>
-    <summary>Why today's checks fail</summary>
-    <div>${autopsy}</div>
+    <summary>The gate's failing cells</summary>
+    <div><ul class="facts">${setFailures.map(f => `<li>${esc(f.text)}</li>`).join('') || '<li>none</li>'}</ul></div>
   </details>
 
   <details>
@@ -414,25 +404,22 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <details>
     <summary>The arithmetic</summary>
     <div>
-      <p class="prose">A ladder blow into its own level's defense takes almost nothing; the damage comes from bodies caught without a guard. Even if nobody ever defended, a side of two ${BODY_PV}-PV heroes falls in the rounds below: the floor no card tuning can beat.</p>
+      <p class="prose">A ladder blow into its own level's defense takes almost nothing; the damage comes from bodies caught without a guard. Even if nobody ever defended, a side of two ${BODY_PV}-PV heroes falls in the rounds below.</p>
       <div class="scroll"><table>
         <thead><tr><th>level</th><th>ladder blow</th><th>lands on an open body</th><th>through its level's guard</th><th>rounds if nobody defends</th><th>PV for ${MAX_P90_ROUNDS} rounds then</th></tr></thead>
         <tbody>${arithmeticRows}</tbody>
       </table></div>
     </div>
   </details>
-
-  <details>
-    <summary>Every candidate fix, measured</summary>
-    <div>
-      <p class="prose muted">Each fix: hero PV derived on the vanilla twins at every checkpoint, then the real kits played under it (chip damage and shifted defenses applied in the measurement only; no card was changed). Ranked by checks met (a PV window, fights ending, burst, the triangle, dumb play; five a checkpoint), then fewest costs, then the widest PV windows. Red costs go against "without focus or buffs, defenses should on average completely block an attack" (2026-11-02).</p>
-      <div class="scroll"><table>
-        <thead><tr><th>fix</th>${LEVELS.map(l => `<th>level ${l}</th>`).join('')}<th>what it costs</th></tr></thead>
-        <tbody>${fixRows}</tbody>
-      </table></div>
-    </div>
-  </details>
+  ${FIXES ? `<details>
+    <summary>Every candidate structure, measured</summary>
+    <div><div class="scroll"><table>
+      <thead><tr><th>structure</th>${LEVELS.map(l => `<th>level ${l}</th>`).join('')}<th>what it costs</th></tr></thead>
+      <tbody>${fixRows}</tbody>
+    </table></div></div>
+  </details>` : ''}
 </div>`;
 
 fs.writeFileSync(OUT, html);
 log(`wrote ${OUT}`);
+log(`${holding.length}/${REQUIREMENTS.length} requirements hold. ${headline}`);
