@@ -26,7 +26,7 @@ import { COMMON_SKILLS_DIR, COMMON_SRC } from '@pimpampum/set-common/bench';
 import { COMMON_AI_BLIND_CARDS } from '@pimpampum/set-common';
 import {
   ALL_SKILLS, buildComposition, buildReferenceParty, createRegistry, ENEMY_DEFINITIONS, fullKitLevel,
-  getEnemy, getSkill, PLAYER_PV, registerSkill, solveEncounter,
+  getEnemy, getSkill, registerSkill, solveEncounter,
   type SkillDefinition, unlockedActions, unregisterSkill,
 } from '../index.js';
 import { CALIBRATION_KITS, COMPANY, FAIR, MAX_AVG_ROUNDS, SATURATION, SHAPES } from './shapes.js';
@@ -145,13 +145,12 @@ export const ELEMENTS: GameSet = {
    * One draw, shared with the balancer — `buildReferenceParty`'s DRAWN flavour.
    * `equip: false` is expressed as armour 0: armour is all the gear this set has.
    */
-  randomParty(prefix, size, budget, equip = true, pv = PLAYER_PV) {
+  randomParty(prefix, size, budget, equip = true, pv?: number) {
     return buildReferenceParty({
       count: size, levels: budget, armor: equip ? [0, 1, 2] : 0, pv, prefix,
     });
   },
 
-  playerPV: PLAYER_PV,
 
   kit,
 

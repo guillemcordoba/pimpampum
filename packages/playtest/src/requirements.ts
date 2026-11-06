@@ -10,7 +10,7 @@
  * and the band against creatures until the creatures are on the ladder (B20).
  */
 import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
-import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS } from './derive-pv.js';
+import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS } from './derive-pv.js';
 
 export type RequirementGroup = 'how fights play' | 'cards';
 
@@ -37,9 +37,9 @@ export const REQUIREMENTS: readonly Requirement[] = [
     alsoCheckedBy: ['PV derivation'],
   },
   {
-    id: 'best-blow', group: 'how fights play', name: 'A fresh hero survives one blow',
-    rule: `at most ${pc(MAX_BEST_BLOW_KOS)} of heroes are felled from full by a single card`,
-    alsoCheckedBy: ['PV derivation (the level\'s strongest card)'],
+    id: 'interactive', group: 'how fights play', name: 'Nobody dies to what they could not stop',
+    rule: `no fast attack fells a fresh hero in one play on more than ${pc(MAX_FAST_KOS)} of its plays (it resolves before every normal defense)`,
+    alsoCheckedBy: ['PV derivation (the strongest fast attack sets a floor)'],
   },
   {
     id: 'dumb-play', group: 'how fights play', name: 'Dumb play loses',

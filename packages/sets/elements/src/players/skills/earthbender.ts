@@ -2,7 +2,7 @@ import { ActionType, Character, EffectContext, EffectHandler, StatusBehavior, ap
 import { SkillDefinition, action, d } from '../types.js';
 import { applyMod, num } from '../effects/helpers.js';
 import { warded } from '../effects/generic.js';
-import { BODY_PV } from '@pimpampum/set-common';
+import { heroPV } from '../hero-pv.js';
 
 /**
  * MESTRE DE LA TERRA — the user's design ("Maestre de la terra — conceptes de
@@ -27,7 +27,8 @@ function guardWith(defender: Character, who: Character, ctx: EffectContext): voi
 // --- 7 · Roca viva ----------------------------------------------------------
 
 const GOLEM_SKILL = 'golem-de-roca';
-const GOLEM_PV = BODY_PV;
+/** As sturdy as a hero of the card's level (it was "a body's PV" while that was one value). */
+const GOLEM_PV = heroPV(7);
 const GOLEM_CARDS = [
   action({ id: 'cop-de-roca', name: 'Cop de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Atac, dice: d(3, 6), desc: '', icon: 'lorc/fist.svg' }),
   action({ id: 'cos-de-roca', name: 'Cos de roca', skillId: GOLEM_SKILL, unlock: 0, type: ActionType.Defensa, dice: d(2, 6), desc: '', icon: 'lorc/stone-block.svg' }),

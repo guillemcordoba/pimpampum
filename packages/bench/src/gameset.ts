@@ -266,8 +266,6 @@ export interface GameSet {
   buildEncounter(groups: FieldedGroup[]): Character[];
   /** A random party at a skill-level budget — the drawn flavour above. */
   randomParty(prefix: string, size: number, budget: number, equip?: boolean, pv?: number): Character[];
-  /** Default PV for a player in this set. */
-  playerPV: number;
   /** A kit by id — player skill or creature — or undefined. */
   kit(id: string): KitInfo | undefined;
   /** Every kit on one side, by id. */
@@ -336,6 +334,14 @@ let current: GameSet | null = null;
 
 export function useSet(set: GameSet): void {
   current = set;
+}
+
+/** The PV the set's heroes carry at each level, 1-10: a cache key's part, so
+ *  a re-derived PV table never reads results measured under the old one. */
+export function heroPVPrint(): string {
+  const set = theSet();
+  const kit = set.calibration.mainKits[0];
+  return Array.from({ length: 10 }, (_, i) => set.hero('x', kit, i + 1).pv ?? '').join(',');
 }
 
 export function theSet(): GameSet {

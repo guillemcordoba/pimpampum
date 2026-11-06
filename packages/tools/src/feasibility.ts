@@ -14,7 +14,7 @@ import { feasibility, type LadderRung } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
-const { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } = SET.root;
+const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
 const ladder: Record<number, LadderRung> = {};
 for (const l of Object.keys(ATTACK_LADDER).map(Number)) ladder[l] = { attack: ATTACK_LADDER[l], defense: DEFENSE_LADDER[l] };
 
@@ -29,7 +29,7 @@ const pv = points
     const [l0, p0] = points[hi - 1], [l1, p1] = points[hi];
     return Math.round(p0 + (p1 - p0) * (level - l0) / (l1 - l0));
   }
-  : Number(pvFlag ?? BODY_PV);
+  : pvFlag ? Number(pvFlag) : heroPV;
 
 const rows = feasibility({ ladder, pv, armour: Number(flag('--armour') ?? 1), teamSize: 2, mix: { attack, defense } }, Object.keys(ladder).map(Number), rounds);
 const f = (x: number) => (Number.isFinite(x) ? x.toFixed(1) : '∞').padStart(6);

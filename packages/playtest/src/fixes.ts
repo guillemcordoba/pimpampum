@@ -16,7 +16,7 @@
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
 import { DUMB_STYLES, kitsDynamics, styleDuel, theSet, type DuelStyle, type DumbStyle, type Variant } from '@pimpampum/bench';
-import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
 import { deriveOnTwins } from './derive-twins.js';
 import type { CensusCard } from './census.js';
 import { TWIN_DEFAULTS } from './vanilla.js';
@@ -34,26 +34,29 @@ export interface Fix {
   aim: number;
   defenseShift: number;
   chip: number;
-  burst: 'aimed' | 'plain';
+  /** The floor a hero's PV keeps: interactivity (`fast`: no fast attack fells a
+   *  fresh hero) or the older readings, the twins' strongest blow aimed or plain. */
+  burst: 'aimed' | 'plain' | 'fast';
   /** False: a defense rolls once however many blows pile on (`CombatEngineOptions.envoltat`). */
   envoltat?: boolean;
   /** True: a defense guarding an ally also covers its player, the rule before 2026-11-02. */
   guardCoversDefender?: boolean;
 }
 
-export const TODAY: Fix = { id: 'today', label: 'Today: the ladder as it is, survive the aimed blow', aim: 1, defenseShift: 0, chip: 0, burst: 'aimed' };
+export const TODAY: Fix = { id: 'today', label: 'Today: the structure as it is', aim: 1, defenseShift: 0, chip: 0, burst: 'fast' };
 
 export const CANDIDATE_FIXES: readonly Fix[] = [
   TODAY,
-  { id: 'plain', label: 'Survive the plain blow (only the burst rule changes)', aim: 1, defenseShift: 0, chip: 0, burst: 'plain' },
-  { id: 'focus4', label: 'Every Focus twice as strong', aim: 3, defenseShift: 0, chip: 0, burst: 'plain' },
-  { id: 'chip50', label: 'Half of a held blow lands (chip 50%)', aim: 1, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus3-chip50', label: 'Focus 1.5× as strong + chip 50%', aim: 2, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus4-chip50', label: 'Focus twice as strong + chip 50%', aim: 3, defenseShift: 0, chip: 0.5, burst: 'plain' },
-  { id: 'focus4-chip25-def1', label: 'Focus twice as strong + chip 25% + defenses a rung lower', aim: 3, defenseShift: -1, chip: 0.25, burst: 'plain' },
-  { id: 'focus4-def3', label: 'Focus twice as strong + defenses three rungs lower', aim: 3, defenseShift: -3, chip: 0, burst: 'plain' },
-  { id: 'def2', label: 'Defenses two rungs lower (nothing else)', aim: 1, defenseShift: -2, chip: 0, burst: 'plain' },
+  { id: 'focus4', label: 'Every Focus twice as strong', aim: 3, defenseShift: 0, chip: 0, burst: 'fast' },
+  { id: 'chip50', label: 'Half of a held blow lands (chip 50%)', aim: 1, defenseShift: 0, chip: 0.5, burst: 'fast' },
+  { id: 'focus3-chip50', label: 'Focus 1.5× as strong + chip 50%', aim: 2, defenseShift: 0, chip: 0.5, burst: 'fast' },
+  { id: 'focus4-chip50', label: 'Focus twice as strong + chip 50%', aim: 3, defenseShift: 0, chip: 0.5, burst: 'fast' },
+  { id: 'focus4-chip25-def1', label: 'Focus twice as strong + chip 25% + defenses a rung lower', aim: 3, defenseShift: -1, chip: 0.25, burst: 'fast' },
+  { id: 'focus4-def3', label: 'Focus twice as strong + defenses three rungs lower', aim: 3, defenseShift: -3, chip: 0, burst: 'fast' },
+  { id: 'def2', label: 'Defenses two rungs lower (nothing else)', aim: 1, defenseShift: -2, chip: 0, burst: 'fast' },
 ];
+
+const blowFloor = (v: PVDerivation, burst: Fix['burst']) => (burst === 'fast' ? v.fastBlowPV ?? 1 : burst === 'plain' ? v.plainBlowPV : v.bestBlowPV);
 
 export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number }
 export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100 };
@@ -102,7 +105,7 @@ export async function evaluateFix(
     const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
       fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, envoltat: fix.envoltat, guardCoversDefender: fix.guardCoversDefender,
     });
-    const pv = vanilla.pv ?? vanilla.lengthPV ?? Math.max(vanilla.roundOnePV, fix.burst === 'plain' ? vanilla.plainBlowPV : vanilla.bestBlowPV);
+    const pv = vanilla.pv ?? vanilla.lengthPV ?? Math.max(vanilla.roundOnePV, blowFloor(vanilla, fix.burst));
     const variant: Variant = {
       pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
     };
@@ -134,13 +137,13 @@ export interface FixScore {
    *  completely block an attack" (the user, 2026-11-02): lower defenses, chip
    *  damage. Shown, and counted as a cost; not a veto (the user, 2026-11-05). */
   conflicts: string[];
-  /** Everything else it asks for: Focus cards to rebuild, a reading of the burst rule. */
+  /** Everything else it asks for: Focus cards to rebuild, a rule changed. */
   costs: string[];
 }
 
 export function scoreFix(r: FixResult): FixScore {
   const width = (l: FixLevel) => {
-    const floor = Math.max(l.vanilla.roundOnePV, r.fix.burst === 'plain' ? l.vanilla.plainBlowPV : l.vanilla.bestBlowPV);
+    const floor = Math.max(l.vanilla.roundOnePV, blowFloor(l.vanilla, r.fix.burst));
     return l.vanilla.lengthPV === null ? 0 : Math.max(0, l.vanilla.lengthPV - floor + 1);
   };
   return {
@@ -158,14 +161,13 @@ export function scoreFix(r: FixResult): FixScore {
       ...(r.fix.envoltat === false ? ['Envoltat off: blows piled on one body no longer wear its guard down'] : []),
       ...(r.fix.guardCoversDefender ? ['a defense that guards an ally covers its player too (the rule before 2026-11-02)'] : []),
       ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
-      ...(r.fix.burst === 'plain' ? ['the burst rule reads "survive the plain blow"'] : []),
     ],
   };
 }
 
-/** The real kits' burst within the floors `derivePV` sets on vanilla. */
+/** The real kits' burst within the floors: round-1 falls, and no fast attack felling fresh heroes. */
 export function burstHolds(s: DynamicsSummary): boolean {
-  return s.roundOneKOs <= MAX_ROUND_ONE_KOS && s.oneShots <= MAX_BEST_BLOW_KOS;
+  return s.roundOneKOs <= MAX_ROUND_ONE_KOS && s.fastKOs <= MAX_FAST_KOS;
 }
 
 /** Constraint checks a fix passes, of five per checkpoint. */

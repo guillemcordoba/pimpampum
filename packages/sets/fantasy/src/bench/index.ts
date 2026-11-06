@@ -153,7 +153,6 @@ export const FANTASY: GameSet = {
     });
   },
 
-  playerPV: PLAYER_PV,
 
   kit,
 

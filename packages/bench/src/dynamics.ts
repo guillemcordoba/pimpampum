@@ -17,7 +17,7 @@ import { aiPolicy } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
-import { theSet } from './gameset.js';
+import { heroPVPrint, theSet } from './gameset.js';
 
 /** A candidate structure, as the engine and the heroes take it. */
 export interface Variant {
@@ -232,7 +232,7 @@ const heroTeam = (kits: readonly string[], level: number, side: string, variant:
  *  is then their content, for the cache). */
 export function kitsDynamics(level: number, fights: number, variant: Variant = {}, given?: { kits: readonly string[]; print: string }): Dynamics {
   const kits = given?.kits ?? theSet().calibration.mainKits;
-  const print = given?.print ?? kits.map(skillPrint).join('|');
+  const print = `${given?.print ?? kits.map(skillPrint).join('|')}#pv:${heroPVPrint()}`;
   return countedCached('dynamics', key('dynamics-v7', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
@@ -246,7 +246,7 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 /** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
  *  `print` is the kit's content, for the cache. */
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v7', print, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
+  return countedCached('dynamics', key('dynamics-v7', `${print}#pv:${heroPVPrint()}`, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     withSeed(seedOf(kit, level), () => {
       for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);

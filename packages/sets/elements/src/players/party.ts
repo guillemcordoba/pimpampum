@@ -20,7 +20,7 @@
  * reproducible party (the solver relies on this for common random numbers).
  */
 import { Character, random } from '@pimpampum/engine';
-import { BODY_PV } from '@pimpampum/set-common';
+import { heroPV } from './hero-pv.js';
 import { ALL_SKILLS } from './catalog.js';
 import { buildCharacter } from './build.js';
 import { standardGear } from './equipment.js';
@@ -36,8 +36,6 @@ import { isExplicitParty, type PartySpec } from '@pimpampum/bench/gameset';
 export { isExplicitParty };
 export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/bench/gameset';
 
-/** A player character's PV: every body's, derived from the dice ladder. */
-export const PLAYER_PV = BODY_PV;
 
 
 
@@ -63,7 +61,7 @@ function drawSkills(levels: number): Record<string, number> {
 }
 
 /** Build one representative player with the given levels and armour. */
-export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = PLAYER_PV, fatigue = 0): Character {
+export function buildReferencePlayer(name: string, levels: number, armor = 0, pv = heroPV(levels), fatigue = 0): Character {
   const skills = drawSkills(levels);
   const chosen = ALL_SKILLS.filter(s => skills[s.id] !== undefined);
   const equipment = standardGear(chosen, armor);
@@ -85,7 +83,7 @@ export function buildReferenceParty(spec: PartySpec): Character[] {
     return spec.characters.map((c, i) => buildCharacter({
       ...c,
       name: c.name || `Heroi ${i + 1}`,
-      pv: c.pv || PLAYER_PV,
+      pv: c.pv || heroPV(Math.max(1, ...Object.values(c.skills ?? {}))),
       category: 'player',
     }));
   }
@@ -95,7 +93,7 @@ export function buildReferenceParty(spec: PartySpec): Character[] {
       `${prefix}${i + 1}`,
       per(spec.levels, i, 6),
       per(spec.armor, i, 0),
-      spec.pv ?? PLAYER_PV,
+      spec.pv ?? heroPV(per(spec.levels, i, 6)),
       per(spec.fatigue, i, 0),
     ));
 }

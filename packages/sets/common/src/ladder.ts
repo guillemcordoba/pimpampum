@@ -32,7 +32,10 @@ export function ladderMean(level: number): number {
 export const BLOWS_TO_FALL = 4;
 export const PV_REFERENCE_LEVEL = 5;
 
-/** A hero's PV: 4 × the level-5 average = 26. */
+/** The one PV every hero had until 2026-11-06. A hero's PV is now derived per
+ *  level (each set's `HERO_PV`); this stays only for the pinned calibration
+ *  copies, which may not be edited, and the fantasy set until its own table is
+ *  derived — the next `pnpm calibration:refresh` and that table retire it. */
 export const BODY_PV = BLOWS_TO_FALL * ladderMean(PV_REFERENCE_LEVEL);
 
 /** How far a card may roll above its level's rung, and the cards above it

@@ -195,7 +195,6 @@ export const SYNTHETIC: GameSet = {
   randomParty(prefix, size, budget, equip = true, pv = PLAYER_PV) {
     return buildParty({ count: size, levels: budget, armor: equip ? 1 : 0, pv, prefix });
   },
-  playerPV: PLAYER_PV,
   kit(id): KitInfo | undefined {
     const k = kits.get(id);
     return k && { id: k.id, side: k.side, actions: k.actions, fullLevel: k.actions.length };

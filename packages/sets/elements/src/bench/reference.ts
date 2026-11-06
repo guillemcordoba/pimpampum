@@ -8,7 +8,7 @@
  * rebasing every scoreboard. (The fantasy set's `reference.ts` has the long
  * story of why.)
  */
-import { ALL_SKILLS, type CharacterBuildSpec, getSkill, type PartySpec, PLAYER_PV, type SkillDefinition, standardGear } from '../index.js';
+import { ALL_SKILLS, type CharacterBuildSpec, getSkill, type PartySpec, heroPV, type SkillDefinition, standardGear } from '../index.js';
 import { pin } from './pinned.js';
 
 /** The four kits at the reference table, by id: the four elements. */
@@ -44,7 +44,7 @@ export function hero(name: string, skillId: string, level: number = FULL_KIT): C
     name,
     classCss: s.classCss,
     iconPath: s.iconPath,
-    pv: PLAYER_PV,
+    pv: heroPV(level),
     category: 'player',
     equipment: standardGear([s], 1),
     skills: { [s.id]: levelOf(s, level) },

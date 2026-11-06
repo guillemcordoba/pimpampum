@@ -20,8 +20,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type CardTally, type KitTally } from '@pimpampum/bench';
 import {
-  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
-  MAX_BEST_BLOW_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepareGate, rankFixes, REQUIREMENTS,
+  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, fastCards, feasibility, FIX_BUDGET, GATE_BUDGET,
+  MAX_FAST_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepareGate, rankFixes, REQUIREMENTS,
   summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type LadderRung, type Requirement,
 } from '@pimpampum/playtest';
 import type { ActionDefinition } from '@pimpampum/engine';
@@ -29,7 +29,7 @@ import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
 useSet(SET.gameSet);
-const { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } = SET.root;
+const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
 const LEVELS = (flag('--levels') ?? '3,6,10').split(',').map(Number);
 const KIT = flag('--kit');
 const FIXES = process.argv.includes('--fixes');
@@ -59,7 +59,7 @@ const gateScope: GateScope = { levels: LEVELS, triangle: false, blame: true, ...
 await prepareGate({ set: SET.ref, budget: gateBudget }, gateScope);
 const gate = measureGate(gateScope, gateBudget);
 
-const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: BODY_PV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
+const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: heroPV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
 
 // --- 2. the candidate structures, only when asked --------------------------------
 const results: FixResult[] = [];
@@ -100,6 +100,8 @@ const ROUNDS_MOVED = 2, STALLS_MOVED = 0.02, FIELD_MOVED = 0.05;
 const ROUND_ONE_SHARE = 0.2;
 const tallies = (t: Today) => Object.entries(t.cards) as [string, CardTally][];
 const roundOneFalls = (t: Today) => tallies(t).reduce((n, [, c]) => n + c.fellInRoundOne, 0);
+/** The main kits' fast attacks: the cards interactivity judges. */
+const FAST = fastCards();
 const oneShotRate = (c: CardTally) => (c.plays >= MIN_PLAYS ? c.felledFromFull / c.plays : 0);
 
 /** The set's health (\`kit\` null) or one kit's: each requirement's checks, the
@@ -125,12 +127,11 @@ function health(kit: string | null): Health {
         return { ok, note: named.length && !ok ? named.map(([id, c]) => `${CARDS.get(id)!.def.name} ${pc(c.fellInRoundOne / falls)} of the falls`).join(', ') : `set ${pc(t.real.roundOneKOs)}` };
       },
     },
-    'best-blow': {
+    interactive: {
       today: t => {
-        if (!kit) return { ok: t.real.oneShots <= MAX_BEST_BLOW_KOS, note: pc(t.real.oneShots) };
-        const worst = tallies(t).filter(([id]) => mine(id)).sort((a, b) => oneShotRate(b[1]) - oneShotRate(a[1]))[0];
+        const worst = tallies(t).filter(([id]) => FAST.has(id) && mine(id)).sort((a, b) => oneShotRate(b[1]) - oneShotRate(a[1]))[0];
         const rate = worst ? oneShotRate(worst[1]) : 0;
-        return { ok: rate <= MAX_BEST_BLOW_KOS, note: worst && rate > 0 ? `worst ${CARDS.get(worst[0])!.def.name} ${pc(rate)} of its plays` : 'no card fells from full' };
+        return { ok: rate <= MAX_FAST_KOS, note: worst && rate > 0 ? `worst ${CARDS.get(worst[0])!.def.name} ${pc(rate)} of its plays` : 'no fast attack fells from full' };
       },
     },
     'dumb-play': {
@@ -192,7 +193,7 @@ function health(kit: string | null): Health {
     }
   }
   for (const t of today) {
-    for (const [id, c] of tallies(t)) if (oneShotRate(c) > MAX_BEST_BLOW_KOS) blame(id, `fells a fresh hero in one play on ${pc(oneShotRate(c))} of its plays at L${t.level}`);
+    for (const [id, c] of tallies(t)) if (FAST.has(id) && oneShotRate(c) > MAX_FAST_KOS) blame(id, `a fast attack that fells a fresh hero in one play on ${pc(oneShotRate(c))} of its plays at L${t.level}: nobody could have stopped it`, true);
     if (t.real.roundOneKOs > MAX_ROUND_ONE_KOS) {
       const falls = roundOneFalls(t);
       for (const [id, c] of tallies(t)) if (falls && c.fellInRoundOne / falls >= ROUND_ONE_SHARE) blame(id, `${pc(c.fellInRoundOne / falls)} of the heroes who fall in round 1 at L${t.level}`);
@@ -226,7 +227,7 @@ const statusCell = (c: Check, span = 1) => {
 };
 const GROUPS = [...new Set(REQUIREMENTS.map(r => r.group))];
 const reqTable = (h: Health) => `<div class="scroll"><table class="req">
-  <thead><tr><th scope="col">requirement</th>${LEVELS.map(l => `<th scope="col" class="lv">L${l}</th>`).join('')}</tr></thead>
+  <thead><tr><th scope="col">requirement</th>${LEVELS.map(l => `<th scope="col" class="lv">L${l} <small>· ${heroPV(l)} PV</small></th>`).join('')}</tr></thead>
   <tbody>${GROUPS.map(g => `<tr class="group"><th colspan="${1 + LEVELS.length}" scope="colgroup">${esc(g)}</th></tr>${
     REQUIREMENTS.filter(r => r.group === g).map(r => {
       const checks = h.rows.get(r.id)!;
@@ -474,7 +475,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <section>
     <h2>The set, requirement by requirement</h2>
     ${reqTable(SET_HEALTH)}
-    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Random 2v2 of the main kits, the production AI, ${BODY_PV} PV. A blocking card is found by playing the same fights without it; a card that fells fresh heroes or is never the right play blocks by itself.</p>
+    <p class="muted" style="font-size:0.82rem">Rounds read median·9 in 10. Random 2v2 of the main kits, the production AI, heroes at their level's PV (the set's table). A blocking card is found by playing the same fights without it; a card that fells fresh heroes or is never the right play blocks by itself.</p>
   </section>
 
   <section><h2>Why it plays this way</h2><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>
@@ -496,7 +497,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <details>
     <summary>The arithmetic</summary>
     <div>
-      <p class="prose">A ladder blow into its own level's defense takes almost nothing; the damage comes from bodies caught without a guard. Even if nobody ever defended, a side of two ${BODY_PV}-PV heroes falls in the rounds below.</p>
+      <p class="prose">A ladder blow into its own level's defense takes almost nothing; the damage comes from bodies caught without a guard. Even if nobody ever defended, a side of two heroes at their level's PV falls in the rounds below.</p>
       <div class="scroll"><table>
         <thead><tr><th>level</th><th>ladder blow</th><th>lands on an open body</th><th>through its level's guard</th><th>rounds if nobody defends</th><th>PV for ${MAX_P90_ROUNDS} rounds then</th></tr></thead>
         <tbody>${arithmeticRows}</tbody>

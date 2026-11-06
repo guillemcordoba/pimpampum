@@ -4,7 +4,7 @@
  * the structural dynamics of the game as it plays, and recommends fixes). Every
  * sentence is computed from the measurement; none is written by hand.
  */
-import type { DamageSource, Dynamics, KitTally } from '@pimpampum/bench';
+import { theSet, type DamageSource, type Dynamics, type KitTally } from '@pimpampum/bench';
 import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 export interface DynamicsSummary {
@@ -22,6 +22,8 @@ export interface DynamicsSummary {
   bigBlows: number;
   /** Per hero fielded: fell in round 1; felled from full by one card. */
   roundOneKOs: number; oneShots: number;
+  /** The worst fast card's share of plays that felled a fresh hero (interactivity). */
+  fastKOs: number;
   /** Fights end within the bars. */
   ends: boolean;
 }
@@ -30,6 +32,16 @@ const quantile = (xs: number[], q: number): number => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : 0;
 };
+
+/** Plays below which a fast card's KO rate is not judged. */
+export const MIN_FAST_PLAYS = 30;
+
+/** The ids of the main kits' fast attacks. */
+export function fastCards(): Set<string> {
+  const out = new Set<string>();
+  for (const kit of theSet().calibration.mainKits) for (const a of theSet().kit(kit)?.actions ?? []) if (a.fast && a.actionType === 'Atac') out.add(a.id);
+  return out;
+}
 
 export function summarise(d: Dynamics): DynamicsSummary {
   const total = Object.values(d.lost).reduce((t, x) => t + x, 0) || 1;
@@ -44,6 +56,7 @@ export function summarise(d: Dynamics): DynamicsSummary {
     emptyAttacks: d.emptyAttacks / Math.max(1, d.plays.attack), lostFocus: d.lostFocus / Math.max(1, d.plays.focus),
     bigBlows: d.blowShares.slice(5).reduce((t, x) => t + x, 0) / hurt,
     roundOneKOs: d.roundOneKOs / Math.max(1, d.fielded), oneShots: d.oneShots / Math.max(1, d.fielded),
+    fastKOs: Math.max(0, ...Object.entries(d.cards).filter(([id, c]) => c.plays >= MIN_FAST_PLAYS && fastCards().has(id)).map(([, c]) => c.felledFromFull / c.plays)),
     ends: median <= MAX_MEDIAN_ROUNDS && p90 <= MAX_P90_ROUNDS && stallRate < MAX_STALL_RATE,
   };
 }

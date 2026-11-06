@@ -2,14 +2,15 @@
  * HERO PV DERIVED ON THE VANILLA SET — the main kits' calibrated twins
  * (`vanilla.ts`), checked against today's game (`vanillaMatches`; the user,
  * 2026-11-04: vanilla is reasonable now, build on it). The same constraints as
- * `derivePV`: the floors from burst (a fresh hero survives the level's best
- * blow — read from the twins' own strongest card, plain or with the strongest
- * boost on it — and survives round 1), the ceiling from fights ending in time.
+ * `derivePV`: the floors — nobody falls in round 1, and interactivity (no
+ * fast attack fells a fresh hero, `burst: 'fast'`; the older readings, the
+ * twins' strongest blow plain or boosted, stay for the structure search) — and
+ * the ceiling, fights ending in time.
  */
 import { DiceRoll, diceDistribution } from '@pimpampum/engine';
 import { kitsDynamics, theSet, type FightSummary } from '@pimpampum/bench';
 import type { CensusCard } from './census.js';
-import { MAX_BEST_BLOW_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import type { LadderRung } from './feasibility.js';
 import { installSet, type RunContext } from './prepare.js';
@@ -21,15 +22,15 @@ const PV_MIN = 1;
 const PV_MAX = 60;
 
 export interface TwinDeriveOptions {
-  fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain';
+  fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain' | 'fast';
   /** `CombatEngineOptions.envoltat` / `.guardCoversDefender`, as bench's `Variant` takes them. */
   envoltat?: boolean; guardCoversDefender?: boolean;
 }
 
-/** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_BEST_BLOW_KOS` of the time. */
+/** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_FAST_KOS` of the time. */
 function floorFor(dice: DiceRoll, bonus: number, armour: number): number {
   const dist = [...diceDistribution(dice)].map(([t, p]) => [Math.max(0, t + bonus - armour), p] as const);
-  for (let pv = PV_MIN; pv <= PV_MAX; pv++) if (dist.filter(([d]) => d >= pv).reduce((a, [, p]) => a + p, 0) <= MAX_BEST_BLOW_KOS) return pv;
+  for (let pv = PV_MIN; pv <= PV_MAX; pv++) if (dist.filter(([d]) => d >= pv).reduce((a, [, p]) => a + p, 0) <= MAX_FAST_KOS) return pv;
   return PV_MAX;
 }
 
@@ -53,6 +54,11 @@ export function deriveOnTwins(
   }
   const plainBlowPV = floorFor(strongest, 0, opts.armour);
   const bestBlowPV = floorFor(strongest, bonus, opts.armour);
+  // Interactivity: the strongest fast attack the real kits hold at this level.
+  const fast = theSet().calibration.mainKits.flatMap(k => theSet().kit(k)?.actions ?? [])
+    .filter(a => a.fast && a.actionType === 'Atac' && a.dice && a.unlockLevel <= level)
+    .sort((a, b) => (b.dice!.average() + (b.rollBonus ?? 0)) - (a.dice!.average() + (a.rollBonus ?? 0)))[0];
+  const fastBlowPV = fast ? floorFor(fast.dice!, fast.rollBonus ?? 0, opts.armour) : PV_MIN;
 
   return withVanillaSet(twins, () => {
     const measured = new Map<number, DynamicsSummary>();
@@ -81,16 +87,16 @@ export function deriveOnTwins(
       while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (survives(at(mid))) hi = mid; else lo = mid; }
       roundOnePV = hi;
     }
-    const blowPV = opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
+    const blowPV = opts.burst === 'fast' ? fastBlowPV : opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
     const floor = Math.max(blowPV, roundOnePV);
     const collides = lengthPV === null ? ['fights do not end in time even at the smallest PV']
       : lengthPV < floor ? [
-        ...(lengthPV < blowPV ? [`the best blow needs ≥ ${blowPV}`] : []),
+        ...(lengthPV < blowPV ? [`${opts.burst === 'fast' ? 'the strongest fast attack' : 'the best blow'} needs ≥ ${blowPV}`] : []),
         ...(lengthPV < roundOnePV ? [`the first round needs ≥ ${roundOnePV}`] : []),
         `fights end in time only up to ${lengthPV}`,
       ] : [];
     return {
-      level, bestBlowPV, plainBlowPV, roundOnePV, lengthPV,
+      level, bestBlowPV, plainBlowPV, fastBlowPV, roundOnePV, lengthPV,
       pv: lengthPV !== null && lengthPV >= floor ? lengthPV : null, collides,
       measured: [...measured].sort((a, b) => a[0] - b[0]).map(([pv, s]) => ({ pv, summary: asFight(s) })),
     };

@@ -12,7 +12,7 @@
  * level's derived PV and checks, and what each costs.
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/derive-structure.ts --set elements --out structure.html
- *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts plain --envoltat on,off --guard one,both --levels 3,4,5,6,7,8,9,10
+ *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts fast --envoltat on,off --guard one,both --levels 3,4,5,6,7,8,9,10
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -24,12 +24,12 @@ import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
 useSet(SET.gameSet);
-const { ATTACK_LADDER, DEFENSE_LADDER, BODY_PV } = SET.root;
+const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
 const list = (f: string, d: string) => (flag(f) ?? d).split(',');
 const aims = list('--aims', '1,2,3').map(Number);
 const shifts = list('--shifts', '0,-1').map(Number);
 const chips = list('--chips', '0,0.25,0.5').map(Number);
-const bursts = list('--bursts', 'plain') as Fix['burst'][];
+const bursts = list('--bursts', 'fast') as Fix['burst'][];
 const envoltats = list('--envoltat', 'on').map(v => v !== 'off');
 const guardsBoth = list('--guard', 'one').map(v => v === 'both');
 const LEVELS = list('--levels', '3,4,5,6,7,8,9,10').map(Number);
@@ -44,7 +44,7 @@ const label = (aim: number, shift: number, chip: number, burst: Fix['burst'], en
   ...(shift ? [`defenses ${-shift} rung${shift === -1 ? '' : 's'} lower`] : []),
   ...(envoltat ? [] : ['Envoltat off']),
   ...(both ? ['a guard covers both bodies'] : []),
-].join(' + ') + (burst === 'aimed' ? ' (survive the aimed blow)' : '');
+].join(' + ') + (burst === 'fast' ? '' : ` (floor: the twins' ${burst} blow)`);
 const fixes: Fix[] = aims.flatMap(aim => shifts.flatMap(defenseShift => chips.flatMap(chip => bursts.flatMap(burst =>
   envoltats.flatMap(envoltat => guardsBoth.map(both => ({
     id: `a${aim}-s${defenseShift}-c${chip}-${burst}${envoltat ? '' : '-noenv'}${both ? '-both' : ''}`,
@@ -134,7 +134,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <header class="prose">
     <span class="eyebrow">${esc(SET.gameSet.id)} · levels ${LEVELS.join(', ')} · ${budget.vanillaFights} vanilla / ${budget.realFights} real fights, ${budget.duelGames} duels a cell</span>
     <h1>Which structure lets the set's requirements hold</h1>
-    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets every floor, fights ending in time, burst in bounds, the triangle, dumb play losing. Today's heroes have ${BODY_PV} PV at every level.</p>
+    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets every floor, fights ending in time, burst in bounds, the triangle, dumb play losing. Today's heroes carry ${LEVELS.map(l => `${heroPV(l)} PV at L${l}`).join(', ')}.</p>
   </header>
   <section class="recommend">
     <span class="eyebrow">Best candidate</span>

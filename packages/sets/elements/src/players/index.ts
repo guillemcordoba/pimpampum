@@ -3,6 +3,7 @@ export {
   ALL_SKILLS, getSkill, getAction, unlockedActions, registerSkill, unregisterSkill,
 } from './catalog.js';
 export { LADDER_RULES } from './ladder-rules.js';
+export { HERO_PV, heroPV } from './hero-pv.js';
 export type { SkillDefinition } from './types.js';
 export { action, d, ICON_PREFIX } from './types.js';
 
@@ -19,6 +20,5 @@ export type { CharacterBuildSpec } from './build.js';
 // Reference party generation (the balancer's player-side input)
 export {
   buildReferenceParty, buildReferencePlayer, isExplicitParty,
-  PLAYER_PV,
 } from './party.js';
 export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from './party.js';

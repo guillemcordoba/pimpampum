@@ -18,7 +18,7 @@ import { aiPolicy, DEFAULT_LOOKAHEAD, lookaheadChooser, opponentModel } from '@p
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
 import { CELL_AI } from './cells.js';
-import { theSet } from './gameset.js';
+import { heroPVPrint, theSet } from './gameset.js';
 import { variantRules, type DamageSource, type Variant } from './dynamics.js';
 import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
 import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
@@ -38,7 +38,7 @@ const drawKit = (kits: readonly string[]): string => kits[Math.floor(random() * 
 
 /** Every main kit's content, so a mirror's cache entry follows any kit it may meet. */
 function mainKitsPrint(): string {
-  return theSet().calibration.mainKits.map(skillPrint).join('|');
+  return `${theSet().calibration.mainKits.map(skillPrint).join('|')}#pv:${heroPVPrint()}`;
 }
 
 function kitSeed(kit: string, level: number, salt: number): number {

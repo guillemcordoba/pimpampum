@@ -41,6 +41,12 @@ export type { PartySpec, DrawnPartySpec, ExplicitPartySpec } from '@pimpampum/be
 /** A player character's PV: every body's, derived from the dice ladder. */
 export const PLAYER_PV = BODY_PV;
 
+/** A hero's PV at a level. One value until this set's table is derived like
+ *  the elements set's (OPEN.md): its cards are being redesigned first. */
+export function heroPV(_level: number): number {
+  return PLAYER_PV;
+}
+
 /** Skills DESIGNED as complementary second kits — never a lone main skill. */
 export const COMPLEMENTARY_SKILLS = new Set(['metge', 'runes', 'gel']);
 
