@@ -18,10 +18,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type CardTally, type KitTally } from '@pimpampum/bench';
+import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
 import {
-  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, fastCards, feasibility, FIX_BUDGET, GATE_BUDGET,
-  MAX_FAST_KOS, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_ROUND_ONE_KOS, measureGate, prepareGate, rankFixes, REQUIREMENTS,
+  burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, GATE_BUDGET,
+  MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, rankFixes, REQUIREMENTS,
   summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type LadderRung, type Requirement,
 } from '@pimpampum/playtest';
 import type { ActionDefinition } from '@pimpampum/engine';
@@ -90,19 +90,15 @@ type Today = (typeof today)[number];
 interface Blocker { id: string; reasons: string[]; alone: boolean }
 interface Health { kit: string | null; rows: Map<string, Check[]>; holding: Requirement[]; blockers: Blocker[]; unexplained: string[]; headline: string }
 const styleAt = (level: number) => gate.styles.find(c => c.level === level)!;
-/** Plays below which a card's KO rate is not judged. */
-const MIN_PLAYS = 30;
 /** How far a card's absence must move a cell before it counts: fights two
  *  rounds shorter for 9 in 10, or 2 points fewer stalls; 5 points off the
  *  kit's field score. Below that, a flip is the cell's own noise at its bar. */
 const ROUNDS_MOVED = 2, STALLS_MOVED = 0.02, FIELD_MOVED = 0.05;
-/** A card's share of the round-1 falls at which it is named. */
-const ROUND_ONE_SHARE = 0.2;
 const tallies = (t: Today) => Object.entries(t.cards) as [string, CardTally][];
-const roundOneFalls = (t: Today) => tallies(t).reduce((n, [, c]) => n + c.fellInRoundOne, 0);
-/** The main kits' fast attacks: the cards interactivity judges. */
-const FAST = fastCards();
-const oneShotRate = (c: CardTally) => (c.plays >= MIN_PLAYS ? c.felledFromFull / c.plays : 0);
+/** A card's share of plays that felled a fresh hero without an answer. */
+const unansweredRate = (c: CardTally) => (c.plays >= MIN_KO_PLAYS ? c.unanswerable / c.plays : 0);
+const HOW: Record<Unanswerable, string> = { fast: 'fast, before any guard', guard: 'through its own guard', uncontested: 'with no roll against a guard' };
+const howOf = (c: CardTally) => (Object.entries(c.unanswerableHow) as [Unanswerable, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([k]) => HOW[k]).join(', ');
 
 /** The set's health (\`kit\` null) or one kit's: each requirement's checks, the
  *  cards that block them, what no card explains, and a one-line headline. */
@@ -118,20 +114,11 @@ function health(kit: string | null): Health {
         return { ok: t.real.ends && !over.length, note: `${lengthNote(t.real)}${over.length ? ` · ${over.length} of ${cells.length} kits over` : ''}` };
       },
     },
-    'round-one': {
-      today: t => {
-        if (!kit) return { ok: t.real.roundOneKOs <= MAX_ROUND_ONE_KOS, note: pc(t.real.roundOneKOs) };
-        const falls = roundOneFalls(t);
-        const named = tallies(t).filter(([id, c]) => mine(id) && falls && c.fellInRoundOne / falls >= ROUND_ONE_SHARE);
-        const ok = t.real.roundOneKOs <= MAX_ROUND_ONE_KOS || !named.length;
-        return { ok, note: named.length && !ok ? named.map(([id, c]) => `${CARDS.get(id)!.def.name} ${pc(c.fellInRoundOne / falls)} of the falls`).join(', ') : `set ${pc(t.real.roundOneKOs)}` };
-      },
-    },
     interactive: {
       today: t => {
-        const worst = tallies(t).filter(([id]) => FAST.has(id) && mine(id)).sort((a, b) => oneShotRate(b[1]) - oneShotRate(a[1]))[0];
-        const rate = worst ? oneShotRate(worst[1]) : 0;
-        return { ok: rate <= MAX_FAST_KOS, note: worst && rate > 0 ? `worst ${CARDS.get(worst[0])!.def.name} ${pc(rate)} of its plays` : 'no fast attack fells from full' };
+        const worst = tallies(t).filter(([id]) => mine(id)).sort((a, b) => unansweredRate(b[1]) - unansweredRate(a[1]))[0];
+        const rate = worst ? unansweredRate(worst[1]) : 0;
+        return { ok: rate <= MAX_UNANSWERABLE_KOS, note: worst && rate > 0 ? `worst ${CARDS.get(worst[0])!.def.name} ${pc(rate)} of its plays` : 'every knockout had an answer' };
       },
     },
     'dumb-play': {
@@ -193,10 +180,8 @@ function health(kit: string | null): Health {
     }
   }
   for (const t of today) {
-    for (const [id, c] of tallies(t)) if (FAST.has(id) && oneShotRate(c) > MAX_FAST_KOS) blame(id, `a fast attack that fells a fresh hero in one play on ${pc(oneShotRate(c))} of its plays at L${t.level}: nobody could have stopped it`, true);
-    if (t.real.roundOneKOs > MAX_ROUND_ONE_KOS) {
-      const falls = roundOneFalls(t);
-      for (const [id, c] of tallies(t)) if (falls && c.fellInRoundOne / falls >= ROUND_ONE_SHARE) blame(id, `${pc(c.fellInRoundOne / falls)} of the heroes who fall in round 1 at L${t.level}`);
+    for (const [id, c] of tallies(t)) {
+      if (unansweredRate(c) > MAX_UNANSWERABLE_KOS) blame(id, `fells a fresh hero with no possible answer on ${pc(unansweredRate(c))} of its plays at L${t.level} (${howOf(c)})`, true);
     }
   }
   for (const c of gate.cards.filter(x => x.neverRight)) blame(c.card, `never the right play (L${c.levels.map(l => l.level).join(', L')})`, true);
@@ -317,7 +302,7 @@ const fixCell = (r: FixResult, level: number) => {
   return `<td><div class="cellgrid"><span>PV <b class="num">${l.vanilla.pv ?? '—'}</b></span>
     <span>${verdict(l.real.ends)} length <small class="num">${lengthNote(l.real)}</small></span>
     <span>${verdict(l.dumb.every(d => d.loses))} dumb play</span>
-    <span>${verdict(burstHolds(l.real))} burst <small>one card ${pc(l.real.oneShots)} · round 1 ${pc(l.real.roundOneKOs)}</small></span></div></td>`;
+    <span>${verdict(burstHolds(l.real))} interactivity <small>worst card ${pc(l.real.unanswerableKOs)} unanswerable</small></span></div></td>`;
 };
 const fixRows = ranked.map(({ result: r, score: s }, i) => `<tr class="${i === 0 ? 'top' : ''}"><th scope="row"><span class="rank">${i + 1}</span> ${esc(r.fix.label)} <small class="num">${checksMet(s)}/${LEVELS.length * 5}</small></th>
   ${LEVELS.map(l => fixCell(r, l)).join('')}<td><ul class="costs">${s.conflicts.map(c => `<li class="against">${esc(c)}</li>`).join('')}${s.costs.map(c => `<li>${esc(c)}</li>`).join('')}</ul></td></tr>`).join('');

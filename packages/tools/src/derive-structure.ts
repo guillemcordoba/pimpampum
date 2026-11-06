@@ -76,7 +76,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const CHECKS: [string, (l: FixLevel) => boolean, (l: FixLevel) => string][] = [
   ['PV', l => l.vanilla.pv !== null, l => l.vanilla.pv === null ? `no window (${l.vanilla.collides.join('; ')})` : `window to ${l.vanilla.lengthPV}`],
   ['ends', l => l.real.ends, l => `${l.real.median}·${l.real.p90}${l.real.stallRate ? ` · ${pc(l.real.stallRate)} stall` : ''}`],
-  ['burst', l => burstHolds(l.real), l => `round 1 ${pc(l.real.roundOneKOs)} · one card ${pc(l.real.oneShots)}`],
+  ['interactive', l => burstHolds(l.real), l => `worst card fells a fresh hero with no answer on ${pc(l.real.unanswerableKOs)} of its plays`],
   ['triangle', l => l.triangle.every(e => e.holds), l => l.triangle.map(e => `${e.edge.replace(/ /g, '')} ${pc(e.winrate)}`).join(' · ')],
   ['dumb', l => l.dumb.every(d => d.loses), l => l.dumb.map(d => `${d.style} ${pc(d.score)}`).join(' · ')],
 ];
@@ -134,7 +134,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   <header class="prose">
     <span class="eyebrow">${esc(SET.gameSet.id)} · levels ${LEVELS.join(', ')} · ${budget.vanillaFights} vanilla / ${budget.realFights} real fights, ${budget.duelGames} duels a cell</span>
     <h1>Which structure lets the set's requirements hold</h1>
-    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets every floor, fights ending in time, burst in bounds, the triangle, dumb play losing. Today's heroes carry ${LEVELS.map(l => `${heroPV(l)} PV at L${l}`).join(', ')}.</p>
+    <p>Each candidate changes the structure, not the cards: how strong a Focus is, where defenses sit on the ladder, how much of a held blow lands, which blow a fresh hero must survive. Hero PV is derived for it on the vanilla twins at every level, then the real kits play at that PV. A cell shows the derived PV and five checks (hover for the numbers): a PV that meets the floor, fights ending in time, interactivity (no knockout without an answer), the triangle, dumb play losing. Today's heroes carry ${LEVELS.map(l => `${heroPV(l)} PV at L${l}`).join(', ')}.</p>
   </header>
   <section class="recommend">
     <span class="eyebrow">Best candidate</span>

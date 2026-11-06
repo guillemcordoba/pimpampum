@@ -18,6 +18,13 @@ export interface LogEntry {
   round: number;
 }
 
+/** How a PV loss arrived: a blow on a body with no guard up (`open`), a blow
+ *  that met a guard or wall and still landed, or chip off a held one
+ *  (`guarded`), or an effect that took PV with no roll against a guard
+ *  (`uncontested`). Read by the measurement (who could have answered it). */
+export type PvLossVia = 'open' | 'guarded' | 'uncontested';
+export interface PvLoss { target: Character; lost: number; via: PvLossVia; round: number }
+
 /** Reference to a combatant by team + index. */
 export interface TargetRef { team: number; idx: number; }
 
@@ -284,6 +291,8 @@ export class CombatEngine implements EngineApi, AIView {
   optionChooser?: OptionChooser;
   round = 0;
   logEntries: LogEntry[] = [];
+  /** Every PV loss, and how it arrived (`PvLossVia`). */
+  pvLosses: PvLoss[] = [];
   /**
    * A clone never has its log read — `clone()` deliberately starts it empty and
    * the comment there says so. Rollouts are almost all of the engine's work, so
@@ -439,6 +448,7 @@ export class CombatEngine implements EngineApi, AIView {
     }));
     e.round = this.round;
     e.logEntries = [];
+    e.pvLosses = [];
     // Nothing reads a clone's log (see the doc above): skip building the prose.
     e.silent = true;
     e.plays = this.plays.map(p => ({ ...p }));
@@ -530,6 +540,7 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.history = dec.value(snap.history) as ActionEvent[];
     e.round = snap.round;
     e.logEntries = [];
+    e.pvLosses = [];
     e.silent = true;
     e.plays = snap.plays.map(p => ({ ...p }));
     e.blowSeq = snap.blowSeq;
@@ -669,7 +680,7 @@ export class CombatEngine implements EngineApi, AIView {
     return s;
   }
 
-  applyPvLoss(target: Character, amount: number, source?: Character): boolean {
+  applyPvLoss(target: Character, amount: number, source?: Character, via: PvLossVia = 'uncontested'): boolean {
     if (amount <= 0) return !target.isAlive();
     // Statuses may clamp the loss (last stands, wards).
     if (target.holdsStatusWith('clampPvLoss')) {
@@ -682,6 +693,7 @@ export class CombatEngine implements EngineApi, AIView {
     const before = target.currentPV;
     const died = target.loseLife(amount);
     const lost = before - target.currentPV;
+    if (lost > 0) this.pvLosses.push({ target, lost, via, round: this.round });
     if (died && wasAlive) this.log('death', `${target.name} cau derrotat!`, target.team);
     if (lost > 0) {
       for (const { key, entry, behavior } of this.hookedStatuses(target, 'onPvLost')) {
@@ -2088,7 +2100,7 @@ export class CombatEngine implements EngineApi, AIView {
     // Only real damage interrupts a pending focus (rules.md): a hit that the
     // armour fully absorbs leaves the focus standing (applyPvLoss → loseLife
     // marks hitThisTurn when dmg > 0).
-    this.applyPvLoss(recipient, dmg, source);
+    this.applyPvLoss(recipient, dmg, source, defense ? 'guarded' : 'open');
     if (blow.card) this.dispatch('onAttackHit', source, blow.card, { targets: [target], target: recipient, hit: true, damageDealt: dmg, margin, attackTotal: contestAttack });
     this.holderAttackHit(source, recipient, dmg, blow.card);
     if (defense?.card && recipient === defense.defender && dmg > 0) {
@@ -2104,7 +2116,7 @@ export class CombatEngine implements EngineApi, AIView {
     const dmg = Math.floor(attackTotal * this.chipDamage) - on.getPassiveArmor();
     if (dmg <= 0) return;
     this.log('attack', `💥 ${on.name} encaixa ${dmg} dany tot i aguantar.`, source.team);
-    this.applyPvLoss(on, dmg, source);
+    this.applyPvLoss(on, dmg, source, 'guarded');
   }
 
   /** Defensa conjunta (guard walls, block walls, standing walls alike): the
@@ -2140,7 +2152,7 @@ export class CombatEngine implements EngineApi, AIView {
     dmg += mods.bonusDamage;
     dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, adjustedAttacker));
     this.log('attack', `💥 ${blow.label} trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
-    this.applyPvLoss(recipient, dmg, source);
+    this.applyPvLoss(recipient, dmg, source, 'guarded');
     if (blow.card) this.dispatch('onAttackHit', source, blow.card, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
     this.holderAttackHit(source, recipient, dmg, blow.card);
     if (dmg > 0 && weak.d.card && !weak.d.holder) {

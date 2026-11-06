@@ -12,7 +12,7 @@
  *  - a Focus (FOCUS), a Defense (its payoff: DEFENSE);
  *  - anything at the round's end (statuses, burns, bleeding: ROUND END).
  */
-import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type Character } from '@pimpampum/engine';
+import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type ActionDefinition, type Character, type PvLossVia } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
@@ -42,6 +42,28 @@ export function variantRules(v: Variant): { chipDamage?: number; envoltat?: bool
 
 export type DamageSource = 'open' | 'guarded' | 'area' | 'counter' | 'focus' | 'defense' | 'roundEnd';
 
+/**
+ * A fresh hero felled in one play WITHOUT AN ANSWER (intentions.md,
+ * interactivity): by a fast card (it resolves before every normal defense and
+ * attack), through its own guard (it read the attack right), or by damage with
+ * no roll against a guard from a slow attack (guarding does not stop it, and an
+ * attack cannot be interrupted). A slow attack on an open body, a slow Focus
+ * (hitting its caster first interrupts it) and a counter all had an answer.
+ */
+export type Unanswerable = 'fast' | 'guard' | 'uncontested';
+
+/** How a fresh hero felled by `def` could not have answered it, from how its
+ *  PV went (`PvLossVia`); null: it had an answer. */
+function unanswerable(def: ActionDefinition, vias: readonly PvLossVia[]): Unanswerable | null {
+  if (def.fast) return 'fast';
+  // A slow Focus is interrupted by hitting its caster first; a counter by not attacking into it.
+  if (def.actionType !== ActionType.Atac) return null;
+  // Struck on an open body: guarding was the answer.
+  if (vias.includes('open')) return null;
+  if (vias.includes('guarded')) return 'guard';
+  return vias.length ? 'uncontested' : null;
+}
+
 export interface Dynamics {
   fights: number;
   /** Rounds each fight lasted, and whether it never ended. */
@@ -57,7 +79,7 @@ export interface Dynamics {
   blowShares: number[];
   /** Heroes fielded, those that fell in round 1, and those felled from full
    *  PV by a single card. */
-  fielded: number; roundOneKOs: number; oneShots: number;
+  fielded: number; oneShots: number;
   /** What each card did when it resolved, by card id: the behavioural census
    *  (playtest `census.ts`) reads a card's role from it. */
   cards: Record<string, CardTally>;
@@ -89,8 +111,9 @@ const kitTally = (into: Dynamics, kit: string): KitTally => (into.kits[kit] ??= 
  *  and PV the enemies lost later, at round ends, to the statuses it set. */
 export interface CardTally {
   plays: number; foeLoss: number; onDefenders: number; allyGain: number; foeEffects: number; allyEffects: number; lingering: number;
-  /** Enemies it took from full PV to 0 in one play; enemies it felled in round 1. */
-  felledFromFull: number; fellInRoundOne: number;
+  /** Enemies it took from full PV to 0 in one play; of those, the ones no read
+   *  could have saved (`UNANSWERABLE`), by how. */
+  felledFromFull: number; unanswerable: number; unanswerableHow: Record<Unanswerable, number>;
   /** What it left on the allies, read from the engine's generic hooks: effects
    *  that strengthen their attacks, effects that protect them; and the attack
    *  and defense bonuses of the modifiers it gave them (summed). */
@@ -105,7 +128,7 @@ const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
   lost: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
   plays: { attack: 0, defense: 0, focus: 0 }, emptyAttacks: 0, lostFocus: 0,
-  blowShares: Array(10).fill(0), fielded: 0, roundOneKOs: 0, oneShots: 0, cards: {}, kits: {},
+  blowShares: Array(10).fill(0), fielded: 0, oneShots: 0, cards: {}, kits: {},
 });
 
 function playOne(teams: [Character[], Character[]], variant: Variant, into: Dynamics): void {
@@ -113,7 +136,6 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
     registry: theRegistry(), maxRounds: ROUND_CAP, ...variantRules(variant), ...aiPolicy(CELL_AI),
   });
   const everyone = e.teams.flat();
-  let roundsDone = 0;
   /** Which card set each status a body holds (by body, then status key): its
    *  round-end damage is credited to that card. */
   const setBy = new Map<Character, Map<string, string>>(everyone.map(c => [c, new Map()]));
@@ -127,6 +149,7 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const modsBefore = new Map(everyone.map(c => [c, new Set(c.modifiers)]));
       const defended = new Set(e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa).map(p => p.actor));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
+      const lossesBefore = e.pvLosses.length;
       const step = e.resolveNextAction();
       if (step.kind === 'done') break;
       if (step.kind === 'target') { e.setResolveTarget([]); continue; }
@@ -140,7 +163,9 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const mine = kitTally(into, kitOf(actor));
       mine.plays[kind]++;
       if (step.action.cancelled) { if (type === ActionType.Focus) into.lostFocus++; continue; }
-      let foesLost = 0, biggest = 0, fromFull = 0, roundOne = 0;
+      let foesLost = 0, biggest = 0, fromFull = 0;
+      const unanswered: Unanswerable[] = [];
+      const losses = e.pvLosses.slice(lossesBefore);
       for (const c of everyone) {
         const loss = Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
         if (!loss) continue;
@@ -148,8 +173,11 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
         if (foe) {
           foesLost += loss;
           biggest = Math.max(biggest, loss / Math.max(1, c.maxPV));
-          if ((before.get(c) ?? 0) >= c.maxPV && c.currentPV <= 0) { into.oneShots++; fromFull++; }
-          if (roundsDone === 0 && (before.get(c) ?? 0) > 0 && c.currentPV <= 0) roundOne++;
+          if ((before.get(c) ?? 0) >= c.maxPV && c.currentPV <= 0) {
+            into.oneShots++; fromFull++;
+            const how = unanswerable(def, losses.filter(l => l.target === c).map(l => l.via));
+            if (how) unanswered.push(how);
+          }
         }
         const source: DamageSource = !foe ? 'counter'
           : type === ActionType.Atac ? ((def.targetCount ?? 1) > 1 ? 'area' : guarded.has(c) ? 'guarded' : 'open')
@@ -159,10 +187,14 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       }
       if (type === ActionType.Atac && foesLost === 0) into.emptyAttacks++;
       if (foesLost > 0) into.blowShares[Math.min(9, Math.floor(biggest * 10))]++;
-      const t = (into.cards[def.id] ??= { plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0, felledFromFull: 0, fellInRoundOne: 0, offense: 0, protection: 0, attackBonus: 0, defenseBonus: 0 });
+      const t = (into.cards[def.id] ??= {
+        plays: 0, foeLoss: 0, onDefenders: 0, allyGain: 0, foeEffects: 0, allyEffects: 0, lingering: 0,
+        felledFromFull: 0, unanswerable: 0, unanswerableHow: { fast: 0, guard: 0, uncontested: 0 },
+        offense: 0, protection: 0, attackBonus: 0, defenseBonus: 0,
+      });
       t.plays++;
       t.felledFromFull += fromFull;
-      t.fellInRoundOne += roundOne;
+      for (const how of unanswered) { t.unanswerable++; t.unanswerableHow[how]++; }
       t.foeLoss += foesLost;
       for (const c of everyone) {
         const gained = Math.max(0, c.currentPV - (before.get(c) ?? 0));
@@ -200,7 +232,6 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const by = heldAtEnd.get(c)!;
       for (const id of by) if (into.cards[id]) into.cards[id].lingering += loss / by.length;
     }
-    if (++roundsDone === 1) into.roundOneKOs += everyone.filter(c => c.currentPV <= 0).length;
   }
   into.fights++;
   into.fielded += everyone.length;

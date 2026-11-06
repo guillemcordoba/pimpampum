@@ -10,7 +10,7 @@
  * and the band against creatures until the creatures are on the ladder (B20).
  */
 import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
-import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS } from './derive-pv.js';
+import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 
 export type RequirementGroup = 'how fights play' | 'cards';
 
@@ -32,13 +32,8 @@ export const REQUIREMENTS: readonly Requirement[] = [
     alsoCheckedBy: ['kit gate (every kit, levels 3-10)', 'kit analyzer (against creatures)'],
   },
   {
-    id: 'round-one', group: 'how fights play', name: 'Nobody falls in round 1',
-    rule: `at most ${pc(MAX_ROUND_ONE_KOS)} of fresh heroes fall in the first round`,
-    alsoCheckedBy: ['PV derivation'],
-  },
-  {
     id: 'interactive', group: 'how fights play', name: 'Nobody dies to what they could not stop',
-    rule: `no fast attack fells a fresh hero in one play on more than ${pc(MAX_FAST_KOS)} of its plays (it resolves before every normal defense)`,
+    rule: `no card fells a fresh hero without an answer (fast, through its own guard, or with no roll against a guard) on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays`,
     alsoCheckedBy: ['PV derivation (the strongest fast attack sets a floor)'],
   },
   {

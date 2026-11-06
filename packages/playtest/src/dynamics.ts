@@ -4,7 +4,7 @@
  * the structural dynamics of the game as it plays, and recommends fixes). Every
  * sentence is computed from the measurement; none is written by hand.
  */
-import { theSet, type DamageSource, type Dynamics, type KitTally } from '@pimpampum/bench';
+import type { DamageSource, Dynamics, KitTally } from '@pimpampum/bench';
 import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 export interface DynamicsSummary {
@@ -21,9 +21,9 @@ export interface DynamicsSummary {
   /** Of the cards that hurt anyone: share taking half a body or more at once. */
   bigBlows: number;
   /** Per hero fielded: fell in round 1; felled from full by one card. */
-  roundOneKOs: number; oneShots: number;
-  /** The worst fast card's share of plays that felled a fresh hero (interactivity). */
-  fastKOs: number;
+  oneShots: number;
+  /** The worst card's share of plays that felled a fresh hero without an answer (interactivity). */
+  unanswerableKOs: number;
   /** Fights end within the bars. */
   ends: boolean;
 }
@@ -33,15 +33,8 @@ const quantile = (xs: number[], q: number): number => {
   return s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : 0;
 };
 
-/** Plays below which a fast card's KO rate is not judged. */
-export const MIN_FAST_PLAYS = 30;
-
-/** The ids of the main kits' fast attacks. */
-export function fastCards(): Set<string> {
-  const out = new Set<string>();
-  for (const kit of theSet().calibration.mainKits) for (const a of theSet().kit(kit)?.actions ?? []) if (a.fast && a.actionType === 'Atac') out.add(a.id);
-  return out;
-}
+/** Plays below which a card's knockout rate is not judged. */
+export const MIN_KO_PLAYS = 30;
 
 export function summarise(d: Dynamics): DynamicsSummary {
   const total = Object.values(d.lost).reduce((t, x) => t + x, 0) || 1;
@@ -55,8 +48,8 @@ export function summarise(d: Dynamics): DynamicsSummary {
     mix: { attack: d.plays.attack / played, defense: d.plays.defense / played, focus: d.plays.focus / played },
     emptyAttacks: d.emptyAttacks / Math.max(1, d.plays.attack), lostFocus: d.lostFocus / Math.max(1, d.plays.focus),
     bigBlows: d.blowShares.slice(5).reduce((t, x) => t + x, 0) / hurt,
-    roundOneKOs: d.roundOneKOs / Math.max(1, d.fielded), oneShots: d.oneShots / Math.max(1, d.fielded),
-    fastKOs: Math.max(0, ...Object.entries(d.cards).filter(([id, c]) => c.plays >= MIN_FAST_PLAYS && fastCards().has(id)).map(([, c]) => c.felledFromFull / c.plays)),
+    oneShots: d.oneShots / Math.max(1, d.fielded),
+    unanswerableKOs: Math.max(0, ...Object.values(d.cards).filter(c => c.plays >= MIN_KO_PLAYS).map(c => c.unanswerable / c.plays)),
     ends: median <= MAX_MEDIAN_ROUNDS && p90 <= MAX_P90_ROUNDS && stallRate < MAX_STALL_RATE,
   };
 }
@@ -75,7 +68,7 @@ export function explain(s: DynamicsSummary): string[] {
   out.push(`Fights last ${s.median} rounds (median), ${s.p90} for 9 in 10${s.stallRate ? `, and ${pc(s.stallRate)} never end` : ''}: ${s.ends ? 'within' : 'outside'} the bars (${MAX_MEDIAN_ROUNDS} / ${MAX_P90_ROUNDS} / stalls under ${pc(MAX_STALL_RATE)}).`);
   out.push(`Everyone together loses ${s.pvPerRound.toFixed(1)} PV a round. It comes from ${ranked.map(([k, v]) => `${SOURCE_NAMES[k]} (${pc(v)})`).join(', ')}.`);
   out.push(`The cards played: ${pc(s.mix.attack)} attacks, ${pc(s.mix.defense)} defenses, ${pc(s.mix.focus)} Focus. ${pc(s.emptyAttacks)} of the attacks take nothing at all${s.mix.focus > 0 ? `; ${pc(s.lostFocus)} of the Focus never resolve` : ''}.`);
-  out.push(`Burst: ${pc(s.bigBlows)} of the cards that hurt take half a body or more at once; ${pc(s.oneShots)} of the heroes are felled from full by a single card, ${pc(s.roundOneKOs)} fall in round 1.`);
+  out.push(`Burst: ${pc(s.bigBlows)} of the cards that hurt take half a body or more at once; ${pc(s.oneShots)} of the heroes are felled from full by a single card; the worst card fells one with no possible answer on ${pc(s.unanswerableKOs)} of its plays.`);
   if (s.sources.guarded + s.sources.open > 0 && s.sources.guarded < 0.1 && s.mix.defense > 0.3) {
     out.push(`Guards erase blows almost entirely: the ${pc(s.mix.defense)} of plays that are defenses let through ${pc(s.sources.guarded)} of the damage, so a round is decided by who catches a body with no guard up.`);
   }

@@ -24,12 +24,13 @@ import { vanillaKit, vanillaPrint } from './vanilla.js';
 import { withControlKit } from './control-kits.js';
 import { installSet, type RunContext } from './prepare.js';
 
-/** At most this share of fresh heroes may fall in the first round. */
-export const MAX_ROUND_ONE_KOS = 0.1;
-/** INTERACTIVITY (intentions.md): a fast card resolves before every normal
- *  defense, so it may take a fresh hero to 0 in one play at most this share of
- *  the time — nobody dies to something they could do nothing to stop. */
-export const MAX_FAST_KOS = 0.1;
+/** The old vanilla derivation's round-1 bar (round 1 is no longer a
+ *  requirement, the user 2026-11-06). */
+const MAX_ROUND_ONE_KOS = 0.1;
+/** INTERACTIVITY (intentions.md): a card may fell a fresh hero in one play
+ *  WITHOUT AN ANSWER (bench `Unanswerable`: fast, through its guard, or with
+ *  no roll against a guard) at most this share of its plays. */
+export const MAX_UNANSWERABLE_KOS = 0.1;
 
 const PV_MIN = 1;
 const PV_MAX = 120;
@@ -47,9 +48,11 @@ export interface PVDerivation {
   level: number;
   /** Floors: the best blow (dice alone; aimed, and plain) and the first round
    *  (fights). */
-  bestBlowPV: number; plainBlowPV: number; roundOnePV: number;
+  bestBlowPV: number; plainBlowPV: number;
+  /** The old vanilla derivation's round-1 floor. */
+  roundOnePV?: number;
   /** Interactivity's floor: the smallest PV the level's strongest fast attack
-   *  fells from full at most `MAX_FAST_KOS` of the time (the twins' derivation). */
+   *  fells from full at most `MAX_UNANSWERABLE_KOS` of the time (the twins' derivation). */
   fastBlowPV?: number;
   /** Ceiling: the most PV with fights still ending in time (null: not even
    *  at the smallest PV). */
@@ -62,13 +65,13 @@ export interface PVDerivation {
   measured: { pv: number; summary: FightSummary }[];
 }
 
-/** The smallest PV the best blow fells at most `MAX_FAST_KOS` of the time. */
+/** The smallest PV the best blow fells at most `MAX_UNANSWERABLE_KOS` of the time. */
 function bestBlowFloor(rung: LadderRung, opts: PVOptions, aimed: boolean): number {
   const k = aimed ? 1 + opts.aim : 1;
   const blow = new DiceRoll(rung.attack.numDice * k, rung.attack.sides, rung.attack.modifier * k);
   const dist = [...diceDistribution(blow)].map(([total, p]) => [Math.max(0, total - opts.armour), p] as const);
   for (let pv = PV_MIN; pv <= PV_MAX; pv++) {
-    if (dist.filter(([d]) => d >= pv).reduce((t, [, p]) => t + p, 0) <= MAX_FAST_KOS) return pv;
+    if (dist.filter(([d]) => d >= pv).reduce((t, [, p]) => t + p, 0) <= MAX_UNANSWERABLE_KOS) return pv;
   }
   return PV_MAX;
 }

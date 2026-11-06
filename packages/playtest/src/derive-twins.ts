@@ -2,15 +2,15 @@
  * HERO PV DERIVED ON THE VANILLA SET — the main kits' calibrated twins
  * (`vanilla.ts`), checked against today's game (`vanillaMatches`; the user,
  * 2026-11-04: vanilla is reasonable now, build on it). The same constraints as
- * `derivePV`: the floors — nobody falls in round 1, and interactivity (no
- * fast attack fells a fresh hero, `burst: 'fast'`; the older readings, the
+ * `derivePV`: the floor — interactivity (no fast attack fells a fresh hero,
+ * `burst: 'fast'`; the older readings, the
  * twins' strongest blow plain or boosted, stay for the structure search) — and
  * the ceiling, fights ending in time.
  */
 import { DiceRoll, diceDistribution } from '@pimpampum/engine';
 import { kitsDynamics, theSet, type FightSummary } from '@pimpampum/bench';
 import type { CensusCard } from './census.js';
-import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import type { LadderRung } from './feasibility.js';
 import { installSet, type RunContext } from './prepare.js';
@@ -27,16 +27,16 @@ export interface TwinDeriveOptions {
   envoltat?: boolean; guardCoversDefender?: boolean;
 }
 
-/** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_FAST_KOS` of the time. */
+/** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_UNANSWERABLE_KOS` of the time. */
 function floorFor(dice: DiceRoll, bonus: number, armour: number): number {
   const dist = [...diceDistribution(dice)].map(([t, p]) => [Math.max(0, t + bonus - armour), p] as const);
-  for (let pv = PV_MIN; pv <= PV_MAX; pv++) if (dist.filter(([d]) => d >= pv).reduce((a, [, p]) => a + p, 0) <= MAX_FAST_KOS) return pv;
+  for (let pv = PV_MIN; pv <= PV_MAX; pv++) if (dist.filter(([d]) => d >= pv).reduce((a, [, p]) => a + p, 0) <= MAX_UNANSWERABLE_KOS) return pv;
   return PV_MAX;
 }
 
 const asFight = (s: DynamicsSummary): FightSummary => ({
   fights: s.fights, median: s.median, p90: s.p90, stalls: s.stallRate, pvPerRound: s.pvPerRound,
-  emptyAttacks: s.emptyAttacks, mix: s.mix, firstRoundKOs: s.roundOneKOs,
+  emptyAttacks: s.emptyAttacks, mix: s.mix, firstRoundKOs: 0,
 });
 
 export function deriveOnTwins(
@@ -72,7 +72,6 @@ export function deriveOnTwins(
       return s;
     };
     const ends = (s: DynamicsSummary) => s.median <= MAX_MEDIAN_ROUNDS && s.p90 <= MAX_P90_ROUNDS && s.stallRate < MAX_STALL_RATE;
-    const survives = (s: DynamicsSummary) => s.roundOneKOs <= MAX_ROUND_ONE_KOS;
     let lengthPV: number | null = null;
     if (ends(at(PV_MIN))) {
       let lo = PV_MIN, hi = PV_MAX;
@@ -80,23 +79,15 @@ export function deriveOnTwins(
       while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ends(at(mid))) lo = mid; else hi = mid; }
       lengthPV = lo;
     }
-    let roundOnePV = PV_MAX;
-    if (survives(at(PV_MAX))) {
-      let lo = PV_MIN, hi = PV_MAX;
-      if (survives(at(lo))) hi = lo;
-      while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (survives(at(mid))) hi = mid; else lo = mid; }
-      roundOnePV = hi;
-    }
     const blowPV = opts.burst === 'fast' ? fastBlowPV : opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
-    const floor = Math.max(blowPV, roundOnePV);
+    const floor = blowPV;
     const collides = lengthPV === null ? ['fights do not end in time even at the smallest PV']
       : lengthPV < floor ? [
         ...(lengthPV < blowPV ? [`${opts.burst === 'fast' ? 'the strongest fast attack' : 'the best blow'} needs ≥ ${blowPV}`] : []),
-        ...(lengthPV < roundOnePV ? [`the first round needs ≥ ${roundOnePV}`] : []),
         `fights end in time only up to ${lengthPV}`,
       ] : [];
     return {
-      level, bestBlowPV, plainBlowPV, fastBlowPV, roundOnePV, lengthPV,
+      level, bestBlowPV, plainBlowPV, fastBlowPV, lengthPV,
       pv: lengthPV !== null && lengthPV >= floor ? lengthPV : null, collides,
       measured: [...measured].sort((a, b) => a[0] - b[0]).map(([pv, s]) => ({ pv, summary: asFight(s) })),
     };

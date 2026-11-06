@@ -37,7 +37,7 @@ export type { ContentDeref, ContentRefOf, EngineSnapshot } from './snapshot.js';
 export { STATUS_KINDS, applyKind, expectedBlow, fieldValue, kindName, kindNamed } from './status-kinds.js';
 export type { StatusKind } from './status-kinds.js';
 export type {
-  LogEntry, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser, OptionChooser,
+  LogEntry, PvLoss, PvLossVia, TargetRef, ActionSelection, CombatResult, CombatStats, CombatEngineOptions, ActionChooser, TargetChooser, OptionChooser,
   RevealedAction, TargetPrompt, ChoicePrompt, StepResult, RoundPrep,
 } from './combat.js';
 

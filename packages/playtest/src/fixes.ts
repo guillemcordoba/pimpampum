@@ -16,7 +16,7 @@
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
 import { DUMB_STYLES, kitsDynamics, styleDuel, theSet, type DuelStyle, type DumbStyle, type Variant } from '@pimpampum/bench';
-import { MAX_FAST_KOS, MAX_ROUND_ONE_KOS, type PVDerivation } from './derive-pv.js';
+import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
 import { deriveOnTwins } from './derive-twins.js';
 import type { CensusCard } from './census.js';
 import { TWIN_DEFAULTS } from './vanilla.js';
@@ -105,7 +105,7 @@ export async function evaluateFix(
     const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
       fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, envoltat: fix.envoltat, guardCoversDefender: fix.guardCoversDefender,
     });
-    const pv = vanilla.pv ?? vanilla.lengthPV ?? Math.max(vanilla.roundOnePV, blowFloor(vanilla, fix.burst));
+    const pv = vanilla.pv ?? vanilla.lengthPV ?? blowFloor(vanilla, fix.burst);
     const variant: Variant = {
       pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
     };
@@ -128,8 +128,7 @@ export interface FixScore {
   /** Checkpoints where vanilla has a PV window / the real kits' fights end /
    *  the triangle holds / every dumb strategy loses. */
   windows: number; realEnds: number; triangle: number; dumb: number;
-  /** Checkpoints where the real kits keep burst in bounds: round-1 KOs and
-   *  heroes felled from full by one card, each at most a tenth. */
+  /** Checkpoints where the real kits keep interactivity: no card fells fresh heroes without an answer past the bar. */
   realBurst: number;
   /** The narrowest PV window (0 when one is empty). */
   robustness: number;
@@ -143,7 +142,7 @@ export interface FixScore {
 
 export function scoreFix(r: FixResult): FixScore {
   const width = (l: FixLevel) => {
-    const floor = Math.max(l.vanilla.roundOnePV, blowFloor(l.vanilla, r.fix.burst));
+    const floor = blowFloor(l.vanilla, r.fix.burst);
     return l.vanilla.lengthPV === null ? 0 : Math.max(0, l.vanilla.lengthPV - floor + 1);
   };
   return {
@@ -165,9 +164,9 @@ export function scoreFix(r: FixResult): FixScore {
   };
 }
 
-/** The real kits' burst within the floors: round-1 falls, and no fast attack felling fresh heroes. */
+/** Interactivity on the real kits: no card fells fresh heroes without an answer past the bar. */
 export function burstHolds(s: DynamicsSummary): boolean {
-  return s.roundOneKOs <= MAX_ROUND_ONE_KOS && s.fastKOs <= MAX_FAST_KOS;
+  return s.unanswerableKOs <= MAX_UNANSWERABLE_KOS;
 }
 
 /** Constraint checks a fix passes, of five per checkpoint. */

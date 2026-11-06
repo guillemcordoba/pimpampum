@@ -6,7 +6,7 @@ Pim Pam Pum és un sistema de joc de rol de taula amb combat tàctic per equips.
 
 Cada personatge té una sola característica base:
 
-- **PV** (Punts de vida): els punts de vida que té el personatge abans de caure fora de combat. Els d'un heroi no són fixos: depenen del seu nivell i es deriven dels requisits (que els combats acabin a temps, que ningú no caigui al primer torn i que ningú no mori per un cop que no podia aturar); cada joc en fixa la taula per nivell. Els PV d'una criatura tampoc no són fixos: amb el seu nivell, són el que ajusta la dificultat d'un encontre. Surt de l'escala de daus (la unitat és 1d4: un atac de nivell 1 tira 1d4, i cada nivell en suma un punt de mitjana).
+- **PV** (Punts de vida): els punts de vida que té el personatge abans de caure fora de combat. Els d'un heroi no són fixos: depenen del seu nivell i es deriven dels requisits (que els combats acabin a temps i que ningú no mori per un cop que no podia aturar); cada joc en fixa la taula per nivell. Els PV d'una criatura tampoc no són fixos: amb el seu nivell, són el que ajusta la dificultat d'un encontre. Surt de l'escala de daus (la unitat és 1d4: un atac de nivell 1 tira 1d4, i cada nivell en suma un punt de mitjana).
 
 ## Habilitats
 

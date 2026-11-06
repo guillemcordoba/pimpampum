@@ -35,9 +35,9 @@ export type { NumbersPatch, CardPatch, Knob, KitScore, Evaluated, TuneResult, Tu
 export { feasibility } from './feasibility.js';
 export type { FeasibilityInput, FeasibilityRow, LadderRung } from './feasibility.js';
 export { vanillaKit, vanillaPrint } from './vanilla.js';
-export { derivePV, deriveLevel, MAX_ROUND_ONE_KOS, MAX_FAST_KOS } from './derive-pv.js';
+export { derivePV, deriveLevel, MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 export type { PVDerivation, PVOptions } from './derive-pv.js';
-export { summarise, explain, fastCards, MIN_FAST_PLAYS, vanillaMatches, MATCH_TOLERANCE, kitDivergences, KIT_TOLERANCE } from './dynamics.js';
+export { summarise, explain, MIN_KO_PLAYS, vanillaMatches, MATCH_TOLERANCE, kitDivergences, KIT_TOLERANCE } from './dynamics.js';
 export type { DynamicsSummary, MatchCheck, KitDivergence } from './dynamics.js';
 export { CANDIDATE_FIXES, TODAY, FIX_BUDGET, evaluateFix, scoreFix, rankFixes, burstHolds, checksMet } from './fixes.js';
 export type { Fix, FixBudget, FixLevel, FixResult, FixScore } from './fixes.js';

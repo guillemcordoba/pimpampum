@@ -176,6 +176,33 @@ describe('a roll that is not a blow (contestRoll)', () => {
   });
 });
 
+describe('every PV loss says how it arrived', () => {
+  const round = (e: CombatEngine) => playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+  it('a blow on a body with no guard is open', () => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9 })], { pv: 100 });
+    const d = fighter('D', [focusCard('wait')], { pv: 100 });
+    const e = new CombatEngine([a], [d], { registry: registry() });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }]);
+    expect(e.pvLosses.map(l => [l.target.name, l.via])).toEqual([['D', 'open']]);
+  });
+  it('a blow that breaks a guard is guarded', () => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 19 })], { pv: 100 });
+    const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: 9 })], { pv: 100 });
+    const e = new CombatEngine([a], [d], { registry: registry() });
+    round(e);
+    expect(e.pvLosses.map(l => [l.target.name, l.via])).toEqual([['D', 'guarded']]);
+  });
+  it('an effect that takes PV with no roll is uncontested', () => {
+    const r = registry(ctx => { ctx.engine.applyPvLoss(ctx.targets[0], 5, ctx.source); });
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9, effects: [{ type: 'strike_again' }] })], { pv: 100 });
+    const d = fighter('D', [focusCard('wait')], { pv: 100 });
+    const e = new CombatEngine([a], [d], { registry: r });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }]);
+    // The blow lands on an open body; its effect then takes 5 with no roll.
+    expect(e.pvLosses.map(l => [l.lost, l.via])).toEqual([[10, 'open'], [5, 'uncontested']]);
+  });
+});
+
 describe('chip damage (an option; 0 by the rules)', () => {
   it('a held blow still takes its share off the defender, after armour', () => {
     const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 9 })], { pv: 100 });
