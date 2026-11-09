@@ -5,6 +5,7 @@
     "build": "pnpm -r build",
     "dev": "concurrently -k \"pnpm --filter engine exec tsc --watch --preserveWatchOutput\" \"pnpm --filter web dev\"",
     "simulate": "pnpm --filter @pimpampum/tools start",
+    "fingerprint": "pnpm build:libs && pnpm --filter @pimpampum/tools exec tsx src/fingerprint.ts",
     "test": "pnpm build:libs && pnpm typecheck:tests && vitest run",
     "test:slow": "pnpm build:libs && SLOW=1 vitest run .slow.test",
     "test:all": "pnpm build:libs && pnpm typecheck:tests && SLOW=1 vitest run",

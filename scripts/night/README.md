@@ -1,22 +1,38 @@
-# The night run
+# The night runs
 
-Every night at 01:00 a headless Claude session works the first unfinished goal
-in `GOALS.md` (`prompt.md` holds its standing instructions) in a fresh worktree
-off `origin/main`, for `NIGHT_HOURS` (6). In the morning there is either a pull
-request with a five-line description, or a comment on the `Night log` issue
-saying what was tried. Each carries the command to question that night's session.
+Two jobs, each a Claude session in a fresh worktree off `origin/main`:
 
-Install (once, as the user; the computer must be on, not suspended, at 01:00):
+| job | when | budget | what | prompt |
+|---|---|---|---|---|
+| `simplify` | 00:00 | 50 min | one pure refactor; skipped while a `simplify/` PR is open | `simplify.md` |
+| `goals` | 01:00 | 6 h | the first unfinished goal in `GOALS.md` | `goals.md` |
 
-    git -C ~/pimpampum show origin/main:scripts/night/systemd/pimpampum-night.service > ~/.config/systemd/user/pimpampum-night.service
-    git -C ~/pimpampum show origin/main:scripts/night/systemd/pimpampum-night.timer > ~/.config/systemd/user/pimpampum-night.timer
-    systemctl --user daemon-reload && systemctl --user enable --now pimpampum-night.timer
+Each session is interactive, inside tmux, with **Remote Control** on: watch it
+or ask it something from the phone or claude.ai/code, or at the desk with
+`tmux -L pimpampum attach -t <night>`. At its deadline it is told to wrap up,
+and given 30 more minutes. Then the script, never the agent, pushes and opens
+the pull request (five-line description) or, when nothing landed, comments on
+the `Night log` issue; both carry the session's link. A session stays open
+until its pull request is merged or closed (7 days at most).
 
-The units are copies: re-run those two lines after changing them. Try it without
+**The simplify guard:** `pnpm fingerprint` hashes 300 seeded fights in both
+sets. The script takes it on `origin/main` before the session and again after;
+if it moved, the change altered the game and nothing is pushed.
+
+Install (once, as the user; the computer must be on, not suspended, at night):
+
+    for u in 'pimpampum-night@.service' pimpampum-night-goals.timer pimpampum-night-simplify.timer; do
+      git -C ~/pimpampum show "origin/main:scripts/night/systemd/$u" > ~/.config/systemd/user/"$u"
+    done
+    systemctl --user daemon-reload
+    systemctl --user enable --now pimpampum-night-goals.timer pimpampum-night-simplify.timer
+
+The units are copies: re-run that after changing them. Try a job without
 anything leaving the machine:
 
-    NIGHT_DRY_RUN=1 NIGHT_HOURS=1 nix develop ~/pimpampum --command \
+    NIGHT_JOB=simplify NIGHT_DRY_RUN=1 NIGHT_MINUTES=10 nix develop ~/pimpampum --command \
       bash <(git -C ~/pimpampum show origin/main:scripts/night/night.sh)
 
-Logs and reports: `~/.local/state/pimpampum-night/<night>/`. Start one now:
-`systemctl --user start pimpampum-night`. Stop the habit: `systemctl --user disable --now pimpampum-night.timer`.
+Logs and reports: `~/.local/state/pimpampum-night/<night>/`. Start a job now:
+`systemctl --user start pimpampum-night@goals`. Stop one:
+`systemctl --user disable --now pimpampum-night-simplify.timer`.

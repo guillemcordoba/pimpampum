@@ -28,9 +28,9 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 | `NEXT-STEPS.md` | FROZEN history (2026-08 → 11), cited by code comments; being retired (`GOALS.md`, last item). Never append to it. |
 | An action's `description` | What that card does. If the implementation disagrees, **the description wins** and the handler is fixed. |
 
-## The night run
+## The night runs
 
-The owner sets goals and judges taste; the grinding (tuning, balancing, the AI, the measurement) happens at night. `scripts/night/night.sh`, started by a systemd user timer, works the first unfinished goal in `GOALS.md` in a fresh worktree off `main` and opens one pull request with a five-line description, or posts a one-line note to the `Night log` issue when nothing landed. The owner approves or not in the morning, and can question that night's session (the `claude --resume` command its pull request or log comment carries). Its standing instructions: `scripts/night/prompt.md`.
+The owner sets goals and judges taste; the grinding happens at night (`scripts/night/README.md`). At 00:00 the **simplify** run makes one pure refactor, refused unless `pnpm fingerprint` (300 seeded fights) is unchanged; at 01:00 the **goals** run works the first unfinished goal in `GOALS.md` (tuning, balancing, the AI, the measurement). Each is a Remote Control session in tmux, reachable from the phone; each leaves at most one pull request with a five-line description, or a comment on the `Night log` issue. The owner approves or not in the morning. Standing instructions: `scripts/night/simplify.md` and `goals.md`.
 
 ## Non-negotiables
 

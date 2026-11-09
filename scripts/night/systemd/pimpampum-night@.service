@@ -1,0 +1,13 @@
+[Unit]
+Description=Pim Pam Pum night run: %i (scripts/night/night.sh)
+
+[Service]
+Type=oneshot
+Environment=NIGHT_JOB=%i
+Environment=PATH=/run/current-system/sw/bin:/etc/profiles/per-user/%u/bin:%h/.nix-profile/bin
+# Always the night script as it is on origin/main, whatever the checkout holds.
+ExecStart=/run/current-system/sw/bin/bash -c 'git -C %h/pimpampum fetch -q origin main && git -C %h/pimpampum show origin/main:scripts/night/night.sh > %t/pimpampum-night-%i.sh && exec nix develop %h/pimpampum --command bash %t/pimpampum-night-%i.sh'
+TimeoutStartSec=8h
+Nice=5
+# The tmux server outlives the run: its session stays open for the morning.
+KillMode=process

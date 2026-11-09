@@ -1,8 +1,9 @@
 [Unit]
-Description=Start the Pim Pam Pum night run at 01:00
+Description=Start the Pim Pam Pum simplify night run at 00:00
 
 [Timer]
-OnCalendar=*-*-* 01:00
+OnCalendar=*-*-* 00:00
+Unit=pimpampum-night@simplify.service
 # A missed night is skipped, never run in the owner's morning.
 Persistent=false
 

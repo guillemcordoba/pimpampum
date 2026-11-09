@@ -1,7 +1,7 @@
 # Goals
 
 The one list of what is still to do. **The owner** writes and orders it, on
-walks; **the night run** (`scripts/night/`) works it while the owner sleeps and
+walks; **the goals night run** (`scripts/night/`) works it while the owner sleeps and
 opens at most one pull request a morning. Delete an item when it is done.
 Findings go into the doc they change (`rules.md`, `intentions.md`,
 `ARCHITECTURE.md`) or the commit message, never into a growing log.

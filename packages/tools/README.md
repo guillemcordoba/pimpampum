@@ -212,6 +212,7 @@ pnpm --filter @pimpampum/tools exec tsx src/<file>.ts
 | `experiment-defense-vs-attack.ts` | the defense premium, solved exactly from the dice |
 | `profile-lookahead.ts` | where a depth-1 decision spends its time — a dev tool |
 | `mutation.ts` | can the fast tier actually fail — see its header |
+| `fingerprint.ts` | one hash of 300 seeded fights in both sets (`pnpm fingerprint`); a pure refactor leaves it unchanged, and the simplify night run refuses any change that moves it |
 | `play.ts` | hand-play harness — not a measurement |
 
 ### The lifecycle of a harness

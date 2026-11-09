@@ -17,6 +17,7 @@
             pkgs.csv-tui
             pkgs.nodejs_22
             pkgs.pnpm
+            pkgs.tmux  # the night runs live in tmux, reachable by Remote Control (scripts/night/)
           ];
         };
       }
