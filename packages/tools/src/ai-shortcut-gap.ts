@@ -1,7 +1,7 @@
 /**
  * WHAT EACH SHORTCUT COSTS — the exact layer grading the cheap ones.
  *
- * The equilibrium AI is built exact-layer-first (AI-EQUILIBRIUM-PLAN.md): the
+ * The equilibrium AI is built exact-layer-first (the equilibrium plan, in git history): the
  * referee solves a position exactly (every card, every in-round decision,
  * every round to the end), and every shortcut the live player takes to reach
  * real fights is measured against it. On each position the exact referee can

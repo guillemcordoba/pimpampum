@@ -34,7 +34,7 @@ export function checkSkillUp(lostBy: number): boolean {
  * A level enters no roll (2026-11-01, `rules.md`): it only says which cards a
  * character knows. This helper outlives the rule for the PINNED calibration
  * copies alone, which import it and are never edited; it goes when they are
- * re-pinned (`pnpm calibration:refresh`, OPEN.md C4).
+ * re-pinned (`pnpm calibration:refresh`, GOALS.md C4).
  */
 export function skillLevelBonus(actor: { getSkillLevel(id: string): number }, def: { skillId: string }): number {
   return actor.getSkillLevel(def.skillId);

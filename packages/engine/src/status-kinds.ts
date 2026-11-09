@@ -181,7 +181,7 @@ const STANDING_WALL: StatusBehavior = {
 const UNTARGETABLE: StatusBehavior = {
   untargetable: () => true,
   // Worth nothing while someone else on its side can still be hit: the foes'
-  // blows only move there (OPEN.md B16, puzzle (k)).
+  // blows only move there (GOALS.md B16, puzzle (k)).
   positionValue: (ref, board) => (board?.alliesOf(ref.holder, false).some(a => a.isAlive() && !a.holdsStatusWith('untargetable'))
     ? 0
     : 0.5 * threatOn(ref.holder, board) * turnsLeft(ref)),

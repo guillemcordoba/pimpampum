@@ -1,5 +1,5 @@
 /**
- * THE EQUILIBRIUM PLAYER — a PROTOTYPE (2026-10-28, AI-EQUILIBRIUM-PLAN.md, L2).
+ * THE EQUILIBRIUM PLAYER — a PROTOTYPE (2026-10-28, the equilibrium plan, in git history, L2).
  *
  * The referee solves a round exactly; this plays a live round with the same
  * machinery and the shortcuts the exact layer graded cheapest for their gap

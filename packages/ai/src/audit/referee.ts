@@ -73,7 +73,7 @@ export interface RefereeOptions {
    */
   strategies: 'enumerate' | 'oracle';
   // --- SHORTCUTS. Each one trades exactness for reach; each is graded by
-  // `grade` against a referee without it (AI-EQUILIBRIUM-PLAN.md, L2).
+  // `grade` against a referee without it (the equilibrium plan, in git history, L2).
   /** Rounds solved before the board is scored as it stands, by the payoff
    *  itself (`margin`: PV on A minus PV on B) — no weights, nothing but the
    *  currency the fight is scored in. Omit: to the real end. */
@@ -525,7 +525,7 @@ export class Referee {
    * probability), `cols` side B's; either may be omitted. A gap of 0 is an
    * equilibrium strategy; the gap is in the payoff's own units.
    *
-   * This is how a shortcut is judged (AI-EQUILIBRIUM-PLAN.md): solve the same
+   * This is how a shortcut is judged (the equilibrium plan, in git history): solve the same
    * position cheaply, hand its mixes here, and the exact layer says what the
    * shortcut cost. Not "did it pick the referee's card" — a right mix often
    * holds no single right card.

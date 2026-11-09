@@ -1,15 +1,35 @@
-# Open work
+# Goals
 
-Everything still to do, from the inventory of 2026-11-01. Tick an item off by
-deleting it; when the file is empty, delete it, `NEXT-STEPS.md` and the branch
-documents (`PRIORITY-REPORT.md`, `PRIORITY-MIGRATION.md`, `DESIGN-PROPOSALS.md`,
-`AI-EQUILIBRIUM-PLAN.md`), repointing what cites them. Findings go into the doc
-they change (`rules.md`, `intentions.md`, `ARCHITECTURE.md`) or the commit
-message — never into a growing log.
+The one list of what is still to do. **The owner** writes and orders it, on
+walks; **the night run** (`scripts/night/`) works it while the owner sleeps and
+opens at most one pull request a morning. Delete an item when it is done.
+Findings go into the doc they change (`rules.md`, `intentions.md`,
+`ARCHITECTURE.md`) or the commit message, never into a growing log.
+
+## Night goals, in order
+
+The night takes the FIRST goal it has not finished, and works only on it. Each
+goal states its done-check: something the night can run and read on its own.
+A goal without one is not ready for the night; it stays with the owner.
+
+1. **Keep only the standing harnesses.** `packages/tools/src` holds 34 scripts;
+   keep only those that answer a question asked again after every content change
+   (at least `kit-gate`, `kit-analyzer`, `main` (simulate), `play`, `mutation`,
+   `mutants`, `derive-pv`, `sets`). For each script deleted, its conclusion goes in
+   the commit message (CLAUDE.md, "a one-off experiment is deleted"). AI-audit
+   tools stay only if a remaining test or harness uses them.
+   *Done when:* `pnpm test` is green, `pnpm test:smoke` runs every remaining
+   slow file, and `packages/tools/README.md` lists exactly what is left.
+2. **The measurement fits in one night.** B27, and the harness timeouts in B28.
+   *Done when:* the full kit gate (not `--quick`) and every `test/kits/*.slow.test.ts`
+   finish in under 4 hours together at full lanes, and their verdicts match the
+   runs from before the change (or the difference is explained).
+3. **Then the "Work" list below, top down**, skipping any item that needs a
+   decision from the owner: that item becomes a question in the morning report.
 
 ## Decided, to implement
 
-- **Every card is redesigned** (2026-11-01): the player kits (same skills, 10 cards each), the enemies, the gold cards and the item cards, each from a design doc the user writes (CLAUDE.md, "The user designs each kit"). The batch A–D proposals (`DESIGN-PROPOSALS.md`) are dropped. Pilot: the firebender, from the user's concept doc ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb): all ten concepts kept, in the order 1 Bola de foc · 2 Mantell de flames · 3 Esclat · 4 Tempesta d'espurnes · 5 Pell d'obsidiana · 6 Alè de drac · 7 Foc interior · 8 Anell de foc · 9 Llamp · 10 Supernova.
+- **Every card is redesigned** (2026-11-01): the player kits (same skills, 10 cards each), the enemies, the gold cards and the item cards, each from a design doc the user writes (CLAUDE.md, "The user designs each kit"). Pilot: the firebender, from the user's concept doc ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb): all ten concepts kept, in the order 1 Bola de foc · 2 Mantell de flames · 3 Esclat · 4 Tempesta d'espurnes · 5 Pell d'obsidiana · 6 Alè de drac · 7 Foc interior · 8 Anell de foc · 9 Llamp · 10 Supernova.
 - **Old cards until their kit is redesigned:** mechanical changes only (no design or balance edits).
 - **Encounter-speed test:** stays red until fights shorten.
 
@@ -26,10 +46,9 @@ message — never into a growing log.
   'adaptive' +4.3 ±2.5, +3.4 ±3.1, +2.4 ±6.2. Both ahead in every cell, none alone significant
   (pooled, settled ≈ +4.4 ±2.3, adaptive ≈ +3.4 ±2.5); the two are indistinguishable. Recommendation: 'settled', the cheaper.
 - A8. Today's AI knobs (`continuation`, 9 samples): drop if A7b lands.
-- A9. Merge path: priority-system → elements-set → main (main is 173 commits behind; the elements set was never accepted).
 - A10. The web app playing the elements set (19 web files import set-fantasy).
 
-## Work (assistant), in order
+## Work, in order
 
 - B29. [S] A hero's PV is derived per level, never fixed (the user, 2026-11-06; intentions.md). The elements set pins its table (`sets/elements/src/players/hero-pv.ts`, `tools/src/derive-pv.ts`). Left: the fantasy set's own table (its `heroPV` is one value until then; its cards are being redesigned first), and the pinned calibration copies, which still read set-common's `BODY_PV` until the next `pnpm calibration:refresh` re-pins them; then `BODY_PV` goes.
 - B28. [S] The slow tier, measured 2026-11-05 (without the kit suites, B27): green except: the fantasy balancer's calibration (three rats asked for 50%, delivered 57.9% ±1.1, the bar 7.3 points); the fantasy balancer's realistic parties (every request came back clamped or capped by fight length, so nothing was asserted: its creatures, B20); the fantasy triangle (Protect > Aggro 24.8%, Aggro > Power 49.1%, now in its known list until the fantasy redesign, C1); and `ai/test/audit.slow.test.ts`, whose seed test (61 s) blocked its vitest worker past the RPC timeout (fixed that day: it yields between positions). The elements triangle test passes while the kit gate finds Protect > Aggro broken at levels 3, 6 and 10: the two measure different fights (the calibration party, the gate's random pairs), to reconcile. The harness test (alone, 34 harnesses at GAMES=2): `kit-tuner.ts` and `main.ts` run past its 10-minute limit even alone; `kit-analyzer.ts` finds no usable cell on fantasy (every calibration shape saturated at that size: the fantasy creatures, B20); the dynamics report now reads the band inconclusive in that case instead of failing.
@@ -70,4 +89,4 @@ message — never into a growing log.
 
 ## Last
 
-- Retire `NEXT-STEPS.md` (158 references in 69 files) and the branch documents; drop them from `CLAUDE.md`.
+- Retire `NEXT-STEPS.md` (cited by § from code comments and `ARCHITECTURE.md`): move what is still true into the doc it belongs to, drop the citations, delete it, and drop it from `CLAUDE.md`.

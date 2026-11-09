@@ -122,6 +122,6 @@ for (const kit of quick ? [] : kits) {
   }
 }
 
-console.log(`\nSTRENGTH BAND — waits for the creatures on the ladder (OPEN.md B20)`);
+console.log(`\nSTRENGTH BAND — waits for the creatures on the ladder (GOALS.md B20)`);
 console.log(`\n${r.failures.length} failing cells${r.failures.length ? ':' : '.'} (${quick ? 'quick gate' : 'full gate'}, ${Math.round((Date.now() - started) / 60_000)} min)`);
 for (const f of r.failures) console.log(`  ${f.text}`);

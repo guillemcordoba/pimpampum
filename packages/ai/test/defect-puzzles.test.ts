@@ -306,7 +306,7 @@ describe('audit defects as puzzles: a stun against a horde', () => {
 // and both foes' blows go to V, who is A's twin: none is saved, only moved,
 // and V's strike is lost. The untargetable kind priced each veiled ally as a
 // blow dodged, so the AI veiled (Boira, picked on 46.9% of the waterbender's
-// turns and the best play on 8%, OPEN.md B16).
+// turns and the best play on 8%, GOALS.md B16).
 const locked = (f: FighterSpec): FighterSpec => ({ ...f, statuses: [{ key: 'audit.lock', value: 1, data: { bane: 1, left: 1 }, priced: 1 }] });
 const armoured = (f: FighterSpec): FighterSpec => ({ ...f, armour: 4 });
 const VEIL = position('veil', 2,

@@ -19,7 +19,7 @@
  *    one the AI is blind to — and what a random card costs against the best,
  *    per decision, at each checkpoint.
  *
- * The strength band joins when creatures are on the ladder (OPEN.md B20): it is
+ * The strength band joins when creatures are on the ladder (GOALS.md B20): it is
  * measured against creatures, and their cells saturate until then.
  */
 import path from 'node:path';

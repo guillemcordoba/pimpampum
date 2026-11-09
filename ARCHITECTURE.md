@@ -587,7 +587,7 @@ that prices encounters has to have.
   priced — a stun, a delayed blow or a raised ally pay off there; NEXT-STEPS
   §52). Those blows are raw and uncapped: capped at the other side's health, a
   stun or a kill against a horde whose blows already exceeded the party's was
-  worth nothing (OPEN.md B16, 2026-11-02). The team is solved JOINTLY by
+  worth nothing (GOALS.md B16, 2026-11-02). The team is solved JOINTLY by
   iterated best response, which is the only way a defense can be valued next
   to the focus it protects. ~6× the cost, and it beats
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).

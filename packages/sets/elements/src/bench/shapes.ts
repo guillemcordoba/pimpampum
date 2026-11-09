@@ -8,7 +8,7 @@ import type { Shape } from '@pimpampum/bench';
  * The shapes a kit is measured across, one per creature's role: the horde, the
  * control pack, the beasts, the mixed line. PV is solved, never written down;
  * the COUNT is the coarse lever, chosen by measurement (`probe-shapes.ts
- * --set elements`, last 2026-11-02, OPEN.md B17). The beasts were one unagi
+ * --set elements`, last 2026-11-02, GOALS.md B17). The beasts were one unagi
  * until then: alone it could not threaten the party before the fight-length
  * cap, and no PV made it fair.
  */

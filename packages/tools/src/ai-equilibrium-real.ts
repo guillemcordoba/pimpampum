@@ -1,6 +1,6 @@
 /**
  * THE EQUILIBRIUM PLAYER IN REAL FIGHTS — against today's AI, on a set's own
- * kits (AI-EQUILIBRIUM-PLAN.md, L2).
+ * kits (the equilibrium plan, in git history, L2).
  *
  * Mirrored calibration parties (the same table on both sides), each fight
  * played twice on the same seed with the two AIs swapped between the sides,

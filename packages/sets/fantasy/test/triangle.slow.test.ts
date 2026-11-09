@@ -26,7 +26,7 @@ const WORK = path.join(path.dirname(fileURLToPath(import.meta.url)), 'triangle.w
 // Measured 2026-11-05 (800 mirror fights an edge): Protect > Aggro 24.8%,
 // Aggro > Power 49.1%, held up by the pinned Rugit de guerra, Riu de lava and
 // Cures de camp. The fantasy cards are to be redesigned on the new rules
-// (OPEN.md, C1), so the edges wait for that rather than a retune.
+// (GOALS.md, C1), so the edges wait for that rather than a retune.
 const KNOWN_BROKEN = new Set<string>(['Protect > Aggro', 'Aggro > Power']);
 
 describe('the strategy triangle', () => {

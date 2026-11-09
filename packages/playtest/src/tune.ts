@@ -96,7 +96,7 @@ export function knobsFor(kit: string, base: NumbersPatch = {}, only?: readonly s
 export interface KitScore {
   total: number;
   duration: number; cards: number;
-  /** Until creatures are on the ladder (OPEN.md B20), the band is guarded on the
+  /** Until creatures are on the ladder (GOALS.md B20), the band is guarded on the
    *  kit's score in mirrors, so a fix to its length cannot make it a bully. */
   strength: number;
 }

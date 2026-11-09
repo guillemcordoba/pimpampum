@@ -7,7 +7,7 @@
  * the position's own lean cancel, and the PV margin left is who played
  * better. The positions are cut at their rounds left, so the margin — not
  * the win — is the score. A standing question while the prototype grows into
- * the live player (AI-EQUILIBRIUM-PLAN.md), so a harness.
+ * the live player (the equilibrium plan, in git history), so a harness.
  *
  * Run: pnpm --filter @pimpampum/tools exec tsx src/ai-equilibrium-match.ts
  *      … --games 30 --slice 2x1-c3-r3 --catalogue composed

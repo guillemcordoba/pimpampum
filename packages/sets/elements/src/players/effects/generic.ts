@@ -457,7 +457,7 @@ function again(ctx: EffectContext): void {
 
 /** A fixed blow as dice (zero dice, the total as modifier). Live content
  *  passes the total itself to `performExtraAttack`; this stays only because
- *  the pinned calibration copies import it (`OPEN.md` B5). */
+ *  the pinned calibration copies import it (`GOALS.md` B5). */
 export function fixedBlow(total: number): DiceRoll {
   return new DiceRoll(0, 1, Math.max(0, total));
 }

@@ -24,9 +24,13 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 | `rules.md` | The mechanics, in prose (Catalan). **Read before changing combat logic.** |
 | `intentions.md` | Balance/design intentions — strategy triangle, dice, fatigue. |
 | `ARCHITECTURE.md` | Engine seams, effect-handler catalogue, AI and audit internals, balancer, web. **Read the relevant section before touching a subsystem.** |
-| `OPEN.md` | Everything still to do, and the rulings decided but not yet implemented. Delete an item when it is done. |
-| `NEXT-STEPS.md` | FROZEN history (2026-08 → 11), cited by code comments; being retired (`OPEN.md`, last item). Never append to it. |
+| `GOALS.md` | Everything still to do: the night goals (in order, each with its done-check), the decisions waiting for the owner, the work list. Delete an item when it is done. |
+| `NEXT-STEPS.md` | FROZEN history (2026-08 → 11), cited by code comments; being retired (`GOALS.md`, last item). Never append to it. |
 | An action's `description` | What that card does. If the implementation disagrees, **the description wins** and the handler is fixed. |
+
+## The night run
+
+The owner sets goals and judges taste; the grinding (tuning, balancing, the AI, the measurement) happens at night. `scripts/night/night.sh`, started by a systemd user timer, works the first unfinished goal in `GOALS.md` in a fresh worktree off `main` and opens one pull request with a five-line description, or posts a one-line note to the `Night log` issue when nothing landed. The owner approves or not in the morning, and can question that night's session (the `claude --resume` command its pull request or log comment carries). Its standing instructions: `scripts/night/prompt.md`.
 
 ## Non-negotiables
 
@@ -44,7 +48,7 @@ pnpm monorepo, layered — each package only looks DOWN (enforced by `tools/test
 ## Core mechanics (a summary — `rules.md` is the truth)
 
 - **The dice ladder**: 1d4 is the unit; a level-L card averages about L + 1.5 (1d4 at level 1 … 3d6+1 at level 10), a defense holds ~78% against its level's attack, effects are paid in dice (`sets/common/src/ladder.ts`, each set's `test/ladder.test.ts`).
-- **PV** is the only base stat, and a hero's is never fixed: a base plus what each level in each class adds — bulky classes more, fragile ones less — derived from the requirements (each set's `heroPV(skills)`, `tools/src/derive-pv.ts`). A creature's PV and level are the encounter's two levers (2026-11-03; the solved level is OPEN.md B20); today the encounter balancer solves their PV (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
+- **PV** is the only base stat, and a hero's is never fixed: a base plus what each level in each class adds — bulky classes more, fragile ones less — derived from the requirements (each set's `heroPV(skills)`, `tools/src/derive-pv.ts`). A creature's PV and level are the encounter's two levers (2026-11-03; the solved level is GOALS.md B20); today the encounter balancer solves their PV (`solveEncounter(pool, party, targetWinrate)`, by simulating the real fight). Difficulty and the party are INPUTS — an explicit party is the real table, a drawn one (`players/party.ts`) a representative sample.
 - **Heroes start at level 3** in their main skill: an attack, a defense and a Focus in hand from the first fight (the triangle needs all three; levels 1-2 are below play).
 - **An action** belongs to a skill, has a type (Atac / Defensa / Focus), dice, and rarely the **fast** keyword. It costs no fatigue unless its text says so.
 - **The roll** = the card's dice + roll bonuses − fatigue. **A level enters no roll** (2026-11-01), in combat or out: it only gates which cards a character knows (mestratge, then the flat level, were removed by design decision).

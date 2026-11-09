@@ -294,7 +294,7 @@ export function settledScore(sim: CombatEngine, team: number, weights: Evaluator
  * Nor at the other side's whole health: the blows are raw (no defences), and
  * once a horde's exceeded the party's health a stun, a kill or anything else
  * that took one blow away changed nothing there, so the search never played
- * them against hordes (puzzle (j), OPEN.md B16).
+ * them against hordes (puzzle (j), GOALS.md B16).
  */
 function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Character>, w: EvaluatorWeights): number {
   let acc = 0;
