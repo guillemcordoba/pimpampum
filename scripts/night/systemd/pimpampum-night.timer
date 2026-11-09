@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the Pim Pam Pum night run at 01:00
+
+[Timer]
+OnCalendar=*-*-* 01:00
+# A missed night is skipped, never run in the owner's morning.
+Persistent=false
+
+[Install]
+WantedBy=timers.target
