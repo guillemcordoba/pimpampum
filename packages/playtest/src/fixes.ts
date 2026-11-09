@@ -16,13 +16,12 @@
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
 import { DUMB_STYLES, kitsDynamics, styleDuel, theSet, type DuelStyle, type DumbStyle, type Variant } from '@pimpampum/bench';
-import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
-import { deriveOnTwins } from './derive-twins.js';
+import { deriveOnTwins, type PVDerivation } from './derive-twins.js';
 import type { CensusCard } from './census.js';
 import { TWIN_DEFAULTS } from './vanilla.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
-import { edgeHolds } from './rules.js';
+import { edgeHolds, MAX_UNANSWERABLE_KOS } from './rules.js';
 import { diceStep } from './tune.js';
 
 export interface Fix {
@@ -56,7 +55,7 @@ export const CANDIDATE_FIXES: readonly Fix[] = [
   { id: 'def2', label: 'Defenses two rungs lower (nothing else)', aim: 1, defenseShift: -2, chip: 0, burst: 'fast' },
 ];
 
-const blowFloor = (v: PVDerivation, burst: Fix['burst']) => (burst === 'fast' ? v.fastBlowPV ?? 1 : burst === 'plain' ? v.plainBlowPV : v.bestBlowPV);
+const blowFloor = (v: PVDerivation, burst: Fix['burst']) => (burst === 'fast' ? v.fastBlowPV : burst === 'plain' ? v.plainBlowPV : v.bestBlowPV);
 
 export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number }
 export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100 };

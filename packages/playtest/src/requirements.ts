@@ -9,8 +9,7 @@
  * Focus beats one that defends, which is the design: against a defender, Focus),
  * and the band against creatures until the creatures are on the ladder (B20).
  */
-import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
-import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
+import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MAX_UNANSWERABLE_KOS, MIN_CHOICE_COST } from './rules.js';
 
 export type RequirementGroup = 'how fights play' | 'cards';
 

@@ -32,6 +32,10 @@ export const MAX_P90_ROUNDS = 6;
 /** Fights that never end. Separate from the two length bars because it is a
  *  different failure: a stalemate is not a slow fight, it is no fight. */
 export const MAX_STALL_RATE = 0.02;
+/** INTERACTIVITY (intentions.md): a card may fell a fresh hero in one play
+ *  WITHOUT AN ANSWER (bench `Unanswerable`: fast, through its guard, or with
+ *  no roll against a guard) at most this share of its plays. */
+export const MAX_UNANSWERABLE_KOS = 0.1;
 
 /**
  * Do fights end?

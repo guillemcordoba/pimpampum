@@ -358,15 +358,3 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
     return out;
   });
 }
-
-/** One kit on every hero (installed by the caller — a vanilla kit), at `level`.
- *  `print` is the kit's content, for the cache. */
-export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
-  return countedCached('dynamics', key('dynamics-v8', `${print}#pv:${heroPVPrint()}`, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
-    const out = emptyDynamics();
-    withSeed(seedOf(kit, level), () => {
-      for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);
-    });
-    return out;
-  });
-}

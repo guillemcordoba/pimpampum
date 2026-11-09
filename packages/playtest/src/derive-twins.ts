@@ -1,25 +1,45 @@
 /**
- * HERO PV DERIVED ON THE VANILLA SET — the main kits' calibrated twins
- * (`vanilla.ts`), checked against today's game (`vanillaMatches`; the user,
- * 2026-11-04: vanilla is reasonable now, build on it). The same constraints as
- * `derivePV`: the floor — interactivity (no fast attack fells a fresh hero,
- * `burst: 'fast'`; the older readings, the
- * twins' strongest blow plain or boosted, stay for the structure search) — and
- * the ceiling, fights ending in time.
+ * HERO PV DERIVED ON THE VANILLA SET — never chosen (the user, 2026-11-04: "PV
+ * needs to be derived to fulfill all the constraints, not the other way
+ * around"), on the main kits' calibrated twins (`vanilla.ts`), checked against
+ * today's game (`vanillaMatches`; the user, 2026-11-04: vanilla is reasonable
+ * now, build on it). Per level, the window of PV that meets every constraint:
+ * the floor — interactivity (no fast attack fells a fresh hero,
+ * `burst: 'fast'`; the older readings, the twins' strongest blow plain or
+ * boosted, stay for the structure search) — and the ceiling, fights ending in
+ * time. The derived PV is the CEILING. An empty window is not papered over: it
+ * says the STRUCTURE cannot meet the constraints at that level, and which
+ * ones collide.
  */
 import { DiceRoll, diceDistribution } from '@pimpampum/engine';
 import { kitsDynamics, theSet, type FightSummary } from '@pimpampum/bench';
 import type { CensusCard } from './census.js';
-import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import type { LadderRung } from './feasibility.js';
-import { installSet, type RunContext } from './prepare.js';
-import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
+import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MAX_UNANSWERABLE_KOS } from './rules.js';
 import { vanillaPrint, vanillaTwin, withVanillaSet, type TwinParams } from './vanilla.js';
 
 const PV_MIN = 1;
 /** Heroes sit near 26 today and every derivation so far stayed under 40. */
 const PV_MAX = 60;
+
+export interface PVDerivation {
+  level: number;
+  /** Floors: the twins' strongest blow, boosted and plain. */
+  bestBlowPV: number; plainBlowPV: number;
+  /** Interactivity's floor: the smallest PV the level's strongest fast attack
+   *  fells from full at most `MAX_UNANSWERABLE_KOS` of the time. */
+  fastBlowPV: number;
+  /** Ceiling: the most PV with fights still ending in time (null: not even
+   *  at the smallest PV). */
+  lengthPV: number | null;
+  /** The derived PV, or null when the window is empty. */
+  pv: number | null;
+  /** What closes the window when it is empty. */
+  collides: string[];
+  /** Every PV the search measured, for the report. */
+  measured: { pv: number; summary: FightSummary }[];
+}
 
 export interface TwinDeriveOptions {
   fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain' | 'fast';
@@ -79,11 +99,10 @@ export function deriveOnTwins(
       while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ends(at(mid))) lo = mid; else hi = mid; }
       lengthPV = lo;
     }
-    const blowPV = opts.burst === 'fast' ? fastBlowPV : opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
-    const floor = blowPV;
+    const floor = opts.burst === 'fast' ? fastBlowPV : opts.burst === 'plain' ? plainBlowPV : bestBlowPV;
     const collides = lengthPV === null ? ['fights do not end in time even at the smallest PV']
       : lengthPV < floor ? [
-        ...(lengthPV < blowPV ? [`${opts.burst === 'fast' ? 'the strongest fast attack' : 'the best blow'} needs ≥ ${blowPV}`] : []),
+        `${opts.burst === 'fast' ? 'the strongest fast attack' : 'the best blow'} needs ≥ ${floor}`,
         `fights end in time only up to ${lengthPV}`,
       ] : [];
     return {
@@ -92,14 +111,4 @@ export function deriveOnTwins(
       measured: [...measured].sort((a, b) => a[0] - b[0]).map(([pv, s]) => ({ pv, summary: asFight(s) })),
     };
   });
-}
-
-/** One level in a child process. The ladder travels as notation. */
-export async function deriveTwinLevel(
-  set: RunContext['set'], level: number, cards: readonly CensusCard[], ladder: Record<number, { attack: string; defense: string }>,
-  p: TwinParams, opts: TwinDeriveOptions,
-): Promise<PVDerivation> {
-  await installSet(set);
-  const rungs: Record<number, LadderRung> = Object.fromEntries(Object.entries(ladder).map(([l, r]) => [l, { attack: DiceRoll.parse(r.attack), defense: DiceRoll.parse(r.defense) }]));
-  return deriveOnTwins(level, cards, rungs, p, opts);
 }

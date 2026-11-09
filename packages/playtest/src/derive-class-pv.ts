@@ -16,10 +16,9 @@
  * ceiling — each with its error bar, so a reading inside the noise says so.
  */
 import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerable } from '@pimpampum/bench';
-import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
-import { MAX_P90_ROUNDS } from './rules.js';
+import { MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS } from './rules.js';
 
 const PV_MIN = 1;
 const PV_MAX = 60;
