@@ -16,12 +16,9 @@ import { kitsDynamics, theSet, type FightSummary, type SubjectKit, type Variant 
 import type { CensusCard } from './census.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import type { LadderRung } from './feasibility.js';
+import { mostPVWhere, PV_MAX, PV_MIN } from './pv-search.js';
 import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MAX_UNANSWERABLE_KOS } from './rules.js';
 import { vanillaPrint, vanillaTwin, withVanillaSet, type TwinParams } from './vanilla.js';
-
-const PV_MIN = 1;
-/** Heroes sit near 26 today and every derivation so far stayed under 40. */
-const PV_MAX = 60;
 
 export interface PVDerivation {
   level: number;
@@ -94,13 +91,7 @@ export function deriveOnTwins(
       return s;
     };
     const ends = (s: DynamicsSummary) => s.median <= MAX_MEDIAN_ROUNDS && s.p90 <= MAX_P90_ROUNDS && s.stallRate < MAX_STALL_RATE;
-    let lengthPV: number | null = null;
-    if (ends(at(PV_MIN))) {
-      let lo = PV_MIN, hi = PV_MAX;
-      if (ends(at(hi))) lo = hi;
-      while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ends(at(mid))) lo = mid; else hi = mid; }
-      lengthPV = lo;
-    }
+    const lengthPV = mostPVWhere(pv => ends(at(pv)));
     const collides = lengthPV === null ? ['fights do not end in time even at the smallest PV']
       : lengthPV < floorPV ? [
         `${opts.burst === 'fast' ? 'the strongest fast attack' : 'the best blow'} needs ≥ ${floorPV}`,

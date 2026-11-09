@@ -18,10 +18,8 @@
 import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerable } from '@pimpampum/bench';
 import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
+import { leastPVWhere, mostPVWhere, PV_MAX, PV_MIN } from './pv-search.js';
 import { MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS } from './rules.js';
-
-const PV_MIN = 1;
-const PV_MAX = 60;
 /** The levels a hero plays at: from its first fight (level 3) to the top. */
 export const PV_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10];
 /** A reading within two standard errors of a bar is measured again on this many times the fights. */
@@ -104,20 +102,8 @@ export function realWindow(level: number, fights: number): LevelWindow {
   };
   const at = (pv: number) => measure(pv).s;
   const answered = (s: DynamicsSummary) => s.unanswerableKOs <= MAX_UNANSWERABLE_KOS;
-  let floor = PV_MAX;
-  if (answered(at(PV_MAX))) {
-    let lo = PV_MIN, hi = PV_MAX;
-    if (answered(at(lo))) hi = lo;
-    while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (answered(at(mid))) hi = mid; else lo = mid; }
-    floor = hi;
-  }
-  let ceiling: number | null = null;
-  if (at(PV_MIN).ends) {
-    let lo = PV_MIN, hi = PV_MAX;
-    if (at(hi).ends) lo = hi;
-    while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (at(mid).ends) lo = mid; else hi = mid; }
-    ceiling = lo;
-  }
+  const floor = leastPVWhere(pv => answered(at(pv)));
+  const ceiling = mostPVWhere(pv => at(pv).ends);
   const under = measure(floor > PV_MIN ? floor - 1 : floor).d;
   const focusSetUps: Record<string, number> = {};
   for (const c of Object.values(under.cards)) for (const [id, n] of Object.entries(c.focusSetUps)) focusSetUps[id] = (focusSetUps[id] ?? 0) + n;
