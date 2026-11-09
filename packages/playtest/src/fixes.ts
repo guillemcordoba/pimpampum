@@ -55,8 +55,6 @@ export const CANDIDATE_FIXES: readonly Fix[] = [
   { id: 'def2', label: 'Defenses two rungs lower (nothing else)', aim: 1, defenseShift: -2, chip: 0, burst: 'fast' },
 ];
 
-const blowFloor = (v: PVDerivation, burst: Fix['burst']) => (burst === 'fast' ? v.fastBlowPV : burst === 'plain' ? v.plainBlowPV : v.bestBlowPV);
-
 export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number }
 export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100 };
 
@@ -99,15 +97,14 @@ export async function evaluateFix(
     attack: DiceRoll.parse(ladder[l].attack), defense: DiceRoll.parse(ladder[Math.max(1, Math.min(10, l + fix.defenseShift))].defense),
   }]));
   const params = { ...TWIN_DEFAULTS, focusScale: (fix.aim + 1) / 2 };
+  const rules: Omit<Variant, 'pv'> = {
+    ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
+  };
   const out: FixLevel[] = [];
   for (const level of levels) {
-    const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
-      fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, envoltat: fix.envoltat, guardCoversDefender: fix.guardCoversDefender,
-    });
-    const pv = vanilla.pv ?? vanilla.lengthPV ?? blowFloor(vanilla, fix.burst);
-    const variant: Variant = {
-      pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
-    };
+    const vanilla = deriveOnTwins(level, cards, twinLadder, params, { fights: budget.vanillaFights, armour: 1, burst: fix.burst, rules });
+    const pv = vanilla.pv ?? vanilla.lengthPV ?? vanilla.floorPV;
+    const variant: Variant = { pv, ...rules };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
     const triangle = EDGES.map(([x, y]) => {
       const d = styleDuel(x, y, level, budget.duelGames, undefined, variant);
@@ -140,10 +137,7 @@ export interface FixScore {
 }
 
 export function scoreFix(r: FixResult): FixScore {
-  const width = (l: FixLevel) => {
-    const floor = blowFloor(l.vanilla, r.fix.burst);
-    return l.vanilla.lengthPV === null ? 0 : Math.max(0, l.vanilla.lengthPV - floor + 1);
-  };
+  const width = (l: FixLevel) => (l.vanilla.lengthPV === null ? 0 : Math.max(0, l.vanilla.lengthPV - l.vanilla.floorPV + 1));
   return {
     windows: r.levels.filter(l => l.vanilla.pv !== null).length,
     realEnds: r.levels.filter(l => l.real.ends).length,
