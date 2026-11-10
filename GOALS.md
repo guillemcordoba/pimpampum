@@ -12,14 +12,16 @@ The night takes the FIRST goal it has not finished, and works only on it. Each
 goal states its done-check: something the night can run and read on its own.
 A goal without one is not ready for the night; it stays with the owner.
 
-1. **Keep only the standing harnesses.** `packages/tools/src` holds 34 scripts;
-   keep only those that answer a question asked again after every content change
-   (at least `kit-gate`, `kit-analyzer`, `main` (simulate), `play`, `mutation`,
-   `mutants`, `derive-pv`, `sets`). For each script deleted, its conclusion goes in
-   the commit message (CLAUDE.md, "a one-off experiment is deleted"). AI-audit
-   tools stay only if a remaining test or harness uses them.
-   *Done when:* `pnpm test` is green, `pnpm test:smoke` runs every remaining
-   slow file, and `packages/tools/README.md` lists exactly what is left.
+1. **Keep only the standing harnesses.** Done 2026-11-10 (b8aae47): 17 one-off
+   scripts deleted, 18 files left, `packages/tools/README.md` lists exactly them;
+   `pnpm test` as on main (only B18's encounter-speed red). Left: the smoke tier
+   (58 min at full lanes) fails six harnesses, none of them touched by the
+   deletion — `derive-pv.ts` throws on fantasy (no `PV_TIERS`: B29),
+   `kit-analyzer.ts` finds no usable fantasy cell (B20), and `main.ts`,
+   `kit-gate.ts`, `kit-tuner.ts`, `dynamics-report.ts` pass the 10-minute limit
+   at GAMES=2 (goal 2, B28). Under that load `ai/test/audit.test.ts`'s
+   double-oracle test also passed its 60 s timeout (it takes 33 s alone).
+   *Done when:* `pnpm test:smoke` fails only what B20, B29 and goal 2 own.
 2. **The measurement fits in one night.** B27, and the harness timeouts in B28.
    *Done when:* the full kit gate (not `--quick`) and every `test/kits/*.slow.test.ts`
    finish in under 4 hours together at full lanes, and their verdicts match the
