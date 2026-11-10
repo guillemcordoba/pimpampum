@@ -2,9 +2,9 @@
  * WHAT A REAL FIGHT LOOKS LIKE — the generator's parameter distributions,
  * FROZEN as constants so the audit never imports a content set.
  *
- * Measured from both sets' kits by `tools/src/ai-audit-calibrate.ts`, which
- * prints these tables and flags drift from them. Re-run it after a content
- * change and paste its output here when the real kits have moved.
+ * Measured from both sets' kits by `tools/src/ai-audit-calibrate.ts` (deleted
+ * 2026-11-10 while every card is redesigned; it is in git history): once the
+ * real kits have moved, restore it, re-run it and paste its output here.
  *
  * Tables are `[value, weight]` frequency lists. Weights are counts as measured.
  *

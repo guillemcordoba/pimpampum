@@ -27,7 +27,7 @@
  * the honest form of "X plays better than Y", because the only thing that
  * differs between the sides is the decision-making.
  *
- * `ai-benchmark.ts` prints these; `sets/fantasy/test/ai-strength.slow.test.ts` asserts on them.
+ * The triangle and the gate's blame play these mirrors (playtest `triangle.ts`, `blame.ts`).
  * One definition, so the report and the gate can never disagree about what the
  * policy under test actually is — the mistake `cells.ts` records for
  * "played out of the times it was legal", which had three implementations.

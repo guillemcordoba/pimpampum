@@ -152,8 +152,8 @@ export function setupFor(subject: Subject, level: number, allSeats = false, with
   });
 }
 
-/** The cards a subject holds at full kit. Shared, so `card-value.ts` and the
- *  report card cannot disagree about what a kit even contains. */
+/** The cards a subject holds at full kit. Shared, so no two reports can
+ *  disagree about what a kit even contains. */
 export function cardsOf(subject: Subject): ActionDefinition[] {
   return kitOf(subject).actions;
 }

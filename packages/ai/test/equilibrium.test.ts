@@ -1,7 +1,7 @@
 /**
  * THE EQUILIBRIUM PROTOTYPE — that it plays, and plays the obvious card.
- * Its strength is measured elsewhere (`tools/src/ai-equilibrium-match.ts`,
- * `ai-shortcut-gap.ts`); here only what must always hold.
+ * Its strength was measured by harnesses deleted 2026-11-10 (the findings:
+ * NEXT-STEPS §57-58, GOALS.md A7); here only what must always hold.
  */
 import { describe, it, expect } from 'vitest';
 import { withSeed } from '@pimpampum/engine';

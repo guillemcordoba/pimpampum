@@ -3,7 +3,7 @@
  *
  * The referee solves a round exactly; this plays a live round with the same
  * machinery and the shortcuts the exact layer graded cheapest for their gap
- * (`tools/src/ai-shortcut-gap.ts`): a double oracle over joint plans, one
+ * (NEXT-STEPS §57-58): a double oracle over joint plans, one
  * round deep, the board then scored by random playouts to the fight's end,
  * in-round decisions greedy against a random rest of the round. No weights,
  * no opinion of good play: what the cards do, played out.
@@ -29,8 +29,8 @@ export const DEFAULT_EQUILIBRIUM: Partial<RefereeOptions> = {
  * The settings that make a real round affordable (a few seconds for four
  * heroes against five goblins): one combination added at a time per seat, at
  * most four a side, a looser stop, fewer samples, in-round decisions weighed
- * on the round's own margin. Each is graded against the exact referee
- * (`tools/src/ai-shortcut-gap.ts`).
+ * on the round's own margin. Each was graded against the exact referee
+ * (NEXT-STEPS §58).
  */
 export const FAST_EQUILIBRIUM: Partial<RefereeOptions> = {
   ...DEFAULT_EQUILIBRIUM, bestResponse: 'seat', pool: 4, epsilon: 2, samples: [2], decisionSamples: [2],

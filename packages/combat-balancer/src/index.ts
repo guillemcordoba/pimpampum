@@ -67,7 +67,8 @@ export interface CreatureInfo {
  * How hard the balancer's AI thinks. The strength of this play IS the meaning
  * of every difficulty number: price an encounter against a party that blunders
  * and it will feel trivial at a table that does not. Depth 1 (2026-08-08) beats
- * depth 0 head-to-head 70/30 for ~6x the compute — see ai-benchmark.ts.
+ * depth 0 head-to-head 70/30 for ~6x the compute (`ai-benchmark.ts`, deleted
+ * 2026-11-10; ARCHITECTURE.md keeps the finding).
  */
 const BALANCER_DEPTH: number = 1;
 
