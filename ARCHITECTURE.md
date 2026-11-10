@@ -78,7 +78,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   └── bench/                # @pimpampum/set-fantasy/bench — the FANTASY GameSet + calibration data (Node-only)
 │   └── test/                     # cards (exact), calibration data, kits/<kit>.slow (per-kit requirements), triangle (set-level requirement 4), balancer
 ├── tools/                        # @pimpampum/tools — the harnesses (see its README)
-│   ├── src/                      # kit-analyzer, ai-benchmark, card-value, probe-shapes, mutation, play, …
+│   ├── src/                      # the standing harnesses (packages/tools/README.md)
 │   └── test/                     # conventions (repo-wide source rules + layering), harness smoke test
 └── web/                          # @pimpampum/web — Vue 3 SPA
     └── src/
@@ -590,7 +590,7 @@ that prices encounters has to have.
   worth nothing (GOALS.md B16, 2026-11-02). The team is solved JOINTLY by
   iterated best response, which is the only way a defense can be valued next
   to the focus it protects. ~6× the cost, and it beats
-  depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08).
+  depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08; deleted 2026-11-10).
   Production is six rollouts per card, two passes, no pruning (`DEFAULT_LOOKAHEAD`).
   **The model of the other side is FICTITIOUS PLAY with a READ**
   (`fictitiousPlay`, 3 iterations, prior 0.25, read 2; 2026-11-03): before
@@ -664,7 +664,7 @@ export; the long harness is `tools/src/ai-audit.ts`. Measured numbers: NEXT-STEP
 |---|---|
 | `zero-sum.ts` | Nash equilibrium of a zero-sum matrix game: tableau simplex (Bland's rule) after merging duplicate rows/columns; regret matching+ as the fallback and the tests' second opinion |
 | `catalogue.ts` | 19 parameterised archetypes, engine generics plus inline `audit:` handlers and their `StatusBehavior`s: attack, jab (fast interrupt), sweep, armour-piercing/undefendable, guard, block, heal, revive, cleanse, setup (slow focus, next attack +N), bomb (lands next round), doom (delayed-death mark), device (ticks every round end for N rounds), stun, lock, weaken, advance an ally (`advancePendingAction`), taunt, hide (dodge every later blow this round) — and the universal fallback. Each says its payoff `horizon` |
-| `profile.ts` | the generator's distributions — fast shares, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` and frozen with a date |
+| `profile.ts` | the generator's distributions — fast shares, dice ladders, type mix, hand sizes, levels, PV, armour, shapes, fight length, fatigue costs, priced statuses — MEASURED from both sets by `tools/src/ai-audit-calibrate.ts` (deleted 2026-11-10, in git history until the redesigned kits land) and frozen with a date |
 | `position.ts` | a position as plain JSON (archetype ids + params), `buildEngine`, and the seeded generator (`pace` rescales PV so the fight lasts about its rounds left) |
 | `referee.ts` | the solver of the fight. Given a `CellPool` (`new Referee(opts, pool)`), `solve` has the root's cells computed on worker threads, blocking until each batch is done — the same numbers, since a cell is a pure function of the round and its seeds and the double oracle (written once, as steps that announce each batch) reads them in the same order. So an equilibrium player on a pool is still a plain, synchronous `Policy` |
 | `content.ts` | `AUDIT_CONTENT`: the registry and the names of the audit's status behaviours, for `CombatEngine.snapshot`/`restore` on another thread |
@@ -818,6 +818,9 @@ was live in `main.ts`’s parametric check until 2026-09-20.
 
 ## The harnesses (`packages/tools/src/`)
 
+What is left, and the question each answers: `packages/tools/README.md`. This
+section keeps the findings of the harnesses too, the deleted ones included.
+
 - `main.ts` — mirror-match balance (equal-budget random teams should win ~50/50,
   draws included), per-skill and per-action win correlation, action-type play
   mix, combat length, and a parametric balancer check.
@@ -830,7 +833,8 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   level 4) but that the long fights come from compositions that cannot threaten
   the party at all (4 wolves need 91 PV each, 22 rounds, because a level-2 wolf
   attacks with 1d2).
-- `ai-benchmark.ts` — the POLICY BENCHMARK: how strong is the AI we measure the
+- `ai-benchmark.ts` (deleted 2026-11-10: the kit gate's dumb-play duels
+  ask its question every run) — the POLICY BENCHMARK: how strong is the AI we measure the
   game with? Runs every policy (the engine's heuristic at depth 0, the same AI
   at depth 1 at two budgets, `spam`, `uniform`) over one fixed encounter and
   reports strength, cost per combat, a mirrored head-to-head matrix, the share
@@ -849,7 +853,7 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   themselves rather than needing hand-calibration — and an out-of-band shape is
   dropped from the headline and reported loudly instead of averaged over.
   **The dead-card verdict is a PER-DECISION COUNTERFACTUAL** (see
-  `card-value.ts` below), not a play rate and no longer an ablation. The kit is
+  `bench/regret.ts` below), not a play rate and no longer an ablation. The kit is
   judged on the mean PV a RANDOM legal pick loses against the best one —
   cross-fitted, so cards worth the same cost nothing however noisy their
   rollouts — and a card fails when it is NEVER the right play: even in the
@@ -863,7 +867,8 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   sessions in which no die changed. The leave-one-out ablation that replaced it
   was honest but underpowered by construction (NEXT-STEPS §17.5) and has been
   deleted.
-- `card-value.ts` + `bench/regret.ts` — **what a card is worth, measured at
+- `bench/regret.ts` (its CLI `card-value.ts` deleted 2026-11-10: the kit
+  analyzer prints the same numbers) — **what a card is worth, measured at
   the decision rather than at the fight**. At a position where C is legal, the
   engine is CLONED once per legal card, that card is forced, the fight is played
   out and the end state scored. The branches share the *identical position*
@@ -909,7 +914,9 @@ was live in `main.ts`’s parametric check until 2026-09-20.
   implementations of one metric is three numbers that can disagree. The
   party-level verdict is now the analyzer's roll-up; `--shape` on the benchmark
   is what the mix harness was for.
-- `experiment-defense-vs-attack.ts` — the DEFENSE PREMIUM check: exact (convolved,
+- `experiment-defense-vs-attack.ts` (deleted 2026-11-10: the premium now
+  lives in the dice ladder, held by `sets/common/test/ladder.test.ts`, exact)
+  — the DEFENSE PREMIUM check: exact (convolved,
   not sampled) probability that each defense card holds against every attack card
   of the same level, plus the minimum dice each defense needs to hit the 80%
   target in `intentions.md`. It found the premium was only 72% on average with

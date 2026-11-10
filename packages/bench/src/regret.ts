@@ -61,8 +61,8 @@ import { aiPolicy, lookaheadChooser as _look } from '@pimpampum/ai';
  * a win/loss bit throws away.
  *
  * It is a SURROGATE for winning, not the same thing — 10 damage spread over
- * four enemies is not a kill — so `card-value.ts` validates it against winrate
- * rather than assuming it.
+ * four enemies is not a kill — so the kit's card values are checked against
+ * winrate rather than assumed to follow it.
  */
 export function pvDifferential(engine: CombatEngine, team: number): number {
   const sum = (t: number): number =>
@@ -401,8 +401,8 @@ export function valuePosition(
 }
 
 // --- Running it over a whole kit ---------------------------------------------
-// ONE implementation, used by both the `card-value.ts` CLI and the kit
-// analyzer's requirement 3. The last time this package had two ways to
+// ONE implementation, the kit analyzer's requirement 3 (also the
+// `card-value.ts` CLI's until 2026-11-10, deleted as a second door to it). The last time this package had two ways to
 // compute one measurement it had three, and they disagreed (`cells.ts`,
 // `instrument`). It takes a `setupFor` rather than importing the analyzer's,
 // so it stays content-agnostic and nothing here points back at the analyzer.

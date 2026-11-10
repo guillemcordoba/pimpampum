@@ -196,30 +196,42 @@ tool the counts are for.
 pnpm --filter @pimpampum/tools exec tsx src/<file>.ts
 ```
 
+Every file here answers a question asked again after every content change (or,
+for the four `ai-*` files, after every AI change), and nothing else lives here:
+a question asked once is answered in a scratch file and the scratch file is
+deleted (below). `tools/test/harnesses.slow.test.ts` runs each of them at `GAMES=2`.
+
 | file | question |
 |---|---|
-| `main.ts` | the standing report: mirror balance + a replay check on the balancer |
-| `kit-analyzer.ts` | **the report card** — the three kit requirements, every number; `--triangle` adds the set's fourth (the TESTS are `sets/fantasy/test/kits/` and `triangle.slow.test.ts`) |
-| `hero-scale.ts` | heroes against heroes at the players' PV: fight length, heroes felled before playing a card, one-play KOs, and requirement 5 (a fast attack is weak or answered) — what the kit cells, against creatures of 30-120 PV, cannot see (the TEST is `sets/elements/test/hero-scale.slow.test.ts`) |
+| **the kits** | |
 | `kit-gate.ts` | **the livable zone** — every main kit, levels 3-10, heroes against heroes: fights end, no kit dominates the field, the triangle, dumb play loses (turtle, spam, random cards), the AI's model of its opponents, every card's use (the TEST is `sets/elements/test/gate.slow.test.ts`) |
+| `kit-analyzer.ts` | **the report card** against creatures — the three kit requirements, every number, card values included; `--triangle` adds the set's fourth (the TESTS are each set's `test/kits/` and `triangle.slow.test.ts`) |
 | `dynamics-report.ts` | **a set's health, at a glance — the tool to iterate a kit with** — how many of playtest's `REQUIREMENTS` hold at levels 3/6/10; the cards to look at first (those that set a level's PV floor, hold its ceiling down, or block a class alone, ranked by how many of these they do past the noise); each class and the cards that block it (each failing kit cell re-played without each card; cards that fell fresh heroes; cards never right); the table; each level's PV window (levels 3-10) with the cards behind its floor and ceiling and their error bars. `--kit <kit>` for one kit, `--fixes` to also measure candidate structures (slow) |
+| `kit-tuner.ts` | the numbers that clear most of one kit's gate cells — a PROPOSAL, re-measured at the gate's budget; it never writes a card |
+| `main.ts` | the standing report: mirror balance + a replay check on the balancer |
+| **the structure and PV** | |
 | `derive-pv.ts` | a hero's PV, derived on the real kits: each level's floor and ceiling (and the cards behind them), the line base + slope × level, then each bulk tier's slope by every class's field score; prints `HERO_BASE_PV` and `PV_PER_LEVEL` to pin in the set |
-| `card-value.ts` | per-decision value of every card in a kit |
-| `probe-shapes.ts` | which body counts make a usable cell |
-| `experiment-kit-threat.ts` | can each creature carry a fight, and is its kit finished |
-| `ai-benchmark.ts` | how strong is the AI we measure with, and what each policy plays (`--shape`) |
-| `measure-swing.ts` | is a read worth anything; how hard does being caught hurt |
-| `experiment-defense-vs-attack.ts` | the defense premium, solved exactly from the dice |
-| `profile-lookahead.ts` | where a depth-1 decision spends its time — a dev tool |
-| `mutation.ts` | can the fast tier actually fail — see its header |
+| `derive-structure.ts` | which structure (Focus strength, defense rung, chip damage, the burst reading, the guard rules) lets the requirements hold, every candidate ranked with each level's derived PV (GOALS.md B26) |
+| `vanilla-check.ts` | do the vanilla twins `derive-structure` reasons on still play like the real kits; `--calibrate` re-fits playtest's `TWIN_DEFAULTS` |
+| `probe-shapes.ts` | which body counts make a usable calibration cell (re-run when the in-band guard fails) |
+| **the AI, after every AI change** | |
+| `ai-audit.ts` | **the referee audit**: the production AI against the exact Nash referee, on imaginary cards; mismatches go to `ai/test/audit-fixtures.json` |
+| `ai-match.ts` | is the AI in the working tree stronger than the one at a commit (duplicate pairs, a sequential test) — accepts or rejects an AI change |
+| `ai-discover.ts` | where the AI's choice loses games at real size (the playout judge) |
+| `ai-shrink.ts` | each discovery shrunk to the smallest position that still shows it, written to `ai/test/discovered.json` |
+| **the repo** | |
 | `fingerprint.ts` | one hash of 300 seeded fights in both sets (`pnpm fingerprint`); a pure refactor leaves it unchanged, and the simplify night run refuses any change that moves it |
+| `mutation.ts` | can the fast tier actually fail — see its header; not run by the smoke test (it rebuilds packages) |
+| `mutants.ts` | the faults `mutation.ts` injects — data, checked by `test/mutants.test.ts` |
 | `play.ts` | hand-play harness — not a measurement |
+| `sets.ts` | `--set fantasy` / `--set elements`: the module every set-agnostic harness takes its set from |
 
 ### The lifecycle of a harness
 
 **Born** when a question will be asked *again* after the next content change.
-A question asked once is answered in a scratch file, written into
-`NEXT-STEPS.md` with a date, and the scratch file is deleted. The conclusion is
+A question asked once is answered in a scratch file, its conclusion written,
+dated, into the doc it changes (`rules.md`, `intentions.md`,
+`ARCHITECTURE.md`) or the commit message, and the scratch file is deleted. The conclusion is
 the durable artifact; the script is scaffolding.
 
 **While it lives** it must read its sample size through bench's `games()`, so
@@ -237,7 +249,20 @@ argument for both rules: **a harness nobody can run cheaply is one nobody runs,
 and one nobody runs rots in silence.** Eight more went on 2026-09-23 (the
 kit-levels, GM-encounter, level, seat, fatigue-penalty, fatigue-tiers,
 solve-cost and sanity scripts), their findings already written down —
-solve-cost had also been silently measuring nothing.
+solve-cost had also been silently measuring nothing. Seventeen went on
+2026-11-10 (GOALS.md's first night goal: keep only the standing harnesses):
+the equilibrium player's seven (`ai-breadth`, `-breadth-real`,
+`-equilibrium-match`, `-equilibrium-real`, `-leaf-real`, `-noise`,
+`-shortcut-gap`; their findings are NEXT-STEPS §57-58 and GOALS.md A7),
+`ai-audit-calibrate` (the audit profile is frozen until the redesigned kits
+land), `ai-benchmark`, `reads-vs-routines` and `measure-swing` (the kit
+gate's dumb-play duels ask their question every run), `card-value` (the kit
+analyzer's requirement 3, the same functions), `experiment-defense-vs-attack`
+(now an exact fast test on the ladder, `sets/common/test/ladder.test.ts`),
+`experiment-kit-threat` (the creatures move onto the ladder first, B20),
+`feasibility` and `vanilla` (B26's first layers; their libraries stay in
+playtest, read by `derive-pv` and `dynamics-report`), and
+`profile-lookahead`. Each one's conclusion is in that day's commit message.
 
 ### Escaping a rule
 
