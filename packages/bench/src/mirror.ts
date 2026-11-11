@@ -21,7 +21,7 @@ import { CELL_AI } from './cells.js';
 import { heroPVPrint, theSet } from './gameset.js';
 import { variantPV, variantRules, type DamageSource, type Variant } from './dynamics.js';
 import { leaning, spam, STYLE_SHARE, uniform, type Chooser } from './policies.js';
-import { DEFAULT_REGRET, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
+import { DEFAULT_REGRET, REGRET_CHUNK, valuePosition, type CardObs, type KitValues, type RegretOptions } from './regret.js';
 
 const TARGETS = aiPolicy(CELL_AI).targetChooser;
 export const MIRROR_SEED_BASE = 616_000;
@@ -324,25 +324,51 @@ export interface MirrorCardValues {
 }
 
 /** JSON-shaped for the cache. */
-interface StoredCardValues { obs: [string, CardObs[]][]; costs: KitValues['costs']; positions: number; fights: number; legal: Record<string, number>; played: Record<string, number> }
+export interface StoredCardValues { obs: [string, CardObs[]][]; costs: KitValues['costs']; positions: number; fights: number; legal: Record<string, number>; played: Record<string, number> }
 
 /**
  * Every decision of the kit's hero in `fights` mirror fights at `level`
  * (the kit and a random partner against two random kits), priced by
  * `valuePosition` — the same counterfactual rollouts as a kit cell's card
- * values, against heroes instead of creatures.
+ * values, against heroes instead of creatures. Measured in chunks of
+ * `REGRET_CHUNK` fights, each its own job (`mirrorCardChunks`).
  */
 export function kitMirrorCardValues(kit: string, level: number, fights: number, opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET): MirrorCardValues {
-  const stored = countedCached<StoredCardValues>('mirror-cards',
-    key('mirror-cards-v1', mainKitsPrint(), kit, String(level), String(fights), JSON.stringify(opts)), () => {
+  const values: KitValues = { byCard: new Map(), costs: [], positions: 0, fights: 0 };
+  const legal: Record<string, number> = {};
+  const played: Record<string, number> = {};
+  for (let chunk = 0; chunk < mirrorCardChunks(fights); chunk++) {
+    const s = mirrorCardChunk(kit, level, fights, chunk, opts);
+    for (const [id, list] of s.obs) values.byCard.set(id, [...(values.byCard.get(id) ?? []), ...list]);
+    values.costs.push(...s.costs);
+    values.positions += s.positions;
+    values.fights += s.fights;
+    for (const [id, n] of Object.entries(s.legal)) legal[id] = (legal[id] ?? 0) + n;
+    for (const [id, n] of Object.entries(s.played)) played[id] = (played[id] ?? 0) + n;
+  }
+  return { values, legal, played };
+}
+
+/** How many jobs `kitMirrorCardValues` is split into. */
+export function mirrorCardChunks(fights: number): number {
+  return Math.ceil(fights / REGRET_CHUNK);
+}
+
+/** One chunk of `kitMirrorCardValues`, cached: what a warm job computes. Its
+ *  fights keep their index in the whole sample (the cluster id). */
+export function mirrorCardChunk(kit: string, level: number, total: number, chunk: number, opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET): StoredCardValues {
+  const first = chunk * REGRET_CHUNK;
+  const fights = Math.max(0, Math.min(REGRET_CHUNK, total - first));
+  return countedCached<StoredCardValues>('mirror-cards',
+    key('mirror-cards-v2', mainKitsPrint(), kit, String(level), String(total), String(chunk), JSON.stringify(opts)), () => {
       const kits = theSet().calibration.mainKits;
       const byCard = new Map<string, CardObs[]>();
       const costs: KitValues['costs'] = [];
       const legal: Record<string, number> = {};
       const played: Record<string, number> = {};
       let positions = 0;
-      withSeed(kitSeed(kit, level, 3), () => {
-        for (let f = 0; f < fights; f++) {
+      withSeed(kitSeed(kit, level, 3) + chunk * 100_003, () => {
+        for (let f = first; f < first + fights; f++) {
           const mine = heroes([kit, drawKit(kits)], level, 'K');
           const theirs = heroes([drawKit(kits), drawKit(kits)], level, 'F');
           const side = f % 2;
@@ -384,10 +410,6 @@ export function kitMirrorCardValues(kit: string, level: number, fights: number, 
       });
       return { obs: [...byCard], costs, positions, fights, legal, played };
     });
-  return {
-    values: { byCard: new Map(stored.obs), costs: stored.costs, positions: stored.positions, fights: stored.fights },
-    legal: stored.legal, played: stored.played,
-  };
 }
 
 /** What the AI believed its opponents would play, against what they played. */

@@ -37,7 +37,7 @@ import type { ActionDefinition } from '@pimpampum/engine';
 import {
   calibrationGames, calibrationParty, type CardScore, type Cell, cellResult,
   type CellSetup, companyCount, companyPrint, DEFAULT_REGRET, enemyPrint, type FieldedGroup, groupsPrint,
-  isSaturated, type KitInfo, kitChoiceCost, type KitValues, type MatrixResult, matrixCell, measureKit, measureKitCell, measuredLevel,
+  isSaturated, type KitInfo, kitChoiceCost, type KitValues, type MatrixResult, matrixCell, measureKit, measureKitCell, measuredLevel, regretChunks,
   type PartySpec, pct, runMatrix, scoreCards, shapeEnemies, skillPrint, SMOKE,
   subjectParty, theSet, usableCells,
 } from '@pimpampum/bench';
@@ -378,7 +378,7 @@ export function subjectPrintFor(subject: Subject, level: number, allSeats = fals
 /** One unit a warm worker can compute — one CELL of one measurement. */
 export type AnalysisJob =
   | { kind: 'matrix'; games: number; cellIdx: number }
-  | { kind: 'cardValue'; sharpness: number; games: number; cellIdx: number };
+  | { kind: 'cardValue'; sharpness: number; games: number; cellIdx: number; chunk: number };
 
 /**
  * Every cell `analyze` will measure, as warm jobs. Derived from the same
@@ -386,14 +386,17 @@ export type AnalysisJob =
  * is always one `analyze` then reads.
  */
 export function analysisJobs(subject: Subject, games: number, budget: AnalyzeBudget): AnalysisJob[] {
-  const cellIdxs = cellsFor(subject).map((_, i) => i);
+  const cells = cellsFor(subject);
+  const cellIdxs = cells.map((_, i) => i);
   // MOST EXPENSIVE FIRST — the warm pool takes jobs in order (bench/parallel.ts):
   // card value (a rollout per legal card per decision), then the full-kit run.
   const jobs: AnalysisJob[] = [];
   if (!(budget.skip?.includes('cardValue') ?? false)) {
     const models = budget.cardValueModels ?? DEFAULT_CARD_VALUE_MODELS;
     const perModel = cardValuePerModel(games, budget, models);
-    for (const sharpness of models) for (const cellIdx of cellIdxs) jobs.push({ kind: 'cardValue', sharpness, games: perModel, cellIdx });
+    for (const sharpness of models) for (const cellIdx of cellIdxs) {
+      for (let chunk = 0; chunk < regretChunks(cells, perModel); chunk++) jobs.push({ kind: 'cardValue', sharpness, games: perModel, cellIdx, chunk });
+    }
   }
   for (const cellIdx of cellIdxs) jobs.push({ kind: 'matrix', games, cellIdx });
   return jobs;
@@ -407,7 +410,7 @@ export function runAnalysisJob(subject: Subject, budget: AnalyzeBudget, job: Ana
   const setup = setupFor(subject, level, budget.allSeats, budget.withoutCard);
   const print = subjectPrintFor(subject, level, budget.allSeats, budget.withoutCard);
   if (job.kind === 'cardValue') {
-    measureKitCell(cells, job.cellIdx, setup, job.games, { ...DEFAULT_REGRET, continuationSharpness: job.sharpness }, print);
+    measureKitCell(cells, job.cellIdx, setup, job.games, { ...DEFAULT_REGRET, continuationSharpness: job.sharpness }, print, job.chunk);
     return;
   }
   matrixCell(cells, job.cellIdx, setup, job.games, print);
