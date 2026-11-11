@@ -211,7 +211,7 @@ export interface RegretOptions {
    * B27; the gate's 24 hero-mirror card cells, 30 fights each, against a
    * depth-1 replicate whose dice were drawn without antithetic pairs: Δ cost
    * +0.08±0.25 PV a decision, 4 of the gate's card verdicts flipped by noise
-   * alone). Depth 0 (≈50× cheaper) +1.30±0.28; depth 1 without fictitious
+   * alone). Depth 0 (≈150× cheaper) +1.30±0.28; depth 1 without fictitious
    * play (3.6×) +0.94±0.27; fictitious play at one iteration (3.3×)
    * +0.57±0.23; a leaner search (2 samples, 1 pass, no target samples, no
    * fictitious play, 10×) +0.51±0.31. Every one flips acrobacia L3's choice
