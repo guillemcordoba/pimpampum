@@ -167,17 +167,19 @@ describe('the referee as a double oracle', () => {
 
   it('on generated positions: the same value, from fewer simulated rounds', () => {
     let fullSims = 0, oracleSims = 0;
-    for (const [seed, shape] of [[1, '1x1'], [2, '2x1'], [3, '1x2'], [4, '2x1'], [5, '1x1']] as const) {
+    // Seeds of every shape whose solves take about a second: 2x1 seeds 2 and 4
+    // took ten each, and under the smoke tier's load passed the timeout.
+    for (const [seed, shape] of [[1, '1x1'], [7, '2x1'], [8, '1x2'], [10, '2x1'], [5, '1x1']] as const) {
       const r = both(generatePosition(seed, { shape, cards: 3, roundsLeft: 2 }));
       expect(r.oracle, `seed ${seed}`).toBeCloseTo(r.full, 5);
       fullSims += r.fullSims;
       oracleSims += r.oracleSims;
     }
     expect(oracleSims).toBeLessThan(fullSims);
-  }, 60_000); // five real solves: seconds idle, more on a loaded machine
+  }, 60_000);
 
   it('every row is valued against the final mix, so the check reads it as it reads the full matrix', () => {
-    const pos = generatePosition(2, { shape: '2x1', cards: 3, roundsLeft: 2 });
+    const pos = generatePosition(7, { shape: '2x1', cards: 3, roundsLeft: 2 });   // both sides mix
     const full = new Referee().solve(buildEngine(pos, { actionChooser: () => null }), 0);
     const oracle = new Referee({ strategies: 'oracle' }).solve(buildEngine(pos, { actionChooser: () => null }), 0);
     expect(oracle.rows.length).toBe(full.rows.length);
