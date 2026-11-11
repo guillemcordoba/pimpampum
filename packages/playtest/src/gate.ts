@@ -24,7 +24,7 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
+import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, mirrorCardChunk, mirrorCardChunks, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
   choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
@@ -131,7 +131,7 @@ export interface GateFailure { key: string; text: string }
 export type GateJob =
   | { kind: 'gate-fights'; kit: string; level: number }
   | { kind: 'gate-duel'; x: DuelStyle; y: DuelStyle; level: number }
-  | { kind: 'gate-cards'; kit: string; level: number }
+  | { kind: 'gate-cards'; kit: string; level: number; chunk: number }
   | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string }
   | { kind: 'gate-autopsy'; x: DuelStyle; y: DuelStyle; level: number }
   | { kind: 'gate-ablate'; kit: string; level: number; card: string }
@@ -158,10 +158,11 @@ function scopeKits(scope: GateScope): string[] { return [...(scope.kits ?? theSe
 const inScope = (levels: readonly number[], scope: GateScope): number[] => levels.filter(l => !scope.levels || scope.levels.includes(l));
 
 /** Every unit `measureGate(scope)` reads, most expensive first (the card values). */
-export function gateJobs(scope: GateScope = {}): GateJob[] {
+export function gateJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateJob[] {
   const kits = scopeKits(scope);
   return [
-    ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).map(level => ({ kind: 'gate-cards' as const, kit, level })))),
+    ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).flatMap(level =>
+      Array.from({ length: mirrorCardChunks(budget.cardFights) }, (_, chunk) => ({ kind: 'gate-cards' as const, kit, level, chunk }))))),
     ...(!stylesOn(scope) ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
       ...(scope.triangle === false ? [] : EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level }))),
       ...DUMB_STYLES.map(x => ({ kind: 'gate-duel' as const, x, y: 'ai' as const, level })),
@@ -178,7 +179,7 @@ export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void
   else if (job.kind === 'gate-autopsy') duelAutopsy(job.x, job.y, job.level, budget.duelGames);
   else if (job.kind === 'gate-ablate') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS, job.card);
   else if (job.kind === 'gate-model') modelCheck(job.level, budget.modelFights ?? GATE_BUDGET.modelFights!);
-  else kitMirrorCardValues(job.kit, job.level, budget.cardFights);
+  else mirrorCardChunk(job.kit, job.level, budget.cardFights, job.chunk);
 }
 
 /** How many of the loser's most played cards a broken edge tries removing. */
@@ -394,6 +395,6 @@ const WORKER = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist',
 /** Fill the cache `measureGate(scope, ctx.budget)` reads, across bench's lanes. */
 export async function prepareGate(ctx: GateContext, scope: GateScope = {}, onProgress?: (done: number, total: number) => void): Promise<void> {
   const worker = [process.execPath, '--import', 'tsx', WORKER, JSON.stringify(ctx)];
-  await warm(gateJobs(scope), worker, onProgress);
+  await warm(gateJobs(scope, ctx.budget), worker, onProgress);
   await warm(blameJobs(scope, ctx.budget), worker, onProgress);
 }

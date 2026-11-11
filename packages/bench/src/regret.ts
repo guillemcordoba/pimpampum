@@ -206,6 +206,20 @@ export interface RegretOptions {
    * depth the balancer prices encounters at. A harness measuring at one depth
    * while everything else reports another is the mismatch this bench was
    * cleaned up to remove.
+   *
+   * A CHEAPER CONTINUATION INFLATES THE CHOICE COST (2026-11-11, GOALS.md
+   * B27; the gate's 24 hero-mirror card cells, 30 fights each, against a
+   * depth-1 replicate whose dice were drawn without antithetic pairs: Δ cost
+   * +0.08±0.25 PV a decision, 4 of the gate's card verdicts flipped by noise
+   * alone). Depth 0 (≈50× cheaper) +1.30±0.28; depth 1 without fictitious
+   * play (3.6×) +0.94±0.27; fictitious play at one iteration (3.3×)
+   * +0.57±0.23; a leaner search (2 samples, 1 pass, no target samples, no
+   * fictitious play, 10×) +0.51±0.31. Every one flips acrobacia L3's choice
+   * verdict, which the replicate keeps. The same leaner search keeping
+   * fictitious play had no mean shift but twice the replicate's scatter and
+   * lost three of the gate's known verdicts. A worse rest-of-fight makes a
+   * choice look heavier than it is, so the continuation stays the production
+   * AI's and the cost is paid in parallel (`REGRET_CHUNK`).
    */
   rolloutDepth: number;
   /**
@@ -434,6 +448,24 @@ export interface KitValues {
 export const REGRET_SEED = 909_000;
 
 /**
+ * Fights one card-value job plays. A cell's fights are split into chunks, each
+ * seeded on its own, so one kit spreads over the lanes: on a calibration with a
+ * single usable cell a kit's card value was three jobs (one per opponent model)
+ * of 200 fights each, three cores busy for hours (GOALS.md B27, 2026-11-11).
+ * The first chunk keeps the cell's old seed.
+ */
+export const REGRET_CHUNK = 10;
+
+function fightsPerCell(cells: Cell[], games: number): number {
+  return Math.max(1, Math.round(games / Math.max(1, cells.length)));
+}
+
+/** How many jobs one cell's card value is split into (`measureKitCell`'s `chunk`). */
+export function regretChunks(cells: Cell[], games: number): number {
+  return Math.ceil(fightsPerCell(cells, games) / REGRET_CHUNK);
+}
+
+/**
  * Play fights across the cells and price the subject's whole hand at every
  * decision it faces.
  *
@@ -453,9 +485,9 @@ export function measureKit(
   const byCard = new Map<string, CardObs[]>();
   const costs: DecisionCost[] = [];
   let positions = 0, fights = 0;
-  for (let i = 0; i < cells.length; i++) {
-    const r = measureKitCell(cells, i, setupFor, games, opts, subjectPrint);
-    // Fight ids are per cell; offset them so clusters never merge across cells.
+  for (let i = 0; i < cells.length; i++) for (let chunk = 0; chunk < regretChunks(cells, games); chunk++) {
+    const r = measureKitCell(cells, i, setupFor, games, opts, subjectPrint, chunk);
+    // Fight ids are per chunk; offset them so clusters never merge across chunks.
     for (const [id, list] of r.obs) {
       const all = byCard.get(id) ?? [];
       for (const o of list) all.push({ ...o, fight: o.fight + fights });
@@ -469,11 +501,11 @@ export function measureKit(
 }
 
 /**
- * ONE CELL of `measureKit` — its own entry point so a warm worker can fill the
- * very cache entry `measureKit` will read (bench/parallel.ts). Same arguments
- * as `measureKit` plus the cell's index: the per-cell sample is derived from
- * the whole cell list, and deriving it anywhere else would key a different
- * entry that nothing reads.
+ * ONE CHUNK OF ONE CELL of `measureKit` — its own entry point so a warm worker
+ * can fill the very cache entry `measureKit` will read (bench/parallel.ts).
+ * Same arguments as `measureKit` plus the cell's index and the chunk's: the
+ * per-cell sample is derived from the whole cell list, and deriving it
+ * anywhere else would key a different entry that nothing reads.
  */
 export function measureKitCell(
   cells: Cell[],
@@ -482,21 +514,23 @@ export function measureKitCell(
   games: number,
   opts: Omit<RegretOptions, 'team'> = DEFAULT_REGRET,
   subjectPrint?: string,
+  chunk = 0,
 ): CellValues {
   // A smoke run measures nothing, it only has to EXECUTE — and the fight floor
   // (one per cell) does not make that cheap: every decision is still valued by
   // `samples` depth-1 rollouts per legal card, which kept a six-kit smoke over
   // its timeout. One sample runs every line of the same code.
   if (SMOKE) opts = { ...opts, samples: 1 };
-  const per = Math.max(1, Math.round(games / Math.max(1, cells.length)));
+  const per = fightsPerCell(cells, games);
+  const fights = Math.max(0, Math.min(REGRET_CHUNK, per - chunk * REGRET_CHUNK));
   const cell = cells[cellIdx];
-  // PER CELL, and CACHED like a cell run: it is seeded per cell, so the same
+  // PER CHUNK, and CACHED like a cell run: it is seeded per chunk, so the same
   // content measures the same observations — and this is the most expensive
   // phase of a kit analysis, which a sweep otherwise re-paid on every run.
-  const compute = (): CellValues => measureCell(cell, setupFor(cell), per, opts);
+  const compute = (): CellValues => measureCell(cell, setupFor(cell), fights, opts, chunk);
   return subjectPrint
-    ? countedCached<CellValues>('regret', key('regret-v2', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
-      String(per), JSON.stringify(opts)), compute)
+    ? countedCached<CellValues>('regret', key('regret-v3', subjectPrint, `${cell.label}@${cell.baseline.toFixed(4)}`, cell.context,
+      String(per), String(chunk), JSON.stringify(opts)), compute)
     : compute();
 }
 
@@ -511,12 +545,12 @@ export interface CellValues { obs: [string, CardObs[]][]; costs: DecisionCost[];
  */
 const TARGETS = aiPolicy(CELL_AI).targetChooser;
 
-function measureCell(cell: Cell, setup: CellSetup, per: number, opts: Omit<RegretOptions, 'team'>): CellValues {
+function measureCell(cell: Cell, setup: CellSetup, count: number, opts: Omit<RegretOptions, 'team'>, chunk: number): CellValues {
   const byCard = new Map<string, CardObs[]>();
   const costs: DecisionCost[] = [];
   let positions = 0, fights = 0;
-  withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17, () => {
-    for (let g = 0; g < per; g++) {
+  withSeed(REGRET_SEED + cell.shapeIdx * 101 + cell.companyIdx * 17 + chunk * 100_003, () => {
+    for (let g = 0; g < count; g++) {
       const players = theSet().buildParty(setup.party);
       _setAI(players);
       const engine = new CombatEngine(players, theSet().buildEncounter(setup.enemies), {
