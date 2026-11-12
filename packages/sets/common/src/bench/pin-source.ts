@@ -1,7 +1,7 @@
 /**
  * How a live kit file becomes its calibration copy — ONE function, shared by
  * the generator (`scripts/refresh-calibration.ts`) and the drift check
- * (`pinned.ts`), which re-pins the live file and compares. Comparing forward
+ * (`snapshot.ts`), which re-pins the live file and compares. Comparing forward
  * rather than undoing the rename means the check can never disagree with the
  * generator. Kept free of side effects: the generator imports it while the
  * snapshot it is about to replace is deleted.
@@ -11,6 +11,9 @@ import path from 'node:path';
 import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from './common-source.js';
 
 export const PIN = '@cal';
+
+/** The pinned id for a live kit id. */
+export const pin = (id: string): string => id + PIN;
 
 /**
  * The live file of a kit: this set's own `skills/` dir, unless the kit is one
