@@ -151,7 +151,8 @@ function takeSlot(look: number): string | null {
 }
 
 /** Out of step with the other processes looking, with no random draw. */
-const untilNextLook = (look: number): number => 200 + (process.pid * 7 + look * 53) % 300;
+const LONGEST_LOOK = 500;
+const untilNextLook = (look: number): number => 200 + (process.pid * 7 + look * 53) % (LONGEST_LOOK - 200);
 
 export interface Lane {
   /** The slot's file, for the worker to give back while it sleeps (`offLane`); null when there is no budget to keep. */
@@ -166,9 +167,16 @@ export interface Lane {
 const NO_LANE: Lane = { file: null, handTo() {}, release() {} };
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 let warned = false;
+let releasedAt = -Infinity;
 
-/** Wait for one of the machine's lanes. */
+/**
+ * Wait for one of the machine's lanes. A process that has just released one
+ * lets everyone waiting look first: a pool with a queue used to take back the
+ * lane it freed before anyone else saw it free, and seven kit suites waited
+ * behind the first one's sixty batches (2026-11-12).
+ */
 export async function takeLane(): Promise<Lane> {
+  if (performance.now() - releasedAt < LONGEST_LOOK) await sleep(LONGEST_LOOK);
   for (let look = 0; ; look++) {
     let file: string | null;
     try {
@@ -192,7 +200,10 @@ export async function takeLane(): Promise<Lane> {
             owner = pid;
           } catch { /* the lane stays this process's */ }
         },
-        release() { unlock(slot, owner); },
+        release() {
+          unlock(slot, owner);
+          releasedAt = performance.now();
+        },
       };
     }
     await sleep(untilNextLook(look));

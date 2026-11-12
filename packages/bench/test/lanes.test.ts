@@ -73,6 +73,18 @@ describe('several processes at once', () => {
     expect(fs.readdirSync(path.join(dir, 'lanes'))).toEqual([]);
   });
 
+  it('take turns: a pool with a queue does not keep the one lane from a pool that came later', async () => {
+    const log = path.join(dir, 'log');
+    process.env.BENCH_LANES = '1';
+    process.env.BENCH_LANES_DIR = path.join(dir, 'lanes');
+    const long = isolated(WORK, 'queue', [log, 8, 'a']);
+    while (!fs.existsSync(log)) await new Promise(r => setTimeout(r, 5));
+    await Promise.all([long, isolated(WORK, 'queue', [log, 1, 'b'])]);
+    const marks = fs.readFileSync(log, 'utf8');
+    expect(marks.length).toBe(9);
+    expect(marks.indexOf('b'), `the order was ${marks}`).toBeLessThan(6);
+  }, 60_000);
+
   it('compute a cache entry once: the others wait and read it', async () => {
     const log = path.join(dir, 'log');
     process.env.BENCH_NO_CACHE = '0';

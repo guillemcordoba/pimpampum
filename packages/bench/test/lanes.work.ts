@@ -16,6 +16,14 @@ export async function pool(log: string, jobs: number): Promise<void> {
   }));
 }
 
+/** A queue of `jobs` leaf jobs, each leaving `mark`: a pool that always has a next job to start. */
+export async function queue(log: string, jobs: number, mark: string): Promise<void> {
+  await inLanes(Array.from({ length: jobs }, () => async () => {
+    fs.appendFileSync(log, mark);
+    await sleep(150);
+  }));
+}
+
 /** The entry `name`, with its mark each time it is computed: `ms` long to
  *  compute, or for as long as the file `until` does not exist (and the test's
  *  own files still do). */
