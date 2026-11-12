@@ -12,33 +12,29 @@ The night takes the FIRST goal it has not finished, and works only on it. Each
 goal states its done-check: something the night can run and read on its own.
 A goal without one is not ready for the night; it stays with the owner.
 
-1. **Keep only the standing harnesses.** Done 2026-11-10 (b8aae47): 17 one-off
-   scripts deleted, 18 files left, `packages/tools/README.md` lists exactly them;
-   `pnpm test` as on main (only B18's encounter-speed red). Left: the smoke tier
-   (58 min at full lanes) fails six harnesses, none of them touched by the
-   deletion — `derive-pv.ts` throws on fantasy (no `PV_TIERS`: B29),
-   `kit-analyzer.ts` finds no usable fantasy cell (B20), and `main.ts`,
-   `kit-gate.ts`, `kit-tuner.ts`, `dynamics-report.ts` pass the 10-minute limit
-   at GAMES=2 (goal 2, B28). The audit's double-oracle test that also passed
-   its timeout under that load now solves cheaper seeds (2026-11-11, e65fb59:
-   the file 34 s → 10 s alone). Not re-run since: the smoke tier itself.
-   *Done when:* `pnpm test:smoke` fails only what B20, B29 and goal 2 own.
-2. **The measurement fits in one night.** B27, and the harness timeouts in B28.
+1. **The measurement fits in one night.** B27.
    *Done when:* the full kit gate (not `--quick`) and every `test/kits/*.slow.test.ts`
    finish in under 4 hours together at full lanes, and their verdicts match the
    runs from before the change (or the difference is explained).
-   2026-11-11: card values run in chunks of ten fights, each its own job
-   (f7079c8; the four card controls pass with it, 20 min); a cheaper rollout
-   continuation was measured and rejected (it inflates the choice cost:
-   `RegretOptions.rolloutDepth`). Left: ONE MACHINE-WIDE LANE BUDGET. The
-   done-check as one vitest run was stopped after an hour at a load of 419 on
-   32 cores: every kit suite's child and the gate warm with up to 24 lanes of
-   their own (16 children, ~380 workers), and each recomputes the same
-   calibration entries, since bench's cache has no claim on an entry another
-   process is computing. Next: the warm pools draw lanes from one semaphore
-   (files in `$XDG_RUNTIME_DIR`, like `pimpampum-user-state`), and `cached()`
-   claims a key before computing it (others wait for the file); then the done-check.
-3. **Then the "Work" list below, top down**, skipping any item that needs a
+   WAITS FOR THE OWNER (2026-11-12): what does not fit is the SAMPLE, no longer
+   the machine. That night the machine's one lane budget and a claim on every
+   cache entry landed (bench `lanes.ts`; 20e6468, 5fce46b): the done-check as
+   one vitest run holds a load of about 25 where it reached 419, and a calibration
+   is computed once. Run cold, it was stopped at 2 h 01:
+   - fantasy: its eight kit suites end after 43 min with nothing to measure,
+     0 of 28 calibration cells usable at full size (B20);
+   - the calibration of both sets (8 shapes, 60 baselines) takes 46 min: a
+     shape is one core for 10-20 min; elements has 1 usable cell of 32;
+   - a ten-fight card-value chunk costs 25.7 lane-minutes (19-36; firebender's
+     first 20). A kit is 60 chunks, ~26 lane-hours; eight kits, ~8.6 h on 24 lanes;
+   - the gate (67 min alone on 2026-11-11) was not finished: one of its 72
+     card chunks had been running for 108 min.
+   Elements alone is about 10.5 h, and twice that once fantasy has usable
+   cells. Four hours pay for ~170 of a kit's 600 card fights (~85 with both
+   sets). Until the owner picks (fewer card fights a kit; a longer bar; or the
+   kit suites without card values, the gate keeping its own), the night takes
+   the next goal.
+2. **Then the "Work" list below, top down**, skipping any item that needs a
    decision from the owner: that item becomes a question in the morning report.
 
 ## Decided, to implement
@@ -61,12 +57,13 @@ A goal without one is not ready for the night; it stays with the owner.
   (pooled, settled ≈ +4.4 ±2.3, adaptive ≈ +3.4 ±2.5); the two are indistinguishable. Recommendation: 'settled', the cheaper.
 - A8. Today's AI knobs (`continuation`, 9 samples): drop if A7b lands.
 - A10. The web app playing the elements set (19 web files import set-fantasy).
+- A13. The card-value sample that fits a night (the first night goal, 2026-11-12): a kit suite's 600 card fights cost ~26 lane-hours, so the eight elements suites and the gate are ~10.5 h on 24 lanes against the goal's 4 (twice that once fantasy has usable cells, B20). (a) ~180 card fights a kit (60 an opponent model; ~85 with both sets), wider error bars on "every card is a real choice" (B30 already finds 30 a cell noise in the gate); (b) keep 600 and move the bar: one set a night; (c) no card values in the kit suites until B20 gives them more than one usable cell, the gate keeping its own: the calibration (46 min) and the gate (67 min alone; not finished at 2 h beside the kit suites), an estimate of 2 to 2.5 h, not measured. Recommended: (c).
 
 ## Work, in order
 
 - B29. [S] A hero's PV is derived per level, never fixed (the user, 2026-11-06; intentions.md). The elements set pins its table (`sets/elements/src/players/hero-pv.ts`, `tools/src/derive-pv.ts`). Left: the fantasy set's own table (its `heroPV` is one value until then; its cards are being redesigned first), and the pinned calibration copies, which still read set-common's `BODY_PV` until the next `pnpm calibration:refresh` re-pins them; then `BODY_PV` goes.
-- B28. [S] The slow tier, measured 2026-11-05 (without the kit suites, B27): green except: the fantasy balancer's calibration (three rats asked for 50%, delivered 57.9% ±1.1, the bar 7.3 points); the fantasy balancer's realistic parties (every request came back clamped or capped by fight length, so nothing was asserted: its creatures, B20); the fantasy triangle (Protect > Aggro 24.8%, Aggro > Power 49.1%, now in its known list until the fantasy redesign, C1); and `ai/test/audit.slow.test.ts`, whose seed test (61 s) blocked its vitest worker past the RPC timeout (fixed that day: it yields between positions). The elements triangle test passes while the kit gate finds Protect > Aggro broken at levels 3, 6 and 10: the two measure different fights (the calibration party, the gate's random pairs), to reconcile. The harness test (alone, 34 harnesses at GAMES=2): `kit-tuner.ts` and `main.ts` run past its 10-minute limit even alone; `kit-analyzer.ts` finds no usable cell on fantasy (every calibration shape saturated at that size: the fantasy creatures, B20); the dynamics report now reads the band inconclusive in that case instead of failing.
-- B27. [M] The kit analyzer's card values are too slow to run (found 2026-11-05): against creatures, a card-value job (a rollout of the rest of the fight per legal card per decision, the continuation played by the depth-1 AI with fictitious play) did not finish in 3.5 hours at 14 lanes. 2026-11-11: today's elements calibration has ONE usable cell (B20), so a kit's card value was three jobs of 200 fights (one per opponent model); now chunks of ten fights, each a job (f7079c8). Depth-1 cost against bèsties/c5: ~15 s a decision under load (no fictitious play 4.7, a lean search 1.5, depth 0 0.3). The cheaper continuation this item proposed was measured on the gate's 24 card cells and rejected: every variant inflates the choice cost (+0.5 to +1.3 PV a decision against a depth-1 replicate's +0.08±0.25) and flips acrobacia L3's known choice failure (numbers at `RegretOptions.rolloutDepth`). Until the slow tier runs (goal 2's lane budget), the dynamics report takes the band from the analyzer's full-kit run alone and choosing and card use from the kit gate.
+- B28. [S] The slow tier, measured 2026-11-05 (without the kit suites, B27): green except: the fantasy balancer's calibration (three rats asked for 50%, delivered 57.9% ±1.1, the bar 7.3 points); the fantasy balancer's realistic parties (every request came back clamped or capped by fight length, so nothing was asserted: its creatures, B20); the fantasy triangle (Protect > Aggro 24.8%, Aggro > Power 49.1%, now in its known list until the fantasy redesign, C1); and `ai/test/audit.slow.test.ts`, whose seed test (61 s) blocked its vitest worker past the RPC timeout (fixed that day: it yields between positions). The elements triangle test passes while the kit gate finds Protect > Aggro broken at levels 3, 6 and 10: the two measure different fights (the calibration party, the gate's random pairs), to reconcile. The smoke tier (`pnpm test:smoke`, 2026-11-12: 29 min at full lanes, 58 before the lane budget and the smaller scopes below): fails only `derive-pv.ts` (fantasy orders no classes by bulk: B29), `kit-analyzer.ts` (no usable cell on fantasy, every calibration shape saturated at that size: B20) and the encounter-speed test (B18); the dynamics report reads the band inconclusive in that case instead of failing. `main.ts`, `kit-tuner.ts`, `dynamics-report.ts` and `kit-gate.ts` passed the harness test's 10-minute limit at GAMES=2 (a card value is whole rollouts, a solve ~25 s, whatever the sample) and now measure a smaller scope under `BENCH_SMOKE` (668356e): two creatures a row, one tuning step, one kit, two kits. Inside the tier `dynamics-report.ts` still takes 500 s of its 600 (47 s alone: it shares the lanes with the kit suites), the next one to pass the limit.
+- B27. [M] The kit analyzer's card values are too slow to run (found 2026-11-05): against creatures, a card-value job (a rollout of the rest of the fight per legal card per decision, the continuation played by the depth-1 AI with fictitious play) did not finish in 3.5 hours at 14 lanes. 2026-11-11: today's elements calibration has ONE usable cell (B20), so a kit's card value was three jobs of 200 fights (one per opponent model); now chunks of ten fights, each a job (f7079c8). Depth-1 cost against bèsties/c5: ~15 s a decision under load (no fictitious play 4.7, a lean search 1.5, depth 0 0.3). The cheaper continuation this item proposed was measured on the gate's 24 card cells and rejected: every variant inflates the choice cost (+0.5 to +1.3 PV a decision against a depth-1 replicate's +0.08±0.25) and flips acrobacia L3's known choice failure (numbers at `RegretOptions.rolloutDepth`). 2026-11-12, with the machine's lane budget in: a ten-fight chunk against bèsties/c5 costs 25.7 lane-minutes (firebender, 20 chunks), a kit's 600 card fights ~26 lane-hours, so the eight elements kit suites alone are ~8.6 h on 24 lanes: the sample is the owner's to choose (the first night goal). Until then, the dynamics report takes the band from the analyzer's full-kit run alone and choosing and card use from the kit gate.
 - B26. [M] The tuning process, top down (the user, 2026-11-04: tune the process, not today's cards; PV is DERIVED from the constraints, never chosen). Built: layer 1, the feasibility arithmetic (playtest `feasibility.ts`); layer 3, vanilla fights (playtest `vanilla.ts`; both CLIs deleted 2026-11-10); hero PV derived per level on vanilla kits (`tools/src/derive-pv.ts`: floors — survive the level's best blow, survive round 1; ceiling — fights end in time) and the structure derived too (`tools/src/derive-structure.ts`: Focus strength × defense rung × `CombatEngineOptions.chipDamage`); the quick gate and a finer cache. Found (2026-11-04, 60-120 vanilla fights a cell): on today's structure no level has a PV window; "survive the AIMED blow" fails in every structure searched; "survive the PLAIN blow" works in 11 of 36, all with a Focus worth a 3-4× blow — the widest keeping defenses on their rung add chip damage (half a held blow lands): PV ≈ 16 / 18 / 36 at levels 3 / 6 / 10. A finer search (all levels, 120 fights) is running. Decisions for the user: the burst reading, the structure (chip damage as a rule, or softer defense), the Focus rule. Then: pin PV(level) as a derived table in `sets/common` with a slow test that re-derives it, and wire it everywhere hero PV is read today (the sets' `PLAYER_PV`/`BODY_PV`/`hero()`/parties, `GameSet.playerPV`, the web app's party builder, the agent duel, the docs); real kits read against vanilla; the tuner in batches.
 - B24. [S] The AI's model of its opponents — landed 2026-11-04 (3056c10): fictitious play with a read (`DEFAULT_LOOKAHEAD.fictitiousPlay`), checked by the AI match (better), the referee audit (level), the bot ladder (all green), the gate's model column and puzzle (l); the audit deals the crack archetype (738c670). Left: Esquerda still under-played (the gate's one blind spot). Not noise (2026-11-05, a one-off on the gate's level-6 earthbender fights): where Esquerda was the replays' best card (31% of the 422 decisions it was legal in) the AI played it 7.5% of the time, and still 8% with four times the samples; the replays draw the opponents' cards from the AI itself, so they are no clairvoyant bias either. The AI's estimate of the position is off: next, its model's predicted defense by the targeted enemy at those positions against what that enemy played, then a generic puzzle and the fix (the referee and the gate's dumb play no worse); the encounter creator is ~3× slower (its speed test, already red, now 9-18 s a solve): accept, a cheaper balancer setting, more workers, or revert — the user's call.
 - B25. [M] The kit gate (`tools/src/kit-gate.ts`, `--quick` for iterating: the checkpoints, a quarter of the fights, no card values, ~1 min): the livable zone as one grid with WHY lines, and a ratchet slow test (`sets/elements/test/gate.slow.test.ts`). Since 2026-11-04 (the user, restoring two of the old requirements): dumb play loses (the turtle, spam and random cards, each against the AI; it replaced the bot ladder) and no kit dominates the field (65%). Left: the strength band after B20; the number tuner (`tools/src/kit-tuner.ts`) only after B26's structure is settled.
