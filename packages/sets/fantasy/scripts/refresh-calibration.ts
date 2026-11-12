@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { liveKitFiles, PIN_HEADER, pinSource, type PinnableSkill } from '../src/bench/pin-source.js';
+import { liveKitFiles, PIN_HEADER, pinSource, type PinnableSkill } from '@pimpampum/set-common/bench';
 import { ALL_SKILLS } from '../src/players/catalog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

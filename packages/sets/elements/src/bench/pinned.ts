@@ -25,7 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ALL_SKILLS, getSkill, registerSkill, type SkillDefinition } from '../index.js';
 import { PINNED_FILES, PINNED_SKILLS, REFRESHED } from './calibration-kits/index.js';
-import { liveKitFile, liveKitFiles, PIN, pinSource } from './pin-source.js';
+import { liveKitFile, liveKitFiles, PIN, pinSource } from '@pimpampum/set-common/bench';
 
 export { PIN, REFRESHED };
 

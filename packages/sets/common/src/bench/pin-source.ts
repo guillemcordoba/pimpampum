@@ -8,7 +8,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from '@pimpampum/set-common/bench';
+import { COMMON_SKILL_FILES, COMMON_SKILLS_DIR } from './common-source.js';
 
 export const PIN = '@cal';
 

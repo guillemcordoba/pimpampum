@@ -18,7 +18,6 @@ import path from 'node:path';
 import { setRng, seededRng } from '@pimpampum/engine';
 import { ALL_SKILLS, buildReferenceParty, getSkill } from '../src/index.js';
 import { calibrationDrift, FANTASY, pin, PIN, PINNED, REFRESHED } from '../src/bench/index.js';
-import { pinSource } from '../src/bench/pin-source.js';
 import { LIVE } from '../src/bench/pinned.js';
 
 const unpin = (id: string) => id.slice(0, -PIN.length);
@@ -77,28 +76,6 @@ describe('a pinned kit works', () => {
       });
       expect(s.actions.map(shape), s.id).toEqual(live.actions.map(shape));
     }
-  });
-});
-
-describe('pinning a source file', () => {
-  const skill = { id: 'k', actions: [{ id: 'k-card' }], effects: { k_fx: {} } };
-
-  it('pins quoted ids and bare effect keys, and re-roots imports', () => {
-    const out = pinSource(
-      "import { x } from '../types.js';\nconst e = { k_fx: 1 };\naction({ id: 'k-card', skillId: 'k', effects: [{ type: 'k_fx' }] });\n",
-      skill,
-    );
-    expect(out).toContain("from '../../players/types.js'");
-    expect(out).toContain("{ 'k_fx@cal': 1 }");
-    expect(out).toContain("id: 'k-card@cal', skillId: 'k@cal'");
-    expect(out).toContain("type: 'k_fx@cal'");
-  });
-
-  it('leaves other names alone — a status key or a longer id containing one', () => {
-    const out = pinSource("setStatus('k-card-extra'); hasStatus('furia'); const q = { value: 1 };", skill);
-    expect(out).toContain("'k-card-extra'");
-    expect(out).toContain("'furia'");
-    expect(out).toContain('{ value: 1 }');
   });
 });
 
