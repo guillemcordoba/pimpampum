@@ -1,5 +1,5 @@
 import { kitSuite } from '@pimpampum/playtest/vitest';
 import { KNOWN, KNOWN_BLIND } from './known.js';
-import { KIT_GAMES, SET } from './suite.js';
+import { KIT_GAMES, SET, WAITS_FOR } from './suite.js';
 
-kitSuite({ set: SET, kit: 'enginyer-explosius', games: KIT_GAMES, known: KNOWN['enginyer-explosius'], knownBlind: KNOWN_BLIND['enginyer-explosius'] });
+kitSuite({ set: SET, kit: 'enginyer-explosius', games: KIT_GAMES, known: KNOWN['enginyer-explosius'], knownBlind: KNOWN_BLIND['enginyer-explosius'], waitsFor: WAITS_FOR });

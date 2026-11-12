@@ -8,16 +8,35 @@
 import type { Requirement } from '@pimpampum/playtest/vitest';
 
 export const KNOWN: Record<string, Partial<Record<Requirement, string>>> = {
-  // Measured 2026-11-02 on the calibration with the patrol of 7 and the three
-  // unagis, the AI's uncapped threat and the untargetable price (GOALS.md B16,
-  // B17): fights run long, as the whole game's do (the encounter-speed tests,
-  // B18). Culprits as each one's first failing measurement named them.
-  waterbender: { duration: 'p90 9 > 8 (it was 11 while the AI overplayed Boira, GOALS.md B16)' },
-  earthbender: { duration: 'p90 10 > 8; culprits Búnquer and Roca viva' },
-  airbender: { duration: 'p90 9 > 8; culprits Ventada, Asfíxia, Fulles de vent' },
-  artifex: { duration: 'p90 9 > 8; culprit Colós de butxaca' },
-  'mestre-armes': { duration: "p90 10 > 8; culprits Retruc d'acer, Bufetada insolent, Braç mort" },
-  'mestre-del-xi': { duration: 'p90 9 > 8; culprit Tempesta de son' },
+  // Measured 2026-11-12, each kit's full-kit run (800 fights) on the ONE
+  // calibration cell usable until the creatures are on the dice ladder
+  // (GOALS.md B20; 19 were usable on 2026-11-02, and every kit was inside the
+  // band on them, B17). The owner's decision that day: list them, with B20 as
+  // the reason, and measure them again when it lands. No culprits: nobody
+  // was blamed on this cell.
+  waterbender: { duration: 'median 6 > 5, p90 9 > 6 on the one usable cell (GOALS.md B20)' },
+  earthbender: { duration: 'p90 7 > 6 on the one usable cell (GOALS.md B20)' },
+  airbender: { duration: 'p90 9 > 6 on the one usable cell (GOALS.md B20)' },
+  firebender: {
+    duration: 'p90 9 > 6 on the one usable cell (GOALS.md B20)',
+    strength: '−29.6pp ±2.6 on the one usable cell (GOALS.md B20)',
+  },
+  acrobacia: {
+    duration: 'p90 8 > 6 on the one usable cell (GOALS.md B20)',
+    strength: '−31.0pp ±2.6 on the one usable cell (GOALS.md B20)',
+  },
+  artifex: {
+    duration: 'p90 10 > 6 on the one usable cell (GOALS.md B20)',
+    strength: '−29.8pp ±2.6 on the one usable cell (GOALS.md B20)',
+  },
+  'mestre-armes': {
+    duration: 'median 6 > 5, p90 10 > 6 on the one usable cell (GOALS.md B20)',
+    strength: '−46.9pp ±2.5 on the one usable cell (GOALS.md B20)',
+  },
+  'mestre-del-xi': {
+    duration: 'median 6 > 5, p90 10 > 6 on the one usable cell (GOALS.md B20)',
+    strength: '−31.1pp ±2.6 on the one usable cell (GOALS.md B20)',
+  },
 };
 
 /** Cards the AI is KNOWN to be blind to (`isBlindSpot`): often the best play,

@@ -15,6 +15,11 @@
  * to STILL fail. Fixing it turns the test red, which is the point: the entry is
  * deleted the day it stops being true, instead of rotting into a permanent
  * excuse. Anything not listed must pass.
+ *
+ * A SUITE THAT WAITS. A kit whose measurement cannot say anything today (no
+ * usable calibration cell) is not measured at all: `waitsFor` skips its
+ * suite whole and shows why in the test's name, instead of paying for a
+ * calibration that ends in "not measured".
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -48,11 +53,15 @@ export interface KitSuiteOptions {
   /** Cards the AI is KNOWN to be blind to today (`isBlindSpot`), by id. The
    *  same ratchet: each must still be flagged, and nothing else may be. */
   knownBlind?: string[];
+  /** What this kit's measurement waits for, and where that is written down:
+   *  the suite is skipped whole until the line is deleted. */
+  waitsFor?: string;
 }
 
 /** Declare one kit's requirement tests. Call at the top level of a test file. */
 export function kitSuite(opts: KitSuiteOptions): void {
-  describe(`kit ${opts.kit}`, () => {
+  const waiting = opts.waitsFor ? ` — NOT MEASURED, waits for: ${opts.waitsFor}` : '';
+  describe.skipIf(!!opts.waitsFor)(`kit ${opts.kit}${waiting}`, () => {
     let r: KitReport;
     beforeAll(async () => {
       r = await analyzeIsolated({
