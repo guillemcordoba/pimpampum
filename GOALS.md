@@ -31,9 +31,11 @@ A goal without one is not ready for the night; it stays with the owner.
      card chunks had been running for 108 min.
    Elements alone is about 10.5 h, and twice that once fantasy has usable
    cells. Four hours pay for ~170 of a kit's 600 card fights (~85 with both
-   sets). Until the owner picks (fewer card fights a kit; a longer bar; or the
-   kit suites without card values, the gate keeping its own), the night takes
-   the next goal.
+   sets). Without card values the eight elements analyses take 17 min. Until
+   the owner picks (A13: fewer card fights a kit; a longer bar; or the kit
+   suites without card values, the gate keeping its own), the night takes
+   the next goal. The verdicts will not match `KNOWN` either way before B20
+   (A13: one usable cell, five kits read below the band on it).
 2. **Then the "Work" list below, top down**, skipping any item that needs a
    decision from the owner: that item becomes a question in the morning report.
 
@@ -57,7 +59,7 @@ A goal without one is not ready for the night; it stays with the owner.
   (pooled, settled ≈ +4.4 ±2.3, adaptive ≈ +3.4 ±2.5); the two are indistinguishable. Recommendation: 'settled', the cheaper.
 - A8. Today's AI knobs (`continuation`, 9 samples): drop if A7b lands.
 - A10. The web app playing the elements set (19 web files import set-fantasy).
-- A13. The card-value sample that fits a night (the first night goal, 2026-11-12): a kit suite's 600 card fights cost ~26 lane-hours, so the eight elements suites and the gate are ~10.5 h on 24 lanes against the goal's 4 (twice that once fantasy has usable cells, B20). (a) ~180 card fights a kit (60 an opponent model; ~85 with both sets), wider error bars on "every card is a real choice" (B30 already finds 30 a cell noise in the gate); (b) keep 600 and move the bar: one set a night; (c) no card values in the kit suites until B20 gives them more than one usable cell, the gate keeping its own: the calibration (46 min) and the gate (67 min alone; not finished at 2 h beside the kit suites), an estimate of 2 to 2.5 h, not measured. Recommended: (c).
+- A13. The card-value sample that fits a night (the first night goal, 2026-11-12): a kit suite's 600 card fights cost ~26 lane-hours, so the eight elements suites and the gate are ~10.5 h on 24 lanes against the goal's 4 (twice that once fantasy has usable cells, B20). (a) ~180 card fights a kit (60 an opponent model; ~85 with both sets), wider error bars on "every card is a real choice" (B30 already finds 30 a cell noise in the gate); (b) keep 600 and move the bar: one set a night; (c) no card values in the kit suites until B20 gives them more than one usable cell, the gate keeping its own. Measured for (c): the eight elements analyses without card values, cold, side by side, 17 min 15 s on 24 lanes (800 fights a kit); beside them the gate is 67 min alone and the fantasy suites 43 min of calibration to find no cell. Recommended: (c). Whatever the sample, those suites are red until B20: on the set's one usable cell all eight kits fail fights-end (p90 7-10 against 6; firebender and acrobacia are not in `KNOWN`, written against 8) and five read clearly below the band (firebender −29.6pp ±2.6, acrobacia −31.0, artifex −29.8, mestre-armes −46.9, mestre-del-xi −31.1; air +5.5, earth −4.8, water −10.1), where all eight were inside it on 19 cells (B17, 2026-11-02).
 
 ## Work, in order
 
