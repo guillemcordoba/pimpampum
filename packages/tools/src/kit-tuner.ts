@@ -7,7 +7,7 @@
  *   pnpm --filter @pimpampum/tools exec tsx src/kit-tuner.ts --set elements --kit waterbender
  *   … --cards font-curativa,boira-espessa --steps 4
  */
-import { flag, games, useSet } from '@pimpampum/bench';
+import { flag, games, SMOKE, useSet } from '@pimpampum/bench';
 import { describePatch, evaluatePatch, GATE_BUDGET, tuneKit, type GateBudget, type GateReport } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -27,7 +27,8 @@ const fmt = (s: { total: number; duration: number; cards: number; strength: numb
 
 console.log(`Tuning ${kit}${only ? ` (only ${only.join(', ')})` : ''}…`);
 const r = await tuneKit({ set: SET.ref, budget: search }, kit, {
-  maxSteps: Number(flag('--steps') ?? 6), only,
+  // One step in the smoke run: a step measures every move, minutes even at two fights.
+  maxSteps: Number(flag('--steps') ?? (SMOKE ? 1 : 6)), only,
   onStep: (s, tried) => console.log(`  ${s.knob}  → ${fmt(s.score)}  (${tried} moves measured)`),
 });
 console.log(`start ${fmt(r.start.score)} · best ${fmt(r.best.score)}`);

@@ -8,7 +8,7 @@ import { newCombatStats, Character, CombatEngine, setAIControlled, withSeed } fr
 import { aiPolicy } from '@pimpampum/ai';
 import { getAction, buildReferenceParty, ENEMY_DEFINITIONS, TARGET_WINRATES, generateEncounter, createEnemyFrom, getEnemy } from '@pimpampum/set-fantasy';
 import { bodiesFor, FANTASY } from '@pimpampum/set-fantasy/bench';
-import { deltaPP, exact, games, MIRROR_DEPTH, pct, pctCoarse, randomTeam, theRegistry, runMatch, searchGames, useSet } from '@pimpampum/bench';
+import { deltaPP, exact, games, MIRROR_DEPTH, pct, pctCoarse, randomTeam, theRegistry, runMatch, searchGames, SMOKE, useSet } from '@pimpampum/bench';
 
 // THE SET THIS HARNESS MEASURES. `@pimpampum/bench` takes its content as a
 // parameter and throws rather than guess, so every entry point says so once.
@@ -96,7 +96,8 @@ function parametricAnalysis(playerCount: number, perPlayerBudget: number, games:
   console.log('   cada cel·la: composició · promesa → repetició (± de la diferència)');
   for (const [label, target] of Object.entries(TARGET_WINRATES)) {
     const cells: string[] = [];
-    for (const template of ENEMY_DEFINITIONS) {
+    // A solve is ~25 s even at the smoke run's sizes: there, two creatures a row.
+    for (const template of SMOKE ? ENEMY_DEFINITIONS.slice(0, 2) : ENEMY_DEFINITIONS) {
       // Grade against the SAME party spec the solver targeted — verifying
       // against a differently-built party measures the party gap, not the
       // solver — but with an independent seed, so this is a real replay.

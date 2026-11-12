@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flag, games, inLanes, isolated, kitsDynamics, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
+import { flag, games, inLanes, isolated, kitsDynamics, SMOKE, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
 import {
   burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, fitLine, GATE_BUDGET,
   MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, PV_LEVELS, rankFixes, REQUIREMENTS,
@@ -36,7 +36,9 @@ const { ATTACK_LADDER, DEFENSE_LADDER, heroPV } = SET.root;
 const meanPV = (level: number) => Math.round(SET.gameSet.calibration.mainKits.reduce((t, k) => t + heroPV({ [k]: level }), 0) / SET.gameSet.calibration.mainKits.length);
 const pvRange = (level: number) => { const pvs = SET.gameSet.calibration.mainKits.map(k => heroPV({ [k]: level })); const lo = Math.min(...pvs), hi = Math.max(...pvs); return lo === hi ? `${lo}` : `${lo}-${hi}`; };
 const LEVELS = (flag('--levels') ?? '3,6,10').split(',').map(Number);
-const KIT = flag('--kit');
+// The smoke run reports one kit: the whole set's gate cells take over ten
+// minutes even at two fights (a card value is a rollout per card per decision).
+const KIT = flag('--kit') ?? (SMOKE ? SET.gameSet.calibration.mainKits[0] : undefined);
 const FIXES = process.argv.includes('--fixes');
 const OUT = flag('--out') ?? path.join(os.tmpdir(), 'game-dynamics.html');
 const MAIN_KITS = SET.gameSet.calibration.mainKits;
