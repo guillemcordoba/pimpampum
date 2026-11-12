@@ -238,7 +238,12 @@ the durable artifact; the script is scaffolding.
 it runs at `GAMES=2`, so `test/harnesses.slow.test.ts` can execute it on every
 change.
 That test asserts nothing about the numbers — two combats measure nothing — only
-that the harness still runs against today's content.
+that the harness still runs against today's content. Where two combats still
+cost minutes (a card value is whole rollouts, a balancer solve ~25 s), the
+harness measures a smaller scope under `BENCH_SMOKE`: one or two kits
+(`kit-analyzer`, `kit-gate`, `dynamics-report`), one tuning step
+(`kit-tuner`), two creatures a row (`main`), one count a family
+(`probe-shapes`). The rest of the scope is then only run by hand.
 
 **Deleted** when its question stops being asked. Eight were deleted on
 2026-09-20: `experiment-berserk`, `-balance-pass`, `-tuning`, `-objects`,

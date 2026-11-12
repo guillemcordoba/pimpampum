@@ -800,7 +800,11 @@ fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
   cores. A lane is for a leaf: a job that waits on other lanes must not hold
   one. `cached()` claims an entry the same way (`pimpampum-claims`) before
   computing it; a process that misses a claimed entry sleeps until the file is
-  there, and a warm worker gives its lane back while it sleeps.
+  there, and a warm worker gives its lane back while it sleeps. Pools take
+  turns: a process that has just released a lane waits out one look (500 ms)
+  before taking another. Without `$XDG_RUNTIME_DIR` the files fall back to the
+  temp directory, which a nix shell makes its own: the budget is then that
+  shell's, not the machine's.
 - **`bench/report.ts` — no percentage is formatted by hand.** `pct(rate, n)`,
   `deltaPP(...)`, `share(n, total)`, and `exact(rate)` for a number that is
   KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs) and
