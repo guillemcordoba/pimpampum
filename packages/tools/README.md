@@ -304,6 +304,15 @@ the worker is the caller's (playtest's `warm-worker.ts`), and when a package mov
 old one, every sweep silently ran serially for as long as nobody timed one. `BENCH_SERIAL=1`
 turns it off when a crash needs a readable stack.
 
+**bench's `lanes.ts` — one budget for the machine.** Every pool (a warm, an
+`inLanes`) takes each of its lanes from the same 24 lock files in
+`$XDG_RUNTIME_DIR/pimpampum-lanes`, so two harnesses, or a vitest run of every
+kit suite, share the cores instead of each filling them; and the cache claims
+an entry before computing it, so processes that open on the same calibration
+compute it once (the others sleep, off their lane, until its file is there).
+`BENCH_LANES` caps the budget a process sees; `pnpm idle-watch` drops it to
+`BENCH_LANES_BUSY` (4) while you are at the desk.
+
 The unit of both is the CELL, because that is what parallelises to the width of
 the matrix. Jobs are BATCHED one child per lane: at one child per cell, process
 startup cost more CPU than the measurements did and wall time did not move.

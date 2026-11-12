@@ -43,8 +43,9 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── regret.ts             # per-decision card value (valuePosition, measureKit, scoreCards)
 │   │   ├── policies.ts           # alternative policies + headToHead duels
 │   │   ├── report.ts             # pct/deltaPP/share/exact + the sampling maths
-│   │   ├── cache.ts              # content-fingerprinted cache (+ in-process memo)
-│   │   ├── parallel.ts           # cache warming in child processes (caller-supplied worker)
+│   │   ├── cache.ts              # content-fingerprinted cache (+ in-process memo); an entry is claimed before it is computed
+│   │   ├── lanes.ts              # the machine's ONE lane budget (lock files in $XDG_RUNTIME_DIR), inLanes
+│   │   ├── parallel.ts           # cache warming in child processes (caller-supplied worker), on those lanes
 │   │   ├── isolate.ts            # isolated(): run a long measurement in a child process
 │   │   ├── combatlog.ts          # reading attacks out of the combat log
 │   │   └── testing.ts            # @pimpampum/bench/testing — SYNTHETIC, a small second set
@@ -789,6 +790,17 @@ fantasy set's `reference.ts`/`shapes.ts` plus bench's `positions.ts`):
   part in a measurement, the run stays single-threaded, and the output is
   bit-identical to a serial one (verified by diffing against
   `BENCH_NO_CACHE=1`). A failed child costs time, never correctness.
+- **`bench/lanes.ts` — one lane budget for the machine, one computation per
+  entry** (2026-11-12). A lane is a lock file in `$XDG_RUNTIME_DIR/pimpampum-lanes`
+  holding the pid of the process that computes on it, so it frees itself when
+  that process dies; every warm batch and every `inLanes` job takes one first,
+  whichever process, worktree or session it runs in (24 slots; 4 while
+  `pnpm idle-watch` says the user is at the desk). Before it, a vitest run of
+  every kit suite and the gate was 17 pools of 24 workers, a load of 419 on 32
+  cores. A lane is for a leaf: a job that waits on other lanes must not hold
+  one. `cached()` claims an entry the same way (`pimpampum-claims`) before
+  computing it; a process that misses a claimed entry sleeps until the file is
+  there, and a warm worker gives its lane back while it sleeps.
 - **`bench/report.ts` — no percentage is formatted by hand.** `pct(rate, n)`,
   `deltaPP(...)`, `share(n, total)`, and `exact(rate)` for a number that is
   KNOWN rather than sampled. Plus `gamesFor(pp)` (what a threshold costs) and
