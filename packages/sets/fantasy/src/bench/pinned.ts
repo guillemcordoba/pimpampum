@@ -1,50 +1,18 @@
 /**
- * THE CALIBRATION SNAPSHOT — pinned copies of the player kits, and the ruler
- * every kit is measured against.
- *
- * The calibration (reference party, stand-ins, company rows) names every player
- * kit, so it used to be built from the LIVE kits: editing berserk moved the
- * solved shapes and every baseline, and the next measurement of ANY kit
- * recalibrated from scratch — over an hour, for a one-card tweak. Worse, the
- * edit moved the ruler it was being measured with.
- *
- * So the calibration fields the copies in `calibration-kits/`, which only
- * `pnpm calibration:refresh` rewrites. A live edit re-measures that kit's own
- * rows and nothing else. The price is DRIFT — while you polish, the table still
- * seats the old version of every kit — which `calibrationDrift()` reports, so
- * a stale ruler is a visible decision rather than an accident.
- *
- * The copies are renamed at the source (`berserk@cal`, its cards and effect
- * types likewise), so a pinned kit and its live self can share a table without
- * sharing a lookup or a handler. They are registered UNLISTED: they resolve by
- * id, and nothing that iterates `ALL_SKILLS` — the drawn party above all —
- * ever meets them.
+ * THIS SET'S CALIBRATION SNAPSHOT — the pinned copies of its player kits
+ * (`calibration-kits/`), registered unlisted, and their drift from the live
+ * kits. What a snapshot is and why: `@pimpampum/set-common/bench` (`snapshot.ts`).
  */
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPinned, PIN, pin, snapshotDrift } from '@pimpampum/set-common/bench';
 import { ALL_SKILLS, getSkill, registerSkill, type SkillDefinition } from '../index.js';
 import { PINNED_FILES, PINNED_SKILLS, REFRESHED } from './calibration-kits/index.js';
-import { liveKitFile, liveKitFiles, PIN, pinSource } from './pin-source.js';
 
-export { PIN, REFRESHED };
+export { PIN, pin, REFRESHED };
 
-/** The pinned id for a live kit id. */
-export const pin = (id: string): string => id + PIN;
-
-// Every id the copy carries must be pinned. The rename works on string
-// literals, so an id a shared factory supplies by default escapes it — and an
-// unpinned card id shares its live twin's statistics and lookups silently.
 for (const s of PINNED_SKILLS) {
-  const loose = [s.id, ...s.actions.flatMap(a => [a.id, a.skillId]), ...Object.keys(s.effects ?? {})]
-    .filter(id => !id.endsWith(PIN));
-  if (loose.length) {
-    throw new Error(
-      `set-fantasy/pinned: the calibration copy of '${s.id}' has unpinned ids or effect types: ${loose.join(', ')}. `
-      + `They are not string literals in the kit's own file (a shared factory's default?). Pass them `
-      + `explicitly in the live kit, then run pnpm calibration:refresh.`,
-    );
-  }
+  assertPinned('set-fantasy', s);
   registerSkill(s, false);
 }
 
@@ -55,26 +23,8 @@ export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 export const LIVE = path.join(SRC, 'players/skills');
 export const COPIES = path.join(SRC, 'bench/calibration-kits');
 
-/**
- * Which live kits differ from their calibration copy — the kits whose edits
- * the baselines do NOT yet reflect. Empty means the ruler is the game.
- *
- * Re-pins each live file and compares it with the copy, byte for byte: the
- * same function made the copy, so equal means nothing has changed since. A
- * shared kit fantasy fields is read from set-common (`liveKitFile`).
- */
 export function calibrationDrift(live = LIVE, copies = COPIES): string[] {
-  if (!fs.existsSync(live)) return [];
-  const snapshotted = new Set(Object.entries(PINNED_FILES).map(([id, file]) => liveKitFile(id, file, live)));
-  const fielded = (id: string) => ALL_SKILLS.some(s => s.id === id);
-  const unsnapshotted = liveKitFiles(live, fielded).filter(f => !snapshotted.has(f))
-    .map(f => `${path.basename(f, '.ts')} (not in the snapshot)`);
-  const drifted = Object.entries(PINNED_FILES).flatMap(([id, file]) => {
-    const skill = getSkill(id);
-    const liveFile = liveKitFile(id, file, live);
-    if (!skill || !fs.existsSync(liveFile)) return [`${id} (no longer a live kit)`];
-    const copy = fs.readFileSync(path.join(copies, file), 'utf8');
-    return pinSource(fs.readFileSync(liveFile, 'utf8'), skill) === copy ? [] : [id];
+  return snapshotDrift({
+    live, copies, files: PINNED_FILES, getSkill, fielded: id => ALL_SKILLS.some(s => s.id === id),
   });
-  return [...drifted, ...unsnapshotted];
 }

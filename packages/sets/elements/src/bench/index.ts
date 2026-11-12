@@ -14,15 +14,11 @@
  * the lesson of the refactor: those numbers were in bench, and having them
  * there is exactly why bench could only ever measure one game.
  */
-import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { type ActionDefinition, type Character } from '@pimpampum/engine';
 import {
   actionPrint, type GameSet, type KitInfo, type PartySpec, type SubjectKit,
 } from '@pimpampum/bench';
-import { COMMON_SKILLS_DIR, COMMON_SRC } from '@pimpampum/set-common/bench';
+import { sourcePrinter } from '@pimpampum/set-common/bench';
 import { COMMON_AI_BLIND_CARDS } from '@pimpampum/set-common';
 import {
   ALL_SKILLS, buildComposition, buildReferenceParty, createRegistry, ENEMY_DEFINITIONS, fullKitLevel,
@@ -31,7 +27,7 @@ import {
 } from '../index.js';
 import { CALIBRATION_KITS, COMPANY, FAIR, MAX_AVG_ROUNDS, SATURATION, SHAPES } from './shapes.js';
 import { hero, MAIN_KITS, REFERENCE_KITS } from './reference.js';
-import { PIN, pin, PINNED } from './pinned.js';
+import { PIN, pin, PINNED, SRC } from './pinned.js';
 
 /**
  * A synthetic control kit dressed as a real one.
@@ -49,70 +45,7 @@ function asSkill(kit: SubjectKit): SkillDefinition {
   };
 }
 
-/**
- * THE CODE A KIT RUNS, fingerprinted — not just its card data.
- *
- * A card's data says which handler it calls and with what params; it cannot
- * say what the handler DOES. Editing a handler used to leave every cached
- * number standing, measured with the old code. So a kit's print includes the
- * source of its own file (where its handlers and status behaviours live, by the
- * co-location rule) and of everything shared (generic effects, equipment, the
- * builders) — editing one kit's file still invalidates only that kit's rows,
- * and editing shared code invalidates everyone's, which is correct.
- *
- * Read from `src/`, beside the `dist/` this runs from. A missing tree prints
- * as such rather than as nothing, so it can never collide with a real print.
- */
-const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src');
-const OWN_FILES = ['players/skills', 'enemies/creatures'];
-const sourceMemo = new Map<string, string>();
-
-function hashFiles(files: string[]): string {
-  const h = crypto.createHash('sha1');
-  // RELATIVE paths: an absolute one made the same content fingerprint
-  // differently in every clone and worktree, so a cache could never be shared.
-  for (const f of files.sort()) { h.update(path.relative(SRC, f)); h.update(fs.readFileSync(f, 'utf8')); }
-  return h.digest('hex').slice(0, 12);
-}
-
-function tsFiles(dir: string): string[] {
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
-    const full = path.join(dir, e.name);
-    return e.isDirectory() ? tsFiles(full) : e.name.endsWith('.ts') ? [full] : [];
-  });
-}
-
-/** Every content file that is not one kit's own, and not calibration — this
- *  set's, and set-common's (the builders and generic handlers are there). */
-function sharedPrint(): string {
-  let p = sourceMemo.get('shared');
-  if (p === undefined) {
-    const own = OWN_FILES.map(d => path.join(SRC, d));
-    const files = [
-      ...tsFiles(SRC).filter(f => !f.startsWith(path.join(SRC, 'bench')) && !own.some(d => f.startsWith(d))),
-      ...tsFiles(COMMON_SRC).filter(f => !f.startsWith(path.join(COMMON_SRC, 'bench')) && !f.startsWith(COMMON_SKILLS_DIR)),
-    ];
-    p = files.length ? hashFiles(files) : 'no-source';
-    sourceMemo.set('shared', p);
-  }
-  return p;
-}
-
-/** The kit's own file (found by its id) plus the shared code. A live player
- *  kit may be one set-common holds. */
-function sourcePrint(dir: string, id: string): string {
-  const k = `${dir}:${id}`;
-  let p = sourceMemo.get(k);
-  if (p === undefined) {
-    const dirs = [path.join(SRC, dir), ...(dir === 'players/skills' ? [COMMON_SKILLS_DIR] : [])];
-    const mine = dirs.flatMap(tsFiles)
-      .filter(f => fs.readFileSync(f, 'utf8').includes(`'${id}'`));
-    p = `${mine.length ? hashFiles(mine) : 'no-file'}+${sharedPrint()}`;
-    sourceMemo.set(k, p);
-  }
-  return p;
-}
+const sourcePrint = sourcePrinter(SRC);
 
 function kit(id: string): KitInfo | undefined {
   const skill = getSkill(id);

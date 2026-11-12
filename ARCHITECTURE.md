@@ -67,7 +67,7 @@ packages/                         # each layer only looks DOWN (tools/test/conve
 │   │   ├── effects/              # helpers.ts (re-exported likewise) + COMMON_EFFECTS: weapon_damage, counter, empower, fatigue_cost
 │   │   ├── equipment.ts          # WEAPONS (bastó, espasa lleugera, destral, gran destral), needsWeapon, weaponFor — each set lists them in ALL_EQUIPMENT
 │   │   ├── skills/               # shared kits a set fields by listing them in its catalogue: esgrima.ts (id mestre-armes), acrobacia.ts, artifex.ts
-│   │   └── bench/                # @pimpampum/set-common/bench — where this source is, for a set's fingerprints and drift check (Node-only)
+│   │   └── bench/                # @pimpampum/set-common/bench — what every set's bench does with source (Node-only): where this package's is, sourcePrinter(), the calibration snapshot (pinSource, snapshotDrift, refreshCalibration)
 │   └── test/
 ├── sets/fantasy/                 # @pimpampum/set-fantasy — THE CONTENT
 │   ├── src/
