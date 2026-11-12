@@ -17,13 +17,16 @@
  *    is simply missing and the main run computes it itself;
  *  - none of this is on the path when the cache is warm.
  *
+ * The children run on the MACHINE's lanes (lanes.ts), so several pools at once
+ * (a vitest run of every kit suite) share the cores instead of each filling them.
+ *
  * It is a pure optimisation with a correctness floor, which is the only shape
  * of concurrency worth having here.
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
+import { lanes, takeLane, WORKER_LANE, type Lane } from './lanes.js';
 
 /**
  * The calibration's units of work — the only jobs bench itself knows about. A
@@ -46,41 +49,6 @@ export type WarmJob =
  */
 export type WarmWorker = string[];
 
-/** Leave a couple of cores for the machine; more children than cores just adds
- *  context switching to a CPU-bound job. `BENCH_LANES` caps it lower. */
-const LANES = Math.max(1, Math.min(os.cpus().length - 2, 24, Number(process.env.BENCH_LANES) || Infinity));
-
-/**
- * FAST WHEN THE USER IS AWAY, GENTLE WHEN THEY ARE WORKING.
- *
- * `pnpm idle-watch` (tools/scripts/idle-watch.sh) writes `active` or `idle` to
- * this file as the desktop reports keyboard and mouse activity. While it says
- * `active`, only `BENCH_LANES_BUSY` lanes (default 4) take new batches; the
- * others wait. With no watcher running the file is absent and every lane runs,
- * as before. A batch already running finishes either way, so the machine frees
- * up within one batch of the user coming back.
- */
-const USER_STATE = path.join(process.env.XDG_RUNTIME_DIR ?? os.tmpdir(), 'pimpampum-user-state');
-const BUSY_LANES = Math.max(1, Number(process.env.BENCH_LANES_BUSY) || 4);
-export function lanesNow(): number {
-  try {
-    return fs.readFileSync(USER_STATE, 'utf8').trim() === 'active' ? Math.min(BUSY_LANES, LANES) : LANES;
-  } catch {
-    return LANES;
-  }
-}
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-/** `jobs` across the lanes free now (`lanesNow`), each started as a lane frees; the results in order. */
-export async function inLanes<T>(jobs: readonly (() => Promise<T>)[]): Promise<T[]> {
-  const out: T[] = new Array(jobs.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), jobs.length)) }, async () => {
-    for (let i = next++; i < jobs.length; i = next++) out[i] = await jobs[i]();
-  }));
-  return out;
-}
-
 /** Disable with `BENCH_SERIAL=1` when a crash needs a readable stack. */
 const enabled = (): boolean => process.env.BENCH_SERIAL !== '1' && process.env.BENCH_NO_CACHE !== '1';
 
@@ -92,7 +60,7 @@ const enabled = (): boolean => process.env.BENCH_SERIAL !== '1' && process.env.B
  * registry build, engine fingerprint — cost more CPU than the measurements did.
  * A few batches per lane (see `batches`) pay it a few times each.
  */
-function runBatch<J>(worker: WarmWorker, jobs: J[]): Promise<string | null> {
+function runBatch<J>(worker: WarmWorker, jobs: J[], lane: Lane): Promise<string | null> {
   return new Promise(resolve => {
     const child = execFile(
       worker[0], [...worker.slice(1), JSON.stringify(jobs)],
@@ -100,13 +68,15 @@ function runBatch<J>(worker: WarmWorker, jobs: J[]): Promise<string | null> {
       // real batches mid-measurement, and every killed batch was then computed
       // again serially — slower than not warming at all. Same ceiling as
       // `isolated()`.
-      { timeout: 14_400_000, env: process.env, maxBuffer: 8 << 20 },
+      { timeout: 14_400_000, env: { ...process.env, [WORKER_LANE]: lane.file ?? '' }, maxBuffer: 8 << 20 },
       (err, _stdout, stderr) => resolve(!err ? null
         : err.killed ? `a worker was killed (${err.signal ?? 'timeout'}) after its time limit`
           : (String(stderr).trim().split('\n').pop() || `worker exited with code ${err.code}`)),
     );
+    if (!child.pid) return;
+    lane.handTo(child.pid);
     // Lowest priority: whatever the user runs comes first.
-    try { if (child.pid) os.setPriority(child.pid, 19); } catch { /* not permitted: run as is */ }
+    try { os.setPriority(child.pid, 19); } catch { /* not permitted: run as is */ }
   });
 }
 
@@ -145,20 +115,24 @@ export async function warm<J>(
   for (const f of [worker[0], script].filter((f): f is string => !!f && f.includes('/'))) {
     if (!fs.existsSync(f)) throw new Error(`bench/parallel: warm worker ${f} does not exist.`);
   }
-  const queue = batches(jobs, LANES);
+  const queue = batches(jobs, lanes);
   const total = queue.length;
   let done = 0;
   const failures: string[] = [];
-  // A pool of LANES runners, each pulling the next batch when it finishes one.
-  // Runner i only takes a batch while i is within today's budget (lanesNow).
-  await Promise.all(Array.from({ length: Math.min(LANES, queue.length) }, async (_, i) => {
-    for (;;) {
-      while (i >= lanesNow() && queue.length) await sleep(5_000);
-      const b = queue.shift();
-      if (!b) break;
-      const failed = await runBatch(worker, b);
-      if (failed) failures.push(failed);
-      onProgress?.(done += b.length, jobs.length);
+  // Each runner takes one of the MACHINE's lanes (lanes.ts), then the next
+  // batch: several pools at once share the budget instead of each filling it.
+  await Promise.all(Array.from({ length: Math.min(lanes, queue.length) }, async () => {
+    while (queue.length) {
+      const lane = await takeLane();
+      try {
+        const b = queue.shift();
+        if (!b) break;
+        const failed = await runBatch(worker, b, lane);
+        if (failed) failures.push(failed);
+        onProgress?.(done += b.length, jobs.length);
+      } finally {
+        lane.release();
+      }
     }
   }));
   if (failures.length) {
@@ -166,5 +140,3 @@ export async function warm<J>(
       + `the run will compute those serially. First error: ${failures[0]}`);
   }
 }
-
-export const lanes = LANES;

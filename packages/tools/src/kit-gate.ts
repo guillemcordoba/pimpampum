@@ -9,7 +9,7 @@
  * The measuring is warmed across bench's lanes first, then read serially from
  * the cache: a second run on unchanged content is instant.
  */
-import { flag, games, useSet } from '@pimpampum/bench';
+import { flag, games, SMOKE, useSet } from '@pimpampum/bench';
 import { autopsyLines, FIELD_MAX, GATE_BUDGET, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -18,7 +18,8 @@ useSet(SET.gameSet);
 
 const quick = process.argv.includes('--quick');
 const scope: GateScope = {
-  kits: flag('--kits')?.split(','),
+  // Two kits in the smoke run: every kit's card values take ten minutes even at two fights.
+  kits: flag('--kits')?.split(',') ?? (SMOKE ? SET.gameSet.calibration.mainKits.slice(0, 2) : undefined),
   levels: flag('--levels')?.split(',').map(Number) ?? (quick ? STYLE_LEVELS : undefined),
   cards: !quick,
 };

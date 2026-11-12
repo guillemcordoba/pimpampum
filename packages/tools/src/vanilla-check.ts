@@ -10,7 +10,7 @@
  *   … --calibrate                              search the twins' numbers for the closest match
  */
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet, type Dynamics } from '@pimpampum/bench';
+import { flag, games, inLanes, isolated, kitsDynamics, useSet, type Dynamics } from '@pimpampum/bench';
 import {
   census, kitDivergences, MATCH_TOLERANCE, summarise, TWIN_DEFAULTS, vanillaMatches, type CensusCard, type DynamicsSummary, type TwinParams,
 } from '@pimpampum/playtest';
@@ -39,14 +39,7 @@ async function twinsAt(p: TwinParams): Promise<Map<number, DynamicsSummary>> {
 }
 
 /** Many trials at once, as many as the lanes allow. */
-async function allAt(trials: TwinParams[]): Promise<Map<number, DynamicsSummary>[]> {
-  const out: Map<number, DynamicsSummary>[] = new Array(trials.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), trials.length)) }, async () => {
-    for (let i = next++; i < trials.length; i = next++) out[i] = await twinsAt(trials[i]);
-  }));
-  return out;
-}
+const allAt = (trials: TwinParams[]): Promise<Map<number, DynamicsSummary>[]> => inLanes(trials.map(t => () => twinsAt(t)));
 
 const misses = (v: Map<number, DynamicsSummary>) => LEVELS.reduce((t, l) => t + vanillaMatches(real.get(l)!, v.get(l)!).checks.filter(c => !c.ok).length, 0);
 /** How far vanilla sits from the real game: each metric's gap over its

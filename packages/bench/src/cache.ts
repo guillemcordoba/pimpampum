@@ -21,10 +21,12 @@
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ActionDefinition } from '@pimpampum/engine';
 import { theSet } from './gameset.js';
+import { locked, offLane, tryLock, unlock } from './lanes.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CACHE_DIR = path.resolve(HERE, '../../.bench-cache');
@@ -186,19 +188,97 @@ export function key(...parts: string[]): string {
 export function cached<T>(namespace: string, k: string, compute: () => T): T {
   if (!enabled()) return compute();
   const file = path.join(cacheDir(), namespace, `${k}.json`);
-  try {
-    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
-  } catch {
-    // A corrupt entry is not worth a crash — recompute and overwrite it.
+  let claim: string | null = null;
+  for (;;) {
+    const hit = stored<T>(file);
+    if (hit) return hit.value;
+    const asked = claimOn(file);
+    if (asked.state === 'theirs') {
+      sleepThrough(asked.claim);
+      continue;
+    }
+    if (asked.state === 'mine') claim = asked.claim;
+    break;
   }
-  const value = compute();
   try {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(value));
-  } catch {
-    // An unwritable cache is a performance problem, never a correctness one.
+    // Between the miss and the claim, a process that held it may have finished.
+    const theirs = claim && stored<T>(file);
+    if (theirs) return theirs.value;
+    if (claim) claimed.add(claim);
+    const value = compute();
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      // Whole or absent: another process may be waiting to read it.
+      const tmp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(value));
+      fs.renameSync(tmp, file);
+    } catch {
+      // An unwritable cache is a performance problem, never a correctness one.
+    }
+    return value;
+  } finally {
+    if (claim) {
+      claimed.delete(claim);
+      try { unlock(claim); } catch { /* it dies with this process */ }
+    }
   }
-  return value;
+}
+
+/** A corrupt entry is not worth a crash: it reads as missing, and is recomputed and overwritten. */
+function stored<T>(file: string): { value: T } | null {
+  try {
+    return { value: JSON.parse(fs.readFileSync(file, 'utf8')) as T };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ONE PROCESS COMPUTES AN ENTRY; THE OTHERS WAIT FOR ITS FILE.
+ *
+ * Several processes measuring at once (a set's kit suites, the gate) all open
+ * on the same calibration, and each used to compute every entry of it for
+ * itself. Now the first to miss an entry claims it (a lock file, lanes.ts) and
+ * the others sleep until the claim is gone, then read what it wrote; a claimer
+ * that died leaves a claim nobody honours.
+ *
+ * `none`: this process computes unclaimed — it is already computing this very
+ * entry further up its own stack, or claims cannot be written at all.
+ */
+type Claim = { state: 'mine' | 'theirs'; claim: string } | { state: 'none' };
+
+/** The claims this process holds: the entries it is in the middle of computing. */
+const claimed = new Set<string>();
+/** Beside the lanes, not in the cache: a reboot clears it, and with it every
+ *  claim whose dead owner's pid a new process could be wearing. */
+const claimsDir = (): string => path.join(process.env.XDG_RUNTIME_DIR ?? os.tmpdir(), 'pimpampum-claims');
+
+function claimOn(file: string): Claim {
+  const claim = path.join(claimsDir(), sha(path.resolve(file)));
+  if (claimed.has(claim)) return { state: 'none' };
+  try {
+    fs.mkdirSync(claimsDir(), { recursive: true });
+    return { state: tryLock(claim) ? 'mine' : 'theirs', claim };
+  } catch {
+    return { state: 'none' };
+  }
+}
+
+const napping = new Int32Array(new SharedArrayBuffer(4));
+
+/**
+ * Sleep until the claim's owner is done, WITHOUT THIS PROCESS'S LANE: four
+ * kit suites that open on the same calibration had three workers in four
+ * asleep on a sibling's claim, each on a lane (2026-11-12: a load of 9 on 24
+ * lanes). Except in the middle of an entry of its own: a process that waited
+ * for a lane with a claim in hand could be waited on by the lane's holder.
+ */
+function sleepThrough(claim: string): void {
+  const asleep = (): void => {
+    for (let nap = 20; locked(claim); nap = Math.min(1000, nap * 2)) Atomics.wait(napping, 0, 0, nap);
+  };
+  if (claimed.size === 0) offLane(asleep);
+  else asleep();
 }
 
 /** Whether anything was served from cache this run, for the report to say so. */

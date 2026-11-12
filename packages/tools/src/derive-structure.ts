@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flag, games, isolated, kitsDynamics, lanesNow, useSet } from '@pimpampum/bench';
+import { flag, games, inLanes, isolated, kitsDynamics, useSet } from '@pimpampum/bench';
 import { burstHolds, census, checksMet, FIX_BUDGET, rankFixes, type Fix, type FixLevel, type FixResult } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -60,14 +60,11 @@ const cards = census(LEVELS.map(level => kitsDynamics(level, games(120)).cards))
 const ladder = Object.fromEntries(Object.keys(ATTACK_LADDER).map(Number).map(l => [l, { attack: ATTACK_LADDER[l].toString(), defense: DEFENSE_LADDER[l].toString() }]));
 const jobs = fixes.flatMap(fix => LEVELS.map(level => ({ fix, level })));
 const byFix = new Map<string, FixLevel[]>();
-let next = 0, done = 0;
-await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), jobs.length)) }, async () => {
-  for (let i = next++; i < jobs.length; i = next++) {
-    const { fix, level } = jobs[i];
-    const r = await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, fix, ladder, [level], budget, cards]);
-    byFix.set(fix.id, [...(byFix.get(fix.id) ?? []), ...r.levels]);
-    log(`${++done}/${jobs.length}: ${fix.id} L${level}`);
-  }
+let done = 0;
+await inLanes(jobs.map(({ fix, level }) => async () => {
+  const r = await isolated<FixResult>(PLAYTEST, 'evaluateFix', [SET.ref, fix, ladder, [level], budget, cards]);
+  byFix.set(fix.id, [...(byFix.get(fix.id) ?? []), ...r.levels]);
+  log(`${++done}/${jobs.length}: ${fix.id} L${level}`);
 }));
 const ranked = rankFixes(fixes.map(fix => ({ fix, levels: byFix.get(fix.id)!.sort((a, b) => a.level - b.level), focusOnRealKits: fix.aim === 1 })));
 
