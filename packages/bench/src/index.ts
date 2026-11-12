@@ -58,7 +58,9 @@ export {
   stderr, pct, pctCoarse, deltaPP, pp, deltaStderr, significant, gamesFor, exact, share,
 } from './report.js';
 export { flag, games, searchGames, calibrationGames, SMOKE } from './games.js';
-export { inLanes, lanes, lanesNow, warm } from './parallel.js';
+export { inLanes, lanes, lanesNow, takeLane, tryLock, unlock } from './lanes.js';
+export type { Lane } from './lanes.js';
+export { warm } from './parallel.js';
 export type { WarmJob, WarmWorker } from './parallel.js';
 export { assertParsed, parseAttacks } from './combatlog.js';
 export { isolated } from './isolate.js';

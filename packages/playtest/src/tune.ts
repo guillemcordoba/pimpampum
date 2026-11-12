@@ -12,7 +12,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ActionType, DiceRoll, type ActionDefinition } from '@pimpampum/engine';
-import { isolated, lanesNow, theSet } from '@pimpampum/bench';
+import { inLanes, isolated, theSet } from '@pimpampum/bench';
 import { measureGate, type GateContext, type GateReport } from './gate.js';
 import { installSet } from './prepare.js';
 import { KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
@@ -126,15 +126,6 @@ export async function evaluatePatch(ctx: GateContext, patch: NumbersPatch, kit: 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SELF = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist', 'tune.js');
 
-async function pool<T, R>(items: T[], run: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanesNow(), items.length)) }, async () => {
-    for (let i = next++; i < items.length; i = next++) out[i] = await run(items[i]);
-  }));
-  return out;
-}
-
 export interface TuneStep { knob: string; score: KitScore }
 export interface TuneResult { kit: string; start: Evaluated; best: Evaluated; steps: TuneStep[] }
 
@@ -153,7 +144,7 @@ export async function tuneKit(
   const steps: TuneStep[] = [];
   for (let s = 0; s < (opts.maxSteps ?? 6) && best.score.total > 0; s++) {
     const knobs = knobsFor(kit, best.patch, opts.only);
-    const tried = await pool(knobs, k => evaluate({ ...best.patch, [k.card]: k.patch }).then(e => ({ k, e })));
+    const tried = await inLanes(knobs.map(k => () => evaluate({ ...best.patch, [k.card]: k.patch }).then(e => ({ k, e }))));
     const winner = tried.reduce((a, b) => (b.e.score.total < a.e.score.total ? b : a), tried[0]);
     if (!winner || winner.e.score.total >= best.score.total) break;
     best = winner.e;
