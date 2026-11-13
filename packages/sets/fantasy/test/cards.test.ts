@@ -104,10 +104,11 @@ describe('flanking (AttackModifiers.defensePenalty)', () => {
   const focusing = { team: 0, idx: 0, actionIdx: 1 };
 
   it('a flanked defense is lowered by 3, so a blow that would miss now lands', () => {
-    // Defense 1+5=6. Flanking attack 1+3=4 → 4 vs 6−3=3 → margin 1.
+    // Defense 1+5=6, less the opener's 1 it has met. Flanking attack 1+3=4 →
+    // 4 vs 6−1−3=2 → margin 2.
     const { d, engine } = flankSetup(5, 3);
     runRoundRaw(engine, [selfGuard, ...bothAtD]);
-    expect(d.currentPV).toBe(19);
+    expect(d.currentPV).toBe(18);
   });
 
   it('without an ally opening the target there is no penalty', () => {

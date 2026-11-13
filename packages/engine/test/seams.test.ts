@@ -355,19 +355,19 @@ describe('bloqueig conjunt (summed wall)', () => {
     expect(e.getSkillLevel('test')).toBe(1); // lost by 0 → learns (fixtures start at 0)
   });
 
-  it('a breach damages the weak link (lowest individual roll) only', () => {
-    const { d1, d2, engine } = wallSetup(9, 2); // attack 10 vs (3 + 1) → margin 6
+  it('a breach is shared by the blockers, the odd point to the weak link (lowest individual roll)', () => {
+    const { d1, d2, engine } = wallSetup(8, 2); // attack 9 vs (3 + 1) → margin 5
     runRound(engine, blockE);
-    expect(d1.currentPV).toBe(20);
-    expect(d2.currentPV).toBe(14); // D2 rolled 1 < D1's 3
-    expect(d1.getSkillLevel('test')).toBe(0); // margin 6 > 2 → nobody learns
+    expect(d1.currentPV).toBe(18);
+    expect(d2.currentPV).toBe(17); // D2 rolled 1 < D1's 3
+    expect(d1.getSkillLevel('test')).toBe(0); // margin 5 > 2 → nobody learns
     expect(d2.getSkillLevel('test')).toBe(0);
   });
 
   it('a close breach (≤ SKILL_UP_MARGIN) teaches every blocker', () => {
-    const { d1, d2, engine } = wallSetup(5, 2); // attack 6 vs (3 + 1) → margin 2
+    const { d1, d2, engine } = wallSetup(5, 2); // attack 6 vs (3 + 1) → margin 2, 1 each
     runRound(engine, blockE);
-    expect(d2.currentPV).toBe(18);
+    expect([d1.currentPV, d2.currentPV]).toEqual([19, 19]);
     expect(d1.getSkillLevel('test')).toBe(1); // both learn
     expect(d2.getSkillLevel('test')).toBe(1);
   });
@@ -436,8 +436,7 @@ describe('bloqueig conjunt (summed wall)', () => {
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
     ]);
     expect(a.currentPV).toBe(20); // the ally never takes the breach
-    expect(d1.currentPV).toBe(20); // rolled 3
-    expect(d2.currentPV).toBe(14); // weak link: attack 10 vs (3+1) → margin 6
+    expect([d1.currentPV, d2.currentPV]).toEqual([17, 17]); // attack 10 vs (3+1) → margin 6, shared
   });
 
   it('guard wall: the ally\'s own self-defense joins the sum and can be the weak link', () => {
@@ -452,8 +451,8 @@ describe('bloqueig conjunt (summed wall)', () => {
       { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
     ]);
-    expect(a.currentPV).toBe(14); // attack 10 vs (A 1 + D2 3) → margin 6, weak link A
-    expect(d2.currentPV).toBe(20);
+    expect(a.currentPV).toBe(17); // attack 10 vs (A 1 + D2 3) → margin 6, shared
+    expect(d2.currentPV).toBe(17);
   });
 
   it('one body: a defender that guards an ally is open itself — only the other guard stands before it', () => {
@@ -484,8 +483,8 @@ describe('bloqueig conjunt (summed wall)', () => {
       { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // D2 guards A
       { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // E attacks A
     ]);
-    // Attack 10 against the wall A 1 + D2 3: margin 6 on the weak link, A.
-    expect([a.currentPV, d2.currentPV]).toEqual([14, 20]);
+    // Attack 10 against the wall A 1 + D2 3: margin 6, shared by the two.
+    expect([a.currentPV, d2.currentPV]).toEqual([17, 17]);
   });
 
   it('guard wall: a close breach teaches every defender on the wall', () => {
@@ -498,9 +497,9 @@ describe('bloqueig conjunt (summed wall)', () => {
       { team: 0, idx: 0, actionIdx: 0 },
       { team: 0, idx: 1, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
       { team: 0, idx: 2, actionIdx: 0, targets: [{ team: 0, idx: 0 }] },
-      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // attack 6 vs (3+1) → margin 2
+      { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 0, idx: 0 }] }, // attack 6 vs (3+1) → margin 2, 1 each
     ]);
-    expect(d2.currentPV).toBe(18);
+    expect([d1.currentPV, d2.currentPV]).toEqual([19, 19]);
     expect(d1.getSkillLevel('test')).toBe(1); // both wall members learn
     expect(d2.getSkillLevel('test')).toBe(1);
     expect(a.getSkillLevel('test')).toBe(0); // the ally wasn't on the wall

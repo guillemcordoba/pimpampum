@@ -82,8 +82,9 @@ each picks a trigger of its own (water and earth: "played a Defense").
 - **Mestre del xi — Punts de la guàrdia** (blocking a chi-blocker hands over
   the limb): a defense adds to the blow; a wall adds its sum; the guard takes
   it. Desbloquejar el cos moves to 4, Poder apagat to 5.
-- **Acrobàcia — Rodes de mareig** (capoeira *aú*, circling): the game's own
-  Envoltat, five times over, from one body. Trampolí de mans moves to 4.
+- **Acrobàcia — Rodes de mareig** (capoeira *aú*, circling): what the game's
+  Envoltat did until 2026-11-13 (the defenses roll again and keep the worst),
+  five times over, from one body. Trampolí de mans moves to 4.
 
 Engine seams (generic, on an extra blow): `defenseAdds`, `minDefenseRolls`.
 

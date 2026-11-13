@@ -1,11 +1,12 @@
 /**
  * ONE CONTEST FOR EVERY BLOW (rulings of 2026-11-01): an extra blow — a
  * counter, a strike again — is rolled and defended like a card's attack
- * (roll bonuses, fatigue, Envoltat, walls, the defenders' cards), but
+ * (roll bonuses, fatigue, walls, the defenders' cards), but
  * it is not a card play, so no card's own effects run for it. A total thrown
  * on is contested as it is. A standing wall defends like a live defense and
- * joins any guard into a wall. Envoltat counts the blows that LAND, extra
- * ones included.
+ * joins any guard into a wall. ATTACKS ADD UP (the user, 2026-11-13): a
+ * defense rolls once a round, and every blow on the body it covers, extra
+ * ones included, meets what the earlier blows left of it.
  */
 import { describe, it, expect } from 'vitest';
 import { CombatEngine, DiceRoll, EffectRegistry, type StatusBehavior } from '../src/index.js';
@@ -57,41 +58,33 @@ describe('an extra blow', () => {
     const e = new CombatEngine([a], [d], { registry: r });
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
     expect(extras, 'one extra blow for the card\'s one hit').toBe(1);
-    // 201 − 1, then the extra 51 − 1.
-    expect(d.currentPV).toBe(500 - 200 - 50);
+    // 201 − 1 uses the guard up; the extra 51 lands whole.
+    expect(d.currentPV).toBe(500 - 200 - 51);
   });
 
   it('meets the defender\'s card like an attack does: a parried extra blow is answered', () => {
-    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL }));
     const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 200, effects: [{ type: 'strike_again' }] })], { pv: 100 });
+    const t = fighter('T', [focusCard()], { pv: 500 });
     const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: 100, effects: [{ type: 'riposte' }] })], { pv: 500 });
-    const e = new CombatEngine([a], [d], { registry: r });
-    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
-    // The card's 201 breaks D's 101 (no riposte: a hit is not a parry); the
-    // extra blow's 1 is parried, and D's card answers it: 1 on A.
-    expect(d.currentPV).toBe(500 - 100);
+    // A hits T, open; its extra blow goes to D, behind its own guard.
+    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, d, one(), { skillId: TEST_SKILL }));
+    const e = new CombatEngine([a], [t, d], { registry: r });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0 }, { team: 1, idx: 1, actionIdx: 0, targets: [{ team: 1, idx: 1 }] }]);
+    // The extra blow's 1 is parried by D's 101, and D's card answers it: 1 on A.
+    expect(d.currentPV).toBe(500);
     expect(a.currentPV).toBe(100 - 1);
   });
 
-  it('counts toward Envoltat where it lands: the defense covering the body rolls once more', () => {
+  it('meets what the card\'s blow left of the guard: the guard rolls once, and a spent guard stops nothing', () => {
     const guardDice = new CountingDice(1, 1);
     const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL }));
-    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 10, effects: [{ type: 'strike_again' }] })], { pv: 100 });
-    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 0 })], { pv: 100 });
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 4, effects: [{ type: 'strike_again' }] })], { pv: 100 });
+    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 2 })], { pv: 100 });
     const e = new CombatEngine([a], [d], { registry: r });
     playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
-    // The card's blow: 1 landed → one roll. The extra blow: 2 landed → two.
-    expect(guardDice.calls).toBe(3);
-  });
-
-  it('with Envoltat off (an option; on by the rules) the guard rolls once a blow', () => {
-    const guardDice = new CountingDice(1, 1);
-    const r = registry(ctx => ctx.engine.performExtraAttack(ctx.source, ctx.targets[0], one(), { skillId: TEST_SKILL }));
-    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: 10, effects: [{ type: 'strike_again' }] })], { pv: 100 });
-    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 0 })], { pv: 100 });
-    const e = new CombatEngine([a], [d], { registry: r, envoltat: false });
-    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
-    expect(guardDice.calls).toBe(2);
+    expect(guardDice.calls).toBe(1);
+    // The card's 5 breaks the guard's 3 by 2 and uses it up; the extra 1 lands whole.
+    expect(d.currentPV).toBe(100 - 2 - 1);
   });
 });
 
@@ -121,11 +114,11 @@ describe('an extra blow with defense options', () => {
     const t = fighter('T', [defenseCard('parry', { dice: one(), rollBonus: 1 })], { pv: 100 });
     const g = fighter('G', [defenseCard('parry', { dice: one(), rollBonus: 4 })], { pv: 100 });
     playRound(new CombatEngine([a], [t, g], { registry: r }), [{ team: 0, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 0, actionIdx: 0, targets: aim(1, 0) }, { team: 1, idx: 1, actionIdx: 0, targets: aim(1, 0) }]);
-    // 3 + 2 + 5 = 10, on the weak link (T).
-    expect([t.currentPV, g.currentPV]).toEqual([90, 100]);
+    // 3 + 2 + 5 = 10, shared by the two behind the wall.
+    expect([t.currentPV, g.currentPV]).toEqual([95, 95]);
   });
 
-  it('minDefenseRolls: the guard rolls at least that many times', () => {
+  it('minDefenseRolls: the guard rolls that many times for the blow', () => {
     const { r, a } = thrower({ minDefenseRolls: 5 });
     const guardDice = new CountingDice(1, 1);
     const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 0 })], { pv: 100 });
@@ -224,5 +217,60 @@ describe('chip damage (an option; 0 by the rules)', () => {
     const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: 19 })], { pv: 100 });
     playRound(new CombatEngine([a], [d], { registry: registry() }), [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
     expect(d.currentPV).toBe(100);
+  });
+});
+
+describe('attacks add up against the defenses', () => {
+  const hit = (total: number) => attackCard('hit', { dice: one(), rollBonus: total - 1 });
+  const parry = (total: number, dice: DiceRoll = one()) => defenseCard('parry', { dice, rollBonus: total - 1 });
+  const at = (team: number, idx: number) => ({ team, idx });
+  /** Two attackers on team 0, each aiming at the first body of team 1. */
+  const twoOnOne = (defenders: Parameters<typeof playRound>[1]) => [
+    { team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] }, ...defenders,
+  ];
+
+  it('two blows of 5 on a guard of 7 take 3: the second meets what the first left', () => {
+    const d = fighter('D', [parry(7)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry() });
+    playRound(e, twoOnOne([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]));
+    expect(d.currentPV).toBe(100 - 3);
+  });
+
+  it('a defense rolls once for the round, however many blows it meets', () => {
+    const guardDice = new CountingDice(1, 1);
+    const d = fighter('D', [parry(7, guardDice)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry() });
+    playRound(e, twoOnOne([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]));
+    expect(guardDice.calls).toBe(1);
+  });
+
+  it('a spent guard is whole again the next round', () => {
+    const d = fighter('D', [parry(7)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry() });
+    const round = twoOnOne([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]);
+    playRound(e, round);
+    playRound(e, round);
+    expect(d.currentPV).toBe(100 - 3 - 3);
+  });
+
+  it('a wall that breaks shares the damage among its members, the odd point to its weak link', () => {
+    const d = fighter('D', [parry(3)], { pv: 100 });
+    const g = fighter('G', [parry(4)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(6)]), fighter('B', [hit(6)])], [d, g], { registry: registry() });
+    // Both guard D: a wall of 7. The first 6 is held; the second meets 1 and breaks it by 5.
+    playRound(e, twoOnOne([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 1, actionIdx: 0, targets: [at(1, 0)] }]));
+    expect([d.currentPV, g.currentPV]).toEqual([100 - 3, 100 - 2]);
+  });
+
+  it('a copy made between two blows carries what the guard has met', () => {
+    const d = fighter('D', [parry(7)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry() });
+    e.prepareRound();
+    e.planActions(twoOnOne([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]));
+    e.resolveNextAction();   // the guard
+    e.resolveNextAction();   // the first blow, held
+    const copy = e.clone();
+    while (copy.resolveNextAction().kind !== 'done');
+    expect(copy.teams[1][0].currentPV).toBe(100 - 3);
   });
 });

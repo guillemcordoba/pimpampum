@@ -65,7 +65,7 @@ export type ContestKind = 'attack' | 'defense' | 'save';
 /**
  * A standing defense a status raises (`StatusBehavior.standingGuard`): who
  * defends, and with what. The engine rolls it as it rolls a live defense —
- * level, roll bonuses, fatigue, Envoltat — and it joins any other defense
+ * level, roll bonuses, fatigue, used up by the blows it meets — and it joins any other defense
  * covering the blow into a wall.
  */
 export interface StandingGuard {

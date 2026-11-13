@@ -23,10 +23,10 @@ import { heroPVPrint, theSet } from './gameset.js';
 export interface Variant {
   /** `CombatEngineOptions.chipDamage`. */
   chipDamage?: number;
-  /** `CombatEngineOptions.envoltat` (false turns it off). */
-  envoltat?: boolean;
   /** `CombatEngineOptions.guardCoversDefender`. */
   guardCoversDefender?: boolean;
+  /** Heroes a side; omit for two. */
+  teamSize?: number;
   /** Every hero's PV at this level; omit for the set's own. */
   pv?: number;
   /** A candidate PV model: a hero's PV is `base` + its class's `perLevel` × its level. */
@@ -45,10 +45,9 @@ export function variantPV(v: Variant, kit: string, level: number): number | unde
 }
 
 /** The engine's options a variant sets; nothing when it leaves the rules as they are. */
-export function variantRules(v: Variant): { chipDamage?: number; envoltat?: boolean; guardCoversDefender?: boolean } {
+export function variantRules(v: Variant): { chipDamage?: number; guardCoversDefender?: boolean } {
   return {
     ...(v.chipDamage ? { chipDamage: v.chipDamage } : {}),
-    ...(v.envoltat === false ? { envoltat: false } : {}),
     ...(v.guardCoversDefender ? { guardCoversDefender: true } : {}),
   };
 }
@@ -94,6 +93,9 @@ export interface Dynamics {
   /** Heroes fielded, those that fell in round 1, and those felled from full
    *  PV by a single card. */
   fielded: number; oneShots: number;
+  /** Heroes that began a round at full PV and ended it at 0, whatever the
+   *  number of cards it took; of those, the ones a defense was covering. */
+  felledInARound: number; felledInARoundGuarded: number;
   /** What each card did when it resolved, by card id: the behavioural census
    *  (playtest `census.ts`) reads a card's role from it. */
   cards: Record<string, CardTally>;
@@ -148,7 +150,7 @@ const emptyDynamics = (): Dynamics => ({
   fights: 0, rounds: [], stalls: 0,
   lost: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
   plays: { attack: 0, defense: 0, focus: 0 }, emptyAttacks: 0, lostFocus: 0,
-  blowShares: Array(10).fill(0), fielded: 0, oneShots: 0, cards: {}, kits: {},
+  blowShares: Array(10).fill(0), fielded: 0, oneShots: 0, felledInARound: 0, felledInARoundGuarded: 0, cards: {}, kits: {},
 });
 
 /** The card (and its side) that set a modifier or a status, where a step of the fight set it. */
@@ -210,6 +212,8 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
   while (!e.isOver() && e.round < e.maxRounds) {
     e.prepareRound();
     e.planActions([]);
+    const fresh = everyone.filter(c => c.currentPV >= c.maxPV);
+    const coveredThisRound = new Set<Character>();
     for (;;) {
       const before = new Map(everyone.map(c => [c, c.currentPV]));
       const effects = new Map(everyone.map(c => [c, c.statuses.size]));
@@ -217,9 +221,13 @@ function playOne(teams: [Character[], Character[]], variant: Variant, into: Dyna
       const modsBefore = new Map(everyone.map(c => [c, new Set(c.modifiers)]));
       const defended = new Set(e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa).map(p => p.actor));
       const guarded = new Set(everyone.filter(c => c.guards.length > 0));
+      for (const c of guarded) coveredThisRound.add(c);
       const lossesBefore = e.pvLosses.length;
       const step = e.resolveNextAction();
-      if (step.kind === 'done') break;
+      if (step.kind === 'done') {
+        for (const c of fresh) if (c.currentPV <= 0) { into.felledInARound++; if (coveredThisRound.has(c)) into.felledInARoundGuarded++; }
+        break;
+      }
       if (step.kind === 'target') { e.setResolveTarget([]); continue; }
       if (step.kind === 'choice') { e.setResolveChoice(); continue; }
       const actor = e.teams[step.action.actorTeam]?.[step.action.actorIdx];
@@ -352,8 +360,9 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
   return countedCached('dynamics', key('dynamics-v8', print, 'kits', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
     const draw = () => kits[Math.floor(random() * kits.length)];
+    const size = variant.teamSize ?? 2;
     withSeed(seedOf('kits', level), () => {
-      for (let f = 0; f < fights; f++) playOne([heroTeam([draw(), draw()], level, 'A', variant), heroTeam([draw(), draw()], level, 'B', variant)], variant, out);
+      for (let f = 0; f < fights; f++) playOne([heroTeam(Array.from({ length: size }, draw), level, 'A', variant), heroTeam(Array.from({ length: size }, draw), level, 'B', variant)], variant, out);
     });
     return out;
   });
@@ -364,8 +373,9 @@ export function kitsDynamics(level: number, fights: number, variant: Variant = {
 export function kitOnlyDynamics(kit: string, print: string, level: number, fights: number, variant: Variant = {}): Dynamics {
   return countedCached('dynamics', key('dynamics-v8', `${print}#pv:${heroPVPrint()}`, 'kit-only', String(level), String(fights), JSON.stringify(variant)), () => {
     const out = emptyDynamics();
+    const side = Array.from({ length: variant.teamSize ?? 2 }, () => kit);
     withSeed(seedOf(kit, level), () => {
-      for (let f = 0; f < fights; f++) playOne([heroTeam([kit, kit], level, 'A', variant), heroTeam([kit, kit], level, 'B', variant)], variant, out);
+      for (let f = 0; f < fights; f++) playOne([heroTeam(side, level, 'A', variant), heroTeam(side, level, 'B', variant)], variant, out);
     });
     return out;
   });

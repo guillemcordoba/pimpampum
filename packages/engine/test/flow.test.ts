@@ -281,7 +281,7 @@ describe('the end of a fight', () => {
   });
 });
 
-describe('swarmed: n attacks aimed at a body, its defenses keep the worst of n rolls (rules.md)', () => {
+describe('swarmed: the attacks on a body add up against its defenses (rules.md)', () => {
   /** Mean PV lost by a d6 defender against `n` attacks of 9, over 3000
    *  rounds. 9 against a d6 always wins by 3 or more, so nobody learns a
    *  level mid-round and the arithmetic stays clean. */
@@ -300,7 +300,7 @@ describe('swarmed: n attacks aimed at a body, its defenses keep the worst of n r
     return lost / 3000;
   });
 
-  it('one defense still covers every attack: on fixed dice nothing changes — 5 and 4 against 6, both held', () => {
+  it('one defense covers every attack with what the earlier ones left of it: 5 and 4 against 6 take 3', () => {
     const a1 = fighter('A1', [attackCard('five', { dice: new DiceRoll(5, 1) })], { pv: 10 });
     const a2 = fighter('A2', [attackCard('four', { dice: new DiceRoll(4, 1) })], { pv: 10 });
     const d = fighter('D', [defenseCard('six', { rollBonus: 0, dice: new DiceRoll(6, 1) })], { pv: 20 });
@@ -310,13 +310,12 @@ describe('swarmed: n attacks aimed at a body, its defenses keep the worst of n r
       { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] },
       { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] },
     ]);
-    expect(d.currentPV).toBe(20);
+    expect(d.currentPV).toBe(20 - 3);
   });
 
-  it('each of two attacks gets through more than one attack alone, and each of three more than each of two', () => {
-    // 9 − E[worst of k d6]: 5.50, 6.47, 6.96 per attack.
-    expect(lostTo(1)).toBeCloseTo(5.5, 1);
-    expect(lostTo(2) / 2).toBeCloseTo(6.47, 1);
-    expect(lostTo(3) / 3).toBeCloseTo(6.96, 1);
+  it('the defense is paid once: k attacks of 9 take 9k less one d6', () => {
+    expect(lostTo(1)).toBeCloseTo(9 - 3.5, 1);
+    expect(lostTo(2)).toBeCloseTo(18 - 3.5, 1);
+    expect(lostTo(3)).toBeCloseTo(27 - 3.5, 1);
   });
 });

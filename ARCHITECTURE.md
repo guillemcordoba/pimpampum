@@ -246,14 +246,17 @@ label, and the card it comes from when there is one. A card's attack is a blow
 with its card, so the card's effects fire; an extra blow
 (`performExtraAttack`/`performAreaAttack`: counters, strikes again, rams) is a
 blow with no card, so every rule of an attack applies — roll bonuses,
-fatigue, Envoltat, walls, standing walls, absorbing guards, statuses and the
+fatigue, walls, standing walls, absorbing guards, statuses and the
 defenders' cards — and no card's own effects run. A number for `dice` is a
 total thrown on, contested as it is; `opts.roll` is dice already rolled. What a
 blow meets is a list of `Defense`s: each guard (with its defense card) and each
 standing wall the target holds (`standingGuard` returns who defends with what;
 no card; a breach lands on the holder), summed into a wall when there are two
-or more. Envoltat's n is `blowsOn`: blows that landed this round plus attacks
-still to land, where they land. `EngineApi.contestRoll` is every other roll a
+or more. Attacks add up (rules.md, 2026-11-13): the engine keeps, by covered
+body, each defense's one roll of the round and the attack points those
+defenses have met (`RoundWall`); a blow is contested against the roll less
+what was met (`guardMetOn`, which the AI's aim reads too), and a wall that
+breaks shares the damage (`breachShared`). `EngineApi.contestRoll` is every other roll a
 character makes (a filter, a save, a self-hit), with the same terms.
 
 **State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into

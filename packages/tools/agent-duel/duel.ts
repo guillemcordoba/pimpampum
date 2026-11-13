@@ -47,7 +47,8 @@ Each round:
     A step is simultaneous for who falls: a hero taken out earlier in the same step still plays its card in that step.
  4. An attack is ONE contested roll: attack dice vs the defense dice. Ties hold for the defense.
     Damage = attack total - defense total, minus armour. An UNDEFENDED target takes the whole attack total.
-    "Envoltat": a body that n attacks aim at this round has each defense covering it roll n times and keep the worst.
+    Attacks ADD UP: a defense rolls once a round, and every attack on the body it covers meets what the earlier ones left of it
+    (two attacks of 5 on a guard of 7: the first is held, the second meets 2 and takes 3 PV). A wall that breaks shares the damage.
  5. A Focus is cancelled if its hero takes damage before it resolves.
 A roll is just the card's dice (minus 1 per fatigue level). Heroes have ${PLAYER_PV} PV; at 0 PV a hero is out.
 A card's text says only what is special about it. "Ràpid" = fast. Cremat = loses PV at the end of this round and the next.

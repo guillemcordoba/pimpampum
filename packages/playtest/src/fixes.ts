@@ -37,8 +37,6 @@ export interface Fix {
   /** The floor a hero's PV keeps: interactivity (`fast`: no fast attack fells a
    *  fresh hero) or the older readings, the twins' strongest blow aimed or plain. */
   burst: 'aimed' | 'plain' | 'fast';
-  /** False: a defense rolls once however many blows pile on (`CombatEngineOptions.envoltat`). */
-  envoltat?: boolean;
   /** True: a defense guarding an ally also covers its player, the rule before 2026-11-02. */
   guardCoversDefender?: boolean;
 }
@@ -103,11 +101,11 @@ export async function evaluateFix(
   const out: FixLevel[] = [];
   for (const level of levels) {
     const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
-      fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, envoltat: fix.envoltat, guardCoversDefender: fix.guardCoversDefender,
+      fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, guardCoversDefender: fix.guardCoversDefender,
     });
     const pv = vanilla.pv ?? vanilla.lengthPV ?? blowFloor(vanilla, fix.burst);
     const variant: Variant = {
-      pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.envoltat === false ? { envoltat: false } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
+      pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
     };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
     const triangle = EDGES.map(([x, y]) => {
@@ -157,7 +155,6 @@ export function scoreFix(r: FixResult): FixScore {
       ...(r.fix.chip ? [`${Math.round(100 * r.fix.chip)}% of a held blow lands: a guard no longer blocks completely`] : []),
     ],
     costs: [
-      ...(r.fix.envoltat === false ? ['Envoltat off: blows piled on one body no longer wear its guard down'] : []),
       ...(r.fix.guardCoversDefender ? ['a defense that guards an ally covers its player too (the rule before 2026-11-02)'] : []),
       ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
     ],

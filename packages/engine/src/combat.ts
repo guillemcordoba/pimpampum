@@ -191,13 +191,6 @@ export interface CombatEngineOptions {
    */
   chipDamage?: number;
   /**
-   * ENVOLTAT (true, the rules): a body n attacks land on this round has each
-   * defense covering it roll n times and keep the worst. False: a defense
-   * rolls once, however many blows come (a card's own extra rolls still
-   * count). A structural knob, like `chipDamage`.
-   */
-  envoltat?: boolean;
-  /**
    * A DEFENSE THAT GUARDS AN ALLY ALSO COVERS ITS PLAYER (false, the rules
    * since 2026-11-02: guarding an ally leaves the defender open). True: the
    * rule before that day. A structural knob, like `chipDamage`.
@@ -251,6 +244,13 @@ interface Blow {
 }
 
 /**
+ * The defenses covering ONE BODY over a round. Attacks add up against them
+ * (rules.md): each defense rolls once (`rolls`, by defense), and every blow
+ * that reaches the body uses up as much of them as it threw (`met`).
+ */
+interface RoundWall { rolls: Map<string, number>; met: number }
+
+/**
  * ONE DEFENSE a blow meets: a guard (its defense card), a standing wall (no
  * card; a breach lands on its holder), or a guard already rolled. Built from
  * the guards (`Guard`) and standing walls covering the target.
@@ -285,7 +285,6 @@ export class CombatEngine implements EngineApi, AIView {
    *  `LookaheadOptions.rolloutSharpness`. */
   aiSharpness: number;
   readonly chipDamage: number;
-  readonly envoltat: boolean;
   readonly guardCoversDefender: boolean;
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
@@ -354,8 +353,7 @@ export class CombatEngine implements EngineApi, AIView {
   private tierAlive: Set<Character> = new Set();
   private tierInterrupted: Set<Character> = new Set();
   private skippingThisRound: Set<Character> = new Set();
-  /** Blows that have landed on each body this round (Envoltat, `blowsOn`). */
-  private landed: Map<Character, number> = new Map();
+  private walls: Map<Character, RoundWall> = new Map();
   /** What the first choosers committed this round, by seat — read by those who
    *  choose after the reveal (revealedPlanFor). */
   private revealedPlan: { team: number; idx: number; actionIdx: number }[] = [];
@@ -389,7 +387,6 @@ export class CombatEngine implements EngineApi, AIView {
     this.maxRounds = opts.maxRounds ?? ROUND_CAP;
     this.aiSharpness = opts.aiSharpness ?? 2;
     this.chipDamage = opts.chipDamage ?? 0;
-    this.envoltat = opts.envoltat ?? true;
     this.guardCoversDefender = opts.guardCoversDefender ?? false;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
@@ -442,14 +439,13 @@ export class CombatEngine implements EngineApi, AIView {
     // instance never ran one.
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; envoltat: boolean; guardCoversDefender: boolean; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; history: ActionEvent[];
     };
     fixed.registry = this.registry;
     fixed.teams = teams;
     fixed.maxRounds = this.maxRounds;
     fixed.aiSharpness = this.aiSharpness;
     fixed.chipDamage = this.chipDamage;
-    fixed.envoltat = this.envoltat;
     fixed.guardCoversDefender = this.guardCoversDefender;
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
@@ -489,9 +485,9 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierAlive = setAt(this.tierAlive);
     e.tierInterrupted = setAt(this.tierInterrupted);
     e.skippingThisRound = setAt(this.skippingThisRound);
-    const landed = new Map<Character, number>();
-    if (this.landed.size) this.landed.forEach((n, c) => landed.set(at(c), n));
-    e.landed = landed;
+    const walls = new Map<Character, RoundWall>();
+    if (this.walls.size) this.walls.forEach((w, c) => walls.set(at(c), { rolls: new Map(w.rolls), met: w.met }));
+    e.walls = walls;
     e.revealedPlan = this.revealedPlan.length ? this.revealedPlan.map(s => ({ ...s })) : [];
     e.aimingIdx = this.aimingIdx;
     e.choosingIdx = this.choosingIdx;
@@ -512,7 +508,7 @@ export class CombatEngine implements EngineApi, AIView {
     const teams = this.teams.map(t => t.map(c => enc.character(c)));
     const out: Omit<EngineSnapshot, 'shared'> = {
       teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, ...(this.chipDamage ? { chipDamage: this.chipDamage } : {}),
-      ...(this.envoltat ? {} : { envoltat: false }), ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}), round: this.round,
+      ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}), round: this.round,
       history: enc.value(this.history), plays: this.plays.map(p => ({ ...p })), blowSeq: this.blowSeq,
       pending: this.pending.map(p => ({
         actor: enc.char(p.actor), hand: p.actor.actions.indexOf(p.action), def: enc.share(p.action.def),
@@ -522,7 +518,7 @@ export class CombatEngine implements EngineApi, AIView {
       tierAlive: [...this.tierAlive].map(c => enc.char(c)),
       tierInterrupted: [...this.tierInterrupted].map(c => enc.char(c)),
       skippingThisRound: [...this.skippingThisRound].map(c => enc.char(c)),
-      landed: [...this.landed].map(([c, n]) => [enc.char(c), n] as [[number, number], number]),
+      ...(this.walls.size ? { walls: [...this.walls].map(([c, w]) => [enc.char(c), [...w.rolls], w.met] as [[number, number], [string, number][], number]) } : {}),
       revealedPlan: this.revealedPlan.map(s => ({ ...s })),
       aimingIdx: this.aimingIdx, choosingIdx: this.choosingIdx, roundPrepared: this.roundPrepared,
     };
@@ -541,14 +537,13 @@ export class CombatEngine implements EngineApi, AIView {
     const e = Object.create(CombatEngine.prototype) as CombatEngine;
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; envoltat: boolean; guardCoversDefender: boolean; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; history: ActionEvent[];
     };
     fixed.registry = registry;
     fixed.teams = teams;
     fixed.maxRounds = snap.maxRounds;
     fixed.aiSharpness = snap.aiSharpness;
     fixed.chipDamage = snap.chipDamage ?? 0;
-    fixed.envoltat = snap.envoltat ?? true;
     fixed.guardCoversDefender = snap.guardCoversDefender ?? false;
     // In clone's order: a state's key reads its fields in order.
     e.actionChooser = undefined;
@@ -575,7 +570,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierAlive = new Set(snap.tierAlive.map(at));
     e.tierInterrupted = new Set(snap.tierInterrupted.map(at));
     e.skippingThisRound = new Set(snap.skippingThisRound.map(at));
-    e.landed = new Map(snap.landed.map(([c, n]) => [at(c), n]));
+    e.walls = new Map((snap.walls ?? []).map(([c, rolls, met]) => [at(c), { rolls: new Map(rolls), met }]));
     e.revealedPlan = snap.revealedPlan.map(s => ({ ...s }));
     e.aimingIdx = snap.aimingIdx;
     e.choosingIdx = snap.choosingIdx;
@@ -880,15 +875,37 @@ export class CombatEngine implements EngineApi, AIView {
     return penalty;
   }
 
-  /** One defense's roll: a fresh roll of its dice plus its bonuses — or,
-   *  for a guard already rolled (`fixedTotal`), that total. `rolls` > 1
-   *  when the body it covers is swarmed: the dice are rolled that many times
-   *  and the worst is kept (rules.md). */
-  private rollDefense(d: Defense, rolls = 1): { roll: number; bonus: number } {
+  /** One defense's roll against a blow on `covered`: its one roll of the
+   *  round plus its bonuses — or, for a guard already rolled (`fixedTotal`),
+   *  that total. A blow that asks for `rolls` > 1 (`minDefenseRolls`) has
+   *  the dice rolled again that many times, and meets the worst. */
+  private rollDefense(d: Defense, rolls: number, covered: Character): { roll: number; bonus: number } {
     if (d.fixedTotal !== undefined) return { roll: d.fixedTotal, bonus: 0 };
-    let roll = this.rollDiceFor(d.defender, d.dice, 'defense');
+    let roll = this.roundRoll(d, covered);
     for (let k = 1; k < rolls; k++) roll = Math.min(roll, this.rollDiceFor(d.defender, d.dice, 'defense'));
     return { roll, bonus: d.rollBonus + d.defender.getRollBonus(d.skillId, 'defense') };
+  }
+
+  private wallOf(covered: Character): RoundWall {
+    let wall = this.walls.get(covered);
+    if (!wall) this.walls.set(covered, wall = { rolls: new Map(), met: 0 });
+    return wall;
+  }
+
+  private roundRoll(d: Defense, covered: Character): number {
+    const { rolls } = this.wallOf(covered);
+    const key = `${d.defender.team}:${this.teams[d.defender.team].indexOf(d.defender)}:${d.card?.id ?? d.name}:${d.holder?.key ?? ''}`;
+    let roll = rolls.get(key);
+    if (roll === undefined) rolls.set(key, roll = this.rollDiceFor(d.defender, d.dice, 'defense'));
+    return roll;
+  }
+
+  guardMetOn(body: Character): number {
+    return this.walls.get(body)?.met ?? 0;
+  }
+
+  private meet(body: Character, attackTotal: number): void {
+    this.wallOf(body).met += attackTotal;
   }
 
   addCombatant(team: number, c: Character): void {
@@ -1081,7 +1098,7 @@ export class CombatEngine implements EngineApi, AIView {
   prepareRound(): RoundPrep {
     this.round++;
     this.roundPrepared = true;
-    this.landed = new Map();
+    if (this.walls.size) this.walls = new Map();
     this.log('round', `⚔️ Ronda ${this.round}`);
     const skipping: TargetRef[] = [];
     this.skippingThisRound = new Set();
@@ -1962,24 +1979,6 @@ export class CombatEngine implements EngineApi, AIView {
     return result;
   }
 
-  /**
-   * ENVOLTAT's n for a blow on `target`: the blows that have landed on it this
-   * round (this one included — extra blows too) plus the attacks still to
-   * resolve that will land on it, where they land (a block's forcing
-   * included; a redirect counts once it has happened).
-   */
-  private blowsOn(target: Character): number {
-    if (!this.envoltat) return 1;
-    let n = this.landed.get(target) ?? 0;
-    for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
-      const p = this.pending[i];
-      if (p.cancelled || (p.as ?? p.action.def.actionType) !== ActionType.Atac) continue;
-      const forced = this.blockForcedTarget(p.actor, this.targetCountOf(p.actor, p.action.def));
-      if (forced ? forced === target : !!p.targets?.includes(target)) n++;
-    }
-    return Math.max(1, n);
-  }
-
   /** The standing defenses on `target` (walls, domes): each status's
    *  `standingGuard`, as a defense its defender rolls like a live one. */
   private standingDefenses(target: Character): Defense[] {
@@ -2013,7 +2012,6 @@ export class CombatEngine implements EngineApi, AIView {
   private contestAttackOnTarget(blow: Blow, target: Character, mods: AttackModifiers, statusMods: AttackStatusMods, forcedByBlock: boolean): ExtraAttackResult {
     const source = blow.attacker;
     const who = blow.label;
-    this.landed.set(target, (this.landed.get(target) ?? 0) + 1);
 
     // Extra dice (per target) roll flat into the attack total: they raise both
     // the hit chance and the margin damage. The blow's own dice were rolled
@@ -2045,10 +2043,10 @@ export class CombatEngine implements EngineApi, AIView {
     // ordinary path below.
     // A status on the target's side may stand in front of the blow instead of
     // every guard there (guardsBlow).
-    // ENVOLTAT: with n blows landing on this body this round, every defense
-    // covering it rolls n times and keeps the worst — one defense still
-    // covers every attack, but it cannot watch them all (rules.md).
-    const defenseRolls = Math.max(this.blowsOn(target), blow.minDefenseRolls);
+    // ATTACKS ADD UP: every blow on this body is contested against what is
+    // LEFT of the defenses covering it, after the blows they already met this
+    // round (`guardMetOn`; rules.md).
+    const defenseRolls = blow.minDefenseRolls;
     let defenses: Defense[] = [];
     if (!bypass) {
       const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
@@ -2076,14 +2074,14 @@ export class CombatEngine implements EngineApi, AIView {
       this.log('defense', `🛡️ ${defense.defender.name} «${defense.name}» aguanta el cop sencer.`, defense.defender.team);
     } else if (defense && blow.defenseAdds) {
       // The guard feeds the blow: no contest, so nobody learns.
-      const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls);
+      const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls, target);
       const defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
       hit = true; margin = attackTotal + defenderTotal; recipient = this.breach(defense);
       if (!this.silent) this.log('roll', `🎲 ${who}: atac ${this.fmtContestSide(blow.roll + extraDice, atkBonus, attackTotal)} + ${defense.defender.name} «${defense.name}»: defensa ${this.fmtContestSide(defRoll, defBonus, defenderTotal)}, que s'hi suma`, source.team);
     } else if (defense) {
       const defender = defense.defender;
-      const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls);
-      let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty);
+      const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls, target);
+      let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty - this.guardMetOn(target));
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       contestAttack = adjustedAttacker;
@@ -2092,6 +2090,7 @@ export class CombatEngine implements EngineApi, AIView {
       const armor = mods.ignoreArmor ? 0 : struck.getPassiveArmor();
       if (!this.silent) this.log('roll', `🎲 ${who}: atac ${this.fmtContestSide(blow.roll + extraDice, atkBonus, adjustedAttacker)} vs ${defender.name} «${defense.name}»: defensa ${this.fmtDefenseSide(defRoll, defBonus, defenderTotal, armor)}`, source.team);
       const res = resolveAttack(adjustedAttacker, defenderTotal);
+      this.meet(target, adjustedAttacker);
       hit = res.hit; margin = res.margin;
       // Learning: the loser of the contest levels on a close loss (tie = the
       // attacker losing by 0).
@@ -2147,18 +2146,19 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   /** Defensa conjunta (guard walls, block walls, standing walls alike): the
-   *  blow contests the SUM of every wall member's defense roll. If the wall
-   *  breaks, the member with the lowest individual total (the weak link)
-   *  takes the penetrating damage — or, a standing wall, its holder; on a
+   *  blow contests the SUM of every wall member's defense roll, less what
+   *  the wall already met this round. If it breaks, the bodies behind it
+   *  share the damage (`breachShared`); on a
    *  close breach (≤ SKILL_UP_MARGIN) every member learns — they failed
    *  together. */
   private resolveAttackOnWall(blow: Blow, target: Character, wall: Defense[], mods: AttackModifiers, statusMods: AttackStatusMods, attackTotal: number, atkRoll: number, atkBonus: number, defenseRolls: number): ExtraAttackResult {
     const source = blow.attacker;
-    const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal, defenseRolls);
+    const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal, defenseRolls, target);
     // A defense penalty bites the wall's joint total once, not once per member.
-    const wallTotal = Math.max(0, sum - mods.defensePenalty);
+    const wallTotal = Math.max(0, sum - mods.defensePenalty - this.guardMetOn(target));
     if (!this.silent) this.log('roll', `🎲 ${blow.label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
     const res = blow.defenseAdds ? { hit: true, margin: adjustedAttacker + wallTotal } : resolveAttack(adjustedAttacker, wallTotal);
+    if (!blow.defenseAdds) this.meet(target, adjustedAttacker);
     if (!res.hit) {
       if (checkSkillUp(-res.margin)) source.raiseSkill(blow.skillId);
       this.log('defense', `🛡️ El mur atura l'atac de ${blow.label}.`, wall[0].defender.team);
@@ -2171,35 +2171,49 @@ export class CombatEngine implements EngineApi, AIView {
     }
     // The wall breaks: everyone on it learns from a close breach.
     if (!blow.defenseAdds && checkSkillUp(res.margin)) for (const d of wall) d.defender.raiseSkill(d.skillId);
-    const recipient = this.breach(weak.d);
-    let dmg = this.applyOutgoingDamage(source, res.margin);
-    dmg *= (statusMods.damageMult ?? 1) * mods.damageMult;
-    const armor = mods.ignoreArmor ? 0 : recipient.getPassiveArmor();
-    dmg = Math.max(0, dmg - armor);
-    dmg += mods.bonusDamage;
-    dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, adjustedAttacker));
-    this.log('attack', `💥 ${blow.label} trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
-    this.applyPvLoss(recipient, dmg, source, 'guarded');
-    if (blow.card) this.dispatch('onAttackHit', source, blow.card, { targets: [recipient], target: recipient, hit: true, damageDealt: dmg, margin: res.margin, attackTotal: adjustedAttacker });
-    this.holderAttackHit(source, recipient, dmg, blow.card);
-    if (dmg > 0 && weak.d.card && !weak.d.holder) {
-      this.dispatch('onBlockFail', recipient, weak.d.card, { targets: [source], target: source, damageDealt: dmg });
+    return this.breachShared(blow, this.absorbs(weak.d) ? [weak.d] : wall, weak.d, mods, statusMods, res.margin, adjustedAttacker);
+  }
+
+  /** A wall that breaks shares the damage evenly among the bodies behind it;
+   *  the weak link takes the odd points, and is the one the blow's own
+   *  effects count as hit. An absorbing member stands in front: it shares
+   *  with nobody. */
+  private breachShared(blow: Blow, wall: Defense[], weak: Defense, mods: AttackModifiers, statusMods: AttackStatusMods, margin: number, attackTotal: number): ExtraAttackResult {
+    const source = blow.attacker;
+    const struck = [...new Set([weak, ...wall.filter(d => d !== weak)].map(d => this.breach(d)))];
+    const whole = this.applyOutgoingDamage(source, margin) * (statusMods.damageMult ?? 1) * mods.damageMult;
+    const share = Math.floor(whole / struck.length);
+    let first = 0;
+    struck.forEach((recipient, i) => {
+      let dmg = i === 0 ? whole - share * (struck.length - 1) : share;
+      dmg = Math.max(0, dmg - (mods.ignoreArmor ? 0 : recipient.getPassiveArmor()));
+      if (i === 0) dmg += mods.bonusDamage;
+      dmg = Math.max(0, this.applyIncomingDamage(recipient, dmg, source, attackTotal));
+      this.log('attack', `💥 ${blow.label} trenca el mur i colpeja ${recipient.name}: ${dmg} dany.`, source.team);
+      this.applyPvLoss(recipient, dmg, source, 'guarded');
+      if (i === 0) first = dmg;
+    });
+    const recipient = struck[0];
+    if (blow.card) this.dispatch('onAttackHit', source, blow.card, { targets: [recipient], target: recipient, hit: true, damageDealt: first, margin, attackTotal });
+    this.holderAttackHit(source, recipient, first, blow.card);
+    if (first > 0 && weak.card && !weak.holder) {
+      this.dispatch('onBlockFail', recipient, weak.card, { targets: [source], target: source, damageDealt: first });
     }
-    return { hit: true, damage: dmg, recipient };
+    return { hit: true, damage: first, recipient };
   }
 
   /** Roll every wall member's defense for a joint contest: individual totals,
    *  the clutch-adjusted attacker total and defense sum (the attacker sees
    *  the whole wall; each member adjusts their own share), the weak link
    *  (lowest raw individual total, earliest on ties), and a log detail. */
-  private rollWall(source: Character, wall: Defense[], attackTotal: number, defenseRolls: number): { adjustedAttacker: number; sum: number; weak: { d: Defense; total: number }; detail: string } {
+  private rollWall(source: Character, wall: Defense[], attackTotal: number, defenseRolls: number, covered: Character): { adjustedAttacker: number; sum: number; weak: { d: Defense; total: number }; detail: string } {
     // An ABSORBING member (absorbsGuard: takes the blow, rolls nothing) adds
     // nothing to the wall and is the one hit if it breaks. Rolled like any
     // other member, a no-roll defense used to lend the wall its roll bonuses
     // and, behind a wall that held, never took the blow it exists to take.
     const rolls = wall.map(d => {
       if (this.absorbs(d)) return { d, total: 0, absorbing: true };
-      const { roll, bonus } = this.rollDefense(d, defenseRolls);
+      const { roll, bonus } = this.rollDefense(d, defenseRolls, covered);
       return { d, total: Math.max(0, roll + bonus), absorbing: false };
     });
     const rawSum = rolls.reduce((s, r) => s + r.total, 0);
@@ -2225,7 +2239,7 @@ export class CombatEngine implements EngineApi, AIView {
     // (the referee keys and seeds positions by their state).
     this.tierAlive = new Set();
     this.tierInterrupted = new Set();
-    this.landed = new Map();
+    if (this.walls.size) this.walls = new Map();
     this.revealSettled = false;
     this.roundPrepared = false;
   }

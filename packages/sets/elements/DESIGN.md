@@ -166,7 +166,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 |---|---|---|---|
 | 1 | Bola de foc | Atac | a wounded target is burned |
 | 2 | Mantell de flames | Defensa | whoever attacks someone it defends loses 3 PV and is burned, held or not |
-| 3 | Foc interior | Focus | +10 on your attacks for the next 2 rounds; the kit's first Focus, its turtle-breaker |
+| 3 | Foc interior | Focus | +6 on your attacks for the next 2 rounds (+10 until 2026-11-13); the kit's first Focus, its turtle-breaker |
 | 4 | Tempesta d'espurnes | Atac | every enemy loses 1d4 PV, rolled for each |
 | 5 | Esclat encegador | Focus, fast | each enemy still to attack rolls 1d20; at 14 or less its attack misses |
 | 6 | Fúria de flames | Atac | 3d6; if it wounds nobody, it bursts around the bender: the bender and every ally are burned (the user's design, 2026-11-02; Alè de drac left, too close to Incendi) |
