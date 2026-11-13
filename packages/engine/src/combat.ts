@@ -1,6 +1,6 @@
 import { DiceRoll, rollDie } from './dice.js';
 import { mirrored, randomInt, seededRng, withRng } from './rng.js';
-import { Character, Guard, StatusEntry, type GatedHook } from './character.js';
+import { Character, GATED_HOOKS, Guard, HOOK, StatusEntry } from './character.js';
 import { ActionInstance, getActionTargetRequirement, getActionTargetCount } from './action.js';
 import { ActionDefinition, ActionEffect, ActionType, TargetRequirement } from './types.js';
 import {
@@ -413,15 +413,27 @@ export class CombatEngine implements EngineApi, AIView {
    * this target this round.
    */
   clone(): CombatEngine {
+    // Plain loops throughout: a rollout starts with this, and the lookahead
+    // makes thousands of them per decision.
     const map = new Map<Character, Character>();
-    const cloneTeam = (team: Character[]): Character[] => team.map(c => {
-      const copy = c.cloneState();
-      map.set(c, copy);
-      return copy;
-    });
+    const cloneTeam = (team: Character[]): Character[] => {
+      const copies = new Array<Character>(team.length);
+      for (let i = 0; i < team.length; i++) map.set(team[i], copies[i] = team[i].cloneState());
+      return copies;
+    };
     const teams: [Character[], Character[]] = [cloneTeam(this.teams[0]), cloneTeam(this.teams[1])];
-    for (const [original, copy] of map) copy.remapRefs(original, map);
+    for (let t = 0; t < 2; t++) for (let i = 0; i < teams[t].length; i++) teams[t][i].remapRefs(this.teams[t][i], map);
     const at = (c: Character): Character => map.get(c) ?? c;
+    const allAt = (cs: readonly Character[]): Character[] => {
+      const out = new Array<Character>(cs.length);
+      for (let i = 0; i < cs.length; i++) out[i] = map.get(cs[i]) ?? cs[i];
+      return out;
+    };
+    const setAt = (cs: Set<Character>): Set<Character> => {
+      const out = new Set<Character>();
+      if (cs.size) cs.forEach(c => out.add(at(c)));
+      return out;
+    };
 
     // Bypass the constructor: it would reset every combatant and re-fire the
     // onCombatStart hooks, wiping the state we are trying to preserve.
@@ -442,18 +454,19 @@ export class CombatEngine implements EngineApi, AIView {
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
     e.optionChooser = this.optionChooser;
-    fixed.history = this.history.map(ev => ({
-      round: ev.round,
-      actor: at(ev.actor),
-      action: ev.action,
-      targets: ev.targets.map(at),
-    }));
+    const history = new Array<ActionEvent>(this.history.length);
+    for (let i = 0; i < history.length; i++) {
+      const ev = this.history[i];
+      history[i] = { round: ev.round, actor: at(ev.actor), action: ev.action, targets: allAt(ev.targets) };
+    }
+    fixed.history = history;
     e.round = this.round;
     e.logEntries = [];
     e.pvLosses = [];
     // Nothing reads a clone's log (see the doc above): skip building the prose.
     e.silent = true;
-    e.plays = this.plays.map(p => ({ ...p }));
+    // A play is written once and never changed: the copy shares them.
+    e.plays = this.plays.slice();
     e.blowSeq = this.blowSeq;
     e.pending = this.pending.map(p => {
       const actor = at(p.actor);
@@ -465,7 +478,7 @@ export class CombatEngine implements EngineApi, AIView {
         action: idx >= 0 ? actor.actions[idx] : p.action,
         key: p.key,
         as: p.as,
-        targets: p.targets ? p.targets.map(at) : null,
+        targets: p.targets ? allAt(p.targets) : null,
         cancelled: p.cancelled,
         option: p.option,
       };
@@ -473,11 +486,13 @@ export class CombatEngine implements EngineApi, AIView {
     e.pendingIndex = this.pendingIndex;
     e.tierKey = this.tierKey;
     e.revealSettled = this.revealSettled;
-    e.tierAlive = new Set([...this.tierAlive].map(at));
-    e.tierInterrupted = new Set([...this.tierInterrupted].map(at));
-    e.skippingThisRound = new Set([...this.skippingThisRound].map(at));
-    e.landed = new Map([...this.landed].map(([c, n]) => [at(c), n]));
-    e.revealedPlan = this.revealedPlan.map(s => ({ ...s }));
+    e.tierAlive = setAt(this.tierAlive);
+    e.tierInterrupted = setAt(this.tierInterrupted);
+    e.skippingThisRound = setAt(this.skippingThisRound);
+    const landed = new Map<Character, number>();
+    if (this.landed.size) this.landed.forEach((n, c) => landed.set(at(c), n));
+    e.landed = landed;
+    e.revealedPlan = this.revealedPlan.length ? this.revealedPlan.map(s => ({ ...s })) : [];
     e.aimingIdx = this.aimingIdx;
     e.choosingIdx = this.choosingIdx;
     // Carried, or the clone cannot tell an already-begun round from a fresh
@@ -600,7 +615,7 @@ export class CombatEngine implements EngineApi, AIView {
   private isUntargetable(c: Character): boolean {
     // Walks the statuses rather than `statusRefs()`: asked for every enemy on
     // every targeting query, and the snapshot array was measurable allocation.
-    if (!c.holdsStatusWith('untargetable')) return false;
+    if (!c.holdsStatusWith(HOOK.untargetable)) return false;
     for (const [key, entry] of c.statuses) {
       if (entry.behavior?.untargetable?.({ holder: c, key, entry })) return true;
     }
@@ -609,7 +624,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Whether `c` perceives concealed/untargetable enemies (seismic senses…). */
   private sensesConcealed(c: Character): boolean {
-    if (!c.holdsStatusWith('ignoresConcealment')) return false;
+    if (!c.holdsStatusWith(HOOK.ignoresConcealment)) return false;
     for (const [key, entry] of c.statuses) {
       if (entry.behavior?.ignoresConcealment?.({ holder: c, key, entry })) return true;
     }
@@ -624,7 +639,7 @@ export class CombatEngine implements EngineApi, AIView {
   rollDiceFor(c: Character, dice: DiceRoll | undefined, kind?: ContestKind): number {
     if (!dice) return 0;
     const r1 = dice.roll();
-    if (!c.holdsStatusWith('rollMode')) return r1;
+    if (!c.holdsStatusWith(HOOK.rollMode)) return r1;
     let mode: 'advantage' | 'disadvantage' | null = null;
     for (const ref of c.statusRefs()) {
       const m = ref.entry.behavior?.rollMode?.(ref, kind);
@@ -685,7 +700,7 @@ export class CombatEngine implements EngineApi, AIView {
   applyPvLoss(target: Character, amount: number, source?: Character, via: PvLossVia = 'uncontested'): boolean {
     if (amount <= 0) return !target.isAlive();
     // Statuses may clamp the loss (last stands, wards).
-    if (target.holdsStatusWith('clampPvLoss')) {
+    if (target.holdsStatusWith(HOOK.clampPvLoss)) {
       for (const ref of target.statusRefs()) {
         const f = ref.entry.behavior?.clampPvLoss;
         if (f) amount = f(ref, amount);
@@ -698,7 +713,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (lost > 0) this.pvLosses.push({ target, lost, dealt: amount, via, round: this.round });
     if (died && wasAlive) this.log('death', `${target.name} cau derrotat!`, target.team);
     if (lost > 0) {
-      for (const { key, entry, behavior } of this.hookedStatuses(target, 'onPvLost')) {
+      for (const { key, entry, behavior } of this.hookedStatuses(target, HOOK.onPvLost)) {
         if (target.statuses.has(key)) behavior.onPvLost!(this.statusCtx(target, key, entry), lost, source);
       }
     }
@@ -753,7 +768,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Everyone `actor`'s attacks cannot reach right now (attackTargetsExcluded),
    *  or null when nobody is excluded — the usual case, kept allocation-free. */
   private excludedTargets(actor: Character): Character[] | null {
-    if (!actor.holdsStatusWith('attackTargetsExcluded')) return null;
+    if (!actor.holdsStatusWith(HOOK.attackTargetsExcluded)) return null;
     let out: Character[] | null = null;
     for (const [key, entry] of actor.statuses) {
       const f = entry.behavior?.attackTargetsExcluded;
@@ -775,12 +790,12 @@ export class CombatEngine implements EngineApi, AIView {
    *  made the blow pass over `target`. */
   private announceTarget(attacker: Character, target: Character, blow: BlowInfo): boolean {
     if (attacker.team === target.team) return false;
-    for (const { key, entry, behavior } of this.hookedStatuses(target, 'onTargeted')) {
+    for (const { key, entry, behavior } of this.hookedStatuses(target, HOOK.onTargeted)) {
       if (target.statuses.has(key) && behavior.onTargeted!(this.statusCtx(target, key, entry), attacker, blow)) return true;
     }
     for (const ally of this.teams[target.team]) {
       if (ally === target || !ally.isAlive()) continue;
-      for (const { key, entry, behavior } of this.hookedStatuses(ally, 'onAllyTargeted')) {
+      for (const { key, entry, behavior } of this.hookedStatuses(ally, HOOK.onAllyTargeted)) {
         if (ally.statuses.has(key) && behavior.onAllyTargeted!(this.statusCtx(ally, key, entry), target, attacker, blow)) return true;
       }
     }
@@ -793,7 +808,7 @@ export class CombatEngine implements EngineApi, AIView {
     if (attacker.team === target.team) return;
     for (const member of this.teams[target.team]) {
       if (!member.isAlive()) continue;
-      for (const { key, entry, behavior } of this.hookedStatuses(member, 'afterBlow')) {
+      for (const { key, entry, behavior } of this.hookedStatuses(member, HOOK.afterBlow)) {
         if (member.statuses.has(key)) behavior.afterBlow!(this.statusCtx(member, key, entry), target, attacker, blow);
       }
     }
@@ -803,14 +818,14 @@ export class CombatEngine implements EngineApi, AIView {
    *  instead of `target`'s own (guardsBlow), or null when none does. */
   private replacedGuards(target: Character, attacker: Character, blow: BlowInfo): Guard[] | null {
     if (attacker.team === target.team) return null;
-    if (target.holdsStatusWith('preventsGuard')) {
+    if (target.holdsStatusWith(HOOK.preventsGuard)) {
       for (const [key, entry] of target.statuses) {
         if (entry.behavior?.preventsGuard?.({ holder: target, key, entry })) return null;
       }
     }
     for (const member of this.teams[target.team]) {
       if (!member.isAlive()) continue;
-      for (const { key, entry, behavior } of this.hookedStatuses(member, 'guardsBlow')) {
+      for (const { key, entry, behavior } of this.hookedStatuses(member, HOOK.guardsBlow)) {
         if (!member.statuses.has(key)) continue;
         const guards = behavior.guardsBlow!(this.statusCtx(member, key, entry), target, attacker, blow);
         if (guards && guards.length) return guards;
@@ -819,10 +834,12 @@ export class CombatEngine implements EngineApi, AIView {
     return null;
   }
 
-  /** `c`'s statuses carrying `hook` (a snapshot: hooks may clear statuses),
-   *  or nothing — the usual case, kept allocation-free. */
-  private hookedStatuses(c: Character, hook: GatedHook): { key: string; entry: StatusEntry; behavior: StatusBehavior }[] {
-    if (!c.holdsStatusWith(hook)) return NO_STATUSES;
+  /** `c`'s statuses carrying the hook (`HOOK.onTargeted`, …; a snapshot:
+   *  hooks may clear statuses), or nothing — the usual case, kept
+   *  allocation-free. */
+  private hookedStatuses(c: Character, hookBit: number): { key: string; entry: StatusEntry; behavior: StatusBehavior }[] {
+    if (!c.holdsStatusWith(hookBit)) return NO_STATUSES;
+    const hook = GATED_HOOKS[hookBit];
     let hooked: { key: string; entry: StatusEntry; behavior: StatusBehavior }[] | null = null;
     for (const [key, entry] of c.statuses) {
       if (entry.behavior?.[hook]) (hooked ??= []).push({ key, entry, behavior: entry.behavior });
@@ -839,13 +856,13 @@ export class CombatEngine implements EngineApi, AIView {
     // Walks the statuses directly, like isUntargetable: asked for every blow,
     // and almost always of a target holding no such status.
     let bypass = ignoreDefense;
-    if (!bypass && target.holdsStatusWith('opensGuardTo')) {
+    if (!bypass && target.holdsStatusWith(HOOK.opensGuardTo)) {
       for (const [key, entry] of target.statuses) {   // deleting while iterating a Map is safe
         if (entry.behavior?.opensGuardTo?.(this.statusCtx(target, key, entry), source)) { bypass = true; break; }
       }
     }
     if (!bypass) return false;
-    if (!target.holdsStatusWith('preventsGuardBypass')) return true;
+    if (!target.holdsStatusWith(HOOK.preventsGuardBypass)) return true;
     for (const [key, entry] of target.statuses) {
       if (entry.behavior?.preventsGuardBypass?.({ holder: target, key, entry })) return false;
     }
@@ -855,7 +872,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Sum of `defensePenaltyAgainst` over the target's statuses, for `attacker`. */
   private defensePenaltyOn(target: Character, attacker: Character): number {
     let penalty = 0;
-    if (!target.holdsStatusWith('defensePenaltyAgainst')) return penalty;
+    if (!target.holdsStatusWith(HOOK.defensePenaltyAgainst)) return penalty;
     for (const [key, entry] of target.statuses) {
       const f = entry.behavior?.defensePenaltyAgainst;
       if (f) penalty += f({ holder: target, key, entry }, attacker);
@@ -890,7 +907,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  or when one of its statuses keeps its allies out against `attacker`. */
   private activeGuards(target: Character, attacker?: Character, ownOnly = false): Guard[] {
     let keepOwn = ownOnly;
-    if (target.holdsStatusWith('preventsGuard') || (attacker && target.holdsStatusWith('excludesAllyGuards'))) {
+    if (target.holdsStatusWith(HOOK.preventsGuard) || (attacker && target.holdsStatusWith(HOOK.excludesAllyGuards))) {
       for (const ref of target.statusRefs()) {
         if (ref.entry.behavior?.preventsGuard?.(ref)) return [];
         if (attacker && ref.entry.behavior?.excludesAllyGuards?.(ref, attacker)) keepOwn = true;
@@ -926,7 +943,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Whether a status makes `actor`'s cards resolve plain right now
    *  (`plainCards`): no effects, one target, only the dice. */
   private playsPlain(actor: Character): boolean {
-    if (!actor.holdsStatusWith('plainCards')) return false;
+    if (!actor.holdsStatusWith(HOOK.plainCards)) return false;
     for (const [key, entry] of actor.statuses) {
       if (entry.behavior?.plainCards?.(this.statusCtx(actor, key, entry))) return true;
     }
@@ -1000,7 +1017,11 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   allCombatants(): Character[] { return [...this.teams[0], ...this.teams[1]]; }
-  allLiving(): Character[] { return this.allCombatants().filter(c => c.isAlive()); }
+  allLiving(): Character[] {
+    const living: Character[] = [];
+    for (const team of this.teams) for (const c of team) if (c.isAlive()) living.push(c);
+    return living;
+  }
 
   private resolveRef(ref: TargetRef): Character { return this.teams[ref.team][ref.idx]; }
   private refOf(c: Character): TargetRef { return { team: c.team, idx: this.teams[c.team].indexOf(c) }; }
@@ -1026,7 +1047,7 @@ export class CombatEngine implements EngineApi, AIView {
   private narrowAttackPool(actor: Character, pool: Character[]): Character[] {
     const excluded = this.excludedTargets(actor);
     if (excluded) pool = pool.filter(c => !excluded.includes(c));
-    if (!actor.holdsStatusWith('attackTargetsOnly')) return pool;
+    if (!actor.holdsStatusWith(HOOK.attackTargetsOnly)) return pool;
     let only: Character[] | null = null;
     for (const [key, entry] of actor.statuses) {
       const named = entry.behavior?.attackTargetsOnly?.(this.statusCtx(actor, key, entry));
@@ -1073,14 +1094,14 @@ export class CombatEngine implements EngineApi, AIView {
     }
     // Round-start status hooks (after the reset, so a hit here counts this round).
     for (const c of this.allLiving()) {
-      for (const { key, entry, behavior } of this.hookedStatuses(c, 'onRoundStart')) {
+      for (const { key, entry, behavior } of this.hookedStatuses(c, HOOK.onRoundStart)) {
         if (c.statuses.has(key)) behavior.onRoundStart!(this.statusCtx(c, key, entry));
       }
     }
     // Statuses that take the whole round away (skipsRound) — asked after the
     // round-start hooks, which may have ended them.
     for (const c of this.allLiving()) {
-      if (this.skippingThisRound.has(c) || !c.holdsStatusWith('skipsRound')) continue;
+      if (this.skippingThisRound.has(c) || !c.holdsStatusWith(HOOK.skipsRound)) continue;
       for (const [key, entry] of c.statuses) {
         if (!entry.behavior?.skipsRound?.(this.statusCtx(c, key, entry))) continue;
         this.skippingThisRound.add(c);
@@ -1109,7 +1130,7 @@ export class CombatEngine implements EngineApi, AIView {
     // Whoever chooses after the reveal (choosesAfterReveal) chooses LAST, and
     // may read everything the others committed (revealedPlanFor).
     const choosers = this.allLiving().filter(c => !this.skippingThisRound.has(c));
-    const later = (c: Character) => c.holdsStatusWith('choosesAfterReveal') && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
+    const later = (c: Character) => c.holdsStatusWith(HOOK.choosesAfterReveal) && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
     const ordered = [...choosers.filter(c => !later(c)), ...choosers.filter(later)];
     this.revealedPlan = [];
     for (const c of ordered) {
@@ -1158,9 +1179,11 @@ export class CombatEngine implements EngineApi, AIView {
         [built[i], built[j]] = [built[j], built[i]];
       }
     });
-    const slots = built.map((p, i) => committed.has(p.actor) ? i : -1).filter(i => i >= 0);
-    const inCommitOrder = slots.map(i => built[i]).sort((a, b) => committed.get(a.actor)! - committed.get(b.actor)!);
-    slots.forEach((slot, k) => { built[slot] = inCommitOrder[k]; });
+    if (committed.size) {
+      const slots = built.map((p, i) => committed.has(p.actor) ? i : -1).filter(i => i >= 0);
+      const inCommitOrder = slots.map(i => built[i]).sort((a, b) => committed.get(a.actor)! - committed.get(b.actor)!);
+      slots.forEach((slot, k) => { built[slot] = inCommitOrder[k]; });
+    }
     built.sort((a, b) => a.key - b.key);
     this.pending = built;
     this.pendingIndex = 0;
@@ -1188,7 +1211,7 @@ export class CombatEngine implements EngineApi, AIView {
    * by the AI so a side that waits for the reveal plays against the real cards.
    */
   revealedPlanFor(c: Character): ReadonlyArray<{ team: number; idx: number; actionIdx: number }> {
-    if (!c.holdsStatusWith('choosesAfterReveal') || !c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref))) return [];
+    if (!c.holdsStatusWith(HOOK.choosesAfterReveal) || !c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref))) return [];
     return this.revealedPlan.filter(s => s.team !== c.team);
   }
 
@@ -1276,7 +1299,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Charges left on the holder's card-swap statuses (StatusBehavior.cardSwapCharges). */
   cardSwapCharges(c: Character): number {
     let charges = 0;
-    if (!c.holdsStatusWith('cardSwapCharges')) return charges;
+    if (!c.holdsStatusWith(HOOK.cardSwapCharges)) return charges;
     for (const ref of c.statusRefs()) {
       const f = ref.entry.behavior?.cardSwapCharges;
       if (f) charges += f(ref);
@@ -1286,7 +1309,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Spend one card-swap charge from the first status offering one. */
   private spendCardSwapCharge(c: Character): void {
-    if (!c.holdsStatusWith('cardSwapCharges')) return;
+    if (!c.holdsStatusWith(HOOK.cardSwapCharges)) return;
     for (const ref of c.statusRefs()) {
       const b = ref.entry.behavior;
       if (b?.cardSwapCharges && b.spendCardSwapCharge && b.cardSwapCharges(ref) > 0) {
@@ -1543,10 +1566,12 @@ export class CombatEngine implements EngineApi, AIView {
     // Entering a new tier (a step): snapshot living set + focus interruption state.
     if (this.tierKey !== cur.key) {
       this.tierKey = cur.key;
-      this.tierAlive = new Set(this.allLiving());
-      this.tierInterrupted = new Set(
-        this.pending.filter(p => p.key === cur.key && (p.as ?? p.action.def.actionType) === ActionType.Focus && p.actor.hitThisTurn).map(p => p.actor),
-      );
+      this.tierAlive = new Set();
+      for (const team of this.teams) for (const c of team) if (c.isAlive()) this.tierAlive.add(c);
+      this.tierInterrupted = new Set();
+      for (const p of this.pending) {
+        if (p.key === cur.key && (p.as ?? p.action.def.actionType) === ActionType.Focus && p.actor.hitThisTurn) this.tierInterrupted.add(p.actor);
+      }
     }
 
     // Actor died before this tier — skip silently.
@@ -1624,7 +1649,7 @@ export class CombatEngine implements EngineApi, AIView {
     const { actor } = cur;
     const def = cur.action.def;
     if (def.actionType === ActionType.Focus && this.tierInterrupted.has(actor)) return true;
-    const hooked = this.hookedStatuses(actor, 'beforeHolderAction');
+    const hooked = this.hookedStatuses(actor, HOOK.beforeHolderAction);
     if (!hooked.length) return true;
     // Whether THESE hooks hurt it: an earlier hit in its own tier is
     // simultaneous and must not interrupt it now.
@@ -1799,14 +1824,14 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   private holderAttackHit(source: Character, target: Character, dmg: number, def: ActionDefinition | undefined): void {
-    for (const { key, entry, behavior } of this.hookedStatuses(source, 'onHolderAttackHit')) {
+    for (const { key, entry, behavior } of this.hookedStatuses(source, HOOK.onHolderAttackHit)) {
       if (source.statuses.has(key)) behavior.onHolderAttackHit!(this.statusCtx(source, key, entry), target, dmg, def);
     }
   }
 
   /** Chain modifyOutgoingDamage across the attacker's statuses. */
   private applyOutgoingDamage(source: Character, dmg: number): number {
-    if (!source.holdsStatusWith('modifyOutgoingDamage')) return dmg;
+    if (!source.holdsStatusWith(HOOK.modifyOutgoingDamage)) return dmg;
     for (const { key, entry, behavior } of this.behaviorStatuses(source)) {
       const f = behavior.modifyOutgoingDamage;
       if (f) dmg = f(this.statusCtx(source, key, entry), dmg);
@@ -1816,7 +1841,7 @@ export class CombatEngine implements EngineApi, AIView {
 
   /** Chain modifyIncomingDamage across the recipient's statuses. */
   private applyIncomingDamage(recipient: Character, dmg: number, attacker?: Character, attackTotal?: number): number {
-    if (!recipient.holdsStatusWith('modifyIncomingDamage')) return dmg;
+    if (!recipient.holdsStatusWith(HOOK.modifyIncomingDamage)) return dmg;
     for (const { key, entry, behavior } of this.behaviorStatuses(recipient)) {
       const f = behavior.modifyIncomingDamage;
       if (f) dmg = f(this.statusCtx(recipient, key, entry), dmg, attacker, attackTotal);
@@ -1828,7 +1853,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  total, adjusted while seeing the opposing total (clutch modifiers).
    *  Exposed on EngineApi so content-side save contests can route through it. */
   adjustContestTotal(holder: Character, own: number, opposing: number, kind: ContestKind): number {
-    if (!holder.holdsStatusWith('modifyContestTotal')) return own;
+    if (!holder.holdsStatusWith(HOOK.modifyContestTotal)) return own;
     for (const { key, entry, behavior } of this.behaviorStatuses(holder)) {
       const f = behavior.modifyContestTotal;
       if (f) own = f(this.statusCtx(holder, key, entry), own, opposing, kind);
@@ -1839,7 +1864,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Sum of attackRollAgainstHolder across the target's statuses. */
   private attackRollBonusAgainst(target: Character): number {
     let bonus = 0;
-    if (!target.holdsStatusWith('attackRollAgainstHolder')) return bonus;
+    if (!target.holdsStatusWith(HOOK.attackRollAgainstHolder)) return bonus;
     for (const ref of target.statusRefs()) {
       const f = ref.entry.behavior?.attackRollAgainstHolder;
       if (f) bonus += f(ref);
@@ -1850,7 +1875,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** Sum of attackRollOfHolder across the attacker's statuses. */
   private attackRollBonusOf(attacker: Character): number {
     let bonus = 0;
-    if (!attacker.holdsStatusWith('attackRollOfHolder')) return bonus;
+    if (!attacker.holdsStatusWith(HOOK.attackRollOfHolder)) return bonus;
     for (const ref of attacker.statusRefs()) {
       const f = ref.entry.behavior?.attackRollOfHolder;
       if (f) bonus += f(ref);
@@ -1861,7 +1886,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** onAttackAction over the attacker's statuses; multipliers combine, flat bonuses add. */
   private collectAttackStatusMods(actor: Character): AttackStatusMods {
     const mods: AttackStatusMods = {};
-    if (!actor.holdsStatusWith('onAttackAction')) return mods;
+    if (!actor.holdsStatusWith(HOOK.onAttackAction)) return mods;
     for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
       const m = behavior.onAttackAction?.(this.statusCtx(actor, key, entry));
       if (!m) continue;
@@ -1876,7 +1901,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** redirectAttackTarget over the attacker's statuses, applied per target. */
   private applyTargetRedirects(actor: Character, list: Character[]): Character[] {
     let out = list;
-    if (!actor.holdsStatusWith('redirectAttackTarget')) return out;
+    if (!actor.holdsStatusWith(HOOK.redirectAttackTarget)) return out;
     for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
       if (!behavior.redirectAttackTarget) continue;
       out = out.map(t => behavior.redirectAttackTarget!(this.statusCtx(actor, key, entry), t));
@@ -1888,7 +1913,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  included — hazards outlive their layer). Stops at the first handled. */
   private triggerHazards(attacker: Character): void {
     for (const holder of this.teams[1 - attacker.team]) {
-      if (!holder.holdsStatusWith('onEnemyAttackAction')) continue;
+      if (!holder.holdsStatusWith(HOOK.onEnemyAttackAction)) continue;
       for (const { key, entry, behavior } of this.behaviorStatuses(holder)) {
         if (!behavior.onEnemyAttackAction) continue;
         if (behavior.onEnemyAttackAction(this.statusCtx(holder, key, entry), attacker)) return;
@@ -1899,7 +1924,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** attackRepeats summed over the attacker's statuses. */
   private collectAttackRepeats(actor: Character): number {
     let repeats = 0;
-    if (!actor.holdsStatusWith('attackRepeats')) return repeats;
+    if (!actor.holdsStatusWith(HOOK.attackRepeats)) return repeats;
     for (const { key, entry, behavior } of this.behaviorStatuses(actor)) {
       repeats += behavior.attackRepeats?.(this.statusCtx(actor, key, entry)) ?? 0;
     }
@@ -1911,7 +1936,7 @@ export class CombatEngine implements EngineApi, AIView {
   private dispatchStatusRoundEnd(): void {
     const snapshot: { holder: Character; key: string; entry: StatusEntry; behavior: StatusBehavior }[] = [];
     for (const holder of this.allCombatants()) {
-      for (const s of this.hookedStatuses(holder, 'onRoundEnd')) snapshot.push({ holder, ...s });
+      for (const s of this.hookedStatuses(holder, HOOK.onRoundEnd)) snapshot.push({ holder, ...s });
     }
     for (const { holder, key, entry, behavior } of snapshot) {
       if (!holder.statuses.has(key)) continue; // cleared by an earlier hook
@@ -1958,7 +1983,7 @@ export class CombatEngine implements EngineApi, AIView {
   /** The standing defenses on `target` (walls, domes): each status's
    *  `standingGuard`, as a defense its defender rolls like a live one. */
   private standingDefenses(target: Character): Defense[] {
-    if (!target.holdsStatusWith('standingGuard')) return [];
+    if (!target.holdsStatusWith(HOOK.standingGuard)) return [];
     const out: Defense[] = [];
     for (const { key, entry, behavior } of this.behaviorStatuses(target)) {
       const sg = behavior.standingGuard?.(this.statusCtx(target, key, entry));
@@ -1982,7 +2007,7 @@ export class CombatEngine implements EngineApi, AIView {
   }
 
   private absorbs(d: Defense): boolean {
-    return !d.holder && d.defender.holdsStatusWith('absorbsGuard') && d.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref));
+    return !d.holder && d.defender.holdsStatusWith(HOOK.absorbsGuard) && d.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref));
   }
 
   private contestAttackOnTarget(blow: Blow, target: Character, mods: AttackModifiers, statusMods: AttackStatusMods, forcedByBlock: boolean): ExtraAttackResult {

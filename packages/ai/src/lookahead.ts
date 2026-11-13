@@ -27,7 +27,7 @@
  * encounters needs.
  */
 import {
-  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, fieldValue, random, withSeed, withRng, seededRng, mirrored,
+  Character, CombatEngine, ActionType, FATIGUE_MAX_LEVEL, HOOK, fieldValue, random, withSeed, withRng, seededRng, mirrored,
   type ActionDefinition, type TargetRequirement,
 } from '@pimpampum/engine';
 import {
@@ -243,7 +243,7 @@ export function positionScore(engine: CombatEngine, team: number, w: EvaluatorWe
     for (const c of t) {
       if (!c.isAlive()) continue;
       acc += fieldValue(c, engine);
-      if (!c.holdsStatusWith('positionValue')) continue;
+      if (!c.holdsStatusWith(HOOK.positionValue)) continue;
       for (const [key, entry] of c.statuses) {
         const price = entry.behavior?.positionValue;
         if (price) acc += price({ holder: c, key, entry }, engine);
@@ -305,7 +305,7 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
     for (const f of foes) {
       foeMax += Math.max(1, f.maxPV);
       if (!f.isAlive()) continue;
-      if (!f.holdsStatusWith('attackRollAgainstHolder')) continue;
+      if (!f.holdsStatusWith(HOOK.attackRollAgainstHolder)) continue;
       let e = 0;
       for (const ref of f.statusRefs()) e += ref.entry.behavior?.attackRollAgainstHolder?.(ref) ?? 0;
       exposure = Math.max(exposure, e);
@@ -314,10 +314,13 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
     for (const c of engine.teams[side]) {
       if (!c.isAlive() || skipping.has(c)) continue;
       let best = 0;
-      for (let i = 0; i < c.actions.length; i++) {
+      // From the top of the hand: the strongest attacks are the last learnt,
+      // and a weaker one need not be asked whether it may be played.
+      for (let i = c.actions.length - 1; i >= 0; i--) {
         const a = c.actions[i];
-        if (a.def.actionType !== ActionType.Atac || !engine.canPlayActionIdx(c, i)) continue;
-        best = Math.max(best, expectedAttackTotal(c, a.def));
+        if (a.def.actionType !== ActionType.Atac) continue;
+        const total = expectedAttackTotal(c, a.def);
+        if (total > best && engine.canPlayActionIdx(c, i)) best = total;
       }
       if (best > 0) out += best + exposure;
     }
@@ -467,7 +470,7 @@ function searchedOdds(root: CombatEngine, actor: Character, base: ActionOdds, sh
 function rolloutOpponents(root: CombatEngine, shared: DecisionMemo): (e: CombatEngine, a: Character) => number | null {
   if (!root.roundPrepared) return (e, a) => selectAction(e, a).actionIdx;
   return (e, a) => {
-    if (e.round !== root.round || a.holdsStatusWith('choosesAfterReveal')) return selectAction(e, a).actionIdx;
+    if (e.round !== root.round || a.holdsStatusWith(HOOK.choosesAfterReveal)) return selectAction(e, a).actionIdx;
     const pos = e.teams[a.team].indexOf(a);
     const seat = a.team * 1000 + pos;
     let odds = shared.odds.get(seat);

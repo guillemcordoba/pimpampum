@@ -15,7 +15,7 @@
 import {
   Character, ActionInstance, ActionDefinition, ActionType, TargetRequirement,
   EffectRegistry, AIContext, AIView, PlannedAction, PendingSummary, DiceRoll, expectedExcess,
-  random, availableActionIndices, getActionTargetCount, orderKey,
+  random, availableActionIndices, getActionTargetCount, orderKey, HOOK,
 } from '@pimpampum/engine';
 
 /** Fraction of a character's PV remaining (0..1). */
@@ -235,7 +235,7 @@ function actionWeight(
 
   // Status behaviours may transform the base weight (e.g. an attack chain
   // that must not be broken).
-  if (actor.holdsStatusWith('adjustActionWeight')) {
+  if (actor.holdsStatusWith(HOOK.adjustActionWeight)) {
     for (const ref of actor.statusRefs()) {
       const adjust = ref.entry.behavior?.adjustActionWeight;
       if (adjust) w = adjust(view, ref, def, w);
@@ -345,8 +345,10 @@ function guardOrBlock(
       blockValue.set(p.actor, Math.max(blockValue.get(p.actor) ?? 0, saved));
     }
   }
-  const options = [...[...guardValue].filter(([c]) => c !== actor), ...blockValue]
-    .filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const options: [Character, number][] = [];
+  guardValue.forEach((v, c) => { if (c !== actor && v > 0) options.push([c, v]); });
+  blockValue.forEach((v, c) => { if (v > 0) options.push([c, v]); });
+  options.sort((a, b) => b[1] - a[1]);
   if (options.length) return options.slice(0, count).map(([c]) => c);
   return pool.includes(actor) ? [actor] : [];
 }
@@ -494,6 +496,16 @@ export function pickResolveTargets(
     s -= 0.5 * otherDefenders(e); // an allied defender may step in front of it
     return s;
   };
+  if (count === 1 && pool.length) {
+    // One target: the first of the order below, found without sorting.
+    let best = pool[0];
+    let bestScore = score(best);
+    for (let i = 1; i < pool.length; i++) {
+      const s = score(pool[i]);
+      if ((bestScore - s || pool[i].currentPV - best.currentPV) < 0) { best = pool[i]; bestScore = s; }
+    }
+    return [best];
+  }
   const scores = new Map(pool.map(e => [e, score(e)]));
   return [...pool]
     .sort((a, b) => scores.get(b)! - scores.get(a)! || a.currentPV - b.currentPV)

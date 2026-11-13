@@ -15,7 +15,7 @@
  * deliberately crude estimates; a status's real worth is what the searches
  * measure.
  */
-import type { Character } from './character.js';
+import { HOOK, type Character } from './character.js';
 import type { DiceRoll } from './dice.js';
 import type { CombatModifier } from './modifier.js';
 import type { PriceBoard, StatusBehavior, StatusRef } from './status.js';
@@ -182,7 +182,7 @@ const UNTARGETABLE: StatusBehavior = {
   untargetable: () => true,
   // Worth nothing while someone else on its side can still be hit: the foes'
   // blows only move there (GOALS.md B16, puzzle (k)).
-  positionValue: (ref, board) => (board?.alliesOf(ref.holder, false).some(a => a.isAlive() && !a.holdsStatusWith('untargetable'))
+  positionValue: (ref, board) => (board?.alliesOf(ref.holder, false).some(a => a.isAlive() && !a.holdsStatusWith(HOOK.untargetable))
     ? 0
     : 0.5 * threatOn(ref.holder, board) * turnsLeft(ref)),
 };

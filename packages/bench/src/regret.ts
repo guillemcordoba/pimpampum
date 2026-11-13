@@ -38,8 +38,8 @@
  * zero, and no instrument that plays the game can make it zero.
  */
 import {
-  availableActionIndices, Character, CombatEngine, random, setAIControlled as _setAI,
-  withSeed,
+  availableActionIndices, Character, CombatEngine, countingDraws, HOOK, random, setAIControlled as _setAI,
+  skipDraws, withSeed,
 } from '@pimpampum/engine';
 import { aiPolicy, lookaheadChooser as _look } from '@pimpampum/ai';
 
@@ -265,6 +265,21 @@ export interface RegretOptions {
 export const DEFAULT_REGRET: RegretOptions = { rolloutDepth: 1, samples: 6, team: 0 };
 
 /**
+ * WHAT EVERYONE ELSE PLAYS IN THE FORCED ROUND, by seat (`team * 1000 +
+ * index`): the card, and the draws choosing it took from the seat's stream.
+ *
+ * It does not depend on the forced card. The branches of one sample clone the
+ * same position under the same seed, the others choose before any card is
+ * revealed, and each seat draws from its own stream: the production AI was
+ * solving both teams' round once per candidate card for the same answer
+ * every time. The first branch of a sample works it out; the others read it
+ * and take the same draws, so every later roll is the one they would have
+ * made. Not shared when someone chooses after the reveal: that seat reads
+ * the forced card.
+ */
+type Opening = Map<number, { result: number | null; draws: number }>;
+
+/**
  * Force `actionIdx` for the actor in SEAT `seat` this round, AI for everyone
  * else, then finish the round. Mirrors `CombatEngine.runRound` with one
  * selection pinned.
@@ -276,10 +291,26 @@ export const DEFAULT_REGRET: RegretOptions = { rolloutDepth: 1, samples: 6, team
  * AI, and makes every branch identical. It did: the first run of this harness
  * priced all five cards at exactly 0.00 ± 0.00.
  */
-function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: number): void {
+function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: number, opening?: Opening): void {
   const actor = sim.teams[team][seat];
   sim.prepareRound();
+  const policy = sim.actionChooser;
+  if (opening && policy && !sim.allLiving().some(c => c.holdsStatusWith(HOOK.choosesAfterReveal))) {
+    sim.actionChooser = (e, c) => {
+      if (e !== sim) return policy(e, c);
+      const seatKey = c.team * 1000 + e.teams[c.team].indexOf(c);
+      const known = opening.get(seatKey);
+      if (known) {
+        skipDraws(known.draws);
+        return known.result;
+      }
+      const chosen = countingDraws(() => policy(e, c));
+      opening.set(seatKey, chosen);
+      return chosen.result;
+    };
+  }
   sim.planActions(actor?.isAlive() ? [{ team, idx: seat, actionIdx }] : []);
+  sim.actionChooser = policy;
   let step = sim.resolveNextAction();
   let guard = 0;
   while (step.kind !== 'done' && guard++ < 400) {
@@ -295,7 +326,7 @@ function forceRound(sim: CombatEngine, seat: number, actionIdx: number, team: nu
 /** Play one candidate card from this position and score where the fight ends;
  *  `won` is null for a stall (unresolved: left out of the win share). */
 function rollout(
-  engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions, streamSeed: number,
+  engine: CombatEngine, seat: number, actionIdx: number, opts: RegretOptions, streamSeed: number, opening?: Opening,
 ): { score: number; won: number | null } {
   const sim = engine.clone();
   // Per-seat streams, or the pairing below holds only until the first card
@@ -312,7 +343,7 @@ function rollout(
   // than falling back precisely so this could not pass silently.
   Object.assign(sim, aiPolicy({ depth: opts.rolloutDepth }));
   if (opts.continuationSharpness !== undefined) sim.aiSharpness = opts.continuationSharpness;
-  forceRound(sim, seat, actionIdx, opts.team);
+  forceRound(sim, seat, actionIdx, opts.team, opening);
   const res = sim.runCombat();
   return {
     score: pvDifferential(sim, opts.team),
@@ -347,11 +378,12 @@ export function valuePosition(
   }
 
   const seed = Math.floor(random() * 1e9);
+  const openings = Array.from({ length: opts.samples }, (): Opening => new Map());
   const branches: Branch[] = legal.map(actionIdx => {
     let won = 0, resolved = 0;
     const samples: number[] = [];
     for (let s = 0; s < opts.samples; s++) {
-      const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts, seed + s * 7919));
+      const r = withSeed(seed + s * 7919, () => rollout(engine, seat, actionIdx, opts, seed + s * 7919, openings[s]));
       samples.push(r.score);
       if (r.won !== null) { won += r.won; resolved++; }
     }

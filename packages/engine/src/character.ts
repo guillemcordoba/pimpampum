@@ -24,7 +24,7 @@ export interface StatusEntry {
 
 /** The status hooks the engine asks for at every blow, roll, targeting query
  *  or decision — where almost no character holds a status that has one. */
-const GATED_HOOKS = [
+export const GATED_HOOKS = [
   'fast', 'rollMode', 'modifyOutgoingDamage', 'modifyIncomingDamage', 'modifyContestTotal',
   'clampPvLoss', 'attackRollAgainstHolder', 'defensePenaltyAgainst', 'preventsGuard', 'excludesAllyGuards',
   'untargetable', 'ignoresConcealment', 'preventsGuardBypass', 'onAttackAction', 'redirectAttackTarget',
@@ -37,8 +37,13 @@ const GATED_HOOKS = [
 ] as const satisfies readonly (keyof StatusBehavior)[];
 export type GatedHook = typeof GATED_HOOKS[number];
 
-/** A hook's bit: bits 0-31 are the low word of the mask, 32 on the high. */
-const HOOK_INDEX = Object.fromEntries(GATED_HOOKS.map((h, i) => [h, i])) as Record<GatedHook, number>;
+/**
+ * Each gated hook's bit (0-31 the low word of the mask, 32 on the high): what
+ * `holdsStatusWith` is asked with, as `HOOK.fast`. A number read off a
+ * constant, never found by the hook's name: the engine asks at every blow,
+ * roll and aim of every rollout, and the lookup cost more than the answer.
+ */
+export const HOOK = Object.freeze(Object.fromEntries(GATED_HOOKS.map((h, i) => [h, i]))) as Readonly<Record<GatedHook, number>>;
 const behaviorMasks = new WeakMap<StatusBehavior, [number, number]>();
 
 function hookMaskOf(behavior: StatusBehavior): [number, number] {
@@ -46,7 +51,7 @@ function hookMaskOf(behavior: StatusBehavior): [number, number] {
   if (mask === undefined) {
     mask = [0, 0];
     for (const h of GATED_HOOKS) {
-      const i = HOOK_INDEX[h];
+      const i = HOOK[h];
       if (behavior[h]) mask[i >> 5] |= 1 << (i & 31);
     }
     behaviorMasks.set(behavior, mask);
@@ -77,7 +82,7 @@ export class StatusMap extends Map<string, StatusEntry> {
     super.clear();
   }
 
-  holds(hook: GatedHook): boolean {
+  holds(hookBit: number): boolean {
     if (this.size === 0) return false;
     if (this.stale) {
       let low = 0, high = 0;
@@ -91,8 +96,7 @@ export class StatusMap extends Map<string, StatusEntry> {
       this.high = high;
       this.stale = false;
     }
-    const i = HOOK_INDEX[hook];
-    return ((i < 32 ? this.low : this.high) & (1 << (i & 31))) !== 0;
+    return ((hookBit < 32 ? this.low : this.high) & (1 << (hookBit & 31))) !== 0;
   }
 }
 
@@ -212,44 +216,48 @@ export class Character {
    * the whole roster has to exist before they can be rewired.
    */
   cloneState(): Character {
-    const copy = new Character(
-      this.name,
-      this.maxPV,
-      new Map(this.skills),
-      this.actions.map(a => {
-        const inst = new ActionInstance(a.def);
-        inst.consumed = a.consumed;
-        return inst;
-      }),
-      this.characterClass,
-      this.category,
-      this.iconPath,
-    );
+    // The lookahead clones a whole fight per rollout: plain loops, no
+    // iterator-built copies, and a collection that is empty stays the one
+    // the constructor made.
+    const skills = new Map<string, number>();
+    this.skills.forEach((level, id) => skills.set(id, level));
+    const actions = new Array<ActionInstance>(this.actions.length);
+    for (let i = 0; i < actions.length; i++) {
+      const inst = new ActionInstance(this.actions[i].def);
+      inst.consumed = this.actions[i].consumed;
+      actions[i] = inst;
+    }
+    const copy = new Character(this.name, this.maxPV, skills, actions, this.characterClass, this.category, this.iconPath);
     copy.team = this.team;
     copy.aiControlled = this.aiControlled;
     copy.currentPV = this.currentPV;
-    copy.equipment = [...this.equipment];
-    copy.modifiers = this.modifiers.map(m => {
-      const c = new CombatModifier(m.stat, m.value, cloneDuration(m.duration));
-      c.dice = m.dice;
-      c.source = m.source;
-      c.condition = m.condition;
-      if (m.data) c.data = { ...m.data };
-      return c;
-    });
-    for (const [k, e] of this.statuses) {
-      copy.statuses.set(k, {
-        value: e.value,
-        remaining: e.remaining,
-        data: e.data ? { ...e.data } : undefined,
-        behavior: e.behavior,
+    if (this.equipment.length) copy.equipment = this.equipment.slice();
+    if (this.modifiers.length) {
+      copy.modifiers = this.modifiers.map(m => {
+        const c = new CombatModifier(m.stat, m.value, cloneDuration(m.duration));
+        c.dice = m.dice;
+        c.source = m.source;
+        c.condition = m.condition;
+        if (m.data) c.data = { ...m.data };
+        return c;
+      });
+    }
+    if (this.statuses.size) {
+      const statuses = copy.statuses;
+      this.statuses.forEach((e, k) => {
+        statuses.set(k, {
+          value: e.value,
+          remaining: e.remaining,
+          data: e.data ? { ...e.data } : undefined,
+          behavior: e.behavior,
+        });
       });
     }
     copy.skipTurns = this.skipTurns;
     copy.hitThisTurn = this.hitThisTurn;
     copy.hitThisCombat = this.hitThisCombat;
     copy.playedActionIdx = this.playedActionIdx;
-    copy.setAsideActions = new Map(this.setAsideActions);
+    if (this.setAsideActions.size) copy.setAsideActions = new Map(this.setAsideActions);
     copy.fatigue = this.fatigue;
     // guards/blockers are wired up by remapRefs.
     return copy;
@@ -270,19 +278,23 @@ export class Character {
         if (g.onlyAgainst) copy.onlyAgainst = map.get(g.onlyAgainst) ?? g.onlyAgainst;
         return copy;
       });
-    this.guards = remapGuards(source.guards);
-    this.blockers = remapGuards(source.blockers);
-    for (const [key, entry] of this.statuses) {
-      const original = source.statuses.get(key);
-      if (!original?.data || !entry.data) continue;
-      for (const [k, v] of Object.entries(original.data)) {
+    this.guards = source.guards.length ? remapGuards(source.guards) : [];
+    this.blockers = source.blockers.length ? remapGuards(source.blockers) : [];
+    if (!this.statuses.size) return;
+    // `cloneState` copied each payload shallowly, so the copy's own values
+    // are still the source's: the characters to rewire are read off the copy.
+    this.statuses.forEach(entry => {
+      const data = entry.data;
+      if (!data) return;
+      for (const k in data) {
+        const v = data[k];
         if (v instanceof Character) {
-          entry.data[k] = map.get(v) ?? v;
+          data[k] = map.get(v) ?? v;
         } else if (Array.isArray(v) && v.some(x => x instanceof Character)) {
-          entry.data[k] = v.map(x => (x instanceof Character ? map.get(x) ?? x : x));
+          data[k] = v.map(x => (x instanceof Character ? map.get(x) ?? x : x));
         }
       }
-    }
+    });
   }
 
   // --- Skills ---------------------------------------------------------------
@@ -364,7 +376,7 @@ export class Character {
    *  beats a grant). */
   isFast(action: ActionInstance | ActionDefinition): boolean {
     const def = 'def' in action ? action.def : action;
-    if (!this.holdsStatusWith('fast')) return !!def.fast;
+    if (!this.holdsStatusWith(HOOK.fast)) return !!def.fast;
     let granted = false;
     for (const [key, entry] of this.statuses) {
       const say = entry.behavior?.fast?.({ holder: this, key, entry }, def);
@@ -393,11 +405,11 @@ export class Character {
     this.statuses.set(key, { value, remaining, data, behavior });
   }
 
-  /** False only when no status here carries `hook`: the engine's licence to
-   *  skip asking. */
-  holdsStatusWith(hook: GatedHook): boolean {
+  /** False only when no status here carries the hook (`HOOK.fast`, …): the
+   *  engine's licence to skip asking. */
+  holdsStatusWith(hookBit: number): boolean {
     const s = this.statuses;
-    return s instanceof StatusMap ? s.holds(hook) : s.size > 0;
+    return s instanceof StatusMap ? s.holds(hookBit) : s.size > 0;
   }
 
   hasStatus(key: string): boolean {

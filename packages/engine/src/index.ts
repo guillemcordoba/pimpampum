@@ -1,7 +1,7 @@
 // Dice
 export { diceDistribution, expectedExcess } from './dice.js';
 export { DiceRoll, rollDie } from './dice.js';
-export { mirrored, random, randomInt, setRng, seededRng, withChance, withRng, withSeed } from './rng.js';
+export { countingDraws, mirrored, random, randomInt, setRng, seededRng, skipDraws, withChance, withRng, withSeed } from './rng.js';
 
 
 // Core types
@@ -28,7 +28,7 @@ export { ActionInstance, getActionTargetRequirement, getActionTargetCount } from
 export { CombatModifier, ModifierDuration } from './modifier.js';
 
 // Characters
-export { Character, createCharacter } from './character.js';
+export { Character, createCharacter, HOOK } from './character.js';
 export type { StatusEntry, Guard, CreateCharacterOptions, GatedHook } from './character.js';
 
 // Combat engine
