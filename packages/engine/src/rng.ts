@@ -70,6 +70,28 @@ export function mirrored(gen: () => number): () => number {
   };
 }
 
+/**
+ * Run `fn` and count the float draws it takes from the generator in place.
+ * Someone who already knows what `fn` returns from this very state can then
+ * `skipDraws` instead of running it again, and every later draw is the same.
+ */
+export function countingDraws<T>(fn: () => T): { result: T; draws: number } {
+  const gen = current;
+  let draws = 0;
+  current = () => { draws++; return gen(); };
+  try {
+    const result = fn();
+    return { result, draws };
+  } finally {
+    current = gen;
+  }
+}
+
+/** Take `n` draws and throw them away (`countingDraws`). */
+export function skipDraws(n: number): void {
+  for (let i = 0; i < n; i++) current();
+}
+
 /** Run `fn` with a seeded generator, restoring the previous one afterwards. */
 export function withSeed<T>(seed: number, fn: () => T): T {
   return withRng(seededRng(seed), fn);

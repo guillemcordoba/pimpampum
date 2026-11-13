@@ -3,8 +3,10 @@
  * hand-built positions with no content and no set installed.
  */
 import { describe, it, expect } from 'vitest';
-import { type ActionDefinition, ActionType, CombatEngine, createCharacter, DiceRoll, EffectRegistry, firstLegalChooser, withSeed } from '@pimpampum/engine';
-import { valuePosition, clusteredRatio, clusteredStderr, crossFittedCost, crossFittedGainsWhenBest, scoreCards } from '../src/index.js';
+import { type ActionDefinition, ActionType, CombatEngine, createCharacter, DiceRoll, EffectRegistry, firstLegalChooser, random, withSeed } from '@pimpampum/engine';
+import { attackCard, defenseCard, fighter as seat, focusCard } from '@pimpampum/engine/testing';
+import { aiPolicy } from '@pimpampum/ai';
+import { pvDifferential, valuePosition, clusteredRatio, clusteredStderr, crossFittedCost, crossFittedGainsWhenBest, scoreCards } from '../src/index.js';
 
 function act(id: string, actionType: ActionType, over: Partial<ActionDefinition> = {}): ActionDefinition {
   return {
@@ -201,5 +203,67 @@ describe('a mean whose observation COUNT depends on the noise is a ratio', () =>
     const obs = [{ fight: 0, g: 1 }, { fight: 0, g: 3 }, { fight: 1, g: 5 }, { fight: 1, g: 7 }];
     expect(clusteredRatio(obs, o => o.g).mean).toBeCloseTo(clusteredStderr(obs, o => o.g).mean, 10);
     expect(clusteredRatio(obs, o => o.g).stderr).toBeGreaterThan(0);
+  });
+});
+
+describe('the forced round is planned once per sample, and every branch is the one it would be alone', () => {
+  /*
+   * `valuePosition` works out what everyone else plays in the forced round
+   * once per sample and hands it to every candidate card (`Opening`). That is
+   * only right while the answer does not depend on the forced card, so each
+   * card's score is checked against a rollout that shares nothing: the same
+   * clone, seed and policy, the round planned from scratch.
+   */
+  const SEED = 7;
+  const SAMPLES = 2;
+  const blow = (id: string, sides: number) => attackCard(id, { dice: new DiceRoll(1, sides) });
+  const hand = () => [blow('jab', 4), blow('swing', 8), defenseCard('parry', { rollBonus: 0, dice: new DiceRoll(1, 8) }), focusCard('breathe')];
+
+  function arena2v2(): CombatEngine {
+    const side = (name: string) => [seat(`${name} 1`, hand(), { pv: 14, ai: true }), seat(`${name} 2`, hand(), { pv: 14, ai: true })];
+    return new CombatEngine(side('Hero'), side('Foe'), { registry: new EffectRegistry(), maxRounds: 6, ...aiPolicy({ depth: 1 }) });
+  }
+
+  /** One card's rollout with nothing shared: `regret.ts`'s `rollout`, written out. */
+  function alone(engine: CombatEngine, actionIdx: number, streamSeed: number): number {
+    return withSeed(streamSeed, () => {
+      const sim = engine.clone();
+      sim.seatStreamSeed = streamSeed;
+      Object.assign(sim, aiPolicy({ depth: 1 }));
+      sim.prepareRound();
+      sim.planActions([{ team: 0, idx: 0, actionIdx }]);
+      for (let step = sim.resolveNextAction(); step.kind !== 'done'; step = sim.resolveNextAction()) {
+        if (step.kind === 'target') sim.setResolveTarget([]);
+        else if (step.kind === 'choice') sim.setResolveChoice();
+      }
+      sim.finishRound();
+      sim.runCombat();
+      return pvDifferential(sim, 0);
+    });
+  }
+
+  function expectEveryBranchAlone(engine: CombatEngine): void {
+    const hero = engine.teams[0][0];
+    const pos = withSeed(SEED, () => valuePosition(engine, hero, { rolloutDepth: 1, samples: SAMPLES, team: 0 }));
+    const seed = withSeed(SEED, () => Math.floor(random() * 1e9));
+    expect(pos?.cards.length, 'the position came back decided: nothing to compare').toBeGreaterThan(0);
+    const scores = new Set<number>();
+    hero.actions.forEach((a, actionIdx) => {
+      let total = 0;
+      for (let s = 0; s < SAMPLES; s++) total += alone(engine, actionIdx, seed + s * 7919);
+      expect(pos!.cards.find(c => c.id === a.def.id)!.score, a.def.id).toBe(total / SAMPLES);
+      scores.add(total / SAMPLES);
+    });
+    expect(scores.size, 'the cards must score differently, or sharing could not show').toBeGreaterThan(1);
+  }
+
+  it('on a plain fight', () => {
+    expectEveryBranchAlone(arena2v2());
+  });
+
+  it('and nothing is shared when a seat chooses after the reveal: it reads the forced card', () => {
+    const engine = arena2v2();
+    for (const foe of engine.teams[1]) foe.setStatus('sees-the-cards', 1, -1, undefined, { choosesAfterReveal: () => true });
+    expectEveryBranchAlone(engine);
   });
 });

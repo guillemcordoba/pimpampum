@@ -38,7 +38,7 @@
  * decision is an independent draw and the replayed prefix is identical.
  */
 import {
-  ActionType, Character, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
+  ActionType, Character, HOOK, availableActionIndices, random, seededRng, setRng, withChance, withSeed,
   type ActionSelection, type CombatEngine, type ContentDeref, type ContentRefOf, type EffectRegistry, type EngineSnapshot, type TargetChooser,
 } from '@pimpampum/engine';
 import { positionScore, settledScore } from '../lookahead.js';
@@ -1107,7 +1107,7 @@ const informedTargets: TargetChooser = (e, actor, def, _req, count, pool) => {
 };
 
 const choosesLater = (c: Character): boolean =>
-  c.holdsStatusWith('choosesAfterReveal') && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
+  c.holdsStatusWith(HOOK.choosesAfterReveal) && c.statusRefs().some(ref => ref.entry.behavior?.choosesAfterReveal?.(ref));
 
 function cartesian(seats: SeatOption[][]): Joint[] {
   let acc: Joint[] = [[]];

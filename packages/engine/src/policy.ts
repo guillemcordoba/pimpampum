@@ -15,7 +15,7 @@
  * Legality lives HERE and not with the policy: "which cards may I play" is a
  * rule of the game, and the engine enforces it for human seats too.
  */
-import { Character } from './character.js';
+import { Character, HOOK } from './character.js';
 import { ActionInstance } from './action.js';
 import { ActionType, type ActionDefinition } from './types.js';
 import { EffectRegistry } from './effects.js';
@@ -72,7 +72,7 @@ function pvFraction(c: Character): number {
  * card anyway.
  */
 export function typeBlocked(def: ActionDefinition, actor: Character): boolean {
-  if (def.lastResort || !actor.holdsStatusWith('blocksActionType')) return false;
+  if (def.lastResort || !actor.holdsStatusWith(HOOK.blocksActionType)) return false;
   for (const ref of actor.statusRefs()) {
     if (ref.entry.behavior?.blocksActionType?.(ref, def.actionType)) return true;
   }

@@ -904,6 +904,14 @@ section keeps the findings of the harnesses too, the deleted ones included.
   the best play — is absolute. Each decision also records what a random pick
   costs against the best one (`choiceCost`; zero when every card ties). Quoted AT A DEPTH: the
   continuation policy cancels in level but not in ordering (NEXT-STEPS §18.3).
+  The forced round is planned ONCE per sample (2026-11-13, `Opening`): what
+  the other seats play there cannot depend on the forced card (they choose
+  before the reveal, each on its own stream), and the production AI was
+  solving both teams' round again for every candidate card; the later
+  branches read the first one's answer and take the same draws. Not when a
+  seat chooses after the reveal. The numbers are the same to the last bit
+  (`bench/test/regret.test.ts` checks each branch against one that shares
+  nothing).
 - `playtest/src/control-kits.ts` + `playtest/test/controls-*.slow.test.ts` —
   **control experiments for the requirements themselves**, run on the SYNTHETIC
   set since 2026-09-23 so a control's verdict follows from its construction and

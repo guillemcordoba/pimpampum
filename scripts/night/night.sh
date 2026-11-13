@@ -27,6 +27,13 @@ KEEP_DAYS=7
 GRACE=30
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/pimpampum-night"
 mkdir -p "$STATE"
+# What a night measures outlives its worktree: the bench cache is keyed by the
+# sources and the content, so the next night reads every finished chunk while
+# neither changed. Entries nobody wrote for CACHE_DAYS go.
+CACHE="$STATE/bench-cache"
+CACHE_DAYS=14
+mkdir -p "$CACHE"
+find "$CACHE" -type f -mtime +"$CACHE_DAYS" -delete 2>/dev/null || true
 
 TMUX_BIN="$(command -v tmux || echo "$(nix build --no-link --print-out-paths nixpkgs#tmux^out)/bin/tmux")"
 T() { "$TMUX_BIN" -L pimpampum "$@"; }
@@ -107,7 +114,7 @@ printf '%s\n' "$PROMPT" > "$RUN/prompt.txt"
 # --- the session --------------------------------------------------------------------
 SESSION="$(cat /proc/sys/kernel/random/uuid)"
 echo "$SESSION" > "$RUN/session"
-T new-session -d -s "$NAME" -x 220 -y 50 -c "$WT" -e "PATH=$PATH" \
+T new-session -d -s "$NAME" -x 220 -y 50 -c "$WT" -e "PATH=$PATH" -e "BENCH_CACHE_DIR=$CACHE" \
   "claude --remote-control $NAME --session-id $SESSION --permission-mode auto --effort high \"\$(cat $(printf %q "$RUN/prompt.txt"))\""
 LINK=""
 for _ in $(seq 1 30); do
