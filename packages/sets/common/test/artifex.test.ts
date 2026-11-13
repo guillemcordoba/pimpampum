@@ -218,8 +218,9 @@ describe('Artífex', () => {
     const e = engineFor([me, ally], [sweeper, striker]);
     playRound(e, [sel(0, 0, 0), sel(0, 1, 0, T(0, 1)), sel(1, 0, 0), sel(1, 1, 0, T(0, 1))]);
     // Every blow meets the colossus's 3 (the ally's own 50 is passed over):
-    // the sweep 7 on each, the strike 7 on the ally. Two of its three turns.
-    expect([me.currentPV, ally.currentPV]).toEqual([53, 16]);
+    // the sweep 7 on each, which uses it up, so the strike lands its 10 on the
+    // ally. Two of its three turns.
+    expect([me.currentPV, ally.currentPV]).toEqual([53, 13]);
     expect(me.getStatusValue('colos-de-butxaca')).toBe(1);
     expect(me.fatigue).toBe(2);
     playRound(e, [sel(0, 0, 1), sel(0, 1, 1), sel(1, 0, 1), sel(1, 1, 0, T(0, 0))]);

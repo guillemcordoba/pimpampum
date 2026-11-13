@@ -48,6 +48,9 @@ export interface AIView {
   enemiesOf(c: Character): Character[];
   /** This round's queue as revealed to everyone (empty before planActions). */
   pendingSummary(): readonly PendingSummary[];
+  /** The attack points the defenses covering `body` have already met this
+   *  round: a blow is contested against what is left of them (rules.md). */
+  guardMetOn(body: Character): number;
 }
 
 export interface PlannedAction {

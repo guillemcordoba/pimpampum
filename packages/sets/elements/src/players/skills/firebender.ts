@@ -201,8 +201,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'foc-interior', name: 'Foc interior', skillId: SKILL_ID,
       unlock: 3, type: ActionType.Focus,
-      effects: [{ type: 'inner_blaze', params: { bonus: 10, turns: 2 } }],
-      desc: 'Els teus atacs tenen +10 els 2 torns següents.',
+      effects: [{ type: 'inner_blaze', params: { bonus: 6, turns: 2 } }],
+      desc: 'Els teus atacs tenen +6 els 2 torns següents.',
       icon: 'lorc/meditation.svg',
     }),
     action({

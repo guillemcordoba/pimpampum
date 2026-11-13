@@ -16,7 +16,7 @@ export interface ActionEvent {
 
 /**
  * An extra blow (a counter, a ram, a second strike…). It is contested like
- * any attack — the skill's level, roll bonuses, fatigue, Envoltat, walls and
+ * any attack — the skill's level, roll bonuses, fatigue, the guard it uses up, walls and
  * standing walls, absorbing guards, the statuses and the defenders' cards —
  * but it is not a card play: no card's own effects run for it.
  */
@@ -35,8 +35,8 @@ export interface ExtraAttackOptions {
    *  away: the blow always gets through, and a raised guard only feeds it
    *  (a wall adds its sum). No contest, so nobody learns. */
   defenseAdds?: boolean;
-  /** Every defense covering the target rolls at least this many times and
-   *  keeps the worst, as if that many blows aimed at it (Envoltat). */
+  /** Every defense covering the target rolls again until it has rolled this
+   *  many times, and meets this blow with the worst. */
   minDefenseRolls?: number;
   label?: string;
 }

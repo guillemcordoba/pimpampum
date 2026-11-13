@@ -420,6 +420,8 @@ export function pickResolveTargets(
   // already land where they aimed (`incoming`); the rest may still join a kill.
   let teamFollowUp = 0;
   const incoming = new Map<Character, number>();
+  /** The attack points allies have already aimed at each body: they use up its guard. */
+  const aimedAt = new Map<Character, number>();
   if (def.actionType === ActionType.Atac) {
     for (const p of pending) {
       if (p.resolved || p.cancelled || p.actor === actor || p.actor.team !== actor.team
@@ -428,6 +430,7 @@ export function pickResolveTargets(
       if (!ally) continue;
       if (p.targets) {
         for (const t of p.targets) incoming.set(t, (incoming.get(t) ?? 0) + Math.max(0, expectedAttackTotal(p.actor, ally) - t.getPassiveArmor()));
+        for (const t of p.targets) aimedAt.set(t, (aimedAt.get(t) ?? 0) + expectedAttackTotal(p.actor, ally));
       } else if ((ally.targetCount ?? 1) === 1) teamFollowUp += expectedAttackTotal(p.actor, ally);
     }
   }
@@ -460,9 +463,13 @@ export function pickResolveTargets(
       + g.defender.getRollBonus(g.action.skillId, 'defense');
     const [first, ...rest] = wall;
     const others = rest.reduce((s, g) => s + (g.fixedTotal ?? (g.action.dice?.average() ?? 0) + flatOf(g)), 0);
-    return first.fixedTotal !== undefined
-      ? expectedExcess(atk.dice, atk.flat, undefined, first.fixedTotal + others, armour)
-      : expectedExcess(atk.dice, atk.flat, first.action.dice, flatOf(first) + others, armour);
+    // Attacks add up: the wall has less left for this blow by what it has met
+    // and by what allies have aimed at it; never less than nothing.
+    const used = Math.round(view.guardMetOn(e) + (aimedAt.get(e) ?? 0));
+    const through = first.fixedTotal !== undefined
+      ? expectedExcess(atk.dice, atk.flat, undefined, first.fixedTotal + others - used, armour)
+      : expectedExcess(atk.dice, atk.flat, first.action.dice, flatOf(first) + others - used, armour);
+    return used ? Math.min(through, expectedExcess(atk.dice, atk.flat, undefined, 0, armour)) : through;
   };
   const score = (e: Character): number => {
     // An ATTACK aims at the biggest share of its full health the blow removes

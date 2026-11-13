@@ -18,8 +18,8 @@ import { num, str, diceParam } from '../effects/helpers.js';
  * card's), whoever raises it.
  */
 const COVER: StatusBehavior = {
-  // Rolled by the engine as the caster's live defense would be (level,
-  // bonuses, fatigue, Envoltat), and joined into a wall with any guard.
+  // Rolled by the engine as the caster's live defense would be (bonuses,
+  // fatigue, once a round), and joined into a wall with any guard.
   standingGuard(ctx) {
     const data = ctx.entry.data ?? {};
     const caster = data.caster as Character | undefined;

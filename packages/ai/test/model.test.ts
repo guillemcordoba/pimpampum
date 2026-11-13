@@ -127,7 +127,7 @@ describe('a restricted search plays only what it is allowed to', () => {
    */
   const hand = () => [
     atk('a1'), atk('a2'),
-    act('d1', ActionType.Defensa, {}),
+    act('d1', ActionType.Defensa, { rollBonus: 1 }),
     act('f1', ActionType.Focus, { dice: undefined }),
   ];
   const mk = (name: string) => createCharacter({

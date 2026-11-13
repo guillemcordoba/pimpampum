@@ -104,9 +104,9 @@ describe('onAllyTargeted: a defender that dives to whoever is attacked first', (
       { team: 0, idx: 0, actionIdx: 0 }, { team: 0, idx: 1, actionIdx: 0, targets: T(0, 1) },
       { team: 1, idx: 0, actionIdx: 0, targets: T(0, 1) },
     ]);
-    // attack 10 vs wall 2 (ally) + 3 (diver) = 5 → 5, taken by the weaker link,
-    // the ally (alone, its own 2 would have let 8 through).
-    expect(ally.currentPV).toBe(15);
+    // attack 10 vs wall 2 (ally) + 3 (diver) = 5 → 5, shared: 3 on the weaker
+    // link, the ally (alone, its own 2 would have let 8 through), 2 on the diver.
+    expect([ally.currentPV, diver.currentPV]).toEqual([17, 18]);
     expect(diver.hasStatus('dive')).toBe(false);
   });
 

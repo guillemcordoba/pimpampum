@@ -269,13 +269,13 @@ describe('Mestre del foc', () => {
     expect([fire.currentPV, ally.currentPV]).toEqual([28, 28]);
   });
 
-  it('Foc interior: +10 on the bender\'s attacks for the next two rounds', () => {
+  it('Foc interior: +6 on the bender\'s attacks for the next two rounds', () => {
     const fire = fighter('Foc', [getAction('foc-interior')!, blow(1)], { pv: 30 });
     const bag = fighter('Sac', [wait], { pv: 30 });
     const engine = engineFor([fire], [bag]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     for (let r = 0; r < 3; r++) playRound(engine, [sel(0, 0, 1, T(1, 0)), sel(1, 0, 0)]);
-    expect(bag.currentPV).toBe(30 - 11 - 11 - 1);
+    expect(bag.currentPV).toBe(30 - 7 - 7 - 1);
   });
 
   it('Anell de foc: for the next two rounds, every enemy that attacks loses 10 PV and is burned', () => {
@@ -559,13 +559,14 @@ describe('Unagi', () => {
   });
 
   it('Remolí: every hero whose blow it holds takes the margin back', () => {
-    // Defense 10 against blows of 4 and 6: the attackers take 6 and 4.
+    // Defense 10 against a blow of 4, then one of 3 against the 6 it has left:
+    // the attackers take 6 and 3.
     const eel = fighter('Unagi', [flat('remoli', 1, 9)], { pv: 50 });
     const h1 = fighter('H1', [blow(4)], { pv: 30 });
-    const h2 = fighter('H2', [blow(6)], { pv: 30 });
+    const h2 = fighter('H2', [blow(3)], { pv: 30 });
     playRound(engineFor([eel], [h1, h2]), [sel(0, 0, 0), sel(1, 0, 0, T(0, 0)), sel(1, 1, 0, T(0, 0))]);
     expect(eel.currentPV).toBe(50);
-    expect([h1.currentPV, h2.currentPV]).toEqual([24, 26]);
+    expect([h1.currentPV, h2.currentPV]).toEqual([24, 27]);
   });
 
   it('Capbussada: next round its attacks cannot be defended', () => {
