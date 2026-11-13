@@ -12,42 +12,80 @@ The night takes the FIRST goal it has not finished, and works only on it. Each
 goal states its done-check: something the night can run and read on its own.
 A goal without one is not ready for the night; it stays with the owner.
 
-1. **One set's measurement fits in one night.** B27.
-   Decided 2026-11-12 (the owner, on that night's report): a kit keeps its 600
-   card fights, and the bar is one set a night, no longer four hours for
-   everything; the fantasy kit suites are skipped until B20 (0 of 28
-   calibration cells usable; `WAITS_FOR` in its `test/kits/suite.ts`); the
-   elements `KNOWN` lists hold today's failures on its one usable cell.
-   *Done when:* the full kit gate (not `--quick`) and the elements set's
-   `test/kits/*.slow.test.ts` finish in one night at full lanes, and their
-   verdicts match `KNOWN` (or the difference is explained).
-   Where it stands (2026-11-13): six of the eight kit suites ran to the end,
-   for the first time, cold, at 24 lanes, in 3 h 48 min: the calibration
-   12.5 min (4 shapes, 32 baselines), fire and air 59 min for the two (12
-   lane-hours a kit), water and earth 80 min (16 a kit), mestre-armes 46 min
-   alone (18.5), acrobacia 27.5 min alone (11). Not run: artifex,
-   mestre-del-xi, and the gate (67 min alone on 2026-11-11, before the card
-   values got 1.44× cheaper, B27). Projected cold for the whole done-check:
-   5.5 to 6.4 h, at the edge of the night's six, and only if the night does
-   nothing else.
-   The verdicts match `KNOWN` but for four, now listed there (B17): fire,
-   water and acrobacia each fail "every card is a real choice" on a card
-   that is never the right play, and Remolí de vent is no longer a blind
-   spot.
-   The night's cache outlives its worktree since 2026-11-13 (f633ceb) and
-   holds those six suites. THE NEXT NIGHT, whatever the owner has answered:
-   run the two suites left, then the gate, with `BENCH_CACHE_DIR` as the
-   night sets it; while engine, ai, bench, combat-balancer and the elements
-   kits are as merged from night/2026-11-13, the six are read back in
-   seconds and the rest is about 2 to 3 h. If the cache misses (a source or
-   a kit changed), start the whole done-check at once, the two suites left
-   first, and report how far six hours go.
-   WAITS FOR THE OWNER on what "done" is: the set measured over two nights
-   from the cache (then the next night finishes it), or one cold night with
-   room to spare (then about 1.3× more is needed: the leads are in B27, the
-   first one the owner's, as root).
-2. **Then the "Work" list below, top down**, skipping any item that needs a
-   decision from the owner: that item becomes a question in the morning report.
+Since 2026-11-13 attacks add up against defenses (`rules.md`, ed19411). Every
+number measured before that day (the heroes' PV, the calibration, each `KNOWN`
+list, what the AI was tuned on) was measured under another rule. The goals
+below measure them again, in the order they stand on each other.
+
+- **Every finding in the report is a chain:** rule → decision → symptom, each
+  link with where it comes from and at most one number, so the owner sees
+  which link to change (the owner, 2026-11-13).
+- **A slow fight of a class against itself is not a failure** (the owner,
+  2026-11-13; `intentions.md`). Fight length is read on mixed teams.
+
+1. **The heroes' PV, derived and pinned under the new rule.** B29.
+   Decided 2026-11-13 (the owner, `intentions.md`): "six rounds max" is read
+   on the typical fight. The median fight ends within 6 rounds and stalls
+   stay rare; the slow tenth is reported, not a failure. Until then the bar
+   was nine fights in ten (`MAX_P90_ROUNDS` 6 and `MAX_MEDIAN_ROUNDS` 5,
+   playtest `rules.ts`).
+   Where it stands: `hero-pv.ts` holds 26 at every level and no per-level
+   share. Under the new rule, Foc interior at +6, on the old bar (2026-11-13,
+   120 fights a cell), floor / ceiling: 4 / 7, 4 / 8 and 4 / 7 at levels 3 to
+   5; 11 / 10 at level 6 (no window, by one); 11 / 11, 11 / 13 and 11 / 12 at
+   levels 7 to 9; 18 / 28 at level 10. The floors at levels 6 and 10 (Ràfega
+   de dits, Supernova) were inside the noise. The owner's working number is
+   13 PV at levels 4 to 6: there, teams of two drawn kits ran a median of 4
+   to 5 rounds, nine in ten within 8 to 11.
+   The night: first move the fight-length requirement to the owner's reading
+   wherever it is read (the rule in playtest `rules.ts`, the ceiling of the
+   PV derivation, the gate's length rows): the median within 6, stalls under
+   `MAX_STALL_RATE`, the ninth decile printed and never failed. Then
+   `derive-pv.ts --set elements` at the full sample, and pin the table it
+   prints (`HERO_BASE_PV`, `PV_PER_LEVEL`). A floor that one card holds may
+   be moved by that card's numbers (one rung, then derived again). The
+   report sets the pinned table beside 13 PV at levels 4 to 6: the median,
+   the ninth decile and the knockouts without an answer, at both.
+   *Done when:* `hero-pv.ts` holds the table the tool prints and the fast
+   tier fails nothing new. A level without a window is not pinned by guess:
+   the report gives its floor, its ceiling and the card that holds each.
+2. **The AI under the new rule.** B2, B16.
+   Only the AI's aim knows that attacks add up (`pickResolveTargets`, through
+   `guardMetOn`); its card choice was tuned under the old rule.
+   The night: the referee audit (`tools/src/ai-audit.ts`) and the gate's
+   dumb-play duels (spam, random, turtle), on the commit before the rule
+   (`ed19411^`) and on today's main, the same seeds and sample. What got
+   worse is fixed as always: a generic puzzle, the fix, the audit and the
+   duels again, then the new AI against the old (`ai-match.ts`). If the AI
+   changed, goal 1's table is derived again and pinned again if it moved.
+   *Done when:* neither the audit nor any duel is worse than before the rule,
+   beyond its ±; or the report lists each position that is worse, with what
+   the AI plays there and what the referee plays.
+3. **One re-baseline.** B17, B28, B30, C4.
+   `pnpm calibration:refresh` once, on the pinned PV. Then the gate's `KNOWN`
+   (`sets/elements/test/gate.slow.test.ts`) and the kit suites' `KNOWN` and
+   `KNOWN_BLIND` (`test/kits/known.ts`) written again from fresh runs, each
+   entry with its reason. The report names the hordes whose solved PV fell
+   most: many weak attacks on one guard now sum.
+   What it cost before the rule, cold, at 24 lanes: the calibration 12.5 min
+   and six of the eight kit suites 3 h 48 min (2026-11-13), the gate 67 min
+   alone (2026-11-11, before the card values got 1.44× cheaper). The night's
+   cache outlives its worktree (`BENCH_CACHE_DIR`, f633ceb): what one night
+   does not finish, the next reads back and continues, while the sources of
+   engine, ai, bench, combat-balancer and the kits do not change. Order: the
+   calibration, the gate, the kit suites.
+   *Done when:* `pnpm test:slow` fails nothing outside lists written under
+   the new rule, and the report counts each list before → after, by reason.
+4. **The lists shrink: one cell a night, the largest miss first.** B25, B17.
+   A number on a card is the night's to change (`kit-gate.ts --quick` to
+   search, the full run to confirm). What a card does goes to the owner as a
+   proposal, written as a chain.
+   *Done when:* the gate's `KNOWN` and the kit suites' `KNOWN` and
+   `KNOWN_BLIND` are empty, or every cell left in them is a question the
+   owner has been asked.
+
+The "Work" list below is not the night's until one of its items is moved up
+here with a done-check.
 
 ## Decided, to implement
 
@@ -70,12 +108,13 @@ A goal without one is not ready for the night; it stays with the owner.
 - A8. Today's AI knobs (`continuation`, 9 samples): drop if A7b lands.
 - A10. The web app playing the elements set (19 web files import set-fantasy).
 - A14. A kit's 600 card fights are 200 fights priced three times (found 2026-11-13): the chunk's seed names the cell and the chunk, not the opponent model, and the real fight is played by the same AI under all three, so every model prices the same positions (the same decisions per fight, fight by fight, in the cache). The pooled choice cost counts them as 600 independent fights: its ± is up to a quarter too narrow (fire 9.51 ±0.63, ±0.77 clustered by the real fight; air 11.99 ±0.47, ±0.59; water 8.42 ±0.64, ±0.75; earth 6.92 ±0.54, ±0.61; acrobacia 6.62 ±0.42, ±0.46; mestre-armes 2.81 ±0.32 either way). The models do disagree card by card (six air cards are never right under one model, none under all three), so the three are not redundant. Either seed each model's fights apart (600 different fights at the same price, the ± right as it is; every card value moves once), or keep the pairing and cluster the pooled ± by the real fight.
+- A15. Three choices inside the attacks-add-up rule (2026-11-13, ed19411), the assistant's until ruled: the odd point of a shared breach goes to the lowest roller; each member of a broken wall takes its own armour off its share; an absorbing guard (Berserk's) takes a broken wall's damage alone. Two consequences to know: once a blow breaks a guard, the later blows on that body that round land whole, second strikes included; a punishing defense (Remolí) punishes only the blows it still holds.
 
 ## Work, in order
 
 - B29. [S] A hero's PV is derived per level, never fixed (the user, 2026-11-06; intentions.md). The elements set pins its table (`sets/elements/src/players/hero-pv.ts`, `tools/src/derive-pv.ts`). Left: the fantasy set's own table (its `heroPV` is one value until then; its cards are being redesigned first), and the pinned calibration copies, which still read set-common's `BODY_PV` until the next `pnpm calibration:refresh` re-pins them; then `BODY_PV` goes.
 - B28. [S] The slow tier, measured 2026-11-05 (without the kit suites, B27): green except: the fantasy balancer's calibration (three rats asked for 50%, delivered 57.9% ±1.1, the bar 7.3 points); the fantasy balancer's realistic parties (every request came back clamped or capped by fight length, so nothing was asserted: its creatures, B20); the fantasy triangle (Protect > Aggro 24.8%, Aggro > Power 49.1%, now in its known list until the fantasy redesign, C1); and `ai/test/audit.slow.test.ts`, whose seed test (61 s) blocked its vitest worker past the RPC timeout (fixed that day: it yields between positions). The elements triangle test passes while the kit gate finds Protect > Aggro broken at levels 3, 6 and 10: the two measure different fights (the calibration party, the gate's random pairs), to reconcile. The smoke tier (`pnpm test:smoke`, 2026-11-12: 29 min at full lanes, 58 before the lane budget and the smaller scopes below): fails only `derive-pv.ts` (fantasy orders no classes by bulk: B29), `kit-analyzer.ts` (no usable cell on fantasy, every calibration shape saturated at that size: B20) and the encounter-speed test (B18); the dynamics report reads the band inconclusive in that case instead of failing. `main.ts`, `kit-tuner.ts`, `dynamics-report.ts` and `kit-gate.ts` passed the harness test's 10-minute limit at GAMES=2 (a card value is whole rollouts, a solve ~25 s, whatever the sample) and now measure a smaller scope under `BENCH_SMOKE` (668356e): two creatures a row, one tuning step, one kit, two kits. Inside the tier `dynamics-report.ts` still takes 500 s of its 600 (47 s alone: it shares the lanes with the kit suites), the next one to pass the limit.
-- B27. [M] What a kit's card values cost (found 2026-11-05: a rollout of the rest of the fight per legal card per decision, the continuation played by the depth-1 AI with fictitious play; a job did not finish in 3.5 hours at 14 lanes). The owner keeps the 600 card fights a kit (2026-11-12): one set a night, the first night goal. Done: chunks of ten fights, each a job (f7079c8); the forced round planned once per sample and the engine's hottest paths cut, 1.44× cheaper on a full machine with every number the same to the bit (2026-11-13, 7708a7c). Rejected: a cheaper continuation, measured on the gate's 24 card cells (numbers at `RegretOptions.rolloutDepth`). Leads, none taken (2026-11-13, one fixed piece of card-value work, 24 copies at once):
+- B27. [M] What a kit's card values cost (found 2026-11-05: a rollout of the rest of the fight per legal card per decision, the continuation played by the depth-1 AI with fictitious play; a job did not finish in 3.5 hours at 14 lanes). The owner keeps the 600 card fights a kit (2026-11-12): one set a night, the first night goal until 2026-11-13; since then the re-baseline (night goal 3) runs over as many nights as it takes, from the cache. Done: chunks of ten fights, each a job (f7079c8); the forced round planned once per sample and the engine's hottest paths cut, 1.44× cheaper on a full machine with every number the same to the bit (2026-11-13, 7708a7c). Rejected: a cheaper continuation, measured on the gate's 24 card cells (numbers at `RegretOptions.rolloutDepth`). Leads, none taken (2026-11-13, one fixed piece of card-value work, 24 copies at once):
   - The machine is bound by what its E-cores take from its P-cores, not by its cores: the eight P-cores alone finish 12.0 copies a minute (40 s a copy), all 24 cores 14.6 with one worker pinned to each (a P-core's copy 71 s, an E-core's 121 s), 13.4 left to the scheduler. With the sixteen E-cores only spinning on nothing (no memory touched) a P-core's copy still takes 64 s, its clock reading 5.2 GHz either way: power or heat, not the cache (the package limits read 253 W; 75 to 86 °C under load). A larger or smaller young generation (`--max-semi-space-size`) changes nothing. For the owner, as root on a quiet machine: `turbostat` during that test. Were the P-cores to keep their 40 s, the machine would finish about 22 a minute: 1.5×, and the set in one night.
   - A lane pinned to a core: +9% (14.6 against 13.4). Thirty lanes instead of 24: +4%.
   - `lanes.ts`, `parallel.ts` and `isolate.ts` are hashed into every cache key (all of bench is), though they cannot move a number: a change to how jobs are scheduled throws the cache away.
@@ -84,7 +123,7 @@ A goal without one is not ready for the night; it stays with the owner.
 - B24. [S] The AI's model of its opponents — landed 2026-11-04 (3056c10): fictitious play with a read (`DEFAULT_LOOKAHEAD.fictitiousPlay`), checked by the AI match (better), the referee audit (level), the bot ladder (all green), the gate's model column and puzzle (l); the audit deals the crack archetype (738c670). Left: Esquerda still under-played (the gate's one blind spot). Not noise (2026-11-05, a one-off on the gate's level-6 earthbender fights): where Esquerda was the replays' best card (31% of the 422 decisions it was legal in) the AI played it 7.5% of the time, and still 8% with four times the samples; the replays draw the opponents' cards from the AI itself, so they are no clairvoyant bias either. The AI's estimate of the position is off: next, its model's predicted defense by the targeted enemy at those positions against what that enemy played, then a generic puzzle and the fix (the referee and the gate's dumb play no worse); the encounter creator is ~3× slower (its speed test, already red, now 9-18 s a solve): accept, a cheaper balancer setting, more workers, or revert — the user's call.
 - B25. [M] The kit gate (`tools/src/kit-gate.ts`, `--quick` for iterating: the checkpoints, a quarter of the fights, no card values, ~1 min): the livable zone as one grid with WHY lines, and a ratchet slow test (`sets/elements/test/gate.slow.test.ts`). Since 2026-11-04 (the user, restoring two of the old requirements): dumb play loses (the turtle, spam and random cards, each against the AI; it replaced the bot ladder) and no kit dominates the field (65%). Left: the strength band after B20; the number tuner (`tools/src/kit-tuner.ts`) only after B26's structure is settled.
 - B30. [S] The gate's card verdicts are noise at 30 fights a cell (2026-11-11). The gate ratchet (`sets/elements/test/gate.slow.test.ts`) was already red on main: two card cells it does not list (Retruc d'acer blind, Tocs en cadena never right) and three that do not touch card values (airbender L10 p90 7, airbender L5 dominates at 73%, firebender L6 no longer dominates: drift since 2026-11-05). Resampling 20 of each cell's 30 fights (the chunked card values, f7079c8) moved the card cells again: blind Esquerda, Coixí d'aire, Finta traïdora, Retruc d'acer, Bloqueig d'escorpí; waterbender L3 and acrobacia L3 choice now pass (0.7, 1.1 PV a decision; were 0.3, 0.2). Resampling only the rollouts' dice already flips 4 of the 5 card verdicts. KNOWN left as it was: noise does not belong in a ratchet. Needs the owner: more card fights (90 a cell triples the gate's card values; the full gate took 67 min cold at 24 lanes), or a verdict pooled over the levels.
-- B2. [M] The AI's estimates from the engine's contest (the engine side landed 2026-11-01, rulings in `rules.md`): the weapon bonus only with `weapon_damage`, a diceless attack is 0 not 3, Envoltat, roll modes, the status roll hooks, standing walls, `onlyAgainst` guards; then the gate's dumb play and the referee audit.
+- B2. [M] The AI's estimates from the engine's contest (the engine side landed 2026-11-01, rulings in `rules.md`): the weapon bonus only with `weapon_damage`, a diceless attack is 0 not 3, attacks adding up (2026-11-13, in Envoltat's place; night goal 2), roll modes, the status roll hooks, standing walls, `onlyAgainst` guards; then the gate's dumb play and the referee audit.
 - B1. [M] The status vocabulary landed 2026-11-01 (`status-kinds.ts`, prices, `fieldValue`, `harmful`, the pricing test). Left: move the audit's statuses onto the kinds; drop `expectedIncomingDamage` and `unpricedChange` once nothing needs them; the 33 unused generic handlers. (Real cards move onto the kinds in C1.)
 - B16. [M] The AI's misplays on the new benders. **Landed 2026-11-02 (40cb399):** the rollouts' aim (`pickResolveTargets`) piled every blow on one body and never saw a body fall by its own card, so Supernova looked free; it now counts allies' aimed blows (no overkill), skips a body whose own card fells it (`EffectHandler.aiFellsItsPlayer`) and weighs danger as a tie-break. Checked: audit unchanged (its 1v1/2v1 positions never pile on), new vs old head to head 51.0% ±2.9, vs old-aim spam 76.3% vs 75.2%, the depth-0 heuristic vs spam 57.5% vs 47.0%; puzzles (h) and (i) (a sacrifice: (i) is the referee's PV currency, like (g)). The elements spread fell from 24pp to 13pp with it (B17). **Landed 2026-11-02, second:** the leaf capped next round's threat at the other side's whole health, so once a horde's raw blows exceeded the party's health a stun or a kill that took one blow away was worth nothing there; uncapped (puzzle (j)). Checked: the audit and the AI match unchanged (none of their positions reaches the cap: the match's 16-pair duplicates never differed), the ladder not worse (production vs spam 96.2% ±1.0, was 96.8% ±0.9; vs the heuristic 97.4%, was 94.9%; vs uniform 93.4%, was 91.3%). **Landed 2026-11-02, third:** the untargetable kind priced each holder as a blow dodged (`0.5 × threatOn × turns`), though while someone else on its side can still be hit the foes' blows only move there; Boira's whole worth is that next-round price, and the AI played it on 46.9% of the waterbender's turns though it was the best play on 8% (B17). Now worth nothing then (puzzle (k): a slow veil that lands — the foes locked, the veiler armoured against desperate blows — over twins). Checked: audit unchanged, the fantasy ladder untouched by construction (no fantasy hero hides; its depth-1 cells move ±3pp from run to run), new vs old price on the elements mirror party (with Boira and Remolí) 51.0% ±2.0 over 600 fights. **Open: the Focus stuns (Trampa de gel, Remolí) are still almost never played** though often the best play. Measured 2026-11-02 at each real decision where the trap was legal (a scratch probe, deleted): not how often the AI expects its Focus broken — once the allies play the joint plan (one guards the bender) its rollouts expect the trap to land 71-78% of the time, real play 78-81%; and not the threat cap — in the elements fights it rarely binds (the trap's mean rank 4.8 → 4.2 uncapped, still never picked). Re-measured with the untargetable price: Trampa de gel is played on 6.6% of the turns (best 17%) and left the blind list; Boira swung from overplayed to underplayed (0.4%, best 9%): worth nothing whenever the bender stays targetable, it no longer counts the fragile ally it shields. Remolí stayed blind on those 19 cells; on the one cell usable today it is not (2026-11-13: played on 10.1% of its legal turns, the best play on 22%; `KNOWN_BLIND` is empty). A slow Focus is also a lightning rod in the rollouts (their aim adds +3 to hitting any pending Focus), worth something in health fractions: the currency of (g). Playing more rounds before the leaf (`continuation`) flips puzzle (i) and breaks (d), (e1) and the hide control.
 - B17. [M] Balance of the new elements set (kit analyzer on the calibration with the patrol of 7 soldiers and three unagis, the AI's uncapped threat and the untargetable price; 2026-11-02, 798 combats a kit, 19 of 32 calibration cells usable where 7 were): every kit inside the ±15pp band — air +8.5, water +2.4, Acrobàcia +0.6, earth +0.1, Mestre del xi −3.1, Artífex −4.0, fire −8.3, Esgrima −10.1 (the benders 17pp apart, fire now the weakest). Boira's price moved water from −6.0 to +2.4 and ended its stalls (p90 11 → 9, 0.9% stalled → 0). The patrol cell of the Mestre del xi row has air as its stand-in, and against seven soldiers air (Tornado's area stun, fast Ventada) is worth 30-70pp more there than most kits, so every other kit pays several points for that one cell; single-target kits (Esgrima) lose most against the hordes, and so does fire (−41 in both patrol cells). Fights run long for six kits (p90 9-10, in `KNOWN`); fire and Acrobàcia end. Blind spots left (`KNOWN_BLIND`): Remolí. The mixed line still measures in one cell of eight. Next: retune the numbers (fire up, air down) with the user's docs. **2026-11-13, the first card values on the one cell usable today** (bèsties/c5: three unagis; 600 card fights a kit, every hand at its full ten cards): a random pick costs air 12.0 ±0.5 PV a decision, fire 9.5 ±0.6, water 8.4 ±0.6, earth 6.9 ±0.5, Acrobàcia 6.6 ±0.4, Esgrima 2.8 ±0.3 (the bar is 1); never the right play under every opponent model: Bola de foc and Fúria de flames (fire's first and sixth cards), Fuet d'aigua (water's first), Salt mortal (Acrobàcia's eighth) — the two first cards are a 1d4 in a level-10 hand; one card carries each bender: Esclat encegador is the best play on 41% of fire's decisions and played on 48% of its turns, Tornado 33% and 48%, Forma de pop 25% and 25%, Búnquer 25% and 32% (Acrobàcia's Capbussó suïcida 27% and 28%, Esgrima's Tall rere tall 21% and 18%); no blind spot (Remolí de vent: best on 22%, played on 10%; Esquerda: 4% and 1.4%).
