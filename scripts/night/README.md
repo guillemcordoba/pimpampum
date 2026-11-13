@@ -33,6 +33,13 @@ anything leaving the machine:
     NIGHT_JOB=simplify NIGHT_DRY_RUN=1 NIGHT_MINUTES=10 nix develop ~/pimpampum --command \
       bash <(git -C ~/pimpampum show origin/main:scripts/night/night.sh)
 
+**What a night measures is kept:** every session runs with `BENCH_CACHE_DIR`
+set to `~/.local/state/pimpampum-night/bench-cache`, so a measurement too long
+for one night goes on the next one where it stopped, as long as the sources
+the cache hashes (engine, ai, bench, combat-balancer, the set's cards) are the
+same. Read a night's numbers by day with the same variable in front of the
+harness. Entries older than 14 days are deleted.
+
 Logs and reports: `~/.local/state/pimpampum-night/<night>/`. Start a job now:
 `systemctl --user start pimpampum-night@goals`. Stop one:
 `systemctl --user disable --now pimpampum-night-simplify.timer`.
