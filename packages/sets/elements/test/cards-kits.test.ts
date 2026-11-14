@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { type ActionDefinition, CombatEngine, DiceRoll, firstLegalChooser, withSeed } from '@pimpampum/engine';
 import { armour, attackCard, defenseCard, fighter, focusCard, playRound, type Selection } from '@pimpampum/engine/testing';
-import { createRegistry, getAction, getEnemy } from '../src/index.js';
+import { createRegistry, getAction, getEnemy, heroPV } from '../src/index.js';
 
 const registry = createRegistry();
 const wait = focusCard();
@@ -149,7 +149,7 @@ describe('Mestre de la terra', () => {
     const engine = engineFor([earth], [foe]);
     playRound(engine, [sel(0, 0, 0), sel(1, 0, 0)]);
     expect(engine.teams[0].length).toBe(2);
-    expect(engine.teams[0][1].maxPV).toBe(26);
+    expect(engine.teams[0][1].maxPV).toBe(heroPV({ earthbender: 7 }));
     expect(earth.fatigue).toBe(2);
   });
 

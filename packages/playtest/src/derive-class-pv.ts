@@ -183,13 +183,27 @@ export function fitLine(windows: readonly LevelWindow[]): { base: number; slope:
   return { base: best.base, slope: best.slope, over: windows.filter(w => w.ceiling !== null && best!.base + best!.slope * w.level > w.ceiling).map(w => w.level) };
 }
 
+/** Is the line inside every level's window: never under a floor, never over a ceiling? */
+export function fitsEveryWindow(windows: readonly Pick<LevelWindow, 'level' | 'floor' | 'ceiling'>[], base: number, slope: number): boolean {
+  return windows.every(w => {
+    const pv = base + slope * w.level;
+    return pv >= w.floor && w.ceiling !== null && pv <= w.ceiling;
+  });
+}
+
 export interface TierCandidate { fragile: number; middle: number; bulky: number }
 export interface TierMeasure {
   candidate: TierCandidate;
   /** Per class and checkpoint: the field score, its fights' rounds (median, 9 in 10) and whether they end in time. */
   cells: { kit: string; level: number; winrate: number; median: number; p90: number; ends: boolean }[];
-  /** Σ (field score − ½)² over every class and checkpoint: lower is fairer. */
-  imbalance: number;
+  /** Σ (field score − ½)² over every class and checkpoint: lower is fairer.
+   *  `se`: its standard error from the cells' sample (the delta method). */
+  imbalance: number; se: number;
+}
+
+/** Is `held` no clearly less fair than `rival`? Clearly: past 2σ of the two samples. */
+export function asFairAs(held: Pick<TierMeasure, 'imbalance' | 'se'>, rival: Pick<TierMeasure, 'imbalance' | 'se'>): boolean {
+  return held.imbalance - rival.imbalance <= 2 * Math.hypot(held.se, rival.se);
 }
 
 /** Every class's field score and fight length under one tier candidate. */
@@ -206,7 +220,8 @@ export function measureTiers(
     const stallRate = run.fights.filter(f => f.capped).length / Math.max(1, run.fights.length);
     return { kit, level, winrate: run.fights.reduce((t, f) => t + f.won, 0) / Math.max(1, run.fights.length), median: at(0.5), p90: at(0.9), ends: endsInTime(at(0.5), stallRate) };
   }));
-  return { candidate, cells, imbalance: cells.reduce((t, c) => t + (c.winrate - 0.5) ** 2, 0) };
+  const se = Math.sqrt(cells.reduce((t, c) => t + 4 * (c.winrate - 0.5) ** 2 * stdErr(c.winrate, fights) ** 2, 0));
+  return { candidate, cells, imbalance: cells.reduce((t, c) => t + (c.winrate - 0.5) ** 2, 0), se };
 }
 
 export async function measureTiersJob(

@@ -98,7 +98,7 @@ alive knows he was once an air novice.
 
 - **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses).
 - **Levels 7-10 are finishers, and neighbours differ** (the user, 2026-11-02; intentions.md): players live at levels 4-6, so a class's variety, heals and signature moves sit in 1-6 and 7-10 are its biggest payoffs; two cards at adjacent levels never do the same job. The kits were reordered card by card with the user that day, and the new cards (Boira espessa, Marea de vida, Incendi) are `card-designer` concepts the user picked.
-- **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; every body has 26 PV. The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
+- **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; a hero's PV is derived per level and class (`src/players/hero-pv.ts`). The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
 
 - **Kits:** the four element benders. A fifth kit will be something new (the
   chi-blocker was dropped on 2026-10-06; to be designed later).
@@ -147,7 +147,7 @@ the main session.
 | 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack for the next 2 rounds |
 | 6 | Armadura de terra | Focus | an ally has +6 on its defenses for 3 rounds |
-| 7 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
+| 7 | Roca viva | Focus | summons a stone golem (the PV of a level-7 earthbender, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round, fast attacks included (settled at the reveal since 2026-11-03: a fast attack slipped out before it) |
 | 9 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept by the user; moved to 9 when the golem came down) |
 | 10 | Terratrèmol | Atac | every enemy |
