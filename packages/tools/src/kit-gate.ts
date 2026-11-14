@@ -10,7 +10,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, SMOKE, useSet } from '@pimpampum/bench';
-import { autopsyLines, FIELD_MAX, GATE_BUDGET, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { autopsyLines, FIELD_MAX, GATE_BUDGET, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -39,12 +39,12 @@ const kits = [...new Set(r.kits.map(c => c.kit))];
 const pad = (s: string, n: number) => s.padEnd(n);
 const w = Math.max(...kits.map(k => k.length)) + 2;
 
-console.log(`\nFIGHTS END — 90% of fights within 6 rounds, stalls under 2% (2v2 against random kits; p90 · stalls)`);
+console.log(`\nFIGHTS END — the median fight within ${MAX_MEDIAN_ROUNDS} rounds, stalls under ${Math.round(100 * MAX_STALL_RATE)}% (2v2 against random kits; median · 9 in 10 · stalls)`);
 console.log(pad('', w) + levels.map(l => pad(`L${l}`, 12)).join(''));
 for (const kit of kits) {
   console.log(pad(kit, w) + levels.map(l => {
     const c = r.kits.find(x => x.kit === kit && x.level === l);
-    return pad(c ? `${c.ok ? '✓' : '❌'} ${c.p90Rounds}·${Math.round(100 * c.stallRate)}%` : '', 12);
+    return pad(c ? `${c.ok ? '✓' : '❌'} ${c.medianRounds}·${c.p90Rounds}·${Math.round(100 * c.stallRate)}%` : '', 12);
   }).join(''));
 }
 

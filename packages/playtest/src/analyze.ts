@@ -43,7 +43,7 @@ import {
 } from '@pimpampum/bench';
 import {
   choiceMattersVerdict, durationVerdict, isBlindSpot, isNeverRight, KIT_BAND,
-  MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, strengthVerdict,
+  MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, strengthVerdict,
 } from './rules.js';
 
 export interface Subject {
@@ -279,7 +279,7 @@ export function analyze(subject: Subject, games: number, budget: AnalyzeBudget =
   const top = runMatrix(cells, setup, games, print);
 
   // 1. Fights end — read at full kit, the shape players actually field.
-  const dur = durationVerdict(top.medianRounds, top.p90Rounds, top.stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
+  const dur = durationVerdict(top.medianRounds, top.stallRate, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE);
   const duration: Verdict = {
     ok: dur.ok,
     detail: `mediana ${top.medianRounds} · p90 ${top.p90Rounds} · encallats ${pct(top.stallRate, top.games)} · taules ${pct(top.drawRate, top.games)}`

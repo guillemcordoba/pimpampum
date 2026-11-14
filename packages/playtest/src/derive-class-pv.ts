@@ -19,7 +19,7 @@ import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerabl
 import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
-import { MAX_P90_ROUNDS } from './rules.js';
+import { endsInTime, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 const PV_MIN = 1;
 const PV_MAX = 60;
@@ -27,8 +27,8 @@ const PV_MAX = 60;
 export const PV_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10];
 /** A reading within two standard errors of a bar is measured again on this many times the fights. */
 const RECHECK = 4;
-/** Fights past `MAX_P90_ROUNDS` that still let 9 in 10 end within it. */
-const LONG_BAR = 0.1;
+/** Fights past `MAX_MEDIAN_ROUNDS` that still leave the median within it. */
+const LONG_BAR = 0.5;
 
 const stdErr = (p: number, n: number) => Math.sqrt(Math.max(0, p * (1 - p)) / Math.max(1, n));
 
@@ -46,12 +46,12 @@ export interface KnockoutCard {
 /** A card without which fights end in time one PV over the ceiling. */
 export interface PacingCard {
   card: string;
-  /** The fights without it: rounds (median, 9 in 10), the share past the round limit and how far it falls from the fights with it. */
-  median: number; p90: number; longShare: number; drop: number; se: number;
+  /** The fights without it: rounds (median, 9 in 10), the stalls, and how far the share over the bar that failed (`OverCeiling.fails`) falls from the fights with it. */
+  median: number; p90: number; stallRate: number; fights: number; drop: number; se: number;
 }
 
-/** One PV over the ceiling, where fights run long: how they run, and the cards without which they end. */
-export interface OverCeiling { pv: number; median: number; p90: number; stallRate: number; longShare: number; cards: PacingCard[] }
+/** One PV over the ceiling, where fights no longer end in time: how they run, which bar fails (the median before the stalls), and the cards without which they end. */
+export interface OverCeiling { pv: number; median: number; p90: number; stallRate: number; fights: number; longShare: number; fails: 'median' | 'stalls'; cards: PacingCard[] }
 
 export interface LevelWindow {
   level: number;
@@ -69,7 +69,8 @@ export interface LevelWindow {
   measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; fights: number }[];
 }
 
-const longShareOf = (d: Dynamics) => d.rounds.filter(r => r > MAX_P90_ROUNDS).length / Math.max(1, d.fights);
+const longShareOf = (d: Dynamics) => d.rounds.filter(r => r > MAX_MEDIAN_ROUNDS).length / Math.max(1, d.fights);
+const stallShareOf = (d: Dynamics) => d.stalls / Math.max(1, d.fights);
 
 /** The cards past the knockout bar in `d`, worst first. */
 function knockoutCards(d: Dynamics): KnockoutCard[] {
@@ -79,10 +80,11 @@ function knockoutCards(d: Dynamics): KnockoutCard[] {
   }).filter(k => k.rate > MAX_UNANSWERABLE_KOS).sort((a, b) => b.rate - a.rate);
 }
 
-/** Whether a reading sits within its noise of either bar: a card's knockouts, or the fights past the round limit. */
+/** Whether a reading sits within its noise of a bar: a card's knockouts, the fights past the round limit, or the stalls. */
 function nearABar(d: Dynamics): boolean {
-  const long = longShareOf(d);
+  const long = longShareOf(d), stalls = stallShareOf(d);
   if (Math.abs(long - LONG_BAR) < 2 * stdErr(long, d.fights)) return true;
+  if (Math.abs(stalls - MAX_STALL_RATE) < 2 * stdErr(stalls, d.fights)) return true;
   return Object.values(d.cards).some(c => {
     if (c.plays < MIN_KO_PLAYS) return false;
     const rate = c.unanswerable / c.plays;
@@ -131,26 +133,29 @@ export function realWindow(level: number, fights: number): LevelWindow {
   };
 }
 
-/** At `pv`, where fights run long: every card played, taken out of every hand
- *  in turn; the ones without which fights end, clearly past the noise. Every
+/** At `pv`, where fights no longer end in time: every card played, taken out
+ *  of every hand in turn; the ones without which fights end, the share over
+ *  the failed bar falling clearly past the noise. Every
  *  card is screened on `fights` and the ones that pass are measured again on
  *  `RECHECK` times as many, against a baseline as large: the screen compares
  *  them all with one baseline, and a baseline that came out high makes every
  *  card look like it holds the ceiling. */
 function overCeiling(level: number, fights: number, pv: number, reading: { d: Dynamics; s: DynamicsSummary }): OverCeiling {
+  const fails = reading.s.median > MAX_MEDIAN_ROUNDS ? 'median' : 'stalls';
+  const overBar = fails === 'median' ? longShareOf : stallShareOf;
   const holds = (n: number, card: string, base: Dynamics): PacingCard | null => {
     const without = kitsDynamics(level, n, { pv, without: card });
     const ws = summarise(without);
-    const long = longShareOf(base), share = longShareOf(without), drop = long - share;
-    const se = Math.sqrt(stdErr(long, base.fights) ** 2 + stdErr(share, without.fights) ** 2);
-    return ws.ends && drop > 2 * se ? { card, median: ws.median, p90: ws.p90, longShare: share, drop, se } : null;
+    const with_ = overBar(base), share = overBar(without), drop = with_ - share;
+    const se = Math.sqrt(stdErr(with_, base.fights) ** 2 + stdErr(share, without.fights) ** 2);
+    return ws.ends && drop > 2 * se ? { card, median: ws.median, p90: ws.p90, stallRate: ws.stallRate, fights: without.fights, drop, se } : null;
   };
   const screen = kitsDynamics(level, fights, { pv });
   const passed = Object.entries(screen.cards).filter(([card, c]) => c.plays > 0 && holds(fights, card, screen)).map(([card]) => card);
   const all = passed.length ? kitsDynamics(level, RECHECK * fights, { pv }) : screen;
   const cards = passed.map(card => holds(RECHECK * fights, card, all)).filter((c): c is PacingCard => !!c);
   const { median, p90, stallRate } = reading.s;
-  return { pv, median, p90, stallRate, longShare: longShareOf(reading.d), cards: cards.sort((x, y) => y.drop - x.drop) };
+  return { pv, median, p90, stallRate, fights: reading.d.fights, longShare: longShareOf(reading.d), fails, cards: cards.sort((x, y) => y.drop - x.drop) };
 }
 
 export async function realWindowJob(set: RunContext['set'], level: number, fights: number): Promise<LevelWindow> {
@@ -181,8 +186,8 @@ export function fitLine(windows: readonly LevelWindow[]): { base: number; slope:
 export interface TierCandidate { fragile: number; middle: number; bulky: number }
 export interface TierMeasure {
   candidate: TierCandidate;
-  /** Per class and checkpoint: the field score and whether its fights end in time. */
-  cells: { kit: string; level: number; winrate: number; p90: number; ends: boolean }[];
+  /** Per class and checkpoint: the field score, its fights' rounds (median, 9 in 10) and whether they end in time. */
+  cells: { kit: string; level: number; winrate: number; median: number; p90: number; ends: boolean }[];
   /** Σ (field score − ½)² over every class and checkpoint: lower is fairer. */
   imbalance: number;
 }
@@ -195,10 +200,11 @@ export function measureTiers(
   for (const [tier, kits] of Object.entries(tiers) as [keyof TierCandidate, readonly string[]][]) for (const k of kits) perLevel[k] = candidate[tier];
   const pvModel: PVModel = { base, perLevel };
   const cells = Object.values(tiers).flat().flatMap(kit => levels.map(level => {
-    const run = kitMirrors(kit, level, fights, MAX_P90_ROUNDS, undefined, { pvModel });
+    const run = kitMirrors(kit, level, fights, MAX_MEDIAN_ROUNDS, undefined, { pvModel });
     const rounds = run.fights.map(f => f.rounds).sort((a, b) => a - b);
-    const p90 = rounds[Math.min(rounds.length - 1, Math.ceil(0.9 * rounds.length) - 1)] ?? 0;
-    return { kit, level, winrate: run.fights.reduce((t, f) => t + f.won, 0) / Math.max(1, run.fights.length), p90, ends: p90 <= MAX_P90_ROUNDS };
+    const at = (q: number) => rounds[Math.min(rounds.length - 1, Math.ceil(q * rounds.length) - 1)] ?? 0;
+    const stallRate = run.fights.filter(f => f.capped).length / Math.max(1, run.fights.length);
+    return { kit, level, winrate: run.fights.reduce((t, f) => t + f.won, 0) / Math.max(1, run.fights.length), median: at(0.5), p90: at(0.9), ends: endsInTime(at(0.5), stallRate) };
   }));
   return { candidate, cells, imbalance: cells.reduce((t, c) => t + (c.winrate - 0.5) ** 2, 0) };
 }

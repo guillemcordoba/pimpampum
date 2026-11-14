@@ -21,7 +21,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, FIELD_MAX, isBlindSpot, isNeverRight, KIT_BAND, MIN_CARD_DECISIONS,
+  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, endsInTime, FIELD_MAX, isBlindSpot, isNeverRight, KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CARD_DECISIONS,
   MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict,
 } from '../src/index.js';
 import { ActionType } from '@pimpampum/engine';
@@ -31,44 +31,52 @@ import { ActionType } from '@pimpampum/engine';
 const BIG = 100_000;
 
 describe('requirement 1 — the duration rule', () => {
-  const OK = { median: 3, p90: 6, draws: 0.01 };
-  const BARS = [5, 8, 0.02] as const;
-  const check = (m: number, p: number, d: number) => durationVerdict(m, p, d, ...BARS);
+  const OK = { median: 3, draws: 0.01 };
+  const BARS = [5, 0.02] as const;
+  const check = (m: number, d: number) => durationVerdict(m, d, ...BARS);
 
   it('passes a fight that ends promptly', () => {
-    const v = check(OK.median, OK.p90, OK.draws);
+    const v = check(OK.median, OK.draws);
     expect(v.ok).toBe(true);
     expect(v.reasons).toEqual([]);
   });
 
-  it('names WHICH of the three failed, not just that something did', () => {
-    // These are three different problems with three different fixes. Collapsing
+  it('names WHICH of the two failed, not just that something did', () => {
+    // These are two different problems with two different fixes. Collapsing
     // them into one boolean sent every reader of a ❌ to the wrong number:
     // measured 2026-09-20, all six kits failed on the DRAW RATE while median
     // (3) and p90 (6) sat comfortably inside their bars.
-    const draws = check(3, 6, 0.04);
+    const draws = check(3, 0.04);
     expect(draws.ok).toBe(false);
     expect(draws.reasons).toHaveLength(1);
     expect(draws.reasons[0]).toMatch(/encallats/);
 
-    const slow = check(9, 6, 0.01);
+    const slow = check(9, 0.01);
     expect(slow.reasons).toHaveLength(1);
     expect(slow.reasons[0]).toMatch(/mediana/);
-
-    const tail = check(3, 20, 0.01);
-    expect(tail.reasons).toHaveLength(1);
-    expect(tail.reasons[0]).toMatch(/p90/);
   });
 
   it('reports every failing condition at once', () => {
-    expect(check(9, 20, 0.5).reasons).toHaveLength(3);
+    expect(check(9, 0.5).reasons).toHaveLength(2);
   });
 
   it('THE NULL: a fight at exactly the bars passes', () => {
     // The bars are inclusive for length and exclusive for draws — a stalemate
     // rate AT the bar is already too many fights that never end.
-    expect(check(5, 8, 0.019).ok).toBe(true);
-    expect(check(5, 8, 0.02).ok).toBe(false);
+    expect(check(5, 0.019).ok).toBe(true);
+    expect(check(5, 0.02).ok).toBe(false);
+    expect(check(6, 0.019).ok).toBe(false);
+  });
+
+  it('reads the six-round limit on the typical fight: the slow tenth is no part of the verdict', () => {
+    // The user, 2026-11-13 (intentions.md): the median ends within 6 rounds
+    // and stalls stay rare; the ninth decile is shown and fails nothing, so
+    // the verdict does not take it.
+    expect(MAX_MEDIAN_ROUNDS).toBe(6);
+    expect(endsInTime(MAX_MEDIAN_ROUNDS, 0)).toBe(true);
+    expect(endsInTime(MAX_MEDIAN_ROUNDS + 1, 0)).toBe(false);
+    expect(endsInTime(MAX_MEDIAN_ROUNDS, MAX_STALL_RATE)).toBe(false);
+    expect(durationVerdict).toHaveLength(4);
   });
 });
 

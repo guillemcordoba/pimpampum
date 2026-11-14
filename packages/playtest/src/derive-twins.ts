@@ -14,7 +14,6 @@ import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import type { LadderRung } from './feasibility.js';
 import { installSet, type RunContext } from './prepare.js';
-import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
 import { vanillaPrint, vanillaTwin, withVanillaSet, type TwinParams } from './vanilla.js';
 
 const PV_MIN = 1;
@@ -71,12 +70,11 @@ export function deriveOnTwins(
       }
       return s;
     };
-    const ends = (s: DynamicsSummary) => s.median <= MAX_MEDIAN_ROUNDS && s.p90 <= MAX_P90_ROUNDS && s.stallRate < MAX_STALL_RATE;
     let lengthPV: number | null = null;
-    if (ends(at(PV_MIN))) {
+    if (at(PV_MIN).ends) {
       let lo = PV_MIN, hi = PV_MAX;
-      if (ends(at(hi))) lo = hi;
-      while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ends(at(mid))) lo = mid; else hi = mid; }
+      if (at(hi).ends) lo = hi;
+      while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (at(mid).ends) lo = mid; else hi = mid; }
       lengthPV = lo;
     }
     const blowPV = opts.burst === 'fast' ? fastBlowPV : opts.burst === 'plain' ? plainBlowPV : bestBlowPV;

@@ -15,7 +15,7 @@ import { ActionType, DiceRoll, type ActionDefinition } from '@pimpampum/engine';
 import { inLanes, isolated, theSet } from '@pimpampum/bench';
 import { measureGate, type GateContext, type GateReport } from './gate.js';
 import { installSet } from './prepare.js';
-import { KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
+import { KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 /** A card's numbers as changed: its dice, and integer effect params keyed
  *  `<effect index>.<param>`. */
@@ -104,7 +104,7 @@ export interface KitScore {
 export function kitScore(r: GateReport, kit: string): KitScore {
   let duration = 0, strength = 0;
   for (const c of r.kits.filter(x => x.kit === kit)) {
-    duration += Math.max(0, c.p90Rounds - MAX_P90_ROUNDS) + Math.max(0, c.medianRounds - MAX_MEDIAN_ROUNDS)
+    duration += Math.max(0, c.medianRounds - MAX_MEDIAN_ROUNDS)
       + 100 * Math.max(0, c.stallRate - MAX_STALL_RATE);
     strength += 20 * Math.max(0, Math.abs(c.winrate - 0.5) - KIT_BAND);
   }

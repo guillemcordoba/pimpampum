@@ -5,7 +5,7 @@
  * `derive-class-pv.ts`, two stages:
  *  1. at each level, every hero on one PV: the floor (no card fells fresh
  *     heroes without an answer past the bar) and the ceiling (fights end in
- *     time); the line base + middle slope × level fitted under the ceilings
+ *     time: the median within the round limit, almost none stalling); the line base + middle slope × level fitted under the ceilings
  *     and over the floors;
  *  2. the fragile and bulky slopes moved off the middle one, the order kept,
  *     chosen by every class's field score at the checkpoints.
@@ -14,7 +14,7 @@
  *   pnpm --filter @pimpampum/tools exec tsx src/derive-pv.ts --set elements
  */
 import { fileURLToPath } from 'node:url';
-import { games, inLanes, isolated, useSet } from '@pimpampum/bench';
+import { games, inLanes, isolated, pct, useSet } from '@pimpampum/bench';
 import { fitLine, MAX_UNANSWERABLE_KOS, PV_LEVELS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -35,7 +35,8 @@ const pc = (x: number) => `${Math.round(100 * x)}%`;
 /** What sets a window, in a line each side. */
 const behindFloor = (w: LevelWindow) => w.floorCards.map(k => `${nameOf(k.card)} ${pc(k.rate)} ±${pc(k.se)}${k.clearly ? '' : ' (within noise)'}`).join(', ')
   + (Object.keys(w.focusSetUps).length ? `  [answered, set up by: ${Object.entries(w.focusSetUps).map(([id, n]) => `${nameOf(id)} ×${n}`).join(', ')}]` : '');
-const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeiling.pv} PV fights run ${w.overCeiling.median}·${w.overCeiling.p90}${w.overCeiling.stallRate ? `, ${pc(w.overCeiling.stallRate)} stall` : ''}; ${w.overCeiling.cards.length ? `they end without ${w.overCeiling.cards.map(c => `${nameOf(c.card)} (${c.median}·${c.p90})`).join(', ')}` : 'no single card'}`;
+const runs = (o: { median: number; p90: number; stallRate: number; fights: number }) => `${o.median}·${o.p90}${o.stallRate ? `, ${pct(o.stallRate, o.fights).trim()} stall` : ''}`;
+const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeiling.pv} PV fights run ${runs(w.overCeiling)} (median·9 in 10), over the bar on the ${w.overCeiling.fails}; ${w.overCeiling.cards.length ? `they end without ${w.overCeiling.cards.map(c => `${nameOf(c.card)} (${runs(c)})`).join(', ')}` : 'no single card'}`;
 
 // --- 1. pacing and interactivity --------------------------------------------------------
 log('stage 1: each level\'s floor and ceiling on the real kits…');
@@ -68,7 +69,7 @@ for (const m of [...fragileTried, ...bulkyTried]) console.log(`  fragile ${m.can
 console.log(`\nchosen: fragile ${best.candidate.fragile}, middle ${best.candidate.middle}, bulky ${best.candidate.bulky}`);
 for (const kit of Object.values(TIERS).flat()) {
   const cells = best.cells.filter(c => c.kit === kit);
-  console.log(`  ${kit.padEnd(14)} ${cells.map(c => `L${c.level} ${Math.round(100 * c.winrate)}% field, 9 in 10 within ${c.p90}`).join(' · ')}`);
+  console.log(`  ${kit.padEnd(14)} ${cells.map(c => `L${c.level} ${Math.round(100 * c.winrate)}% field, rounds ${c.median}·${c.p90}${c.ends ? '' : ' ✗'}`).join(' · ')}`);
 }
 const slopeOf: Record<string, number> = {};
 for (const [tier, kits] of Object.entries(TIERS) as [keyof TierCandidate, readonly string[]][]) for (const k of kits) slopeOf[k] = best.candidate[tier];
