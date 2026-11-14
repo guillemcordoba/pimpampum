@@ -86,18 +86,22 @@ heroes and the old length bar until goal 2.
    (about six points at levels 3 and 6, none at level 10). The equilibrium
    player cannot referee this: it throws on the real kits
    (`ai/src/audit/referee.ts`, a replay out of step at a target choice).
-   The night: the fix
-   as always: a generic puzzle, the fix, the referee
-   audit (`tools/src/ai-audit.ts`, 35 to 40 minutes for 200 positions at 24
-   lanes) and the gate's dumb-play duels again, then the new AI against the
-   old (`ai-match.ts`). If the AI
-   changed, the heroes' PV is derived again (`derive-pv.ts --set elements`,
-   about 50 minutes cold at 24 lanes; it keeps the pinned table while that
-   still fits) and pinned again if the tool prints another.
-   *Done when:* attack spam at levels 6 and 10 scores no more against the AI
-   than before the rule (20.3% and 27.3%, heroes at 26 PV), beyond its ±,
-   with the audit and the other duels no worse; or the report gives the
-   chain behind what is left.
+   **The AI is not tuned against the dumb strategies** (the owner,
+   2026-11-14: "The AI, the smart AI, must not be tuned specifically
+   against dumb AIs. That just obfuscates what we are actually trying to
+   understand, which is whether the cards allow a dumb strategy to be
+   better than a smart strategy"). The dumb-play duels measure the cards;
+   the AI changes only where the referee finds it wrong.
+   WAITING FOR THE OWNER, not the night's: what to do about the cards and
+   the PV now that attacks alone play as well as the whole hand. The night
+   takes the next goal.
+   Left for the night once the owner has answered: the eight audit
+   positions above, as always (a generic puzzle, the fix, the referee audit,
+   `tools/src/ai-audit.ts`, 35 to 40 minutes for 200 positions at 24 lanes,
+   the gate's dumb-play duels as a check that nothing got worse, then the
+   new AI against the old, `ai-match.ts`). If the AI changes, the heroes'
+   PV is derived again (`derive-pv.ts --set elements`, about an hour cold
+   at 24 lanes; it keeps the pinned table while that still fits).
 2. **One re-baseline.** B17, B28, B30, C4.
    `pnpm calibration:refresh` once, on the pinned PV. Then the gate's `KNOWN`
    (`sets/elements/test/gate.slow.test.ts`) and the kit suites' `KNOWN` and
