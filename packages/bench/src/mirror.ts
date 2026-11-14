@@ -139,8 +139,15 @@ export function kitMirrors(kit: string, level: number, fights: number, lateRound
 }
 
 /** A style the gate pits against another: the production AI, a lean
- *  (`leaning`), or a dumb strategy (`DUMB_STYLES`). */
-export type DuelStyle = 'ai' | 'Power' | 'Protect' | 'Aggro' | DumbStyle;
+ *  (`leaning`), a dumb strategy (`DUMB_STYLES`), or the AI holding part of its
+ *  hand (`HAND_STYLES`). */
+export type DuelStyle = 'ai' | 'Power' | 'Protect' | 'Aggro' | DumbStyle | HandStyle;
+/** The production AI without one or two of its card types: against the full
+ *  AI, what the missing types win it. The same search either side, so the
+ *  score is about the cards (the user, 2026-11-14: do the cards let a dumb
+ *  strategy play as well as a smart one). */
+export type HandStyle = 'attacks' | 'attacks+focus' | 'attacks+defense';
+export const HAND_STYLES: readonly HandStyle[] = ['attacks', 'attacks+focus', 'attacks+defense'];
 export type DumbStyle = 'turtle' | 'spam' | 'random';
 /** What reading the opponents must beat (the user, 2026-11-04, restoring the
  *  old "thinking beats not thinking"): only defending, well chosen; always the
@@ -154,6 +161,9 @@ function chooserFor(style: DuelStyle): Chooser {
     case 'Protect': return leaning(ActionType.Defensa, STYLE_SHARE);
     case 'Aggro': return leaning(ActionType.Atac, STYLE_SHARE);
     case 'turtle': return lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [ActionType.Defensa] });
+    case 'attacks': return lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [ActionType.Atac] });
+    case 'attacks+focus': return lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [ActionType.Atac, ActionType.Focus] });
+    case 'attacks+defense': return lookaheadChooser({ ...DEFAULT_LOOKAHEAD, restrictTo: [ActionType.Atac, ActionType.Defensa] });
     case 'spam': return spam;
     case 'random': return uniform;
   }
