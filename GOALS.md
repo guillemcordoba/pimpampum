@@ -41,8 +41,18 @@ lists still describe 26-PV heroes and the old length bar until goal 2.
    ±; level 3, turtle and random are inside it. At the pinned PV spam scores
    31.5%, 41.8% and 43.8% ±3.5 at levels 3, 6 and 10: at level 10 the gate
    no longer reads the AI as clearly ahead.
-   The night: why attack spam gained (the gate's duel autopsy at levels 6
-   and 10), then the fix as always: a generic puzzle, the fix, the referee
+   The duel autopsy of spam against the AI at level 6, 26 PV, before → after
+   the rule (200 fights, per fight, no ± taken): the AI plays as many guards
+   (6.2 → 6.1) and as many hold (4.4 → 4.4), and spam breaches about as
+   many (1.4 → 1.6); what moved is PV. Spam deals 37.8 → 41.6 (on open
+   bodies 24.6 → 28.0, through guards 4.5 → 6.1) and the AI deals 48.1 →
+   46.5 (its counters 4.5 → 3.1, its round-end damage 7.0 → 5.3). No single
+   cause yet. At level 10 fights last 3 rounds and both sides deal what
+   they dealt before; the AI guards less (19% → 15% of its plays).
+   The night: which of those PV shifts is the AI's to answer and which the
+   rule gives to any side that piles on (a lead: the same duels with the
+   equilibrium player, `equilibriumPolicy`, in the AI's seat), then the fix
+   as always: a generic puzzle, the fix, the referee
    audit (`tools/src/ai-audit.ts`, 35 to 40 minutes for 200 positions at 24
    lanes) and the gate's dumb-play duels again, then the new AI against the
    old (`ai-match.ts`). If the AI
