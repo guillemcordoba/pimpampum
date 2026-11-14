@@ -30,17 +30,29 @@ lists still describe 26-PV heroes and the old length bar until goal 2.
 1. **The AI under the new rule.** B2, B16.
    Only the AI's aim knows that attacks add up (`pickResolveTargets`, through
    `guardMetOn`); its card choice was tuned under the old rule.
-   The night: the referee audit (`tools/src/ai-audit.ts`) and the gate's
-   dumb-play duels (spam, random, turtle), on the commit before the rule
-   (`ed19411^`) and on today's main, the same seeds and sample. What got
-   worse is fixed as always: a generic puzzle, the fix, the audit and the
-   duels again, then the new AI against the old (`ai-match.ts`). If the AI
+   Where it stands (2026-11-14, the commit before the rule against today's
+   code, same seeds). The referee audit, 200 positions of the night mix from
+   seed 1, 165 solved in both: positions with a mismatch 12.7% ±2.6 before,
+   13.9% ±2.7 after, inside the ±; eight positions are worse and six better,
+   every worse one with two bodies against one (seeds 161, 17, 111, 109,
+   132, 38, 22, 143). The duels, 200 fights each, heroes at 26 PV both
+   sides of the rule: attack spam scores 20.3% ±2.8 → 30.3% ±3.2 against the
+   AI at level 6 and 27.3% ±3.1 → 38.8% ±3.4 at level 10, worse beyond the
+   ±; level 3, turtle and random are inside it. At the pinned PV spam scores
+   31.5%, 41.8% and 43.8% ±3.5 at levels 3, 6 and 10: at level 10 the gate
+   no longer reads the AI as clearly ahead.
+   The night: why attack spam gained (the gate's duel autopsy at levels 6
+   and 10), then the fix as always: a generic puzzle, the fix, the referee
+   audit (`tools/src/ai-audit.ts`, 35 to 40 minutes for 200 positions at 24
+   lanes) and the gate's dumb-play duels again, then the new AI against the
+   old (`ai-match.ts`). If the AI
    changed, the heroes' PV is derived again (`derive-pv.ts --set elements`,
    about 50 minutes cold at 24 lanes; it keeps the pinned table while that
    still fits) and pinned again if the tool prints another.
-   *Done when:* neither the audit nor any duel is worse than before the rule,
-   beyond its ±; or the report lists each position that is worse, with what
-   the AI plays there and what the referee plays.
+   *Done when:* attack spam at levels 6 and 10 scores no more against the AI
+   than before the rule (20.3% and 27.3%, heroes at 26 PV), beyond its ±,
+   with the audit and the other duels no worse; or the report gives the
+   chain behind what is left.
 2. **One re-baseline.** B17, B28, B30, C4.
    `pnpm calibration:refresh` once, on the pinned PV. Then the gate's `KNOWN`
    (`sets/elements/test/gate.slow.test.ts`) and the kit suites' `KNOWN` and
