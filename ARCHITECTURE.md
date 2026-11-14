@@ -597,15 +597,20 @@ that prices encounters has to have.
   depth 0 head-to-head **70/30** (`ai-benchmark.ts`, 2026-08-08; deleted 2026-11-10).
   Production is six rollouts per card, two passes, no pruning (`DEFAULT_LOOKAHEAD`).
   **The model of the other side is FICTITIOUS PLAY with a READ**
-  (`fictitiousPlay`, 3 iterations, prior 0.25, read 2; 2026-11-03): before
+  (`fictitiousPlay`, 3 iterations, prior 0.25; 2026-11-03): before
   our team is solved, the opponents' team is solved against the model of us,
   ours against the mix of their answers and the depth-0 odds, three times,
-  our answer last; then each opponent's mix leans toward the card types that
-  seat has actually played this fight (`engine.history`: what the table saw),
-  the model counting as two plays. Inside the rollouts the opponents draw from
-  that mix (`opponentModel()` exposes it). Fictitious play alone models a
-  rational opponent, and kept expecting guards from a side that only attacks:
-  production against spam fell from 99.7% to 92.8%; with the read, 99.6%. Until then they played the depth-0 heuristic, which attacked ~80% of
+  our answer last. Inside the rollouts the opponents draw from
+  that mix (`opponentModel()` exposes it). Fictitious play models a
+  rational opponent, and keeps expecting guards from a side that only attacks:
+  production against spam fell from 99.7% to 92.8% with it. A READ of the
+  opponent (each seat's mix leaning toward the card types it had played this
+  fight, the model counting as two plays) brought that back to 99.6% and was
+  removed on 2026-11-14 (the user: the AI is never tuned against the dumb
+  strategies, CLAUDE.md): it changed nothing against the AI itself (51.5% /
+  50.5% / 50.7% ±2 without it against with it, levels 3 / 6 / 10, 600 mirror
+  fights each) and existed to lower spam's score (37.8% / 43.5% / 40.4% with
+  it, 48.5% / 49.2% / 40.3% without). Until fictitious play the opponents played the depth-0 heuristic, which attacked ~80% of
   the time where the real AI defended half of it: the search planned against
   an enemy that never guards, defended, and never played the cards that pay
   off against a guard — the whole game measured turtled. The kit gate checks
