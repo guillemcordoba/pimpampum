@@ -5,7 +5,7 @@
  * sentence is computed from the measurement; none is written by hand.
  */
 import type { DamageSource, Dynamics, KitTally } from '@pimpampum/bench';
-import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
+import { endsInTime, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 export interface DynamicsSummary {
   fights: number;
@@ -50,7 +50,7 @@ export function summarise(d: Dynamics): DynamicsSummary {
     bigBlows: d.blowShares.slice(5).reduce((t, x) => t + x, 0) / hurt,
     oneShots: d.oneShots / Math.max(1, d.fielded),
     unanswerableKOs: Math.max(0, ...Object.values(d.cards).filter(c => c.plays >= MIN_KO_PLAYS).map(c => c.unanswerable / c.plays)),
-    ends: median <= MAX_MEDIAN_ROUNDS && p90 <= MAX_P90_ROUNDS && stallRate < MAX_STALL_RATE,
+    ends: endsInTime(median, stallRate),
   };
 }
 
@@ -65,7 +65,7 @@ const SOURCE_NAMES: Record<DamageSource, string> = {
 export function explain(s: DynamicsSummary): string[] {
   const ranked = (Object.entries(s.sources) as [DamageSource, number][]).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 0.05);
   const out: string[] = [];
-  out.push(`Fights last ${s.median} rounds (median), ${s.p90} for 9 in 10${s.stallRate ? `, and ${pc(s.stallRate)} never end` : ''}: ${s.ends ? 'within' : 'outside'} the bars (${MAX_MEDIAN_ROUNDS} / ${MAX_P90_ROUNDS} / stalls under ${pc(MAX_STALL_RATE)}).`);
+  out.push(`Fights last ${s.median} rounds (median), ${s.p90} for 9 in 10${s.stallRate ? `, and ${pc(s.stallRate)} never end` : ''}: ${s.ends ? 'within' : 'outside'} the bars (a median of ${MAX_MEDIAN_ROUNDS}, stalls under ${pc(MAX_STALL_RATE)}).`);
   out.push(`Everyone together loses ${s.pvPerRound.toFixed(1)} PV a round. It comes from ${ranked.map(([k, v]) => `${SOURCE_NAMES[k]} (${pc(v)})`).join(', ')}.`);
   out.push(`The cards played: ${pc(s.mix.attack)} attacks, ${pc(s.mix.defense)} defenses, ${pc(s.mix.focus)} Focus. ${pc(s.emptyAttacks)} of the attacks take nothing at all${s.mix.focus > 0 ? `; ${pc(s.lostFocus)} of the Focus never resolve` : ''}.`);
   out.push(`Burst: ${pc(s.bigBlows)} of the cards that hurt take half a body or more at once; ${pc(s.oneShots)} of the heroes are felled from full by a single card; the worst card fells one with no possible answer on ${pc(s.unanswerableKOs)} of its plays.`);

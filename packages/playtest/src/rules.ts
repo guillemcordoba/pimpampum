@@ -10,7 +10,7 @@
  *
  * FOUR REQUIREMENTS, one intention each (intentions.md; NEXT-STEPS §27.3):
  *
- *  1. FIGHTS END — "combats should not go on for more than ~5 rounds".
+ *  1. FIGHTS END — "no more than 6 rounds", read on the typical fight.
  *  2. INSIDE THE POWER BAND — "builds balanced at equal skill-level sum".
  *  3. CHOOSING MATTERS — "good decisions should matter more than powerful
  *     actions": a random pick must clearly cost against the best one; and no
@@ -25,33 +25,36 @@ import { exact, stderr } from '@pimpampum/bench';
 
 // --- 1. Fights end ------------------------------------------------------------
 
-/** Rounds budget from intentions.md: combats should not run past ~5, and 9 in
- *  10 end within 6 at every level (the user's hard limit, 2026-11-02). */
-export const MAX_MEDIAN_ROUNDS = 5;
-export const MAX_P90_ROUNDS = 6;
-/** Fights that never end. Separate from the two length bars because it is a
+/** The six-round limit (intentions.md, the user 2026-11-02) is read on the
+ *  typical fight (the user, 2026-11-13): the median ends within it. The slow
+ *  tenth is printed wherever length is and fails nothing: held to these six
+ *  rounds it asked for about 8 PV at levels 4-5. A fight past this round is
+ *  what the autopsies call a long one. */
+export const MAX_MEDIAN_ROUNDS = 6;
+/** Fights that never end. Separate from the length bar because it is a
  *  different failure: a stalemate is not a slow fight, it is no fight. */
 export const MAX_STALL_RATE = 0.02;
 
 /**
  * Do fights end?
  *
- * THREE SEPARATE FAILURES, reported separately. "Drags" and "never ends" are
+ * TWO SEPARATE FAILURES, reported separately. "Drags" and "never ends" are
  * different problems with different fixes, and collapsing them into one boolean
  * sent every reader of a X here to look at the wrong number: measured
  * 2026-09-20, every kit failed this on the DRAW RATE while its median (3) and
  * p90 (6) sat comfortably inside their bars.
  */
 export function durationVerdict(
-  medianRounds: number, p90Rounds: number, stallRate: number,
-  maxMedian: number, maxP90: number, maxStalls: number,
+  medianRounds: number, stallRate: number, maxMedian: number, maxStalls: number,
 ): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (medianRounds > maxMedian) reasons.push(`mediana ${medianRounds} > ${maxMedian}`);
-  if (p90Rounds > maxP90) reasons.push(`p90 ${p90Rounds} > ${maxP90}`);
   if (stallRate >= maxStalls) reasons.push(`encallats ≥ ${exact(maxStalls)} (combats que no acaben MAI)`);
   return { ok: reasons.length === 0, reasons };
 }
+
+export const endsInTime = (medianRounds: number, stallRate: number): boolean =>
+  durationVerdict(medianRounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE).ok;
 
 // --- 2. Inside the power band ----------------------------------------------------
 

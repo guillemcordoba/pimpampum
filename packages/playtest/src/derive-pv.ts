@@ -7,8 +7,8 @@
  *  - FLOOR, burst: a fresh hero survives its level's best blow (an aimed
  *    strike, the vanilla kit's strongest) 9 times in 10 — from the dice alone —
  *    and survives the first round 9 times in 10 — from the fights;
- *  - CEILING, length: fights end — the median, 9 in 10 within the limit, and
- *    almost no stalls (`MAX_MEDIAN_ROUNDS`, `MAX_P90_ROUNDS`, `MAX_STALL_RATE`).
+ *  - CEILING, length: fights end — the median within the limit and almost no
+ *    stalls (`MAX_MEDIAN_ROUNDS`, `MAX_STALL_RATE`).
  *
  * The derived PV is the CEILING: the most a hero can hold while fights still
  * end in time — the longest fights allowed, the most robust to a lucky blow.
@@ -19,7 +19,7 @@
 import { DiceRoll, diceDistribution } from '@pimpampum/engine';
 import { kitOnlyMirrors, type FightSummary } from '@pimpampum/bench';
 import type { LadderRung } from './feasibility.js';
-import { MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE } from './rules.js';
+import { endsInTime } from './rules.js';
 import { vanillaKit, vanillaPrint } from './vanilla.js';
 import { withControlKit } from './control-kits.js';
 import { installSet, type RunContext } from './prepare.js';
@@ -87,7 +87,7 @@ export function derivePV(level: number, rung: LadderRung, opts: PVOptions): PVDe
     }
     return s;
   };
-  const ends = (s: FightSummary) => s.median <= MAX_MEDIAN_ROUNDS && s.p90 <= MAX_P90_ROUNDS && s.stalls < MAX_STALL_RATE;
+  const ends = (s: FightSummary) => endsInTime(s.median, s.stalls);
   const survives = (s: FightSummary) => s.firstRoundKOs <= MAX_ROUND_ONE_KOS;
 
   // Both searches assume the obvious direction: more PV, longer fights and

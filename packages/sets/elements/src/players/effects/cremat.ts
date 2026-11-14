@@ -7,7 +7,7 @@ import { Character, EngineApi, applyKind } from '@pimpampum/engine';
  * whoever burns in this world burns the same way, and a healer can put it out.
  */
 export const BURN_KEY = 'cremat';
-export const BURN_PV = 2;
+export const BURN_PV = 1;
 export const BURN_TURNS = 2;
 
 export function setAlight(target: Character, source: Character, engine: EngineApi): void {

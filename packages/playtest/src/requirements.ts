@@ -9,7 +9,7 @@
  * Focus beats one that defends, which is the design: against a defender, Focus),
  * and the band against creatures until the creatures are on the ladder (B20).
  */
-import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
+import { FIELD_MAX, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST } from './rules.js';
 import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 
 export type RequirementGroup = 'how fights play' | 'cards';
@@ -28,7 +28,7 @@ const pc = (x: number) => `${Math.round(100 * x)}%`;
 export const REQUIREMENTS: readonly Requirement[] = [
   {
     id: 'fights-end', group: 'how fights play', name: 'Fights end in time',
-    rule: `median ≤ ${MAX_MEDIAN_ROUNDS} rounds, 9 in 10 within ${MAX_P90_ROUNDS}, stalls under ${pc(MAX_STALL_RATE)}`,
+    rule: `the median fight ends within ${MAX_MEDIAN_ROUNDS} rounds, stalls under ${pc(MAX_STALL_RATE)} (the slow tenth is shown, never failed)`,
     alsoCheckedBy: ['kit gate (every kit, levels 3-10)', 'kit analyzer (against creatures)'],
   },
   {

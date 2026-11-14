@@ -113,7 +113,7 @@ Només un **descans llarg de 4 hores o més** neteja la fatiga, i la neteja tota
 
 **Els enemics no tenen mai fatiga.** És una eina del màster sobre els jugadors.
 
-L'esgotament de cartes no et deixa mai sense opcions: quan no pots jugar cap altra carta (totes consumides o bloquejades), entra a la teva mà el **Cop desesperat**, una carta universal — un atac feble (1d4) que et fa perdre 2 PV després de l'atac, encertis o no.
+L'esgotament de cartes no et deixa mai sense opcions: quan no pots jugar cap altra carta (totes consumides o bloquejades), entra a la teva mà el **Cop desesperat**, una carta universal — un atac feble (1d4) que et fa perdre PV després de l'atac, encertis o no (2 al joc de fantasia, 1 a Els Quatre Elements).
 
 ## Objectes i equipament
 

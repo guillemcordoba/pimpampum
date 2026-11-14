@@ -6,8 +6,8 @@
  * Measured where the requirements bite, heroes against heroes (bench
  * `mirror.ts`):
  *  - FIGHTS END: per kit and level, 2v2 fights against random kits — the
- *    median, the 90th percentile (the user's hard limit, `MAX_P90_ROUNDS`) and
- *    the fights that never end;
+ *    median (the six-round limit is read on it, `MAX_MEDIAN_ROUNDS`), the
+ *    fights that never end, and the ninth decile (shown, never failed);
  *  - NO KIT DOMINATES: in the same fights, no kit's side clearly above
  *    `FIELD_MAX` against the field;
  *  - THE TRIANGLE and DUMB PLAY LOSES: at the checkpoints (3, 6, 10), the
@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, mirrorCardChunk, mirrorCardChunks, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
 import {
-  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
+  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
@@ -68,12 +68,12 @@ export interface KitCardBlame {
 /** WHY fights run long: who was in them, what was played late, and how the
  *  long fights differ from the short ones. */
 export interface LengthAutopsy {
-  /** Share of the fights past `MAX_P90_ROUNDS` (stalls included). */
+  /** Share of the fights past `MAX_MEDIAN_ROUNDS` (stalls included). */
   longShare: number;
   /** The opponent and partner kits with the highest share of long fights. */
   foes: { kit: string; longShare: number; fights: number }[];
   partners: { kit: string; longShare: number; fights: number }[];
-  /** The cards most resolved after round `MAX_P90_ROUNDS` in the long fights. */
+  /** The cards most resolved after round `MAX_MEDIAN_ROUNDS` in the long fights. */
   late: { card: string; name: string; share: number }[];
   long: FightShape; short: FightShape;
 }
@@ -173,11 +173,11 @@ export function gateJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET
 }
 
 export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void {
-  if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS);
+  if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights, MAX_MEDIAN_ROUNDS);
   else if (job.kind === 'gate-duel') styleDuel(job.x, job.y, job.level, budget.duelGames);
   else if (job.kind === 'gate-blame') styleDuel(job.x, job.y, job.level, budget.duelGames, job.card);
   else if (job.kind === 'gate-autopsy') duelAutopsy(job.x, job.y, job.level, budget.duelGames);
-  else if (job.kind === 'gate-ablate') kitMirrors(job.kit, job.level, budget.kitFights, MAX_P90_ROUNDS, job.card);
+  else if (job.kind === 'gate-ablate') kitMirrors(job.kit, job.level, budget.kitFights, MAX_MEDIAN_ROUNDS, job.card);
   else if (job.kind === 'gate-model') modelCheck(job.level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   else mirrorCardChunk(job.kit, job.level, budget.cardFights, job.chunk);
 }
@@ -221,19 +221,19 @@ function runVerdict(run: KitMirrorRun): { medianRounds: number; p90Rounds: numbe
   const rounds = [...ended, ...fights.filter(f => f.capped).map(f => f.rounds)];
   const stallRate = fights.filter(f => f.capped).length / Math.max(1, fights.length);
   const medianRounds = quantile(rounds, 0.5), p90Rounds = quantile(rounds, 0.9);
-  const v = durationVerdict(medianRounds, p90Rounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_STALL_RATE);
+  const v = durationVerdict(medianRounds, stallRate, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE);
   const winrate = fights.reduce((t, f) => t + f.won, 0) / Math.max(1, fights.length);
   return { medianRounds, p90Rounds, stallRate, winrate, ok: v.ok, reasons: v.reasons, dominates: dominatesField(winrate, fights.length) };
 }
 
 const kitVerdict = (kit: string, level: number, budget: GateBudget, withoutCard?: string) =>
-  runVerdict(kitMirrors(kit, level, budget.kitFights, MAX_P90_ROUNDS, withoutCard));
+  runVerdict(kitMirrors(kit, level, budget.kitFights, MAX_MEDIAN_ROUNDS, withoutCard));
 
 function quantile(sorted: number[], q: number): number {
   return sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] : 0;
 }
 
-const isLong = (f: { rounds: number; capped: boolean }) => f.capped || f.rounds > MAX_P90_ROUNDS;
+const isLong = (f: { rounds: number; capped: boolean }) => f.capped || f.rounds > MAX_MEDIAN_ROUNDS;
 
 function shapeOf(a: MirrorAutopsy): FightShape {
   const cards = a.attacks + a.defenses + Math.max(0, a.focus - a.focusLost);
@@ -259,7 +259,7 @@ function byKit(fights: { kit: string; long: boolean }[]): { kit: string; longSha
 }
 
 export function gateKitCell(kit: string, level: number, budget: GateBudget = GATE_BUDGET, blame = false): GateKitCell {
-  const run = kitMirrors(kit, level, budget.kitFights, MAX_P90_ROUNDS);
+  const run = kitMirrors(kit, level, budget.kitFights, MAX_MEDIAN_ROUNDS);
   const fights = run.fights;
   const lateTotal = Object.values(run.long.late).reduce((t, n) => t + n, 0);
   const why: LengthAutopsy = {

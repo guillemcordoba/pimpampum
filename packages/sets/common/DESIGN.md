@@ -45,7 +45,7 @@ provisional (tuned in NEXT-STEPS §48); Toc de la mort's rule is being chosen am
 | 1 | Cop al nervi | Atac · 1d4 | if it wounds, numb |
 | 2 | Pinça entumidora | Defensa · 2d4 | block an enemy; if it holds, the attacker numb |
 | 3 | Punts de la guàrdia | Focus · 1d6 | attacks the chosen enemy; a defense adds to the attack instead of taking away |
-| 4 | Desbloquejar el cos | Focus | a standing ally, or you, recovers 8 PV and sheds every efecte negatiu (not a swallowed body) |
+| 4 | Desbloquejar el cos | Focus | a standing ally, or you, recovers 4 PV and sheds every efecte negatiu (not a swallowed body) |
 | 5 | Poder apagat | Atac · 2d4+1 | if it wounds, next round its card is only its dice |
 | 6 | Ràfega de dits | Atac · fast · 1d6 ×3 · 1 fatiga | two wounds numb; three cancel its action this round |
 | 7 | Tocs en cadena | Atac · 2d6 | up to three enemies, one roll; the wounded numb |

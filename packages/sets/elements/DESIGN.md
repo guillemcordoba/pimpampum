@@ -98,7 +98,7 @@ alive knows he was once an air novice.
 
 - **Each bender's first Focus (level 3) breaks a turtle, each in its own way** (the user, 2026-11-02; heroes start at level 3): water stalls (Trampa de gel freezes an enemy), earth breaks a guard (Túnel), fire buffs (Foc interior's +6 lets Bola de foc beat a level-3 defense), air bypasses (Vent a favor puts an ally's attack ahead of the defenses).
 - **Levels 7-10 are finishers, and neighbours differ** (the user, 2026-11-02; intentions.md): players live at levels 4-6, so a class's variety, heals and signature moves sit in 1-6 and 7-10 are its biggest payoffs; two cards at adjacent levels never do the same job. The kits were reordered card by card with the user that day, and the new cards (Boira espessa, Marea de vida, Incendi) are `card-designer` concepts the user picked.
-- **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; every body has 26 PV. The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
+- **Every card sits on the dice ladder** (2026-11-02, intentions.md): 1d4 at level 1, about +1 average a level, defenses holding ~78% against their level; a hero's PV is derived per level and class (`src/players/hero-pv.ts`). The benders' dice were remapped by level from the 2026-11-01 ramp (`test/ladder.test.ts`).
 
 - **Kits:** the four element benders. A fifth kit will be something new (the
   chi-blocker was dropped on 2026-10-06; to be designed later).
@@ -147,7 +147,7 @@ the main session.
 | 4 | Allau | Atac | a wounded target loses its next turn (was level 7: earth had no real attack below 6) |
 | 5 | Trampa de terra | Defensa | an attacker it holds cannot attack for the next 2 rounds |
 | 6 | Armadura de terra | Focus | an ally has +6 on its defenses for 3 rounds |
-| 7 | Roca viva | Focus | summons a stone golem (26 PV like every body, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
+| 7 | Roca viva | Focus | summons a stone golem (the PV of a level-7 earthbender, attack 3d6, defense 2d6); 2 fatigue (moved from 9 to 7 by the user, 2026-11-02: earth's only damage between its rock and the earthquake) |
 | 8 | Búnquer | Defensa | defends every ally; nobody on your side attacks this round, fast attacks included (settled at the reveal since 2026-11-03: a fast attack slipped out before it) |
 | 9 | Sorres movedisses | Focus, fast | the chosen enemy's card this round resolves last (kept by the user; moved to 9 when the golem came down) |
 | 10 | Terratrèmol | Atac | every enemy |
@@ -157,10 +157,11 @@ the main session.
 *Fire burns: whoever touches it, crosses it or defies it.* The user's design
 ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb),
 the pilot of the full card redesign; dice and small mechanics by the main
-session. **Cremat** (printed on card 1): 2 PV at the end of this round and the
+session. **Cremat** (printed on card 1): 1 PV at the end of this round and the
 next; burning again restarts it, never stacks (the engine's damage over time).
 It was 1 PV while heroes had 12; at 2 on 12 PV Alè de drac plus the burn was a
-near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-02).
+near-wipe in the agent duel; it doubled with PV on the dice ladder (2026-11-02)
+and came back to 1 when the derived PV came down (the user, 2026-11-14).
 
 | # | card | type | what it does |
 |---|---|---|---|
@@ -172,7 +173,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 | 6 | Fúria de flames | Atac | 3d6; if it wounds nobody, it bursts around the bender: the bender and every ally are burned (the user's design, 2026-11-02; Alè de drac left, too close to Incendi) |
 | 7 | Incendi | Atac | a wounded target burns 2, 4, 6… PV a round until it falls; then the fire leaps to a random enemy (the user's pick, 2026-11-02; Cortina de fum left: smoke as cover is water's) |
 | 8 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
-| 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 10 PV and is burned |
+| 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 5 PV and is burned |
 | 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
 
 Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold

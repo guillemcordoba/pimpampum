@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { flag, games, inLanes, isolated, kitsDynamics, SMOKE, useSet, type CardTally, type KitTally, type Unanswerable } from '@pimpampum/bench';
 import {
   burstHolds, CANDIDATE_FIXES, census, checksMet, explain, feasibility, FIX_BUDGET, fitLine, GATE_BUDGET,
-  MAX_MEDIAN_ROUNDS, MAX_P90_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, PV_LEVELS, rankFixes, REQUIREMENTS,
+  MAX_MEDIAN_ROUNDS, MAX_UNANSWERABLE_KOS, measureGate, MIN_KO_PLAYS, prepareGate, PV_LEVELS, rankFixes, REQUIREMENTS,
   summarise, type DynamicsSummary, type FixLevel, type FixResult, type GateBudget, type GateScope, type KnockoutCard, type LadderRung, type LevelWindow, type Requirement,
 } from '@pimpampum/playtest';
 import type { ActionDefinition } from '@pimpampum/engine';
@@ -73,7 +73,7 @@ const gateScope: GateScope = { levels: LEVELS, triangle: false, blame: true, ...
 await prepareGate({ set: SET.ref, budget: gateBudget }, gateScope);
 const gate = measureGate(gateScope, gateBudget);
 
-const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: meanPV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_P90_ROUNDS);
+const arithmetic = feasibility({ ladder: Object.fromEntries(LEVELS.map(l => [l, rung(l)])), pv: meanPV, armour: 1, teamSize: 2, mix: { attack: 0.4, defense: 0.3 } }, LEVELS, MAX_MEDIAN_ROUNDS);
 
 // --- 2. the candidate structures, only when asked --------------------------------
 const results: FixResult[] = [];
@@ -104,7 +104,7 @@ const styleAt = (level: number) => gate.styles.find(c => c.level === level)!;
 /** How far a card's absence must move a cell before it counts: fights two
  *  rounds shorter for 9 in 10, or 2 points fewer stalls; 5 points off the
  *  kit's field score. Below that, a flip is the cell's own noise at its bar. */
-const ROUNDS_MOVED = 2, STALLS_MOVED = 0.02, FIELD_MOVED = 0.05;
+const ROUNDS_MOVED = 1, STALLS_MOVED = 0.02, FIELD_MOVED = 0.05;
 const tallies = (t: Today) => Object.entries(t.cards) as [string, CardTally][];
 /** A card's share of plays that felled a fresh hero without an answer. */
 const unansweredRate = (c: CardTally) => (c.plays >= MIN_KO_PLAYS ? c.unanswerable / c.plays : 0);
@@ -190,7 +190,7 @@ function health(kit: string | null): Health {
   };
   for (const cell of gate.kits.filter(c => kits.includes(c.kit) && LEVELS.includes(c.level))) {
     for (const b of cell.blame) {
-      const shorter = cell.p90Rounds - b.p90Rounds >= ROUNDS_MOVED || cell.stallRate - b.stallRate >= STALLS_MOVED;
+      const shorter = cell.medianRounds - b.medianRounds >= ROUNDS_MOVED || cell.stallRate - b.stallRate >= STALLS_MOVED;
       const weaker = cell.winrate - b.winrate >= FIELD_MOVED;
       if (!cell.ok && b.lengthOk && shorter) blame(b.card, `fights end in time at L${cell.level} without it (rounds ${roundsOf(b)}; with it ${roundsOf(cell)})`, true);
       else if (!cell.ok && shorter) blame(b.card, `fights shorten without it at L${cell.level}: rounds ${roundsOf(b)}, with it ${roundsOf(cell)}`);
@@ -208,7 +208,7 @@ function health(kit: string | null): Health {
   const blockers = [...found.values()].sort((a, b) => Number(b.alone) - Number(a.alone) || b.reasons.length - a.reasons.length);
   const unexplained: string[] = [
     ...gate.choices.filter(c => kits.includes(c.kit) && !c.ok).map(c => `${kit ? '' : `${c.kit} `}L${c.level}: choosing barely matters — a random card costs ${c.mean.toFixed(1)} PV a decision against the best (needs 1); its hand plays alike`),
-    ...gate.kits.filter(c => kits.includes(c.kit) && LEVELS.includes(c.level) && (!c.ok || c.dominates) && !c.blame.some(b => c.p90Rounds - b.p90Rounds >= ROUNDS_MOVED || c.stallRate - b.stallRate >= STALLS_MOVED || c.winrate - b.winrate >= FIELD_MOVED))
+    ...gate.kits.filter(c => kits.includes(c.kit) && LEVELS.includes(c.level) && (!c.ok || c.dominates) && !c.blame.some(b => c.medianRounds - b.medianRounds >= ROUNDS_MOVED || c.stallRate - b.stallRate >= STALLS_MOVED || c.winrate - b.winrate >= FIELD_MOVED))
       .map(c => `${kit ? '' : `${c.kit} `}L${c.level}: ${!c.ok ? `fights run ${roundsOf(c)}` : `dominates at ${pc(c.winrate)}`}, and no single card changes it much`),
     ...(kit ? [] : gate.styles.flatMap(s => s.dumb.filter(d => !d.ok).map(d => `L${s.level}: ${d.style} scores ${pc(d.score)} against the AI`))),
   ];
@@ -302,7 +302,7 @@ function kitDynamics(kit: string): string {
       <ul>
         <li>plays: ${pc(t.plays.attack / Math.max(1, plays))} attack, ${pc(t.plays.defense / Math.max(1, plays))} defense, ${pc(t.plays.focus / Math.max(1, plays))} Focus</li>
         <li>deals ${(dealt / Math.max(1, t.rounds)).toFixed(1)} PV a round, loses ${(t.lost / Math.max(1, t.rounds)).toFixed(1)}</li>
-        <li>${pc(cell.why.longShare)} of its fights go past round ${MAX_P90_ROUNDS}${cell.why.late.length ? `; played late in them: ${cell.why.late.slice(0, 3).map(l => `${l.name} ${pc(l.share)}`).join(', ')}` : ''}</li>
+        <li>${pc(cell.why.longShare)} of its fights go past round ${MAX_MEDIAN_ROUNDS}${cell.why.late.length ? `; played late in them: ${cell.why.late.slice(0, 3).map(l => `${l.name} ${pc(l.share)}`).join(', ')}` : ''}</li>
       </ul>${barOf(shares)}</div>`;
   }).join('');
   return `<div class="pair">${cols}</div>${legend}`;
@@ -370,7 +370,7 @@ const classRows = KIT_HEALTH.map(h => {
 
 const facts = [
   `Guards erase blows: only ${today.map(t => pc(t.real.sources.guarded)).join(' / ')} of the damage goes through a guard; the rest is bodies caught open (${today.map(t => pc(t.real.sources.open)).join(' / ')}), area (${today.map(t => pc(t.real.sources.area)).join(' / ')}), Focus (${today.map(t => pc(t.real.sources.focus)).join(' / ')}) and statuses (${today.map(t => pc(t.real.sources.roundEnd)).join(' / ')}).`,
-  `So the game moves ${today.map(t => t.real.pvPerRound.toFixed(1)).join(' / ')} PV a round, and fights last ${today.map(t => lengthNote(t.real)).join(' / ')} rounds (median·9 in 10) against ${MAX_MEDIAN_ROUNDS}·${MAX_P90_ROUNDS}.`,
+  `So the game moves ${today.map(t => t.real.pvPerRound.toFixed(1)).join(' / ')} PV a round, and fights last ${today.map(t => lengthNote(t.real)).join(' / ')} rounds (median·9 in 10) against a median of ${MAX_MEDIAN_ROUNDS}.`,
 ];
 // The gate's own checks of the machinery (the AI's model, its blind spots) are not the set's.
 const setFailures = gate.failures.filter(f => !/ model$| blind$/.test(f.key));
@@ -562,7 +562,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
       <thead><tr><th>level</th><th>today</th><th>floor</th><th>set by</th><th>ceiling</th><th>held down by</th><th>line</th></tr></thead>
       <tbody>${windowRows}</tbody>
     </table></div>
-    <p class="muted" style="font-size:0.82rem">Every hero on one PV, random 2v2 of the main kits. Floor: the smallest PV at which no card fells a fresh hero with no possible answer on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays (a blow a slow Focus set up had one: cancelling the Focus). Ceiling: the largest at which fights end in time (9 in 10 by round ${MAX_P90_ROUNDS}). ± is one standard error; a reading within two of a bar is measured again on four times the fights. The line, base ${line.base} + ${line.slope} × level, is the one that clears every floor and stays closest under the ceilings${line.over.length ? ` (over them at L${line.over.join(', L')})` : ''}; <code>tools/src/derive-pv.ts</code> also splits its slope by each class's bulk.</p>
+    <p class="muted" style="font-size:0.82rem">Every hero on one PV, random 2v2 of the main kits. Floor: the smallest PV at which no card fells a fresh hero with no possible answer on more than ${pc(MAX_UNANSWERABLE_KOS)} of its plays (a blow a slow Focus set up had one: cancelling the Focus). Ceiling: the largest at which fights end in time (the median by round ${MAX_MEDIAN_ROUNDS}, almost none stalling). ± is one standard error; a reading within two of a bar is measured again on four times the fights. The line, base ${line.base} + ${line.slope} × level, is the one that clears every floor and stays closest under the ceilings${line.over.length ? ` (over them at L${line.over.join(', L')})` : ''}; <code>tools/src/derive-pv.ts</code> also splits its slope by each class's bulk.</p>
   </section>
 
   <section><h2>Why it plays this way</h2><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>
@@ -586,7 +586,7 @@ tr.top { background: color-mix(in srgb, var(--accent) 8%, transparent); }
     <div>
       <p class="prose">A ladder blow into its own level's defense takes almost nothing; the damage comes from bodies caught without a guard. Even if nobody ever defended, a side of two heroes at their level's PV falls in the rounds below.</p>
       <div class="scroll"><table>
-        <thead><tr><th>level</th><th>ladder blow</th><th>lands on an open body</th><th>through its level's guard</th><th>rounds if nobody defends</th><th>PV for ${MAX_P90_ROUNDS} rounds then</th></tr></thead>
+        <thead><tr><th>level</th><th>ladder blow</th><th>lands on an open body</th><th>through its level's guard</th><th>rounds if nobody defends</th><th>PV for ${MAX_MEDIAN_ROUNDS} rounds then</th></tr></thead>
         <tbody>${arithmeticRows}</tbody>
       </table></div>
     </div>
