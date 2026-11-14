@@ -86,7 +86,7 @@ export const TOC_DE_LA_MORT_VARIANTS = {
   'cop-retardat': "Si fereix, al final del torn següent rep 4d6 que no es poden defensar.",
   'cinc-passes': "Si fereix, cau quan hagi jugat tres cartes més.",
   'tres-tocs': "Si fereix, li deixes un toc; al tercer, cau. Si passa un torn sense rebre'n cap, els perd tots.",
-  'cor-ferit': "Si fereix, al final del torn següent perd 6 PV per cada cop que l'hagi ferit des del toc.",
+  'cor-ferit': "Si fereix, al final del torn següent perd 3 PV per cada cop que l'hagi ferit des del toc.",
 } as const;
 export type TocVariant = keyof typeof TOC_DE_LA_MORT_VARIANTS;
 export const DEFAULT_TOC_VARIANT: TocVariant = 'resso';
@@ -202,14 +202,14 @@ const TOC_COR: StatusBehavior = {
   onPvLost(ctx) { ctx.entry.value += 1; },
   onRoundEnd(ctx) {
     if (!due(ctx)) return;
-    const loss = ctx.entry.value * num(ctx.entry.data ?? {}, 'per', 6);
+    const loss = ctx.entry.value * num(ctx.entry.data ?? {}, 'per', 3);
     ctx.holder.clearStatus(ctx.key);
     if (!ctx.holder.isAlive() || loss <= 0) return;
     ctx.engine.log('attack', `El cor ferit: ${ctx.holder.name} perd ${loss} PV.`, byOf(ctx.entry.data)?.team);
     ctx.engine.applyPvLoss(ctx.holder, loss, byOf(ctx.entry.data));
   },
   positionValue(ref) {
-    return pendingLossPrice(ref.holder, ref.entry.value * num(ref.entry.data ?? {}, 'per', 6)) - 0.05;
+    return pendingLossPrice(ref.holder, ref.entry.value * num(ref.entry.data ?? {}, 'per', 3)) - 0.05;
   },
 };
 
@@ -249,7 +249,7 @@ function touch(ctx: EffectContext, t: Character, variant: TocVariant): void {
       return;
     }
     case 'cor-ferit':
-      t.setStatus(TOC_KEY, 0, 2, { round, by, per: num(ctx.params, 'per', 6), harm: 1 }, TOC_COR);
+      t.setStatus(TOC_KEY, 0, 2, { round, by, per: num(ctx.params, 'per', 3), harm: 1 }, TOC_COR);
       ctx.engine.log('attack', `${by.name} toca ${t.name}: al final del torn següent, cada ferida li costarà més.`, team);
       return;
   }
@@ -297,7 +297,7 @@ function defendsThisRound(c: Character, plan: readonly PendingSummary[]): boolea
 // --- 4 · Desbloquejar el cos ------------------------------------------------
 
 /** Below water's Bàlsam de lluna (2d6, ~7): the cleanse is the card. */
-const UNBLOCK_HEAL = 8;
+const UNBLOCK_HEAL = 4;
 
 /** What unblocking `c` is worth, in the evaluator's unit (1 ≈ a body's
  *  health): the PV it would recover, plus what its efectes negatius cost it —

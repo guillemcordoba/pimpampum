@@ -4,11 +4,13 @@
  * more and fragile ones less, in the designer's order). Playtest
  * `derive-class-pv.ts`, two stages:
  *  1. at each level, every hero on one PV: the floor (no card fells fresh
- *     heroes without an answer past the bar) and the ceiling (fights end in
- *     time: the median within the round limit, almost none stalling); the line base + middle slope × level fitted under the ceilings
- *     and over the floors;
+ *     heroes without an answer past the bar), the ceiling (fights end in
+ *     time: the median within the round limit, almost none stalling) and the
+ *     aim (the median fight ends a round sooner); the line base + middle
+ *     slope × level fitted under the aims and over the floors;
  *  2. the fragile and bulky slopes moved off the middle one, the order kept,
- *     chosen by every class's field score at the checkpoints.
+ *     chosen by every class's field score at the checkpoints; no tier under
+ *     a floor or past a ceiling.
  * Prints the numbers to pin in the set (`HERO_BASE_PV`, `PV_PER_LEVEL`).
  *
  * A PINNED TABLE IS KEPT WHILE IT STILL FITS: inside every level's window, and
@@ -22,7 +24,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import { games, inLanes, isolated, pct, useSet } from '@pimpampum/bench';
-import { asFairAs, fitLine, fitsEveryWindow, MAX_UNANSWERABLE_KOS, PV_LEVELS, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
+import { AIM_MEDIAN_ROUNDS, asFairAs, fitLine, fitsEveryWindow, MAX_UNANSWERABLE_KOS, PV_LEVELS, tierStaysInside, wholePV, type LevelWindow, type TierCandidate, type TierMeasure } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -51,17 +53,17 @@ const behindCeiling = (w: LevelWindow) => !w.overCeiling ? '' : `at ${w.overCeil
 log('stage 1: each level\'s floor and ceiling on the real kits…');
 const windows = await inLanes(LEVELS.map(level => async () => {
   const w = await isolated<LevelWindow>(PLAYTEST, 'realWindowJob', [SET.ref, level, fights]);
-  log(`  L${level}: floor ${w.floor} (${behindFloor(w) || 'no card'}), ceiling ${w.ceiling ?? 'none'} (${behindCeiling(w)})`);
+  log(`  L${level}: floor ${w.floor} (${behindFloor(w) || 'no card'}), aim ${w.aim ?? 'none'}, ceiling ${w.ceiling ?? 'none'} (${behindCeiling(w)})`);
   return w;
 }));
 const fresh = fitLine(windows);
-const floorOk = (base: number, slope: number) => windows.every(w => base + slope * w.level >= w.floor);
-const keepsLine = PINNED !== null && fitsEveryWindow(windows, PINNED.base, PINNED.tiers.middle) && floorOk(PINNED.base, PINNED.tiers.fragile);
+const keepsLine = PINNED !== null && fitsEveryWindow(windows, PINNED.base, PINNED.tiers.middle)
+  && tierStaysInside(windows, PINNED.base, PINNED.tiers.fragile) && tierStaysInside(windows, PINNED.base, PINNED.tiers.bulky);
 const line = keepsLine ? { base: PINNED.base, slope: PINNED.tiers.middle, over: [] as number[] } : fresh;
-console.log(`level  floor (interactivity)  ceiling (fights end)  →  base ${line.base} + ${line.slope} × level${keepsLine ? `   (the pinned line, kept: inside every window; a fresh fit gives base ${fresh.base} + ${fresh.slope} × level)` : ''}`);
+console.log(`level  floor (interactivity)  aim (median within ${AIM_MEDIAN_ROUNDS})  ceiling (fights end)  →  base ${line.base} + ${line.slope} × level${keepsLine ? `   (the pinned line, kept: inside every window; a fresh fit gives base ${fresh.base} + ${fresh.slope} × level)` : ''}`);
 for (const w of windows) {
-  const pv = line.base + line.slope * w.level;
-  console.log(`L${String(w.level).padEnd(5)} ${String(w.floor).padStart(21)} ${String(w.ceiling ?? '—').padStart(21)}  →  ${pv.toFixed(1)}${line.over.includes(w.level) ? '   over the ceiling: fights will run long here' : ''}`);
+  const pv = wholePV(line.base, line.slope, w.level);
+  console.log(`L${String(w.level).padEnd(5)} ${String(w.floor).padStart(21)} ${String(w.aim ?? '—').padStart(21)} ${String(w.ceiling ?? '—').padStart(21)}  →  ${pv}${line.over.includes(w.level) ? '   over the aim: the median fight will run longer here' : ''}`);
   if (w.floorCards.length) console.log(`        floor set by: ${behindFloor(w)}`);
   if (w.overCeiling) console.log(`        ceiling: ${behindCeiling(w)}`);
 }
@@ -70,10 +72,10 @@ for (const w of windows) {
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1, 1.5];
 const measure = (c: TierCandidate) => isolated<TierMeasure>(PLAYTEST, 'measureTiersJob', [SET.ref, line.base, c, TIERS, CHECKPOINTS, tierFights]);
 log('stage 2: the fragile tier\'s slope…');
-const fragileTried = await inLanes(OFFSETS.filter(d => floorOk(line.base, line.slope - d)).map(d => () => measure({ fragile: line.slope - d, middle: line.slope, bulky: line.slope })));
+const fragileTried = await inLanes(OFFSETS.filter(d => d === 0 || tierStaysInside(windows, line.base, line.slope - d)).map(d => () => measure({ fragile: line.slope - d, middle: line.slope, bulky: line.slope })));
 const fragile = [...fragileTried].sort((a, b) => a.imbalance - b.imbalance)[0].candidate.fragile;
 log('stage 2: the bulky tier\'s slope…');
-const bulkyTried = await inLanes(OFFSETS.map(d => () => measure({ fragile, middle: line.slope, bulky: line.slope + d })));
+const bulkyTried = await inLanes(OFFSETS.filter(d => d === 0 || tierStaysInside(windows, line.base, line.slope + d)).map(d => () => measure({ fragile, middle: line.slope, bulky: line.slope + d })));
 const fairest = [...bulkyTried].sort((a, b) => a.imbalance - b.imbalance)[0];
 const pinnedTiers = keepsLine ? await measure(PINNED.tiers) : null;
 const keepsTiers = pinnedTiers !== null && asFairAs(pinnedTiers, fairest);

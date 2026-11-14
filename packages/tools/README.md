@@ -210,7 +210,7 @@ deleted (below). `tools/test/harnesses.slow.test.ts` runs each of them at `GAMES
 | `kit-tuner.ts` | the numbers that clear most of one kit's gate cells — a PROPOSAL, re-measured at the gate's budget; it never writes a card |
 | `main.ts` | the standing report: mirror balance + a replay check on the balancer |
 | **the structure and PV** | |
-| `derive-pv.ts` | a hero's PV, derived on the real kits: each level's floor and ceiling (and the cards behind them), the line base + slope × level, then each bulk tier's slope by every class's field score; prints `HERO_BASE_PV` and `PV_PER_LEVEL` to pin in the set. A pinned table that still fits (inside every window, its tiers no clearly less fair) is kept and printed again, the fresh fit beside it |
+| `derive-pv.ts` | a hero's PV, derived on the real kits: each level's floor, aim (the median fight a round under the limit) and ceiling (and the cards behind floor and ceiling), the line base + slope × level under the aims, then each bulk tier's slope by every class's field score, no tier under a floor or past a ceiling; prints `HERO_BASE_PV` and `PV_PER_LEVEL` to pin in the set. A pinned table that still fits (inside every window, its tiers no clearly less fair) is kept and printed again, the fresh fit beside it |
 | `derive-structure.ts` | which structure (Focus strength, defense rung, chip damage, the burst reading, the guard rules) lets the requirements hold, every candidate ranked with each level's derived PV (GOALS.md B26) |
 | `vanilla-check.ts` | do the vanilla twins `derive-structure` reasons on still play like the real kits; `--calibrate` re-fits playtest's `TWIN_DEFAULTS` |
 | `probe-shapes.ts` | which body counts make a usable calibration cell (re-run when the in-band guard fails) |

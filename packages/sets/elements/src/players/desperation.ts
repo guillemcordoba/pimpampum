@@ -13,7 +13,7 @@ import { action, d } from './types.js';
 export const COP_DESESPERAT: ActionDefinition = action({
   id: 'cop-desesperat', name: 'Cop desesperat', skillId: 'desesperacio',
   unlock: 0, type: ActionType.Atac, dice: d(1, 4), lastResort: true,
-  effects: [{ type: 'self_damage', params: { amount: 2 } }],
-  desc: "Només quan no pots jugar cap altra carta. Després de l'atac, encertis o no, perds 2 PV.",
+  effects: [{ type: 'self_damage', params: { amount: 1 } }],
+  desc: "Només quan no pots jugar cap altra carta. Després de l'atac, encertis o no, perds 1 PV.",
   icon: 'lorc/fist.svg',
 });

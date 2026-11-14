@@ -159,7 +159,7 @@ const FIRE_EFFECTS: Record<string, EffectHandler> = {
   fire_ring: {
     getTargetRequirement() { return 'none'; },
     onResolve(ctx) {
-      const loss = num(ctx.params, 'loss', 6);
+      const loss = num(ctx.params, 'loss', 3);
       // Set in the Focus step: the round's end takes one, two rounds remain.
       for (const e of ctx.engine.enemiesOf(ctx.source)) e.setStatus(RING_KEY, loss, 3, { caster: ctx.source }, RING);
       ctx.engine.log('focus', `${ctx.source.name} tanca un anell de foc al voltant del combat.`, ctx.source.team);
@@ -188,7 +188,7 @@ export const FIREBENDER: SkillDefinition = {
       id: 'bola-de-foc', name: 'Bola de foc', skillId: SKILL_ID,
       unlock: 1, type: ActionType.Atac, dice: d(1, 4),
       effects: [{ type: 'sets_alight' }],
-      desc: "Si fereix, l'objectiu queda cremat: perd 2 PV al final d'aquest torn i del següent.",
+      desc: "Si fereix, l'objectiu queda cremat: perd 1 PV al final d'aquest torn i del següent.",
       icon: 'lorc/fireball.svg',
     }),
     action({
@@ -241,8 +241,8 @@ export const FIREBENDER: SkillDefinition = {
     action({
       id: 'anell-de-foc', name: 'Anell de foc', skillId: SKILL_ID,
       unlock: 9, type: ActionType.Focus,
-      effects: [{ type: 'fire_ring', params: { loss: 10 } }],
-      desc: 'Els 2 torns següents, cada enemic que ataqui perd 10 PV i queda cremat.',
+      effects: [{ type: 'fire_ring', params: { loss: 5 } }],
+      desc: 'Els 2 torns següents, cada enemic que ataqui perd 5 PV i queda cremat.',
       icon: 'lorc/fire-ring.svg',
     }),
     action({

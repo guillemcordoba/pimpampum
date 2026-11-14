@@ -4,13 +4,15 @@
  * in the designer's order. Two stages:
  *  1. PACING AND INTERACTIVITY, every hero on one PV: at each level the floor
  *     (the smallest PV at which no card fells fresh heroes without an answer
- *     past `MAX_UNANSWERABLE_KOS`) and the ceiling (the largest at which fights
- *     still end in time); then the line base + slope × level that never drops
- *     under a floor and stays as close under the ceilings as it can — as low
- *     at levels 3-5 as interactivity allows, the user's choice.
+ *     past `MAX_UNANSWERABLE_KOS`), the ceiling (the largest at which fights
+ *     still end in time) and the aim (the largest at which the median fight
+ *     ends a round sooner, `AIM_MEDIAN_ROUNDS`); then the line base + slope ×
+ *     level that never drops under a floor and stays as close under the aims
+ *     as it can.
  *  2. BALANCE: the fragile and bulky tiers' slopes moved off the middle one,
  *     the order kept, each candidate judged by every class's field score at
- *     the checkpoints (toward an even fight), no tier dropping under a floor.
+ *     the checkpoints (toward an even fight), no tier dropping under a floor
+ *     or passing a ceiling.
  * Each window also names what sets it: the cards past the knockout bar one PV
  * under the floor, and the cards without which fights end one PV over the
  * ceiling — each with its error bar, so a reading inside the noise says so.
@@ -19,7 +21,7 @@ import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerabl
 import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
-import { endsInTime, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE } from './rules.js';
+import { durationVerdict, endsInTime, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE } from './rules.js';
 
 const PV_MIN = 1;
 const PV_MAX = 60;
@@ -27,8 +29,11 @@ const PV_MAX = 60;
 export const PV_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10];
 /** A reading within two standard errors of a bar is measured again on this many times the fights. */
 const RECHECK = 4;
-/** Fights past `MAX_MEDIAN_ROUNDS` that still leave the median within it. */
+/** Fights past a round that still leave the median within it. */
 const LONG_BAR = 0.5;
+/** The line aims a round under the limit (the user, 2026-11-14): riding the
+ *  ceiling, the typical fight took all six rounds and nearly half ran past. */
+export const AIM_MEDIAN_ROUNDS = 5;
 
 const stdErr = (p: number, n: number) => Math.sqrt(Math.max(0, p * (1 - p)) / Math.max(1, n));
 
@@ -59,6 +64,8 @@ export interface LevelWindow {
   floor: number;
   /** The largest PV with fights still ending in time; null: not even at the smallest. */
   ceiling: number | null;
+  /** The largest PV with the median fight ending within `AIM_MEDIAN_ROUNDS`, stalls rare; null: not even at the smallest. */
+  aim: number | null;
   /** What sets the floor: the cards past the bar one PV under it (at the floor's PV when it never clears). */
   floorCards: KnockoutCard[];
   /** Knockouts there a slow Focus set up (answered: the read cancels the Focus), by that Focus. */
@@ -69,7 +76,9 @@ export interface LevelWindow {
   measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; fights: number }[];
 }
 
-const longShareOf = (d: Dynamics) => d.rounds.filter(r => r > MAX_MEDIAN_ROUNDS).length / Math.max(1, d.fights);
+const shareLongerThan = (d: Dynamics, rounds: number) => d.rounds.filter(r => r > rounds).length / Math.max(1, d.fights);
+const longShareOf = (d: Dynamics) => shareLongerThan(d, MAX_MEDIAN_ROUNDS);
+const endsAtTheAim = (s: DynamicsSummary) => durationVerdict(s.median, s.stallRate, AIM_MEDIAN_ROUNDS, MAX_STALL_RATE).ok;
 const stallShareOf = (d: Dynamics) => d.stalls / Math.max(1, d.fights);
 
 /** The cards past the knockout bar in `d`, worst first. */
@@ -80,10 +89,13 @@ function knockoutCards(d: Dynamics): KnockoutCard[] {
   }).filter(k => k.rate > MAX_UNANSWERABLE_KOS).sort((a, b) => b.rate - a.rate);
 }
 
-/** Whether a reading sits within its noise of a bar: a card's knockouts, the fights past the round limit, or the stalls. */
+/** Whether a reading sits within its noise of a bar: a card's knockouts, the fights past the round limit or the aim, or the stalls. */
 function nearABar(d: Dynamics): boolean {
-  const long = longShareOf(d), stalls = stallShareOf(d);
-  if (Math.abs(long - LONG_BAR) < 2 * stdErr(long, d.fights)) return true;
+  const stalls = stallShareOf(d);
+  for (const rounds of [MAX_MEDIAN_ROUNDS, AIM_MEDIAN_ROUNDS]) {
+    const long = shareLongerThan(d, rounds);
+    if (Math.abs(long - LONG_BAR) < 2 * stdErr(long, d.fights)) return true;
+  }
   if (Math.abs(stalls - MAX_STALL_RATE) < 2 * stdErr(stalls, d.fights)) return true;
   return Object.values(d.cards).some(c => {
     if (c.plays < MIN_KO_PLAYS) return false;
@@ -114,18 +126,20 @@ export function realWindow(level: number, fights: number): LevelWindow {
     while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (answered(at(mid))) hi = mid; else lo = mid; }
     floor = hi;
   }
-  let ceiling: number | null = null;
-  if (at(PV_MIN).ends) {
-    let lo = PV_MIN, hi = PV_MAX;
-    if (at(hi).ends) lo = hi;
-    while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (at(mid).ends) lo = mid; else hi = mid; }
-    ceiling = lo;
-  }
+  const largestWhere = (holds: (s: DynamicsSummary) => boolean, top: number): number | null => {
+    if (!holds(at(PV_MIN))) return null;
+    if (holds(at(top))) return top;
+    let lo = PV_MIN, hi = top;
+    while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (holds(at(mid))) lo = mid; else hi = mid; }
+    return lo;
+  };
+  const ceiling = largestWhere(s => s.ends, PV_MAX);
+  const aim = ceiling === null ? null : largestWhere(endsAtTheAim, ceiling);
   const under = measure(floor > PV_MIN ? floor - 1 : floor).d;
   const focusSetUps: Record<string, number> = {};
   for (const c of Object.values(under.cards)) for (const [id, n] of Object.entries(c.focusSetUps)) focusSetUps[id] = (focusSetUps[id] ?? 0) + n;
   return {
-    level, floor, ceiling,
+    level, floor, ceiling, aim,
     floorCards: floor > PV_MIN || !answered(at(floor)) ? knockoutCards(under) : [],
     focusSetUps,
     overCeiling: ceiling === PV_MAX ? null : overCeiling(level, fights, ceiling === null ? PV_MIN : ceiling + 1, measure(ceiling === null ? PV_MIN : ceiling + 1)),
@@ -163,31 +177,42 @@ export async function realWindowJob(set: RunContext['set'], level: number, fight
   return realWindow(level, fights);
 }
 
-/** The line base + slope × level: never under a floor; as close under each
- *  ceiling as it can (above one costs ten times as much as below); base ≥ 0. */
+/** The PV a hero on the line has at a level: whole, as a set's `heroPV` rounds it. */
+export const wholePV = (base: number, slope: number, level: number): number => Math.max(1, Math.round(base + slope * level));
+
+/** The line base + slope × level, read at the whole PV it gives: never under
+ *  a floor; as close under each aim as it can (above one costs ten times as
+ *  much as below); base ≥ 0. */
 export function fitLine(windows: readonly LevelWindow[]): { base: number; slope: number; over: number[] } {
   let best: { base: number; slope: number; cost: number } | null = null;
   for (let base = 0; base <= 30; base += 0.5) {
     for (let slope = 0; slope <= 6; slope += 0.25) {
-      const pv = (l: number) => base + slope * l;
+      const pv = (l: number) => wholePV(base, slope, l);
       if (windows.some(w => pv(w.level) < w.floor)) continue;
       const cost = windows.reduce((t, w) => {
-        const ceil = w.ceiling ?? w.floor;
-        const d = pv(w.level) - ceil;
+        const d = pv(w.level) - (w.aim ?? w.floor);
         return t + (d > 0 ? 10 * d * d : -d);
       }, 0);
       if (!best || cost < best.cost) best = { base, slope, cost };
     }
   }
   if (!best) throw new Error('fitLine: no line clears every floor (base 0-30, slope 0-6)');
-  return { base: best.base, slope: best.slope, over: windows.filter(w => w.ceiling !== null && best!.base + best!.slope * w.level > w.ceiling).map(w => w.level) };
+  return { base: best.base, slope: best.slope, over: windows.filter(w => w.aim !== null && wholePV(best!.base, best!.slope, w.level) > w.aim).map(w => w.level) };
 }
 
-/** Is the line inside every level's window: never under a floor, never over a ceiling? */
-export function fitsEveryWindow(windows: readonly Pick<LevelWindow, 'level' | 'floor' | 'ceiling'>[], base: number, slope: number): boolean {
+/** Is the line inside every level's window: never under a floor, never over an aim? */
+export function fitsEveryWindow(windows: readonly Pick<LevelWindow, 'level' | 'floor' | 'aim'>[], base: number, slope: number): boolean {
   return windows.every(w => {
-    const pv = base + slope * w.level;
-    return pv >= w.floor && w.ceiling !== null && pv <= w.ceiling;
+    const pv = wholePV(base, slope, w.level);
+    return pv >= w.floor && w.aim !== null && pv <= w.aim;
+  });
+}
+
+/** May a tier run on this slope: no level's PV under the floor or past the ceiling? */
+export function tierStaysInside(windows: readonly Pick<LevelWindow, 'level' | 'floor' | 'ceiling'>[], base: number, slope: number): boolean {
+  return windows.every(w => {
+    const pv = wholePV(base, slope, w.level);
+    return pv >= w.floor && (w.ceiling === null || pv <= w.ceiling);
   });
 }
 

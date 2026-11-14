@@ -60,7 +60,7 @@ describe('Artífex', () => {
     expect(foe.currentPV).toBe(36);
   });
 
-  it('Parany de molla: waits at an ally\'s feet; the first attack on them faces it and costs the attacker 6 PV', () => {
+  it('Parany de molla: waits at an ally\'s feet; the first attack on them faces it and costs the attacker 3 PV', () => {
     const me = artificer('Artífex', [card('parany-de-molla', 3), wait]);
     const ally = fighter('Amic', [wait], { pv: 30 });
     const foe = fighter('Foe', [wait, blow(12)], { pv: 30 });
@@ -68,14 +68,14 @@ describe('Artífex', () => {
     playRound(e, [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0)]);
     expect(ally.currentPV).toBe(30);
     expect(foe.currentPV).toBe(30);
-    // A round later: 12 against the trap's 3 → 9; the attacker loses 6.
+    // A round later: 12 against the trap's 3 → 9; the attacker loses 3.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
     expect(ally.currentPV).toBe(21);
-    expect(foe.currentPV).toBe(24);
+    expect(foe.currentPV).toBe(27);
     // Sprung: the next one lands whole.
     playRound(e, [sel(0, 0, 1), sel(0, 1, 0), sel(1, 0, 1, T(0, 1))]);
     expect(ally.currentPV).toBe(9);
-    expect(foe.currentPV).toBe(24);
+    expect(foe.currentPV).toBe(27);
   });
 
   it('Parany de molla: the round it is laid, it replaces the card\'s guard on that ally instead of adding to it', () => {
@@ -84,7 +84,7 @@ describe('Artífex', () => {
     const foe = fighter('Foe', [blow(12)], { pv: 30 });
     playRound(engineFor([me, ally], [foe]), [sel(0, 0, 0, T(0, 1)), sel(0, 1, 0), sel(1, 0, 0, T(0, 1))]);
     expect(ally.currentPV).toBe(21);
-    expect(foe.currentPV).toBe(24);
+    expect(foe.currentPV).toBe(27);
     expect(me.currentPV).toBe(60);
   });
 

@@ -4,8 +4,9 @@
  * add more, fragile ones less, in the designer's order (`PV_TIERS`); the
  * numbers are derived by `tools/src/derive-pv.ts --set elements` (the line
  * that clears every level's interactivity floor and stays closest under the
- * ceilings where fights still end in time; each class toward an even fight
- * with the field) and pinned here. A multi-class hero adds every
+ * PV where the median fight ends a round inside the limit; each class toward
+ * an even fight with the field, none past the PV where fights still end in
+ * time) and pinned here. A multi-class hero adds every
  * class's share.
  */
 
@@ -16,11 +17,11 @@ export const PV_TIERS: Readonly<Record<'bulky' | 'middle' | 'fragile', readonly 
   fragile: ['firebender', 'airbender', 'acrobacia'],
 };
 
-export const HERO_BASE_PV = 2.5;
+export const HERO_BASE_PV = 0;
 
 /** What one level in each class adds. A class not listed adds the middle tier's. */
 export const PV_PER_LEVEL: Readonly<Record<string, number>> = {
-  earthbender: 2.75, waterbender: 2.75,
+  earthbender: 2.5, waterbender: 2.5,
   'mestre-armes': 2.5, artifex: 2.5, 'mestre-del-xi': 2.5,
   firebender: 1.75, airbender: 1.75, acrobacia: 1.75,
 };

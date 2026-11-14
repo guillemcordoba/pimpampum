@@ -16,10 +16,13 @@ Since 2026-11-13 attacks add up against defenses (`rules.md`, ed19411). Every
 number measured before that day (the calibration, each `KNOWN` list, what the
 AI was tuned on) was measured under another rule. The goals below measure them
 again, in the order they stand on each other. The heroes' PV came first
-(2026-11-14, c536dbc): the elements table is derived under the rule and
-pinned, on the owner's reading of fight length (the median within 6 rounds,
-stalls under 2%, the slow tenth shown). The calibration and the `KNOWN`
-lists still describe 26-PV heroes and the old length bar until goal 2.
+(2026-11-14): the elements table is derived under the rule and pinned, on the
+owner's reading of fight length (the median within 6 rounds, stalls under 2%,
+the slow tenth shown), the line aiming a round under that limit and no class
+past it, the flat PV amounts on cards halved with it (the owner, that
+morning; `intentions.md`). The table was pinned from one derivation; goal 1
+derives it again. The calibration and the `KNOWN` lists still describe 26-PV
+heroes and the old length bar until goal 2.
 
 - **Every finding in the report is a chain:** rule → decision → symptom, each
   link with where it comes from and at most one number, so the owner sees
@@ -38,9 +41,12 @@ lists still describe 26-PV heroes and the old length bar until goal 2.
    132, 38, 22, 143). The duels, 200 fights each, heroes at 26 PV both
    sides of the rule: attack spam scores 20.3% ±2.8 → 30.3% ±3.2 against the
    AI at level 6 and 27.3% ±3.1 → 38.8% ±3.4 at level 10, worse beyond the
-   ±; level 3, turtle and random are inside it. At the pinned PV spam scores
-   31.5%, 41.8% and 43.8% ±3.5 at levels 3, 6 and 10: at level 10 the gate
-   no longer reads the AI as clearly ahead.
+   ±; level 3, turtle and random are inside it. At the PV pinned that night
+   (19/18/13 at level 6; 15/15/11 since that morning, not measured) spam
+   scored 31.5%, 41.8% and 43.8% ±3.5 at levels 3, 6 and 10: at level 10 the
+   gate no longer read the AI as clearly ahead. In these duels spam aims
+   with the AI's own aim (`TARGETS`, bench `mirror.ts`), the one part of the
+   AI that knows the rule.
    The duel autopsy of spam against the AI at level 6, 26 PV, before → after
    the rule (200 fights, per fight, no ± taken): the AI plays as many guards
    (6.2 → 6.1) and as many hold (4.4 → 4.4), and spam breaches about as

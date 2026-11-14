@@ -157,10 +157,11 @@ the main session.
 *Fire burns: whoever touches it, crosses it or defies it.* The user's design
 ("Maestre del foc — conceptes de cartes", https://claude.ai/artifact/2doahvh6T7Rwr3t6YsgkQb),
 the pilot of the full card redesign; dice and small mechanics by the main
-session. **Cremat** (printed on card 1): 2 PV at the end of this round and the
+session. **Cremat** (printed on card 1): 1 PV at the end of this round and the
 next; burning again restarts it, never stacks (the engine's damage over time).
 It was 1 PV while heroes had 12; at 2 on 12 PV Alè de drac plus the burn was a
-near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-02).
+near-wipe in the agent duel; it doubled with PV on the dice ladder (2026-11-02)
+and came back to 1 when the derived PV came down (the user, 2026-11-14).
 
 | # | card | type | what it does |
 |---|---|---|---|
@@ -172,7 +173,7 @@ near-wipe in the agent duel, and it doubled with PV on the dice ladder (2026-11-
 | 6 | Fúria de flames | Atac | 3d6; if it wounds nobody, it bursts around the bender: the bender and every ally are burned (the user's design, 2026-11-02; Alè de drac left, too close to Incendi) |
 | 7 | Incendi | Atac | a wounded target burns 2, 4, 6… PV a round until it falls; then the fire leaps to a random enemy (the user's pick, 2026-11-02; Cortina de fum left: smoke as cover is water's) |
 | 8 | Llamp | Atac, fast | a quick blow before normal defenses; 2d6, since a fast attack stays weak (at 4d6 it one-shot a 12-PV hero 76% of the time, unanswerable; 2026-11-02) |
-| 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 10 PV and is burned |
+| 9 | Anell de foc | Focus | for the next 2 rounds, every enemy that attacks loses 5 PV and is burned |
 | 10 | Supernova | Atac | every enemy; then the bender drops to 0 PV |
 
 Kept out by the user: Punys encesos (reserved for an Acrobàcia + Foc gold
