@@ -55,9 +55,38 @@ heroes and the old length bar until goal 2.
    46.5 (its counters 4.5 → 3.1, its round-end damage 7.0 → 5.3). No single
    cause yet. At level 10 fights last 3 rounds and both sides deal what
    they dealt before; the AI guards less (19% → 15% of its plays).
-   The night: which of those PV shifts is the AI's to answer and which the
-   rule gives to any side that piles on (a lead: the same duels with the
-   equilibrium player, `equilibriumPolicy`, in the AI's seat), then the fix
+   The diagnosis (2026-11-14 evening; mirror pairs of drawn kits, 2v2, each
+   side's cards and aim set apart; a scratch harness, deleted). On the
+   table pinned that morning, 600 fights a cell, ±2, at levels 3 / 6 / 10:
+   - spam against the AI: 37.8% / 43.5% / 40.4%;
+   - spam's aim: with a random aim 28.2% / 38.5% / 39.0%;
+   - the AI's model of its opponent: its read trusting the model for 0.5
+     plays instead of 2 (`FictitiousPlay.read`), spam scores 31.7% / 38.0% /
+     39.8% and that AI scores 46.6% / 49.3% / 50.7% against today's; with
+     fictitious play off, 28.5% / 30.9% / 39.4% and 37.5% / 36.3% / 49.3%;
+   - no gain past the noise, against spam or today's AI, from the leaf's
+     weights (bodies 3, 12, 20), tempo 0 or 2, a continuation of 1 or 2
+     rounds, 12 samples, or depth 2 (300 fights, ±2.9);
+   - the hand: the AI held to attacks scores 35.9% / 48.2% / 50.8% against
+     the full AI, and held to attacks and Focus 53.2% / 49.7% / 49.7% (300
+     fights): its defenses win it nothing at any level, its Focus only at
+     level 3. Depth 2 beats the attack-only AI 60 to 40 at level 6.
+   With every hero on one PV, 400 fights a cell, ±2.5, today → before the
+   rule:
+   - spam at level 6: 43.9% / 41.1% / 38.1% / 34.3% at 11 / 15 / 20 / 26 PV;
+     before the rule 34.0% at 15 and 23.3% at 26. At level 3: 33.3% / 25.4%
+     / 16.3% at 8 / 13 / 20 PV; before, 22.9% at 13 and 12.0% at 26. At
+     level 10: 37.4% / 31.1% / 26.3% at 25 / 35 / 47 PV; before, 31.3% at 25;
+   - the attacks-and-Focus AI against the full AI at level 6: 50.6% / 53.4%
+     / 42.0% / 41.1% at 11 / 15 / 20 / 26 PV; before the rule 47.1% at 15 and
+     38.5% at 26. At level 3 it is even at every PV, both sides of the rule.
+   So spam's score follows PV about as much as the rule (at level 6, seven
+   to eleven points each between 26 and 15 PV), a defense is worth to the AI
+   what the fight's length lets it be, and the AI's own share is its read
+   (about six points at levels 3 and 6, none at level 10). The equilibrium
+   player cannot referee this: it throws on the real kits
+   (`ai/src/audit/referee.ts`, a replay out of step at a target choice).
+   The night: the fix
    as always: a generic puzzle, the fix, the referee
    audit (`tools/src/ai-audit.ts`, 35 to 40 minutes for 200 positions at 24
    lanes) and the gate's dumb-play duels again, then the new AI against the
