@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { CombatEngine, DiceRoll, EffectRegistry, type StatusBehavior } from '../src/index.js';
-import { TEST_SKILL, attackCard, defenseCard, fighter, focusCard, playRound } from '../src/testing.js';
+import { TEST_SKILL, armour, attackCard, defenseCard, fighter, focusCard, playRound } from '../src/testing.js';
 
 const one = () => new DiceRoll(1, 1);
 
@@ -272,5 +272,61 @@ describe('attacks add up against the defenses', () => {
     const copy = e.clone();
     while (copy.resolveNextAction().kind !== 'done');
     expect(copy.teams[1][0].currentPV).toBe(100 - 3);
+  });
+});
+
+describe('how much of a defense a blow uses up (guardSpend, an option; 1 by the rules)', () => {
+  const hit = (total: number) => attackCard('hit', { dice: one(), rollBonus: total - 1 });
+  const parry = (total: number) => defenseCard('parry', { dice: one(), rollBonus: total - 1 });
+  const at = (team: number, idx: number) => ({ team, idx });
+  const twoFivesOnSeven = (guardSpend: number | undefined) => {
+    const d = fighter('D', [parry(7)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry(), ...(guardSpend === undefined ? {} : { guardSpend }) });
+    playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]);
+    return 100 - d.currentPV;
+  };
+
+  it('at 0 every blow meets the whole roll', () => {
+    expect(twoFivesOnSeven(0)).toBe(0);
+  });
+
+  it('at a half the second blow meets the roll less half the first, rounded down', () => {
+    // 7 − ⌊5 / 2⌋ = 5: the second 5 is held on the tie. A third would meet 7 − ⌊10 / 2⌋ = 2.
+    expect(twoFivesOnSeven(0.5)).toBe(0);
+    const d = fighter('D', [parry(7)], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)]), fighter('C', [hit(5)])], [d], { registry: registry(), guardSpend: 0.5 });
+    playRound(e, [0, 1, 2].map(idx => ({ team: 0, idx, actionIdx: 0, targets: [at(1, 0)] })).concat([{ team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]));
+    expect(d.currentPV).toBe(100 - 3);
+  });
+
+  it('a clone and a snapshot keep it', () => {
+    const e = new CombatEngine([fighter('A', [hit(5)])], [fighter('D', [parry(7)])], { registry: registry(), guardSpend: 0.5, holdReturns: 1 });
+    expect([e.clone().guardSpend, e.clone().holdReturns]).toEqual([0.5, 1]);
+    const back = CombatEngine.restore(structuredClone(e.snapshot(() => undefined)), e.registry, () => { throw new Error('nothing to name'); });
+    expect([back.guardSpend, back.holdReturns]).toEqual([0.5, 1]);
+  });
+});
+
+describe('a defense that holds hurts the attacker (holdReturns, an option; 0 by the rules)', () => {
+  const round = (e: CombatEngine) => playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
+  const duel = (attack: number, defense: number, opts: { holdReturns?: number; armour?: number } = {}) => {
+    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: attack - 1 })], { pv: 100, equipment: [armour(opts.armour ?? 0)] });
+    const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: defense - 1 })], { pv: 100 });
+    round(new CombatEngine([a], [d], { registry: registry(), ...(opts.holdReturns ? { holdReturns: opts.holdReturns } : {}) }));
+    return [100 - a.currentPV, 100 - d.currentPV];
+  };
+
+  it('at 1 the attacker takes the margin it lost by, less its armour', () => {
+    expect(duel(10, 16, { holdReturns: 1 })).toEqual([6, 0]);
+    expect(duel(10, 16, { holdReturns: 1, armour: 2 })).toEqual([4, 0]);
+  });
+
+  it('a tie holds and returns nothing; a blow that lands returns nothing', () => {
+    expect(duel(10, 10, { holdReturns: 1 })).toEqual([0, 0]);
+    expect(duel(16, 10, { holdReturns: 1 })).toEqual([0, 6]);
+  });
+
+  it('by the rules a held blow returns nothing', () => {
+    expect(duel(10, 16)).toEqual([0, 0]);
   });
 });

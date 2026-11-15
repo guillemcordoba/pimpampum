@@ -51,6 +51,8 @@ export interface AIView {
   /** The attack points the defenses covering `body` have already met this
    *  round: a blow is contested against what is left of them (rules.md). */
   guardMetOn(body: Character): number;
+  /** The share of those points that uses the defenses up (`CombatEngineOptions.guardSpend`; 1 by the rules). */
+  readonly guardSpend: number;
 }
 
 export interface PlannedAction {

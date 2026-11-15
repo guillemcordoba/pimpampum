@@ -197,6 +197,20 @@ export interface CombatEngineOptions {
    */
   guardCoversDefender?: boolean;
   /**
+   * HOW MUCH OF A DEFENSE A BLOW USES UP: the share of what it threw. 1, the
+   * rules since 2026-11-13: attacks add up. 0: every blow meets the whole
+   * roll. A structural knob, like `chipDamage`; the points used up are
+   * rounded down.
+   */
+  guardSpend?: number;
+  /**
+   * A DEFENSE THAT HOLDS HURTS THE ATTACKER: the share of the margin it held
+   * by that the attacker takes, before armour. 0, the rules: a held blow does
+   * nothing. 1: the loser of a contest takes the margin, whichever side it
+   * is. A structural knob, like `chipDamage`.
+   */
+  holdReturns?: number;
+  /**
    * WHO DECIDES. The engine has no policy of its own — `@pimpampum/ai`'s
    * `aiPolicy()` returns both of these, and a caller wires them in.
    *
@@ -286,6 +300,8 @@ export class CombatEngine implements EngineApi, AIView {
   aiSharpness: number;
   readonly chipDamage: number;
   readonly guardCoversDefender: boolean;
+  readonly guardSpend: number;
+  readonly holdReturns: number;
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
   targetChooser?: TargetChooser;
@@ -388,6 +404,8 @@ export class CombatEngine implements EngineApi, AIView {
     this.aiSharpness = opts.aiSharpness ?? 2;
     this.chipDamage = opts.chipDamage ?? 0;
     this.guardCoversDefender = opts.guardCoversDefender ?? false;
+    this.guardSpend = opts.guardSpend ?? 1;
+    this.holdReturns = opts.holdReturns ?? 0;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
     this.optionChooser = opts.optionChooser;
@@ -439,7 +457,7 @@ export class CombatEngine implements EngineApi, AIView {
     // instance never ran one.
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; holdReturns: number; history: ActionEvent[];
     };
     fixed.registry = this.registry;
     fixed.teams = teams;
@@ -447,6 +465,8 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.aiSharpness = this.aiSharpness;
     fixed.chipDamage = this.chipDamage;
     fixed.guardCoversDefender = this.guardCoversDefender;
+    fixed.guardSpend = this.guardSpend;
+    fixed.holdReturns = this.holdReturns;
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
     e.optionChooser = this.optionChooser;
@@ -508,7 +528,8 @@ export class CombatEngine implements EngineApi, AIView {
     const teams = this.teams.map(t => t.map(c => enc.character(c)));
     const out: Omit<EngineSnapshot, 'shared'> = {
       teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, ...(this.chipDamage ? { chipDamage: this.chipDamage } : {}),
-      ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}), round: this.round,
+      ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}),
+      ...(this.guardSpend !== 1 ? { guardSpend: this.guardSpend } : {}), ...(this.holdReturns ? { holdReturns: this.holdReturns } : {}), round: this.round,
       history: enc.value(this.history), plays: this.plays.map(p => ({ ...p })), blowSeq: this.blowSeq,
       pending: this.pending.map(p => ({
         actor: enc.char(p.actor), hand: p.actor.actions.indexOf(p.action), def: enc.share(p.action.def),
@@ -537,7 +558,7 @@ export class CombatEngine implements EngineApi, AIView {
     const e = Object.create(CombatEngine.prototype) as CombatEngine;
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; holdReturns: number; history: ActionEvent[];
     };
     fixed.registry = registry;
     fixed.teams = teams;
@@ -545,6 +566,8 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.aiSharpness = snap.aiSharpness;
     fixed.chipDamage = snap.chipDamage ?? 0;
     fixed.guardCoversDefender = snap.guardCoversDefender ?? false;
+    fixed.guardSpend = snap.guardSpend ?? 1;
+    fixed.holdReturns = snap.holdReturns ?? 0;
     // In clone's order: a state's key reads its fields in order.
     e.actionChooser = undefined;
     e.targetChooser = undefined;
@@ -902,6 +925,12 @@ export class CombatEngine implements EngineApi, AIView {
 
   guardMetOn(body: Character): number {
     return this.walls.get(body)?.met ?? 0;
+  }
+
+  /** What the blows already met have used up of the defenses covering `body` (`guardSpend`). */
+  private guardUsedOn(body: Character): number {
+    const met = this.guardMetOn(body);
+    return this.guardSpend === 1 ? met : Math.floor(met * this.guardSpend);
   }
 
   private meet(body: Character, attackTotal: number): void {
@@ -2081,7 +2110,7 @@ export class CombatEngine implements EngineApi, AIView {
     } else if (defense) {
       const defender = defense.defender;
       const { roll: defRoll, bonus: defBonus } = this.rollDefense(defense, defenseRolls, target);
-      let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty - this.guardMetOn(target));
+      let defenderTotal = Math.max(0, defRoll + defBonus - mods.defensePenalty - this.guardUsedOn(target));
       // Clutch status adjustments, seeing both totals (rune flares & co.).
       const adjustedAttacker = this.adjustContestTotal(source, attackTotal, defenderTotal, 'attack');
       contestAttack = adjustedAttacker;
@@ -2110,6 +2139,7 @@ export class CombatEngine implements EngineApi, AIView {
       if (blow.card) this.dispatch('onAttackMiss', source, blow.card, { targets: [target], target: recipient, hit: false, margin, attackTotal: contestAttack });
       if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, margin, attackTotal: contestAttack });
       this.chip(source, defense.holder ? defense.holder.character : defense.defender, contestAttack);
+      this.returnHeld(defense.defender, source, -margin);
       return MISSED;
     }
 
@@ -2145,6 +2175,16 @@ export class CombatEngine implements EngineApi, AIView {
     this.applyPvLoss(on, dmg, source, 'guarded');
   }
 
+  /** `holdReturns` (an option, 0 by the rules): the attacker takes part of
+   *  the margin a defense held its blow by. */
+  private returnHeld(defender: Character, attacker: Character, heldBy: number): void {
+    if (this.holdReturns <= 0 || !attacker.isAlive() || attacker.team === defender.team) return;
+    const dmg = Math.floor(heldBy * this.holdReturns) - attacker.getPassiveArmor();
+    if (dmg <= 0) return;
+    this.log('attack', `💥 ${attacker.name} rep ${dmg} dany de la defensa que l'ha aturat.`, defender.team);
+    this.applyPvLoss(attacker, dmg, defender, 'uncontested');
+  }
+
   /** Defensa conjunta (guard walls, block walls, standing walls alike): the
    *  blow contests the SUM of every wall member's defense roll, less what
    *  the wall already met this round. If it breaks, the bodies behind it
@@ -2155,7 +2195,7 @@ export class CombatEngine implements EngineApi, AIView {
     const source = blow.attacker;
     const { adjustedAttacker, sum, weak, detail } = this.rollWall(source, wall, attackTotal, defenseRolls, target);
     // A defense penalty bites the wall's joint total once, not once per member.
-    const wallTotal = Math.max(0, sum - mods.defensePenalty - this.guardMetOn(target));
+    const wallTotal = Math.max(0, sum - mods.defensePenalty - this.guardUsedOn(target));
     if (!this.silent) this.log('roll', `🎲 ${blow.label}: atac ${this.fmtContestSide(atkRoll, atkBonus, adjustedAttacker)} vs mur: ${detail}${mods.defensePenalty ? ` −${mods.defensePenalty}` : ''}`, source.team);
     const res = blow.defenseAdds ? { hit: true, margin: adjustedAttacker + wallTotal } : resolveAttack(adjustedAttacker, wallTotal);
     if (!blow.defenseAdds) this.meet(target, adjustedAttacker);
@@ -2167,6 +2207,7 @@ export class CombatEngine implements EngineApi, AIView {
         if (d.card) this.dispatch('onDefend', d.defender, d.card, { targets: [target], target: source, margin: res.margin, attackTotal: adjustedAttacker });
       }
       this.chip(source, weak.d.holder ? weak.d.holder.character : weak.d.defender, adjustedAttacker);
+      this.returnHeld(wall[0].defender, source, -res.margin);
       return MISSED;
     }
     // The wall breaks: everyone on it learns from a close breach.
