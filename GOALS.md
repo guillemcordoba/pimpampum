@@ -24,7 +24,7 @@ morning; `intentions.md`). The table was pinned from one derivation, with an AI 
 still read its opponent; without the read its line is still inside every
 level's window (2026-11-15, goal 1). The calibration and the `KNOWN`
 lists still describe 26-PV heroes and the old length bar until goal 2, which
-waits for the owner's answer to goal 1.
+waits for goal 1.
 
 - **Every finding in the report is a chain:** rule → decision → symptom, each
   link with where it comes from and at most one number, so the owner sees
@@ -32,108 +32,111 @@ waits for the owner's answer to goal 1.
 - **A slow fight of a class against itself is not a failure** (the owner,
   2026-11-13; `intentions.md`). Fight length is read on mixed teams.
 
-1. **WAITING FOR THE OWNER: the rule for how defenses meet attacks.** B2, B26.
+1. **How defenses meet attacks: no rule yet makes the dumb strategies lose at
+   every level.** B2, B26.
    The owner, 2026-11-14: "explore why the spam attacker is so strong,
    exploring alternative rules that tune how defense cards go against
    attacks, so that we can find a PV that fulfills both quick fights and no
-   one hit ko"; "run multiple experiments with the vanilla cards and also the
-   elements set to see if there is another better rule for defense combat".
-   Measured on the night of 2026-11-15; the proposal is in that morning's
-   report. Nothing is switched on: the engine's options are off, and
-   `rules.md`, `intentions.md`, the cards and the pinned PV are as they were.
-   How it was measured (`tools/src/defense-rules.ts`, playtest
-   `DEFENSE_RULES`): 2v2 fights of drawn kit pairs, every hero on one PV, the
-   AI without a read of its opponent; a window point is 200 fights, 800 near
-   a bar; a duel is 600 fights, ±2; levels 3 / 6 / 10 unless said.
-   **Why attacking every round plays as well as the hand**, on the AI's own
-   Defense cards at the pinned PV (`hand-worth.ts --why`, a card played):
-   - a Defense card takes its player's action for the round (`rules.md`):
-     the blow not thrown averages 2.5 / 5.5 / 12.0 PV;
-   - a blow that is held costs its attacker nothing (`rules.md`: "la defensa
-     aguanta i no passa res"): against spam the card stops 3.1 / 6.4 / 16.0
-     PV and its payoff takes 0.7 / 0.3 / 1.4 back, about the blow not thrown;
-   - the three ways past a guard are small beside that: around it (a body it
-     does not cover) 0.4 / 1.1 / 4.3 PV, through a guard an earlier blow used
-     up 0.3 / 1.1 / 5.1, through a fresh one 0.2 / 0.7 / 2.9;
-   - against the AI itself 40% / 41% / 16% of its Defense cards meet no
-     attack at all, and a card stops 1.5 / 2.4 / 10.2 PV;
-   - so attacking is never the wrong card, and the AI without its defenses
-     scores 53.9% / 56.6% / 49.2% against the full AI.
-   **The candidates**: how much of a guard a blow uses up (`guardSpend`:
-   all of what it threw, today; half; nothing, as before 2026-11-13 without
-   Envoltat), each alone, with "the loser of a contest takes the margin"
-   (`holdReturns`: a defense that holds hurts the attacker by the
-   difference, less armour), with "a defense that guards an ally still
-   covers its player" (`guardCoversDefender`, the rule before 2026-11-02),
-   and with both: twelve. On the real kits, at each level's aim PV:
-
-   | rule | floor | aim | spam | attacks alone | the turtle | Protect > Aggro |
-   |---|---|---|---|---|---|---|
-   | today | 4 / 11 / 17 | 12 / 15 / 40 | 44.6 / 52.2 / 33.0 | 46.7 / 51.3 / 49.0 | 6.6 / 5.3 / 9.0 | 39.1 / 32.4 / 31.7 |
-   | today + margin | 4 / 11 / 17 | 12 / 15 / 42 | 33.4 / 45.4 / 32.4 | 36.8 / 43.3 / 43.8 | 12.0 / 17.9 / 25.6 | 52.8 / 53.8 / 47.8 |
-   | half | 4 / 11 / 17 | 9 / 14 / 39 | 50.2 / 48.6 / 36.2 | 46.3 / 50.7 / 49.4 | 9.2 / 5.0 / 12.1 | 40.2 / 35.4 / 38.2 |
-   | half + margin | 4 / 11 / 16 | 13 / 15 / 40 | 29.7 / 39.3 / 28.8 | 35.8 / 40.9 / 41.8 | 12.3 / 17.7 / 32.3 | 56.3 / 57.2 / 52.1 |
-   | whole | 4 / 11 / 15 | 10 / 13 / 34 | 42.8 / 42.3 / 30.4 | 43.6 / 49.5 / 40.5 | 10.5 / 6.3 / 16.0 | 41.1 / 34.8 / 40.8 |
-   | whole + margin | 4 / 11 / 15 | 12 / 14 / 35 | 25.8 / 32.3 / 27.7 | 29.4 / 35.0 / 33.5 | 13.0 / 16.9 / 36.8 | 57.8 / 58.7 / 53.8 |
-
-   - every candidate has a PV window at every level (the floor under the
-     aim), today's rule too: PV was not what stood in the way;
-   - the full AI is clearly ahead of spam and of attacks alone at every
-     level under every candidate with the margin, and under "whole + both";
-     under no spend alone;
-   - the margin leaves the aim where it was; "whole" lowers it (level 10:
-     40 → 34) and "both" too (40 → 38);
-   - what the margin moves (`hand-worth.ts --why --returns 1`, at the aim's
-     PV): a Defense card played against spam takes 2.3 / 2.3 / 5.0 PV off
-     the attackers where it took 0.7 / 0.3 / 3.8, and stops 2.6 / 5.7 / 13.0
-     where it stopped 3.1 / 6.3 / 13.5;
-   - what the margin costs: the turtle scores more against the AI, still
-     clearly losing (today + margin 12.0 / 17.9 / 25.6, 5% to 8% of those
-     fights never ending; "whole + margin + both" 44.3 at level 10);
-   - what it repairs: Protect against Aggro, broken at every level today,
-     is even with it and clearly ahead at levels 3 and 6 under "half +
-     margin" and "whole + margin";
-   - on the vanilla twins every candidate passes, today's rule too (spam
-     37.6 / 28.7 / 25.3): a twin's payoff defense ripostes with a whole roll
-     on every hold, which the real cards' payoffs do not (the 0.7 / 0.3 /
-     1.4 PV above). The margin can live in the rule or in the cards.
-   The levels between (4, 5, 7, 8, 9; today, today + margin, half + margin,
-   whole, whole + margin): a window at each under all five. Today's rule
-   leaves the AI not clearly ahead of attacks alone at levels 7 and 8 too
-   (46.3, 47.5): it fails at 3, 6, 7, 8 and 10. The three with the margin
-   pass all eight levels (today + margin: spam 25.9 to 45.4, attacks alone
-   24.1 to 43.8, level 6 the closest); "whole" alone fails only level 6.
-   With the margin on today's rule the turtle scores 11.8 to 25.6 over the
-   eight levels and up to 16% of its fights never end (level 8); Protect
-   against Aggro is clearly ahead at levels 4 and 5 (59.1, 67.6), even at 3,
-   6, 8, 9 and 10, behind at 7 (39.9), where today it is behind at all eight
-   (27.3 to 45.7). The pinned PV line (0 + 2.5 a level, 1.75 for the fragile
-   classes) is inside every level's window from 3 to 10, under today's rule
-   (aims 12 / 13 / 13 / 15 / 21 / 22 / 26 / 40) and with the margin.
-   Level 6 again at 2400 fights a duel (±1.0, 15 PV): spam 52.2 → 41.2 with
-   the margin, attacks alone 53.3 → 44.9.
-   Not settled by the night: at level 3 the AI without its defenses beats
-   the full AI under every candidate (62.1% today, 60.1% with the margin),
-   and at level 6 too (54.7% today, 53.2% with the margin, ±1.0), so the AI
-   defends too much there, a question for the referee (`ai/audit`), not
-   for a rule; a wall returns its whole margin (two guards
-   of 19 against a 7 return 12), where "at most what the blow threw" is the
-   other reading; the AI's depth-0 estimates do not know the margin (its
-   search plays it); the tier slopes of the PV table were not searched again
-   (the pinned line is inside every window measured).
-   What it cost, cold, at 24 lanes: the twelve candidates on kits and twins
-   at three levels 1 h 54 min for the windows and hand-worth (38
-   lane-minutes a cell: a window search plays PV up to 60, 800 fights near a
-   bar), 31 min more for the turtle, random and triangle duels; five candidates at the five levels
-   between, kits only, 1 h 21 min.
-   *When the owner answers:* the chosen options become the engine's defaults
-   and the others are deleted with their harness (`defense-rules.ts`,
-   playtest `defense-rules.ts`), `rules.md` and `intentions.md` take the
-   rule, the AI's aim and depth-0 estimates learn it (the referee audit and
-   the gate's duels after), `derive-pv.ts` runs once more; then goal 2.
+   one hit ko". The owner's rulings of 2026-11-15, which the candidates and
+   the instruments below follow:
+   - of "the loser of a contest takes the margin", which the night of
+     2026-11-15 had proposed (the AI clearly ahead of spam and of attacks
+     alone at all eight levels): "This is so anti lore, we can't do it. And
+     we had the previous rule to make playing defense worth it" (the rule
+     meant: Envoltat). Deleted from the engine;
+   - of an opening, the initiative, an attacker off balance or staggered
+     for whoever holds a blow: "All of these could be unique card effects,
+     I don't like any of them as general rules"; a guard nobody attacked
+     gets nothing;
+   - "Playing a defense should feel awesome as well, like you're not just
+     cancelling an attack, you're gaining an upside if you do. Spam can't be
+     beat by reading it, it needs to be beaten by another strat";
+   - the triangle is a claim about one round: "if the enemy played an
+     attack, you wished you played a defense, if the enemy played a defense,
+     you wished to have played a focus, if the enemy plays a focus, you
+     wished you had attack"; scored on the rest of the fight, pure and mixed
+     plays, and it replaces the leans;
+   - "we need the strategy pool ai … we are happy when the strategy pool
+     converges to a player that reads the opponent and does the winning play
+     against it"; "a test or requirement that goes red when the best strat
+     is a dumb one … control tests to that requirement with mock engines";
+     each set gets the test, in two tiers ("Great yeah sounds great");
+     strategies come from families with numbers to turn, without the
+     counter-reader family ("Remove counter reader").
+   **The instruments** (2026-11-15; `packages/tools/README.md`):
+   - the round table (`round-table.ts`, bench `round-table.ts`, playtest
+     `roundTriangle`): round starts from ordinary fights, the round replayed
+     for every pair of plans (a side's two card types), the fight played
+     out. Three levels in 3 to 4 minutes at 24 lanes;
+   - the strategy pool (`strategy-pool.ts`, bench `pool.ts`, playtest
+     `growPool`): the double oracle over strategies (tables of answers,
+     fixed odds, state players, scripts), from always-attack, always-defend
+     and always-Focus. One level in 20 minutes to 2 h 20;
+   - the requirement (playtest `poolVerdict`): red when the pool's
+     equilibrium mix is mostly strategies that play the same whatever
+     happens, or when one of the three dumbest does not clearly lose to
+     that mix. Its controls are mock games (`playtest/test/pool.test.ts`):
+     attack, defense or Focus simply winning, and nothing mattering, are
+     each red; a clean triangle is green.
+   **What they found**, elements kits, every hero on the pinned PV. The
+   candidates are four ways a guard meets several blows (today: a blow uses
+   up what it threw; half; whole: every blow meets the whole roll; Envoltat)
+   each alone, with a guard that covers both bodies ("both"), and with every
+   Defense card a rung higher ("rung"); playtest `DEFENSE_RULES`.
+   - The round table, 240 round starts a cell, ±3, levels 3 / 6 / 10, today's
+     rule: into both attacking, both defending scores 61% / 47% / 37% against
+     58% / 53% / 50% for attacking back; into a defense a Focus scores 89% /
+     67% / 69%; into a Focus an attack 75% / 66% / 88%. One edge is broken,
+     the same at every level: a defense is not the answer to an attack.
+   - Under every other candidate a defense is clearly the answer at level 3
+     (a lead of 10 to 27 points); under none at levels 6 and 10 (at best
+     +6.7 ±4.5 at level 6, whole + rung; +2.9 ±4.2 at level 10, whole +
+     both). The best reply there is often mixed (one attacks, one defends),
+     which the verdict on pure replies does not credit.
+   - The pool at level 6, 200 fights a duel, always-attack against the final
+     mix: today 49% (red); today + both 50.1% ±2.2 (red, still growing at 14
+     members); whole + rung 50.0% ±2.1 (red, the same); Envoltat 40.3% ±1.9
+     (green); Envoltat + both 38.1% ±2.6 (green); whole + both 36.6% ±1.8
+     (green). So at level 6 it is attacks adding up that lets spam play
+     even with the best: both rules where every blow meets a whole roll pass,
+     and a guard covering both bodies does not pass on its own. The strategy
+     that beats spam there opens with one attack and one defense.
+   - Envoltat + both at the other levels: level 3 red, by the turtle
+     (always-defend 46.5% ±2.3 against the mix, always-attack 29.5%); level
+     10 red, by spam (always-attack 50.2% ±1.6).
+   - The production AI against the final mix: 52% to 62%; the pool plays
+     about as well as it does.
+   - The morning's screen, the question as it was asked before the pool (the
+     AI against spam and against attacks alone at the PV where the median
+     fight ends within 5 rounds, levels 3 to 10): every candidate alone
+     fails level 6; whole + both, whole + rung and Envoltat + both pass all
+     eight. Two of those three are red on the pool at some level.
+   - What each Defense card takes back off the attackers when it blocks
+     (`hand-worth.ts --why`, PV a play): Mantell de flames 3.1, Retruc
+     d'acer 2.4, Búnquer 5.7; every other one 0.0 to 0.6. On the vanilla
+     twins, whose payoff defenses riposte, the AI was clearly ahead of spam
+     under every rule.
+   **Left, in this order:**
+   a. each set's balance test in two tiers, with its list of known
+      failures: the round table every slow run; the pool at levels 3, 6 and
+      10 nightly;
+   b. the round table in the leans' place wherever the triangle is read
+      (playtest `gate.ts` and `triangle.ts`, `fixes.ts`, both sets' triangle
+      tests, `kit-analyzer.ts --triangle`), and its verdict crediting a
+      mixed reply that holds the counter;
+   c. control kits on the real engine for the requirement: one that
+      obviously favours a play must be red, one built as a triangle green;
+   d. the pools not grown yet: Envoltat alone at levels 3 and 10, whole +
+      both at 3 and 10, and each at its own PV for quick fights (all of the
+      above are at the pinned PV; a stronger guard asks for less);
+   e. level 10, where no candidate makes spam lose: how much a block must
+      pay (`defense-rules.ts --payoffs`, on the twins, not run), as a target
+      for the Defense cards the owner redesigns.
+   Nothing is switched on: the engine's options are off, and `rules.md`,
+   `intentions.md`, the cards and the pinned PV are as they were.
 2. **One re-baseline.** B17, B28, B30, C4.
-   WAITING FOR THE OWNER: not before the owner has answered goal 1, which
-   may move the rule this baseline is taken on.
+   WAITING: not before goal 1 has a rule, which may move what this
+   baseline is taken on.
    `pnpm calibration:refresh` once, on the pinned PV. Then the gate's `KNOWN`
    (`sets/elements/test/gate.slow.test.ts`) and the kit suites' `KNOWN` and
    `KNOWN_BLIND` (`test/kits/known.ts`) written again from fresh runs, each
