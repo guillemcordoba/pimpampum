@@ -43,8 +43,8 @@ export { PLANS, COUNTER, counterPlan, planOf, planPlayed, planChoices, planChoos
 export type { Kind, Plan } from './plans.js';
 export { roundTable, roundTableChunk, roundTableChunks, mergeRoundTable, ROUND_TABLE_CHUNK } from './round-table.js';
 export type { RoundTable, RoundTableChunk, RoundCell } from './round-table.js';
-export { poolDuel, always, tableKey, memberKey } from './pool.js';
-export type { ResponseTable, PoolMember, PoolDuel } from './pool.js';
+export { poolDuel, planFor, always, tableKey, memberKey } from './pool.js';
+export type { ResponseTable, Mixer, StatePlayer, Script, Strategy, PoolMember, PoolDuel } from './pool.js';
 export { kitMirrors, styleDuel, duelAutopsy, kitMirrorCardValues, mirrorCardChunk, mirrorCardChunks, modelCheck, kitOnlyMirrors, MIRROR_SEED_BASE, DUMB_STYLES, HAND_STYLES } from './mirror.js';
 export type { KitFight, KitMirrorRun, MirrorAutopsy, DuelStyle, DumbStyle, HandStyle, StyleDuel, DuelAutopsy, DuelSide, GuardLedger, GuardCardTally, MirrorCardValues, StoredCardValues, ModelCheck, FightSummary } from './mirror.js';
 

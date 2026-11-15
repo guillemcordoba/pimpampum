@@ -53,7 +53,7 @@ export { DEFENSE_RULES, HAND_WORTH_STYLES, defenseRuleCell, defenseRuleScreen, d
 export type { DefenseRule, RuleCell, ScreenCell, TwinRecipe } from './defense-rules.js';
 export { PURE, roundTriangle, roundTriangleVerdict, roundTableJob } from './round-triangle.js';
 export type { RoundEdge } from './round-triangle.js';
-export { growPool, metaMix, isFixed, countersPlayed, describeTable, poolVerdict, poolDuelJob, POOL_DEFAULTS, POOL_READER_SHARE } from './pool.js';
-export type { Evaluate, PoolOptions, PoolStep, PoolResult, PoolVerdict } from './pool.js';
+export { growPool, metaMix, gridOf, isFixed, countersPlayed, awarenessOf, describeStrategy, poolVerdict, poolDuelJob, POOL_DEFAULTS, POOL_AWARE_SHARE, DUMBEST, FAMILIES } from './pool.js';
+export type { Evaluate, PoolOptions, PoolStep, PoolResult, PoolVerdict, Awareness } from './pool.js';
 export { REQUIREMENTS } from './requirements.js';
 export type { Requirement, RequirementGroup } from './requirements.js';

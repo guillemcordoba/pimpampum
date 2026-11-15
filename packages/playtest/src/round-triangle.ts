@@ -13,6 +13,7 @@
  * plays a Focus beats either pure answer.
  */
 import { counterPlan, PLANS, roundTableChunk, type Plan, type RoundTable, type RoundTableChunk, type Variant } from '@pimpampum/bench';
+import { shiftDefenses } from './fixes.js';
 import { installSet, type RunContext } from './prepare.js';
 
 export const PURE: readonly Plan[] = ['AA', 'DD', 'FF'];
@@ -47,8 +48,9 @@ export function roundTriangleVerdict(edges: readonly RoundEdge[]): { ok: boolean
   return { ok: broken.length === 0, broken };
 }
 
-/** One chunk of a level's round table, in a child process (bench `isolated`). */
-export async function roundTableJob(set: RunContext['set'], level: number, total: number, chunk: number, variant: Variant = {}): Promise<RoundTableChunk> {
+/** One chunk of a level's round table, in a child process (bench `isolated`). `defenseShift`: every Defense card's dice that many rungs along, a candidate rule's content change. */
+export async function roundTableJob(set: RunContext['set'], level: number, total: number, chunk: number, variant: Variant = {}, defenseShift = 0): Promise<RoundTableChunk> {
   await installSet(set);
+  shiftDefenses(defenseShift);
   return roundTableChunk(level, total, chunk, variant);
 }
