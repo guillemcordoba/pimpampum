@@ -17,12 +17,17 @@ describe('the candidate rules', () => {
 
   it('are each a different set of options, under a different name', () => {
     expect(new Set(DEFENSE_RULES.map(r => r.id)).size).toBe(DEFENSE_RULES.length);
-    expect(new Set(DEFENSE_RULES.map(r => JSON.stringify(r.rules))).size).toBe(DEFENSE_RULES.length);
+    expect(new Set(DEFENSE_RULES.map(r => JSON.stringify([r.rules, r.defenseShift ?? 0]))).size).toBe(DEFENSE_RULES.length);
   });
 
-  it('hold the rule before 2026-11-13 and the half-spend one', () => {
+  it('hold the rule before 2026-11-13, with Envoltat and without, and the half-spend one', () => {
+    expect(DEFENSE_RULES.find(r => r.id === 'envoltat')?.rules).toEqual({ guardSpend: 0, envoltat: true });
     expect(DEFENSE_RULES.find(r => r.id === 'whole')?.rules).toEqual({ guardSpend: 0 });
     expect(DEFENSE_RULES.find(r => r.id === 'half')?.rules).toEqual({ guardSpend: 0.5 });
+  });
+
+  it('never make a block pay: no candidate hurts the attacker whose blow was held', () => {
+    for (const r of DEFENSE_RULES) expect(Object.keys(r.rules).filter(k => !['guardSpend', 'envoltat', 'guardCoversDefender'].includes(k))).toEqual([]);
   });
 });
 

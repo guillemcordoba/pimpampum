@@ -40,7 +40,7 @@ export type { CellSetup, CachedCell, CardCounters, MatrixResult } from './cells.
 
 // --- Heroes against heroes at the set's own PV --------------------------
 export { kitMirrors, styleDuel, duelAutopsy, kitMirrorCardValues, mirrorCardChunk, mirrorCardChunks, modelCheck, kitOnlyMirrors, MIRROR_SEED_BASE, DUMB_STYLES, HAND_STYLES } from './mirror.js';
-export type { KitFight, KitMirrorRun, MirrorAutopsy, DuelStyle, DumbStyle, HandStyle, StyleDuel, DuelAutopsy, DuelSide, GuardLedger, MirrorCardValues, StoredCardValues, ModelCheck, FightSummary } from './mirror.js';
+export type { KitFight, KitMirrorRun, MirrorAutopsy, DuelStyle, DumbStyle, HandStyle, StyleDuel, DuelAutopsy, DuelSide, GuardLedger, GuardCardTally, MirrorCardValues, StoredCardValues, ModelCheck, FightSummary } from './mirror.js';
 
 // --- Alternative policies, and honest duels between them --------------------
 export {

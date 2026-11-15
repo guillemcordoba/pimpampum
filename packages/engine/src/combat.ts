@@ -204,12 +204,13 @@ export interface CombatEngineOptions {
    */
   guardSpend?: number;
   /**
-   * A DEFENSE THAT HOLDS HURTS THE ATTACKER: the share of the margin it held
-   * by that the attacker takes, before armour. 0, the rules: a held blow does
-   * nothing. 1: the loser of a contest takes the margin, whichever side it
-   * is. A structural knob, like `chipDamage`.
+   * ENVOLTAT (false by the rules; the rule until 2026-11-13): with n blows
+   * landing on a body this round, every defense covering it rolls its dice n
+   * times against each of them and keeps the worst. A defense then rolls
+   * afresh for every blow, as it did that day; with `guardSpend: 0` this is
+   * the rule attacks adding up replaced. A structural knob, like `chipDamage`.
    */
-  holdReturns?: number;
+  envoltat?: boolean;
   /**
    * WHO DECIDES. The engine has no policy of its own — `@pimpampum/ai`'s
    * `aiPolicy()` returns both of these, and a caller wires them in.
@@ -262,7 +263,7 @@ interface Blow {
  * (rules.md): each defense rolls once (`rolls`, by defense), and every blow
  * that reaches the body uses up as much of them as it threw (`met`).
  */
-interface RoundWall { rolls: Map<string, number>; met: number }
+interface RoundWall { rolls: Map<string, number>; met: number; /** Blows landed on the body (`envoltat` only). */ blows?: number }
 
 /**
  * ONE DEFENSE a blow meets: a guard (its defense card), a standing wall (no
@@ -301,7 +302,7 @@ export class CombatEngine implements EngineApi, AIView {
   readonly chipDamage: number;
   readonly guardCoversDefender: boolean;
   readonly guardSpend: number;
-  readonly holdReturns: number;
+  readonly envoltat: boolean;
   /** Optional policy override for AI action choice. */
   actionChooser?: ActionChooser;
   targetChooser?: TargetChooser;
@@ -405,7 +406,7 @@ export class CombatEngine implements EngineApi, AIView {
     this.chipDamage = opts.chipDamage ?? 0;
     this.guardCoversDefender = opts.guardCoversDefender ?? false;
     this.guardSpend = opts.guardSpend ?? 1;
-    this.holdReturns = opts.holdReturns ?? 0;
+    this.envoltat = opts.envoltat ?? false;
     this.actionChooser = opts.actionChooser;
     this.targetChooser = opts.targetChooser;
     this.optionChooser = opts.optionChooser;
@@ -457,7 +458,7 @@ export class CombatEngine implements EngineApi, AIView {
     // instance never ran one.
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; holdReturns: number; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; envoltat: boolean; history: ActionEvent[];
     };
     fixed.registry = this.registry;
     fixed.teams = teams;
@@ -466,7 +467,7 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.chipDamage = this.chipDamage;
     fixed.guardCoversDefender = this.guardCoversDefender;
     fixed.guardSpend = this.guardSpend;
-    fixed.holdReturns = this.holdReturns;
+    fixed.envoltat = this.envoltat;
     e.actionChooser = this.actionChooser;
     e.targetChooser = this.targetChooser;
     e.optionChooser = this.optionChooser;
@@ -506,7 +507,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierInterrupted = setAt(this.tierInterrupted);
     e.skippingThisRound = setAt(this.skippingThisRound);
     const walls = new Map<Character, RoundWall>();
-    if (this.walls.size) this.walls.forEach((w, c) => walls.set(at(c), { rolls: new Map(w.rolls), met: w.met }));
+    if (this.walls.size) this.walls.forEach((w, c) => walls.set(at(c), { rolls: new Map(w.rolls), met: w.met, ...(w.blows ? { blows: w.blows } : {}) }));
     e.walls = walls;
     e.revealedPlan = this.revealedPlan.length ? this.revealedPlan.map(s => ({ ...s })) : [];
     e.aimingIdx = this.aimingIdx;
@@ -529,7 +530,7 @@ export class CombatEngine implements EngineApi, AIView {
     const out: Omit<EngineSnapshot, 'shared'> = {
       teams, maxRounds: this.maxRounds, aiSharpness: this.aiSharpness, ...(this.chipDamage ? { chipDamage: this.chipDamage } : {}),
       ...(this.guardCoversDefender ? { guardCoversDefender: true } : {}),
-      ...(this.guardSpend !== 1 ? { guardSpend: this.guardSpend } : {}), ...(this.holdReturns ? { holdReturns: this.holdReturns } : {}), round: this.round,
+      ...(this.guardSpend !== 1 ? { guardSpend: this.guardSpend } : {}), ...(this.envoltat ? { envoltat: true } : {}), round: this.round,
       history: enc.value(this.history), plays: this.plays.map(p => ({ ...p })), blowSeq: this.blowSeq,
       pending: this.pending.map(p => ({
         actor: enc.char(p.actor), hand: p.actor.actions.indexOf(p.action), def: enc.share(p.action.def),
@@ -539,7 +540,7 @@ export class CombatEngine implements EngineApi, AIView {
       tierAlive: [...this.tierAlive].map(c => enc.char(c)),
       tierInterrupted: [...this.tierInterrupted].map(c => enc.char(c)),
       skippingThisRound: [...this.skippingThisRound].map(c => enc.char(c)),
-      ...(this.walls.size ? { walls: [...this.walls].map(([c, w]) => [enc.char(c), [...w.rolls], w.met] as [[number, number], [string, number][], number]) } : {}),
+      ...(this.walls.size ? { walls: [...this.walls].map(([c, w]) => [enc.char(c), [...w.rolls], w.met, ...(w.blows ? [w.blows] : [])] as [[number, number], [string, number][], number, number?]) } : {}),
       revealedPlan: this.revealedPlan.map(s => ({ ...s })),
       aimingIdx: this.aimingIdx, choosingIdx: this.choosingIdx, roundPrepared: this.roundPrepared,
     };
@@ -558,7 +559,7 @@ export class CombatEngine implements EngineApi, AIView {
     const e = Object.create(CombatEngine.prototype) as CombatEngine;
     const fixed = e as unknown as {
       registry: EffectRegistry; teams: [Character[], Character[]];
-      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; holdReturns: number; history: ActionEvent[];
+      maxRounds: number; aiSharpness: number; chipDamage: number; guardCoversDefender: boolean; guardSpend: number; envoltat: boolean; history: ActionEvent[];
     };
     fixed.registry = registry;
     fixed.teams = teams;
@@ -567,7 +568,7 @@ export class CombatEngine implements EngineApi, AIView {
     fixed.chipDamage = snap.chipDamage ?? 0;
     fixed.guardCoversDefender = snap.guardCoversDefender ?? false;
     fixed.guardSpend = snap.guardSpend ?? 1;
-    fixed.holdReturns = snap.holdReturns ?? 0;
+    fixed.envoltat = snap.envoltat ?? false;
     // In clone's order: a state's key reads its fields in order.
     e.actionChooser = undefined;
     e.targetChooser = undefined;
@@ -593,7 +594,7 @@ export class CombatEngine implements EngineApi, AIView {
     e.tierAlive = new Set(snap.tierAlive.map(at));
     e.tierInterrupted = new Set(snap.tierInterrupted.map(at));
     e.skippingThisRound = new Set(snap.skippingThisRound.map(at));
-    e.walls = new Map((snap.walls ?? []).map(([c, rolls, met]) => [at(c), { rolls: new Map(rolls), met }]));
+    e.walls = new Map((snap.walls ?? []).map(([c, rolls, met, blows]) => [at(c), { rolls: new Map(rolls), met, ...(blows ? { blows } : {}) }]));
     e.revealedPlan = snap.revealedPlan.map(s => ({ ...s }));
     e.aimingIdx = snap.aimingIdx;
     e.choosingIdx = snap.choosingIdx;
@@ -904,7 +905,7 @@ export class CombatEngine implements EngineApi, AIView {
    *  the dice rolled again that many times, and meets the worst. */
   private rollDefense(d: Defense, rolls: number, covered: Character): { roll: number; bonus: number } {
     if (d.fixedTotal !== undefined) return { roll: d.fixedTotal, bonus: 0 };
-    let roll = this.roundRoll(d, covered);
+    let roll = this.envoltat ? this.rollDiceFor(d.defender, d.dice, 'defense') : this.roundRoll(d, covered);
     for (let k = 1; k < rolls; k++) roll = Math.min(roll, this.rollDiceFor(d.defender, d.dice, 'defense'));
     return { roll, bonus: d.rollBonus + d.defender.getRollBonus(d.skillId, 'defense') };
   }
@@ -2038,9 +2039,27 @@ export class CombatEngine implements EngineApi, AIView {
     return !d.holder && d.defender.holdsStatusWith(HOOK.absorbsGuard) && d.defender.statusRefs().some(ref => ref.entry.behavior?.absorbsGuard?.(ref));
   }
 
+  /**
+   * ENVOLTAT's n for a blow on `target` (`envoltat`): the blows that have
+   * landed on it this round (this one included, extra blows too) plus the
+   * attacks still to resolve that will land on it, where they land (a
+   * block's forcing included; a redirect counts once it has happened).
+   */
+  private blowsOn(target: Character): number {
+    let n = this.walls.get(target)?.blows ?? 0;
+    for (let i = this.pendingIndex + 1; i < this.pending.length; i++) {
+      const p = this.pending[i];
+      if (p.cancelled || (p.as ?? p.action.def.actionType) !== ActionType.Atac) continue;
+      const forced = this.blockForcedTarget(p.actor, this.targetCountOf(p.actor, p.action.def));
+      if (forced ? forced === target : !!p.targets?.includes(target)) n++;
+    }
+    return Math.max(1, n);
+  }
+
   private contestAttackOnTarget(blow: Blow, target: Character, mods: AttackModifiers, statusMods: AttackStatusMods, forcedByBlock: boolean): ExtraAttackResult {
     const source = blow.attacker;
     const who = blow.label;
+    if (this.envoltat) { const wall = this.wallOf(target); wall.blows = (wall.blows ?? 0) + 1; }
 
     // Extra dice (per target) roll flat into the attack total: they raise both
     // the hit chance and the margin damage. The blow's own dice were rolled
@@ -2075,7 +2094,7 @@ export class CombatEngine implements EngineApi, AIView {
     // ATTACKS ADD UP: every blow on this body is contested against what is
     // LEFT of the defenses covering it, after the blows they already met this
     // round (`guardMetOn`; rules.md).
-    const defenseRolls = blow.minDefenseRolls;
+    const defenseRolls = this.envoltat ? Math.max(this.blowsOn(target), blow.minDefenseRolls) : blow.minDefenseRolls;
     let defenses: Defense[] = [];
     if (!bypass) {
       const blockWall = forcedByBlock ? this.livingBlockers(source) : [];
@@ -2139,7 +2158,6 @@ export class CombatEngine implements EngineApi, AIView {
       if (blow.card) this.dispatch('onAttackMiss', source, blow.card, { targets: [target], target: recipient, hit: false, margin, attackTotal: contestAttack });
       if (defense.card) this.dispatch('onDefend', defense.defender, defense.card, { targets: [target], target: source, margin, attackTotal: contestAttack });
       this.chip(source, defense.holder ? defense.holder.character : defense.defender, contestAttack);
-      this.returnHeld(defense.defender, source, -margin);
       return MISSED;
     }
 
@@ -2175,16 +2193,6 @@ export class CombatEngine implements EngineApi, AIView {
     this.applyPvLoss(on, dmg, source, 'guarded');
   }
 
-  /** `holdReturns` (an option, 0 by the rules): the attacker takes part of
-   *  the margin a defense held its blow by. */
-  private returnHeld(defender: Character, attacker: Character, heldBy: number): void {
-    if (this.holdReturns <= 0 || !attacker.isAlive() || attacker.team === defender.team) return;
-    const dmg = Math.floor(heldBy * this.holdReturns) - attacker.getPassiveArmor();
-    if (dmg <= 0) return;
-    this.log('attack', `💥 ${attacker.name} rep ${dmg} dany de la defensa que l'ha aturat.`, defender.team);
-    this.applyPvLoss(attacker, dmg, defender, 'uncontested');
-  }
-
   /** Defensa conjunta (guard walls, block walls, standing walls alike): the
    *  blow contests the SUM of every wall member's defense roll, less what
    *  the wall already met this round. If it breaks, the bodies behind it
@@ -2207,7 +2215,6 @@ export class CombatEngine implements EngineApi, AIView {
         if (d.card) this.dispatch('onDefend', d.defender, d.card, { targets: [target], target: source, margin: res.margin, attackTotal: adjustedAttacker });
       }
       this.chip(source, weak.d.holder ? weak.d.holder.character : weak.d.defender, adjustedAttacker);
-      this.returnHeld(wall[0].defender, source, -res.margin);
       return MISSED;
     }
     // The wall breaks: everyone on it learns from a close breach.

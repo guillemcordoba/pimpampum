@@ -203,7 +203,7 @@ export interface EngineSnapshot {
   teams: CharacterSnapshot[][];
   /** Every card and item in the state, by value; everything else points here by index. */
   shared: Encoded[];
-  maxRounds: number; aiSharpness: number; chipDamage?: number; guardCoversDefender?: boolean; guardSpend?: number; holdReturns?: number; round: number;
+  maxRounds: number; aiSharpness: number; chipDamage?: number; guardCoversDefender?: boolean; guardSpend?: number; envoltat?: boolean; round: number;
   history: Encoded;
   plays: { team: number; actionId: string; actionType: ActionType }[];
   blowSeq: number;
@@ -211,7 +211,7 @@ export interface EngineSnapshot {
   pendingIndex: number; tierKey: number | null; revealSettled: boolean;
   tierAlive: Ref[]; tierInterrupted: Ref[]; skippingThisRound: Ref[];
   /** Mid-round: each covered body's defense rolls and the attack points they met. */
-  walls?: [Ref, [string, number][], number][];
+  walls?: [Ref, [string, number][], number, number?][];
   revealedPlan: { team: number; idx: number; actionIdx: number }[];
   aimingIdx: number | null; choosingIdx: number | null; roundPrepared: boolean;
 }

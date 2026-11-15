@@ -233,6 +233,17 @@ export interface DuelSide {
   /** PV it took off the other side, by source. */
   dealt: Record<DamageSource, number>;
   ledger: GuardLedger;
+  /** Each Defense card it played, by card id: what that card stopped and took back. */
+  guardCards: Record<string, GuardCardTally>;
+}
+
+/** One Defense card's plays in a duel. What it stopped and took back is read
+ *  on the rounds it was its side's only Defense card (`alone`): with two up,
+ *  a round's PV cannot be told apart. */
+export interface GuardCardTally {
+  plays: number; alone: number;
+  /** Of the rounds alone: those no enemy attack aimed at its side; the PV its guard stopped; the PV the attackers lost in their own steps. */
+  idle: number; stopped: number; back: number;
 }
 
 /**
@@ -270,7 +281,7 @@ export interface DuelAutopsy { x: DuelStyle; y: DuelStyle; level: number; games:
 const emptySide = (): DuelSide => ({
   plays: { attack: 0, defense: 0, focus: 0 }, focusLost: 0, guards: 0, guardsFaced: 0, guardsHeld: 0, blowsOpen: 0, blowsHeld: 0, blowsThrough: 0,
   dealt: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
-  ledger: emptyLedger(),
+  ledger: emptyLedger(), guardCards: {},
 });
 
 /**
@@ -280,7 +291,7 @@ const emptySide = (): DuelSide => ({
  */
 export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: number, variant: Variant = {}): DuelAutopsy {
   const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
-  return countedCached('mirror-autopsy', key('mirror-autopsy-v2', mainKitsPrint(), x, y, String(level), String(games), v), () => {
+  return countedCached('mirror-autopsy', key('mirror-autopsy-v3', mainKitsPrint(), x, y, String(level), String(games), v), () => {
     const kits = theSet().calibration.mainKits;
     const sides = { x: emptySide(), y: emptySide() };
     let score = 0, rounds = 0;
@@ -303,6 +314,8 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
           const roundStart = new Map(everyone.map(c => [c, Math.max(0, c.currentPV)]));
           /** PV each team lost this round that the ledger has placed. */
           const placed = [0, 0];
+          /** PV each team's guards stopped this round, and took back off the attackers. */
+          const stoppedBy = [0, 0], backBy = [0, 0];
           for (;;) {
             const before = new Map(everyone.map(c => [c, c.currentPV]));
             const metBefore = new Map(everyone.map(c => [c, e.guardMetOn(c)]));
@@ -348,12 +361,15 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
               const through = lost('guarded'), open = lost('open'), uncontested = lost('uncontested');
               ledger.thrown += thrown;
               ledger.stopped += Math.max(0, thrown - through);
+              stoppedBy[foes] += Math.max(0, thrown - through);
               ledger.lostThroughUsed += thrown ? through * onUsed / thrown : 0;
               ledger.lostThroughFresh += thrown ? through * (1 - onUsed / thrown) : through;
               if (defenses.some(p => p.actor.team === foes && p.resolved)) ledger.lostAround += open; else ledger.lostBefore += open;
               ledger.lostUncontested += uncontested;
               placed[foes] += through + open + uncontested;
-              for (const c of e.teams[actor.team]) ledger.dealtBack += Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
+              const back = e.teams[actor.team].reduce((t, c) => t + Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV)), 0);
+              ledger.dealtBack += back;
+              backBy[foes] += back;
             }
             if (type === ActionType.Atac) {
               const mine = e.plannedThisRound().find(p => p.actor === actor && p.action.id === def.id);
@@ -382,8 +398,18 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
             const ledger = sideOf(team).ledger;
             ledger.rounds++;
             ledger.cards += cards.length;
-            if (!plan.some(p => !p.cancelled && p.actor.team !== team && p.action.actionType === ActionType.Atac && !!p.targets?.some(t => t.team === team))) ledger.idle += cards.length;
-            for (const p of cards) ledger.forgone += biggestAttack(p.actor);
+            const unmet = !plan.some(p => !p.cancelled && p.actor.team !== team && p.action.actionType === ActionType.Atac && !!p.targets?.some(t => t.team === team));
+            if (unmet) ledger.idle += cards.length;
+            for (const p of cards) {
+              ledger.forgone += biggestAttack(p.actor);
+              const tally = (sideOf(team).guardCards[p.action.id] ??= { plays: 0, alone: 0, idle: 0, stopped: 0, back: 0 });
+              tally.plays++;
+              if (cards.length > 1) continue;
+              tally.alone++;
+              if (unmet) tally.idle++;
+              tally.stopped += stoppedBy[team];
+              tally.back += backBy[team];
+            }
             const lostThisRound = e.teams[team].reduce((t, c) => t + Math.max(0, (roundStart.get(c) ?? 0) - Math.max(0, c.currentPV)), 0);
             ledger.lostOther += Math.max(0, lostThisRound - placed[team]);
           }

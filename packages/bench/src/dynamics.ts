@@ -27,8 +27,8 @@ export interface Variant {
   guardCoversDefender?: boolean;
   /** `CombatEngineOptions.guardSpend`; omit for the rules' 1. */
   guardSpend?: number;
-  /** `CombatEngineOptions.holdReturns`. */
-  holdReturns?: number;
+  /** `CombatEngineOptions.envoltat`. */
+  envoltat?: boolean;
   /** Heroes a side; omit for two. */
   teamSize?: number;
   /** Every hero's PV at this level; omit for the set's own. */
@@ -49,12 +49,12 @@ export function variantPV(v: Variant, kit: string, level: number): number | unde
 }
 
 /** The engine's options a variant sets; nothing when it leaves the rules as they are. */
-export function variantRules(v: Variant): Pick<CombatEngineOptions, 'chipDamage' | 'guardCoversDefender' | 'guardSpend' | 'holdReturns'> {
+export function variantRules(v: Variant): Pick<CombatEngineOptions, 'chipDamage' | 'guardCoversDefender' | 'guardSpend' | 'envoltat'> {
   return {
     ...(v.chipDamage ? { chipDamage: v.chipDamage } : {}),
     ...(v.guardCoversDefender ? { guardCoversDefender: true } : {}),
     ...(v.guardSpend !== undefined && v.guardSpend !== 1 ? { guardSpend: v.guardSpend } : {}),
-    ...(v.holdReturns ? { holdReturns: v.holdReturns } : {}),
+    ...(v.envoltat ? { envoltat: true } : {}),
   };
 }
 

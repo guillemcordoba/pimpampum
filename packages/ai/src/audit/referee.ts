@@ -310,8 +310,11 @@ const stableIdOf: IdOf = o => {
 // `blowSeq` only numbers blows: a card compares a stored blow id with a new
 // one, and every new id is above every stored one whatever the count, so two
 // states that differ in it alone are the same game.
+// `guardSpend` and `envoltat` are rules a fight never changes: the same in
+// every state of a solve, and left out so a key (and the seeds drawn from it)
+// reads as it did before the engine had them.
 const SKIP = new Set(['registry', 'logEntries', 'silent', 'actionChooser', 'targetChooser', 'history', 'plays',
-  'seatStreams', 'seatStreamSeed', 'teams', 'blowSeq']);
+  'seatStreams', 'seatStreamSeed', 'teams', 'blowSeq', 'guardSpend', 'envoltat']);
 const BY_IDENTITY = new Set(['def', 'behavior', 'equipment']);
 
 export function midRoundKey(e: CombatEngine, idOf: IdOf): string {

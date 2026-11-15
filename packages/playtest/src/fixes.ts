@@ -41,8 +41,8 @@ export interface Fix {
   guardCoversDefender?: boolean;
   /** The share of a blow that uses up the defense it meets (`CombatEngineOptions.guardSpend`); omit for the rules' 1. */
   guardSpend?: number;
-  /** The share of the margin a defense held by that the attacker takes (`CombatEngineOptions.holdReturns`). */
-  holdReturns?: number;
+  /** True: Envoltat, the rule until 2026-11-13 (`CombatEngineOptions.envoltat`). */
+  envoltat?: boolean;
 }
 
 export const TODAY: Fix = { id: 'today', label: 'Today: the structure as it is', aim: 1, defenseShift: 0, chip: 0, burst: 'fast' };
@@ -79,7 +79,7 @@ export interface FixResult { fix: Fix; levels: FixLevel[]; focusOnRealKits: bool
 const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
 
 /** Every Defense card of the main kits, its dice `shift` rungs along (in this process). */
-function shiftDefenses(shift: number): void {
+export function shiftDefenses(shift: number): void {
   if (!shift) return;
   for (const k of theSet().calibration.mainKits) for (const a of theSet().kit(k)?.actions ?? []) {
     if (a.actionType !== ActionType.Defensa || !a.dice) continue;
@@ -106,12 +106,12 @@ export async function evaluateFix(
   for (const level of levels) {
     const vanilla = deriveOnTwins(level, cards, twinLadder, params, {
       fights: budget.vanillaFights, armour: 1, chip: fix.chip, burst: fix.burst, guardCoversDefender: fix.guardCoversDefender,
-      guardSpend: fix.guardSpend, holdReturns: fix.holdReturns,
+      guardSpend: fix.guardSpend, envoltat: fix.envoltat,
     });
     const pv = vanilla.pv ?? vanilla.lengthPV ?? blowFloor(vanilla, fix.burst);
     const variant: Variant = {
       pv, ...(fix.chip ? { chipDamage: fix.chip } : {}), ...(fix.guardCoversDefender ? { guardCoversDefender: true } : {}),
-      ...(fix.guardSpend !== undefined ? { guardSpend: fix.guardSpend } : {}), ...(fix.holdReturns ? { holdReturns: fix.holdReturns } : {}),
+      ...(fix.guardSpend !== undefined ? { guardSpend: fix.guardSpend } : {}), ...(fix.envoltat ? { envoltat: true } : {}),
     };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
     const triangle = EDGES.map(([x, y]) => {
@@ -163,7 +163,7 @@ export function scoreFix(r: FixResult): FixScore {
     costs: [
       ...(r.fix.guardCoversDefender ? ['a defense that guards an ally covers its player too (the rule before 2026-11-02)'] : []),
       ...(r.fix.guardSpend !== undefined && r.fix.guardSpend !== 1 ? [`a blow uses up ${Math.round(100 * r.fix.guardSpend)}% of what it threw off the defense it meets (the rule since 2026-11-13: all of it)`] : []),
-      ...(r.fix.holdReturns ? [`a defense that holds a blow returns ${Math.round(100 * r.fix.holdReturns)}% of the margin to the attacker`] : []),
+      ...(r.fix.envoltat ? ['Envoltat: with n blows on a body its defense rolls n times and keeps the worst (the rule until 2026-11-13)'] : []),
       ...(r.fix.aim > 1 ? [`every Focus card rebuilt about ${(r.fix.aim + 1) / 2}× as strong`] : []),
     ],
   };

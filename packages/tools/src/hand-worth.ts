@@ -11,13 +11,15 @@
  *
  * `--why`: where the AI's Defense cards go in those same fights (bench
  * `GuardLedger`), a Defense card played: what it stopped against the blow its
- * player did not throw, and how the PV its side still lost got past it.
+ * player did not throw, and how the PV its side still lost got past it. Then
+ * card by card: what each Defense card stops and what it takes back off the
+ * attackers when it is its side's only guard, the payoff a block pays today.
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/hand-worth.ts --set elements
  *   … --levels 4,5,6   --pv 15 (every hero on one PV)   --why
- *   … --chip 0.5 | --guard-covers-defender | --spend 0.5 | --returns 1   a candidate rule (bench `Variant`)
+ *   … --chip 0.5 | --guard-covers-defender | --spend 0.5 | --envoltat   a candidate rule (bench `Variant`)
  */
-import { duelAutopsy, flag, games, HAND_STYLES, pct, styleDuel, useSet, type DuelStyle, type GuardLedger, type Variant } from '@pimpampum/bench';
+import { duelAutopsy, flag, games, HAND_STYLES, pct, styleDuel, useSet, type DuelStyle, type GuardCardTally, type GuardLedger, type Variant } from '@pimpampum/bench';
 import { STYLE_LEVELS } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -30,7 +32,7 @@ const variant: Variant = {
   ...(flag('--chip') ? { chipDamage: Number(flag('--chip')) } : {}),
   ...(process.argv.includes('--guard-covers-defender') ? { guardCoversDefender: true } : {}),
   ...(flag('--spend') ? { guardSpend: Number(flag('--spend')) } : {}),
-  ...(flag('--returns') ? { holdReturns: Number(flag('--returns')) } : {}),
+  ...(process.argv.includes('--envoltat') ? { envoltat: true } : {}),
 };
 const styles: readonly DuelStyle[] = ['spam', ...HAND_STYLES];
 
@@ -68,5 +70,24 @@ if (process.argv.includes('--why')) {
   for (const level of levels) for (const style of opponents) {
     const ledger = duelAutopsy(style, 'ai', level, fights, variant).sides.y.ledger;
     console.log(`L${String(level).padEnd(5)} ${style.padEnd(14)} ${COLUMNS.map(([, cell]) => cell(ledger).padStart(8)).join('')}`);
+  }
+
+  // Card by card, against the sides that attack every round (spam, attacks alone): no guard there goes unmet.
+  const cardsOf = new Map(SET.gameSet.calibration.mainKits.flatMap(kit => (SET.gameSet.kit(kit)?.actions ?? []).map(a => [a.id, { kit, name: a.name, unlock: a.unlockLevel, dice: a.dice?.toString() ?? '—' }] as const)));
+  console.log(`\neach Defense card the AI played against spam and attacks alone, on the rounds it was its side's only guard (PV a play):`);
+  console.log(`${'kit'.padEnd(14)} ${'card'.padEnd(26)} lvl  ${'dice'.padEnd(7)} level   plays  stopped  taken back`);
+  for (const level of levels) {
+    const sum: Record<string, GuardCardTally> = {};
+    for (const style of ['spam', 'attacks'] as const) {
+      for (const [id, t] of Object.entries(duelAutopsy(style, 'ai', level, fights, variant).sides.y.guardCards)) {
+        const into = (sum[id] ??= { plays: 0, alone: 0, idle: 0, stopped: 0, back: 0 });
+        for (const k of ['plays', 'alone', 'idle', 'stopped', 'back'] as const) into[k] += t[k];
+      }
+    }
+    const rows = Object.entries(sum).filter(([, t]) => t.alone >= 20).sort(([a], [b]) => (cardsOf.get(a)?.kit ?? a).localeCompare(cardsOf.get(b)?.kit ?? b) || (cardsOf.get(a)?.unlock ?? 0) - (cardsOf.get(b)?.unlock ?? 0));
+    for (const [id, t] of rows) {
+      const card = cardsOf.get(id);
+      console.log(`${(card?.kit ?? '?').padEnd(14)} ${(card?.name ?? id).padEnd(26)} ${String(card?.unlock ?? '').padStart(3)}  ${(card?.dice ?? '').padEnd(7)} L${String(level).padEnd(5)} ${String(t.alone).padStart(6)}  ${per(t.stopped, t.alone).padStart(7)}  ${per(t.back, t.alone).padStart(10)}`);
+    }
   }
 }

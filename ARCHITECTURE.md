@@ -261,8 +261,11 @@ meets a defense, all off by the rules, for measuring candidate rules (bench
 `Variant`, playtest `Fix` and `DEFENSE_RULES`): `chipDamage` (part of a held
 blow lands), `guardCoversDefender` (a defense guarding an ally still covers
 its player), `guardSpend` (the share of a blow that uses the defense up; the
-AI's aim reads it beside `guardMetOn`) and `holdReturns` (the share of the
-margin a defense held by that the attacker takes). `EngineApi.contestRoll` is every other roll a
+AI's aim reads it beside `guardMetOn`) and `envoltat` (the rule until
+2026-11-13: with n blows on a body its defenses roll afresh n times against
+each and keep the worst). The referee's state key leaves the last two out
+(`ai/audit/referee.ts`, `SKIP`), so its seeds read as they did without
+them. `EngineApi.contestRoll` is every other roll a
 character makes (a filter, a save, a self-hit), with the same terms.
 
 **State as data** (2026-10-31) — `CombatEngine.snapshot(refOf)` turns a state into

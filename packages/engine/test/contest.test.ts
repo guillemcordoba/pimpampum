@@ -9,8 +9,8 @@
  * ones included, meets what the earlier blows left of it.
  */
 import { describe, it, expect } from 'vitest';
-import { CombatEngine, DiceRoll, EffectRegistry, type StatusBehavior } from '../src/index.js';
-import { TEST_SKILL, armour, attackCard, defenseCard, fighter, focusCard, playRound } from '../src/testing.js';
+import { CombatEngine, DiceRoll, EffectRegistry, withSeed, type StatusBehavior } from '../src/index.js';
+import { TEST_SKILL, attackCard, defenseCard, fighter, focusCard, playRound } from '../src/testing.js';
 
 const one = () => new DiceRoll(1, 1);
 
@@ -300,33 +300,65 @@ describe('how much of a defense a blow uses up (guardSpend, an option; 1 by the 
   });
 
   it('a clone and a snapshot keep it', () => {
-    const e = new CombatEngine([fighter('A', [hit(5)])], [fighter('D', [parry(7)])], { registry: registry(), guardSpend: 0.5, holdReturns: 1 });
-    expect([e.clone().guardSpend, e.clone().holdReturns]).toEqual([0.5, 1]);
+    const e = new CombatEngine([fighter('A', [hit(5)])], [fighter('D', [parry(7)])], { registry: registry(), guardSpend: 0.5, envoltat: true });
+    expect([e.clone().guardSpend, e.clone().envoltat]).toEqual([0.5, true]);
     const back = CombatEngine.restore(structuredClone(e.snapshot(() => undefined)), e.registry, () => { throw new Error('nothing to name'); });
-    expect([back.guardSpend, back.holdReturns]).toEqual([0.5, 1]);
+    expect([back.guardSpend, back.envoltat]).toEqual([0.5, true]);
   });
 });
 
-describe('a defense that holds hurts the attacker (holdReturns, an option; 0 by the rules)', () => {
-  const round = (e: CombatEngine) => playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }, { team: 1, idx: 0, actionIdx: 0, targets: [{ team: 1, idx: 0 }] }]);
-  const duel = (attack: number, defense: number, opts: { holdReturns?: number; armour?: number } = {}) => {
-    const a = fighter('A', [attackCard('hit', { dice: one(), rollBonus: attack - 1 })], { pv: 100, equipment: [armour(opts.armour ?? 0)] });
-    const d = fighter('D', [defenseCard('parry', { dice: one(), rollBonus: defense - 1 })], { pv: 100 });
-    round(new CombatEngine([a], [d], { registry: registry(), ...(opts.holdReturns ? { holdReturns: opts.holdReturns } : {}) }));
-    return [100 - a.currentPV, 100 - d.currentPV];
+describe('Envoltat (an option; off by the rules)', () => {
+  const hit = (total: number) => attackCard('hit', { dice: one(), rollBonus: total - 1 });
+  const at = (team: number, idx: number) => ({ team, idx });
+  /** `attackers` blows of 5 on one guard of 1d1 + 6, the option on, every blow meeting the whole roll. */
+  const rollsFor = (attackers: number, envoltat: boolean) => {
+    const guardDice = new CountingDice(1, 1);
+    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 6 })], { pv: 100 });
+    const team = Array.from({ length: attackers }, (_, k) => fighter(`A${k}`, [hit(5)]));
+    const e = new CombatEngine(team, [d], { registry: registry(), guardSpend: 0, ...(envoltat ? { envoltat: true } : {}) });
+    playRound(e, [...team.map((_, idx) => ({ team: 0, idx, actionIdx: 0, targets: [at(1, 0)] })), { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]);
+    return { rolls: guardDice.calls, lost: 100 - d.currentPV };
   };
 
-  it('at 1 the attacker takes the margin it lost by, less its armour', () => {
-    expect(duel(10, 16, { holdReturns: 1 })).toEqual([6, 0]);
-    expect(duel(10, 16, { holdReturns: 1, armour: 2 })).toEqual([4, 0]);
+  it('with n blows on a body its defense rolls n times against each of them', () => {
+    expect(rollsFor(1, true).rolls).toBe(1);
+    expect(rollsFor(2, true).rolls).toBe(4);
+    expect(rollsFor(3, true).rolls).toBe(9);
   });
 
-  it('a tie holds and returns nothing; a blow that lands returns nothing', () => {
-    expect(duel(10, 10, { holdReturns: 1 })).toEqual([0, 0]);
-    expect(duel(16, 10, { holdReturns: 1 })).toEqual([0, 6]);
+  it('by the rules a defense rolls once for the round', () => {
+    expect(rollsFor(3, false).rolls).toBe(1);
   });
 
-  it('by the rules a held blow returns nothing', () => {
-    expect(duel(10, 16)).toEqual([0, 0]);
+  it('keeps the worst of its rolls', () => {
+    // 1d2 + 5 against two blows of 6: each blow meets the worst of two rolls,
+    // so over many rounds some blow gets through a guard that one roll in two holds.
+    let through = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const d = fighter('D', [defenseCard('parry', { dice: new DiceRoll(1, 2), rollBonus: 4 })], { pv: 100 });
+      const team = [fighter('A', [hit(6)]), fighter('B', [hit(6)])];
+      const e = new CombatEngine(team, [d], { registry: registry(), guardSpend: 0, envoltat: true });
+      withSeed(seed, () => playRound(e, [{ team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]));
+      through += 100 - d.currentPV;
+    }
+    // A blow of 6 lands 1 when its two rolls hold a 1 (5 total): three times in four.
+    expect(through).toBeGreaterThan(50);
+    expect(through).toBeLessThan(70);
+  });
+
+  it('a clone carries the blows already landed', () => {
+    const guardDice = new CountingDice(1, 1);
+    const d = fighter('D', [defenseCard('parry', { dice: guardDice, rollBonus: 6 })], { pv: 100 });
+    const e = new CombatEngine([fighter('A', [hit(5)]), fighter('B', [hit(5)])], [d], { registry: registry(), guardSpend: 0, envoltat: true });
+    e.prepareRound();
+    e.planActions([{ team: 0, idx: 0, actionIdx: 0, targets: [at(1, 0)] }, { team: 0, idx: 1, actionIdx: 0, targets: [at(1, 0)] }, { team: 1, idx: 0, actionIdx: 0, targets: [at(1, 0)] }]);
+    e.resolveNextAction();
+    e.resolveNextAction();
+    const copy = e.clone();
+    expect(copy.envoltat).toBe(true);
+    const before = guardDice.calls;
+    while (copy.resolveNextAction().kind !== 'done');
+    // The second blow is the second to land: two rolls.
+    expect(guardDice.calls - before).toBe(2);
   });
 });

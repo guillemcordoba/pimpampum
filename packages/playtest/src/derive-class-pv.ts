@@ -158,6 +158,24 @@ export function realWindow(level: number, fights: number, opts: WindowOptions = 
   };
 }
 
+/**
+ * THE AIM ALONE, walked to from a PV near it one PV at a time: the largest PV
+ * at which the median fight ends within `AIM_MEDIAN_ROUNDS` and stalls stay
+ * rare (null: none down to the smallest). For screening a candidate rule:
+ * neither the floor nor the ceiling is searched, and no reading is taken
+ * again near a bar, so it costs minutes where `realWindow` costs an hour.
+ */
+export function aimNear(level: number, fights: number, start: number, opts: Pick<WindowOptions, 'rules' | 'given'> = {}): number | null {
+  const holds = (pv: number) => endsAtTheAim(summarise(kitsDynamics(level, fights, { ...opts.rules, pv }, opts.given)));
+  let pv = Math.max(PV_MIN, Math.min(PV_MAX, start));
+  if (holds(pv)) {
+    while (pv < PV_MAX && holds(pv + 1)) pv++;
+    return pv;
+  }
+  while (pv > PV_MIN) if (holds(--pv)) return pv;
+  return null;
+}
+
 /** At `pv`, where fights no longer end in time: every card played, taken out
  *  of every hand in turn; the ones without which fights end, the share over
  *  the failed bar falling clearly past the noise. Every

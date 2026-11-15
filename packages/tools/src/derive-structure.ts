@@ -11,7 +11,7 @@
  * level's derived PV and checks, and what each costs.
  *
  *   pnpm --filter @pimpampum/tools exec tsx src/derive-structure.ts --set elements --out structure.html
- *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts fast --guard one,both --spends 1,0.5,0 --returns 0,1 --levels 3,4,5,6,7,8,9,10
+ *   … --aims 1,2,3 --shifts 0,-1 --chips 0,0.25,0.5 --bursts fast --guard one,both --spends 1,0.5,0 --levels 3,4,5,6,7,8,9,10
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -32,27 +32,25 @@ const chips = list('--chips', '0,0.25,0.5').map(Number);
 const bursts = list('--bursts', 'fast') as Fix['burst'][];
 const guardsBoth = list('--guard', 'one').map(v => v === 'both');
 const spends = list('--spends', '1').map(Number);
-const returns = list('--returns', '0').map(Number);
 const LEVELS = list('--levels', '3,4,5,6,7,8,9,10').map(Number);
 const OUT = flag('--out') ?? path.join(os.tmpdir(), 'structure.html');
 const budget = { vanillaFights: games(2 * FIX_BUDGET.vanillaFights), realFights: games(2 * FIX_BUDGET.realFights), duelGames: games(2 * FIX_BUDGET.duelGames) };
 const log = (s: string) => process.stderr.write(`${s}\n`);
 const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
 
-const label = (aim: number, shift: number, chip: number, burst: Fix['burst'], both: boolean, spend: number, back: number) => [
+const label = (aim: number, shift: number, chip: number, burst: Fix['burst'], both: boolean, spend: number) => [
   aim === 1 ? 'Focus as today' : `Focus ×${(aim + 1) / 2}`,
   ...(chip ? [`chip ${Math.round(100 * chip)}%`] : []),
   ...(shift ? [`defenses ${-shift} rung${shift === -1 ? '' : 's'} lower`] : []),
   ...(both ? ['a guard covers both bodies'] : []),
   ...(spend !== 1 ? [`a blow uses up ${Math.round(100 * spend)}% of what it threw`] : []),
-  ...(back ? [`a held blow returns ${Math.round(100 * back)}% of the margin`] : []),
 ].join(' + ') + (burst === 'fast' ? '' : ` (floor: the twins' ${burst} blow)`);
 const fixes: Fix[] = aims.flatMap(aim => shifts.flatMap(defenseShift => chips.flatMap(chip => bursts.flatMap(burst =>
-  guardsBoth.flatMap(both => spends.flatMap(spend => returns.map(back => ({
-    id: `a${aim}-s${defenseShift}-c${chip}-${burst}${both ? '-both' : ''}${spend !== 1 ? `-spend${spend}` : ''}${back ? `-back${back}` : ''}`,
-    label: label(aim, defenseShift, chip, burst, both, spend, back), aim, defenseShift, chip, burst,
-    ...(both ? { guardCoversDefender: true } : {}), ...(spend !== 1 ? { guardSpend: spend } : {}), ...(back ? { holdReturns: back } : {}),
-  }))))))));
+  guardsBoth.flatMap(both => spends.map(spend => ({
+    id: `a${aim}-s${defenseShift}-c${chip}-${burst}${both ? '-both' : ''}${spend !== 1 ? `-spend${spend}` : ''}`,
+    label: label(aim, defenseShift, chip, burst, both, spend), aim, defenseShift, chip, burst,
+    ...(both ? { guardCoversDefender: true } : {}), ...(spend !== 1 ? { guardSpend: spend } : {}),
+  })))))));
 
 // What each card did in today's fights: the twins are built from it.
 log(`today's fights at L${LEVELS.join(', L')}…`);

@@ -61,6 +61,8 @@ export interface TwinParams {
   burn: number; burnTurns: number;
   /** A payoff defense's riposte rolls the attack ladder this many levels lower. */
   riposteDrop: number;
+  /** 1: a payoff defense ripostes when it holds; 0: it pays nothing, a plain guard. */
+  riposte: number;
   /** A damaging Focus rolls its level's attack dice plus this, through any guard. */
   blastBoost: number;
   /** A heal rolls its level's attack dice plus this. */
@@ -92,7 +94,7 @@ export interface TwinParams {
  *  and 6 within noise but for a few damage-split points. */
 export const TWIN_DEFAULTS: TwinParams = {
   burn: 3, burnTurns: 2, riposteDrop: 2, blastBoost: 0, healBoost: 3, hexTurns: 2, hexBleed: 2, areaDrop: 2, riderDrop: 1,
-  aim: 1, shieldCut: 0.5, realDice: 0, blastGuardOnly: 0, focusScale: 1,
+  aim: 1, shieldCut: 0.5, realDice: 0, blastGuardOnly: 0, focusScale: 1, riposte: 1,
 };
 
 /**
@@ -145,7 +147,7 @@ export function vanillaTwin(kit: string, cards: readonly CensusCard[], ladder: R
         effects[`${own}-riposte`] = {
           onDefend(ctx) { if (ctx.target?.isAlive()) ctx.engine.performExtraAttack(ctx.source, ctx.target, riposte, { ignoreDefense: true, label: `${ctx.source.name} riposte` }); },
         };
-        actions.push({ ...base, actionType: ActionType.Defensa, dice: diceOf(rung.defense), effects: [...fx, { type: `${own}-riposte` }] } as ActionDefinition);
+        actions.push({ ...base, actionType: ActionType.Defensa, dice: diceOf(rung.defense), effects: [...fx, ...(p.riposte ? [{ type: `${own}-riposte` }] : [])] } as ActionDefinition);
         break;
       }
       case 'crack':
