@@ -101,6 +101,20 @@ waits for goal 1.
      even with the best: both rules where every blow meets a whole roll pass,
      and a guard covering both bodies does not pass on its own. The strategy
      that beats spam there opens with one attack and one defense.
+   - Why Envoltat does it at level 6 (always-attack against always one
+     attack and one defense, 15 PV, 1200 fights, round 1, the same positions
+     under both rules): the defender chooses whom to cover after the aims,
+     so about one of the two attackers' cards meets a defense either way. A
+     blow that meets a defense another blow already met takes 3.6 PV today
+     and 2.2 under Envoltat, so piling on stops paying; the attackers then
+     throw fewer big slow cards (Fúria de flames, Allau) and more fast 1d4
+     ones that land before the guard (Ventada, Llançament de roca), and a
+     blow on an undefended body takes 3.7 PV where it took 4.4. The side
+     that defends loses 5.2 PV in the round where it lost 6.1; the
+     all-attack side loses 5.7 either way, 8% to 9% of it paid back by the
+     guard. A race the attackers led by 0.4 PV a round, they trail by 0.5:
+     always-attack scores 33% where it scored 44%. The defense wins by
+     costing the attackers a card, not by what a block pays.
    - Envoltat + both at the other levels: level 3 red, by the turtle
      (always-defend 46.5% ±2.3 against the mix, always-attack 29.5%); level
      10 red, by spam (always-attack 50.2% ±1.6).
@@ -132,6 +146,11 @@ waits for goal 1.
    e. level 10, where no candidate makes spam lose: how much a block must
       pay (`defense-rules.ts --payoffs`, on the twins, not run), as a target
       for the Defense cards the owner redesigns.
+   *Done when:* both sets hold the two-tier test and the slow tier fails
+   nothing outside its lists (a, b); the control kits read as they must
+   (c); and the report holds, for Envoltat alone and for whole + both, the
+   pool's verdict at levels 3, 6 and 10 (d). Item e and the choice of rule
+   are the owner's, from those numbers.
    Nothing is switched on: the engine's options are off, and `rules.md`,
    `intentions.md`, the cards and the pinned PV are as they were.
 2. **One re-baseline.** B17, B28, B30, C4.
