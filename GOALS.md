@@ -21,9 +21,10 @@ owner's reading of fight length (the median within 6 rounds, stalls under 2%,
 the slow tenth shown), the line aiming a round under that limit and no class
 past it, the flat PV amounts on cards halved with it (the owner, that
 morning; `intentions.md`). The table was pinned from one derivation, with an AI that
-still read its opponent; goal 1 moves it. The calibration and the `KNOWN`
+still read its opponent; without the read its line is still inside every
+level's window (2026-11-15, goal 1). The calibration and the `KNOWN`
 lists still describe 26-PV heroes and the old length bar until goal 2, which
-waits for the rule goal 1 proposes.
+waits for the owner's answer to goal 1.
 
 - **Every finding in the report is a chain:** rule → decision → symptom, each
   link with where it comes from and at most one number, so the owner sees
@@ -31,85 +32,108 @@ waits for the rule goal 1 proposes.
 - **A slow fight of a class against itself is not a failure** (the owner,
   2026-11-13; `intentions.md`). Fight length is read on mixed teams.
 
-1. **A rule for how defenses meet attacks, under which one PV gives quick
-   fights, no knockout without an answer, and a whole hand that beats
-   attacking every round.** B2, B26.
+1. **WAITING FOR THE OWNER: the rule for how defenses meet attacks.** B2, B26.
    The owner, 2026-11-14: "explore why the spam attacker is so strong,
    exploring alternative rules that tune how defense cards go against
    attacks, so that we can find a PV that fulfills both quick fights and no
    one hit ko"; "run multiple experiments with the vanilla cards and also the
    elements set to see if there is another better rule for defense combat".
-   **The AI is not tuned against the dumb strategies** (the owner, the same
-   day; `CLAUDE.md`): the dumb-play duels measure the cards. The AI's read
-   of its opponent, added on 2026-11-03 to beat spam, was removed that
-   evening (`ARCHITECTURE.md`); every number below marked "with the read"
-   was measured before.
-   Where it stands (2026-11-14; 2v2 mirror fights of drawn kit pairs, the
-   table pinned that morning, 600 fights a cell, ±2, levels 3 / 6 / 10):
-   - spam against the AI: 48.5% / 49.2% / 40.3% (37.8% / 43.5% / 40.4% with
-     the read);
-   - the hand, with the read: the AI held to attacks scores 35.9% / 48.2% /
-     50.8% against the full AI, and held to attacks and Focus 53.2% / 49.7% /
-     49.7% (300 fights): its defenses win it nothing at any level, its Focus
-     only at level 3;
-   - nothing in the search changes that past the noise: the leaf's weights,
-     tempo, a continuation, 12 samples, depth 2 (which does beat the
-     attacks-only AI 60 to 40 at level 6);
-   - spam's aim is the AI's searched aim (`TARGETS`, bench `mirror.ts`); with
-     a random aim it scored 28.2% / 38.5% / 39.0% with the read.
-   With every hero on one PV (400 fights, ±2.5, with the read), today →
-   before the rule of 2026-11-13:
-   - spam at level 6: 43.9% / 41.1% / 38.1% / 34.3% at 11 / 15 / 20 / 26 PV;
-     before the rule 34.0% at 15 and 23.3% at 26. At level 3: 33.3% / 25.4% /
-     16.3% at 8 / 13 / 20 PV; before, 22.9% at 13 and 12.0% at 26. At level
-     10: 37.4% / 31.1% / 26.3% at 25 / 35 / 47 PV; before, 31.3% at 25;
-   - the attacks-and-Focus AI against the full AI at level 6: 50.6% / 53.4% /
-     42.0% / 41.1% at 11 / 15 / 20 / 26 PV; before the rule 47.1% at 15 and
-     38.5% at 26. At level 3 it is even at every PV, either side of the rule.
-   So what a defense wins follows the fight's length: at the PV where the
-   median fight ends within 5 rounds it wins nothing, under today's rule and
-   under the one before it, and attacks alone play as well as the hand.
-   The referee audit is no worse under the rule (12.7% ±2.6 → 13.9% ±2.7 of
-   165 positions; the eight worse ones all have two bodies against one:
-   seeds 161, 17, 111, 109, 132, 38, 22, 143 of `--mix night --seed 1`).
-   The equilibrium player cannot referee real kits: it throws on them
-   (`ai/src/audit/referee.ts`, a replay out of step at a target choice).
-   The night, in this order:
-   a. **Why, as a chain.** At the pinned PV, where does a defense's worth go:
-      the attack aims after the reveal and goes around the guard; a second
-      blow lands on a guard the first used up; or a guard that holds returns
-      only the blow it stopped while the round is lost. Count each on the
-      fights (`duelAutopsy`, bench `mirror.ts`; extend it), at levels 3, 6
-      and 10.
-   b. **Candidate rules**, each an engine option that is off by default
-      (`CombatEngineOptions`, bench `Variant`, playtest `Fix`, as
-      `chipDamage` and `guardCoversDefender` are), each one sentence a
-      player can follow at the table, each first walked through one 2v2
-      round by hand: a correct read is never wasted, and nothing hidden
-      decides. At least: today's rule; the rule before 2026-11-13 (each
-      attack meets the whole defense); a blow uses up half of what it threw;
-      and the ones step a suggests.
-   c. **Each candidate measured twice**, on the vanilla twins
-      (`tools/src/derive-structure.ts`, playtest `vanilla.ts`) and on the
-      elements kits: per level the floor (no knockout without an answer),
-      the aim (the median fight within 5 rounds) and the ceiling
-      (`derive-pv.ts`'s windows, the rule passed as a `Variant`); then, at
-      the aim's PV, `tools/src/hand-worth.ts`: spam, attacks alone, attacks
-      and Focus, attacks and defenses, each against the full AI.
-   The sources of ai and bench changed on 2026-11-14, so the cache starts
-   cold. The pinned PV table was derived with the read on and has not been
-   derived again: this goal moves it.
-   *Done when:* the report holds, for every candidate rule, on the vanilla
-   twins and on the elements kits, at levels 3, 6 and 10 at least: floor,
-   aim and ceiling, and at the aim's PV the four hand-worth scores with
-   their ±; and it names the rules, if any, under which every level has a
-   window (the floor at or under the aim) and the full AI is clearly ahead
-   of spam and of attacks alone (the gate's `edgeHolds`). The rule is a
-   proposal for the owner, as a chain: `rules.md`, `intentions.md`, the
-   cards and the pinned PV stay as they are, and the options stay off.
+   Measured on the night of 2026-11-15; the proposal is in that morning's
+   report. Nothing is switched on: the engine's options are off, and
+   `rules.md`, `intentions.md`, the cards and the pinned PV are as they were.
+   How it was measured (`tools/src/defense-rules.ts`, playtest
+   `DEFENSE_RULES`): 2v2 fights of drawn kit pairs, every hero on one PV, the
+   AI without a read of its opponent; a window point is 200 fights, 800 near
+   a bar; a duel is 600 fights, ±2; levels 3 / 6 / 10 unless said.
+   **Why attacking every round plays as well as the hand**, on the AI's own
+   Defense cards at the pinned PV (`hand-worth.ts --why`, a card played):
+   - a Defense card takes its player's action for the round (`rules.md`):
+     the blow not thrown averages 2.5 / 5.5 / 12.0 PV;
+   - a blow that is held costs its attacker nothing (`rules.md`: "la defensa
+     aguanta i no passa res"): against spam the card stops 3.1 / 6.4 / 16.0
+     PV and its payoff takes 0.7 / 0.3 / 1.4 back, about the blow not thrown;
+   - the three ways past a guard are small beside that: around it (a body it
+     does not cover) 0.4 / 1.1 / 4.3 PV, through a guard an earlier blow used
+     up 0.3 / 1.1 / 5.1, through a fresh one 0.2 / 0.7 / 2.9;
+   - against the AI itself 40% / 41% / 16% of its Defense cards meet no
+     attack at all, and a card stops 1.5 / 2.4 / 10.2 PV;
+   - so attacking is never the wrong card, and the AI without its defenses
+     scores 53.9% / 56.6% / 49.2% against the full AI.
+   **The candidates**: how much of a guard a blow uses up (`guardSpend`:
+   all of what it threw, today; half; nothing, as before 2026-11-13 without
+   Envoltat), each alone, with "the loser of a contest takes the margin"
+   (`holdReturns`: a defense that holds hurts the attacker by the
+   difference, less armour), with "a defense that guards an ally still
+   covers its player" (`guardCoversDefender`, the rule before 2026-11-02),
+   and with both: twelve. On the real kits, at each level's aim PV:
+
+   | rule | floor | aim | spam | attacks alone | the turtle | Protect > Aggro |
+   |---|---|---|---|---|---|---|
+   | today | 4 / 11 / 17 | 12 / 15 / 40 | 44.6 / 52.2 / 33.0 | 46.7 / 51.3 / 49.0 | 6.6 / 5.3 / 9.0 | 39.1 / 32.4 / 31.7 |
+   | today + margin | 4 / 11 / 17 | 12 / 15 / 42 | 33.4 / 45.4 / 32.4 | 36.8 / 43.3 / 43.8 | 12.0 / 17.9 / 25.6 | 52.8 / 53.8 / 47.8 |
+   | half | 4 / 11 / 17 | 9 / 14 / 39 | 50.2 / 48.6 / 36.2 | 46.3 / 50.7 / 49.4 | 9.2 / 5.0 / 12.1 | 40.2 / 35.4 / 38.2 |
+   | half + margin | 4 / 11 / 16 | 13 / 15 / 40 | 29.7 / 39.3 / 28.8 | 35.8 / 40.9 / 41.8 | 12.3 / 17.7 / 32.3 | 56.3 / 57.2 / 52.1 |
+   | whole | 4 / 11 / 15 | 10 / 13 / 34 | 42.8 / 42.3 / 30.4 | 43.6 / 49.5 / 40.5 | 10.5 / 6.3 / 16.0 | 41.1 / 34.8 / 40.8 |
+   | whole + margin | 4 / 11 / 15 | 12 / 14 / 35 | 25.8 / 32.3 / 27.7 | 29.4 / 35.0 / 33.5 | 13.0 / 16.9 / 36.8 | 57.8 / 58.7 / 53.8 |
+
+   - every candidate has a PV window at every level (the floor under the
+     aim), today's rule too: PV was not what stood in the way;
+   - the full AI is clearly ahead of spam and of attacks alone at every
+     level under every candidate with the margin, and under "whole + both";
+     under no spend alone;
+   - the margin leaves the aim where it was; "whole" lowers it (level 10:
+     40 → 34) and "both" too (40 → 38);
+   - what the margin moves (`hand-worth.ts --why --returns 1`, at the aim's
+     PV): a Defense card played against spam takes 2.3 / 2.3 / 5.0 PV off
+     the attackers where it took 0.7 / 0.3 / 3.8, and stops 2.6 / 5.7 / 13.0
+     where it stopped 3.1 / 6.3 / 13.5;
+   - what the margin costs: the turtle scores more against the AI, still
+     clearly losing (today + margin 12.0 / 17.9 / 25.6, 5% to 8% of those
+     fights never ending; "whole + margin + both" 44.3 at level 10);
+   - what it repairs: Protect against Aggro, broken at every level today,
+     is even with it and clearly ahead at levels 3 and 6 under "half +
+     margin" and "whole + margin";
+   - on the vanilla twins every candidate passes, today's rule too (spam
+     37.6 / 28.7 / 25.3): a twin's payoff defense ripostes with a whole roll
+     on every hold, which the real cards' payoffs do not (the 0.7 / 0.3 /
+     1.4 PV above). The margin can live in the rule or in the cards.
+   The levels between (4, 5, 7, 8, 9; today, today + margin, half + margin,
+   whole, whole + margin): a window at each under all five. Today's rule
+   leaves the AI not clearly ahead of attacks alone at levels 7 and 8 too
+   (46.3, 47.5): it fails at 3, 6, 7, 8 and 10. The three with the margin
+   pass all eight levels (today + margin: spam 25.9 to 45.4, attacks alone
+   24.1 to 43.8, level 6 the closest); "whole" alone fails only level 6.
+   With the margin on today's rule the turtle scores 11.8 to 25.6 over the
+   eight levels and up to 16% of its fights never end (level 8); Protect
+   against Aggro is clearly ahead at levels 4 and 5 (59.1, 67.6), even at 3,
+   6, 8, 9 and 10, behind at 7 (39.9), where today it is behind at all eight
+   (27.3 to 45.7). The pinned PV line (0 + 2.5 a level, 1.75 for the fragile
+   classes) is inside every level's window from 3 to 10, under today's rule
+   (aims 12 / 13 / 13 / 15 / 21 / 22 / 26 / 40) and with the margin.
+   Level 6 again at 2400 fights a duel (±1.0, 15 PV): spam 52.2 → 41.2 with
+   the margin, attacks alone 53.3 → 44.9.
+   Not settled by the night: at level 3 the AI without its defenses beats
+   the full AI under every candidate (62.1% today, 60.1% with the margin),
+   and at level 6 too (54.7% today, 53.2% with the margin, ±1.0), so the AI
+   defends too much there, a question for the referee (`ai/audit`), not
+   for a rule; a wall returns its whole margin (two guards
+   of 19 against a 7 return 12), where "at most what the blow threw" is the
+   other reading; the AI's depth-0 estimates do not know the margin (its
+   search plays it); the tier slopes of the PV table were not searched again
+   (the pinned line is inside every window measured).
+   What it cost, cold, at 24 lanes: the twelve candidates on kits and twins
+   at three levels 1 h 54 min for the windows and hand-worth (38
+   lane-minutes a cell: a window search plays PV up to 60, 800 fights near a
+   bar), 31 min more for the turtle, random and triangle duels; five candidates at the five levels
+   between, kits only, 1 h 21 min.
+   *When the owner answers:* the chosen options become the engine's defaults
+   and the others are deleted with their harness (`defense-rules.ts`,
+   playtest `defense-rules.ts`), `rules.md` and `intentions.md` take the
+   rule, the AI's aim and depth-0 estimates learn it (the referee audit and
+   the gate's duels after), `derive-pv.ts` runs once more; then goal 2.
 2. **One re-baseline.** B17, B28, B30, C4.
-   WAITING FOR THE OWNER: not before the owner has answered goal 1's
-   proposal, which moves the rule and the PV this baseline is taken on.
+   WAITING FOR THE OWNER: not before the owner has answered goal 1, which
+   may move the rule this baseline is taken on.
    `pnpm calibration:refresh` once, on the pinned PV. Then the gate's `KNOWN`
    (`sets/elements/test/gate.slow.test.ts`) and the kit suites' `KNOWN` and
    `KNOWN_BLIND` (`test/kits/known.ts`) written again from fresh runs, each
