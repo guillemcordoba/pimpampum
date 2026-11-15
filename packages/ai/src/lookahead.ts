@@ -46,8 +46,10 @@ export interface LookaheadOptions {
    *  optimal?" gets asked FAIRLY: both sides think equally hard, one of them
    *  merely has a smaller strategy space. A restriction that leaves nothing
    *  legal falls back to the full hand — a character with no attack must still
-   *  act. */
-  restrictTo?: ActionType[];
+   *  act. A function restricts each seat on its own (one hero guards while
+   *  the other plays a Focus): it is asked per character, on the engine that
+   *  character is in. */
+  restrictTo?: Restriction;
   /** Rounds each rollout plays on at depth 0 (everyone) after the searched
    *  round, before the leaf is read. Omit or 0: read it right after. Each
    *  round costs about as much as the searched one. */
@@ -101,6 +103,8 @@ export interface LookaheadOptions {
    */
   fictitiousPlay?: FictitiousPlay;
 }
+
+export type Restriction = readonly ActionType[] | ((engine: CombatEngine, actor: Character) => readonly ActionType[] | undefined);
 
 export interface FictitiousPlay {
   /** Answers each side gives before ours is final. */
@@ -319,7 +323,8 @@ function nextRoundThreat(engine: CombatEngine, team: number, skipping: Set<Chara
 /** Action indices `actor` may legally play, via the engine's own gate, honouring
  *  a type restriction when one is set (and ignoring it when it would leave the
  *  character with nothing to play). */
-function legal(engine: CombatEngine, actor: Character, restrictTo?: ActionType[]): number[] {
+function legal(engine: CombatEngine, actor: Character, restriction?: Restriction): number[] {
+  const restrictTo = typeof restriction === 'function' ? restriction(engine, actor) : restriction;
   const out: number[] = [];
   for (let i = 0; i < actor.actions.length; i++) {
     if (!engine.canPlayActionIdx(actor, i)) continue;

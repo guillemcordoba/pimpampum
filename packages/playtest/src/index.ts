@@ -51,5 +51,9 @@ export type { KnockoutCard, LevelWindow, OverCeiling, PacingCard, TierCandidate,
 export type { TwinDeriveOptions } from './derive-twins.js';
 export { DEFENSE_RULES, HAND_WORTH_STYLES, defenseRuleCell, defenseRuleScreen, dumbLoses, handBeatsAttacking, screenPasses, windowOpen } from './defense-rules.js';
 export type { DefenseRule, RuleCell, ScreenCell, TwinRecipe } from './defense-rules.js';
+export { PURE, roundTriangle, roundTriangleVerdict, roundTableJob } from './round-triangle.js';
+export type { RoundEdge } from './round-triangle.js';
+export { growPool, metaMix, isFixed, countersPlayed, describeTable, poolVerdict, poolDuelJob, POOL_DEFAULTS, POOL_READER_SHARE } from './pool.js';
+export type { Evaluate, PoolOptions, PoolStep, PoolResult, PoolVerdict } from './pool.js';
 export { REQUIREMENTS } from './requirements.js';
 export type { Requirement, RequirementGroup } from './requirements.js';

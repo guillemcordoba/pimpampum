@@ -29,7 +29,7 @@ export {
 export {
   bestResponse, evaluatePlan, positionScore, lookaheadChooser, rolloutOdds, opponentModel, DEFAULT_LOOKAHEAD, DEFAULT_EVAL_WEIGHTS,
 } from './lookahead.js';
-export type { LookaheadOptions, EvaluatorWeights, OpponentSearch, FictitiousPlay } from './lookahead.js';
+export type { LookaheadOptions, EvaluatorWeights, OpponentSearch, FictitiousPlay, Restriction } from './lookahead.js';
 export type { ActionOdds } from './policy.js';
 
 /** Everything an engine needs to run itself. Hand it to `new CombatEngine`. */

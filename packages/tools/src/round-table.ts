@@ -1,0 +1,59 @@
+/**
+ * THE TRIANGLE, ROUND BY ROUND (the user, 2026-11-15): once the cards are
+ * face up, which answer did you wish you had played? Per level, bench's round
+ * table: round starts from ordinary fights, the next round replayed for every
+ * pair of plans (a side's two card types: AA both attack, AD one attacks and
+ * one defends, …), the fight then played out. A cell is our side's score for
+ * having answered THAT plan with THIS one. The requirement (playtest
+ * `roundTriangle`): into an attack a defense is clearly the answer, into a
+ * defense a Focus, into a Focus an attack.
+ *
+ *   pnpm --filter @pimpampum/tools exec tsx src/round-table.ts --set elements
+ *   … --levels 3,6,10 --games 240 (round starts a level)   --pv 15 | --spend 0 | --envoltat | --guard-covers-defender   a candidate (bench `Variant`)
+ */
+import { fileURLToPath } from 'node:url';
+import { flag, games, inLanes, isolated, mergeRoundTable, pctCoarse, PLANS, roundTableChunks, SMOKE, useSet, type RoundTableChunk, type Variant } from '@pimpampum/bench';
+import { PURE, roundTriangle, roundTriangleVerdict, STYLE_LEVELS } from '@pimpampum/playtest';
+import { chosenSet } from './sets.js';
+
+const SET = await chosenSet();
+useSet(SET.gameSet);
+const levels = flag('--levels')?.split(',').map(Number) ?? (SMOKE ? STYLE_LEVELS.slice(0, 1) : STYLE_LEVELS);
+const positions = games(240);
+const variant: Variant = {
+  ...(flag('--pv') ? { pv: Number(flag('--pv')) } : {}),
+  ...(flag('--spend') ? { guardSpend: Number(flag('--spend')) } : {}),
+  ...(process.argv.includes('--envoltat') ? { envoltat: true } : {}),
+  ...(process.argv.includes('--guard-covers-defender') ? { guardCoversDefender: true } : {}),
+};
+const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
+const log = (s: string) => process.stderr.write(`${s}\n`);
+
+const jobs = levels.flatMap(level => Array.from({ length: roundTableChunks(positions) }, (_, chunk) => ({ level, chunk })));
+let done = 0;
+const chunks = await inLanes(jobs.map(({ level, chunk }) => async () => {
+  const part = await isolated<RoundTableChunk>(PLAYTEST, 'roundTableJob', [SET.ref, level, positions, chunk, variant]);
+  log(`${++done}/${jobs.length}: L${level} chunk ${chunk}`);
+  return { level, part };
+}));
+
+console.log(`${SET.id}: our side's score for answering their plan (columns) with ours (rows), the rest of the fight played out${Object.keys(variant).length ? `, ${JSON.stringify(variant)}` : ''}`);
+console.log('A attack · D defense · F Focus; a plan is a side\'s two cards. ★ the best answer in a column; the triangle claims DD into AA, FF into DD, AA into FF.');
+for (const level of levels) {
+  const table = mergeRoundTable(level, chunks.filter(c => c.level === level).map(c => c.part));
+  const pc = (x: number) => pctCoarse(x, table.positions);
+  console.log(`\nL${level}: ${table.positions} round starts`);
+  console.log(`ours \\ theirs ${PLANS.map(p => p.padStart(9)).join('')}`);
+  for (const ours of PLANS) {
+    console.log(`${ours.padEnd(13)} ${PLANS.map(theirs => {
+      const best = PLANS.every(other => table.cells[ours][theirs].score >= table.cells[other][theirs].score);
+      return `${pc(table.cells[ours][theirs].score)}${best ? '★' : ' '}`.padStart(9);
+    }).join('')}`);
+  }
+  const edges = roundTriangle(table);
+  for (const e of edges) {
+    console.log(`  into ${e.theirs}: ${e.claimed} scores ${pc(e.score)}, ${e.rival} ${pc(e.rivalScore)} (${e.lead >= 0 ? '+' : ''}${(100 * e.lead).toFixed(1)} ±${(100 * e.se).toFixed(1)}): ${e.holds ? 'holds' : 'DOES NOT HOLD'}${PURE.includes(e.best) ? '' : `; best of all, ${e.best} ${pc(e.bestScore)}`}`);
+  }
+  const verdict = roundTriangleVerdict(edges);
+  console.log(`  the triangle ${verdict.ok ? 'holds' : `does not hold: ${verdict.broken.join('; ')}`}`);
+}
