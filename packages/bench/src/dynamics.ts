@@ -12,7 +12,7 @@
  *  - a Focus (FOCUS), a Defense (its payoff: DEFENSE);
  *  - anything at the round's end (statuses, burns, bleeding: ROUND END).
  */
-import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type ActionDefinition, type Character, type CombatModifier, type PvLoss, type PvLossVia, type StatusEntry } from '@pimpampum/engine';
+import { ActionType, CombatEngine, ROUND_CAP, random, setAIControlled, withSeed, type ActionDefinition, type Character, type CombatEngineOptions, type CombatModifier, type PvLoss, type PvLossVia, type StatusEntry } from '@pimpampum/engine';
 import { aiPolicy } from '@pimpampum/ai';
 import { theRegistry } from './arena.js';
 import { countedCached, key, skillPrint } from './cache.js';
@@ -25,6 +25,10 @@ export interface Variant {
   chipDamage?: number;
   /** `CombatEngineOptions.guardCoversDefender`. */
   guardCoversDefender?: boolean;
+  /** `CombatEngineOptions.guardSpend`; omit for the rules' 1. */
+  guardSpend?: number;
+  /** `CombatEngineOptions.holdReturns`. */
+  holdReturns?: number;
   /** Heroes a side; omit for two. */
   teamSize?: number;
   /** Every hero's PV at this level; omit for the set's own. */
@@ -45,10 +49,12 @@ export function variantPV(v: Variant, kit: string, level: number): number | unde
 }
 
 /** The engine's options a variant sets; nothing when it leaves the rules as they are. */
-export function variantRules(v: Variant): { chipDamage?: number; guardCoversDefender?: boolean } {
+export function variantRules(v: Variant): Pick<CombatEngineOptions, 'chipDamage' | 'guardCoversDefender' | 'guardSpend' | 'holdReturns'> {
   return {
     ...(v.chipDamage ? { chipDamage: v.chipDamage } : {}),
     ...(v.guardCoversDefender ? { guardCoversDefender: true } : {}),
+    ...(v.guardSpend !== undefined && v.guardSpend !== 1 ? { guardSpend: v.guardSpend } : {}),
+    ...(v.holdReturns ? { holdReturns: v.holdReturns } : {}),
   };
 }
 

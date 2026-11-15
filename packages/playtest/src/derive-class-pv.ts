@@ -17,7 +17,7 @@
  * under the floor, and the cards without which fights end one PV over the
  * ceiling — each with its error bar, so a reading inside the noise says so.
  */
-import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerable } from '@pimpampum/bench';
+import { kitMirrors, kitsDynamics, type Dynamics, type PVModel, type Unanswerable, type Variant } from '@pimpampum/bench';
 import { MAX_UNANSWERABLE_KOS } from './derive-pv.js';
 import { MIN_KO_PLAYS, summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
@@ -70,10 +70,10 @@ export interface LevelWindow {
   floorCards: KnockoutCard[];
   /** Knockouts there a slow Focus set up (answered: the read cancels the Focus), by that Focus. */
   focusSetUps: Record<string, number>;
-  /** What holds the ceiling down (null: fights end even at the largest PV searched). */
+  /** What holds the ceiling down (null: fights end even at the largest PV searched, or it was not searched for). */
   overCeiling: OverCeiling | null;
-  /** Every PV the searches measured: fights end, the worst card's unanswerable rate, and the fights it took. */
-  measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; fights: number }[];
+  /** Every PV the searches measured: fights end, the worst card's unanswerable rate, how the fights ran, and the fights it took. */
+  measured: { pv: number; ends: boolean; unanswerable: number; median: number; p90: number; stalls: number; fights: number }[];
 }
 
 const shareLongerThan = (d: Dynamics, rounds: number) => d.rounds.filter(r => r > rounds).length / Math.max(1, d.fights);
@@ -104,14 +104,25 @@ function nearABar(d: Dynamics): boolean {
   });
 }
 
-/** One level's window on the real kits (random 2v2, every hero on one PV). */
-export function realWindow(level: number, fights: number): LevelWindow {
+/** What a window is searched under, when it is not today's game on the set's main kits. */
+export interface WindowOptions {
+  /** A candidate rule: the engine's options (bench `Variant`). */
+  rules?: Variant;
+  /** The kits drawn (installed by the caller, e.g. vanilla twins; `print` is their content, for the cache). */
+  given?: { kits: readonly string[]; print: string };
+  /** False: the cards that hold the ceiling down are not searched for (every card taken out of every hand in turn). */
+  blameCeiling?: boolean;
+}
+
+/** One level's window (random 2v2, every hero on one PV): on the real kits under today's rules, unless `opts` says otherwise. */
+export function realWindow(level: number, fights: number, opts: WindowOptions = {}): LevelWindow {
+  const { rules = {}, given } = opts;
   const seen = new Map<number, { d: Dynamics; s: DynamicsSummary }>();
   const measure = (pv: number) => {
     let m = seen.get(pv);
     if (!m) {
-      let d = kitsDynamics(level, fights, { pv });
-      if (nearABar(d)) d = kitsDynamics(level, RECHECK * fights, { pv });
+      let d = kitsDynamics(level, fights, { ...rules, pv }, given);
+      if (nearABar(d)) d = kitsDynamics(level, RECHECK * fights, { ...rules, pv }, given);
       m = { d, s: summarise(d) };
       seen.set(pv, m);
     }
@@ -142,8 +153,8 @@ export function realWindow(level: number, fights: number): LevelWindow {
     level, floor, ceiling, aim,
     floorCards: floor > PV_MIN || !answered(at(floor)) ? knockoutCards(under) : [],
     focusSetUps,
-    overCeiling: ceiling === PV_MAX ? null : overCeiling(level, fights, ceiling === null ? PV_MIN : ceiling + 1, measure(ceiling === null ? PV_MIN : ceiling + 1)),
-    measured: [...seen].sort((a, b) => a[0] - b[0]).map(([pv, { d, s }]) => ({ pv, ends: s.ends, unanswerable: s.unanswerableKOs, median: s.median, p90: s.p90, fights: d.fights })),
+    overCeiling: ceiling === PV_MAX || opts.blameCeiling === false ? null : overCeiling(level, fights, ceiling === null ? PV_MIN : ceiling + 1, measure(ceiling === null ? PV_MIN : ceiling + 1), rules, given),
+    measured: [...seen].sort((a, b) => a[0] - b[0]).map(([pv, { d, s }]) => ({ pv, ends: s.ends, unanswerable: s.unanswerableKOs, median: s.median, p90: s.p90, stalls: s.stallRate, fights: d.fights })),
   };
 }
 
@@ -154,19 +165,19 @@ export function realWindow(level: number, fights: number): LevelWindow {
  *  `RECHECK` times as many, against a baseline as large: the screen compares
  *  them all with one baseline, and a baseline that came out high makes every
  *  card look like it holds the ceiling. */
-function overCeiling(level: number, fights: number, pv: number, reading: { d: Dynamics; s: DynamicsSummary }): OverCeiling {
+function overCeiling(level: number, fights: number, pv: number, reading: { d: Dynamics; s: DynamicsSummary }, rules: Variant, given: WindowOptions['given']): OverCeiling {
   const fails = reading.s.median > MAX_MEDIAN_ROUNDS ? 'median' : 'stalls';
   const overBar = fails === 'median' ? longShareOf : stallShareOf;
   const holds = (n: number, card: string, base: Dynamics): PacingCard | null => {
-    const without = kitsDynamics(level, n, { pv, without: card });
+    const without = kitsDynamics(level, n, { ...rules, pv, without: card }, given);
     const ws = summarise(without);
     const with_ = overBar(base), share = overBar(without), drop = with_ - share;
     const se = Math.sqrt(stdErr(with_, base.fights) ** 2 + stdErr(share, without.fights) ** 2);
     return ws.ends && drop > 2 * se ? { card, median: ws.median, p90: ws.p90, stallRate: ws.stallRate, fights: without.fights, drop, se } : null;
   };
-  const screen = kitsDynamics(level, fights, { pv });
+  const screen = kitsDynamics(level, fights, { ...rules, pv }, given);
   const passed = Object.entries(screen.cards).filter(([card, c]) => c.plays > 0 && holds(fights, card, screen)).map(([card]) => card);
-  const all = passed.length ? kitsDynamics(level, RECHECK * fights, { pv }) : screen;
+  const all = passed.length ? kitsDynamics(level, RECHECK * fights, { ...rules, pv }, given) : screen;
   const cards = passed.map(card => holds(RECHECK * fights, card, all)).filter((c): c is PacingCard => !!c);
   const { median, p90, stallRate } = reading.s;
   return { pv, median, p90, stallRate, fights: reading.d.fights, longShare: longShareOf(reading.d), fails, cards: cards.sort((x, y) => y.drop - x.drop) };

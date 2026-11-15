@@ -185,10 +185,12 @@ export function styleDuel(
   x: DuelStyle, y: DuelStyle, level: number, games: number, withoutCard?: string,
   /** A candidate structure (bench `dynamics.ts`): the engine's options and a hero PV. */
   variant: Variant = {},
+  /** The kits drawn, instead of the set's main ones (installed by the caller, e.g. vanilla twins; `print` is their content, for the cache). */
+  given?: { kits: readonly string[]; print: string },
 ): StyleDuel {
   const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
-  return countedCached('mirror-duel', key('mirror-duel-v2', mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? '', v), () => {
-    const kits = theSet().calibration.mainKits;
+  return countedCached('mirror-duel', key('mirror-duel-v2', given ? `${given.print}#pv:${heroPVPrint()}` : mainKitsPrint(), x, y, String(level), String(games), withoutCard ?? '', v), () => {
+    const kits = given?.kits ?? theSet().calibration.mainKits;
     let score = 0, stalls = 0;
     const yPlays: Record<string, number> = {};
     withSeed(kitSeed(`${x}>${y}`, level, 2), () => {
@@ -230,13 +232,45 @@ export interface DuelSide {
   blowsOpen: number; blowsHeld: number; blowsThrough: number;
   /** PV it took off the other side, by source. */
   dealt: Record<DamageSource, number>;
+  ledger: GuardLedger;
 }
+
+/**
+ * WHAT A SIDE'S DEFENSE CARDS CAME TO, summed over the rounds it played any:
+ * what they stopped, what still got past them and how, and the blows their
+ * players did not throw.
+ */
+export interface GuardLedger {
+  /** Rounds with a Defense card of its own, and those cards; of the cards, the ones played in a round no enemy attack aimed at its side. */
+  rounds: number; cards: number; idle: number;
+  /** Attack points the enemy threw at its covered bodies, and the PV of them its guards stopped. */
+  thrown: number; stopped: number;
+  /** PV it lost in those rounds to enemy attack cards: on a body no guard
+   *  covered, the guard already up; on one whose guard had not resolved yet (a
+   *  fast attack); through a guard no earlier blow had met; through one an
+   *  earlier blow had used; with no roll against a guard. */
+  lostAround: number; lostBefore: number; lostThroughFresh: number; lostThroughUsed: number; lostUncontested: number;
+  /** PV it lost in those rounds to anything else (Focus cards, the round's end). */
+  lostOther: number;
+  /** PV the enemy's attackers lost in their own steps in those rounds (ripostes, a held blow returned). */
+  dealtBack: number;
+  /** What the biggest attack in each defender's hand averages: the blows not thrown. */
+  forgone: number;
+}
+
+const emptyLedger = (): GuardLedger => ({
+  rounds: 0, cards: 0, idle: 0, thrown: 0, stopped: 0, lostAround: 0, lostBefore: 0, lostThroughFresh: 0, lostThroughUsed: 0, lostUncontested: 0, lostOther: 0, dealtBack: 0, forgone: 0,
+});
+
+const biggestAttack = (c: Character): number => Math.max(0, ...c.actions.filter(a => a.def.actionType === ActionType.Atac && !a.def.lastResort)
+  .map(a => (a.def.dice?.average() ?? 0) + (a.def.rollBonus ?? 0)));
 
 export interface DuelAutopsy { x: DuelStyle; y: DuelStyle; level: number; games: number; score: number; meanRounds: number; sides: { x: DuelSide; y: DuelSide } }
 
 const emptySide = (): DuelSide => ({
   plays: { attack: 0, defense: 0, focus: 0 }, focusLost: 0, guards: 0, guardsFaced: 0, guardsHeld: 0, blowsOpen: 0, blowsHeld: 0, blowsThrough: 0,
   dealt: { open: 0, guarded: 0, area: 0, counter: 0, focus: 0, defense: 0, roundEnd: 0 },
+  ledger: emptyLedger(),
 });
 
 /**
@@ -244,8 +278,9 @@ const emptySide = (): DuelSide => ({
  * alternating), stepped one card at a time and read per side — a broken
  * triangle edge's autopsy (playtest `gate.ts`).
  */
-export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: number): DuelAutopsy {
-  return countedCached('mirror-autopsy', key('mirror-autopsy-v1', mainKitsPrint(), x, y, String(level), String(games)), () => {
+export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: number, variant: Variant = {}): DuelAutopsy {
+  const v = Object.keys(variant).length ? JSON.stringify(variant) : '';
+  return countedCached('mirror-autopsy', key('mirror-autopsy-v2', mainKitsPrint(), x, y, String(level), String(games), v), () => {
     const kits = theSet().calibration.mainKits;
     const sides = { x: emptySide(), y: emptySide() };
     let score = 0, rounds = 0;
@@ -254,8 +289,8 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
         const pair = [drawKit(kits), drawKit(kits)];
         const xSide = f % 2;
         const X = chooserFor(x), Y = chooserFor(y);
-        const e = new CombatEngine(heroes(pair, level, 'A'), heroes(pair, level, 'B'), {
-          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS,
+        const e = new CombatEngine(heroes(pair, level, 'A', variant), heroes(pair, level, 'B', variant), {
+          registry: theRegistry(), maxRounds: ROUND_CAP, targetChooser: TARGETS, ...variantRules(variant),
           actionChooser: (en, c) => (c.team === xSide ? X : Y)(en, c),
         });
         const everyone = e.teams.flat();
@@ -265,8 +300,14 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
           e.planActions([]);
           const guardsUp: { side: DuelSide; body: Character }[] = [];
           const hurtByAttacks = new Map<Character, number>();
+          const roundStart = new Map(everyone.map(c => [c, Math.max(0, c.currentPV)]));
+          /** PV each team lost this round that the ledger has placed. */
+          const placed = [0, 0];
           for (;;) {
             const before = new Map(everyone.map(c => [c, c.currentPV]));
+            const metBefore = new Map(everyone.map(c => [c, e.guardMetOn(c)]));
+            const lossesBefore = e.pvLosses.length;
+            const defenses = e.plannedThisRound().filter(p => !p.cancelled && p.action.actionType === ActionType.Defensa);
             const guardCount = new Map(everyone.map(c => [c, c.guards.length]));
             const guarded = new Set(everyone.filter(c => c.guards.length > 0));
             const step = e.resolveNextAction();
@@ -294,6 +335,26 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
               side.dealt[source] += loss;
               if (type === ActionType.Atac) hurtByAttacks.set(c, (hurtByAttacks.get(c) ?? 0) + loss);
             }
+            const foes = 1 - actor.team;
+            if (type === ActionType.Atac && defenses.some(p => p.actor.team === foes)) {
+              const ledger = other.ledger;
+              const lost = (via: string) => e.pvLosses.slice(lossesBefore).filter(l => l.target.team === foes && l.via === via).reduce((t, l) => t + l.lost, 0);
+              let thrown = 0, onUsed = 0;
+              for (const c of e.teams[foes]) {
+                const met = e.guardMetOn(c) - (metBefore.get(c) ?? 0);
+                thrown += met;
+                if ((metBefore.get(c) ?? 0) > 0) onUsed += met;
+              }
+              const through = lost('guarded'), open = lost('open'), uncontested = lost('uncontested');
+              ledger.thrown += thrown;
+              ledger.stopped += Math.max(0, thrown - through);
+              ledger.lostThroughUsed += thrown ? through * onUsed / thrown : 0;
+              ledger.lostThroughFresh += thrown ? through * (1 - onUsed / thrown) : through;
+              if (defenses.some(p => p.actor.team === foes && p.resolved)) ledger.lostAround += open; else ledger.lostBefore += open;
+              ledger.lostUncontested += uncontested;
+              placed[foes] += through + open + uncontested;
+              for (const c of e.teams[actor.team]) ledger.dealtBack += Math.max(0, (before.get(c) ?? 0) - Math.max(0, c.currentPV));
+            }
             if (type === ActionType.Atac) {
               const mine = e.plannedThisRound().find(p => p.actor === actor && p.action.id === def.id);
               for (const t of mine?.targets ?? []) {
@@ -315,6 +376,17 @@ export function duelAutopsy(x: DuelStyle, y: DuelStyle, level: number, games: nu
           const beforeEnd = new Map(everyone.map(c => [c, c.currentPV]));
           e.finishRound();
           for (const c of everyone) sideOf(1 - c.team).dealt.roundEnd += Math.max(0, (beforeEnd.get(c) ?? 0) - Math.max(0, c.currentPV));
+          for (const team of [0, 1]) {
+            const cards = plan.filter(p => !p.cancelled && p.actor.team === team && p.action.actionType === ActionType.Defensa);
+            if (!cards.length) continue;
+            const ledger = sideOf(team).ledger;
+            ledger.rounds++;
+            ledger.cards += cards.length;
+            if (!plan.some(p => !p.cancelled && p.actor.team !== team && p.action.actionType === ActionType.Atac && !!p.targets?.some(t => t.team === team))) ledger.idle += cards.length;
+            for (const p of cards) ledger.forgone += biggestAttack(p.actor);
+            const lostThisRound = e.teams[team].reduce((t, c) => t + Math.max(0, (roundStart.get(c) ?? 0) - Math.max(0, c.currentPV)), 0);
+            ledger.lostOther += Math.max(0, lostThisRound - placed[team]);
+          }
         }
         const w = e.winner();
         score += !e.isOver() || w === null ? 0.5 : w === xSide ? 1 : 0;

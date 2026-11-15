@@ -47,7 +47,9 @@ export { vanillaTwin, withVanillaSet, twinDynamics, TWIN_DEFAULTS } from './vani
 export type { TwinParams } from './vanilla.js';
 export { deriveOnTwins, deriveTwinLevel } from './derive-twins.js';
 export { AIM_MEDIAN_ROUNDS, asFairAs, fitsEveryWindow, tierStaysInside, wholePV, realWindow, realWindowJob, fitLine, measureTiers, measureTiersJob, PV_LEVELS } from './derive-class-pv.js';
-export type { KnockoutCard, LevelWindow, OverCeiling, PacingCard, TierCandidate, TierMeasure } from './derive-class-pv.js';
+export type { KnockoutCard, LevelWindow, OverCeiling, PacingCard, TierCandidate, TierMeasure, WindowOptions } from './derive-class-pv.js';
 export type { TwinDeriveOptions } from './derive-twins.js';
+export { DEFENSE_RULES, HAND_WORTH_STYLES, defenseRuleCell, dumbLoses, handBeatsAttacking, windowOpen } from './defense-rules.js';
+export type { DefenseRule, RuleCell, TwinRecipe } from './defense-rules.js';
 export { REQUIREMENTS } from './requirements.js';
 export type { Requirement, RequirementGroup } from './requirements.js';

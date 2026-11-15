@@ -24,6 +24,8 @@ export interface TwinDeriveOptions {
   fights: number; armour: number; chip?: number; burst?: 'aimed' | 'plain' | 'fast';
   /** `CombatEngineOptions.guardCoversDefender`, as bench's `Variant` takes it. */
   guardCoversDefender?: boolean;
+  /** `CombatEngineOptions.guardSpend` and `holdReturns`, as bench's `Variant` takes them. */
+  guardSpend?: number; holdReturns?: number;
 }
 
 /** The smallest PV a blow of `dice` + `bonus` fells at most `MAX_UNANSWERABLE_KOS` of the time. */
@@ -64,7 +66,10 @@ export function deriveOnTwins(
     const at = (pv: number): DynamicsSummary => {
       let s = measured.get(pv);
       if (!s) {
-        const rules = { ...(opts.chip ? { chipDamage: opts.chip } : {}), ...(opts.guardCoversDefender ? { guardCoversDefender: true } : {}) };
+        const rules = {
+          ...(opts.chip ? { chipDamage: opts.chip } : {}), ...(opts.guardCoversDefender ? { guardCoversDefender: true } : {}),
+          ...(opts.guardSpend !== undefined ? { guardSpend: opts.guardSpend } : {}), ...(opts.holdReturns ? { holdReturns: opts.holdReturns } : {}),
+        };
         s = summarise(kitsDynamics(level, opts.fights, { pv, ...rules }, { kits: twins.map(t => t.id), print }));
         measured.set(pv, s);
       }
