@@ -45,7 +45,7 @@ const MAIN_KITS = SET.gameSet.calibration.mainKits;
 if (KIT && !MAIN_KITS.includes(KIT)) throw new Error(`--kit ${KIT}: not a main kit (${MAIN_KITS.join(', ')})`);
 const KITS = KIT ? [KIT] : MAIN_KITS;
 const fights = games(120);
-const budget = { vanillaFights: games(FIX_BUDGET.vanillaFights), realFights: games(FIX_BUDGET.realFights), duelGames: games(FIX_BUDGET.duelGames) };
+const budget = { vanillaFights: games(FIX_BUDGET.vanillaFights), realFights: games(FIX_BUDGET.realFights), duelGames: games(FIX_BUDGET.duelGames), roundPositions: games(FIX_BUDGET.roundPositions) };
 const gateBudget: GateBudget = { kitFights: games(GATE_BUDGET.kitFights), duelGames: games(GATE_BUDGET.duelGames), cardFights: games(GATE_BUDGET.cardFights), modelFights: games(GATE_BUDGET.modelFights!) };
 const rung = (l: number): LadderRung => ({ attack: ATTACK_LADDER[l], defense: DEFENSE_LADDER[l] });
 const log = (s: string) => process.stderr.write(`${s}\n`);

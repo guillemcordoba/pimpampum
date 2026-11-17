@@ -101,7 +101,8 @@ is past its bar.
 **Sample size is per requirement.** `--games` sizes the full-kit run
 (requirements 1 and 2: 800 combats put a kit's delta at ±2pp inside a ±15pp
 band); the card value derives its fights from it; the triangle has its own
-(`TRIANGLE_GAMES`, sized so a 5pp edge clears an even duel).
+(`ROUND_POSITIONS` round starts a level, sized so a 10pp lead of one answer
+over another clears the noise).
 
 Three corollaries that keep coming up:
 
@@ -205,7 +206,7 @@ deleted (below). `tools/test/harnesses.slow.test.ts` runs each of them at `GAMES
 |---|---|
 | **the kits** | |
 | `kit-gate.ts` | **the livable zone** — every main kit, levels 3-10, heroes against heroes: fights end, no kit dominates the field, the triangle, dumb play loses (turtle, spam, random cards), the AI's model of its opponents, every card's use (the TEST is `sets/elements/test/gate.slow.test.ts`) |
-| `kit-analyzer.ts` | **the report card** against creatures — the three kit requirements, every number, card values included; `--triangle` adds the set's fourth (the TESTS are each set's `test/kits/` and `triangle.slow.test.ts`) |
+| `kit-analyzer.ts` | **the report card** against creatures — the three kit requirements, every number, card values included; `--triangle` adds the set's fourth (the TESTS are each set's `test/kits/` and `round-table.slow.test.ts`) |
 | `dynamics-report.ts` | **a set's health, at a glance — the tool to iterate a kit with** — how many of playtest's `REQUIREMENTS` hold at levels 3/6/10; the cards to look at first (those that set a level's PV floor, hold its ceiling down, or block a class alone, ranked by how many of these they do past the noise); each class and the cards that block it (each failing kit cell re-played without each card; cards that fell fresh heroes; cards never right); the table; each level's PV window (levels 3-10) with the cards behind its floor and ceiling and their error bars. `--kit <kit>` for one kit, `--fixes` to also measure candidate structures (slow) |
 | `kit-tuner.ts` | the numbers that clear most of one kit's gate cells — a PROPOSAL, re-measured at the gate's budget; it never writes a card |
 | `main.ts` | the standing report: mirror balance + a replay check on the balancer |

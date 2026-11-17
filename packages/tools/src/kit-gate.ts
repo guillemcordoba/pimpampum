@@ -10,7 +10,7 @@
  * the cache: a second run on unchanged content is instant.
  */
 import { flag, games, SMOKE, useSet } from '@pimpampum/bench';
-import { autopsyLines, FIELD_MAX, GATE_BUDGET, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
+import { FIELD_MAX, GATE_BUDGET, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CHOICE_COST, GATE_LEVELS, GATE_QUICK, measureGate, prepareGate, STYLE_LEVELS, type FightShape, type GateBudget, type GateScope } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -84,18 +84,11 @@ for (const kit of kits) {
 }
 
 if (r.styles.length) {
-  console.log(`\nTHE TRIANGLE AND DUMB PLAY (each claimed winner's score; each dumb strategy's against the AI)`);
+  console.log(`\nTHE TRIANGLE AND DUMB PLAY (round by round: into each plan, the best answer holding its counter and the best without; each dumb strategy's score against the AI)`);
   for (const s of r.styles) {
-    const edges = s.edges.map(e => `${s.broken.includes(`${e.winner} > ${e.loser}`) ? '❌' : '✓'} ${e.winner}>${e.loser} ${Math.round(100 * e.winrate)}%`).join('  ');
+    const edges = s.edges.map(e => `${e.holds ? '✓' : '❌'} into ${e.theirs}: ${e.claimed} ${Math.round(100 * e.score)}% · ${e.rival} ${Math.round(100 * e.rivalScore)}%`).join('  ');
     const dumb = s.dumb.map(d => `${d.ok ? '✓' : '❌'} ${d.style} ${Math.round(100 * d.score)}%`).join('  ');
     console.log(`L${s.level}  ${edges}  ${dumb}`);
-    for (const a of s.autopsies) {
-      console.log(`    why ${a.x} > ${a.y} fails:`);
-      for (const line of autopsyLines(a)) console.log(`      ${line}`);
-    }
-    for (const c of s.culprits) {
-      console.log(`    ${c.edge} is held up by: ${c.cards.map(x => `${x.name} (without it ${x.shift >= 0 ? '+' : ''}${x.shift.toFixed(0)})`).join(', ')}`);
-    }
   }
 }
 

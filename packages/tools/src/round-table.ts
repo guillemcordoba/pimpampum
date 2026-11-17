@@ -13,7 +13,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import { flag, games, inLanes, isolated, mergeRoundTable, pctCoarse, PLANS, roundTableChunks, SMOKE, useSet, type RoundTableChunk, type Variant } from '@pimpampum/bench';
-import { DEFENSE_RULES, PURE, roundTriangle, roundTriangleVerdict, STYLE_LEVELS } from '@pimpampum/playtest';
+import { DEFENSE_RULES, roundTriangle, roundTriangleVerdict, STYLE_LEVELS } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -35,7 +35,7 @@ const chunks = await inLanes(jobs.map(({ level, chunk }) => async () => {
 }));
 
 console.log(`${SET.id}: our side's score for answering their plan (columns) with ours (rows), the rest of the fight played out, under "${rule.id}"${flag('--pv') ? `, every hero on ${flag('--pv')} PV` : ''}`);
-console.log('A attack · D defense · F Focus; a plan is a side\'s two cards. ★ the best answer in a column; the triangle claims DD into AA, FF into DD, AA into FF.');
+console.log('A attack · D defense · F Focus; a plan is a side\'s two cards. ★ the best answer in a column; the triangle claims a defense into AA, a Focus into DD, an attack into FF (a mixed answer holding it counts).');
 for (const level of levels) {
   const table = mergeRoundTable(level, chunks.filter(c => c.level === level).map(c => c.part));
   const pc = (x: number) => pctCoarse(x, table.positions);
@@ -49,7 +49,7 @@ for (const level of levels) {
   }
   const edges = roundTriangle(table);
   for (const e of edges) {
-    console.log(`  into ${e.theirs}: ${e.claimed} scores ${pc(e.score)}, ${e.rival} ${pc(e.rivalScore)} (${e.lead >= 0 ? '+' : ''}${(100 * e.lead).toFixed(1)} ±${(100 * e.se).toFixed(1)}): ${e.holds ? 'holds' : 'DOES NOT HOLD'}${PURE.includes(e.best) ? '' : `; best of all, ${e.best} ${pc(e.bestScore)}`}`);
+    console.log(`  into ${e.theirs}, the best holding ${e.counter}: ${e.claimed} scores ${pc(e.score)}, the best without: ${e.rival} ${pc(e.rivalScore)} (${e.lead >= 0 ? '+' : ''}${(100 * e.lead).toFixed(1)} ±${(100 * e.se).toFixed(1)}): ${e.holds ? 'holds' : 'DOES NOT HOLD'}`);
   }
   const verdict = roundTriangleVerdict(edges);
   console.log(`  the triangle ${verdict.ok ? 'holds' : `does not hold: ${verdict.broken.join('; ')}`}`);

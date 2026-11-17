@@ -34,7 +34,9 @@
  * else in the pool beats it. Proved on mock games whose best strategy is
  * known (`test/pool.test.ts`).
  */
-import { always, counterPlan, memberKey, PLANS, poolDuel, type Plan, type PoolDuel, type PoolMember, type ResponseTable, type Strategy, type Variant } from '@pimpampum/bench';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { always, counterPlan, inLanes, isolated, memberKey, PLANS, poolDuel, type Plan, type PoolDuel, type PoolMember, type ResponseTable, type Strategy, type Variant } from '@pimpampum/bench';
 import { shiftDefenses } from './fixes.js';
 import { installSet, type RunContext } from './prepare.js';
 
@@ -288,4 +290,45 @@ export async function poolDuelJob(set: RunContext['set'], x: PoolMember, y: Pool
   await installSet(set);
   shiftDefenses(defenseShift);
   return poolDuel(x, y, level, games, variant, undefined, fresh);
+}
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+/** The built module the duels run in: this one, from `dist/`. */
+const SELF = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist', 'pool.js');
+
+export interface PoolRun {
+  set: RunContext['set']; level: number;
+  /** Fights a duel. */
+  games: number;
+  /** A candidate rule (playtest `DEFENSE_RULES`: its rules and its defense shift), or every hero on one PV. */
+  variant?: Variant; defenseShift?: number;
+  maxMembers?: number; families?: readonly Strategy['kind'][];
+  onStep?: PoolOptions['onStep'];
+}
+
+export interface PoolReading {
+  level: number; result: PoolResult; verdict: PoolVerdict;
+  /** The production AI against the final mix (the members holding 1% of it or more), on fights the search never saw. */
+  aiScore: number;
+  /** Duels played (each pair once, whichever way round). */
+  duels: number;
+}
+
+/** One level's pool grown, its verdict, and the production AI read against its mix: every duel a child process across bench's lanes. */
+export async function measurePool(run: PoolRun): Promise<PoolReading> {
+  const played = new Map<string, Promise<PoolDuel>>();
+  const duel = (x: PoolMember, y: PoolMember, fresh = 0): Promise<PoolDuel> => {
+    const [a, b] = memberKey(x) <= memberKey(y) ? [x, y] : [y, x];
+    const k = `${fresh}:${memberKey(a)}:${memberKey(b)}`;
+    let job = played.get(k);
+    if (!job) played.set(k, job = inLanes([() => isolated<PoolDuel>(SELF, 'poolDuelJob', [run.set, a, b, run.level, run.games, run.variant ?? {}, fresh, run.defenseShift ?? 0])]).then(r => r[0]));
+    return job.then(d => (a === x ? d : { ...d, score: 1 - d.score }));
+  };
+  const result = await growPool(async (pairs, fresh = 0) => (await Promise.all(pairs.map(([x, y]) => duel(x, y, fresh)))).map(d => d.score), {
+    ...(run.maxMembers ? { maxMembers: run.maxMembers } : {}), ...(run.families ? { families: run.families } : {}), ...(run.onStep ? { onStep: run.onStep } : {}),
+  });
+  const support = result.members.map((m, i) => ({ m, p: result.mix[i] })).filter(s => s.p >= SUPPORT);
+  const ai = await Promise.all(support.map(s => duel('ai', s.m, 1)));
+  const aiScore = support.reduce((t, s, i) => t + s.p * ai[i].score, 0) / support.reduce((t, s) => t + s.p, 0);
+  return { level: run.level, result, verdict: poolVerdict(result, run.games), aiScore, duels: played.size };
 }

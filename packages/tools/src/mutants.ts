@@ -302,8 +302,20 @@ export const MUTANTS: Mutant[] = [
   },
   {
     label: 'requirement 4: the triangle holds when ANY edge does',
-    file: 'packages/playtest/src/rules.ts',
+    file: 'packages/playtest/src/round-triangle.ts',
     find: 'return { ok: broken.length === 0, broken };',
     replace: 'return { ok: broken.length < edges.length, broken };',
+  },
+  {
+    label: 'requirement 4: a round-table edge holds on the point estimate',
+    file: 'packages/playtest/src/round-triangle.ts',
+    find: 'holds: lead - 2 * se > 0,',
+    replace: 'holds: lead > 0,',
+  },
+  {
+    label: 'requirement 4: a mixed answer holding the counter is not credited',
+    file: 'packages/playtest/src/round-triangle.ts',
+    find: 'const claimed = top(PLANS.filter(p => p.includes(counter)));',
+    replace: 'const claimed = top(PLANS.filter(p => p === `${counter}${counter}`));',
   },
 ];

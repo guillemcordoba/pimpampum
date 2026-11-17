@@ -11,7 +11,9 @@
  *  - NO KIT DOMINATES: in the same fights, no kit's side clearly above
  *    `FIELD_MAX` against the field;
  *  - THE TRIANGLE and DUMB PLAY LOSES: at the checkpoints (3, 6, 10), the
- *    three leaning styles each against the next, and every dumb strategy
+ *    round table (bench `round-table.ts`, playtest `roundTriangle`: into an
+ *    attack a defense is clearly the answer, into a defense a Focus, into a
+ *    Focus an attack), and every dumb strategy
  *    (bench `DUMB_STYLES`: only defending, the biggest attack, any card)
  *    against the reading AI, which must beat each one clearly;
  *  - EVERY CARD HAS A USE, and CHOOSING MATTERS: per kit, each card's value in
@@ -24,10 +26,11 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DUMB_STYLES, duelAutopsy, kitChoiceCost, kitMirrorCardValues, kitMirrors, mirrorCardChunk, mirrorCardChunks, modelCheck, scoreCards, styleDuel, theSet, warm, type DuelAutopsy, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
+import { DUMB_STYLES, kitChoiceCost, kitMirrorCardValues, kitMirrors, mirrorCardChunk, mirrorCardChunks, modelCheck, roundTable, roundTableChunk, roundTableChunks, scoreCards, styleDuel, theSet, warm, type DuelStyle, type DumbStyle, type KitMirrorRun, type MirrorAutopsy, type ModelCheck } from '@pimpampum/bench';
 import type { RunContext } from './prepare.js';
+import { roundTriangle, type RoundEdge } from './round-triangle.js';
 import {
-  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, modelVerdict, triangleVerdict,
+  choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, isBlindSpot, MIN_CHOICE_COST, isNeverRight, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, modelVerdict, ROUND_POSITIONS,
 } from './rules.js';
 
 export const GATE_LEVELS: readonly number[] = [3, 4, 5, 6, 7, 8, 9, 10];
@@ -36,14 +39,15 @@ export const STYLE_LEVELS: readonly number[] = [3, 6, 10];
 /** The same checkpoints for the cards: every card is held at one of them. */
 export const CARD_LEVELS: readonly number[] = STYLE_LEVELS;
 
-export interface GateBudget { kitFights: number; duelGames: number; cardFights: number; modelFights?: number }
-export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30, modelFights: 40 };
+/** `roundPositions`: the round starts of each checkpoint's round table. */
+export interface GateBudget { kitFights: number; duelGames: number; cardFights: number; modelFights?: number; roundPositions?: number }
+export const GATE_BUDGET: GateBudget = { kitFights: 120, duelGames: 200, cardFights: 30, modelFights: 40, roundPositions: ROUND_POSITIONS };
 /** For iterating (with the checkpoints only, and no card values): about a
  *  quarter of the fights, minutes instead of an hour. Its numbers are rough;
  *  the full gate confirms. */
-export const GATE_QUICK: GateBudget = { kitFights: 30, duelGames: 60, cardFights: 10, modelFights: 15 };
+export const GATE_QUICK: GateBudget = { kitFights: 30, duelGames: 60, cardFights: 10, modelFights: 15, roundPositions: 60 };
 
-const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
+const positionsOf = (budget: GateBudget) => budget.roundPositions ?? ROUND_POSITIONS;
 
 export interface GateKitCell {
   kit: string; level: number; fights: number;
@@ -92,14 +96,9 @@ export interface FightShape {
 
 export interface GateStyleCell {
   level: number;
-  edges: { winner: string; loser: string; winrate: number; games: number }[];
+  /** The round table's three edges (`roundTriangle`), and the columns whose edge does not hold (`into AA`). */
+  edges: RoundEdge[]; positions: number;
   broken: string[];
-  /** Per broken edge, the loser's cards whose removal lifts the claimed
-   *  winner's score most: what holds the edge up (`shift` in points). */
-  culprits: { edge: string; cards: { card: string; name: string; shift: number }[] }[];
-  /** Per broken edge, both sides' play in its duels (`duelAutopsy`): what
-   *  the guards met, where the blows landed, what came of the Focus cards. */
-  autopsies: DuelAutopsy[];
   /** Each dumb strategy's score against the reading AI; `ok`: it clearly loses. */
   dumb: { style: DumbStyle; score: number; stalls: number; games: number; ok: boolean }[];
   /** The AI's model of its opponents against what they played (`modelCheck`). */
@@ -123,7 +122,7 @@ export interface GateReport {
   failures: GateFailure[];
 }
 
-/** Keys: `<kit> L<n> length`, `<kit> L<n> dominates`, `<kit> L<n> choice`, `L<n> triangle <winner> > <loser>`, `L<n> dumb <style>`,
+/** Keys: `<kit> L<n> length`, `<kit> L<n> dominates`, `<kit> L<n> choice`, `L<n> triangle into <plan>`, `L<n> dumb <style>`,
  *  `L<n> model`, `<kit> <card id> never-right`, `<kit> <card id> blind`. */
 export interface GateFailure { key: string; text: string }
 
@@ -131,9 +130,8 @@ export interface GateFailure { key: string; text: string }
 export type GateJob =
   | { kind: 'gate-fights'; kit: string; level: number }
   | { kind: 'gate-duel'; x: DuelStyle; y: DuelStyle; level: number }
+  | { kind: 'gate-round'; level: number; chunk: number }
   | { kind: 'gate-cards'; kit: string; level: number; chunk: number }
-  | { kind: 'gate-blame'; x: DuelStyle; y: DuelStyle; level: number; card: string }
-  | { kind: 'gate-autopsy'; x: DuelStyle; y: DuelStyle; level: number }
   | { kind: 'gate-ablate'; kit: string; level: number; card: string }
   | { kind: 'gate-model'; level: number };
 
@@ -142,7 +140,7 @@ export interface GateScope {
   /** false: leave the card values out — they replay the rest of the fight for
    *  every legal card at every decision, most of a gate's cost. */
   cards?: boolean;
-  /** false: leave the strategy triangle out (its duels, culprits, autopsies). */
+  /** false: leave the strategy triangle out (its round tables). */
   triangle?: boolean;
   /** The set-level duels (dumb play, the triangle, the AI's model); on unless
    *  the scope names kits. */
@@ -164,7 +162,7 @@ export function gateJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET
     ...(scope.cards === false ? [] : kits.flatMap(kit => inScope(CARD_LEVELS, scope).flatMap(level =>
       Array.from({ length: mirrorCardChunks(budget.cardFights) }, (_, chunk) => ({ kind: 'gate-cards' as const, kit, level, chunk }))))),
     ...(!stylesOn(scope) ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => [
-      ...(scope.triangle === false ? [] : EDGES.map(([x, y]) => ({ kind: 'gate-duel' as const, x, y, level }))),
+      ...(scope.triangle === false ? [] : Array.from({ length: roundTableChunks(positionsOf(budget)) }, (_, chunk) => ({ kind: 'gate-round' as const, level, chunk }))),
       ...DUMB_STYLES.map(x => ({ kind: 'gate-duel' as const, x, y: 'ai' as const, level })),
       { kind: 'gate-model' as const, level },
     ])),
@@ -175,39 +173,21 @@ export function gateJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET
 export function runGateJob(job: GateJob, budget: GateBudget = GATE_BUDGET): void {
   if (job.kind === 'gate-fights') kitMirrors(job.kit, job.level, budget.kitFights, MAX_MEDIAN_ROUNDS);
   else if (job.kind === 'gate-duel') styleDuel(job.x, job.y, job.level, budget.duelGames);
-  else if (job.kind === 'gate-blame') styleDuel(job.x, job.y, job.level, budget.duelGames, job.card);
-  else if (job.kind === 'gate-autopsy') duelAutopsy(job.x, job.y, job.level, budget.duelGames);
+  else if (job.kind === 'gate-round') roundTableChunk(job.level, positionsOf(budget), job.chunk);
   else if (job.kind === 'gate-ablate') kitMirrors(job.kit, job.level, budget.kitFights, MAX_MEDIAN_ROUNDS, job.card);
   else if (job.kind === 'gate-model') modelCheck(job.level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   else mirrorCardChunk(job.kit, job.level, budget.cardFights, job.chunk);
 }
 
-/** How many of the loser's most played cards a broken edge tries removing. */
-const CULPRIT_CANDIDATES = 6;
-
-/** The edge's suspects: the cards the claimed loser played most. */
-function suspects(x: DuelStyle, y: DuelStyle, level: number, budget: GateBudget): string[] {
-  const plays = styleDuel(x, y, level, budget.duelGames).yPlays;
-  return Object.entries(plays).sort((a, b) => b[1] - a[1]).slice(0, CULPRIT_CANDIDATES).map(([id]) => id);
-}
-
-/** The second wave: a removal duel per suspect of every broken edge. Reads the
- *  first wave's duels, so it runs after them. */
+/** The second wave: each failing kit cell at a checkpoint without each of its
+ *  cards (`GateScope.blame`). Reads the first wave's fights, so it runs after them. */
 export function blameJobs(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateJob[] {
-  const triangle = !stylesOn(scope) || scope.triangle === false ? [] : inScope(STYLE_LEVELS, scope).flatMap(level => EDGES.flatMap(([x, y]) => {
-    const d = styleDuel(x, y, level, budget.duelGames);
-    if (edgeHolds(d.score, d.games)) return [];
-    return [
-      { kind: 'gate-autopsy' as const, x, y, level },
-      ...suspects(x, y, level, budget).map(card => ({ kind: 'gate-blame' as const, x, y, level, card })),
-    ];
-  }));
   const kits = !scope.blame ? [] : scopeKits(scope).flatMap(kit => inScope(STYLE_LEVELS, scope).flatMap(level => {
     const c = kitVerdict(kit, level, budget);
     if (c.ok && !c.dominates) return [];
     return ownCards(kit, level).map(card => ({ kind: 'gate-ablate' as const, kit, level, card: card.id }));
   }));
-  return [...triangle, ...kits];
+  return kits;
 }
 
 /** The kit's own cards its hero holds at `level`. */
@@ -283,32 +263,15 @@ export function gateKitCell(kit: string, level: number, budget: GateBudget = GAT
 }
 
 export function gateStyleCell(level: number, budget: GateBudget = GATE_BUDGET, triangle = true): GateStyleCell {
-  const edges = !triangle ? [] : EDGES.map(([x, y]) => {
-    const d = styleDuel(x, y, level, budget.duelGames);
-    return { winner: x, loser: y, winrate: d.score, games: d.games };
-  });
+  const positions = positionsOf(budget);
+  const edges = !triangle ? [] : roundTriangle(roundTable(level, positions));
   const dumb = DUMB_STYLES.map(style => {
     const d = styleDuel(style, 'ai', level, budget.duelGames);
     return { style, score: d.score, stalls: d.stalls, games: d.games, ok: edgeHolds(1 - d.score, d.games) };
   });
-  const judged = triangle ? EDGES : [];
-  const culprits = judged.filter(([x, y]) => {
-    const e = edges.find(d => d.winner === x && d.loser === y)!;
-    return !edgeHolds(e.winrate, e.games);
-  }).map(([x, y]) => {
-    const before = edges.find(d => d.winner === x && d.loser === y)!.winrate;
-    const cards = suspects(x, y, level, budget).map(card => ({
-      card, name: cardName(card), shift: 100 * (styleDuel(x, y, level, budget.duelGames, card).score - before),
-    })).sort((a, b) => b.shift - a.shift).slice(0, 3);
-    return { edge: `${x} > ${y}`, cards };
-  });
-  const autopsies = judged.filter(([x, y]) => {
-    const e = edges.find(d => d.winner === x && d.loser === y)!;
-    return !edgeHolds(e.winrate, e.games);
-  }).map(([x, y]) => duelAutopsy(x, y, level, budget.duelGames));
   const model = modelCheck(level, budget.modelFights ?? GATE_BUDGET.modelFights!);
   return {
-    level, edges, broken: triangleVerdict(edges).broken, culprits, autopsies, model: { ...model, ...modelVerdict(model.predicted, model.actual) },
+    level, edges, positions, broken: edges.filter(e => !e.holds).map(e => `into ${e.theirs}`), model: { ...model, ...modelVerdict(model.predicted, model.actual) },
     dumb,
   };
 }
@@ -348,25 +311,6 @@ export function gateChoiceCell(kit: string, level: number, budget: GateBudget = 
 
 const pct = (x: number) => `${Math.round(100 * x)}%`;
 
-/** A duel autopsy in a few lines, the claimed winner first: what each side
- *  played, what its guards met, where its blows landed, what came of its
- *  Focus cards, where its damage came from. */
-export function autopsyLines(a: DuelAutopsy): string[] {
-  const sides = [[a.x, a.sides.x], [a.y, a.sides.y]] as const;
-  const share = (n: number, of: number) => (of ? pct(n / of) : '—');
-  const each = (f: (s: DuelAutopsy['sides']['x']) => string) => sides.map(([name, s]) => `${name} ${f(s)}`).join(' · ');
-  const plays = (s: DuelAutopsy['sides']['x']) => s.plays.attack + s.plays.defense + s.plays.focus;
-  const dealt = (s: DuelAutopsy['sides']['x']) => Object.values(s.dealt).reduce((t, v) => t + v, 0);
-  return [
-    `${a.x} scores ${pct(a.score)} over ${a.games} duels, ${a.meanRounds.toFixed(1)} rounds on average`,
-    `plays (attack / defense / Focus): ${each(s => `${share(s.plays.attack, plays(s))} / ${share(s.plays.defense, plays(s))} / ${share(s.plays.focus, plays(s))}`)}`,
-    `guards: ${each(s => `${s.guards} up, ${share(s.guardsFaced, s.guards)} met an attack, ${share(s.guardsHeld, s.guardsFaced)} of those held`)}`,
-    `blows on enemies: ${each(s => { const n = s.blowsOpen + s.blowsHeld + s.blowsThrough; return `${share(s.blowsOpen, n)} open, ${share(s.blowsHeld, n)} held, ${share(s.blowsThrough, n)} through a guard`; })}`,
-    `Focus cards lost before resolving: ${each(s => share(s.focusLost, s.plays.focus))}`,
-    `PV dealt a duel: ${each(s => `${(dealt(s) / a.games).toFixed(1)} (${(Object.entries(s.dealt) as [string, number][]).filter(([, v]) => v / Math.max(1, dealt(s)) >= 0.05).sort((p, q) => q[1] - p[1]).map(([k, v]) => `${k} ${share(v, dealt(s))}`).join(', ')})`)}`,
-  ];
-}
-
 /** The whole gate (or a scope of it), from the cache when it is warm. */
 export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUDGET): GateReport {
   const kits = scopeKits(scope).flatMap(kit => inScope(GATE_LEVELS, scope).map(level => gateKitCell(kit, level, budget, scope.blame)));
@@ -376,7 +320,7 @@ export function measureGate(scope: GateScope = {}, budget: GateBudget = GATE_BUD
   const failures: GateFailure[] = [
     ...kits.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} length`, text: `${c.kit} L${c.level}: ${c.reasons.join(', ')}` })),
     ...kits.filter(c => c.dominates).map(c => ({ key: `${c.kit} L${c.level} dominates`, text: `${c.kit} L${c.level}: its side scores ${pct(c.winrate)} against the field` })),
-    ...styles.flatMap(s => s.broken.map(b => ({ key: `L${s.level} triangle ${b}`, text: `L${s.level} triangle: ${b} doesn't hold` }))),
+    ...styles.flatMap(s => s.edges.filter(e => !e.holds).map(e => ({ key: `L${s.level} triangle into ${e.theirs}`, text: `L${s.level} triangle: into ${e.theirs}, ${e.claimed} (holding ${e.counter}) scores ${pct(e.score)} and ${e.rival} ${pct(e.rivalScore)}` }))),
     ...styles.flatMap(s => s.dumb.filter(d => !d.ok).map(d => ({ key: `L${s.level} dumb ${d.style}`, text: `L${s.level} dumb play: ${d.style} scores ${pct(d.score)} against the AI` }))),
     ...styles.filter(s => !s.model.ok).map(s => ({ key: `L${s.level} model`, text: `L${s.level} the AI's model of its opponents: ${s.model.off.join(', ')}` })),
     ...choices.filter(c => !c.ok).map(c => ({ key: `${c.kit} L${c.level} choice`, text: `${c.kit} L${c.level}: a random card costs ${c.mean.toFixed(2)}±${c.stderr.toFixed(2)} PV a decision (needs ${MIN_CHOICE_COST})` })),

@@ -6,14 +6,12 @@
  * Found by hand first: the triangle's Aggro > Power edge went even, and taking
  * each Power card out in turn showed Rugit de guerra and Cures de camp holding
  * it up (NEXT-STEPS §36). A failing check should say that itself, so the kit
- * suite and the triangle test attach this ranking to their failure messages.
+ * suite attaches this ranking to its failure messages.
  *
  * Content-agnostic: cards are named by id, taken out of hands
- * (`CellSetup.withoutCard`, the `prepare` hook of `headToHead`), never edited.
+ * (`CellSetup.withoutCard`), never edited.
  * The holder keeps its skill, its level and every other card.
  */
-import type { ActionDefinition } from '@pimpampum/engine';
-import { dropCard, games as sized, headToHead, mirrorParty, theSet, triangleStyles } from '@pimpampum/bench';
 import { analyze, cardsOf, type AnalyzeBudget, type KitReport, type Subject } from './analyze.js';
 
 export interface Culprit {
@@ -28,31 +26,6 @@ export interface Culprit {
 
 /** Rank by shift, biggest culprit first. */
 const ranked = (cs: Culprit[]): Culprit[] => cs.sort((a, b) => b.shift - a.shift);
-
-/** Every distinct card the mirror party holds, but last-resort cards. */
-function partyCards(): ActionDefinition[] {
-  const seen = new Map<string, ActionDefinition>();
-  for (const c of theSet().buildParty(mirrorParty())) {
-    for (const a of c.actions) if (!a.def.lastResort) seen.set(a.def.id, a.def);
-  }
-  return [...seen.values()];
-}
-
-/**
- * A triangle edge that should hold and does not: which of the LOSING style's
- * cards keep it from losing? Each is taken out of every hand on the losing
- * side, and the edge re-measured; the shift is the winner's gain.
- */
-export function blameEdge(winner: string, loser: string, games = sized(400)): Culprit[] {
-  const styles = Object.fromEntries(triangleStyles().map(s => [s.name, s.chooser]));
-  if (!styles[winner] || !styles[loser]) throw new Error(`blameEdge: no style '${winner}' or '${loser}'.`);
-  const before = headToHead(styles[winner], styles[loser], games).winrate;
-  return ranked(partyCards().map(card => {
-    const after = headToHead(styles[winner], styles[loser], games, undefined,
-      (_w, l) => dropCard(l, card.id)).winrate;
-    return { card: card.id, before, after, shift: after - before };
-  }));
-}
 
 /** The kit requirements a removal can be judged on. */
 export type BlameRequirement = 'strength' | 'duration';

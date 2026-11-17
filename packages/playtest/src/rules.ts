@@ -167,11 +167,14 @@ export const BLIND_MAX_PLAY_RATIO = 0.2;
 // --- 4. The strategy triangle ----------------------------------------------------
 
 /**
- * Mirror fights per edge, across both seats. A 2σ interval of ±3.5pp around an
- * even duel: enough to tell a real edge from a coin flip, which is all an
- * ordering claims.
+ * Round starts per level of the round table (`round-triangle.ts`). A cell's
+ * score is a fight's result (1, ½, 0) from one round start, so its standard
+ * error is at most ±3.2pp: an edge (two cells, the same positions) needs a
+ * lead of about 9 points to read as clear. What the table found under the
+ * candidate rules (GOALS.md goal 1) was told apart at this size; the leans
+ * it replaced used 800 fights an edge for the same ordering claim.
  */
-export const TRIANGLE_GAMES = 800;
+export const ROUND_POSITIONS = 240;
 
 /** Does `winrate` (the claimed winner's, over `games`) CLEARLY beat an even
  *  duel? Draws count ½, so a stalemate reads as no edge — as it should. */
@@ -179,13 +182,6 @@ export function edgeHolds(winrate: number, games: number): boolean {
   return winrate - 2 * stderr(winrate, games) > 0.5;
 }
 
-/** The whole triangle: every edge must hold. Returns the edges that do not. */
-export function triangleVerdict(edges: { winner: string; loser: string; winrate: number; games: number }[]): {
-  ok: boolean; broken: string[];
-} {
-  const broken = edges.filter(e => !edgeHolds(e.winrate, e.games)).map(e => `${e.winner} > ${e.loser}`);
-  return { ok: broken.length === 0, broken };
-}
 
 
 // --- The AI predicts itself --------------------------------------------------------

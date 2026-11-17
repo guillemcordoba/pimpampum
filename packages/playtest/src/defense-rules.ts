@@ -24,7 +24,8 @@
  * and the full AI is clearly ahead of spam and of attacks alone (`edgeHolds`).
  * What a rule that pays defending could break is read beside it, at the same
  * PV: the other dumb strategies against the AI (only defending, any legal
- * card) and the triangle's three edges.
+ * card). The triangle under a candidate is the round table's
+ * (`tools/src/round-table.ts --rule`).
  *
  * `defenseRuleScreen` is the same reading without the searches that cost the
  * hours: the aim alone, walked to from a PV near it, and whether a knockout
@@ -87,13 +88,10 @@ export interface RuleCell {
   hand: Duel[];
   /** The other dumb strategies against the full AI at that PV, and the share of those fights that never ended. */
   dumb: (Duel & { stalls: number })[];
-  /** The triangle at that PV: the claimed winner's score on each edge. */
-  triangle: { edge: string; score: number; games: number }[];
 }
 
 /** The dumb strategies the hand-worth styles do not already hold. */
 const OTHER_DUMB: readonly DuelStyle[] = ['turtle', 'random'];
-const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
 
 /** Does every other dumb strategy clearly lose to the full AI? */
 export const dumbLoses = (c: Pick<RuleCell, 'dumb'>): boolean => c.dumb.every(d => edgeHolds(1 - d.score, d.games));
@@ -129,14 +127,10 @@ function measureCell(rule: DefenseRule, level: number, fights: number, duels: nu
   const pv = w.aim ?? 1;
   const at = w.measured.find(m => m.pv === pv);
   const variant = { ...rule.rules, pv };
-  const triangle = EDGES.map(([x, y]) => {
-    const d = styleDuel(x, y, level, duels, undefined, variant, given);
-    return { edge: `${x} > ${y}`, score: d.score, games: d.games };
-  });
   return {
     rule: rule.id, content, level, window: { floor: w.floor, aim: w.aim, ceiling: w.ceiling, floorCards: w.floorCards }, pv,
     median: at?.median ?? 0, p90: at?.p90 ?? 0, stalls: at?.stalls ?? 0,
-    hand: duelsAt(HAND_WORTH_STYLES, level, duels, variant, given), dumb: duelsAt(OTHER_DUMB, level, duels, variant, given), triangle,
+    hand: duelsAt(HAND_WORTH_STYLES, level, duels, variant, given), dumb: duelsAt(OTHER_DUMB, level, duels, variant, given),
   };
 }
 

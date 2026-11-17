@@ -19,15 +19,15 @@ For the printed report card of one kit (every number, with its error bar):
 pnpm --filter @pimpampum/tools exec tsx src/kit-analyzer.ts --player <kit>
 ```
 
-3. Run the set-level requirement 4, the strategy triangle, after any content change. If the change touched creatures, armour or anything a fight's difficulty rests on, also run the other set-level checks:
+3. Run the set-level requirement 4, the strategy triangle round by round (the round table), after any content change. If the change touched creatures, armour or anything a fight's difficulty rests on, also run the other set-level checks:
 ```bash
-SLOW=1 npx vitest run test/triangle.slow.test.ts
+SLOW=1 npx vitest run test/round-table.slow.test.ts
 SLOW=1 npx vitest run test/set.slow.test.ts test/balancer.slow.test.ts
 ```
-The kit analyzer prints the triangle too with `--triangle`.
+The kit analyzer prints the triangle too with `--triangle`; `tools/src/round-table.ts` prints the whole table. The set's nightly tier, the strategy pool (`test/pool.nightly.test.ts`, `pnpm test:nightly`), takes hours: the night runs it.
 
 4. Read the output. Four requirements, one intention each (`@pimpampum/playtest` `rules.ts`; per kit through `kitSuite`):
-   1 fights end (the median within 6 rounds, stalls < 2%; the p90 is shown, never failed) · 2 inside the power band (±15pp of neutral) · 3 choosing matters (a random legal card costs at least `MIN_CHOICE_COST` PV per decision against the best one, cross-fitted so noise costs nothing; and no card is NEVER the right play — even where it looks best, the runner-up is clearly better on fresh rollouts). The report card ranks the cards: value against the hand, share as the best play, lead over the runner-up when best, how often the AI plays it · 4 the strategy triangle, set-level (Power > Protect > Aggro > Power).
+   1 fights end (the median within 6 rounds, stalls < 2%; the p90 is shown, never failed) · 2 inside the power band (±15pp of neutral) · 3 choosing matters (a random legal card costs at least `MIN_CHOICE_COST` PV per decision against the best one, cross-fitted so noise costs nothing; and no card is NEVER the right play — even where it looks best, the runner-up is clearly better on fresh rollouts). The report card ranks the cards: value against the hand, share as the best play, lead over the runner-up when best, how often the AI plays it · 4 the strategy triangle, set-level, round by round: into both enemies attacking, the best answer holding a defense is clearly ahead of the best without one; into both defending, a Focus; into both playing a Focus, an attack.
    - A test named `— KNOWN to fail: …` is a recorded finding (`test/kits/known.ts`). If it now FAILS, the finding was fixed: delete its entry.
    - For every other failure explain: **what** the requirement checks, the **numbers** behind the verdict (the verdict's `detail` and the recorded JSON), the **root cause**, and a **suggested fix** (card, handler, or AI — remember a card the AI never plays is usually a blind EVALUATOR, not a weak card: check `positionValue` first).
 

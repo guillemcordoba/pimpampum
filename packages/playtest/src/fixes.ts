@@ -15,7 +15,7 @@
  * is in their effects, not their dice): the report says so instead of guessing.
  */
 import { ActionType, DiceRoll } from '@pimpampum/engine';
-import { DUMB_STYLES, kitsDynamics, styleDuel, theSet, type DuelStyle, type DumbStyle, type Variant } from '@pimpampum/bench';
+import { DUMB_STYLES, kitsDynamics, roundTable, styleDuel, theSet, type DumbStyle, type Variant } from '@pimpampum/bench';
 import { MAX_UNANSWERABLE_KOS, type PVDerivation } from './derive-pv.js';
 import { deriveOnTwins } from './derive-twins.js';
 import type { CensusCard } from './census.js';
@@ -23,6 +23,7 @@ import { TWIN_DEFAULTS } from './vanilla.js';
 import { summarise, type DynamicsSummary } from './dynamics.js';
 import { installSet, type RunContext } from './prepare.js';
 import { edgeHolds } from './rules.js';
+import { roundTriangle } from './round-triangle.js';
 import { diceStep } from './tune.js';
 
 export interface Fix {
@@ -60,8 +61,9 @@ export const CANDIDATE_FIXES: readonly Fix[] = [
 
 const blowFloor = (v: PVDerivation, burst: Fix['burst']) => (burst === 'fast' ? v.fastBlowPV ?? 1 : burst === 'plain' ? v.plainBlowPV : v.bestBlowPV);
 
-export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number }
-export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100 };
+/** `roundPositions`: the round table's round starts a checkpoint (coarse: the round-table harness confirms). */
+export interface FixBudget { vanillaFights: number; realFights: number; duelGames: number; roundPositions: number }
+export const FIX_BUDGET: FixBudget = { vanillaFights: 60, realFights: 120, duelGames: 100, roundPositions: 60 };
 
 export interface FixLevel {
   level: number;
@@ -70,13 +72,13 @@ export interface FixLevel {
    *  window — the most that keeps vanilla fights in time. */
   pv: number;
   real: DynamicsSummary;
-  triangle: { edge: string; winrate: number; holds: boolean }[];
+  /** The round table's edges (`roundTriangle`): into each pure plan, the best answer holding its counter, its lead over the best without. */
+  triangle: { edge: string; lead: number; holds: boolean }[];
   dumb: { style: DumbStyle; score: number; loses: boolean }[];
 }
 
 export interface FixResult { fix: Fix; levels: FixLevel[]; focusOnRealKits: boolean }
 
-const EDGES: readonly [DuelStyle, DuelStyle][] = [['Power', 'Protect'], ['Protect', 'Aggro'], ['Aggro', 'Power']];
 
 /** Every Defense card of the main kits, its dice `shift` rungs along (in this process). */
 export function shiftDefenses(shift: number): void {
@@ -114,10 +116,7 @@ export async function evaluateFix(
       ...(fix.guardSpend !== undefined ? { guardSpend: fix.guardSpend } : {}), ...(fix.envoltat ? { envoltat: true } : {}),
     };
     const real = summarise(kitsDynamics(level, budget.realFights, variant));
-    const triangle = EDGES.map(([x, y]) => {
-      const d = styleDuel(x, y, level, budget.duelGames, undefined, variant);
-      return { edge: `${x} > ${y}`, winrate: d.score, holds: edgeHolds(d.score, d.games) };
-    });
+    const triangle = roundTriangle(roundTable(level, budget.roundPositions, variant)).map(e => ({ edge: `into ${e.theirs}`, lead: e.lead, holds: e.holds }));
     const dumb = DUMB_STYLES.map(style => {
       const d = styleDuel(style, 'ai', level, budget.duelGames, undefined, variant);
       return { style, score: d.score, loses: edgeHolds(1 - d.score, d.games) };

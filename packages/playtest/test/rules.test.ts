@@ -22,7 +22,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   choiceMattersVerdict, dominatesField, durationVerdict, edgeHolds, endsInTime, FIELD_MAX, isBlindSpot, isNeverRight, KIT_BAND, MAX_MEDIAN_ROUNDS, MAX_STALL_RATE, MIN_CARD_DECISIONS,
-  MIN_CHOICE_COST, strengthVerdict, TRIANGLE_GAMES, triangleVerdict,
+  MIN_CHOICE_COST, strengthVerdict,
 } from '../src/index.js';
 import { ActionType } from '@pimpampum/engine';
 
@@ -161,8 +161,8 @@ describe('no kit dominates the field', () => {
   });
 });
 
-describe('requirement 4 — the triangle', () => {
-  const N = TRIANGLE_GAMES;
+describe('an edge: a winner clearly ahead of an even duel', () => {
+  const N = 800;
 
   it('an edge holds when its winner clearly beats an even duel', () => {
     expect(edgeHolds(0.60, N)).toBe(true);
@@ -181,13 +181,6 @@ describe('requirement 4 — the triangle', () => {
     expect(edgeHolds(0.30, N)).toBe(false);
   });
 
-  it('the triangle needs EVERY edge, and names the ones that break', () => {
-    const edge = (winner: string, loser: string, winrate: number) => ({ winner, loser, winrate, games: N });
-    expect(triangleVerdict([edge('A', 'B', 0.6), edge('B', 'C', 0.6), edge('C', 'A', 0.6)]))
-      .toEqual({ ok: true, broken: [] });
-    expect(triangleVerdict([edge('A', 'B', 0.6), edge('B', 'C', 0.3), edge('C', 'A', 0.5)]))
-      .toEqual({ ok: false, broken: ['B > C', 'C > A'] });
-  });
 });
 
 describe('a blind spot: often the best play, almost never played', () => {

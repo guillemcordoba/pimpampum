@@ -86,12 +86,12 @@ if (full) {
     }
   }
   for (const content of contents) {
-    console.log(`\n${title(content)}: the other dumb strategies against the AI (✗: not clearly losing), and the triangle (the claimed winner's score; ✗: not clearly ahead), at the aim's PV`);
-    console.log(`${'rule'.padEnd(15)} level  ${'turtle'.padStart(28)}${'random'.padStart(14)}   ${cells[0].triangle.map(e => e.edge.padStart(18)).join('')}`);
+    console.log(`\n${title(content)}: the other dumb strategies against the AI (✗: not clearly losing), at the aim's PV (the triangle under a rule: round-table.ts --rule)`);
+    console.log(`${'rule'.padEnd(15)} level  ${'turtle'.padStart(28)}${'random'.padStart(14)}`);
     for (const rule of rules) for (const level of levels) {
       const c = cellOf(content, rule.id, level);
       const dumb = c.dumb.map(d => `${pct(d.score, d.games)}${d.stalls >= 0.005 ? ` (${Math.round(100 * d.stalls)}% stall)` : ''}${edgeHolds(1 - d.score, d.games) ? '' : ' ✗'}`);
-      console.log(`${rule.id.padEnd(15)} L${String(level).padEnd(4)} ${dumb[0].padStart(28)}${dumb[1].padStart(14)}   ${c.triangle.map(e => `${pct(e.score, e.games)}${edgeHolds(e.score, e.games) ? '' : ' ✗'}`.padStart(18)).join('')}`);
+      console.log(`${rule.id.padEnd(15)} L${String(level).padEnd(4)} ${dumb[0].padStart(28)}${dumb[1].padStart(14)}`);
     }
   }
   console.log('\nRULES THAT PASS EVERY LEVEL (the window open, the full AI clearly ahead of spam and of attacks alone):');
