@@ -26,6 +26,8 @@ const FIGHTS = games(200);
  * asserted to STILL be red, so the day one turns green it leaves this list.
  * Filled from the measurement, never by guessing.
  */
+// Not measured yet: the first run (2026-11-17) was stopped after 90 minutes
+// to give its lanes to the night's goal; its duels are in the night's cache.
 const KNOWN_RED: Record<string, string> = {
 };
 

@@ -27,6 +27,9 @@ const FIGHTS = games(200);
  * Filled from the measurement, never by guessing.
  */
 const KNOWN_RED: Record<string, string> = {
+  L3: 'always-attack scores 50.0% ±3.5 against the mix (200 fights a duel, 2026-11-17); under Envoltat it is green (41.9%), so it is attacks adding up (GOALS.md goal 1)',
+  L6: 'always-attack scores 49.3% ±3.5 against a mix 95% one table (2026-11-17, as 2026-11-15); green under Envoltat and under whole + both (GOALS.md goal 1)',
+  L10: 'the pool never leaves always-attack: it scores 50% against itself and nothing found beats it (2026-11-17); red under Envoltat too (GOALS.md goal 1)',
 };
 
 describe('the best strategy is not a dumb one', () => {
