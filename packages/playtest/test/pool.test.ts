@@ -196,4 +196,20 @@ describe('the triangle, round by round', () => {
   it('does not when the counter is the worse answer', () => {
     expect(roundTriangle(cells(0.4, 0.5)).every(e => !e.holds)).toBe(true);
   });
+  /** `cells(0.5, 0.5)` with one cell moved. */
+  const withCell = (ours: Plan, theirs: Plan, score: number) => {
+    const t = cells(0.5, 0.5);
+    t.cells[ours][theirs] = { score, se: 0.02, margin: 0 };
+    return t;
+  };
+  it('credits a mixed answer that holds the counter: one hero guarding into both attacking', () => {
+    const into = roundTriangle(withCell('AD', 'AA', 0.65)).find(e => e.theirs === 'AA')!;
+    expect(into).toMatchObject({ counter: 'D', claimed: 'AD', holds: true });
+  });
+  it('counts a mixed answer without the counter as a rival', () => {
+    const t = withCell('AF', 'AA', 0.65);
+    t.cells.DD.AA = { score: 0.6, se: 0.02, margin: 0 };
+    const into = roundTriangle(t).find(e => e.theirs === 'AA')!;
+    expect(into).toMatchObject({ claimed: 'DD', rival: 'AF', holds: false });
+  });
 });

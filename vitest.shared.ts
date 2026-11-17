@@ -10,9 +10,12 @@
  * "armour stops reducing damage" mutant survived because the one test that
  * caught it was locked inside a file that took 311 seconds.
  *
- *   pnpm test         the fast tier, every package — run it constantly
- *   pnpm test:slow    the statistical tier
- *   pnpm test:all     both
+ *   pnpm test           the fast tier, every package — run it constantly
+ *   pnpm test:slow      the statistical tier
+ *   pnpm test:all       both
+ *   pnpm test:nightly   the nightly tier: `*.nightly.test.ts`, measurements of
+ *                       hours (a set's strategy pools), run by the night, never
+ *                       by test:slow or test:all
  *
  * The slow tier is gated by an ENV VAR, not a CLI `--exclude`: vitest MERGES
  * the two, so an exclude in config could never be selected back in.
@@ -32,24 +35,25 @@ import type { UserWorkspaceConfig } from 'vitest/config';
 declare const process: { env: Record<string, string | undefined> };
 
 export const SLOW = process.env.SLOW === '1';
+export const NIGHTLY = process.env.NIGHTLY === '1';
 
 export function tiers(name: string, extra: { setupFiles?: string[] } = {}): UserWorkspaceConfig {
   return {
     test: {
       name,
       include: ['test/**/*.test.ts'],
-      exclude: ['**/node_modules/**', '**/dist/**', ...(SLOW ? [] : ['**/*.slow.test.ts'])],
+      exclude: ['**/node_modules/**', '**/dist/**', ...(SLOW ? [] : ['**/*.slow.test.ts']), ...(NIGHTLY ? [] : ['**/*.nightly.test.ts'])],
       setupFiles: extra.setupFiles ?? [],
       pool: 'forks',
       // A slow file holds a solved encounter matrix and thousands of fights in
       // memory; eight of them at once is more than an 8 GB machine has.
-      poolOptions: { forks: { maxForks: SLOW ? 4 : undefined } },
+      poolOptions: { forks: { maxForks: SLOW || NIGHTLY ? 4 : undefined } },
       fileParallelism: true,
       retry: 0,
       // A full kit analysis on real content is legitimately long — its first
       // run timed out at a 30-minute hook limit with nothing wrong.
-      testTimeout: SLOW ? 14_400_000 : 20_000,
-      hookTimeout: SLOW ? 14_400_000 : 20_000,
+      testTimeout: SLOW || NIGHTLY ? 14_400_000 : 20_000,
+      hookTimeout: SLOW || NIGHTLY ? 14_400_000 : 20_000,
     },
   };
 }

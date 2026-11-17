@@ -28,7 +28,11 @@
  *   COMBO         Aim and Loose, each right at its own moment: requirement 3
  *                 must pass, choosing clearly mattering.
  *
- * The strategy triangle's controls are styles, not kits: `test/triangle.work.ts`.
+ *   ATTACK WINS   a heavy attack, a guard that holds nothing, a Focus that does
+ *                 nothing: the triangle round by round, and the strategy pool,
+ *                 must both be red.
+ *   TRIANGLE KIT  a guard that holds a strike and hits back, a Focus that
+ *                 hurts past any guard: both must be green.
  *
  * These are deliberately crude. A control whose own answer needs an argument is
  * not a control.
@@ -313,4 +317,55 @@ export function standInCopyKit(): SubjectKit {
   if (!source) throw new Error('standInCopyKit: the set declares a stand-in it does not have');
   const id = `control-standin-${seq++}`;
   return kit(id, source.actions.map((a, i) => ({ ...a, id: `${id}-c${i + 1}`, skillId: id })));
+}
+
+/**
+ * ATTACKING SIMPLY WINS — the triangle's must-FAIL control (the round table
+ * and the strategy pool): a heavy attack, a guard that holds nothing and a
+ * Focus that does nothing. Whatever the other side shows, attacking is the
+ * answer, so into both attacking a defense is not, and into both defending a
+ * Focus is not; and always-attack is the best strategy there is.
+ */
+export function attackWinsKit(): SubjectKit {
+  const id = `control-attack-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Strike', dice: new DiceRoll(3, 6) }),
+    card(id, 2, { name: 'Flinch', actionType: ActionType.Defensa, dice: new DiceRoll(1, 1) }),
+    card(id, 3, { name: 'Daydream', actionType: ActionType.Focus, dice: undefined }),
+  ]);
+}
+
+/**
+ * A KIT BUILT AS THE TRIANGLE — the must-PASS control, each card paid in the
+ * round it is played. `Guard` holds a `Strike` almost always and hits the
+ * striker back; `Hex` hurts the weakest enemy when it resolves, past any
+ * guard, and like every Focus it is lost to a blow that lands first. So into
+ * both attacking a guard is the answer (the blows are held and paid back),
+ * into both guarding a Hex (nothing stops it, and the guards meet no blow),
+ * into both hexing a Strike (it lands before the Hexes and throws them
+ * away); and each fixed strategy loses to the one that answers it.
+ *
+ * A first draft paid the Focus a round later (an Aim that made the next Strike
+ * crushing): the round table read it as a triangle, but no strategy the pool
+ * can build alternates aiming and striking against a side that only guards,
+ * so the turtle was the pool's best strategy and the control measured the
+ * families, not the requirement.
+ */
+const RIPOSTE: EffectHandler = {
+  onDefend(ctx) { if (ctx.target) ctx.engine.applyPvLoss(ctx.target, 6, ctx.source); },
+};
+const HEX: EffectHandler = {
+  onResolve(ctx) {
+    const weakest = ctx.engine.enemiesOf(ctx.source).filter(c => c.isAlive()).sort((x, y) => x.currentPV - y.currentPV)[0];
+    if (weakest) ctx.engine.applyPvLoss(weakest, 5, ctx.source);
+  },
+};
+
+export function triangleKit(): SubjectKit {
+  const id = `control-triangle-${seq++}`;
+  return kit(id, [
+    card(id, 1, { name: 'Strike', dice: new DiceRoll(2, 6) }),
+    card(id, 2, { name: 'Guard', actionType: ActionType.Defensa, dice: new DiceRoll(5, 6), effects: [{ type: `${id}-riposte` }] }),
+    card(id, 3, { name: 'Hex', actionType: ActionType.Focus, dice: undefined, effects: [{ type: `${id}-hex` }] }),
+  ], { [`${id}-riposte`]: RIPOSTE, [`${id}-hex`]: HEX });
 }

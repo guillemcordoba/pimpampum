@@ -130,27 +130,45 @@ waits for goal 1.
      d'acer 2.4, Búnquer 5.7; every other one 0.0 to 0.6. On the vanilla
      twins, whose payoff defenses riposte, the AI was clearly ahead of spam
      under every rule.
-   **Left, in this order:**
-   a. each set's balance test in two tiers, with its list of known
-      failures: the round table every slow run; the pool at levels 3, 6 and
-      10 nightly;
-   b. the round table in the leans' place wherever the triangle is read
-      (playtest `gate.ts` and `triangle.ts`, `fixes.ts`, both sets' triangle
-      tests, `kit-analyzer.ts --triangle`), and its verdict crediting a
-      mixed reply that holds the counter;
-   c. control kits on the real engine for the requirement: one that
-      obviously favours a play must be red, one built as a triangle green;
-   d. the pools not grown yet: Envoltat alone at levels 3 and 10, whole +
-      both at 3 and 10, and each at its own PV for quick fights (all of the
-      above are at the pinned PV; a stronger guard asks for less);
+   - The pools of 2026-11-17 (elements, the pinned PV, 200 fights a duel,
+     each of the three dumbest against the final mix; ✓ green, ✗ red):
+
+     | rule | level 3 | level 6 | level 10 |
+     |---|---|---|---|
+     | today | ✗ spam 50.0% | ✗ spam 49.3% | ✗ the pool never leaves spam |
+     | Envoltat | ✓ spam 41.9% ±2.1 | ✓ spam 40.3% ±1.9 (11-15) | ✗ spam 49.6% ±2.3 |
+     | whole + both | ✓ spam 28.0% ±1.6 | ✓ spam 36.6% ±1.8 (11-15) | ✗ spam 47.6% ±3.1, still growing at 13 members |
+
+     Envoltat at level 10: the mix is 60% a table that opens with one attack
+     and one defense and attacks back after both attacked, 15% always-attack,
+     25% a script; always-attack scores 54% against the table, 46% against
+     the script. Whole + both at level 10, stopped at 13 members (the night
+     ran out): the mix is 86% a table that opens with one guard and one
+     Focus and answers both attacking with one attack and one guard, 13% a
+     script (one attack and one guard, then both attack); always-attack
+     scores 47.6% ±3.1 against it, not clearly under an even duel.
+   - So no rule measured passes all three levels: Envoltat and whole + both
+     pass 3 and 6 and fail 10, by spam. Level 10 is item e's.
+   - The production AI against tonight's final mixes: 49.3% to 56.5% (±3.5).
+   **Done (2026-11-17)**: each set's balance test in two tiers (slow: the
+   round table, `test/round-table.slow.test.ts`; nightly: the pool,
+   `test/pool.nightly.test.ts`, `pnpm test:nightly`), each with its
+   KNOWN list from a run; the round table in the leans' place in the gate,
+   `fixes.ts` and `kit-analyzer.ts --triangle`, its verdict crediting a
+   mixed answer that holds the counter; control kits on the real engine
+   (`playtest/test/controls-round-table.slow.test.ts`,
+   `controls-pool.nightly.test.ts`): attack-wins red, a triangle kit green.
+   **Waiting for the owner:** the choice of rule, from the table above.
+   **Left for the night, once the owner has chosen or asks:**
    e. level 10, where no candidate makes spam lose: how much a block must
-      pay (`defense-rules.ts --payoffs`, on the twins, not run), as a target
-      for the Defense cards the owner redesigns.
-   *Done when:* both sets hold the two-tier test and the slow tier fails
-   nothing outside its lists (a, b); the control kits read as they must
-   (c); and the report holds, for Envoltat alone and for whole + both, the
-   pool's verdict at levels 3, 6 and 10 (d). Item e and the choice of rule
-   are the owner's, from those numbers.
+      pay (`defense-rules.ts --payoffs`, on the twins), as a target for the
+      Defense cards the owner redesigns;
+   f. each candidate's pools at its own PV for quick fights (all of the
+      above are at the pinned PV; a stronger guard asks for less);
+   g. bench's `leaning`, `triangleStyles`, `cycleDuels` and the Power,
+      Protect and Aggro duel styles (`mirror.ts`) are no longer
+      read by any requirement: delete them the next time bench changes
+      anyway (alone, the edit throws the night's cache away).
    Nothing is switched on: the engine's options are off, and `rules.md`,
    `intentions.md`, the cards and the pinned PV are as they were.
 2. **One re-baseline.** B17, B28, B30, C4.

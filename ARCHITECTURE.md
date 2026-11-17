@@ -637,8 +637,10 @@ that prices encounters has to have.
 - **Depth ≥2** — measured at ~500× depth 1. Offline study only.
 
 `LookaheadOptions.restrictTo` limits the AI to a subset of card types. It is
-how the strategy triangle's corners are built (bench `leaning`): each side
-thinks equally hard, and on half its rounds commits to one action type.
+how the dumb and hand-worth styles hold part of the hand (bench `mirror.ts`)
+and how the round table holds a side to a plan (bench `plans.ts`). It built
+the strategy triangle's corners too (bench `leaning`, a side committed to one
+type on half its rounds) until the round table replaced them (2026-11-17).
 
 **The balancer prices at depth 1** (`BALANCER_DEPTH` in `simulate.ts`), and the
 web app's enemies run at depth 1 too, so a fight plays out at the strength it
@@ -935,10 +937,10 @@ section keeps the findings of the harnesses too, the deleted ones included.
   follows from their CONSTRUCTION — a fight nobody can win and one that ends
   on round one (requirement 1), kits strictly above, below and equal to the
   stand-in (2), a kit of identical cards, twin cards whose dice drift apart
-  and a two-card combo (3), and for the triangle (4) styles
-  whose order is known: thinking against random cards, the same duel read
-  backwards, and an A/A duel — run through the real `analyze` and
-  `measureCycle`. Two layers: the decision RULES are controlled as pure
+  and a two-card combo (3), and for the triangle (4) control
+  kits on the real engine, one built to favour a play and one built as a
+  triangle (`playtest/test/controls-round-table.slow.test.ts`) — run through
+  the real `analyze` and round table. Two layers: the decision RULES are controlled as pure
   functions in `playtest/test/rules.test.ts`, and the whole pipeline here. Its first run
   found three real faults in the measurement plus one in itself — see NEXT-STEPS
   §19.5.

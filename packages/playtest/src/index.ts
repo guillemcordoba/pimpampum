@@ -11,22 +11,20 @@ export {
   DEFAULT_CARD_VALUE_MODELS, blindCards,
 } from './analyze.js';
 export type { Subject, Verdict, KitReport, AnalyzeBudget, AnalysisJob, ChoiceCost } from './analyze.js';
-export { measureCycle, measureTriangle } from './triangle.js';
-export type { TriangleEdge, TriangleReport } from './triangle.js';
 export { prepare, installSet, withSubject } from './prepare.js';
 export type { RunContext } from './prepare.js';
 export type { SubjectKit } from '@pimpampum/bench';
 export {
   withControlKit, flatKit, deadCardKit, noisyTwinKit, comboKit,
-  defenceOnlyKit, blitzKit, strongKit, weakKit, plantedKit, standInCopyKit,
+  defenceOnlyKit, blitzKit, strongKit, weakKit, plantedKit, standInCopyKit, attackWinsKit, triangleKit,
 } from './control-kits.js';
 export { analyzeIsolated, blameIsolated } from './isolated.js';
 export type { IsolatedRun, ControlName } from './isolated.js';
 
-export { blameEdge, blameKit, showCulprits } from './blame.js';
+export { blameKit, showCulprits } from './blame.js';
 export type { Culprit, BlameRequirement } from './blame.js';
 export {
-  measureGate, prepareGate, gateJobs, blameJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells, gateChoiceCell, autopsyLines,
+  measureGate, prepareGate, gateJobs, blameJobs, runGateJob, gateKitCell, gateStyleCell, gateCardCells, gateChoiceCell,
   GATE_LEVELS, STYLE_LEVELS, CARD_LEVELS, GATE_BUDGET, GATE_QUICK,
 } from './gate.js';
 export type { GateReport, GateFailure, GateKitCell, GateStyleCell, GateChoiceCell, KitCardBlame, LengthAutopsy, FightShape, GateCardCell, GateBudget, GateJob, GateScope, GateContext } from './gate.js';
@@ -51,9 +49,9 @@ export type { KnockoutCard, LevelWindow, OverCeiling, PacingCard, TierCandidate,
 export type { TwinDeriveOptions } from './derive-twins.js';
 export { DEFENSE_RULES, HAND_WORTH_STYLES, defenseRuleCell, defenseRuleScreen, dumbLoses, handBeatsAttacking, screenPasses, windowOpen } from './defense-rules.js';
 export type { DefenseRule, RuleCell, ScreenCell, TwinRecipe } from './defense-rules.js';
-export { PURE, roundTriangle, roundTriangleVerdict, roundTableJob } from './round-triangle.js';
-export type { RoundEdge } from './round-triangle.js';
-export { growPool, metaMix, gridOf, isFixed, countersPlayed, awarenessOf, describeStrategy, poolVerdict, poolDuelJob, POOL_DEFAULTS, POOL_AWARE_SHARE, DUMBEST, FAMILIES } from './pool.js';
-export type { Evaluate, PoolOptions, PoolStep, PoolResult, PoolVerdict, Awareness } from './pool.js';
+export { PURE, roundTriangle, roundTriangleVerdict, roundTableJob, controlRoundTableJob, measureRoundTriangle } from './round-triangle.js';
+export type { RoundEdge, RoundTriangleLevel, RoundTriangleOptions } from './round-triangle.js';
+export { growPool, metaMix, gridOf, isFixed, countersPlayed, awarenessOf, describeStrategy, poolVerdict, poolDuelJob, controlPoolDuelJob, measurePool, POOL_DEFAULTS, POOL_AWARE_SHARE, DUMBEST, FAMILIES } from './pool.js';
+export type { Evaluate, PoolOptions, PoolStep, PoolResult, PoolVerdict, Awareness, PoolRun, PoolReading } from './pool.js';
 export { REQUIREMENTS } from './requirements.js';
 export type { Requirement, RequirementGroup } from './requirements.js';

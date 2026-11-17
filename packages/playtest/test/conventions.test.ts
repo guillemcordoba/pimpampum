@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stderr } from '@pimpampum/bench';
-import { TRIANGLE_GAMES } from '../src/index.js';
+import { ROUND_POSITIONS } from '../src/index.js';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -130,11 +130,11 @@ describe('a card is judged by what it does, not by the AI picking it', () => {
  * re-runs it.
  */
 describe('every threshold is resolvable by the sample that judges it', () => {
-  it('the triangle resolves a 5pp edge from an even duel', () => {
-    const halfWidth = 2 * stderr(0.5, TRIANGLE_GAMES);
+  it('the round table resolves a 10pp lead of one answer over another', () => {
+    const halfWidth = 2 * Math.SQRT2 * stderr(0.5, ROUND_POSITIONS);
     expect(halfWidth,
-      `TRIANGLE_GAMES=${TRIANGLE_GAMES} leaves a ±${(halfWidth * 100).toFixed(1)}pp interval around an even `
-      + 'duel. An edge smaller than the interval reads as a coin flip, so the triangle could only '
-      + 'ever "hold" for corners that crush each other.').toBeLessThanOrEqual(0.05);
+      `ROUND_POSITIONS=${ROUND_POSITIONS} leaves a ±${(halfWidth * 100).toFixed(1)}pp interval on the lead of one `
+      + 'answer over another. A lead smaller than the interval reads as a coin flip, so the triangle could only '
+      + 'ever "hold" where one answer crushes the rest.').toBeLessThanOrEqual(0.10);
   });
 });

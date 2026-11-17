@@ -34,7 +34,7 @@ const guardsBoth = list('--guard', 'one').map(v => v === 'both');
 const spends = list('--spends', '1').map(Number);
 const LEVELS = list('--levels', '3,4,5,6,7,8,9,10').map(Number);
 const OUT = flag('--out') ?? path.join(os.tmpdir(), 'structure.html');
-const budget = { vanillaFights: games(2 * FIX_BUDGET.vanillaFights), realFights: games(2 * FIX_BUDGET.realFights), duelGames: games(2 * FIX_BUDGET.duelGames) };
+const budget = { vanillaFights: games(2 * FIX_BUDGET.vanillaFights), realFights: games(2 * FIX_BUDGET.realFights), duelGames: games(2 * FIX_BUDGET.duelGames), roundPositions: games(2 * FIX_BUDGET.roundPositions) };
 const log = (s: string) => process.stderr.write(`${s}\n`);
 const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
 
@@ -74,7 +74,7 @@ const CHECKS: [string, (l: FixLevel) => boolean, (l: FixLevel) => string][] = [
   ['PV', l => l.vanilla.pv !== null, l => l.vanilla.pv === null ? `no window (${l.vanilla.collides.join('; ')})` : `window to ${l.vanilla.lengthPV}`],
   ['ends', l => l.real.ends, l => `${l.real.median}·${l.real.p90}${l.real.stallRate ? ` · ${pc(l.real.stallRate)} stall` : ''}`],
   ['interactive', l => burstHolds(l.real), l => `worst card fells a fresh hero with no answer on ${pc(l.real.unanswerableKOs)} of its plays`],
-  ['triangle', l => l.triangle.every(e => e.holds), l => l.triangle.map(e => `${e.edge.replace(/ /g, '')} ${pc(e.winrate)}`).join(' · ')],
+  ['triangle', l => l.triangle.every(e => e.holds), l => l.triangle.map(e => `${e.edge} ${e.lead >= 0 ? '+' : ''}${(100 * e.lead).toFixed(0)}`).join(' · ')],
   ['dumb', l => l.dumb.every(d => d.loses), l => l.dumb.map(d => `${d.style} ${pc(d.score)}`).join(' · ')],
 ];
 const cell = (l: FixLevel) => `<td><div class="pv num">${l.vanilla.pv ?? '—'}</div><div class="marks">${CHECKS.map(([name, ok, why]) =>

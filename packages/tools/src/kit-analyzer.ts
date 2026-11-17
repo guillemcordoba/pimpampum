@@ -6,8 +6,8 @@
  */
 import { saturatedCells, usableCells, cacheStatus, exact, games, lanes, pct, share, SMOKE, stderr, useSet, solvedShape, flag } from '@pimpampum/bench';
 import {
-  analyze, measureTriangle, prepare,
-  type KitReport, type Subject, type TriangleReport, type Verdict,
+  analyze, measureRoundTriangle, prepare, STYLE_LEVELS,
+  type KitReport, type Subject, type Verdict,
 } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
@@ -195,13 +195,14 @@ if (reports.length > 1) {
 }
 
 // --- Requirement 4: the set's triangle, on request ---------------------------
-// Set-level and costly (three duels of depth-1 mirrors), so opt-in here; the
-// asserting copy is `sets/fantasy/test/triangle.slow.test.ts`.
+// Set-level and costly (the round table at the checkpoints), so opt-in here;
+// the asserting copy is each set's `test/round-table.slow.test.ts`, the
+// whole table `round-table.ts`.
 if (argv.includes('--triangle')) {
-  const t: TriangleReport = measureTriangle();
-  console.log(`\n━━ 4. TRIANGLE D'ESTRATÈGIA ${t.ok ? '✅' : '❌'} ━━`);
-  for (const e of t.edges) {
-    console.log(`  ${(e.winner + ' > ' + e.loser).padEnd(20)} ${pct(e.winrate, e.games)}${t.broken.includes(`${e.winner} > ${e.loser}`) ? '  ✗ no es compleix' : ''}`);
+  const levels = await measureRoundTriangle(SET.ref, STYLE_LEVELS);
+  console.log(`\n━━ 4. TRIANGLE D'ESTRATÈGIA ${levels.every(l => l.ok) ? '✅' : '❌'} ━━ (round by round: into each plan, the best answer holding its counter against the best without)`);
+  for (const l of levels) for (const e of l.edges) {
+    console.log(`  L${String(l.level).padEnd(3)} into ${e.theirs}: ${e.claimed} ${pct(e.score, l.table.positions)} · ${e.rival} ${pct(e.rivalScore, l.table.positions)}${e.holds ? '' : '  ✗ no es compleix'}`);
   }
 }
 console.log('');
