@@ -36,9 +36,9 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { always, counterPlan, inLanes, isolated, memberKey, PLANS, poolDuel, type Plan, type PoolDuel, type PoolMember, type ResponseTable, type Strategy, type Variant } from '@pimpampum/bench';
+import { always, counterPlan, inLanes, isolated, memberKey, PLANS, poolDuel, skillPrint, type Plan, type PoolDuel, type PoolMember, type ResponseTable, type Strategy, type Variant } from '@pimpampum/bench';
 import { shiftDefenses } from './fixes.js';
-import { installSet, type RunContext } from './prepare.js';
+import { installSet, withSubject, type ControlName, type RunContext } from './prepare.js';
 
 /** X's score against Y for each pair asked, in order: the fights, however they
  *  are run. `fresh`: which set of fights (0 the search's; 1, 2: sets it never saw). */
@@ -292,6 +292,12 @@ export async function poolDuelJob(set: RunContext['set'], x: PoolMember, y: Pool
   return poolDuel(x, y, level, games, variant, undefined, fresh);
 }
 
+/** One pool duel of a control kit, in a child process: every hero on both sides holds it (`control-kits.ts`). */
+export async function controlPoolDuelJob(set: RunContext['set'], control: ControlName, x: PoolMember, y: PoolMember, level: number, games: number, variant: Variant = {}, fresh = 0): Promise<PoolDuel> {
+  await installSet(set);
+  return withSubject({ control }, s => poolDuel(x, y, level, games, variant, { kits: [s.id], print: `control:${skillPrint(s.id)}` }, fresh));
+}
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** The built module the duels run in: this one, from `dist/`. */
 const SELF = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist', 'pool.js');
@@ -302,6 +308,8 @@ export interface PoolRun {
   games: number;
   /** A candidate rule (playtest `DEFENSE_RULES`: its rules and its defense shift), or every hero on one PV. */
   variant?: Variant; defenseShift?: number;
+  /** A control kit every hero holds, in place of the set's main kits. */
+  control?: ControlName;
   maxMembers?: number; families?: readonly Strategy['kind'][];
   onStep?: PoolOptions['onStep'];
 }
@@ -321,7 +329,9 @@ export async function measurePool(run: PoolRun): Promise<PoolReading> {
     const [a, b] = memberKey(x) <= memberKey(y) ? [x, y] : [y, x];
     const k = `${fresh}:${memberKey(a)}:${memberKey(b)}`;
     let job = played.get(k);
-    if (!job) played.set(k, job = inLanes([() => isolated<PoolDuel>(SELF, 'poolDuelJob', [run.set, a, b, run.level, run.games, run.variant ?? {}, fresh, run.defenseShift ?? 0])]).then(r => r[0]));
+    if (!job) played.set(k, job = inLanes([() => (run.control
+      ? isolated<PoolDuel>(SELF, 'controlPoolDuelJob', [run.set, run.control, a, b, run.level, run.games, run.variant ?? {}, fresh])
+      : isolated<PoolDuel>(SELF, 'poolDuelJob', [run.set, a, b, run.level, run.games, run.variant ?? {}, fresh, run.defenseShift ?? 0]))]).then(r => r[0]));
     return job.then(d => (a === x ? d : { ...d, score: 1 - d.score }));
   };
   const result = await growPool(async (pairs, fresh = 0) => (await Promise.all(pairs.map(([x, y]) => duel(x, y, fresh)))).map(d => d.score), {

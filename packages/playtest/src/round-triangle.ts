@@ -17,9 +17,9 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COUNTER, games, inLanes, isolated, mergeRoundTable, PLANS, roundTableChunk, roundTableChunks, type Kind, type Plan, type RoundTable, type RoundTableChunk, type Variant } from '@pimpampum/bench';
+import { COUNTER, games, inLanes, isolated, mergeRoundTable, PLANS, roundTableChunk, roundTableChunks, skillPrint, type Kind, type Plan, type RoundTable, type RoundTableChunk, type Variant } from '@pimpampum/bench';
 import { shiftDefenses } from './fixes.js';
-import { installSet, type RunContext } from './prepare.js';
+import { installSet, withSubject, type ControlName, type RunContext } from './prepare.js';
 import { ROUND_POSITIONS } from './rules.js';
 
 export const PURE: readonly Plan[] = ['AA', 'DD', 'FF'];
@@ -65,6 +65,12 @@ export async function roundTableJob(set: RunContext['set'], level: number, total
   return roundTableChunk(level, total, chunk, variant);
 }
 
+/** One chunk of a control kit's round table: every hero on both sides holds the control kit (`control-kits.ts`), installed in the child. */
+export async function controlRoundTableJob(set: RunContext['set'], control: ControlName, level: number, total: number, chunk: number, variant: Variant = {}): Promise<RoundTableChunk> {
+  await installSet(set);
+  return withSubject({ control }, s => roundTableChunk(level, total, chunk, variant, { kits: [s.id], print: `control:${skillPrint(s.id)}` }));
+}
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** The built module the chunks run in: this one, from `dist/`. */
 const SELF = path.join(HERE, path.basename(HERE) === 'dist' ? '.' : '../dist', 'round-triangle.js');
@@ -76,6 +82,8 @@ export interface RoundTriangleOptions {
   positions?: number;
   /** A candidate rule (playtest `DEFENSE_RULES`), or every hero on one PV. */
   variant?: Variant; defenseShift?: number;
+  /** A control kit every hero holds, in place of the set's main kits. */
+  control?: ControlName;
   onChunk?: (done: number, total: number) => void;
 }
 
@@ -85,7 +93,9 @@ export async function measureRoundTriangle(set: RunContext['set'], levels: reado
   const jobs = levels.flatMap(level => Array.from({ length: roundTableChunks(positions) }, (_, chunk) => ({ level, chunk })));
   let done = 0;
   const parts = await inLanes(jobs.map(({ level, chunk }) => async () => {
-    const part = await isolated<RoundTableChunk>(SELF, 'roundTableJob', [set, level, positions, chunk, opts.variant ?? {}, opts.defenseShift ?? 0]);
+    const part = opts.control
+      ? await isolated<RoundTableChunk>(SELF, 'controlRoundTableJob', [set, opts.control, level, positions, chunk, opts.variant ?? {}])
+      : await isolated<RoundTableChunk>(SELF, 'roundTableJob', [set, level, positions, chunk, opts.variant ?? {}, opts.defenseShift ?? 0]);
     opts.onChunk?.(++done, jobs.length);
     return { level, part };
   }));
