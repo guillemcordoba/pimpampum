@@ -13,9 +13,8 @@
  *   … --levels 6 --games 200 (fights a duel) --members 12 --families table,state
  *   … --rule envoltat+both (a candidate rule, playtest `DEFENSE_RULES`)   --pv 15
  */
-import { fileURLToPath } from 'node:url';
-import { flag, games, inLanes, isolated, memberKey, pct, SMOKE, useSet, type PoolDuel, type PoolMember, type Strategy, type Variant } from '@pimpampum/bench';
-import { awarenessOf, DEFENSE_RULES, describeStrategy, FAMILIES, growPool, POOL_AWARE_SHARE, POOL_DEFAULTS, poolVerdict, STYLE_LEVELS } from '@pimpampum/playtest';
+import { flag, games, pct, SMOKE, useSet, type Strategy, type Variant } from '@pimpampum/bench';
+import { awarenessOf, DEFENSE_RULES, describeStrategy, FAMILIES, measurePool, POOL_AWARE_SHARE, POOL_DEFAULTS, STYLE_LEVELS } from '@pimpampum/playtest';
 import { chosenSet } from './sets.js';
 
 const SET = await chosenSet();
@@ -27,34 +26,17 @@ const families = (flag('--families')?.split(',') ?? (SMOKE ? ['table'] : FAMILIE
 const rule = DEFENSE_RULES.find(r => r.id === (flag('--rule') ?? 'today'));
 if (!rule) throw new Error(`--rule ${flag('--rule')}: unknown (${DEFENSE_RULES.map(r => r.id).join(', ')})`);
 const variant: Variant = { ...rule.rules, ...(flag('--pv') ? { pv: Number(flag('--pv')) } : {}) };
-const PLAYTEST = fileURLToPath(import.meta.resolve('@pimpampum/playtest'));
 const log = (s: string) => process.stderr.write(`${s}\n`);
 
-/** Every duel asked for, once: a pair is one job whichever way round it is asked. */
-const played = new Map<string, Promise<PoolDuel>>();
-function duel(level: number, x: PoolMember, y: PoolMember, fresh = 0): Promise<PoolDuel> {
-  const [a, b] = memberKey(x) <= memberKey(y) ? [x, y] : [y, x];
-  const k = `${level}:${fresh}:${memberKey(a)}:${memberKey(b)}`;
-  let job = played.get(k);
-  if (!job) played.set(k, job = inLanes([() => isolated<PoolDuel>(PLAYTEST, 'poolDuelJob', [SET.ref, a, b, level, fights, variant, fresh, rule!.defenseShift ?? 0])]).then(r => r[0]));
-  return job.then(d => (a === x ? d : { ...d, score: 1 - d.score }));
-}
-
-const results = await Promise.all(levels.map(async level => {
-  const result = await growPool(async (pairs, fresh = 0) => (await Promise.all(pairs.map(([x, y]) => duel(level, x, y, fresh)))).map(d => d.score), {
-    maxMembers, families,
-    onStep: (step, members) => log(`L${level}: member ${members.length}, +${(100 * step.gain).toFixed(1)} on the mix (+${(100 * step.confirmed).toFixed(1)} confirmed): ${describeStrategy(step.added)}`),
-  });
-  const support = result.members.map((m, i) => ({ m, p: result.mix[i] })).filter(s => s.p >= 0.01);
-  const ai = await Promise.all(support.map(s => duel(level, 'ai', s.m, 1)));
-  return { level, result, aiScore: support.reduce((t, s, i) => t + s.p * ai[i].score, 0) / support.reduce((t, s) => t + s.p, 0) };
-}));
+const results = await Promise.all(levels.map(level => measurePool({
+  set: SET.ref, level, games: fights, variant, defenseShift: rule.defenseShift ?? 0, maxMembers, families,
+  onStep: (step, members) => log(`L${level}: member ${members.length}, +${(100 * step.gain).toFixed(1)} on the mix (+${(100 * step.confirmed).toFixed(1)} confirmed): ${describeStrategy(step.added)}`),
+})));
 
 const share = (x: number) => `${Math.round(100 * x)}%`;
-console.log(`${SET.id}: the strategy pool under "${rule.id}", ${fights} fights a duel (±${(100 * Math.sqrt(0.25 / fights)).toFixed(1)})${flag('--pv') ? `, every hero on ${flag('--pv')} PV` : ''}; ${played.size} duels played`);
+console.log(`${SET.id}: the strategy pool under "${rule.id}", ${fights} fights a duel (±${(100 * Math.sqrt(0.25 / fights)).toFixed(1)})${flag('--pv') ? `, every hero on ${flag('--pv')} PV` : ''}; ${results.reduce((t, r) => t + r.duels, 0)} duels played`);
 console.log('A attack · D defense · F Focus; a plan is a side\'s two cards. dumb: plays the same whatever happens; state: follows the fight; reads: follows what the other side showed.');
-for (const { level, result: r, aiScore } of results) {
-  const verdict = poolVerdict(r, fights);
+for (const { level, result: r, verdict, aiScore } of results) {
   console.log(`\nL${level}: ${r.members.length} members, ${r.converged ? 'nothing new beats the mix' : `stopped at ${maxMembers} members, still growing`}`);
   r.members.forEach((m, i) => {
     const step = r.steps[i - (r.members.length - r.steps.length)];
