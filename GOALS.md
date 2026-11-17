@@ -137,15 +137,16 @@ waits for goal 1.
      |---|---|---|---|
      | today | ✗ spam 50.0% | ✗ spam 49.3% | ✗ the pool never leaves spam |
      | Envoltat | ✓ spam 41.9% ±2.1 | ✓ spam 40.3% ±1.9 (11-15) | ✗ spam 49.6% ±2.3 |
-     | whole + both | ✓ spam 28.0% ±1.6 | ✓ spam 36.6% ±1.8 (11-15) | ✗ spam 47.6% ±1.7, still growing at 12 members |
+     | whole + both | ✓ spam 28.0% ±1.6 | ✓ spam 36.6% ±1.8 (11-15) | ✗ spam 47.6% ±3.1, still growing at 13 members |
 
      Envoltat at level 10: the mix is 60% a table that opens with one attack
      and one defense and attacks back after both attacked, 15% always-attack,
      25% a script; always-attack scores 54% against the table, 46% against
-     the script. Whole + both at level 10, stopped at 12 members (the night
-     ran out): the mix is 67% tables that read, 33% a script (both guard
-     the first round, then both attack); always-attack scores 47.6% ±1.7
-     against it, not clearly under an even duel.
+     the script. Whole + both at level 10, stopped at 13 members (the night
+     ran out): the mix is 86% a table that opens with one guard and one
+     Focus and answers both attacking with one attack and one guard, 13% a
+     script (one attack and one guard, then both attack); always-attack
+     scores 47.6% ±3.1 against it, not clearly under an even duel.
    - So no rule measured passes all three levels: Envoltat and whole + both
      pass 3 and 6 and fail 10, by spam. Level 10 is item e's.
    - The production AI against tonight's final mixes: 49.3% to 56.5% (±3.5).
