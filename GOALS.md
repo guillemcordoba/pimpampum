@@ -153,6 +153,67 @@ waits for goal 1.
    are the owner's, from those numbers.
    Nothing is switched on: the engine's options are off, and `rules.md`,
    `intentions.md`, the cards and the pinned PV are as they were.
+   **The night of 2026-11-20: level 10, each rule on its own PV, and what a
+   block must pay** (elements, 200 fights a duel). Items a to d are in the
+   pull request of the night of 2026-11-17 (#15), which main had not taken;
+   nothing of it is redone, and this block is written to merge beside it.
+   - Each rule's own PV for quick fights (`defense-rules.ts`: the largest
+     flat PV whose median fight ends within 5 rounds with stalls under 2%),
+     levels 3 / 6 / 10: today 12 / 15 / 41; Envoltat 5 / 13 / 34; whole +
+     both 11 / 13 / 30. Envoltat's 5 is the stall bar, not the length: on 6
+     to 8 PV its median fight is 3 to 4 rounds with 2.0% to 2.5% stalls.
+   - Level 10 is played on less PV than quick fights allow. The PV is a
+     line, a base and an amount a level (`hero-pv.ts`) → level 6's limit
+     (15) holds the amount at 2.5 → a level-10 hero holds 25 where the limit
+     is 30 to 41 → the median level-10 fight lasts 3 rounds, and 2.3%
+     (today) to 3.8% (Envoltat) of plays fell a fresh hero with no answer
+     (0% on each rule's own PV).
+   - That is not what makes level 10 red under today's rule: on 41 PV the
+     pool still never leaves always-attack (converged at 3 members; 87%
+     against always-defend). Why (`hand-worth.ts --levels 10 --pv 41 --why`,
+     400 fights): a guard covers one body, and a blow uses up what it threw
+     → the side that attacks lands 3.2 PV a guard on the body left open and
+     3.2 through a guard another blow used → a Defense card stops 10.9 PV
+     and takes 1.1 back, where the attack it replaced deals 12.3 → the AI
+     holding attacks alone scores 51.7% ±2.5 against the AI holding its
+     hand. What a block takes back, PV a play: Mantell de flames 15.2,
+     Búnquer 5.1, the other nine Defense cards 0.3 to 3.0.
+   - The two candidates at level 10 on their own PV, cut at 7 members (the
+     night ran out; both still growing), always-attack against the mix:
+     Envoltat on 34 PV 45.0% ±3.5 (49.6% ±2.3 on the pinned PV), the mix one
+     table that opens with two guards and answers; whole + both on 30 PV
+     50.0% ±1.4 (47.6% ±3.1), always-attack itself 24% of the mix. Neither
+     clearly loses yet: more PV alone does not turn level 10 green.
+   - Item e, what a block must pay (the vanilla twins, today's rule, level
+     10, on 60 PV, the twins' own PV for quick fights; a pool of the night,
+     on a script since deleted), always-attack against the mix:
+
+     | a block that holds pays | members | always-attack | verdict |
+     |---|---|---|---|
+     | nothing | 6, converged | 49.8% ±3.1 | ✗ |
+     | a riposte two levels under the card's | 9, still growing | 47.8% ±3.5 | ✗ the mix is one script: an attack and a Focus, then both attack |
+     | a riposte at the card's own level | 8, still growing | 44.3% ±2.1 | ✓ the mix is 60% tables that answer, 40% a state player |
+
+     (The riposte is the twins' payoff defense: when it holds, the attacker
+     takes an attack of that level's dice that nothing defends.) So under
+     today's rule a guard must hit back as hard as an attack of its own
+     level before always-attack loses at level 10. It is the only green
+     reading of level 10 so far, on twins and on a pool not yet converged.
+   - The screen is not the judge of a payoff. `defense-rules.ts --payoffs`
+     (the AI against spam and against attacks alone, 600 fights) passes
+     every riposte at levels 3, 6 and 10 under the three rules, and at level
+     10 passes no payoff at all (spam 29.6% ±1.9), which the pool finds red.
+     What the screen does show: a payoff feeds the turtle (whole + both with
+     a full riposte: always-defend 34.0% at level 10, 27.9% at level 6 with
+     18% stalls).
+   - The twins no longer stand in for the kits at level 10: their PV for
+     quick fights is 56 to 60 under today and Envoltat where the kits' is 34
+     to 41 (`TWIN_DEFAULTS` is of 2026-11-04, before the rule).
+   **Left of it:** the two candidates' level-10 pools grown to the end on
+   their own PV, and their levels 3 and 6 there; the riposte pools grown to
+   the end, and under Envoltat and whole + both; the twins calibrated again
+   before more is read on them. Each level-10 pool costs 20 minutes (today)
+   to more than 4 hours at 24 lanes, so one a night finishes, not four.
 2. **One re-baseline.** B17, B28, B30, C4.
    WAITING: not before goal 1 has a rule, which may move what this
    baseline is taken on.
