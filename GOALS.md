@@ -120,6 +120,83 @@ waits for goal 1.
      10 red, by spam (always-attack 50.2% ±1.6).
    - The production AI against the final mix: 52% to 62%; the pool plays
      about as well as it does.
+   - The pools of 2026-11-22: each rule on its own PV for quick fights (the
+     PV the `defense-rules.ts` screen found on 2026-11-20; elements, 200
+     fights a duel; always-attack against the pool's final mix; ✓ green, ✗
+     red; "ends at n": nothing new beats the mix of n members; "cap":
+     stopped at 14 members, still growing; "cut": the night ran out, still
+     growing). This block is placed to merge
+     beside the open pull requests of 2026-11-17 (#15, the pools on the
+     pinned PV) and 2026-11-20 (#16, the level-10 pools at 7 members).
+
+     | rule | level 3 | level 6 | level 10 |
+     |---|---|---|---|
+     | today | 12 PV: ✓ 27.9% ±1.9, cap | 15 PV: ✗ 45.8% ±3.5, ends at 4 | 41 PV: ✗ the pool never leaves spam (11-20) |
+     | Envoltat | 5 PV: ✓ 38.4% ±1.9, ends at 10 | 13 PV: ✓ 35.5% ±3.1, ends at 11 | 34 PV: ✗ 50.0% ±1.5, cap |
+     | whole + both | 11 PV: ✓ 16.9% ±2.2, cap | 13 PV: ✓ 32.6% ±2.8, ends at 6 | 30 PV: ✗ 46.8% ±2.3, cut at 9 |
+
+     Both candidates pass levels 3 and 6 as they do on the pinned PV, and
+     the pool passes nothing at level 10. One verdict moves with the PV:
+     today's rule at level 3 is green on 12 PV (the mix all tables that
+     answer) where it is red on the pinned 5 to 8 (spam 50.0%, 11-17); at
+     level 6, on the 15 PV the pinned line already gives, it stays red.
+   - Envoltat at level 10 on 34 PV, grown from the 7 members of 2026-11-20
+     to the cap: always-attack holds 29% of the mix and scores 50.0% ±1.5
+     against it (the 45.0% ±3.5 read at 7 members was a pool half grown).
+     The last two members gained 4.2 and 3.6 points on the mix: the
+     families have little left to add.
+   - But at level 10 the production AI beats everything the pool finds, and
+     under both candidates, on their own PV, it beats always-attack. The AI
+     against always-attack, level 10, each rule on its own PV, 400 fights
+     (two of the pool's sets of fights): Envoltat 57.3% ±2.5; whole + both
+     58.4% ±2.5; today 50.4% ±2.5. Under Envoltat the AI beats each of the
+     pool's 14 members (57% to 97%): counted as a fifteenth it is the whole
+     mix, and always-attack scores 42.5% ±3.5 against that mix; under whole
+     + both (the pool at 9 members) it is 94% of the mix and always-attack
+     scores 42.5% ±3.3; under today's rule the mix stays always-attack, and
+     at level 6 on 15 PV always-attack is 50.0% ±1.9 against the mix with
+     the AI in it. So at level 10 on its own PV each candidate has a
+     strategy that clearly beats spam, and today's rule has none.
+   - On the pinned PV it does not: the AI is again nearly the whole mix
+     (51% to 96% against the members of the pools of 2026-11-17), but
+     always-attack scores 46.5% ±3.5 against it under Envoltat and 47.2%
+     ±3.5 under whole + both, neither clearly under an even duel. The
+     chain: the PV is a line, 2.5 a level (`hero-pv.ts`) → a level-10 hero
+     holds 25 where each candidate's fights stay quick up to 30 or 34 → the
+     AI's fight against always-attack lasts 2.4 rounds on average (4.1 on
+     34 PV) → a guard has no round left to pay in. Level 10 is red on the
+     pinned PV for its PV, whichever candidate; the pool's verdict hides
+     that, being red on both.
+   - Why the pool does not find it. A pool strategy names card TYPES, by a
+     table, by a script or by its side's lowest PV (bench `pool.ts`) → one
+     that guards does it every round, in set rounds, or for as long as one
+     of its own is hurt → under Envoltat on 34 PV the AI plays 1.3 Defense
+     cards a fight against spam, each stopping 19.7 PV where the attack it
+     gave up deals 11.9 (`hand-worth.ts --levels 10 --pv 34 --envoltat
+     --spend 0 --why`, 400 fights; under today's rule on 41 PV: 10.9
+     against 12.3, 2026-11-20). The night's reading, not measured further:
+     what beats spam at level 10 is choosing the one round to guard, and no
+     family holds that. The requirement (`poolVerdict`) reads the mix of
+     the families alone, so at level 10 it reads red where the AI is the
+     counter-example.
+   - What a pool costs. A duel is one job on one lane (bench `poolDuel`
+     plays its 200 fights in a row) and the search asks for one context's
+     duels and waits for the slowest → a pool alone holds 1 to 8 of the 24
+     lanes (Envoltat at level 10, alone for its first half hour: load 2.0,
+     153 duels) → pools run side by side for nothing until the lanes fill
+     (six at once: 2 300 duels an hour), and a pool is as long as its
+     slowest duels. Two sides that guard fight to the round cap: under
+     whole + both on 30 PV a level-10 duel takes 2 to 4 minutes, and a
+     step of that pool about 20 minutes on free lanes; on lanes five other
+     pools were filling it did not finish one in an hour, and was stopped
+     until they ended. Cutting a duel into chunks, as the card values were
+     (f7079c8), would shorten every step; it is a change to bench, which
+     throws the cache away.
+   - Left after the night of 2026-11-22: whole + both at level 10 on 30 PV
+     from 9 members to the end (about 2 hours on free lanes); and a family,
+     or a member, that holds what the AI does at level 10, before the
+     pool's red there is read as the game's (the owner's call: the
+     families follow the rulings of 2026-11-15).
    - The morning's screen, the question as it was asked before the pool (the
      AI against spam and against attacks alone at the PV where the median
      fight ends within 5 rounds, levels 3 to 10): every candidate alone
