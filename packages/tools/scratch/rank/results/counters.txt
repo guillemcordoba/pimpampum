@@ -1,0 +1,34 @@
+
+=== THE ELEMENTS SET (the kits experiment's fights) ===
+
+level 3
+  held-out loss of the sum of kit ratings: 0.6002. Gain over it, thousandths of a nat a game (noise about ±1):
+    sum + pair counter table (batch)       8.3
+    mElo, 2 dimensions, summed teams       6.8
+    online Elo on whole sides, no table   -1.0
+    Elo-RCC online, 3 categories           -1.0
+    Elo-RCC online, 6 categories          -15.6
+  mElo's vectors: acrobacia 0.16 at 55°; airbender 0.35 at 75°; mestre-armes 0.38 at 96°; firebender 0.35 at 137°; mestre-del-xi 0.70 at 220°; artifex 0.25 at 263°; earthbender 0.70 at 328°; waterbender 0.09 at 359°
+  Top-D (tolerance 4 points): 1 of 36 sides stand up to the best (airbender + artifex): airbender + artifex
+
+level 6
+  held-out loss of the sum of kit ratings: 0.6150. Gain over it, thousandths of a nat a game (noise about ±1):
+    sum + pair counter table (batch)       7.5
+    mElo, 2 dimensions, summed teams       6.1
+    online Elo on whole sides, no table   -4.8
+    Elo-RCC online, 3 categories          -18.4
+    Elo-RCC online, 6 categories          -27.8
+  mElo's vectors: artifex 0.40 at 75°; mestre-armes 0.26 at 131°; waterbender 0.37 at 134°; earthbender 0.36 at 154°; mestre-del-xi 0.76 at 238°; airbender 0.52 at 330°; acrobacia 0.28 at 345°; firebender 0.34 at 353°
+  Top-D (tolerance 4 points): 1 of 36 sides stand up to the best (mestre-del-xi + mestre-del-xi): mestre-del-xi + mestre-del-xi
+
+level 10
+  held-out loss of the sum of kit ratings: 0.6711. Gain over it, thousandths of a nat a game (noise about ±1):
+    sum + pair counter table (batch)       4.0
+    mElo, 2 dimensions, summed teams       3.6
+    online Elo on whole sides, no table   -3.8
+    Elo-RCC online, 3 categories           -7.1
+    Elo-RCC online, 6 categories           -5.1
+  mElo's vectors: firebender 0.66 at 45°; airbender 0.45 at 142°; artifex 0.29 at 163°; waterbender 0.21 at 190°; earthbender 0.06 at 216°; acrobacia 0.18 at 277°; mestre-armes 0.47 at 290°; mestre-del-xi 0.27 at 329°
+  Top-D (tolerance 4 points): 1 of 36 sides stand up to the best (artifex + artifex): artifex + artifex
+
+every control held

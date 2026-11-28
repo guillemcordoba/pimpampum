@@ -1,0 +1,96 @@
+
+=== THE ELEMENTS SET: Shapley values at level 6, half of each hand left out (40000 fights, median 6 rounds, 5.3% stalled) ===
+  waterbender
+    L6  Llança de gel (A)              Shapley   249   alone in a hand   373 ± 31
+    L4  Font curativa (F)              Shapley    97   alone in a hand   185 ± 31
+    L2  Mur d'aigua (D)                Shapley    36   alone in a hand    92 ± 31
+    L1  Fuet d'aigua (A)               Shapley    27   alone in a hand    72 ± 31
+    L3  Portes al mar (F)              Shapley    26   alone in a hand    50 ± 31
+    L5  Boira espessa (F)              Shapley    13   alone in a hand    26 ± 31
+      step on each other: Font curativa + Llança de gel -104 ±24
+      step on each other: Fuet d'aigua + Llança de gel -68 ±24
+      step on each other: Llança de gel + Mur d'aigua -47 ±24
+      step on each other: Font curativa + Mur d'aigua -39 ±24
+  earthbender
+    L4  Allau (A)                      Shapley   173   alone in a hand   279 ± 30
+    L3  Esquerda (F)                   Shapley    79   alone in a hand   122 ± 30
+    L5  Trampa de terra (D)            Shapley    68   alone in a hand   146 ± 30
+    L2  Mur de pedra (D)               Shapley    54   alone in a hand   141 ± 30
+    L1  Llançament de roca (A)         Shapley    52   alone in a hand   122 ± 30
+    L6  Armadura de terra (F)          Shapley  -109   alone in a hand   -83 ± 31
+      step on each other: Mur de pedra + Trampa de terra -100 ±24
+      step on each other: Allau + Llançament de roca -65 ±24
+      step on each other: Allau + Mur de pedra -59 ±24
+      step on each other: Allau + Trampa de terra -49 ±24
+  firebender
+    L6  Fúria de flames (A)            Shapley   187   alone in a hand   374 ± 31
+    L4  Tempesta d'espurnes (A)        Shapley   141   alone in a hand   265 ± 30
+    L2  Mantell de flames (D)          Shapley    79   alone in a hand   189 ± 30
+    L3  Foc interior (F)               Shapley    39   alone in a hand    37 ± 30
+    L1  Bola de foc (A)                Shapley    32   alone in a hand   108 ± 30
+    L5  Esclat encegador (F)           Shapley    20   alone in a hand    72 ± 30
+      step on each other: Fúria de flames + Tempesta d'espurnes -216 ±24
+      step on each other: Bola de foc + Fúria de flames -79 ±24
+      better together: Foc interior + Tempesta d'espurnes 72 ±24
+      step on each other: Fúria de flames + Mantell de flames -67 ±24
+      step on each other: Foc interior + Mantell de flames -61 ±24
+  airbender
+    L5  Fulles de vent (A)             Shapley   173   alone in a hand   299 ± 29
+    L1  Ventada (A)                    Shapley    95   alone in a hand   204 ± 29
+    L3  Vent a favor (F)               Shapley    79   alone in a hand   209 ± 29
+    L4  Coixí d'aire (F)               Shapley    37   alone in a hand   109 ± 29
+    L2  Ràfega desviadora (D)          Shapley    24   alone in a hand    59 ± 29
+    L6  Finta a contrapeu (D)          Shapley     6   alone in a hand    75 ± 29
+      step on each other: Fulles de vent + Vent a favor -105 ±24
+      step on each other: Fulles de vent + Ventada -105 ±23
+      step on each other: Vent a favor + Ventada -80 ±23
+      step on each other: Coixí d'aire + Finta a contrapeu -53 ±24
+      step on each other: Coixí d'aire + Vent a favor -53 ±24
+  mestre-armes
+    L4  Bufetada insolent (A)          Shapley   184   alone in a hand   274 ± 30
+    L3  Retirada sagnant (F)           Shapley   109   alone in a hand   134 ± 29
+    L1  Finta traïdora (A)             Shapley    48   alone in a hand   150 ± 30
+    L6  Braç mort (D)                  Shapley    43   alone in a hand   116 ± 30
+    L2  Retruc d'acer (D)              Shapley    39   alone in a hand   103 ± 30
+    L5  Bloqueig d'escorpí (D)         Shapley    27   alone in a hand    94 ± 30
+      step on each other: Bufetada insolent + Finta traïdora -109 ±24
+      step on each other: Braç mort + Retruc d'acer -70 ±23
+      step on each other: Bloqueig d'escorpí + Braç mort -62 ±24
+      step on each other: Bloqueig d'escorpí + Retruc d'acer -39 ±24
+      step on each other: Finta traïdora + Retirada sagnant -38 ±23
+  acrobacia
+    L6  Cavalcar l'enemic (A)          Shapley   159   alone in a hand   283 ± 30
+    L3  Rodes de mareig (F)            Shapley    83   alone in a hand   187 ± 30
+    L5  Tombarella de rescat (D)       Shapley    68   alone in a hand   151 ± 30
+    L4  Trampolí de mans (F)           Shapley    41   alone in a hand   109 ± 30
+    L1  Escombrada (A)                 Shapley    13   alone in a hand    59 ± 30
+    L2  Esquiva i traveta (D)          Shapley    11   alone in a hand    45 ± 30
+      step on each other: Cavalcar l'enemic + Rodes de mareig -73 ±23
+      step on each other: Cavalcar l'enemic + Tombarella de rescat -58 ±23
+      step on each other: Rodes de mareig + Trampolí de mans -57 ±23
+      step on each other: Cavalcar l'enemic + Escombrada -54 ±23
+      step on each other: Cavalcar l'enemic + Trampolí de mans -53 ±23
+  artifex
+    L6  Ballesta sentinella (F)        Shapley   106   alone in a hand   180 ± 29
+    L3  Autòmat de corda (F)           Shapley    84   alone in a hand   142 ± 29
+    L5  Ganxo salvavides (D)           Shapley    64   alone in a hand   161 ± 29
+    L2  Parany de molla (D)            Shapley    53   alone in a hand   161 ± 29
+    L1  Bumerang (A)                   Shapley    43   alone in a hand   103 ± 29
+    L4  Paraigua blindat (D)           Shapley     2   alone in a hand    14 ± 30
+      step on each other: Ganxo salvavides + Parany de molla -98 ±23
+      step on each other: Autòmat de corda + Ballesta sentinella -51 ±23
+      step on each other: Ballesta sentinella + Bumerang -48 ±23
+      step on each other: Ballesta sentinella + Parany de molla -44 ±23
+      step on each other: Bumerang + Ganxo salvavides -38 ±23
+  mestre-del-xi
+    L6  Ràfega de dits (A)             Shapley   264   alone in a hand   370 ± 30
+    L5  Poder apagat (A)               Shapley   128   alone in a hand   214 ± 30
+    L3  Punts de la guàrdia (F)        Shapley    99   alone in a hand   181 ± 30
+    L4  Desbloquejar el cos (F)        Shapley    40   alone in a hand    94 ± 30
+    L2  Pinça entumidora (D)           Shapley    33   alone in a hand    78 ± 30
+    L1  Cop al nervi (A)               Shapley     7   alone in a hand    48 ± 30
+      step on each other: Poder apagat + Ràfega de dits -82 ±24
+      step on each other: Desbloquejar el cos + Punts de la guàrdia -75 ±24
+      step on each other: Punts de la guàrdia + Ràfega de dits -73 ±24
+
+every control held

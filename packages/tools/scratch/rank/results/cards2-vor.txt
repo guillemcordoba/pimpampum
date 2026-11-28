@@ -1,0 +1,150 @@
+
+=== THE ELEMENTS SET: value over replacement at level 6 (24000 fights, median 5 rounds, 0.3% stalled) ===
+  waterbender
+    L6  Llança de gel (A)                178 ± 26
+    L4  Font curativa (F)                 44 ± 24
+    L5  Boira espessa (F)                 17 ± 24  no better than vanilla
+    L1  Fuet d'aigua (A)                   3 ± 24  no better than vanilla
+    L2  Mur d'aigua (D)                  -11 ± 24  no better than vanilla
+    L3  Portes al mar (F)                -16 ± 24  no better than vanilla
+  earthbender
+    L4  Allau (A)                        136 ± 26
+    L3  Esquerda (F)                      41 ± 24
+    L2  Mur de pedra (D)                  29 ± 25
+    L5  Trampa de terra (D)               -8 ± 24  no better than vanilla
+    L1  Llançament de roca (A)           -16 ± 24  no better than vanilla
+    L6  Armadura de terra (F)            -85 ± 24  worse than vanilla
+  firebender
+    L6  Fúria de flames (A)               40 ± 24
+    L4  Tempesta d'espurnes (A)           29 ± 24
+    L2  Mantell de flames (D)              4 ± 24  no better than vanilla
+    L3  Foc interior (F)                  -4 ± 24  no better than vanilla
+    L5  Esclat encegador (F)             -17 ± 24  no better than vanilla
+    L1  Bola de foc (A)                  -18 ± 24  no better than vanilla
+  airbender
+    L5  Fulles de vent (A)                90 ± 24
+    L3  Vent a favor (F)                  27 ± 24
+    L1  Ventada (A)                        4 ± 24  no better than vanilla
+    L2  Ràfega desviadora (D)             -2 ± 24  no better than vanilla
+    L6  Finta a contrapeu (D)             -4 ± 24  no better than vanilla
+    L4  Coixí d'aire (F)                  -6 ± 24  no better than vanilla
+  mestre-armes
+    L4  Bufetada insolent (A)            116 ± 24
+    L6  Braç mort (D)                     19 ± 24  no better than vanilla
+    L5  Bloqueig d'escorpí (D)             7 ± 24  no better than vanilla
+    L2  Retruc d'acer (D)                  3 ± 24  no better than vanilla
+    L3  Retirada sagnant (F)              -7 ± 24  no better than vanilla
+    L1  Finta traïdora (A)               -13 ± 24  no better than vanilla
+  acrobacia
+    L6  Cavalcar l'enemic (A)            126 ± 25
+    L5  Tombarella de rescat (D)          28 ± 24
+    L3  Rodes de mareig (F)               11 ± 24  no better than vanilla
+    L4  Trampolí de mans (F)               9 ± 24  no better than vanilla
+    L2  Esquiva i traveta (D)            -11 ± 24  no better than vanilla
+    L1  Escombrada (A)                   -12 ± 23  no better than vanilla
+  artifex
+    L5  Ganxo salvavides (D)              49 ± 24
+    L2  Parany de molla (D)               37 ± 24
+    L6  Ballesta sentinella (F)           31 ± 24
+    L3  Autòmat de corda (F)              24 ± 24
+    L1  Bumerang (A)                       5 ± 24  no better than vanilla
+    L4  Paraigua blindat (D)             -12 ± 24  no better than vanilla
+  mestre-del-xi
+    L6  Ràfega de dits (A)               227 ± 25
+    L5  Poder apagat (A)                  15 ± 25  no better than vanilla
+    L3  Punts de la guàrdia (F)            4 ± 26  no better than vanilla
+    L4  Desbloquejar el cos (F)            0 ± 26  no better than vanilla
+    L1  Cop al nervi (A)                  -8 ± 26  no better than vanilla
+    L2  Pinça entumidora (D)             -29 ± 26  worse than vanilla
+
+=== THE ELEMENTS SET: value over replacement at level 10 (40000 fights, median 3 rounds, 0.0% stalled) ===
+  waterbender
+    L10 Tsunami (A)                      126 ± 22
+    L8  Forma de pop (D)                  20 ± 21  no better than vanilla
+    L7  Marea de vida (F)                 -0 ± 21  no better than vanilla
+    L1  Fuet d'aigua (A)                  -5 ± 21  no better than vanilla
+    L2  Mur d'aigua (D)                  -10 ± 21  no better than vanilla
+    L3  Portes al mar (F)                -11 ± 21  no better than vanilla
+    L9  Control de la sang (F)           -14 ± 21  no better than vanilla
+    L5  Boira espessa (F)                -14 ± 21  no better than vanilla
+    L6  Llança de gel (A)                -15 ± 21  no better than vanilla
+    L4  Font curativa (F)                -24 ± 21  worse than vanilla
+  earthbender
+    L10 Terratrèmol (A)                  132 ± 22
+    L8  Búnquer (D)                       46 ± 21
+    L7  Roca viva (F)                     16 ± 21  no better than vanilla
+    L5  Trampa de terra (D)               15 ± 21  no better than vanilla
+    L4  Allau (A)                         14 ± 21  no better than vanilla
+    L6  Armadura de terra (F)              9 ± 21  no better than vanilla
+    L1  Llançament de roca (A)             8 ± 21  no better than vanilla
+    L2  Mur de pedra (D)                  -1 ± 21  no better than vanilla
+    L9  Sorres movedisses (F)             -9 ± 22  no better than vanilla
+    L3  Esquerda (F)                      -9 ± 21  no better than vanilla
+  firebender
+    L10 Supernova (A)                     53 ± 22
+    L5  Esclat encegador (F)              19 ± 22  no better than vanilla
+    L2  Mantell de flames (D)              6 ± 22  no better than vanilla
+    L8  Llamp (A)                          2 ± 22  no better than vanilla
+    L4  Tempesta d'espurnes (A)           -1 ± 22  no better than vanilla
+    L7  Incendi (A)                       -2 ± 21  no better than vanilla
+    L9  Anell de foc (F)                  -3 ± 21  no better than vanilla
+    L6  Fúria de flames (A)               -5 ± 22  no better than vanilla
+    L1  Bola de foc (A)                   -8 ± 21  no better than vanilla
+    L3  Foc interior (F)                  -9 ± 21  no better than vanilla
+  airbender
+    L10 Tornado (A)                      137 ± 21
+    L3  Vent a favor (F)                  43 ± 21
+    L4  Coixí d'aire (F)                  32 ± 21
+    L6  Finta a contrapeu (D)             22 ± 22
+    L1  Ventada (A)                       13 ± 21  no better than vanilla
+    L5  Fulles de vent (A)                11 ± 21  no better than vanilla
+    L7  Remolí (F)                         5 ± 21  no better than vanilla
+    L2  Ràfega desviadora (D)              4 ± 21  no better than vanilla
+    L9  Asfíxia (F)                       -5 ± 21  no better than vanilla
+    L8  Contracorrent (F)                -12 ± 21  no better than vanilla
+  mestre-armes
+    L7  Bardissa d'acer (A)               28 ± 21
+    L9  Estocada fantasma (A)             14 ± 21  no better than vanilla
+    L10 Tall rere tall (A)                 9 ± 21  no better than vanilla
+    L8  Punt feble (F)                     4 ± 21  no better than vanilla
+    L2  Retruc d'acer (D)                 -2 ± 22  no better than vanilla
+    L1  Finta traïdora (A)                -3 ± 21  no better than vanilla
+    L4  Bufetada insolent (A)             -4 ± 21  no better than vanilla
+    L5  Bloqueig d'escorpí (D)           -11 ± 22  no better than vanilla
+    L3  Retirada sagnant (F)             -11 ± 21  no better than vanilla
+    L6  Braç mort (D)                    -13 ± 21  no better than vanilla
+  acrobacia
+    L10 Capbussó suïcida (A)              48 ± 21
+    L9  Malabars a puntades (A)           29 ± 22
+    L5  Tombarella de rescat (D)          21 ± 21  no better than vanilla
+    L7  Trepitjar caps (A)                17 ± 21  no better than vanilla
+    L4  Trampolí de mans (F)              11 ± 21  no better than vanilla
+    L8  Salt mortal (A)                    5 ± 21  no better than vanilla
+    L2  Esquiva i traveta (D)              4 ± 21  no better than vanilla
+    L1  Escombrada (A)                    -5 ± 21  no better than vanilla
+    L3  Rodes de mareig (F)               -6 ± 21  no better than vanilla
+    L6  Cavalcar l'enemic (A)             -6 ± 21  no better than vanilla
+  artifex
+    L8  Baldufa de ganivets (A)           74 ± 21
+    L7  Trepant incansable (A)            15 ± 22  no better than vanilla
+    L5  Ganxo salvavides (D)              11 ± 21  no better than vanilla
+    L6  Ballesta sentinella (F)            2 ± 22  no better than vanilla
+    L9  Colós de butxaca (D)              -4 ± 22  no better than vanilla
+    L4  Paraigua blindat (D)              -7 ± 21  no better than vanilla
+    L1  Bumerang (A)                      -7 ± 21  no better than vanilla
+    L3  Autòmat de corda (F)              -8 ± 21  no better than vanilla
+    L2  Parany de molla (D)              -19 ± 22  no better than vanilla
+    L10 Boa mecànica (A)                 -20 ± 21  no better than vanilla
+  mestre-del-xi
+    L6  Ràfega de dits (A)               102 ± 22
+    L9  Toc de la mort (A)                24 ± 21
+    L4  Desbloquejar el cos (F)           16 ± 21  no better than vanilla
+    L7  Tocs en cadena (A)                 8 ± 21  no better than vanilla
+    L3  Punts de la guàrdia (F)            4 ± 21  no better than vanilla
+    L5  Poder apagat (A)                   3 ± 21  no better than vanilla
+    L1  Cop al nervi (A)                   2 ± 21  no better than vanilla
+    L8  Cop de vida (F)                    0 ± 21  no better than vanilla
+    L10 Tempesta de son (A)               -5 ± 21  no better than vanilla
+    L2  Pinça entumidora (D)              -9 ± 21  no better than vanilla
+
+every control held

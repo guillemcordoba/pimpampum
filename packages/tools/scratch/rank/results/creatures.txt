@@ -1,0 +1,46 @@
+=== CONTROLS (vanilla heroes as the party; vanilla bodies as the creatures) ===
+
+12000 fights (median 5 rounds, 1.5% stalled), the party wins 54%
+  mob-rung4          one body at PV 10: -3079 ±259 Elo; doubling the PV adds 634 ±54; doubling the bodies adds 1497 ±126
+  mob-rung6          one body at PV 10: -2438 ±203 Elo; doubling the PV adds 535 ±45; doubling the bodies adds 1345 ±110
+  mob-rung6-twin     one body at PV 10: -2577 ±212 Elo; doubling the PV adds 568 ±47; doubling the bodies adds 1410 ±115
+  mob-rung8          one body at PV 10: -1721 ±149 Elo; doubling the PV adds 366 ±36; doubling the bodies adds 1122 ±94
+ok   a higher rung is a harder body, every step clear: mob-rung4 -3079, mob-rung6 -2438, mob-rung6-twin -2577, mob-rung8 -1721
+ok   twin species rate the same: -2438 and -2577; PV slopes 773 and 819
+ok   more PV and more bodies are harder: 914 / 2159, 773 / 1940, 819 / 2035, 528 / 1618
+  on (species, count) cells never fitted: loss 0.394 against 0.689 for a constant
+    mob-rung4 ×4                   the rating says PV  10 (played: 60%); the 60% fight is at PV 10.0; one PV point moves the win rate about 9 points
+    mob-rung6 ×4                   the rating says PV   7 (played: 74%); the 60% fight is at PV 8.0; one PV point moves the win rate about 12 points
+    mob-rung6-twin ×4              the rating says PV   7 (played: 79%); the 60% fight is at PV 8.1; one PV point moves the win rate about 11 points
+    mob-rung8 ×4                   the rating says PV   3 (played: 94%); the 60% fight is at PV 5.0; one PV point moves the win rate about 4 points
+  (a finding, not a control: at a count it never saw the rating names the PV within 40% at worst, 16% on average)
+
+=== THE ELEMENTS SET (four heroes of drawn kits at level 3, 6 or 10 against one species) ===
+
+24000 fights (median 3 rounds, 0.1% stalled), the party wins 57%
+  soldat-del-foc     one body at PV 10: -1201 ± 61 Elo; doubling the PV adds 253 ±10; doubling the bodies adds 479 ±25
+  shirshu            one body at PV 10: -1301 ± 48 Elo; doubling the PV adds 403 ±15; doubling the bodies adds 581 ±26
+  unagi              one body at PV 10: -1118 ± 43 Elo; doubling the PV adds 302 ±12; doubling the bodies adds 672 ±27
+  arquer-yuyan       one body at PV 10: -1680 ± 63 Elo; doubling the PV adds 348 ±14; doubling the bodies adds 774 ±32
+  heroes at level 3: waterbender -280, earthbender -214, firebender -259, airbender 30, mestre-armes -205, acrobacia -248, artifex -203, mestre-del-xi -236 (±16)
+  heroes at level 6: waterbender -48, earthbender -48, firebender 102, airbender 21, mestre-armes -42, acrobacia -78, artifex -66, mestre-del-xi 57 (±13)
+  heroes at level 10: waterbender 275, earthbender 267, firebender 239, airbender 305, mestre-armes 105, acrobacia 152, artifex 172, mestre-del-xi 202 (±18)
+  on (species, count) cells never fitted: loss 0.458 against 0.682 for a constant
+
+  the rating as a balancer (the reference party; the PV it names for a 60% fight, against the PV found by playing 300 fights at each PV around it):
+    level 3, soldat-del-foc ×7     the rating says PV   1 (played: 87%); the 60% fight is at PV 2.0; one PV point moves the win rate about 22 points
+    level 3, shirshu ×2            the rating says PV   9 (played: 47%); the 60% fight is at PV 7.6; one PV point moves the win rate about 7 points
+    level 3, unagi ×3              the rating says PV   2 (played: 92%); the 60% fight is at PV 3.0; one PV point moves the win rate about 15 points
+    level 3, arquer-yuyan ×2       the rating says PV  12 (played: 56%); the 60% fight is at PV 11.0; one PV point moves the win rate about 6 points
+    level 6, soldat-del-foc ×7     the rating says PV   6 (played: 75%); the 60% fight is at PV 7.2; one PV point moves the win rate about 8 points
+    level 6, shirshu ×2            the rating says PV  32 (played: 52%); the 60% fight is at PV 26.4; one PV point moves the win rate about 2 points
+    level 6, unagi ×3              the rating says PV  10 (played: 59%); the 60% fight is at PV 9.8; one PV point moves the win rate about 5 points
+    level 6, arquer-yuyan ×2       the rating says PV  56 (played: 70%); the 60% fight is at PV 62.3; one PV point moves the win rate about 1 points
+    level 10, soldat-del-foc ×7    the rating says PV 109 (played: 97%); the 60% fight is at PV 157.1; one PV point moves the win rate about 1 points
+    level 10, shirshu ×2           the rating says PV 198 (played: 75%); the 60% fight is at PV 317.0; one PV point moves the win rate about 0 points
+    level 10, unagi ×3             the rating says PV 116 (played: 88%); the 60% fight is at PV 186.0; one PV point moves the win rate about 0 points
+    level 10, arquer-yuyan ×2      the rating says PV 458 (played: 93%); the 60% fight is at PV 733.0; one PV point moves the win rate about 0 points
+    mean miss 25% of the PV, worst 50%
+
+  against the encounter solver (level 10, target 60%):
+    soldat-del-foc ×7: the solver says PV 103 in 740s, the rating says 109

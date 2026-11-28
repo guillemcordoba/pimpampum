@@ -1,0 +1,204 @@
+=== CONTROLS (one vanilla kit, PV 15, each card left out of a hand 4 times in 10) ===
+
+24000 fights, median 4 rounds, 1.7% stalled
+  big attack (3d6)                     193 ±  6
+  guard (3d4+2)                         33 ±  5
+  twin attack (2d6)                     13 ±  5
+  twin attack (2d6), the other           9 ±  5
+  a Focus that does nothing             -3 ±  5  no worth shown
+  small attack (1d4)                    -4 ±  5  no worth shown
+ok   the bigger attack is worth more: 3d6 193, 2d6 13 and 9, 1d4 -4
+ok   twin cards tie: 13 and 9
+ok   a card that does nothing is worth nothing: -3 ±5
+ok   the ratings repeat on the other half of the games: correlation 1.00
+  with the hand read too: one twin alone 25, the second on top of it 1; the small attack alone -8, beside the big one -1
+ok   a second copy adds less than the first: the pair term is -21 ±11
+
+=== THE ELEMENTS SET (2v2, kits drawn, each card left out of a hand 1 time in 4) ===
+
+level 3: 20000 fights, median 4 rounds, 2.7% stalled; the ratings repeat on the other half with correlation 0.95
+  held-out loss: 0.5615 knowing the hands, 0.6243 knowing only the kits
+  waterbender
+    L1 Fuet d'aigua (A)                   81 ± 20
+    L2 Mur d'aigua (D)                    51 ± 19
+    L3 Portes al mar (F)                  30 ± 19
+  earthbender
+    L1 Llançament de roca (A)            141 ± 19
+    L2 Mur de pedra (D)                   29 ± 18
+    L3 Esquerda (F)                       28 ± 18
+  firebender
+    L1 Bola de foc (A)                   116 ± 19
+    L2 Mantell de flames (D)             101 ± 19
+    L3 Foc interior (F)                    5 ± 18  no worth shown
+  airbender
+    L1 Ventada (A)                       216 ± 20
+    L3 Vent a favor (F)                   56 ± 19
+    L2 Ràfega desviadora (D)              -0 ± 19  no worth shown
+  mestre-armes
+    L1 Finta traïdora (A)                191 ± 19
+    L3 Retirada sagnant (F)               90 ± 18
+    L2 Retruc d'acer (D)                  38 ± 19
+  acrobacia
+    L3 Rodes de mareig (F)               164 ± 19
+    L1 Escombrada (A)                     12 ± 19  no worth shown
+    L2 Esquiva i traveta (D)             -13 ± 18  no worth shown
+  artifex
+    L3 Autòmat de corda (F)              126 ± 18
+    L1 Bumerang (A)                       65 ± 19
+    L2 Parany de molla (D)                41 ± 18
+  mestre-del-xi
+    L3 Punts de la guàrdia (F)           185 ± 19
+    L1 Cop al nervi (A)                   95 ± 19
+    L2 Pinça entumidora (D)               27 ± 18
+
+level 6: 20000 fights, median 5 rounds, 0.9% stalled; the ratings repeat on the other half with correlation 0.95
+  held-out loss: 0.5854 knowing the hands, 0.6524 knowing only the kits
+  waterbender
+    L6 Llança de gel (A)                 219 ± 20
+    L4 Font curativa (F)                  68 ± 18
+    L2 Mur d'aigua (D)                    15 ± 18  no worth shown
+    L5 Boira espessa (F)                  14 ± 18  no worth shown
+    L1 Fuet d'aigua (A)                    2 ± 18  no worth shown
+    L3 Portes al mar (F)                  -0 ± 18  no worth shown
+  earthbender
+    L4 Allau (A)                         156 ± 19
+    L3 Esquerda (F)                       61 ± 18
+    L5 Trampa de terra (D)                36 ± 18
+    L2 Mur de pedra (D)                   20 ± 18
+    L1 Llançament de roca (A)             -0 ± 18  no worth shown
+    L6 Armadura de terra (F)             -91 ± 18  hurts
+  firebender
+    L6 Fúria de flames (A)               103 ± 18
+    L4 Tempesta d'espurnes (A)            71 ± 18
+    L2 Mantell de flames (D)              27 ± 18
+    L3 Foc interior (F)                   21 ± 18
+    L1 Bola de foc (A)                     5 ± 18  no worth shown
+    L5 Esclat encegador (F)               -7 ± 18  no worth shown
+  airbender
+    L5 Fulles de vent (A)                123 ± 18
+    L3 Vent a favor (F)                   56 ± 18
+    L1 Ventada (A)                        25 ± 18
+    L6 Finta a contrapeu (D)              -1 ± 18  no worth shown
+    L4 Coixí d'aire (F)                   -2 ± 18  no worth shown
+    L2 Ràfega desviadora (D)              -7 ± 18  no worth shown
+  mestre-armes
+    L4 Bufetada insolent (A)             132 ± 18
+    L3 Retirada sagnant (F)               37 ± 18
+    L2 Retruc d'acer (D)                  19 ± 18
+    L6 Braç mort (D)                      16 ± 18  no worth shown
+    L5 Bloqueig d'escorpí (D)              9 ± 18  no worth shown
+    L1 Finta traïdora (A)                  8 ± 18  no worth shown
+  acrobacia
+    L6 Cavalcar l'enemic (A)             114 ± 18
+    L3 Rodes de mareig (F)                44 ± 18
+    L5 Tombarella de rescat (D)           26 ± 18
+    L4 Trampolí de mans (F)               16 ± 18  no worth shown
+    L1 Escombrada (A)                     -2 ± 18  no worth shown
+    L2 Esquiva i traveta (D)             -16 ± 18  no worth shown
+  artifex
+    L5 Ganxo salvavides (D)               53 ± 18
+    L3 Autòmat de corda (F)               46 ± 18
+    L6 Ballesta sentinella (F)            37 ± 18
+    L2 Parany de molla (D)                25 ± 18
+    L1 Bumerang (A)                        6 ± 18  no worth shown
+    L4 Paraigua blindat (D)              -12 ± 17  no worth shown
+  mestre-del-xi
+    L6 Ràfega de dits (A)                265 ± 19
+    L5 Poder apagat (A)                   58 ± 19
+    L3 Punts de la guàrdia (F)            47 ± 19
+    L4 Desbloquejar el cos (F)            24 ± 19
+    L2 Pinça entumidora (D)                7 ± 19  no worth shown
+    L1 Cop al nervi (A)                   -3 ± 19  no worth shown
+
+level 10: 20000 fights, median 3 rounds, 0.2% stalled; the ratings repeat on the other half with correlation 0.92
+  held-out loss: 0.6228 knowing the hands, 0.6685 knowing only the kits
+  waterbender
+    L10 Tsunami (A)                      220 ± 18
+    L8 Forma de pop (D)                   41 ± 17
+    L9 Control de la sang (F)             18 ± 17
+    L1 Fuet d'aigua (A)                   13 ± 17  no worth shown
+    L4 Font curativa (F)                   6 ± 18  no worth shown
+    L7 Marea de vida (F)                   4 ± 18  no worth shown
+    L6 Llança de gel (A)                   3 ± 17  no worth shown
+    L2 Mur d'aigua (D)                     3 ± 18  no worth shown
+    L5 Boira espessa (F)                  -4 ± 18  no worth shown
+    L3 Portes al mar (F)                 -16 ± 17  no worth shown
+  earthbender
+    L10 Terratrèmol (A)                  165 ± 18
+    L8 Búnquer (D)                        25 ± 17
+    L7 Roca viva (F)                      13 ± 17  no worth shown
+    L5 Trampa de terra (D)                10 ± 17  no worth shown
+    L4 Allau (A)                           6 ± 17  no worth shown
+    L6 Armadura de terra (F)               2 ± 17  no worth shown
+    L2 Mur de pedra (D)                   -1 ± 17  no worth shown
+    L3 Esquerda (F)                       -3 ± 17  no worth shown
+    L9 Sorres movedisses (F)              -3 ± 17  no worth shown
+    L1 Llançament de roca (A)             -5 ± 17  no worth shown
+  firebender
+    L10 Supernova (A)                     58 ± 18
+    L5 Esclat encegador (F)               31 ± 18
+    L7 Incendi (A)                        11 ± 17  no worth shown
+    L3 Foc interior (F)                    9 ± 17  no worth shown
+    L8 Llamp (A)                           9 ± 17  no worth shown
+    L6 Fúria de flames (A)                 9 ± 18  no worth shown
+    L2 Mantell de flames (D)               4 ± 17  no worth shown
+    L4 Tempesta d'espurnes (A)            -2 ± 18  no worth shown
+    L1 Bola de foc (A)                   -12 ± 17  no worth shown
+    L9 Anell de foc (F)                  -14 ± 17  no worth shown
+  airbender
+    L10 Tornado (A)                      142 ± 18
+    L3 Vent a favor (F)                   55 ± 18
+    L4 Coixí d'aire (F)                   30 ± 17
+    L1 Ventada (A)                        18 ± 17
+    L9 Asfíxia (F)                        14 ± 17  no worth shown
+    L6 Finta a contrapeu (D)               9 ± 17  no worth shown
+    L5 Fulles de vent (A)                  7 ± 17  no worth shown
+    L2 Ràfega desviadora (D)               6 ± 17  no worth shown
+    L8 Contracorrent (F)                   2 ± 17  no worth shown
+    L7 Remolí (F)                        -11 ± 17  no worth shown
+  mestre-armes
+    L7 Bardissa d'acer (A)                70 ± 17
+    L9 Estocada fantasma (A)              38 ± 17
+    L10 Tall rere tall (A)                28 ± 17
+    L8 Punt feble (F)                     19 ± 17
+    L6 Braç mort (D)                      16 ± 17  no worth shown
+    L1 Finta traïdora (A)                 -1 ± 17  no worth shown
+    L4 Bufetada insolent (A)              -8 ± 17  no worth shown
+    L5 Bloqueig d'escorpí (D)            -10 ± 17  no worth shown
+    L3 Retirada sagnant (F)              -15 ± 17  no worth shown
+    L2 Retruc d'acer (D)                 -15 ± 17  no worth shown
+  acrobacia
+    L9 Malabars a puntades (A)            42 ± 17
+    L10 Capbussó suïcida (A)              37 ± 17
+    L4 Trampolí de mans (F)               23 ± 17
+    L7 Trepitjar caps (A)                 23 ± 17
+    L6 Cavalcar l'enemic (A)              10 ± 17  no worth shown
+    L8 Salt mortal (A)                    10 ± 17  no worth shown
+    L1 Escombrada (A)                      5 ± 17  no worth shown
+    L5 Tombarella de rescat (D)            3 ± 17  no worth shown
+    L2 Esquiva i traveta (D)               2 ± 17  no worth shown
+    L3 Rodes de mareig (F)                 1 ± 17  no worth shown
+  artifex
+    L8 Baldufa de ganivets (A)           126 ± 17
+    L9 Colós de butxaca (D)               37 ± 17
+    L7 Trepant incansable (A)             24 ± 17
+    L5 Ganxo salvavides (D)               23 ± 18
+    L1 Bumerang (A)                        4 ± 17  no worth shown
+    L2 Parany de molla (D)                 3 ± 17  no worth shown
+    L3 Autòmat de corda (F)               -0 ± 17  no worth shown
+    L10 Boa mecànica (A)                 -11 ± 18  no worth shown
+    L4 Paraigua blindat (D)              -12 ± 17  no worth shown
+    L6 Ballesta sentinella (F)           -14 ± 17  no worth shown
+  mestre-del-xi
+    L6 Ràfega de dits (A)                108 ± 18
+    L7 Tocs en cadena (A)                 53 ± 17
+    L8 Cop de vida (F)                    22 ± 17
+    L5 Poder apagat (A)                   17 ± 17
+    L4 Desbloquejar el cos (F)            12 ± 17  no worth shown
+    L9 Toc de la mort (A)                  9 ± 17  no worth shown
+    L1 Cop al nervi (A)                    6 ± 17  no worth shown
+    L2 Pinça entumidora (D)                3 ± 17  no worth shown
+    L3 Punts de la guàrdia (F)             2 ± 17  no worth shown
+    L10 Tempesta de son (A)              -10 ± 17  no worth shown
+
+every control held

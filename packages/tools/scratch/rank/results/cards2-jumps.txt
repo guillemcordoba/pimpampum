@@ -1,0 +1,93 @@
+
+=== THE ELEMENTS SET: unlock jumps, every kit at every level in one pool (40000 fights, median 4 rounds, 1.4% stalled) ===
+  "the card": what a hero of that level gains by holding its newest card. "the rest of the level": that hero without the card against the level below with all its cards (the PV the level brings).
+  waterbender
+    L1  Fuet d'aigua (A)               the card    95 ± 60
+    L2  Mur d'aigua (D)                the card    82 ± 41   the rest of the level   122 ± 87   the jump   204
+    L3  Portes al mar (F)              the card    54 ± 38   the rest of the level    62 ± 63   the jump   116
+    L4  Font curativa (F)              the card    60 ± 39   the rest of the level    28 ± 59   the jump    89
+    L5  Boira espessa (F)              the card    22 ± 38   the rest of the level    89 ± 58   the jump   111  not shown
+    L6  Llança de gel (A)              the card   179 ± 38   the rest of the level    76 ± 57   the jump   255
+    L7  Marea de vida (F)              the card    20 ± 36   the rest of the level    43 ± 56   the jump    64  not shown
+    L8  Forma de pop (D)               the card   101 ± 37   the rest of the level    10 ± 55   the jump   111
+    L9  Control de la sang (F)         the card    43 ± 35   the rest of the level    39 ± 58   the jump    82
+    L10 Tsunami (A)                    the card   183 ± 29   the rest of the level    28 ± 55   the jump   211
+  earthbender
+    L1  Llançament de roca (A)         the card   245 ± 59
+    L2  Mur de pedra (D)               the card    76 ± 40   the rest of the level   150 ± 84   the jump   226
+    L3  Esquerda (F)                   the card    62 ± 37   the rest of the level    44 ± 60   the jump   106
+    L4  Allau (A)                      the card   203 ± 37   the rest of the level    27 ± 55   the jump   231
+    L5  Trampa de terra (D)            the card   -27 ± 36   the rest of the level    60 ± 55   the jump    33  not shown
+    L6  Armadura de terra (F)          the card   -91 ± 36   the rest of the level    73 ± 53   the jump   -18  below zero
+    L7  Roca viva (F)                  the card   227 ± 37   the rest of the level    97 ± 53   the jump   324
+    L8  Búnquer (D)                    the card    17 ± 35   the rest of the level    -2 ± 54   the jump    14  not shown
+    L9  Sorres movedisses (F)          the card    35 ± 34   the rest of the level    16 ± 54   the jump    51
+    L10 Terratrèmol (A)                the card   152 ± 29   the rest of the level   -17 ± 55   the jump   135
+  firebender
+    L1  Bola de foc (A)                the card    43 ± 60  not shown
+    L2  Mantell de flames (D)          the card   273 ± 41   the rest of the level   157 ± 86   the jump   430
+    L3  Foc interior (F)               the card    32 ± 36   the rest of the level    -2 ± 61   the jump    31  not shown
+    L4  Tempesta d'espurnes (A)        the card   224 ± 38   the rest of the level    40 ± 55   the jump   264
+    L5  Esclat encegador (F)           the card    38 ± 36   the rest of the level    72 ± 56   the jump   111
+    L6  Fúria de flames (A)            the card    80 ± 36   the rest of the level    -9 ± 54   the jump    71
+    L7  Incendi (A)                    the card    45 ± 35   the rest of the level    -2 ± 53   the jump    43
+    L8  Llamp (A)                      the card    63 ± 36   the rest of the level    26 ± 54   the jump    90
+    L9  Anell de foc (F)               the card    20 ± 35   the rest of the level    12 ± 56   the jump    33  not shown
+    L10 Supernova (A)                  the card    19 ± 27   the rest of the level    20 ± 55   the jump    39  not shown
+  airbender
+    L1  Ventada (A)                    the card   369 ± 62
+    L2  Ràfega desviadora (D)          the card    32 ± 40   the rest of the level   201 ± 88   the jump   233  not shown
+    L3  Vent a favor (F)               the card    43 ± 38   the rest of the level    96 ± 61   the jump   140
+    L4  Coixí d'aire (F)               the card    16 ± 36   the rest of the level    80 ± 57   the jump    96  not shown
+    L5  Fulles de vent (A)             the card    50 ± 37   the rest of the level    92 ± 53   the jump   143
+    L6  Finta a contrapeu (D)          the card    -4 ± 36   the rest of the level    80 ± 54   the jump    75  not shown
+    L7  Remolí (F)                     the card   -14 ± 35   the rest of the level    17 ± 54   the jump     3  not shown
+    L8  Contracorrent (F)              the card     7 ± 36   the rest of the level    85 ± 54   the jump    93  not shown
+    L9  Asfíxia (F)                    the card     8 ± 34   the rest of the level    33 ± 55   the jump    41  not shown
+    L10 Tornado (A)                    the card   181 ± 28   the rest of the level    46 ± 54   the jump   227
+  mestre-armes
+    L1  Finta traïdora (A)             the card   255 ± 59
+    L2  Retruc d'acer (D)              the card   127 ± 42   the rest of the level   174 ± 84   the jump   301
+    L3  Retirada sagnant (F)           the card    89 ± 37   the rest of the level    -0 ± 62   the jump    88
+    L4  Bufetada insolent (A)          the card   141 ± 38   the rest of the level    16 ± 56   the jump   156
+    L5  Bloqueig d'escorpí (D)         the card     1 ± 36   the rest of the level    45 ± 55   the jump    46  not shown
+    L6  Braç mort (D)                  the card    28 ± 35   the rest of the level     8 ± 53   the jump    35  not shown
+    L7  Bardissa d'acer (A)            the card   249 ± 37   the rest of the level    10 ± 53   the jump   260
+    L8  Punt feble (F)                 the card    13 ± 35   the rest of the level   -24 ± 55   the jump   -11  not shown
+    L9  Estocada fantasma (A)          the card    66 ± 34   the rest of the level    20 ± 55   the jump    86
+    L10 Tall rere tall (A)             the card     2 ± 27   the rest of the level    12 ± 54   the jump    14  not shown
+  acrobacia
+    L1  Escombrada (A)                 the card   142 ± 59
+    L2  Esquiva i traveta (D)          the card   117 ± 39   the rest of the level   119 ± 86   the jump   236
+    L3  Rodes de mareig (F)            the card   159 ± 37   the rest of the level    47 ± 61   the jump   206
+    L4  Trampolí de mans (F)           the card    13 ± 37   the rest of the level    56 ± 57   the jump    69  not shown
+    L5  Tombarella de rescat (D)       the card    64 ± 37   the rest of the level    31 ± 56   the jump    95
+    L6  Cavalcar l'enemic (A)          the card   132 ± 36   the rest of the level    42 ± 55   the jump   174
+    L7  Trepitjar caps (A)             the card   104 ± 36   the rest of the level    44 ± 54   the jump   148
+    L8  Salt mortal (A)                the card    40 ± 35   the rest of the level    17 ± 55   the jump    58
+    L9  Malabars a puntades (A)        the card    99 ± 35   the rest of the level    33 ± 55   the jump   132
+    L10 Capbussó suïcida (A)           the card    26 ± 28   the rest of the level    -6 ± 55   the jump    20  not shown
+  artifex
+    L1  Bumerang (A)                   the card   152 ± 61
+    L2  Parany de molla (D)            the card   149 ± 39   the rest of the level   149 ± 87   the jump   298
+    L3  Autòmat de corda (F)           the card    77 ± 37   the rest of the level    86 ± 60   the jump   163
+    L4  Paraigua blindat (D)           the card     0 ± 36   the rest of the level    62 ± 55   the jump    62  not shown
+    L5  Ganxo salvavides (D)           the card    56 ± 36   the rest of the level    44 ± 53   the jump   100
+    L6  Ballesta sentinella (F)        the card    25 ± 36   the rest of the level    45 ± 53   the jump    70  not shown
+    L7  Trepant incansable (A)         the card   252 ± 37   the rest of the level    74 ± 54   the jump   327
+    L8  Baldufa de ganivets (A)        the card   189 ± 38   the rest of the level    -8 ± 56   the jump   181
+    L9  Colós de butxaca (D)           the card    -9 ± 37   the rest of the level     9 ± 58   the jump     1  not shown
+    L10 Boa mecànica (A)               the card     0 ± 28   the rest of the level    -1 ± 57   the jump    -1  not shown
+  mestre-del-xi
+    L1  Cop al nervi (A)               the card   126 ± 58
+    L2  Pinça entumidora (D)           the card   130 ± 40   the rest of the level    97 ± 83   the jump   227
+    L3  Punts de la guàrdia (F)        the card   176 ± 39   the rest of the level    46 ± 62   the jump   222
+    L4  Desbloquejar el cos (F)        the card   -20 ± 37   the rest of the level    40 ± 58   the jump    20  not shown
+    L5  Poder apagat (A)               the card   170 ± 37   the rest of the level    35 ± 54   the jump   205
+    L6  Ràfega de dits (A)             the card   266 ± 39   the rest of the level    16 ± 54   the jump   282
+    L7  Tocs en cadena (A)             the card   183 ± 37   the rest of the level    -7 ± 55   the jump   176
+    L8  Cop de vida (F)                the card   -11 ± 37   the rest of the level   -26 ± 56   the jump   -37  not shown
+    L9  Toc de la mort (A)             the card    -8 ± 35   the rest of the level    35 ± 58   the jump    27  not shown
+    L10 Tempesta de son (A)            the card     4 ± 27   the rest of the level     2 ± 55   the jump     6  not shown
+
+every control held

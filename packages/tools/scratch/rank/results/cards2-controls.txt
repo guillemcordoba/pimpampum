@@ -1,0 +1,49 @@
+=== CONTROL: unlock jumps on one vanilla kit whose PV grows 2.5 a level (24000 fights, median 5 rounds, 3.3% stalled) ===
+  steps
+    L1  attack 2d4 (A)                 the card   533 ± 45
+    L2  guard 2d6 (D)                  the card    39 ± 13   the rest of the level   103 ± 64   the jump   142
+    L3  a Focus that does nothing (F)  the card    11 ± 13   the rest of the level    76 ± 27   the jump    87  not shown
+    L4  big attack 3d6 (A)             the card   431 ± 23   the rest of the level    54 ± 26   the jump   485
+    L5  a weaker attack than those held (1d6) (A) the card     9 ± 12   the rest of the level    68 ± 36   the jump    77  not shown
+    L6  better guard 3d4+2 (D)         the card    18 ±  9   the rest of the level    49 ± 34   the jump    67
+ok   a card that does nothing unlocks nothing: 11 ±13
+ok   a weaker copy of what is held unlocks nothing: 9 ±12
+ok   the big attack is the big card: 431 against 39 and 18
+ok   the rest of every level (its PV) is worth something: 103, 76, 54, 68, 49
+ok   a level that unlocks a dead card still jumps, by its PV alone: jump 87
+
+every control held
+
+=== CONTROL: value over replacement on one vanilla kit (24000 fights, median 3 rounds, 0.0% stalled) ===
+  swaps
+    L3  attack 4 over its rung (A)       184 ±  9
+    L1  attack on its rung (A)             3 ±  8  no better than vanilla
+    L4  guard far under its rung (1d4) (D)    -4 ±  8  no better than vanilla
+    L2  guard on its rung (D)             -4 ±  8  no better than vanilla
+    L5  the best attack, on its rung (A)    -6 ±  8  no better than vanilla
+    L6  a Focus that does nothing (F)     -7 ±  8  no better than vanilla
+ok   a card on its rung is worth what its replacement is: 3 ±8, -4 ±8, -6 ±8
+ok   a card over its rung is worth more: 184 ±9
+ok   a card under its rung, or one that does nothing, is not worth more: weak guard -4 ±8, dead Focus -7 ±8
+
+every control held
+
+=== CONTROL: Shapley values on one vanilla kit, half of each hand left out (30000 fights, median 4 rounds, 2.0% stalled) ===
+  combo
+    L1  big attack 3d6 (A)             Shapley   207   alone in a hand   367 ± 13
+    L4  guard (D)                      Shapley    74   alone in a hand   216 ± 13
+    L3  twin attack 2d6, the other (A) Shapley    51   alone in a hand   166 ± 12
+    L2  twin attack 2d6 (A)            Shapley    50   alone in a hand   163 ± 12
+    L5  Aim: the next attack of this kit adds 3d6 (F) Shapley    -1   alone in a hand   -10 ± 12
+    L6  a Focus that does nothing (F)  Shapley    -4   alone in a hand   -17 ± 12
+      step on each other: big attack 3d6 + guard -136 ±10
+      step on each other: big attack 3d6 + twin attack 2d6 -103 ±10
+      step on each other: big attack 3d6 + twin attack 2d6, the other -94 ±10
+      step on each other: twin attack 2d6 + twin attack 2d6, the other -90 ±10
+      step on each other: twin attack 2d6, the other + guard -66 ±10
+ok   twins have the same Shapley value: 50 and 51
+ok   the twins step on each other: pair term   -90 ± 10
+ok   Aim alone is worth nothing; with an attack of its kit it is: alone   -10 ± 12; with the big attack     7 ± 10
+ok   the dead card has no Shapley value: -4
+
+every control held

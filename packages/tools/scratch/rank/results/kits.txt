@@ -1,0 +1,127 @@
+=== CONTROLS (vanilla kits on the real engine, PV 15) ===
+
+A. ladder: median 5 rounds, 0.0% stalled
+
+A. ladder, twin, hard schedule: 4000 fights
+                raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+rung8         68.2%   3014     142    14       99        172       0        100      100
+rung7         61.5%   3025      57    12       61         77     -83          0        0
+rung6-hard    26.6%   1816      13    22       48         82    -131          0        0
+rung6         44.8%   1555     -12    18        3        -39    -155          0        0
+rung6-twin    43.8%   1584     -19    18      -28        -42    -162          0        0
+rung5         42.2%   1650     -44    18      -60        -73    -186          0        0
+rung4         32.1%   1632    -137    20     -123       -177    -278          0        0
+  online Elo (K=16, one pass): rank agreement with the batch fit 1.00, gap 23 Elo, a rating moves ±28 with the order of the games
+  TrueSkill: rank agreement 0.96, gap 37 Elo
+  counter table: held-out gain -0.36 ±0.06 thousandths of a nat a game (ridge 300); ladder share 1.00
+  no counter past 3 SE
+ok   ladder in order, every step clear: rung4 -137 < rung5 -44 < rung6 -12 < rung7 57 < rung8 142
+ok   twins tie: rung6 -12, twin -19 (±18)
+ok   a hard schedule is not held against a kit: rung6-hard rates 13 ±22 against rung6's -12, while its raw score is 27% against 44%
+ok   no counter table on a ladder: held-out gain -0.36 ±0.06
+
+B. rock-paper-scissors and a plain kit: 4000 fights
+              raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+plain       50.8%   3445       6    10       -4          5       0         85       23
+paper       51.0%   3456       3     9      -17          5      -1         11       34
+rock        50.4%   3501      -2    10       50         -2      -9          1       25
+scissors    49.5%   3574      -7     9      -29         -7      -1          4       18
+  online Elo (K=16, one pass): rank agreement with the batch fit 0.40, gap 30 Elo, a rating moves ±29 with the order of the games
+  TrueSkill: rank agreement 1.00, gap 1 Elo
+  counter table: held-out gain 120.66 ±0.30 thousandths of a nat a game (ridge 3); ladder share 0.00
+  counters past 3 SE:
+    scissors > paper: +177 ±15
+    paper > rock: +174 ±15
+    rock > scissors: +164 ±15
+ok   the cycle kits rate the same: rock -2, paper 3, scissors -7
+ok   the table shows the cycle: rock>scissors +164, scissors>paper +177, paper>rock +174; held-out gain 120.7 ±0.3
+
+C. rock under three names: 4000 fights
+              raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+paper       65.2%   2854     119    13       73        121      -0         43       47
+rock3       50.5%   2879       3    12       42          4      -1          4       25
+rock2       49.1%   2833      -8    12       -9         -9     -15          0        9
+rock        48.3%   2867     -16    12       -2        -16     -15          0        5
+scissors    39.2%   2939     -98    13     -104       -100       0         53       13
+  online Elo (K=16, one pass): rank agreement with the batch fit 0.90, gap 28 Elo, a rating moves ±35 with the order of the games
+  TrueSkill: rank agreement 1.00, gap 1 Elo
+  counter table: held-out gain 115.09 ±0.47 thousandths of a nat a game (ridge 3); ladder share 0.57
+  counters past 3 SE:
+    scissors > paper: +289 ±22
+    paper > rock3: +100 ±20
+    paper > rock2: +103 ±21
+    rock2 > scissors: +99 ±20
+    rock3 > scissors: +95 ±20
+    rock > scissors: +94 ±20
+    paper > rock: +85 ±20
+ok   clones bend the plain rating: rock -16, paper 119, scissors -98
+ok   Nash averaging does not: rock -15, paper -0, scissors 0
+
+=== THE ELEMENTS SET (2v2, kits drawn at random, the set's own PV) ===
+
+level 3: median 4 rounds, 0.3% stalled
+
+level 3: 6000 fights
+                   raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+airbender        63.6%   2796     115    14      102        126       0        100      100
+mestre-armes     60.6%   2745      94    14      109        102     -24          0        0
+artifex          56.8%   2826      58    13       92         66     -36          0        0
+mestre-del-xi    53.0%   2965      26    12      -21         28    -118          0        0
+earthbender      49.2%   2838     -12    13      -65        -13    -101          0        0
+acrobacia        46.7%   2631     -29    13       90        -32    -136          0        0
+firebender       39.5%   2801     -92    13     -100       -101    -256          0        0
+waterbender      32.9%   2847    -159    15     -208       -176    -256          0        0
+  online Elo (K=16, one pass): rank agreement with the batch fit 0.90, gap 54 Elo, a rating moves ±32 with the order of the games
+  TrueSkill: rank agreement 1.00, gap 9 Elo
+  counter table: held-out gain 8.23 ±0.20 thousandths of a nat a game (ridge 30); ladder share 0.96
+  counters past 3 SE:
+    mestre-del-xi > earthbender: +82 ±21
+    earthbender > mestre-armes: +43 ±22
+    airbender > firebender: +46 ±25
+    mestre-armes > mestre-del-xi: +33 ±22
+  the first seat is worth 9 ±10 Elo
+
+level 6: median 5 rounds, 0.1% stalled
+
+level 6: 6000 fights
+                   raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+mestre-del-xi    70.5%   2831     178    15      237        193       0        100      100
+airbender        55.4%   2854      46    13       53         50    -206          0        0
+firebender       52.7%   2738      13    13       15         15    -200          0        0
+mestre-armes     50.3%   2789      -3    13        5         -3    -144          0        0
+waterbender      46.4%   2768     -30    13      -78        -32    -159          0        0
+artifex          42.6%   2911     -58    13      -36        -63    -230          0        0
+acrobacia        42.9%   2779     -62    13      -93        -67    -262          0        0
+earthbender      41.3%   2821     -84    13     -104        -92    -229          0        0
+  online Elo (K=16, one pass): rank agreement with the batch fit 0.98, gap 31 Elo, a rating moves ±35 with the order of the games
+  TrueSkill: rank agreement 1.00, gap 7 Elo
+  counter table: held-out gain 7.89 ±0.52 thousandths of a nat a game (ridge 30); ladder share 0.95
+  counters past 3 SE:
+    mestre-del-xi > airbender: +72 ±24
+    artifex > earthbender: +55 ±22
+    waterbender > mestre-del-xi: +48 ±23
+    mestre-armes > mestre-del-xi: +37 ±23
+    firebender > waterbender: +34 ±22
+  the first seat is worth 4 ±10 Elo
+
+level 10: median 3 rounds, 0.0% stalled
+
+level 10: 6000 fights
+                   raw      n  rating  ±2SE  Elo K16  TrueSkill    Nash  Nash mix%  α-rank%
+artifex          58.2%   2864      64    12       77         69       0        100      100
+airbender        53.8%   2834      27    12       14         29     -31          0        0
+waterbender      52.6%   2800      21    12        7         20     -48          0        0
+earthbender      52.4%   2790      20    12       36         20     -46          0        0
+mestre-armes     49.0%   2785     -13    12      -21        -14     -93          0        0
+mestre-del-xi    49.3%   2749     -14    12      -14        -16     -72          0        0
+acrobacia        43.9%   2855     -49    12      -71        -52    -127          0        0
+firebender       43.4%   2764     -57    12      -29        -57    -102          0        0
+  online Elo (K=16, one pass): rank agreement with the batch fit 0.88, gap 16 Elo, a rating moves ±28 with the order of the games
+  TrueSkill: rank agreement 1.00, gap 2 Elo
+  counter table: held-out gain 3.19 ±0.38 thousandths of a nat a game (ridge 100); ladder share 0.94
+  counters past 3 SE:
+    firebender > airbender: +36 ±18
+    mestre-armes > firebender: +35 ±18
+  the first seat is worth 5 ±9 Elo
+
+every control held

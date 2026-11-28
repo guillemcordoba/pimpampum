@@ -1,0 +1,269 @@
+=== CONTROLS ===
+
+A. the AI with random cards mixed in, on vanilla kits: 6000 fights, 8 members
+                      raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+noisy 0 (twin)      70.5%   1475     137    18       0         98      100  search
+noisy 0             70.1%   1450     135    18      -4          2        0  search
+noisy 0.25          60.5%   1549      68    16     -68          0        0  search
+noisy 0.5           53.3%   1524      22    16    -112          0        0  search
+noisy 0.75          43.5%   1552     -45    16    -184          0        0  search
+random (clone 2)    34.4%   1450    -101    17    -238          0        0  dumb
+noisy 1             34.0%   1520    -108    17    -242          0        0  dumb
+random (clone 1)    33.9%   1480    -108    17    -245          0        0  dumb
+  counter table: held-out gain -0.03 ±0.05 thousandths of a nat a game (ridge 300); ladder share 1.00
+  no counter past 3.5 SE
+  best aware (noisy 0) − best dumb (random (clone 1)), read on the other half: 228 ±35 Elo → green: dumb play loses; aware share of the Nash mix 100%
+ok   more random cards, lower rating, every step clear: noisy 1: -108 < noisy 0.75: -45 < noisy 0.5: 22 < noisy 0.25: 68 < noisy 0: 135
+ok   twins tie: 135 and 137
+ok   the requirement is green when thinking wins: gap 228 ±35
+
+B. a kit where attacking simply wins (median 4 rounds, 10.9% stalled): 6000 fights, 18 members
+                        raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+always AA             83.5%    620     464    46      -0         28       46  dumb
+spam                  83.3%    684     454    44      -0         11       26  dumb
+first-legal           83.8%    684     453    45      -2          2        9  dumb
+attacks-only          83.1%    657     451    45       0         59       19  dumb
+feeble                80.7%    675     422    43     -52          0        0  dumb
+ai                    80.0%    658     395    44     -40          0        0  search
+always AD             62.7%    687     149    38    -434          0        0  dumb
+state 0.4/0.4/1       58.4%    669      99    38    -487          0        0  state
+always AF             43.3%    678     -79    37    -695          0        0  dumb
+copycat               44.7%    710    -113    35    -204          0        0  reads
+random                39.7%    643    -170    37    -820          0        0  dumb
+counter (opens AD)    32.7%    631    -229    38   -1024          0        0  reads
+counter (opens AA)    31.7%    646    -240    38   -1019          0        0  reads
+counter (opens AF)    28.0%    643    -304    39   -1075          0        0  reads
+turtle                20.3%    681    -374    40   -1202          0        0  dumb
+always DD             20.8%    695    -378    40   -1223          0        0  dumb
+always DF             12.7%    662    -487    46   -1358          0        0  dumb
+always FF             11.2%    677    -514    47   -1439          0        0  dumb
+  counter table: held-out gain 51.62 ±0.83 thousandths of a nat a game (ridge 0.3); ladder share 0.94
+  counters past 3.5 SE (14):
+    always DF > copycat: +676 ±177
+    always FF > copycat: +753 ±198
+    always DD > copycat: +530 ±159
+    turtle > copycat: +508 ±155
+    copycat > feeble: +462 ±159
+    copycat > attacks-only: +491 ±171
+    counter (opens AD) > copycat: +393 ±144
+    copycat > ai: +438 ±160
+    counter (opens AA) > random: +385 ±160
+    copycat > always AD: +302 ±130
+    copycat > spam: +428 ±189
+    copycat > always AA: +384 ±173
+  best aware (ai) − best dumb (always AA), read on the other half: -38 ±94 Elo → RED: a dumb strategy plays as well as the best; aware share of the Nash mix 0%
+ok   red when attacking simply wins: best aware ai, best dumb always AA, gap -38 ±94
+ok   always-attack at the top with the AI, the turtle far below: always AA 464, ai 395, turtle -374
+
+C. a kit built as a triangle (median 4 rounds, 1.3% stalled): 6000 fights, 22 members
+                         raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+always DF              88.1%    569     374    45     -17          0       16  dumb
+counter (opens AD)     77.6%    530     248    37     -61          0        6  reads
+ai                     73.0%    588     202    34       1         65       46  search
+counter (opens AF)     71.0%    524     178    35      -3         15        5  reads
+counter (opens AA)     67.0%    581     138    32     -64          0        2  reads
+always DD              61.6%    542      94    33    -374          0        2  dumb
+turtle                 61.1%    522      85    33    -375          0        1  dumb
+mixer thirds           57.8%    533      59    32     -21          0        4  dumb
+copycat                55.8%    607      51    30     -87          0        2  reads
+random                 56.2%    543      51    32     -97          0        2  dumb
+punish-focus           55.7%    548      42    32    -128          0        1  reads
+always AD              50.5%    547       2    31    -304          0        1  dumb
+guard-if-attacked      41.7%    539     -64    32    -125          0        1  reads
+always FF              40.6%    519     -79    32       0         19        6  dumb
+counter-the-counter    37.6%    498    -102    34    -265          0        1  reads
+state 0.4/0.4/1        36.0%    553    -120    32     -12          0        1  state
+first-legal            28.9%    576    -171    33    -188          0        1  dumb
+spam                   29.1%    525    -173    34    -206          0        1  dumb
+attacks-only           29.3%    573    -174    33    -149          0        1  dumb
+feeble                 28.3%    507    -180    35    -309          0        1  dumb
+always AA              28.1%    523    -192    35    -105          0        0  dumb
+always AF              20.1%    553    -268    37     -37          0        0  dumb
+  counter table: held-out gain 166.35 ±0.23 thousandths of a nat a game (ridge 0.3); ladder share 0.60
+  counters past 3.5 SE (39):
+    always FF > always DF: +1135 ±240
+    counter-the-counter > counter (opens AF): +633 ±148
+    counter-the-counter > counter (opens AA): +854 ±213
+    state 0.4/0.4/1 > always DF: +567 ±163
+    state 0.4/0.4/1 > copycat: +502 ±146
+    always FF > turtle: +806 ±262
+    always FF > always DD: +804 ±262
+    counter-the-counter > counter (opens AD): +512 ±179
+    always AF > ai: +403 ±141
+    always FF > ai: +461 ±163
+    ai > counter (opens AD): +415 ±153
+    random > counter (opens AD): +382 ±142
+  best aware (counter (opens AD)) − best dumb (always DF), read on the other half: -123 ±85 Elo → RED: a dumb strategy plays as well as the best; aware share of the Nash mix 80%
+FAIL the table shows the three edges: always DD > always AA +271 ±374, always FF > always DD +804 ±262, always AA > always FF +685 ±277
+ok   no one-type strategy leads: always AA -192, always DD 94, always FF -79; the top is 374
+  (not a control: the verdict here is RED: counter (opens AD) − always DF = -123 ±85)
+
+=== THE ELEMENTS SET: 47 strategies, randomly paired, the same drawn kit pair both sides ===
+
+level 3 (median 4 rounds, 3.6% stalled): 16000 fights, 47 members
+                                            raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+ai (twice the budget)                     63.2%    663      92    28       0         18        6  search
+ai                                        61.0%    722      78    26       0         17        5  search
+state [0.4,0.4,1]                         59.0%    668      64    27     -27          0        4  state
+guard-if-attacked                         57.9%    661      60    27      -0          4        5  reads
+state [0.7,0,1]                           57.8%    671      57    27      -0          6        4  state
+state [0.7,0.7,0]                         57.0%    646      50    27      -1          2        3  state
+AD for 3 rounds, then AA                  56.7%    707      48    26     -50          0        5  dumb
+punish-focus                              56.5%    685      48    27     -18          0        3  reads
+FF for 1 round, then AA                   56.6%    677      47    27     -23          0        3  dumb
+AF for 1 round, then AA                   56.7%    717      43    26       0          9        3  dumb
+state [0.7,0,2]                           55.8%    693      41    26       0         11        2  state
+state [0.4,0.7,1]                         55.6%    662      40    27     -22          0        2  state
+lean Aggro                                55.3%    665      36    27     -14          0        3  search
+counter (opens AA)                        54.9%    699      32    26     -44          0        3  reads
+counter (opens AF)                        54.0%    661      31    27     -49          0        2  reads
+state [0.7,0.4,0]                         54.8%    707      31    26     -31          0        3  state
+always AF                                 53.9%    659      26    27     -14          0        2  dumb
+attacks+focus                             53.5%    704      25    26     -29          0        2  search
+state [0,0.7,1]                           52.9%    681      24    26      -1          2        2  state
+mix attack 50%, defense 25%, Focus 25%    53.2%    698      23    26     -11          0        3  dumb
+mix attack 50%, defense 0%, Focus 50%     52.8%    673      21    27     -35          0        1  dumb
+heuristic (depth 0)                       52.5%    704      18    26     -20          0        2  search
+always AA                                 52.5%    684      18    26     -13          0        2  dumb
+attacks+defense                           51.6%    668      16    27       0         10        2  search
+always AD                                 52.5%    727      16    26     -31          0        2  dumb
+state [0,0.4,0]                           51.8%    731      15    26      -0          5        2  state
+spam                                      51.4%    650      12    27      -0          3        2  dumb
+first-legal                               51.2%    640      11    27      -0          7        2  dumb
+AD for 1 round, then AA                   51.7%    665      10    27      -0          5        2  dumb
+feeble                                    50.2%    721       7    26      -7          0        2  dumb
+counter (opens AD)                        50.4%    638       5    27     -81          0        2  reads
+lean Protect                              48.7%    680      -7    26     -93          0        1  search
+attacks-only                              47.7%    644     -13    27     -34          0        2  dumb
+FF for 2 rounds, then AA                  48.0%    659     -19    27     -74          0        1  dumb
+random                                    46.7%    723     -19    26     -88          0        1  dumb
+mix attack 50%, defense 50%, Focus 0%     47.2%    666     -19    27      -5          0        1  dumb
+copycat                                   46.6%    684     -24    26     -39          0        2  reads
+lean Power                                46.1%    680     -26    27     -97          0        1  search
+DD for 1 round, then AD                   45.3%    693     -33    26     -81          0        2  dumb
+always DF                                 39.2%    668     -73    27    -101          0        1  dumb
+mix attack 0%, defense 75%, Focus 25%     39.3%    699     -76    27     -99          0        1  dumb
+mix attack 0%, defense 25%, Focus 75%     37.9%    647     -90    28    -209          0        0  dumb
+mix attack 25%, defense 75%, Focus 0%     37.5%    702     -90    27    -113          0        1  dumb
+turtle                                    31.7%    696    -129    28    -196          0        1  dumb
+counter-the-counter                       31.9%    681    -135    28    -214          0        0  reads
+always FF                                 31.5%    691    -136    28    -202          0        0  dumb
+always DD                                 28.9%    640    -157    30    -184          0        0  dumb
+  counter table: held-out gain 37.45 ±0.99 thousandths of a nat a game (ridge 1); ladder share 0.31
+  counters past 3.5 SE (4):
+    counter-the-counter > counter (opens AA): +360 ±182
+    always FF > mix attack 0%, defense 75%, Focus 25%: +399 ±203
+    always FF > mix attack 25%, defense 75%, Focus 0%: +314 ±174
+    DD for 1 round, then AD > always AA: +332 ±189
+  best aware (ai (twice the budget)) − best dumb (AD for 3 rounds, then AA), read on the other half: 42 ±55 Elo → RED: a dumb strategy plays as well as the best; aware share of the Nash mix 70%
+
+level 6 (median 5 rounds, 2.9% stalled): 16000 fights, 47 members
+                                            raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+guard-if-attacked                         66.8%    669     136    29      -0         13       13  reads
+always AA                                 66.1%    621     134    30      -0          6        6  dumb
+lean Aggro                                65.2%    669     121    29     -11          0        5  search
+state [0,0.4,0]                           65.1%    672     119    29       0         26        8  state
+attacks-only                              64.9%    690     118    28      -5          0        6  dumb
+state [0.7,0.7,0]                         64.4%    655     114    29     -21          0        4  state
+ai                                        64.6%    659     111    29      -0          8        8  search
+ai (twice the budget)                     64.1%    703     111    28       0         21        4  search
+spam                                      62.4%    683     108    28      -9          0        8  dumb
+state [0.7,0.4,0]                         62.4%    732     106    27     -10          0        3  state
+attacks+focus                             63.6%    645     103    29     -32          0        2  search
+punish-focus                              63.6%    682     103    28      -0         14        7  reads
+attacks+defense                           63.1%    706      99    28      -0         12       13  search
+AD for 1 round, then AA                   60.4%    714      76    27     -52          0        1  dumb
+AD for 3 rounds, then AA                  59.7%    678      73    28      -8          0        2  dumb
+AF for 1 round, then AA                   58.2%    698      66    27    -102          0        1  dumb
+state [0.4,0.4,1]                         56.7%    688      60    27    -105          0        1  state
+counter (opens AA)                        56.6%    671      58    28    -100          0        1  reads
+always AD                                 56.3%    698      55    27     -69          0        1  dumb
+state [0.4,0.7,1]                         56.0%    714      49    27     -74          0        0  state
+state [0,0.7,1]                           54.3%    648      45    28     -80          0        0  state
+always AF                                 55.7%    678      45    28    -109          0        0  dumb
+FF for 1 round, then AA                   54.7%    689      43    27     -85          0        1  dumb
+mix attack 50%, defense 50%, Focus 0%     54.8%    678      42    27      -7          0        1  dumb
+mix attack 50%, defense 25%, Focus 25%    55.2%    708      40    27     -46          0        1  dumb
+heuristic (depth 0)                       53.8%    691      37    27    -102          0        0  search
+state [0.7,0,1]                           54.1%    712      31    27    -105          0        0  state
+mix attack 50%, defense 0%, Focus 50%     51.9%    694      23    27     -69          0        1  dumb
+state [0.7,0,2]                           51.0%    699      15    27    -119          0        0  state
+lean Protect                              51.2%    678       3    28     -92          0        0  search
+counter (opens AF)                        49.9%    692       2    27    -156          0        0  reads
+counter (opens AD)                        46.9%    671     -19    28    -144          0        0  reads
+DD for 1 round, then AD                   46.9%    703     -21    27     -88          0        0  dumb
+FF for 2 rounds, then AA                  45.8%    682     -23    28    -200          0        0  dumb
+lean Power                                45.4%    663     -23    28    -151          0        0  search
+copycat                                   46.0%    670     -24    28     -78          0        0  reads
+mix attack 25%, defense 75%, Focus 0%     38.5%    644     -86    29    -150          0        0  dumb
+random                                    33.7%    675    -127    29    -246          0        0  dumb
+counter-the-counter                       31.6%    653    -143    30    -219          0        0  reads
+always DF                                 29.9%    685    -159    30    -253          0        0  dumb
+mix attack 0%, defense 25%, Focus 75%     25.6%    699    -197    31    -295          0        0  dumb
+mix attack 0%, defense 75%, Focus 25%     25.5%    685    -201    31    -279          0        0  dumb
+always DD                                 22.5%    706    -222    32    -271          0        0  dumb
+always FF                                 21.5%    688    -233    33    -361          0        0  dumb
+first-legal                               21.5%    608    -248    35    -364          0        0  dumb
+turtle                                    20.4%    660    -255    34    -318          0        0  dumb
+feeble                                    19.2%    694    -265    34    -414          0        0  dumb
+  counter table: held-out gain 14.66 ±0.36 thousandths of a nat a game (ridge 3); ladder share 0.87
+  counters past 3.5 SE (1):
+    turtle > spam: +231 ±125
+  best aware (ai) − best dumb (always AA), read on the other half: -50 ±58 Elo → RED: a dumb strategy plays as well as the best; aware share of the Nash mix 94%
+
+level 10 (median 3 rounds, 1.8% stalled): 16000 fights, 47 members
+                                            raw      n  rating  ±2SE    Nash  Nash mix%  α-rank%  kind
+lean Aggro                                75.5%    669     243    33       0         67       23  search
+state [0,0.4,0]                           74.5%    662     235    33      -1          9       20  state
+attacks-only                              75.2%    704     234    32     -21          0        5  dumb
+always AA                                 73.9%    688     234    32     -24          0        5  dumb
+state [0.7,0.4,0]                         74.6%    694     233    32     -55          0       11  state
+state [0.7,0.7,0]                         74.6%    690     225    32      -1          5        4  state
+guard-if-attacked                         73.3%    646     218    33      -2          0        4  reads
+attacks+defense                           73.7%    684     214    32     -31          0        8  search
+attacks+focus                             71.9%    645     213    32      -1          5        7  search
+ai (twice the budget)                     72.7%    670     208    32      -4          0        4  search
+ai                                        71.6%    687     205    31     -57          0        3  search
+AD for 1 round, then AA                   70.1%    668     182    32      -0         14        6  dumb
+spam                                      66.0%    645     149    31     -94          0        0  dumb
+AD for 3 rounds, then AA                  66.5%    677     147    30     -94          0        1  dumb
+punish-focus                              62.3%    718     122    29     -65          0        0  reads
+AF for 1 round, then AA                   61.4%    651     109    30    -141          0        0  dumb
+always AD                                 58.5%    662      94    30     -45          0        0  dumb
+counter (opens AA)                        58.8%    703      92    29    -162          0        0  reads
+mix attack 50%, defense 50%, Focus 0%     57.5%    677      86    29    -145          0        0  dumb
+heuristic (depth 0)                       57.4%    655      77    30    -168          0        0  search
+mix attack 50%, defense 25%, Focus 25%    55.2%    683      60    29    -188          0        0  dumb
+lean Protect                              53.2%    696      45    29    -175          0        0  search
+always AF                                 53.5%    641      39    31    -156          0        0  dumb
+mix attack 50%, defense 0%, Focus 50%     52.0%    641      28    31    -188          0        0  dumb
+lean Power                                50.8%    708      21    29    -180          0        0  search
+state [0,0.7,1]                           49.4%    700      15    29    -270          0        0  state
+state [0.4,0.4,1]                         48.5%    721      14    29    -214          0        0  state
+state [0.4,0.7,1]                         51.3%    679      13    30    -233          0        0  state
+FF for 1 round, then AA                   50.0%    721      13    29    -289          0        0  dumb
+copycat                                   50.5%    647       9    31     -92          0        0  reads
+DD for 1 round, then AD                   47.3%    672      -4    30    -185          0        0  dumb
+state [0.7,0,1]                           47.8%    657      -5    30    -302          0        0  state
+counter (opens AD)                        44.6%    704     -28    29    -310          0        0  reads
+counter (opens AF)                        43.4%    680     -43    30    -305          0        0  reads
+FF for 2 rounds, then AA                  39.8%    670     -79    31    -331          0        0  dumb
+state [0.7,0,2]                           40.2%    675     -94    31    -347          0        0  state
+mix attack 25%, defense 75%, Focus 0%     36.6%    699     -97    31    -278          0        0  dumb
+counter-the-counter                       30.3%    736    -176    32    -430          0        0  reads
+random                                    24.0%    679    -247    36    -475          0        0  dumb
+always DF                                 20.5%    699    -277    37    -511          0        0  dumb
+mix attack 0%, defense 25%, Focus 75%     19.3%    700    -299    38    -515          0        0  dumb
+always FF                                 16.6%    644    -341    41    -593          0        0  dumb
+mix attack 0%, defense 75%, Focus 25%     16.9%    708    -344    39    -555          0        0  dumb
+turtle                                    11.6%    679    -419    46    -630          0        0  dumb
+first-legal                               11.4%    731    -434    44    -675          0        0  dumb
+always DD                                 11.3%    684    -443    46    -640          0        0  dumb
+feeble                                    11.4%    651    -446    46    -681          0        0  dumb
+  counter table: held-out gain 12.24 ±0.03 thousandths of a nat a game (ridge 3); ladder share 0.96
+  counters past 3.5 SE (2):
+    always FF > counter-the-counter: +280 ±137
+    mix attack 0%, defense 75%, Focus 25% > copycat: +247 ±126
+  best aware (state [0.7,0.7,0]) − best dumb (always AA), read on the other half: -18 ±64 Elo → RED: a dumb strategy plays as well as the best; aware share of the Nash mix 86%
+
+1 CONTROL(S) FAILED

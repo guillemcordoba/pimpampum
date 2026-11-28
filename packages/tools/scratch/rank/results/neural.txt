@@ -1,0 +1,82 @@
+=== CONTROLS (vanilla kits on the real engine, PV 15) ===
+
+A. a ladder of kits
+  held-out loss of the sum of kit ratings: 0.5792 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table         -0.4
+    one rating per side              -3.1
+    neural rating table              -2.2
+    … + 2 counter categories        -0.5
+    … + 3 counter categories        -1.9
+    … + 4 counter categories        -5.8
+    … + 6 counter categories        -7.3
+ok   on a ladder nothing beats the sum: best gain -0.4
+
+B. two kits that are strong only together
+  held-out loss of the sum of kit ratings: 0.6740 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table         -0.3
+    one rating per side              51.7
+    neural rating table              51.0
+    … + 2 counter categories        50.5
+    … + 3 counter categories        48.7
+  the net rates duoX + duoY 426 above two plain kits of their rung; duoX + duoX and duoY + duoY 25 above
+  largest gaps from the sum: duoX + duoY: +301; duoX + duoX: -119; duoY + duoY: -81; duoX + rung6: -58
+ok   the rating of a whole side finds the pair: net gain 51.0, side table 51.7, together − apart 401 Elo
+
+C. rock under three names, paper, scissors
+  held-out loss of the sum of kit ratings: 0.6273 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table        116.0
+    one rating per side               4.2
+    neural rating table               1.5
+    … + 2 counter categories         3.5
+    … + 3 counter categories        81.7
+    … + 4 counter categories        89.9
+    … + 6 counter categories       100.7
+    category 1 (3 sides): paper + rock; paper + scissors; paper + paper
+    category 2 (4 sides): scissors + scissors; rock3 + scissors; rock + scissors; rock2 + scissors
+    category 3 (8 sides): rock2 + rock3; rock + rock; rock + rock2; paper + rock3; paper + rock2; rock2 + rock2; rock + rock3; rock3 + rock3
+    category 2 beats category 1 by 240 Elo beyond the ratings
+    category 1 beats category 3 by 180 Elo beyond the ratings
+    category 3 beats category 2 by 170 Elo beyond the ratings
+ok   three categories recover most of the pair table: 3 categories 81.7, pair table 116.0
+ok   the rock clones share a category; rock, paper and scissors do not: all-rock sides in 1 category; pure rock, paper, scissors sides in 3
+
+=== THE ELEMENTS SET (the kits experiment's fights) ===
+
+level 3: 6000 fights, 36 possible sides
+  held-out loss of the sum of kit ratings: 0.6002 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table          8.3
+    one rating per side               6.0
+    neural rating table               1.1
+    … + 2 counter categories         4.0
+    … + 3 counter categories         2.1
+    … + 4 counter categories        -1.7
+    … + 6 counter categories         0.3
+  largest gaps from the sum of the two kits (Elo): acrobacia + airbender: +94; airbender + artifex: +82; airbender + airbender: -48; acrobacia + mestre-armes: -44; acrobacia + artifex: -30; artifex + earthbender: +30
+  the 2 categories:
+    category 1 (19 sides): waterbender + waterbender; earthbender + firebender; acrobacia + earthbender; acrobacia + waterbender; firebender + mestre-armes; artifex + mestre-del-xi; mestre-del-xi + mestre-del-xi; acrobacia + artifex; firebender + mestre-del-xi; airbender + earthbender; mestre-armes + mestre-armes; artifex + firebender; earthbender + earthbender; airbender + airbender; …
+    category 2 (17 sides): acrobacia + firebender; mestre-armes + mestre-del-xi; artifex + waterbender; mestre-del-xi + waterbender; airbender + artifex; acrobacia + airbender; earthbender + mestre-del-xi; artifex + earthbender; acrobacia + mestre-del-xi; firebender + waterbender; earthbender + waterbender; earthbender + mestre-armes; acrobacia + mestre-armes; acrobacia + acrobacia; …
+    category 2 beats category 1 by 37 Elo beyond the ratings
+
+level 6: 6000 fights, 36 possible sides
+  held-out loss of the sum of kit ratings: 0.6150 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table          7.5
+    one rating per side              -0.3
+    neural rating table              -1.6
+    … + 2 counter categories        -0.8
+    … + 3 counter categories        -2.6
+    … + 4 counter categories        -5.5
+    … + 6 counter categories        -8.0
+  largest gaps from the sum of the two kits (Elo): artifex + artifex: +79; acrobacia + acrobacia: -67; artifex + earthbender: +56; acrobacia + mestre-armes: -49; artifex + waterbender: +44; artifex + firebender: +42
+
+level 10: 6000 fights, 36 possible sides
+  held-out loss of the sum of kit ratings: 0.6711 nats a game. Gain over it, in thousandths (noise is about ±1):
+    sum + pair counter table          4.0
+    one rating per side               2.1
+    neural rating table              -2.0
+    … + 2 counter categories        -0.1
+    … + 3 counter categories        -3.6
+    … + 4 counter categories        -1.6
+    … + 6 counter categories        -5.3
+  largest gaps from the sum of the two kits (Elo): airbender + airbender: +29; mestre-armes + mestre-armes: -24; firebender + mestre-armes: -20; airbender + waterbender: +19; airbender + earthbender: +18; airbender + mestre-del-xi: +17
+
+every control held
