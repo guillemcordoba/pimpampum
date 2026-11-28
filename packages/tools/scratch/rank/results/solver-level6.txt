@@ -1,0 +1,4 @@
+level 6, soldat-del-foc ×7: the solver says PV 6 in 72s
+level 6, shirshu ×2: the solver says PV 25 in 41s
+level 6, unagi ×3: the solver says PV 7 in 26s
+level 6, arquer-yuyan ×2: the solver says PV 55 (held back by the fight-length cap) in 54s

@@ -1,0 +1,4 @@
+level 3, soldat-del-foc ×7: the solver says PV 2 in 18s
+level 3, shirshu ×2: the solver says PV 9 in 9s
+level 3, unagi ×3: the solver says PV 3 in 8s
+level 3, arquer-yuyan ×2: the solver says PV 11 in 17s
